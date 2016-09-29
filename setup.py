@@ -23,4 +23,8 @@ setup(name='tensorforce',
       author_email='mail@reinforce.io',
       license='Apache 2.0',
       packages=['tensorforce'],
+      install_requires=[
+          'tensorflow',
+          'numpy'
+      ],
       zip_safe=False)

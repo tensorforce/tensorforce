@@ -1,1 +1,1 @@
-*** TensorForce - Reinforcement Learning for TensorFlow ***
+*** TensorForce - Modular deep reinforcement learning with TensorFlow ***

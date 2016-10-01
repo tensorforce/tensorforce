@@ -1,3 +1,4 @@
 *.pyc
 /dist/
 /*.egg-info
+/.idea/

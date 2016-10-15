@@ -1,4 +1,5 @@
 import numpy as np
+from six.moves import xrange
 from tensorforce.exceptions.tensorforce_exceptions import ArgumentMustBePositiveException
 from tensorforce.util.experiment_util import global_seed
 
@@ -129,10 +130,8 @@ class ReplayMemory(object):
             batch_rewards[i] = self.rewards.take(end_index, mode='wrap')
             batch_next_states[i] = self.states.take(next_state_index, axis=0, mode='wrap')
 
-        return dict(
-            states=batch_states,
-            actions=batch_actions,
-            rewards=batch_rewards,
-            next_states=batch_next_states,
-            terminals=batch_terminals
-        )
+        return dict(states=batch_states,
+                    actions=batch_actions,
+                    rewards=batch_rewards,
+                    next_states=batch_next_states,
+                    terminals=batch_terminals)

@@ -104,7 +104,7 @@ class ReplayMemory(object):
                                 dtype=self.state_type)
         batch_actions = np.zeros((batch_size, self.action_shape), dtype=self.action_type)
         batch_rewards = np.zeros(batch_size, dtype=self.reward_type)
-        batch_next_states = np.zeros((batch_size, self.sigma_length) + self.state_shape,
+        batch_next_states = np.zeros((batch_size, self.concat_length) + self.state_shape,
                                      dtype=self.state_type)
         batch_terminals = np.zeros(batch_size, dtype='bool')
 

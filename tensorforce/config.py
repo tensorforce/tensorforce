@@ -13,19 +13,23 @@
 # limitations under the License.
 # ==============================================================================
 
-from setuptools import setup
+import os
+import json
 
-setup(name='tensorforce',
-      version='0.1',
-      description='Reinforcement learning for TensorFlow',
-      url='http://github.com/reinforceio/tensorforce',
-      author='reinforce.io',
-      author_email='contact@reinforce.io',
-      license='Apache 2.0',
-      packages=['tensorforce'],
-      install_requires=[
-          'tensorflow',
-          'numpy',
-          'six'
-      ],
-      zip_safe=False)
+"""
+Configuration class that extends dict and reads configuration files 
+(currently only json)
+"""
+
+class Config(dict): 
+    def read_json(self, filename):
+        """
+        Read configuration from json file
+
+        :param filename: path of configuration file
+        """
+        path = os.path.join(os.getcwd(), filename)
+
+        # don't catch, we let open() and json.loads() raise their own exceptions
+        with open(filename, 'r') as f:
+            self.update(json.loads(f.read()))

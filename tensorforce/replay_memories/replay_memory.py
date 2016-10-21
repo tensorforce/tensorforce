@@ -31,7 +31,7 @@ class ReplayMemory(object):
         :param reward_type: Data type of reward function
         :param concat: Whether to apply preprocessing to satisfy Markov property -
         for some environments, single frames do not satisfy the Markov property but
-        a concatenation of frames (for Atari 4) does
+        a concatenation of frames (for Atari 4) does.
         :param concat_length: State preprocessor function sigma, here given as
         length to satisfy Markov property, default 1 means no concatenation of states.
         :param deterministic_mode: If true, global random number generation
@@ -71,7 +71,7 @@ class ReplayMemory(object):
         """
         Inserts an experience tuple to the memory.
 
-        :param state: State observed.
+        :param state: State observed
         :param action: Action(s) taken
         :param reward: Reward seen after taking action
         :param terminal: Boolean whether episode ended
@@ -91,7 +91,7 @@ class ReplayMemory(object):
 
     def sample_batch(self, batch_size):
         """
-        Sample a mini batch of stored experiences
+        Sample a mini batch of stored experiences.
         :param batch_size:
         :return: A Tensor containing experience tuples of length batch_size
 

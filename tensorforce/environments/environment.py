@@ -21,7 +21,7 @@ class Environment(object):
 
     def reset(self):
         """
-        Reset environment and setup for new episode
+        Reset environment and setup for new episode.
 
         :return:
         """
@@ -29,29 +29,11 @@ class Environment(object):
 
     def execute_action(self, action):
         """
-        Executes action, observes next state and reward
+        Executes action, observes next state and reward.
 
         :param action: Action to execute
 
         :return: dict containing next_state, reward, and boolean indicating
             if next state is a terminal state
-        """
-        raise NotImplementedError
-
-    @property
-    def action_space(self):
-        """
-        Get action space
-
-        :return: Object of type tensorforce.spaces.space.Space containing the action space
-        """
-        raise NotImplementedError
-
-    @property
-    def state_space(self):
-        """
-        Return state space
-
-        :return: Object of type tensorforce.spaces.space.Space containing the state space
         """
         raise NotImplementedError

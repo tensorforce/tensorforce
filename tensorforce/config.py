@@ -31,5 +31,5 @@ class Config(dict):
         path = os.path.join(os.getcwd(), filename)
 
         # don't catch, we let open() and json.loads() raise their own exceptions
-        with open(filename, 'r') as f:
+        with open(path, 'r') as f:
             self.update(json.loads(f.read()))

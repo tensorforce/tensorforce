@@ -82,3 +82,21 @@ class DQNAgent(RLAgent):
         self.step_count += 1
 
         return self.value_function.evaluate(state)
+
+    def export_model(self, export_location):
+        """
+        Exports a model to a file.
+
+        :param export_location: Export path
+        :return:
+        """
+        pass
+
+    def import_model(self, model_location):
+        """
+        Imports a model to the agent's value function.
+
+        :param model_location:
+        :return:
+        """
+        pass

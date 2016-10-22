@@ -10,8 +10,8 @@ class DeepQNetwork(object):
     def __init__(self, config):
         self.training_network = None
 
-    def evaluate(self, state):
+    def get_action(self, state):
         pass
 
-    def update(self, batch_size):
+    def update(self, batch):
         pass

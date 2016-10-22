@@ -60,13 +60,13 @@ class DQNAgent(RLAgent):
         :param state: Observed state tensor
         :return: Which action to take
         """
-        action = self.value_function.evaluate(state)
+        action = self.value_function.get_action(state)
 
         return action
 
     def add_observation(self, state, action, reward, terminal):
         """
-        Adds an observation for training purposes
+        Adds an observation for training purposes.
 
         :param state: State observed
         :param action: Action taken in state
@@ -81,9 +81,7 @@ class DQNAgent(RLAgent):
 
         self.step_count += 1
 
-        return self.value_function.evaluate(state)
-
-    def export_model(self, export_location):
+    def save_model(self, export_location):
         """
         Exports a model to a file.
 
@@ -92,7 +90,7 @@ class DQNAgent(RLAgent):
         """
         pass
 
-    def import_model(self, model_location):
+    def load_model(self, model_location):
         """
         Imports a model to the agent's value function.
 

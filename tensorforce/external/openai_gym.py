@@ -56,3 +56,4 @@ class OpenAIGymEnvironment(Environment):
             terminal_state=terminal_state,
             info=info
         )
+

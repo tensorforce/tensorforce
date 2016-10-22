@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-OpenAI Gym Integration: https://gym.openai.com/
+OpenAI Gym Integration: https://gym.openai.com/.
 """
 
 import gym
@@ -22,7 +22,6 @@ from tensorforce.environments.environment import Environment
 
 
 class OpenAIGymEnvironment(Environment):
-
     def __init__(self, gym_id):
         """
         Initialize open ai gym environment.
@@ -30,7 +29,7 @@ class OpenAIGymEnvironment(Environment):
         :param gym_id: string with id/descriptor of thegym environment, e.g. 'CartPole-v0'
         """
         self.gym_id = gym_id
-        self.gym = gym.make(gym_id) # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
+        self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
 
     def reset(self):
         """
@@ -50,10 +49,7 @@ class OpenAIGymEnvironment(Environment):
         """
         state, reward, terminal_state, info = self.gym.step(action)
 
-        return dict(
-            state=state,
-            reward=reward,
-            terminal_state=terminal_state,
-            info=info
-        )
-
+        return dict(state=state,
+                    reward=reward,
+                    terminal_state=terminal_state,
+                    info=info)

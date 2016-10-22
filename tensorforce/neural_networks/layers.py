@@ -14,21 +14,16 @@
 # ==============================================================================
 
 
-import numpy as np
-
-"""
-Basic Reinforcement learning agent. An agent encapsulates execution logic
-of a particular reinforcement learning algorithm and defines the external interface
-to the environment. The agent hence acts an intermediate layer between environment
-and backend execution (value function or policy updates).
-"""
+class DenseLayer(object):
+    def __init__(self):
+        pass
 
 
-class RLAgent(object):
-    pass
+class ConvolutionLayer(object):
+    def __init__(self):
+        pass
 
-    def get_action(self, state):
-        raise NotImplementedError
 
-    def add_observation(self, state, action, reward, terminal):
-        raise NotImplementedError
+class LSTMLayer(object):
+    def __init__(self):
+        pass

@@ -18,6 +18,7 @@ OpenAI DQN
 """
 
 import argparse
+from six.moves import xrange
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.rl_agents.dqn_agent import DQNAgent
 

@@ -13,26 +13,4 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Base environment class
-"""
 
-class Environment(object):
-
-    def reset(self):
-        """
-        Reset environment and setup for new episode.
-
-        :return: initial state
-        """
-        raise NotImplementedError
-
-    def execute_action(self, action):
-        """
-        Executes action, observes next state and reward.
-
-        :param action: Action to execute
-
-        :return: dict containing at least next_state, reward, and terminal_state
-        """
-        raise NotImplementedError

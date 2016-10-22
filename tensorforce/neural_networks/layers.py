@@ -13,17 +13,28 @@
 # limitations under the License.
 # ==============================================================================
 
+"""
+Standard neural network layer implementations.
+"""
+from tensorforce.neural_networks.base_layer import BaseLayer
+import tensorflow as tf
 
-class DenseLayer(object):
+
+class InputLayer(BaseLayer):
     def __init__(self):
         pass
 
 
-class ConvolutionLayer(object):
+class DenseLayer(BaseLayer):
     def __init__(self):
         pass
 
 
-class LSTMLayer(object):
+class ConvolutionLayer(BaseLayer):
+    def __init__(self):
+        pass
+
+
+class LSTMLayer(BaseLayer):
     def __init__(self):
         pass

@@ -53,7 +53,7 @@ def main():
 
             result = env.execute_action(action)
 
-            agent.add_sample(state, action, result['reward'], result['terminal_state'])
+            agent.add_observation(state, action, result['reward'], result['terminal_state'])
 
             state = result['state']
             if result['terminal_state']:

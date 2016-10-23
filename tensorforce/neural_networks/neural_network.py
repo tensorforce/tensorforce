@@ -34,20 +34,23 @@ def get_network(config, scope='value_function'):
 
         type_counter = {}
 
+        if not config['layers']:
+            raise ValueError("Invalid configuration, missing layer specification.")
+
         first_layer = True
-        input = config['input']  # for the first layer
+        network_input = config['input']  # for the first layer
         for layer in config['layers']:
-            type = layer['type']
+            layer_type = layer['type']
 
             if first_layer:
                 name = 'input'
                 first_layer = False
             else:
-                type_count = type_counter.get(type, 0)
-                name = "{type}{num}".format(type=type, num=type_count+1)
-                type_counter.update({type: type_count+1})
+                type_count = type_counter.get(layer_type, 0)
+                name = "{type}{num}".format(type=layer_type, num=type_count + 1)
+                type_counter.update({layer_type: type_count + 1})
 
-            network = layers[type](input, layer, name)
-            input = network  # for all subsequent layers
+            network = layers[layer_type](network_input, layer, name)
+            network_input = network  # for all subsequent layers
 
-    return network
+        return network

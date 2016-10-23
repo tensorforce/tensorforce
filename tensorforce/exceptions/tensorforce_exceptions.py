@@ -1,10 +1,14 @@
-class TensorForceException(Exception):
+class TensorForceError(Exception):
     pass
 
 
-class TensorForceValueException(TensorForceException):
+class TensorForceValueError(TensorForceError):
     pass
 
 
-class ArgumentMustBePositiveException(TensorForceValueException):
+class ArgumentMustBePositiveError(TensorForceValueError):
+    pass
+
+
+class ConfigError(TensorForceValueError):
     pass

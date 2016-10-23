@@ -20,7 +20,7 @@ mini batches for training from.
 
 import numpy as np
 from six.moves import xrange
-from tensorforce.exceptions.tensorforce_exceptions import ArgumentMustBePositiveException
+from tensorforce.exceptions.tensorforce_exceptions import ArgumentMustBePositiveError
 from tensorforce.util.experiment_util import global_seed
 
 
@@ -113,7 +113,7 @@ class ReplayMemory(object):
         """
 
         if batch_size < 0:
-            raise ArgumentMustBePositiveException('Batch size must be positive')
+            raise ArgumentMustBePositiveError('Batch size must be positive')
 
         batch_states = np.zeros((batch_size, self.concat_length) + self.state_shape,
                                 dtype=self.state_type)

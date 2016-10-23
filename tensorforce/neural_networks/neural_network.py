@@ -16,6 +16,7 @@
 import tensorflow as tf
 from six.moves import xrange
 
+from tensorforce.exceptions.tensorforce_exceptions import ConfigError
 from tensorforce.neural_networks.layers import layers
 
 tf_slim = tf.contrib.slim
@@ -35,7 +36,7 @@ def get_network(config, scope='value_function'):
         type_counter = {}
 
         if not config['layers']:
-            raise ValueError("Invalid configuration, missing layer specification.")
+            raise ConfigError("Invalid configuration, missing layer specification.")
 
         first_layer = True
         network_input = config['input']  # for the first layer

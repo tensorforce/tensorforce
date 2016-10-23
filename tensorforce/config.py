@@ -13,13 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-import os
-import json
-
 """
 Configuration class that extends dict and reads configuration files 
 (currently only json)
 """
+
+import os
+import json
 
 class Config(dict): 
     def read_json(self, filename):

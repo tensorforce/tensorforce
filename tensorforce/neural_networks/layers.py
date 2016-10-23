@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# =====
+# ==============================================================================
+
 """
 Creates various neural network layers. For most layers, these functions use
 TF-slim layer types. The purpose of this class is to encapsulate
-layer types to mix between layers available in TF-slim and custom implementations
+layer types to mix between layers available in TF-slim and custom implementations.
 """
 
 import tensorflow as tf

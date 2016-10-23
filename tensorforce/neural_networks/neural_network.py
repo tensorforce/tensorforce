@@ -11,7 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# =====
+# ==============================================================================
+
+"""
+Creates neural networks from a configuration dict.
+"""
 
 import tensorflow as tf
 from six.moves import xrange

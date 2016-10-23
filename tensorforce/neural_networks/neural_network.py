@@ -32,9 +32,11 @@ def get_network(config, scope='value_function'):
     network = None
 
     with tf.variable_scope(scope, [config['input_shape']]) as sc:
-
         layer_config = config['layers']
+
+        network = layers[layer_config[0]['type']](config['input'], layer_config[0], 'input')
+
         for i in config['layer_count']:
-            network = layers(layer_config[i])
+            network = layers[layer_config[i  + 1]['type']](network, layer_config[i + 1], 'input')
 
     return network

@@ -11,30 +11,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
+# =====
+"""
+Creates various neural network layers. For most layers, these functions use
+TF-slim layer types. The purpose of this class is to encapsulate
+layer types to mix between layers available in TF-slim and custom implementations
+"""
 
-"""
-Standard neural network layer implementations.
-"""
-from tensorforce.neural_networks.base_layer import BaseLayer
 import tensorflow as tf
 
-
-class InputLayer(BaseLayer):
-    def __init__(self):
-        pass
+tf_slim = tf.contrib.slim
 
 
-class DenseLayer(BaseLayer):
-    def __init__(self):
-        pass
+def dense(input_handle, config, scope):
+    """
+
+    :param config: Layer config
+    :param input: Input to the layer, e.g. handle to another layer
+    :param scope: Layer name
+    :return:
+    """
+    return tf_slim.fully_connected(input_handle, config['neurons'],
+                                   weights_initializer=config['weight_init'],
+                                   biases_initializer=config['bias_init'],
+                                   activation_fn=config['activation'],
+                                   weights_regularizer=config['regularization'],
+                                   scope=scope)
 
 
-class ConvolutionLayer(BaseLayer):
-    def __init__(self):
-        pass
+layers = {
+    'dense': dense
 
-
-class LSTMLayer(BaseLayer):
-    def __init__(self):
-        pass
+}

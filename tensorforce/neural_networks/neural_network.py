@@ -14,6 +14,7 @@
 # =====
 
 import tensorflow as tf
+from six.moves import xrange
 
 from tensorforce.neural_networks.layers import layers
 
@@ -29,14 +30,12 @@ def get_network(config, scope='value_function'):
     :return: A TensorFlow network
     """
 
-    network = None
-
     with tf.variable_scope(scope, [config['input_shape']]) as sc:
         layer_config = config['layers']
 
         network = layers[layer_config[0]['type']](config['input'], layer_config[0], 'input')
 
-        for i in config['layer_count']:
-            network = layers[layer_config[i  + 1]['type']](network, layer_config[i + 1], 'input')
+        for i in xrange(config['layer_count'] - 1):
+            network = layers[layer_config[i + 1]['type']](network, layer_config[i + 1], 'input')
 
     return network

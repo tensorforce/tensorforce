@@ -31,11 +31,23 @@ def get_network(config, scope='value_function'):
     """
 
     with tf.variable_scope(scope, [config['input_shape']]) as sc:
-        layer_config = config['layers']
 
-        network = layers[layer_config[0]['type']](config['input'], layer_config[0], 'input')
+        type_counter = {}
 
-        for i in xrange(config['layer_count'] - 1):
-            network = layers[layer_config[i + 1]['type']](network, layer_config[i + 1], 'input')
+        first_layer = True
+        input = config['input']  # for the first layer
+        for layer in config['layers']:
+            type = layer['type']
+
+            if first_layer:
+                name = 'input'
+                first_layer = False
+            else:
+                type_count = type_counter.get(type, 0)
+                name = "{type}{num}".format(type=type, num=type_count+1)
+                type_counter.update({type: type_count+1})
+
+            network = layers[type](input, layer, name)
+            input = network  # for all subsequent layers
 
     return network

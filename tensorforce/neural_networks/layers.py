@@ -26,13 +26,15 @@ tf_slim = tf.contrib.slim
 
 def dense(input_handle, config, scope):
     """
+    Fully connected layer.
 
     :param config: Layer config
     :param input: Input to the layer, e.g. handle to another layer
     :param scope: Layer name
     :return:
     """
-    return tf_slim.fully_connected(input_handle, config['neurons'],
+    return tf_slim.fully_connected(input_handle,
+                                   config['neurons'],
                                    weights_initializer=config['weight_init'],
                                    biases_initializer=config['bias_init'],
                                    activation_fn=config['activation'],
@@ -40,7 +42,26 @@ def dense(input_handle, config, scope):
                                    scope=scope)
 
 
-layers = {
-    'dense': dense
+def conv2d(input_handle, config, scope):
+    """
+    Convolutional 2d layer.
 
+    :param config: Layer config
+    :param input: Input to the layer, e.g. handle to another layer
+    :param scope: Layer name
+    :return:
+    """
+    return tf_slim.conv2d(input_handle,
+                          config['neurons'],
+                          config['conv_filter_shape'],
+                          weights_initializer=config['weight_init'],
+                          biases_initializer=config['bias_init'],
+                          activation_fn=config['activation'],
+                          weights_regularizer=config['regularization'],
+                          scope=scope)
+
+
+layers = {
+    'dense': dense,
+    'conv2d': conv2d
 }

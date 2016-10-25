@@ -13,9 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
-import numpy as np
-
 """
 Basic Reinforcement learning agent. An agent encapsulates execution logic
 of a particular reinforcement learning algorithm and defines the external interface
@@ -25,7 +22,6 @@ and backend execution (value function or policy updates).
 
 
 class RLAgent(object):
-    pass
 
     def get_action(self, state):
         raise NotImplementedError

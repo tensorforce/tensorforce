@@ -14,19 +14,20 @@
 # ==============================================================================
 
 """
-OpenAI DQN
+OpenAI gym runner
 """
 
 import argparse
 from six.moves import xrange
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
-from tensorforce.rl_agents.dqn_agent import DQNAgent
+from tensorforce.util.agent_util import create_agent
 
 
 def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="ID of the gym environment")
+    parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-e', '--episodes', type=int, default=100, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=100, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
@@ -34,18 +35,19 @@ def main():
     args = parser.parse_args()
 
     gym_id = args.gym_id
+
     episodes = args.episodes
     report_episodes = episodes // 10
 
     max_timesteps = args.max_timesteps
 
     env = OpenAIGymEnvironment(gym_id)
-    agent = DQNAgent(agent_config={}, network_config={}) # TODO: Provide configurations
+    agent = create_agent(args.agent, agent_config={}, value_config={}) # TODO: Provide configurations
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
 
-    print("Starting DQN learner for OpenAI Gym '{gym_id}'".format(gym_id=gym_id))
+    print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     for i in xrange(episodes):
         state = env.reset()
         for j in xrange(max_timesteps):

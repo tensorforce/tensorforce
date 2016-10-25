@@ -83,8 +83,9 @@ class DeepQNetwork(object):
 
     def update(self, batch):
         """
-        Perform a single training step.
-        :param batch: Mini batch to use for training.
+        Perform a single training step and updates the target network.
+
+        :param batch: Mini batch to use for training
         :return:
         """
         float_terminals = np.array(batch['terminals'], dtype=float)
@@ -114,7 +115,7 @@ class DeepQNetwork(object):
 
             # Not sure if slim's network works like this
             q_values_actions_taken = tf.reduce_sum(self.batch_q_values * actions_one_hot, reduction_indices=1,
-                                                 name = 'q_acted')
+                                                   name='q_acted')
 
             # Mean squared error
             self.loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')

@@ -140,5 +140,4 @@ class DeepQNetwork(object):
         with tf.name_scope("update_target"):
             for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
                 operation = v_target.assign_sub(self.tau * (v_target - v_source))
-
-               self.target_network_update.append(operation)
+                self.target_network_update.append(operation)

@@ -75,6 +75,12 @@ class DeepQNetwork(object):
         self.session.run(tf.initialize_all_variables())
 
     def get_action(self, state):
+        """
+        Returns the predicted action for a given state.
+        :param state: State tensor
+        :return:
+        """
+
         if self.random.random_sample() < self.epsilon:
             return self.random.randint(0, self.actions - 1)
         else:
@@ -89,7 +95,7 @@ class DeepQNetwork(object):
         :return:
         """
         float_terminals = np.array(batch['terminals'], dtype=float)
-        q_targets = self.session.run(self.target_values, {self.next_states: batch['next_states']})[0]
+        q_targets = self.session.run(self.target_values, {self.next_states: batch['next_states']})
         y = batch['rewards'] + (1. - float_terminals) * self.gamma * q_targets
 
         # Use y values to compute loss and update
@@ -107,6 +113,7 @@ class DeepQNetwork(object):
         target network updates.
         :return:
         """
+
         with tf.name_scope("training"):
             self.q_targets = tf.placeholder('float32', [None], name='batch_q_targets')
             self.batch_actions = tf.placeholder('int64', [None], name='batch_actions')
@@ -133,4 +140,5 @@ class DeepQNetwork(object):
         with tf.name_scope("update_target"):
             for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
                 operation = v_target.assign_sub(self.tau * (v_target - v_source))
-                self.target_network_update.append(operation)
+
+               self.target_network_update.append(operation)

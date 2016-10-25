@@ -40,6 +40,7 @@ def get_network(config, scope='value_function'):
 
         first_layer = True
         network_input = config['input']  # for the first layer
+
         for layer in config['layers']:
             layer_type = layer['type']
 

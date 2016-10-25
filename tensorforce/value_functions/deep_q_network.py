@@ -4,14 +4,116 @@ in the DQN paper.
 """
 import tensorflow as tf
 
+from tensorforce.neural_networks.neural_network import get_network
+from tensorforce.util.experiment_util import global_seed
+import numpy as np
+
 
 class DeepQNetwork(object):
+    def __init__(self, agent_config, network_config, deterministic_mode=False):
 
-    def __init__(self, config):
-        self.training_network = None
+        # TODO session/executioner config
+        self.target_network_update = []
+        self.session = tf.Session()
+        self.agent_config = agent_config
+        self.training_network = get_network(network_config, 'training')
+        self.target_network = get_network(network_config, 'target')
+
+        # TODO which config does this belong in? the separation of configs is somewhat artificial
+        self.tau = network_config['tau']
+        self.actions = network_config['actions']
+        self.epsilon = network_config['epsilon']
+
+        # Discount y
+        self.gamma = network_config['gamma']
+
+        # Learning rate
+        self.alpha = network_config['alpha']
+
+        # Forward Variables
+        self.q_values = tf.identity(self.training_network(self.state), name="q_values")
+        self.batch_q_values = tf.identity(self.training_network(self.batch_states), name="batch_q_values")
+        self.dqn_action = tf.argmax(self.q_values, dimension=1, name='dqn_action')
+
+        # Predicted max value of target network
+        self.target_values = tf.reduce_max(self.target_network, reduction_indices=1, name='target_values')
+
+        if agent_config['clip_gradients']:
+            self.gradient_clipping = agent_config['clip_value']
+
+        if deterministic_mode:
+            self.random = global_seed()
+        else:
+            self.random = np.random.RandomState()
+
+        # Create training operations
+        self.create_training_operations()
+        self.state = tf.placeholder(tf.float32, None, name="state")
+        self.batch_states = tf.placeholder(tf.float32, None, name="batch_states")
+        self.next_states = tf.placeholder(tf.float32, None, name="next_states")
+
+        # TODO make configurable
+        self.optimizer = tf.train.AdamOptimizer(self.alpha)
+
+        # Everything setup, run TF initializer
+        self.session.run(tf.initialize_all_variables())
 
     def get_action(self, state):
-        pass
+        if self.random.random_sample() < self.epsilon:
+            return self.random.randint(0, self.actions - 1)
+        else:
+            # TODO partial run here?
+            return self.session.run(self.dqn_action, {self.state: state})[0]
 
     def update(self, batch):
-        pass
+        """
+        Perform a single training step.
+        :param batch: Mini batch to use for training.
+        :return:
+        """
+        float_terminals = np.array(batch['terminals'], dtype=float)
+        q_targets = self.session.run(self.target_values, {self.next_states: batch['next_states']})[0]
+        y = batch['rewards'] + (1. - float_terminals) * self.gamma * q_targets
+
+        # Use y values to compute loss and update
+        self.session.run([self.optimize_op, self.training_network, self.loss], {
+            self.q_targets: y,
+            self.batch_actions: batch['actions'],
+            self.batch_states: batch['states']})
+
+        # Update target network
+        self.session.run(self.target_network_update)
+
+    def create_training_operations(self):
+        """
+        Create graph operations for loss computation and
+        target network updates.
+        :return:
+        """
+        with tf.name_scope("training"):
+            self.q_targets = tf.placeholder('float32', [None], name='batch_q_targets')
+            self.batch_actions = tf.placeholder('int64', [None], name='batch_actions')
+
+            actions_one_hot = tf.one_hot(self.batch_actions, self.actions, 1.0, 0.0, name='one_hot')
+
+            # Not sure if slim's network works like this
+            q_values_actions_taken = tf.reduce_sum(self.batch_q_values * actions_one_hot, reduction_indices=1,
+                                                 name = 'q_acted')
+
+            # Mean squared error
+            self.loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
+
+            if self.gradient_clipping is not None:
+                grads_and_vars = self.optimizer.compute_gradients(self.loss)
+                for idx, (grad, var) in enumerate(grads_and_vars):
+                    if grad is not None:
+                        grads_and_vars[idx] = (tf.clip_by_norm(grad, self.gradient_clipping), var)
+                self.optimize_op = self.optimizer.apply_gradients(grads_and_vars)
+            else:
+                self.optimize_op = self.optimizer.apply_gradients(self.loss)
+
+        # Update target network with update weight tau
+        with tf.name_scope("update_target"):
+            for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
+                operation = v_target.assign_sub(self.tau * (v_target - v_source))
+                self.target_network_update.append(operation)

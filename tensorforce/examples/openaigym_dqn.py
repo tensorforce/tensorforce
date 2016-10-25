@@ -40,7 +40,7 @@ def main():
     max_timesteps = args.max_timesteps
 
     env = OpenAIGymEnvironment(gym_id)
-    agent = DQNAgent(agent_config={}, value_config={}) # TODO: Provide configurations
+    agent = DQNAgent(agent_config={}, network_config={}) # TODO: Provide configurations
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)

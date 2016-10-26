@@ -93,13 +93,11 @@ class DeepQNetwork(object):
         y = batch['rewards'] + (1. - float_terminals) * self.gamma * q_targets
 
         # Use y values to compute loss and update
-        self.session.run([self.optimize_op, self.training_network, self.loss], {
-            self.q_targets: y,
-            self.batch_actions: batch['actions'],
-            self.batch_states: batch['states']})
-
-        # Update target network
-        self.session.run(self.target_network_update)
+        self.session.run([self.optimize_op, self.training_network,
+                          self.loss, self.target_network_update], {
+                             self.q_targets: y,
+                             self.batch_actions: batch['actions'],
+                             self.batch_states: batch['states']})
 
     def create_training_operations(self):
         """

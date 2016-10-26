@@ -39,20 +39,8 @@ class DeepQNetwork(object):
         self.tau = network_config['tau']
         self.actions = network_config['actions']
         self.epsilon = network_config['epsilon']
-
-        # Discount y
         self.gamma = network_config['gamma']
-
-        # Learning rate
         self.alpha = network_config['alpha']
-
-        # Forward Variables
-        self.q_values = tf.identity(self.training_network(self.state), name="q_values")
-        self.batch_q_values = tf.identity(self.training_network(self.batch_states), name="batch_q_values")
-        self.dqn_action = tf.argmax(self.q_values, dimension=1, name='dqn_action')
-
-        # Predicted max value of target network
-        self.target_values = tf.reduce_max(self.target_network, reduction_indices=1, name='target_values')
 
         if agent_config['clip_gradients']:
             self.gradient_clipping = agent_config['clip_value']
@@ -62,16 +50,22 @@ class DeepQNetwork(object):
         else:
             self.random = np.random.RandomState()
 
-        # Create training operations
-        self.create_training_operations()
+        # Input placeholder
         self.state = tf.placeholder(tf.float32, None, name="state")
         self.batch_states = tf.placeholder(tf.float32, None, name="batch_states")
         self.next_states = tf.placeholder(tf.float32, None, name="next_states")
 
-        # TODO make configurable
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
+        # Forward Variables
+        self.batch_q_values = tf.identity(self.training_network(self.batch_states), name="batch_q_values")
+        self.dqn_action = tf.argmax(self.training_network(self.state), dimension=1, name='dqn_action')
 
-        # Everything setup, run TF initializer
+        # Predicted max value of target network
+        self.target_values = tf.reduce_max(self.target_network, reduction_indices=1, name='target_values')
+
+        # Create training operations
+        self.create_training_operations()
+
+        self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.session.run(tf.initialize_all_variables())
 
     def get_action(self, state):
@@ -140,4 +134,5 @@ class DeepQNetwork(object):
         with tf.name_scope("update_target"):
             for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
                 operation = v_target.assign_sub(self.tau * (v_target - v_source))
+
                 self.target_network_update.append(operation)

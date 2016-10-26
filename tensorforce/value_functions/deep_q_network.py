@@ -55,22 +55,16 @@ class DeepQNetwork(object):
         self.batch_states = tf.placeholder(tf.float32, None, name="batch_states")
         self.next_states = tf.placeholder(tf.float32, None, name="next_states")
 
-        # Forward Variables
-        self.batch_q_values = tf.identity(self.training_network(self.batch_states), name="batch_q_values")
-        self.dqn_action = tf.argmax(self.training_network(self.state), dimension=1, name='dqn_action')
-
-        # Predicted max value of target network
-        self.target_values = tf.reduce_max(self.target_network, reduction_indices=1, name='target_values')
-
         # Create training operations
+        self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.create_training_operations()
 
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.session.run(tf.initialize_all_variables())
 
     def get_action(self, state):
         """
         Returns the predicted action for a given state.
+
         :param state: State tensor
         :return:
         """
@@ -103,16 +97,23 @@ class DeepQNetwork(object):
         """
         Create graph operations for loss computation and
         target network updates.
+
         :return:
         """
+
+        with tf.name_scope("predict"):
+            self.dqn_action = tf.argmax(self.training_network(self.state), dimension=1, name='dqn_action')
+
+        with tf.name_scope("target_values"):
+            self.target_values = tf.reduce_max(self.target_network, reduction_indices=1, name='target_values')
 
         with tf.name_scope("training"):
             self.q_targets = tf.placeholder('float32', [None], name='batch_q_targets')
             self.batch_actions = tf.placeholder('int64', [None], name='batch_actions')
 
-            actions_one_hot = tf.one_hot(self.batch_actions, self.actions, 1.0, 0.0, name='one_hot')
+            actions_one_hot = tf.one_hot(self.batch_actions, self.actions, 1.0, 0.0)
 
-            # Not sure if slim's network works like this
+            self.batch_q_values = tf.identity(self.training_network(self.batch_states), name="batch_q_values")
             q_values_actions_taken = tf.reduce_sum(self.batch_q_values * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 

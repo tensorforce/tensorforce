@@ -30,7 +30,6 @@ class DeepQNetwork(object):
 
         # TODO session/executioner config
         self.target_network_update = []
-        self.session = tf.Session()
         self.agent_config = agent_config
         self.training_network = get_network(network_config, 'training')
         self.target_network = get_network(network_config, 'target')
@@ -50,7 +49,7 @@ class DeepQNetwork(object):
         else:
             self.random = np.random.RandomState()
 
-        # Input placeholder
+        # Input placeholders
         self.state = tf.placeholder(tf.float32, None, name="state")
         self.batch_states = tf.placeholder(tf.float32, None, name="batch_states")
         self.next_states = tf.placeholder(tf.float32, None, name="next_states")
@@ -58,7 +57,7 @@ class DeepQNetwork(object):
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.create_training_operations()
-
+        self.session = tf.Session()
         self.session.run(tf.initialize_all_variables())
 
     def get_action(self, state):
@@ -105,7 +104,7 @@ class DeepQNetwork(object):
             self.dqn_action = tf.argmax(self.training_network(self.state), dimension=1, name='dqn_action')
 
         with tf.name_scope("target_values"):
-            self.target_values = tf.reduce_max(self.target_network, reduction_indices=1, name='target_values')
+            self.target_values = tf.reduce_max(self.target_network(self.next_states), reduction_indices=1, name='target_values')
 
         with tf.name_scope("training"):
             self.q_targets = tf.placeholder('float32', [None], name='batch_q_targets')
@@ -122,6 +121,7 @@ class DeepQNetwork(object):
 
             if self.gradient_clipping is not None:
                 grads_and_vars = self.optimizer.compute_gradients(self.loss)
+
                 for idx, (grad, var) in enumerate(grads_and_vars):
                     if grad is not None:
                         grads_and_vars[idx] = (tf.clip_by_norm(grad, self.gradient_clipping), var)

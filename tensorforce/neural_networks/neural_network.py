@@ -35,7 +35,7 @@ def get_network(config, scope='value_function'):
     :return: A TensorFlow network
     """
 
-    with tf.variable_scope(scope, [config['input_shape']]) as sc:
+    with tf.variable_scope(scope):
 
         type_counter = {}
 

@@ -35,11 +35,11 @@ class DeepQNetwork(object):
         self.target_network = get_network(network_config, 'target')
 
         # TODO which config does this belong in? the separation of configs is somewhat artificial
-        self.tau = network_config['tau']
-        self.actions = network_config['actions']
-        self.epsilon = network_config['epsilon']
-        self.gamma = network_config['gamma']
-        self.alpha = network_config['alpha']
+        self.tau = agent_config['tau']
+        self.actions = agent_config['actions']
+        self.epsilon = agent_config['epsilon']
+        self.gamma = agent_config['gamma']
+        self.alpha = agent_config['alpha']
 
         if agent_config['clip_gradients']:
             self.gradient_clipping = agent_config['clip_value']
@@ -118,17 +118,17 @@ class DeepQNetwork(object):
                                                    name='q_acted')
 
             # Mean squared error
-            self.loss = tf.reduce_mean(tf.square(q_targets - q_values_actions_taken), name='loss')
+            loss = tf.reduce_mean(tf.square(q_targets - q_values_actions_taken), name='loss')
 
             if self.gradient_clipping is not None:
-                grads_and_vars = self.optimizer.compute_gradients(self.loss)
+                grads_and_vars = self.optimizer.compute_gradients(loss)
 
                 for idx, (grad, var) in enumerate(grads_and_vars):
                     if grad is not None:
                         grads_and_vars[idx] = (tf.clip_by_norm(grad, self.gradient_clipping), var)
                 self.optimize_op = self.optimizer.apply_gradients(grads_and_vars)
             else:
-                self.optimize_op = self.optimizer.apply_gradients(self.loss)
+                self.optimize_op = self.optimizer.apply_gradients(loss)
 
         # Update target network with update weight tau
         with tf.name_scope("update_target"):

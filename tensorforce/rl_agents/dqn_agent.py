@@ -60,7 +60,7 @@ class DQNAgent(RLAgent):
                                    agent_config['action_type'],
                                    agent_config['reward_type'],
                                    agent_config['concat'],
-                                   agent_config['concat_lenght'],
+                                   agent_config['concat_length'],
                                    agent_config['deterministic_mode'])
         self.step_count = 0
         self.batch_size = agent_config['batch_size']
@@ -88,7 +88,6 @@ class DQNAgent(RLAgent):
         :param reward: Reward observed
         :param terminal: Indicates terminal state
         """
-
         self.memory.add_experience(state, action, reward, terminal)
 
         if self.step_count > self.min_replay_size and self.step_count % self.update_rate == 0:

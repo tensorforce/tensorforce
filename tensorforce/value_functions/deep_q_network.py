@@ -50,9 +50,8 @@ class DeepQNetwork(object):
             self.random = np.random.RandomState()
 
         # Input placeholders
+        # TODO this seems redundant. Need general forward function
         self.state = tf.placeholder(tf.float32, None, name="state")
-        self.batch_states = tf.placeholder(tf.float32, None, name="batch_states")
-        self.next_states = tf.placeholder(tf.float32, None, name="next_states")
 
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
@@ -81,16 +80,14 @@ class DeepQNetwork(object):
         :param batch: Mini batch to use for training
         :return:
         """
-        float_terminals = np.array(batch['terminals'], dtype=float)
-        q_targets = self.session.run(self.target_values, {self.next_states: batch['next_states']})
-        y = batch['rewards'] + (1. - float_terminals) * self.gamma * q_targets
-
         # Use y values to compute loss and update
-        self.session.run([self.optimize_op, self.training_network,
+        self.session.run([self.optimize_op, self.batch_q_values, self.target_values,
                           self.loss, self.target_network_update], {
-                             self.q_targets: y,
+                             self.batch_states: batch['states'],
+                             self.batch_rewards: batch['rewards'],
                              self.batch_actions: batch['actions'],
-                             self.batch_states: batch['states']})
+                             self.batch_next_states: batch['next_states'],
+                             self.batch_terminals: batch['terminals']})
 
     def create_training_operations(self):
         """
@@ -103,12 +100,18 @@ class DeepQNetwork(object):
         with tf.name_scope("predict"):
             self.dqn_action = tf.argmax(self.training_network(self.state), dimension=1, name='dqn_action')
 
-        with tf.name_scope("target_values"):
-            self.target_values = tf.reduce_max(self.target_network(self.next_states), reduction_indices=1, name='target_values')
-
         with tf.name_scope("training"):
-            self.q_targets = tf.placeholder('float32', [None], name='batch_q_targets')
-            self.batch_actions = tf.placeholder('int64', [None], name='batch_actions')
+            self.batch_states = tf.placeholder(tf.float32, None, name="batch_states")
+            self.batch_next_states = tf.placeholder(tf.float32, None, name="next_states")
+            self.batch_actions = tf.placeholder(tf.int64, [None], name='batch_actions')
+            self.batch_terminals = tf.placeholder(tf.float32, [None], name='batch_terminals')
+            self.batch_rewards = tf.placeholder(tf.float32, [None], name='batch_rewards')
+
+            float_terminals = np.array(self.batch_terminals, dtype=float)
+            self.target_values = tf.reduce_max(self.target_network(self.batch_next_states), reduction_indices=1,
+                                               name='target_values')
+
+            q_targets = self.batch_rewards + (1. - float_terminals) * self.gamma * self.target_values
 
             actions_one_hot = tf.one_hot(self.batch_actions, self.actions, 1.0, 0.0)
 
@@ -117,7 +120,7 @@ class DeepQNetwork(object):
                                                    name='q_acted')
 
             # Mean squared error
-            self.loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
+            self.loss = tf.reduce_mean(tf.square(q_targets - q_values_actions_taken), name='loss')
 
             if self.gradient_clipping is not None:
                 grads_and_vars = self.optimizer.compute_gradients(self.loss)

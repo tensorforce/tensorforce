@@ -31,7 +31,7 @@ class RandomAgent(RLAgent):
         else:
             self.random = np.random.RandomState()
 
-        self.actions = network_config['actions']
+        self.actions = agent_config['actions']
 
     def get_action(self, state):
         """

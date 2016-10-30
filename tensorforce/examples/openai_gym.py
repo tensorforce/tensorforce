@@ -43,9 +43,11 @@ def main():
 
     env = OpenAIGymEnvironment(gym_id)
 
-    agent_config = {}
-    network_config = {
+    agent_config = {
         'actions': env.gym.action_space.n
+    }
+    network_config = {
+
     }
 
     agent = create_agent(args.agent, agent_config=agent_config, network_config=network_config) # TODO: Provide configurations

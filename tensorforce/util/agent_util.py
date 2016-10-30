@@ -18,15 +18,15 @@ Utility functions concerning RL agents.
 """
 
 from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
-from tensorforce.rl_agents.dqn_agent import DQNAgent
+from tensorforce.rl_agents import *
 
-def create_agent(type, agent_config, value_config):
+def create_agent(type, agent_config, network_config):
     """
     Create agent instance by providing type as a string parameter.
 
     :param type: string parameter containing agent type
     :param agent_config: dict containing agent configuration
-    :param value_config: dict containing value function configuration
+    :param network_config: dict containing network configuration
     :return: agent instance
     """
     agent_class = agents.get(type)
@@ -34,9 +34,10 @@ def create_agent(type, agent_config, value_config):
     if not agent_class:
         raise TensorForceValueError("No such agent: {}".format(type))
 
-    return agent_class(agent_config, value_config)
+    return agent_class(agent_config, network_config)
 
 
 agents = {
+    'RandomAgent': RandomAgent,
     'DQNAgent': DQNAgent
 }

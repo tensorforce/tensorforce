@@ -13,3 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+__all__ = ['RandomAgent', 'DQNAgent']
+
+from tensorforce.rl_agents.random_agent import RandomAgent
+from tensorforce.rl_agents.dqn_agent import DQNAgent

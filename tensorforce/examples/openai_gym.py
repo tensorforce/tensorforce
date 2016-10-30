@@ -28,7 +28,7 @@ def main():
 
     parser.add_argument('gym_id', help="ID of the gym environment")
     parser.add_argument('-a', '--agent', default='DQNAgent')
-    parser.add_argument('-e', '--episodes', type=int, default=100, help="Number of episodes")
+    parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=100, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
 
@@ -42,7 +42,13 @@ def main():
     max_timesteps = args.max_timesteps
 
     env = OpenAIGymEnvironment(gym_id)
-    agent = create_agent(args.agent, agent_config={}, value_config={}) # TODO: Provide configurations
+
+    agent_config = {}
+    network_config = {
+        'actions': env.gym.action_space.n
+    }
+
+    agent = create_agent(args.agent, agent_config=agent_config, network_config=network_config) # TODO: Provide configurations
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
@@ -52,7 +58,6 @@ def main():
         state = env.reset()
         for j in xrange(max_timesteps):
             action = agent.get_action(state)
-
             result = env.execute_action(action)
 
             agent.add_observation(state, action, result['reward'], result['terminal_state'])
@@ -61,13 +66,13 @@ def main():
             if result['terminal_state']:
                 break
 
-        if i + 1 % report_episodes == 0:
-            print("Finished episode {i} after {j} timesteps".format(i=i, j=j))
+        if (i+1) % report_episodes == 0:
+            print("Finished episode {ep} after {ts} timesteps".format(ep=i+1, ts=j+1))
 
     if args.monitor:
         env.gym.monitor.close()
 
-    print("DQN learning finished.")
+    print("Learning finished. Total episodes: {ep}".format(ep=i+1))
     # TODO: Print results.
 
 if __name__ == '__main__':

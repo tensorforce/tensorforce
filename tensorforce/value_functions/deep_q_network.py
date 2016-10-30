@@ -67,7 +67,7 @@ class DeepQNetwork(object):
         """
 
         if self.random.random_sample() < self.epsilon:
-            return self.random.randint(0, self.actions - 1)
+            return self.random.randint(0, self.actions)
         else:
             # TODO partial run here?
             return self.session.run(self.dqn_action, {self.state: state})[0]

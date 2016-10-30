@@ -40,7 +40,7 @@ class RandomAgent(RLAgent):
         :param state: current state (disregarded)
         :return: random action
         """
-        return self.random.randint(0, self.actions - 1)
+        return self.random.randint(0, self.actions)
 
     def add_observation(self, *args, **kwargs):
         pass

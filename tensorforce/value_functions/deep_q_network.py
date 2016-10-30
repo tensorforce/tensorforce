@@ -81,8 +81,7 @@ class DeepQNetwork(object):
         :return:
         """
         # Use y values to compute loss and update
-        self.session.run([self.optimize_op, self.target_values,
-                          self.loss, self.target_network_update], {
+        self.session.run([self.optimize_op, self.target_network_update], {
                              self.batch_states: batch['states'],
                              self.batch_rewards: batch['rewards'],
                              self.batch_actions: batch['actions'],
@@ -101,17 +100,18 @@ class DeepQNetwork(object):
             self.dqn_action = tf.argmax(self.training_network(self.state), dimension=1, name='dqn_action')
 
         with tf.name_scope("training"):
-            self.batch_states = tf.placeholder(tf.float32, None, name="batch_states")
-            self.batch_next_states = tf.placeholder(tf.float32, None, name="next_states")
+            self.batch_states = tf.placeholder(tf.float32, [None], name="batch_states")
+            self.batch_next_states = tf.placeholder(tf.float32, [None], name="next_states")
             self.batch_actions = tf.placeholder(tf.int64, [None], name='batch_actions')
             self.batch_terminals = tf.placeholder(tf.float32, [None], name='batch_terminals')
             self.batch_rewards = tf.placeholder(tf.float32, [None], name='batch_rewards')
 
             float_terminals = np.array(self.batch_terminals, dtype=float)
-            self.target_values = tf.reduce_max(self.target_network(self.batch_next_states), reduction_indices=1,
+
+            target_values = tf.reduce_max(self.target_network(self.batch_next_states), reduction_indices=1,
                                                name='target_values')
 
-            q_targets = self.batch_rewards + (1. - float_terminals) * self.gamma * self.target_values
+            q_targets = self.batch_rewards + (1. - float_terminals) * self.gamma * target_values
 
             actions_one_hot = tf.one_hot(self.batch_actions, self.actions, 1.0, 0.0)
 

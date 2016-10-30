@@ -81,7 +81,7 @@ class DeepQNetwork(object):
         :return:
         """
         # Use y values to compute loss and update
-        self.session.run([self.optimize_op, self.batch_q_values, self.target_values,
+        self.session.run([self.optimize_op, self.target_values,
                           self.loss, self.target_network_update], {
                              self.batch_states: batch['states'],
                              self.batch_rewards: batch['rewards'],
@@ -115,8 +115,8 @@ class DeepQNetwork(object):
 
             actions_one_hot = tf.one_hot(self.batch_actions, self.actions, 1.0, 0.0)
 
-            self.batch_q_values = tf.identity(self.training_network(self.batch_states), name="batch_q_values")
-            q_values_actions_taken = tf.reduce_sum(self.batch_q_values * actions_one_hot, reduction_indices=1,
+            batch_q_values = tf.identity(self.training_network(self.batch_states), name="batch_q_values")
+            q_values_actions_taken = tf.reduce_sum(batch_q_values * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 
             # Mean squared error

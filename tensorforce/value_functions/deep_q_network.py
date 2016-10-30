@@ -50,8 +50,7 @@ class DeepQNetwork(object):
             self.random = np.random.RandomState()
 
         # Input placeholders
-        # TODO this seems redundant. Need general forward function
-        self.state = tf.placeholder(tf.float32, None, name="state")
+        self.state = tf.placeholder(tf.float32, [None, self.agent_config['state_shape']], name="state")
 
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
@@ -82,11 +81,11 @@ class DeepQNetwork(object):
         """
         # Use y values to compute loss and update
         self.session.run([self.optimize_op, self.target_network_update], {
-                             self.batch_states: batch['states'],
-                             self.batch_rewards: batch['rewards'],
-                             self.batch_actions: batch['actions'],
-                             self.batch_next_states: batch['next_states'],
-                             self.batch_terminals: batch['terminals']})
+                             self.state: batch['states'],
+                             self.rewards: batch['rewards'],
+                             self.actions: batch['actions'],
+                             self.next_states: batch['next_states'],
+                             self.terminals: batch['terminals']})
 
     def create_training_operations(self):
         """
@@ -100,22 +99,21 @@ class DeepQNetwork(object):
             self.dqn_action = tf.argmax(self.training_network(self.state), dimension=1, name='dqn_action')
 
         with tf.name_scope("training"):
-            self.batch_states = tf.placeholder(tf.float32, [None], name="batch_states")
-            self.batch_next_states = tf.placeholder(tf.float32, [None], name="next_states")
-            self.batch_actions = tf.placeholder(tf.int64, [None], name='batch_actions')
-            self.batch_terminals = tf.placeholder(tf.float32, [None], name='batch_terminals')
-            self.batch_rewards = tf.placeholder(tf.float32, [None], name='batch_rewards')
+            self.next_states = tf.placeholder(tf.float32, [None, self.agent_config['state_shape']], name="next_states")
+            self.actions = tf.placeholder(tf.int64, [None], name='actions')
+            self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
+            self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
 
-            float_terminals = np.array(self.batch_terminals, dtype=float)
+            float_terminals = np.array(self.terminals, dtype=float)
 
-            target_values = tf.reduce_max(self.target_network(self.batch_next_states), reduction_indices=1,
-                                               name='target_values')
+            target_values = tf.reduce_max(self.target_network(self.next_states), reduction_indices=1,
+                                          name='target_values')
 
-            q_targets = self.batch_rewards + (1. - float_terminals) * self.gamma * target_values
+            q_targets = self.rewards + (1. - float_terminals) * self.gamma * target_values
 
-            actions_one_hot = tf.one_hot(self.batch_actions, self.actions, 1.0, 0.0)
+            actions_one_hot = tf.one_hot(self.actions, self.actions, 1.0, 0.0)
 
-            batch_q_values = tf.identity(self.training_network(self.batch_states), name="batch_q_values")
+            batch_q_values = tf.identity(self.training_network(self.state), name="batch_q_values")
             q_values_actions_taken = tf.reduce_sum(batch_q_values * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 

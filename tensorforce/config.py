@@ -21,7 +21,10 @@ Configuration class that extends dict and reads configuration files
 import os
 import json
 
-class Config(dict): 
+class Config(dict):
+    def __getattr__(self, item):
+        return self.get(item)
+
     def read_json(self, filename):
         """
         Read configuration from json file

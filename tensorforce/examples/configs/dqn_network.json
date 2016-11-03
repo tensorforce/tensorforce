@@ -1,0 +1,29 @@
+{
+  "layers": [
+    {
+      "type": "dense"
+      "neurons": 10,
+      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+      "weight_init_param": { },
+      "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
+      "bias_init_param": null,
+      "activation": "tensorflow.python.ops.nn.relu",
+      "activation_param": null,
+      "regularization": null,
+      "regularization_param": null
+    },
+    {
+      "type": "conv2d",
+      "neurons": 10,
+      "conv_filter_shape": "???",
+      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+      "weight_init_param": { },
+      "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
+      "bias_init_param": null,
+      "activation": "tensorflow.python.ops.nn.relu",
+      "activation_param": null,
+      "regularization": null,
+      "regularization_param": null
+    }
+  ]
+}

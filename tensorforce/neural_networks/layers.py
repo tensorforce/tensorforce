@@ -20,6 +20,7 @@ layer types to mix between layers available in TF-slim and custom implementation
 """
 
 import tensorflow as tf
+from tensorforce.util.config_util import get_function
 
 tf_slim = tf.contrib.slim
 
@@ -33,13 +34,16 @@ def dense(input_handle, config, scope):
     :param scope: Layer name
     :return:
     """
+    kwargs = {
+        'weights_initializer': get_function(config['weight_init'], config['weight_init_param']),
+        'biases_initializer': get_function(config['bias_init'], config['bias_init_param']),
+        'activation_fn': get_function(config['activation'], config['activation_param']),
+        'weights_regularizer': get_function(config['regularization'], config['regularization_param']),
+    }
     return tf_slim.fully_connected(input_handle,
                                    config['neurons'],
-                                   weights_initializer=config['weight_init'],
-                                   biases_initializer=config['bias_init'],
-                                   activation_fn=config['activation'],
-                                   weights_regularizer=config['regularization'],
-                                   scope=scope)
+                                   scope=scope,
+                                   **kwargs)
 
 
 def conv2d(input_handle, config, scope):
@@ -51,14 +55,17 @@ def conv2d(input_handle, config, scope):
     :param scope: Layer name
     :return:
     """
+    kwargs = {
+        'weights_initializer': get_function(config['weight_init'], config['weight_init_param']),
+        'biases_initializer': get_function(config['bias_init'], config['bias_init_param']),
+        'activation_fn': get_function(config['activation'], config['activation_param']),
+        'weights_regularizer': get_function(config['regularization'], config['regularization_param']),
+    }
     return tf_slim.conv2d(input_handle,
                           config['neurons'],
                           config['conv_filter_shape'],
-                          weights_initializer=config['weight_init'],
-                          biases_initializer=config['bias_init'],
-                          activation_fn=config['activation'],
-                          weights_regularizer=config['regularization'],
-                          scope=scope)
+                          scope=scope,
+                          **kwargs)
 
 
 layers = {

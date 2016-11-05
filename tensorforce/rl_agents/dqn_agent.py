@@ -36,6 +36,6 @@ class DQNAgent(MemoryAgent):
         :param network_config: Configuration parameters for deep Q network,
         i.e. network configuration
         """
-        super(DQNAgent, self).__init__(self, agent_config=agent_config)
+        super(DQNAgent, self).__init__(agent_config)
         self.value_function = DeepQNetwork(agent_config, network_config, agent_config['deterministic_mode'])
 

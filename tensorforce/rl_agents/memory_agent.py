@@ -14,19 +14,14 @@
 # ==============================================================================
 
 """
-Standard DQN. The piece de resistance of deep reinforcement learning.
-Chooses from one of a number of discrete actions by taking the maximum Q-value
-from the value function with one output neuron per available action.
+Default implementation for using a replay memory.
 """
-
 from tensorforce.replay_memories.replay_memory import ReplayMemory
 from tensorforce.rl_agents.rl_agent import RLAgent
-from tensorforce.value_functions.deep_q_network import DeepQNetwork
 
+class MemoryAgent(RLAgent):
 
-class DQNAgent(RLAgent):
-
-    def __init__(self, agent_config, network_config):
+    def __init__(self, agent_config):
         """
         Initialize a vanilla DQN agent as described in
         http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.
@@ -35,10 +30,8 @@ class DQNAgent(RLAgent):
         :param network_config: Configuration parameters for deep Q network,
         i.e. network configuration
         """
-
+        self.value_function = None
         self.agent_config = agent_config
-        self.value_function = DeepQNetwork(agent_config, network_config, agent_config['deterministic_mode'])
-
         self.memory = ReplayMemory(agent_config['capacity'],
                                    agent_config['state_shape'],
                                    agent_config['state_type'],
@@ -82,19 +75,7 @@ class DQNAgent(RLAgent):
         self.step_count += 1
 
     def save_model(self, export_location):
-        """
-        Exports a model to a file.
-
-        :param export_location: Export path
-        :return:
-        """
         pass
 
     def load_model(self, model_location):
-        """
-        Imports a model to the agent's value function.
-
-        :param model_location:
-        :return:
-        """
         pass

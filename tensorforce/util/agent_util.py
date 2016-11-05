@@ -20,14 +20,15 @@ Utility functions concerning RL agents.
 from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
 from tensorforce.rl_agents import *
 
+
 def create_agent(type, agent_config, network_config):
     """
     Create agent instance by providing type as a string parameter.
 
-    :param type: string parameter containing agent type
-    :param agent_config: dict containing agent configuration
-    :param network_config: dict containing network configuration
-    :return: agent instance
+    :param type: String parameter containing agent type
+    :param agent_config: Dict containing agent configuration
+    :param network_config: Dict containing network configuration
+    :return: Agent instance
     """
     agent_class = agents.get(type)
 

@@ -29,8 +29,8 @@ from tensorforce.value_functions.value_function import ValueFunction
 
 class DeepQNetwork(ValueFunction):
     def __init__(self, agent_config, network_config, tf_config, deterministic_mode=False):
+        super(DeepQNetwork, self).__init__(tf_config)
 
-        # TODO session/executioner config
         self.agent_config = agent_config
         self.tau = agent_config['tau']
         self.actions = agent_config['actions']

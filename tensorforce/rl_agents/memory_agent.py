@@ -27,8 +27,6 @@ class MemoryAgent(RLAgent):
         http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.
 
         :param agent_config: Configuration parameters for agent
-        :param network_config: Configuration parameters for deep Q network,
-        i.e. network configuration
         """
         self.value_function = None
         self.agent_config = agent_config

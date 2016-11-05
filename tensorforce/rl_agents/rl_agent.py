@@ -29,8 +29,8 @@ class RLAgent(object):
     def add_observation(self, state, action, reward, terminal):
         raise NotImplementedError
 
-    def load_model(self, model_location):
+    def load_model(self, path):
         raise NotImplementedError
 
-    def save_model(self, export_location):
+    def save_model(self, path):
         raise NotImplementedError

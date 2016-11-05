@@ -24,8 +24,10 @@ from tensorforce.neural_networks.neural_network import get_network
 from tensorforce.util.experiment_util import global_seed
 import numpy as np
 
+from tensorforce.value_functions.value_function import ValueFunction
 
-class DeepQNetwork(object):
+
+class DeepQNetwork(ValueFunction):
 
     default_config = {
         'tau': 0,
@@ -36,8 +38,8 @@ class DeepQNetwork(object):
     }
 
     def __init__(self, agent_config, network_config, tf_config, deterministic_mode=False):
+        super(DeepQNetwork, self).__init__(tf_config)
 
-        # TODO session/executioner config
         self.agent_config = agent_config
         self.tau = agent_config['tau']
         self.actions = agent_config['actions']
@@ -67,7 +69,7 @@ class DeepQNetwork(object):
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.create_training_operations()
-        self.session = tf.Session()
+
         self.session.run(tf.initialize_all_variables())
 
     def get_action(self, state):

@@ -28,10 +28,10 @@ class ReplayMemory(object):
     def __init__(self,
                  capacity,
                  state_shape,
-                 state_type,
                  action_shape,
-                 action_type,
-                 reward_type,
+                 state_type=np.float32,
+                 action_type=np.int,
+                 reward_type=np.float32,
                  concat=False,
                  concat_length=1,
                  deterministic_mode=False):

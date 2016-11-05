@@ -32,8 +32,8 @@ class MemoryAgent(RLAgent):
         self.agent_config = agent_config
         self.memory = ReplayMemory(agent_config['capacity'],
                                    agent_config['state_shape'],
-                                   agent_config['state_type'],
                                    agent_config['action_shape'],
+                                   agent_config['state_type'],
                                    agent_config['action_type'],
                                    agent_config['reward_type'],
                                    agent_config['concat'],

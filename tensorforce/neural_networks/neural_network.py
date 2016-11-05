@@ -18,8 +18,6 @@ Creates neural networks from a configuration dict.
 """
 
 import tensorflow as tf
-from six.moves import xrange
-
 from tensorforce.exceptions.tensorforce_exceptions import ConfigError
 from tensorforce.neural_networks.layers import layers
 
@@ -40,13 +38,14 @@ def get_network(config, input_data, scope='value_function'):
 
         type_counter = {}
 
-        if not config['layers']:
+        network_layers = config.get('layers')
+        if not network_layers:
             raise ConfigError("Invalid configuration, missing layer specification.")
 
         first_layer = True
-        network_input = input_data # for the first layer
+        network = input_data  # for the first layer
 
-        for layer in config['layers']:
+        for layer in network_layers:
             layer_type = layer['type']
 
             if first_layer:
@@ -57,7 +56,6 @@ def get_network(config, input_data, scope='value_function'):
                 name = "{type}{num}".format(type=layer_type, num=type_count + 1)
                 type_counter.update({layer_type: type_count + 1})
 
-            network = layers[layer_type](network_input, layer, name)
-            network_input = network  # for all subsequent layers
+            network = layers[layer_type](network, layer, name)
 
         return network

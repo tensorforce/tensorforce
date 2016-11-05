@@ -1,7 +1,7 @@
 {
   "layers": [
     {
-      "type": "dense"
+      "type": "dense",
       "neurons": 10,
       "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weight_init_param": { },

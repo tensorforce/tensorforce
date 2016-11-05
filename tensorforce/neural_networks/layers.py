@@ -20,7 +20,11 @@ layer types to mix between layers available in TF-slim and custom implementation
 """
 
 import tensorflow as tf
+from tensorflow.contrib.layers.python.layers import initializers
+from tensorflow.python.ops import nn
+from tensorflow.python.ops import init_ops
 from tensorforce.util.config_util import get_function
+
 
 tf_slim = tf.contrib.slim
 
@@ -29,17 +33,26 @@ def dense(input_handle, config, scope):
     """
     Fully connected layer.
 
+    :param input_handle: Input to the layer, e.g. handle to another layer
     :param config: Layer config
-    :param input: Input to the layer, e.g. handle to another layer
     :param scope: Layer name
     :return:
     """
     kwargs = {
-        'weights_initializer': get_function(config['weight_init'], config['weight_init_param']),
-        'biases_initializer': get_function(config['bias_init'], config['bias_init_param']),
-        'activation_fn': get_function(config['activation'], config['activation_param']),
-        'weights_regularizer': get_function(config['regularization'], config['regularization_param']),
+        'weights_initializer':  get_function(config.get('weight_init'),
+                                             config.get('weight_init_param'),
+                                             initializers.xavier_initializer()),
+        'biases_initializer':   get_function(config.get('bias_init'),
+                                             config.get('bias_init_param'),
+                                             init_ops.zeros_initializer),
+        'activation_fn':        get_function(config.get('activation'),
+                                             config.get('activation_param'),
+                                             nn.relu),
+        'weights_regularizer':  get_function(config.get('regularization'),
+                                             config.get('regularization_param'),
+                                             None),
     }
+
     return tf_slim.fully_connected(input_handle,
                                    config['neurons'],
                                    scope=scope,
@@ -50,16 +63,24 @@ def conv2d(input_handle, config, scope):
     """
     Convolutional 2d layer.
 
+    :param input_handle: Input to the layer, e.g. handle to another layer
     :param config: Layer config
-    :param input: Input to the layer, e.g. handle to another layer
     :param scope: Layer name
     :return:
     """
     kwargs = {
-        'weights_initializer': get_function(config['weight_init'], config['weight_init_param']),
-        'biases_initializer': get_function(config['bias_init'], config['bias_init_param']),
-        'activation_fn': get_function(config['activation'], config['activation_param']),
-        'weights_regularizer': get_function(config['regularization'], config['regularization_param']),
+        'weights_initializer':  get_function(config.get('weight_init'),
+                                             config.get('weight_init_param'),
+                                             initializers.xavier_initializer()),
+        'biases_initializer':   get_function(config.get('bias_init'),
+                                             config.get('bias_init_param'),
+                                             init_ops.zeros_initializer),
+        'activation_fn':        get_function(config.get('activation'),
+                                             config.get('activation_param'),
+                                             nn.relu),
+        'weights_regularizer':  get_function(config.get('regularization'),
+                                             config.get('regularization_param'),
+                                             None),
     }
     return tf_slim.conv2d(input_handle,
                           config['neurons'],

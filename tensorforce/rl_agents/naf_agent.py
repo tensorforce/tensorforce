@@ -12,4 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""
 
+"""
+
+from tensorforce.rl_agents.memory_agent import MemoryAgent
+from tensorforce.value_functions.normalized_advantage_functions import NormalizedAdvantageFunctions
+
+
+class NAFAgent(MemoryAgent):
+
+    default_config = {
+        'batch_size': 100,
+        'update_rate': 10,
+        'min_replay_size': 100,
+        'deterministic_mode': False
+    }
+
+    value_function_ref = NormalizedAdvantageFunctions

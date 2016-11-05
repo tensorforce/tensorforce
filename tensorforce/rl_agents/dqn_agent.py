@@ -18,10 +18,7 @@ Standard DQN. The piece de resistance of deep reinforcement learning.
 Chooses from one of a number of discrete actions by taking the maximum Q-value
 from the value function with one output neuron per available action.
 """
-
-from tensorforce.replay_memories.replay_memory import ReplayMemory
 from tensorforce.rl_agents.memory_agent import MemoryAgent
-from tensorforce.rl_agents.rl_agent import RLAgent
 from tensorforce.value_functions.deep_q_network import DeepQNetwork
 
 

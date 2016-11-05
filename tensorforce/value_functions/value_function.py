@@ -16,21 +16,24 @@
 Base class for value functions, contains general tensorflow utility
 that all value functions need.
 """
+import tensorflow as tf
 
-def ValueFunction(object):
 
+class ValueFunction(object):
     def __init__(self, tf_config):
         """
         Value functions provide the general interface to TensorFlow functionality,
-        e.g.
+        manages TensorFlow session and execution.
         :param self:
-        :param tf_config:
+        :param tf_config: TensorFlow config. For device execution settings. Not implemented yet
         :return:
         """
-        pass
 
-    def load_model(self, model_location):
-        raise NotImplementedError
+        self.session = tf.Session()
+        self.saver = tf.train.Saver()
 
-    def save_model(self, export_location):
-        raise NotImplementedError
+    def load_model(self, path):
+        self.saver.restore(self.session, path)
+
+    def save_model(self, path):
+        self.saver.save(self.session, path)

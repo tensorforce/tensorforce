@@ -72,8 +72,8 @@ class MemoryAgent(RLAgent):
 
         self.step_count += 1
 
-    def save_model(self, export_location):
-        self.value_function.save_model(export_location)
+    def save_model(self, path):
+        self.value_function.save_model(path)
 
-    def load_model(self, model_location):
-        self.value_function.load_model(model_location)
+    def load_model(self, path):
+        self.value_function.load_model(path)

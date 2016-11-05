@@ -27,15 +27,16 @@ from tensorforce.value_functions.deep_q_network import DeepQNetwork
 
 class DQNAgent(MemoryAgent):
 
-    def __init__(self, agent_config, network_config):
+    def __init__(self, agent_config, network_config, tf_config):
         """
         Initialize a vanilla DQN agent as described in
         http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.
 
         :param agent_config: Configuration parameters for agent
         :param network_config: Configuration parameters for deep Q network,
-        i.e. network configuration
+        :param tf_config: Configuration for TensorFlow execution, load/store of models,
+        and so forth.
         """
         super(DQNAgent, self).__init__(agent_config)
-        self.value_function = DeepQNetwork(agent_config, network_config, agent_config['deterministic_mode'])
+        self.value_function = DeepQNetwork(agent_config, network_config, tf_config, agent_config['deterministic_mode'])
 

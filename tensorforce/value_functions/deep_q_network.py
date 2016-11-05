@@ -26,7 +26,7 @@ import numpy as np
 
 
 class DeepQNetwork(object):
-    def __init__(self, agent_config, network_config, deterministic_mode=False):
+    def __init__(self, agent_config, network_config, tf_config, deterministic_mode=False):
 
         # TODO session/executioner config
         self.agent_config = agent_config

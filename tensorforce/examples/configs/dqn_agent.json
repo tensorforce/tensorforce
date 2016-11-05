@@ -1,3 +1,7 @@
 {
-  
+  "memory_capacity": 1000,
+
+  "batch_size": 50,
+  "update_rate": 0.1,
+  "min_replay_size": 50
 }

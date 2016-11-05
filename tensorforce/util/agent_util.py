@@ -17,25 +17,40 @@
 Utility functions concerning RL agents.
 """
 
+from tensorforce.config import Config
 from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
 from tensorforce.rl_agents import *
 
 
-def create_agent(type, agent_config, network_config):
+def create_agent(agent_type, agent_config, network_config):
     """
     Create agent instance by providing type as a string parameter.
 
-    :param type: String parameter containing agent type
+    :param agent_type: String parameter containing agent type
     :param agent_config: Dict containing agent configuration
     :param network_config: Dict containing network configuration
     :return: Agent instance
     """
-    agent_class = agents.get(type)
+    agent_class = agents.get(agent_type)
 
     if not agent_class:
-        raise TensorForceValueError("No such agent: {}".format(type))
+        raise TensorForceValueError("No such agent: {}".format(agent_type))
 
     return agent_class(agent_config, network_config)
+
+def get_default_config(agent_type):
+    """
+    Get default configuration from agent by providing type as a string parameter.
+
+    :param agent_type: String parameter containing agent type
+    :return: Default configuration dict
+    """
+    agent_class = agents.get(agent_type)
+
+    if not agent_class:
+        raise TensorForceValueError("No such agent: {}".format(agent_type))
+
+    return Config(agent_class.default_config), Config(agent_class.value_function_ref.default_config)
 
 
 agents = {

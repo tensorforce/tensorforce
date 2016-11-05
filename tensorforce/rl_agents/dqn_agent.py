@@ -27,16 +27,12 @@ from tensorforce.value_functions.deep_q_network import DeepQNetwork
 
 class DQNAgent(MemoryAgent):
 
-    def __init__(self, agent_config, network_config, tf_config):
-        """
-        Initialize a vanilla DQN agent as described in
-        http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.
+    default_config = {
+        'batch_size': 100,
+        'update_rate': 10,
+        'min_replay_size': 100,
+        'deterministic_mode': False
+    }
 
-        :param agent_config: Configuration parameters for agent
-        :param network_config: Configuration parameters for deep Q network,
-        :param tf_config: Configuration for TensorFlow execution, load/store of models,
-        and so forth.
-        """
-        super(DQNAgent, self).__init__(agent_config)
-        self.value_function = DeepQNetwork(agent_config, network_config, tf_config, agent_config['deterministic_mode'])
+    value_function_ref = DeepQNetwork
 

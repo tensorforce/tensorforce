@@ -26,7 +26,7 @@ from tensorforce.util.experiment_util import global_seed
 
 class ReplayMemory(object):
     def __init__(self,
-                 capacity,
+                 memory_capacity,
                  state_shape,
                  action_shape,
                  state_type=np.float32,
@@ -34,11 +34,13 @@ class ReplayMemory(object):
                  reward_type=np.float32,
                  concat=False,
                  concat_length=1,
-                 deterministic_mode=False):
+                 deterministic_mode=False,
+                 *args,
+                 **kwargs):
         """
         Initializes a replay memory.
 
-        :param capacity: Memory size
+        :param memory_capacity: Memory size
         :param state_shape: Shape of state tensor
         :param state_type: Data type of state tensor
         :param action_shape: Shape of action tensor
@@ -55,7 +57,7 @@ class ReplayMemory(object):
         """
 
         self.step_count = 0
-        self.capacity = capacity
+        self.capacity = memory_capacity
         self.size = 0
         self.concat = concat
         self.concat_length = concat_length
@@ -68,10 +70,10 @@ class ReplayMemory(object):
         self.action_type = action_type
         self.reward_type = reward_type
 
-        self.states = np.zeros((capacity,) + state_shape, dtype=state_type)
-        self.actions = np.zeros((capacity,) + action_shape, dtype=action_type)
-        self.rewards = np.zeros(capacity, dtype=reward_type)
-        self.terminals = np.zeros(capacity, dtype='bool')
+        self.states = np.zeros((self.capacity,) + self.state_shape, dtype=self.state_type)
+        self.actions = np.zeros((self.capacity,) + self.action_shape, dtype=self.action_type)
+        self.rewards = np.zeros(self.capacity, dtype=self.reward_type)
+        self.terminals = np.zeros(self.capacity, dtype=bool)
 
         if deterministic_mode:
             self.random = global_seed()

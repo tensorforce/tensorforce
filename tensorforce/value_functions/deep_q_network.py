@@ -26,6 +26,15 @@ import numpy as np
 
 
 class DeepQNetwork(object):
+
+    default_config = {
+        'tau': 0,
+        'epsilon': 0.1,
+        'gamma': 0,
+        'alpha': 0.5,
+        'clip_gradients': False
+    }
+
     def __init__(self, agent_config, network_config, tf_config, deterministic_mode=False):
 
         # TODO session/executioner config

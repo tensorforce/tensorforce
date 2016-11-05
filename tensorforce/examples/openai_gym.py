@@ -17,10 +17,11 @@
 OpenAI gym runner
 """
 
+import sys
 import argparse
 from six.moves import xrange
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
-from tensorforce.util.agent_util import create_agent
+from tensorforce.util.agent_util import create_agent, get_default_config
 
 
 def main():
@@ -28,6 +29,8 @@ def main():
 
     parser.add_argument('gym_id', help="ID of the gym environment")
     parser.add_argument('-a', '--agent', default='DQNAgent')
+    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-config', help="Network configuration file")
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=100, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
@@ -43,21 +46,30 @@ def main():
 
     env = OpenAIGymEnvironment(gym_id)
 
-    agent_config = {
-        'actions': env.gym.action_space.n
-    }
-    network_config = {
+    agent_config, network_config = get_default_config(args.agent)
 
-    }
+    agent_config.update({
+        'actions': env.gym.action_space.n,
+        'action_shape': env.gym.action_space.n,
+        'state_shape': env.gym.observation_space.shape
+    })
 
-    agent = create_agent(args.agent, agent_config=agent_config, network_config=network_config) # TODO: Provide configurations
+    if args.agent_config:
+        agent_config.read_json(args.agent_config)
+
+    if args.network_config:
+        network_config.read_json(args.network_config)
+
+    agent = create_agent(args.agent, agent_config=agent_config, network_config=network_config)
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
+    i = -1
     for i in xrange(episodes):
         state = env.reset()
+        j = -1
         for j in xrange(max_timesteps):
             action = agent.get_action(state)
             result = env.execute_action(action)

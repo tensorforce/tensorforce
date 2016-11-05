@@ -20,11 +20,12 @@ from the value function with one output neuron per available action.
 """
 
 from tensorforce.replay_memories.replay_memory import ReplayMemory
+from tensorforce.rl_agents.memory_agent import MemoryAgent
 from tensorforce.rl_agents.rl_agent import RLAgent
 from tensorforce.value_functions.deep_q_network import DeepQNetwork
 
 
-class DQNAgent(RLAgent):
+class DQNAgent(MemoryAgent):
 
     def __init__(self, agent_config, network_config):
         """
@@ -35,66 +36,6 @@ class DQNAgent(RLAgent):
         :param network_config: Configuration parameters for deep Q network,
         i.e. network configuration
         """
-
-        self.agent_config = agent_config
+        super(DQNAgent, self).__init__(self, agent_config=agent_config)
         self.value_function = DeepQNetwork(agent_config, network_config, agent_config['deterministic_mode'])
 
-        self.memory = ReplayMemory(agent_config['capacity'],
-                                   agent_config['state_shape'],
-                                   agent_config['state_type'],
-                                   agent_config['action_shape'],
-                                   agent_config['action_type'],
-                                   agent_config['reward_type'],
-                                   agent_config['concat'],
-                                   agent_config['concat_length'],
-                                   agent_config['deterministic_mode'])
-        self.step_count = 0
-        self.batch_size = agent_config['batch_size']
-        self.update_rate = agent_config['update_rate']
-        self.min_replay_size = agent_config['min_replay_size']
-
-    def get_action(self, state):
-        """
-        Executes one reinforcement learning step. Implicitly computes updates
-        according to the update frequency.
-
-        :param state: Observed state tensor
-        :return: Which action to take
-        """
-        action = self.value_function.get_action(state)
-
-        return action
-
-    def add_observation(self, state, action, reward, terminal):
-        """
-        Adds an observation for training purposes.
-
-        :param state: State observed
-        :param action: Action taken in state
-        :param reward: Reward observed
-        :param terminal: Indicates terminal state
-        """
-        self.memory.add_experience(state, action, reward, terminal)
-
-        if self.step_count > self.min_replay_size and self.step_count % self.update_rate == 0:
-            self.value_function.update(self.memory.sample_batch(self.batch_size))
-
-        self.step_count += 1
-
-    def save_model(self, export_location):
-        """
-        Exports a model to a file.
-
-        :param export_location: Export path
-        :return:
-        """
-        pass
-
-    def load_model(self, model_location):
-        """
-        Imports a model to the agent's value function.
-
-        :param model_location:
-        :return:
-        """
-        pass

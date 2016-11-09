@@ -16,8 +16,14 @@
 """
 Default implementation for using a replay memory.
 """
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 from tensorforce.replay_memories.replay_memory import ReplayMemory
 from tensorforce.rl_agents.rl_agent import RLAgent
+
 
 class MemoryAgent(RLAgent):
 

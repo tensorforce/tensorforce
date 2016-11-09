@@ -18,8 +18,14 @@ Replay memory to store observations and sample
 mini batches for training from.
 """
 
-import numpy as np
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 from six.moves import xrange
+
+import numpy as np
+
 from tensorforce.exceptions.tensorforce_exceptions import ArgumentMustBePositiveError
 from tensorforce.util.experiment_util import global_seed
 

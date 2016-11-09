@@ -19,6 +19,10 @@ TF-slim layer types. The purpose of this class is to encapsulate
 layer types to mix between layers available in TF-slim and custom implementations.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import tensorflow as tf
 from tensorflow.contrib.layers.python.layers import initializers
 from tensorflow.python.ops import nn

@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 """
 Implements normalized advantage functions as described here:
 https://arxiv.org/abs/1603.00748
 """
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 from tensorforce.value_functions.value_function import ValueFunction
 
 

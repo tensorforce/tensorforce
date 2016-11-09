@@ -17,6 +17,10 @@
 Utility functions concerning RL agents.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 from tensorforce.config import Config
 from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
 from tensorforce.rl_agents import *
@@ -37,6 +41,7 @@ def create_agent(agent_type, agent_config, network_config):
         raise TensorForceValueError("No such agent: {}".format(agent_type))
 
     return agent_class(agent_config, network_config)
+
 
 def get_default_config(agent_type):
     """

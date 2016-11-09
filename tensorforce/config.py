@@ -18,8 +18,13 @@ Configuration class that extends dict and reads configuration files
 (currently only json)
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import os
 import json
+
 
 class Config(dict):
     def __getattr__(self, item):

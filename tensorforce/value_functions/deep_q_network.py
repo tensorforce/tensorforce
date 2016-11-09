@@ -18,12 +18,16 @@ Deep Q network. Implements training and update logic as described
 in the DQN paper.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+import numpy as np
+
 import tensorflow as tf
 
 from tensorforce.neural_networks.neural_network import get_network
 from tensorforce.util.experiment_util import global_seed
-import numpy as np
-
 from tensorforce.value_functions.value_function import ValueFunction
 
 
@@ -64,7 +68,7 @@ class DeepQNetwork(ValueFunction):
         self.target_network_update = []
 
         self.training_network = get_network(network_config, self.state, 'training')
-        self.target_network = get_network(network_config, self.next_states,'target')
+        self.target_network = get_network(network_config, self.next_states, 'target')
 
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)

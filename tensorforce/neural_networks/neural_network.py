@@ -17,6 +17,10 @@
 Creates neural networks from a configuration dict.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import tensorflow as tf
 from tensorforce.exceptions.tensorforce_exceptions import ConfigError
 from tensorforce.neural_networks.layers import layers

@@ -17,7 +17,10 @@
 OpenAI gym runner
 """
 
-import sys
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import argparse
 from six.moves import xrange
 from tensorforce.external.openai_gym import OpenAIGymEnvironment

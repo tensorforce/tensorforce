@@ -17,7 +17,12 @@
 Random agent that always returns a random action.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import numpy as np
+
 from tensorforce.rl_agents.rl_agent import RLAgent
 from tensorforce.util.experiment_util import global_seed
 

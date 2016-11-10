@@ -1,5 +1,5 @@
 {
-  "layers": [
+  "network_layers": [
     {
       "type": "dense",
       "neurons": 10,

@@ -35,15 +35,13 @@ class NormalizedAdvantageFunctions(ValueFunction):
         'clip_gradients': False
     }
 
-    def __init__(self, agent_config, network_config, tf_config, deterministic_mode=False):
+    def __init__(self, config):
         """
         Training logic for NAFs.
-        :param agent_config:
-        :param network_config:
-        :param tf_config:
-        :param deterministic_mode:
+
+        :param config: Configuration parameters
         """
-        super(NormalizedAdvantageFunctions, self).__init__(tf_config)
+        super(NormalizedAdvantageFunctions, self).__init__(config)
 
 
     def create_outputs(self):

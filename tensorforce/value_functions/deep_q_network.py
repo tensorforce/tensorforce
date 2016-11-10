@@ -26,6 +26,7 @@ import numpy as np
 
 import tensorflow as tf
 
+from tensorforce.config import create_config
 from tensorforce.neural_networks.neural_network import get_network
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.value_functions.value_function import ValueFunction
@@ -41,34 +42,39 @@ class DeepQNetwork(ValueFunction):
         'clip_gradients': False
     }
 
-    def __init__(self, agent_config, network_config, tf_config, deterministic_mode=False):
-        super(DeepQNetwork, self).__init__(tf_config)
+    def __init__(self, config):
+        """
+        Training logic for DQN.
 
-        self.agent_config = agent_config
-        self.tau = agent_config['tau']
-        self.actions = agent_config['actions']
-        self.epsilon = agent_config['epsilon']
-        self.gamma = agent_config['gamma']
-        self.alpha = agent_config['alpha']
+        :param config: Configuration parameters
+        """
+        super(DeepQNetwork, self).__init__(config)
 
-        if agent_config['clip_gradients']:
-            self.gradient_clipping = agent_config['clip_value']
+        self.config = create_config(config, default=self.default_config)
+        self.actions = self.config.actions
+        self.tau = self.config.tau
+        self.epsilon = self.config.epsilon
+        self.gamma = self.config.gamma
+        self.alpha = self.config.alpha
 
-        if deterministic_mode:
+        if self.config.clip_gradients:
+            self.gradient_clipping = self.config.clip_value
+
+        if self.config.deterministic_mode:
             self.random = global_seed()
         else:
             self.random = np.random.RandomState()
 
         # Input placeholders
-        self.state = tf.placeholder(tf.float32, [None, self.agent_config['state_shape']], name="state")
-        self.next_states = tf.placeholder(tf.float32, [None, self.agent_config['state_shape']], name="next_states")
+        self.state = tf.placeholder(tf.float32, [None, self.config.state_shape], name="state")
+        self.next_states = tf.placeholder(tf.float32, [None, self.config.state_shape], name="next_states")
         self.actions = tf.placeholder(tf.int64, [None], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
         self.target_network_update = []
 
-        self.training_network = get_network(network_config, self.state, 'training')
-        self.target_network = get_network(network_config, self.next_states, 'target')
+        self.training_network = get_network(self.config.network_layers, self.state, 'training')
+        self.target_network = get_network(self.config.network_layers, self.next_states, 'target')
 
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)

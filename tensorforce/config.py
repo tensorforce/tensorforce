@@ -41,3 +41,19 @@ class Config(dict):
         # don't catch, we let open() and json.loads() raise their own exceptions
         with open(path, 'r') as f:
             self.update(json.loads(f.read()))
+
+
+def create_config(array, default=None):
+    """
+    Create Config object from array. Use default dict for default values.
+
+    :param array: dict containing actual values
+    :param default: dict containing default values
+    :return: Config object
+    """
+    if default:
+        config = Config(default)
+        config.update(array)
+    else:
+        config = Config(array)
+    return config

@@ -23,6 +23,8 @@ from __future__ import division
 
 import argparse
 from six.moves import xrange
+
+from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
 
@@ -49,21 +51,19 @@ def main():
 
     env = OpenAIGymEnvironment(gym_id)
 
-    agent_config, network_config = get_default_config(args.agent)
-
-    agent_config.update({
+    config = Config({
         'actions': env.gym.action_space.n,
-        'action_shape': env.gym.action_space.n,
+        'action_shape': (env.gym.action_space.n,),
         'state_shape': env.gym.observation_space.shape
     })
 
     if args.agent_config:
-        agent_config.read_json(args.agent_config)
+        config.read_json(args.agent_config)
 
     if args.network_config:
-        network_config.read_json(args.network_config)
+        config.read_json(args.network_config)
 
-    agent = create_agent(args.agent, agent_config=agent_config, network_config=network_config)
+    agent = create_agent(args.agent, config)
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)

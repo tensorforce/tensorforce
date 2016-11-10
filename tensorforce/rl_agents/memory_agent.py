@@ -21,6 +21,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from tensorforce.config import create_config
 from tensorforce.replay_memories.replay_memory import ReplayMemory
 from tensorforce.rl_agents.rl_agent import RLAgent
 
@@ -30,12 +31,13 @@ class MemoryAgent(RLAgent):
     default_config = {
         'batch_size': 100,
         'update_rate': 10,
-        'min_replay_size': 100
+        'min_replay_size': 100,
+        'deterministic_mode': False
     }
 
     value_function_ref = None
 
-    def __init__(self, agent_config, network_config, tf_config):
+    def __init__(self, config):
         """
         Initialize a vanilla DQN agent as described in
         http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.
@@ -45,19 +47,17 @@ class MemoryAgent(RLAgent):
         :param tf_config: Configuration for TensorFlow execution, load/store of models,
         and so forth.
         """
+        self.config = create_config(config, default=self.default_config)
         self.value_function = None
-        self.agent_config = agent_config
-        self.memory = ReplayMemory(**agent_config)
+
+        self.memory = ReplayMemory(**config)
         self.step_count = 0
-        self.batch_size = agent_config.get('batch_size', self.default_config['batch_size'])
-        self.update_rate = agent_config.get('update_rate', self.default_config['update_rate'])
-        self.min_replay_size = agent_config.get('min_replay_size', self.default_config['min_replay_size'])
+        self.batch_size = self.config.batch_size
+        self.update_rate = self.config.update_rate
+        self.min_replay_size = self.config.min_replay_size
 
         if self.value_function_ref:
-            self.value_function = self.value_function_ref(agent_config,
-                                                          network_config,
-                                                          tf_config,
-                                                          agent_config['deterministic_mode'])
+            self.value_function = self.value_function_ref(self.config)
 
     def get_action(self, state):
         """

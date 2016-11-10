@@ -26,17 +26,16 @@ import tensorflow as tf
 
 
 class ValueFunction(object):
-    def __init__(self, tf_config):
+    def __init__(self, config):
         """
         Value functions provide the general interface to TensorFlow functionality,
         manages TensorFlow session and execution.
-        :param self:
-        :param tf_config: TensorFlow config. For device execution settings. Not implemented yet
-        :return:
+
+        :param config: Configuration parameters
         """
 
         self.session = tf.Session()
-        self.saver = tf.train.Saver()
+        #self.saver = tf.train.Saver()
 
     def load_model(self, path):
         self.saver.restore(self.session, path)

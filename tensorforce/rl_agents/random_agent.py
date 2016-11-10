@@ -28,15 +28,15 @@ from tensorforce.util.experiment_util import global_seed
 
 
 class RandomAgent(RLAgent):
-    def __init__(self, agent_config, network_config):
+    def __init__(self, config):
         super(RandomAgent, self).__init__()
 
-        if agent_config.get('deterministic_mode'):
+        if config.deterministic_mode:
             self.random = global_seed()
         else:
             self.random = np.random.RandomState()
 
-        self.actions = agent_config['actions']
+        self.actions = config.actions
 
     def get_action(self, state):
         """

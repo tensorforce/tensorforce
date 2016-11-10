@@ -28,13 +28,13 @@ from tensorforce.neural_networks.layers import layers
 tf_slim = tf.contrib.slim
 
 
-def get_network(config, input_data, scope='value_function'):
+def get_network(network_layers, input_data, scope='value_function'):
     """
     Creates a neural network according to the given config.
 
-    :param config: Describes a neural network layer wise
-    :param scope: TF scope
+    :param network_layers: Dict that describes a neural network layer wise
     :param input_data: TF input placeholder
+    :param scope: TF scope
     :return: A TensorFlow network
     """
 
@@ -42,7 +42,6 @@ def get_network(config, input_data, scope='value_function'):
 
         type_counter = {}
 
-        network_layers = config.get('layers')
         if not network_layers:
             raise ConfigError("Invalid configuration, missing layer specification.")
 

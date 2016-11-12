@@ -32,13 +32,15 @@ from tensorforce.util.agent_util import create_agent, get_default_config
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('gym_id', help="ID of the gym environment")
+    parser.add_argument('gym_id', help="ID of the gym environment", default='Pong-v0')
     parser.add_argument('-a', '--agent', default='DQNAgent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-config', help="Network configuration file")
+    parser.add_argument('-c', '--agent-config', help="Agent configuration file",
+                        default='examples/configs/dqn_agent.json')
+    parser.add_argument('-n', '--network-config', help="Network configuration file",
+                        default='examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=100, help="Maximum number of timesteps per episode")
-    parser.add_argument('-m', '--monitor', help="Save results to this file")
+    parser.add_argument('-m', '--monitor', help="Save results to this file", default='tmp/dqn')
 
     args = parser.parse_args()
 
@@ -83,14 +85,15 @@ def main():
             if result['terminal_state']:
                 break
 
-        if (i+1) % report_episodes == 0:
-            print("Finished episode {ep} after {ts} timesteps".format(ep=i+1, ts=j+1))
+        if (i + 1) % report_episodes == 0:
+            print("Finished episode {ep} after {ts} timesteps".format(ep=i + 1, ts=j + 1))
 
     if args.monitor:
         env.gym.monitor.close()
 
-    print("Learning finished. Total episodes: {ep}".format(ep=i+1))
+    print("Learning finished. Total episodes: {ep}".format(ep=i + 1))
     # TODO: Print results.
+
 
 if __name__ == '__main__':
     main()

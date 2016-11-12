@@ -22,7 +22,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 import tensorflow as tf
-
+import numpy as np
 from tensorforce.neural_networks.layers import dense
 from tensorforce.neural_networks.neural_network import get_network
 from tensorforce.value_functions.value_function import ValueFunction
@@ -53,7 +53,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
         self.target_network_update = []
         self.step = 0
 
-        # get hidden layers from network generator, then add NAF outputs, same for target network
+        # Get hidden layers from network generator, then add NAF outputs, same for target network
         self.create_outputs(get_network(self.config.network_layers, self.state, 'training'))
 
     def get_noise(self, step):
@@ -72,31 +72,36 @@ class NormalizedAdvantageFunctions(ValueFunction):
         Creates NAF specific outputs.
         :param hidden_layers: Points to last hidden layer
         """
-
+        actions = self.config['actions']
         # State-value function
         self.v = dense(hidden_layers, {'neurons': 1, 'regularization': self.config['regularizer'],
                                        'regularization_param': self.config['regularization_param']}, 'v')
 
         # Action outputs
-        self.mu = dense(hidden_layers, {'neurons': self.config['actions'], 'regularization': self.config['regularizer'],
+        self.mu = dense(hidden_layers, {'neurons': actions, 'regularization': self.config['regularizer'],
                                         'regularization_param': self.config['regularization_param']}, 'v')
 
         # Advantage computation
         # Network outputs entries of lower triangular matrix L
-        lower_triangular_size = self.config['actions'] * (self.config['actions'] + 1) / 2
+        lower_triangular_size = actions * (actions+ 1) / 2
         self.l_entries = dense(hidden_layers, {'neurons': lower_triangular_size,
                                                'regularization': self.config['regularizer'],
                                                'regularization_param': self.config['regularization_param']}, 'v')
 
-        # Construct matrix P
+        # Construct matrix P - First constructing lower triangular matrix from entries
         batch_size = self.config['batch_size']
 
-        # TODO figure out tensor shapes
+        # Start with full empty matrix
+        full_batch_matrix = np.zeros((batch_size, actions, actions))
 
-        #action_difference =
+        # Set diagonals and lower triangular ements in entire batch
+        self.l_matrix = 0
+
+        # P = LL^T
+        self.p_matrix = 0
+
         self.advantage = -tf.batch_matmul()
         self.q_value = self.v + self.advantage
-
 
         def create_training_operations(self):
             """

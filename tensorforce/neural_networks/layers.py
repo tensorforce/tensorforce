@@ -88,7 +88,8 @@ def conv2d(input_handle, config, scope):
     }
     return tf_slim.conv2d(input_handle,
                           config['neurons'],
-                          config['conv_filter_shape'],
+                          config['kernel_size'],
+                          config['stride'],
                           scope=scope,
                           **kwargs)
 

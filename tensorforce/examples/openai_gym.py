@@ -40,7 +40,7 @@ def main():
                         default='examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=100, help="Maximum number of timesteps per episode")
-    parser.add_argument('-m', '--monitor', help="Save results to this file", default='tmp/dqn')
+    parser.add_argument('-m', '--monitor', help="Save results to this file")
 
     args = parser.parse_args()
 

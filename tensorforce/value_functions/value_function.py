@@ -35,6 +35,7 @@ class ValueFunction(object):
         """
 
         self.session = tf.Session()
+        # TODO fix
         #self.saver = tf.train.Saver()
 
     def get_action(self, state):

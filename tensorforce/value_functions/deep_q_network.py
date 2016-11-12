@@ -80,7 +80,7 @@ class DeepQNetwork(ValueFunction):
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.create_training_operations()
-
+        self.saver = tf.train.Saver()
         self.session.run(tf.initialize_all_variables())
 
     def get_action(self, state):
@@ -94,8 +94,7 @@ class DeepQNetwork(ValueFunction):
         if self.random.random_sample() < self.epsilon:
             return self.random.randint(0, self.env_actions)
         else:
-            # TODO partial run here?
-            return self.session.run(self.dqn_action, {self.state: [state]})[0]
+            return self.session.run(self.dqn_action, {self.state: [state]})
 
     def update(self, batch):
         """
@@ -122,7 +121,6 @@ class DeepQNetwork(ValueFunction):
 
         with tf.name_scope("predict"):
             self.dqn_action = tf.argmax(self.training_network, dimension=1, name='dqn_action')
-
         with tf.name_scope("training"):
             float_terminals = tf.to_float(self.terminals)
 

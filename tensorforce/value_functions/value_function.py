@@ -35,8 +35,7 @@ class ValueFunction(object):
         """
 
         self.session = tf.Session()
-        # TODO fix
-        #self.saver = tf.train.Saver()
+        self.saver = None
 
     def get_action(self, state):
         raise NotImplementedError

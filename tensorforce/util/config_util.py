@@ -39,6 +39,7 @@ def get_function(string, param=None, default=None):
     module_name, function_name = string.rsplit('.', 1)
     module = importlib.import_module(module_name)
     func = getattr(module, function_name)
+
     if isinstance(param, dict):
         return func(**param)
     else:

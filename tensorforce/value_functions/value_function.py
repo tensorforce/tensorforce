@@ -37,6 +37,12 @@ class ValueFunction(object):
         self.session = tf.Session()
         #self.saver = tf.train.Saver()
 
+    def get_action(self, state):
+        raise NotImplementedError
+
+    def update(self, batch):
+        raise NotImplementedError
+
     def load_model(self, path):
         self.saver.restore(self.session, path)
 

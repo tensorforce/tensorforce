@@ -142,9 +142,9 @@ class DeepQNetwork(ValueFunction):
 
             # Mean squared error
             loss = tf.reduce_mean(tf.square(self.q_targets - self.q_values_actions_taken), name='loss')
-            grads_and_vars = self.optimizer.compute_gradients(loss)
 
             if self.gradient_clipping is not None:
+                grads_and_vars = self.optimizer.compute_gradients(loss)
                 for idx, (grad, var) in enumerate(grads_and_vars):
                     if grad is not None:
                         grads_and_vars[idx] = (tf.clip_by_norm(grad, self.gradient_clipping), var)

@@ -106,7 +106,8 @@ class DeepQNetwork(ValueFunction):
         :param batch: Mini batch to use for training
         :return:
         """
-        # Use y values to compute loss and update
+
+        # Compute estimated future value
         float_terminals = tf.to_float(batch['terminals'])
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                    * self.gamma * self.get_target_values(batch['next_states'])

@@ -27,7 +27,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce.config import create_config
-from tensorforce.neural_networks.neural_network import get_network
+from tensorforce.neural_networks.neural_network import get_layers
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.value_functions.value_function import ValueFunction
 
@@ -74,13 +74,14 @@ class DeepQNetwork(ValueFunction):
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
         self.target_network_update = []
 
-        self.training_network = get_network(self.config.network_layers, self.state, 'training')
-        self.target_network = get_network(self.config.network_layers, self.next_states, 'target')
+        self.training_network = get_layers(self.config.network_layers, self.state, 'training')
+        self.target_network = get_layers(self.config.network_layers, self.next_states, 'target')
 
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.create_training_operations()
         self.saver = tf.train.Saver()
+        writer = tf.train.SummaryWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.initialize_all_variables())
 
     def get_action(self, state):

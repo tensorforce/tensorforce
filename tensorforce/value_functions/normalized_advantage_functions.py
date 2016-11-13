@@ -24,7 +24,7 @@ from __future__ import division
 import tensorflow as tf
 import numpy as np
 from tensorforce.neural_networks.layers import dense
-from tensorforce.neural_networks.neural_network import get_network
+from tensorforce.neural_networks.neural_network import get_layers
 from tensorforce.value_functions.value_function import ValueFunction
 
 
@@ -54,7 +54,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
         self.step = 0
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
-        self.create_outputs(get_network(self.config.network_layers, self.state, 'training'))
+        self.create_outputs(get_layers(self.config.network_layers, self.state, 'training'))
 
     def get_noise(self, step):
         return 0

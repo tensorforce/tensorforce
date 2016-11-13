@@ -28,16 +28,16 @@ from tensorflow.contrib.layers.python.layers import initializers
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import init_ops
 from tensorforce.util.config_util import get_function
-
+import numpy as np
 
 tf_slim = tf.contrib.slim
 
 
-def dense(input_handle, config, scope):
+def dense(input, config, scope):
     """
     Fully connected layer.
 
-    :param input_handle: Input to the layer, e.g. handle to another layer
+    :param input: Input to the layer, e.g. handle to another layer
     :param config: Layer config
     :param scope: Layer name
     :return:
@@ -56,18 +56,20 @@ def dense(input_handle, config, scope):
                                              config.get('regularization_param'),
                                              None),
     }
+    # Flatten
+    input = tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:]))))
 
-    return tf_slim.fully_connected(input_handle,
+    return tf_slim.fully_connected(input,
                                    config['neurons'],
                                    scope=scope,
                                    **kwargs)
 
 
-def conv2d(input_handle, config, scope):
+def conv2d(input, config, scope):
     """
     Convolutional 2d layer.
 
-    :param input_handle: Input to the layer, e.g. handle to another layer
+    :param input: Input to the layer, e.g. handle to another layer
     :param config: Layer config
     :param scope: Layer name
     :return:
@@ -86,7 +88,8 @@ def conv2d(input_handle, config, scope):
                                              config.get('regularization_param'),
                                              None),
     }
-    return tf_slim.conv2d(input_handle,
+
+    return tf_slim.conv2d(input,
                           config['neurons'],
                           config['kernel_size'],
                           config['stride'],

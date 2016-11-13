@@ -73,7 +73,7 @@ class DeepQNetwork(ValueFunction):
         self.actions = tf.placeholder(tf.int64, [None], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
-        self.q_targets = tf.placeholder(tf.float32, [None], name='rewards')
+
         self.target_network_update = []
 
         self.training_network = get_layers(self.config.network_layers, self.state, 'training')
@@ -112,11 +112,14 @@ class DeepQNetwork(ValueFunction):
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                    * self.gamma * self.get_target_values(batch['next_states'])
 
+        # Q values for actions taken in batch
+        batch_q_values = self.get_q_values(batch['states'])
+        action_indices = tf.squeeze(np.dstack([tf.range(self.batch_size), batch['actions']]))
+        q_values_actions_taken = tf.gather_nd(batch_q_values, action_indices)
 
         self.session.run([self.optimize_op, self.target_network_update], {
-                             self.state: batch['states'],
-                             self.actions: batch['actions'],
-                             self.q_targets: q_targets})
+                             self.q_targets: q_targets,
+                             self.q_values_actions_taken: q_values_actions_taken})
 
     def create_training_operations(self):
         """
@@ -134,12 +137,11 @@ class DeepQNetwork(ValueFunction):
                                           name='target_values')
 
         with tf.name_scope("training"):
-            action_indices = tf.squeeze(np.dstack([tf.range(self.batch_size), self.actions]))
-            batch_q_values = tf.identity(self.training_network, name="batch_q_values")
-            q_values_actions_taken = tf.gather_nd(batch_q_values, action_indices)
+            self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
+            self.q_values_actions_taken = tf.placeholder(tf.float32, [None], name='q_values_actions_taken')
 
             # Mean squared error
-            loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
+            loss = tf.reduce_mean(tf.square(self.q_targets - self.q_values_actions_taken), name='loss')
             grads_and_vars = self.optimizer.compute_gradients(loss)
 
             if self.gradient_clipping is not None:
@@ -162,3 +164,6 @@ class DeepQNetwork(ValueFunction):
         :return:
         """
         return self.session.run(self.target_values, {self.next_states: next_states})
+
+    def get_q_values(self, state):
+        return self.session.run(self.training_network, {self.state: state})

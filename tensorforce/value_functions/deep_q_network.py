@@ -148,7 +148,9 @@ class DeepQNetwork(ValueFunction):
                 for idx, (grad, var) in enumerate(grads_and_vars):
                     if grad is not None:
                         grads_and_vars[idx] = (tf.clip_by_norm(grad, self.gradient_clipping), var)
-            self.optimize_op = self.optimizer.apply_gradients(grads_and_vars)
+                self.optimize_op = self.optimizer.apply_gradients(grads_and_vars)
+
+            self.optimize_op = self.optimizer.minimize(loss)
 
         # Update target network with update weight tau
         with tf.name_scope("update_target"):
@@ -166,4 +168,5 @@ class DeepQNetwork(ValueFunction):
         return self.session.run(self.target_values, {self.next_states: next_states})
 
     def get_q_values(self, state):
+
         return self.session.run(self.training_network, {self.state: state})

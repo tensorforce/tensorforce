@@ -56,6 +56,7 @@ class DeepQNetwork(ValueFunction):
         self.epsilon = self.config.epsilon
         self.gamma = self.config.gamma
         self.alpha = self.config.alpha
+        self.batch_size = self.config.batch_size
 
         self.gradient_clipping = None
         if self.config.clip_gradients:
@@ -72,6 +73,7 @@ class DeepQNetwork(ValueFunction):
         self.actions = tf.placeholder(tf.int64, [None], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
+        self.q_targets = tf.placeholder(tf.float32, [None], name='rewards')
         self.target_network_update = []
 
         self.training_network = get_layers(self.config.network_layers, self.state, 'training')
@@ -105,12 +107,15 @@ class DeepQNetwork(ValueFunction):
         :return:
         """
         # Use y values to compute loss and update
+        float_terminals = tf.to_float(batch['terminals'])
+        q_targets = batch['rewards'] + (1. - float_terminals) \
+                                   * self.gamma * self.get_target_values(batch['next_states'])
+
+
         self.session.run([self.optimize_op, self.target_network_update], {
                              self.state: batch['states'],
-                             self.rewards: batch['rewards'],
                              self.actions: batch['actions'],
-                             self.next_states: batch['next_states'],
-                             self.terminals: batch['terminals']})
+                             self.q_targets: q_targets})
 
     def create_training_operations(self):
         """
@@ -122,23 +127,18 @@ class DeepQNetwork(ValueFunction):
 
         with tf.name_scope("predict"):
             self.dqn_action = tf.argmax(self.training_network, dimension=1, name='dqn_action')
-        with tf.name_scope("training"):
-            float_terminals = tf.to_float(self.terminals)
 
-            target_values = tf.reduce_max(self.target_network, reduction_indices=1,
+        with tf.name_scope("targets"):
+            self.target_values = tf.reduce_max(self.target_network, reduction_indices=1,
                                           name='target_values')
 
-            q_targets = self.rewards + (1. - float_terminals) * self.gamma * target_values
-
-            actions_one_hot = tf.one_hot(self.actions, tf.to_int32(self.actions), 1.0, 0.0)
-
+        with tf.name_scope("training"):
+            action_indices = tf.squeeze(np.dstack([tf.range(self.batch_size), self.actions]))
             batch_q_values = tf.identity(self.training_network, name="batch_q_values")
-            q_values_actions_taken = tf.reduce_sum(batch_q_values * actions_one_hot, reduction_indices=1,
-                                                   name='q_acted')
+            q_values_actions_taken = tf.gather_nd(batch_q_values, action_indices)
 
             # Mean squared error
-            loss = tf.reduce_mean(tf.square(q_targets - q_values_actions_taken), name='loss')
-
+            loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
             grads_and_vars = self.optimizer.compute_gradients(loss)
 
             if self.gradient_clipping is not None:
@@ -148,8 +148,16 @@ class DeepQNetwork(ValueFunction):
             self.optimize_op = self.optimizer.apply_gradients(grads_and_vars)
 
         # Update target network with update weight tau
-        #with tf.name_scope("update_target"):
-        #    for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
-        #        operation = v_target.assign_sub(self.tau * (v_target - v_source))
+        with tf.name_scope("update_target"):
+           for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
+               operation = v_target.assign_sub(self.tau * (v_target - v_source))
 
-        #        self.target_network_update.append(operation)
+               self.target_network_update.append(operation)
+
+    def get_target_values(self, next_states):
+        """
+        Estimate of next state Q values.
+        :param next_states:
+        :return:
+        """
+        return self.session.run(self.target_values, {self.next_states: next_states})

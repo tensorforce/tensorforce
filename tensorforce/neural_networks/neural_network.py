@@ -59,6 +59,6 @@ def get_layers(network_layers, input_data, scope='value_function'):
                 name = "{type}{num}".format(type=layer_type, num=type_count + 1)
                 type_counter.update({layer_type: type_count + 1})
 
-            network = layers[layer_type](layer, layer_config, name)
+            layer = layers[layer_type](layer, layer_config, name)
 
         return layer

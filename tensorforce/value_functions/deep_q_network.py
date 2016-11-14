@@ -70,7 +70,6 @@ class DeepQNetwork(ValueFunction):
         # Input placeholders
         self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
         self.next_states = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="next_states")
-        self.actions = tf.placeholder(tf.int64, [None], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
 
@@ -112,14 +111,10 @@ class DeepQNetwork(ValueFunction):
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                    * self.gamma * self.get_target_values(batch['next_states'])
 
-        # Q values for actions taken in batch
-        batch_q_values = self.get_q_values(batch['states'])
-        action_indices = tf.squeeze(np.dstack([tf.range(self.batch_size), batch['actions']]))
-        q_values_actions_taken = tf.gather_nd(batch_q_values, action_indices)
-
-        self.session.run([self.optimize_op, self.target_network_update], {
+        self.session.run([self.optimize_op, self.training_network], {
                              self.q_targets: q_targets,
-                             self.q_values_actions_taken: q_values_actions_taken})
+                             self.actions: batch['actions'],
+                             self.state: batch['states']})
 
     def create_training_operations(self):
         """
@@ -136,12 +131,18 @@ class DeepQNetwork(ValueFunction):
             self.target_values = tf.reduce_max(self.target_network, reduction_indices=1,
                                           name='target_values')
 
-        with tf.name_scope("training"):
+        with tf.name_scope("update"):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
-            self.q_values_actions_taken = tf.placeholder(tf.float32, [None], name='q_values_actions_taken')
+            self.actions = tf.placeholder(tf.int64, [None], name='actions')
+
+            # Q values for actions taken in batch
+            actions_one_hot = tf.one_hot(self.actions, self.env_actions, 1.0, 0.0, name='action_one_hot')
+            print(actions_one_hot)
+            print(self.training_network)
+            q_values_actions_taken = tf.reduce_sum(self.training_network * actions_one_hot, reduction_indices=1, name='q_acted')
 
             # Mean squared error
-            loss = tf.reduce_mean(tf.square(self.q_targets - self.q_values_actions_taken), name='loss')
+            loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
 
             if self.gradient_clipping is not None:
                 grads_and_vars = self.optimizer.compute_gradients(loss)
@@ -153,11 +154,11 @@ class DeepQNetwork(ValueFunction):
             self.optimize_op = self.optimizer.minimize(loss)
 
         # Update target network with update weight tau
-        with tf.name_scope("update_target"):
-           for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
-               operation = v_target.assign_sub(self.tau * (v_target - v_source))
-
-               self.target_network_update.append(operation)
+        # with tf.name_scope("update_target"):
+        #    for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
+        #        operation = v_target.assign_sub(self.tau * (v_target - v_source))
+        #
+        #        self.target_network_update.append(operation)
 
     def get_target_values(self, next_states):
         """
@@ -166,7 +167,3 @@ class DeepQNetwork(ValueFunction):
         :return:
         """
         return self.session.run(self.target_values, {self.next_states: next_states})
-
-    def get_q_values(self, state):
-
-        return self.session.run(self.training_network, {self.state: state})

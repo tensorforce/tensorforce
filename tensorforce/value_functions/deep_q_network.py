@@ -137,8 +137,6 @@ class DeepQNetwork(ValueFunction):
 
             # Q values for actions taken in batch
             actions_one_hot = tf.one_hot(self.actions, self.env_actions, 1.0, 0.0, name='action_one_hot')
-            print(actions_one_hot)
-            print(self.training_network)
             q_values_actions_taken = tf.reduce_sum(self.training_network * actions_one_hot, reduction_indices=1, name='q_acted')
 
             # Mean squared error

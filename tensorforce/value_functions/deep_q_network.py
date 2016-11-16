@@ -27,13 +27,12 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce.config import create_config
-from tensorforce.neural_networks.neural_network import get_layers
+from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.value_functions.value_function import ValueFunction
 
 
 class DeepQNetwork(ValueFunction):
-
     default_config = {
         'tau': 0,
         'epsilon': 0.1,
@@ -75,8 +74,10 @@ class DeepQNetwork(ValueFunction):
 
         self.target_network_update = []
 
-        self.training_network = get_layers(self.config.network_layers, self.state, 'training')
-        self.target_network = get_layers(self.config.network_layers, self.next_states, 'target')
+        self.training_model = NeuralNetwork(self.config.network_layers, self.state, 'training')
+        self.target_model = NeuralNetwork(self.config.network_layers, self.next_states, 'target')
+        self.training_output = self.training_model.get_output()
+        self.target_output = self.target_model.get_output()
 
         # Create training operations
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
@@ -109,12 +110,12 @@ class DeepQNetwork(ValueFunction):
         # Compute estimated future value
         float_terminals = tf.to_float(batch['terminals'])
         q_targets = batch['rewards'] + (1. - float_terminals) \
-                                   * self.gamma * self.get_target_values(batch['next_states'])
+                                       * self.gamma * self.get_target_values(batch['next_states'])
 
-        self.session.run([self.optimize_op, self.training_network], {
-                             self.q_targets: q_targets,
-                             self.actions: batch['actions'],
-                             self.state: batch['states']})
+        self.session.run([self.optimize_op, self.training_output], {
+            self.q_targets: q_targets,
+            self.actions: batch['actions'],
+            self.state: batch['states']})
 
     def create_training_operations(self):
         """
@@ -125,11 +126,11 @@ class DeepQNetwork(ValueFunction):
         """
 
         with tf.name_scope("predict"):
-            self.dqn_action = tf.argmax(self.training_network, dimension=1, name='dqn_action')
+            self.dqn_action = tf.argmax(self.training_output, dimension=1, name='dqn_action')
 
         with tf.name_scope("targets"):
-            self.target_values = tf.reduce_max(self.target_network, reduction_indices=1,
-                                          name='target_values')
+            self.target_values = tf.reduce_max(self.target_output, reduction_indices=1,
+                                               name='target_values')
 
         with tf.name_scope("update"):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
@@ -137,7 +138,8 @@ class DeepQNetwork(ValueFunction):
 
             # Q values for actions taken in batch
             actions_one_hot = tf.one_hot(self.actions, self.env_actions, 1.0, 0.0, name='action_one_hot')
-            q_values_actions_taken = tf.reduce_sum(self.training_network * actions_one_hot, reduction_indices=1, name='q_acted')
+            q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
+                                                   name='q_acted')
 
             # Mean squared error
             loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
@@ -152,11 +154,11 @@ class DeepQNetwork(ValueFunction):
             self.optimize_op = self.optimizer.minimize(loss)
 
         # Update target network with update weight tau
-        # with tf.name_scope("update_target"):
-        #    for v_source, v_target in zip(self.training_network.variables(), self.training_network.variables()):
-        #        operation = v_target.assign_sub(self.tau * (v_target - v_source))
-        #
-        #        self.target_network_update.append(operation)
+        with tf.name_scope("update_target"):
+            for v_source, v_target in zip(self.training_model.get_variables(), self.target_model.get_variables()):
+                update = v_target.assign_sub(self.tau * (v_target - v_source))
+
+                self.target_network_update.append(update)
 
     def get_target_values(self, next_states):
         """

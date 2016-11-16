@@ -28,37 +28,56 @@ from tensorforce.neural_networks.layers import layers
 tf_slim = tf.contrib.slim
 
 
-def get_layers(network_layers, input_data, scope='value_function'):
-    """
-    Creates a neural network according to the given config.
+class NeuralNetwork(object):
 
-    :param network_layers: Dict that describes a neural network layer wise
-    :param input_data: TF input placeholder
-    :param scope: TF scope
-    :return: A TensorFlow network
-    """
+    def __init__(self, network_layers, input_data, scope='value_function'):
+        """
+        Creates a neural network according to the given config.
 
-    with tf.variable_scope(scope):
+        :param network_layers: Dict that describes a neural network layer wise
+        :param input_data: TF input placeholder
+        :param scope: TF scope
+        :return: A TensorFlow network
+        """
+        self.layers = []
+        self.input = input_data
+        self.variables = None
+        self.scope = scope
 
-        type_counter = {}
+        with tf.variable_scope(scope):
 
-        if not network_layers:
-            raise ConfigError("Invalid configuration, missing layer specification.")
+            type_counter = {}
 
-        first_layer = True
-        layer = input_data  # for the first layer
+            if not network_layers:
+                raise ConfigError("Invalid configuration, missing layer specification.")
 
-        for layer_config in network_layers:
-            layer_type = layer_config['type']
+            first_layer = True
+            layer = input_data  # for the first layer
 
-            if first_layer:
-                name = 'input'
-                first_layer = False
-            else:
-                type_count = type_counter.get(layer_type, 0)
-                name = "{type}{num}".format(type=layer_type, num=type_count + 1)
-                type_counter.update({layer_type: type_count + 1})
+            for layer_config in network_layers:
+                layer_type = layer_config['type']
 
-            layer = layers[layer_type](layer, layer_config, name)
+                if first_layer:
+                    name = 'input'
+                    first_layer = False
+                else:
+                    type_count = type_counter.get(layer_type, 0)
+                    name = "{type}{num}".format(type=layer_type, num=type_count + 1)
+                    type_counter.update({layer_type: type_count + 1})
 
-        return layer
+                layer = layers[layer_type](layer, layer_config, name)
+                if name is not 'input':
+                    self.layers.append(layer)
+
+            self.output = layer
+
+    def get_output(self):
+        return self.output
+
+    def get_variables(self):
+        if self.variables is None:
+            self.variables = tf_slim.get_variables_by_name(self.scope)
+            return self.variables
+        else:
+            return self.variables
+

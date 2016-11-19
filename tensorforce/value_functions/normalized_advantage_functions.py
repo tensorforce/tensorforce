@@ -84,9 +84,11 @@ class NormalizedAdvantageFunctions(ValueFunction):
         """
         Returns a noise sample from the configured exploration strategy.
 
-        :param step:
+        :param episode: Current episode
         :return:
         """
+
+        # TODO build global exploration strategy helper
         return self.random.random_sample(1) / (episode + 1)
 
     def get_action(self, state):

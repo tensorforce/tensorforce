@@ -59,17 +59,19 @@ class NeuralNetwork(object):
 
                 if first_layer:
                     name = 'input'
-                    first_layer = False
                 else:
                     type_count = type_counter.get(layer_type, 0)
                     name = "{type}{num}".format(type=layer_type, num=type_count + 1)
                     type_counter.update({layer_type: type_count + 1})
 
                 layer = layers[layer_type](layer, layer_config, name)
-                if name is not 'input':
-                    self.layers.append(layer)
 
-            self.output = layer
+                if not first_layer:
+                    self.layers.append(layer)
+                else:
+                    first_layer = False
+
+            self.output = layer  # set output to last layer
 
     def get_output(self):
         return self.output

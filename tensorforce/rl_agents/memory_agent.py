@@ -30,7 +30,7 @@ class MemoryAgent(RLAgent):
 
     default_config = {
         'batch_size': 100,
-        'update_rate': 10,
+        'update_steps': 100,
         'min_replay_size': 100,
         'deterministic_mode': False
     }
@@ -53,7 +53,7 @@ class MemoryAgent(RLAgent):
         self.memory = ReplayMemory(**config)
         self.step_count = 0
         self.batch_size = self.config.batch_size
-        self.update_rate = self.config.update_rate
+        self.update_steps = 1 / self.config.update_rate
         self.min_replay_size = self.config.min_replay_size
 
         if self.value_function_ref:
@@ -82,7 +82,7 @@ class MemoryAgent(RLAgent):
         """
         self.memory.add_experience(state, action, reward, terminal)
 
-        if self.step_count > self.min_replay_size and self.step_count % self.update_rate == 0:
+        if self.step_count > self.min_replay_size and self.step_count % self.update_steps == 0:
             self.value_function.update(self.memory.sample_batch(self.batch_size))
 
         self.step_count += 1

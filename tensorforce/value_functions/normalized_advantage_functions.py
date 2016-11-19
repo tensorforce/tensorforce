@@ -104,6 +104,12 @@ class NormalizedAdvantageFunctions(ValueFunction):
         return action + self.get_noise(1)
 
     def update(self, batch):
+        """
+        Executes a NAF update on a training batch.
+
+        :param batch:
+        :return:
+        """
         float_terminals = tf.to_float(batch['terminals'])
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                        * self.gamma * self.get_target_value_estimate(batch['next_states'])
@@ -152,7 +158,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
                 # Slice out non-zero non-diagonal entries, - 1 because we already took the diagonal
                 non_diagonal = tf.slice(l_entries, (0, offset + 1), (-1, n))
 
-                # Fill up row with n - i zeros
+                # Fill up row with zeros
                 row = tf.pad(tf.concat(1, (diagonal, non_diagonal)), ((0, 0), (i, 0)))
                 offset += (self.actions - i)
                 l_rows.append(row)
@@ -201,7 +207,8 @@ class NormalizedAdvantageFunctions(ValueFunction):
 
     def get_target_value_estimate(self, next_states):
         """
-        Estimate of next state Q values.
+        Estimate of next state V value through target network.
+
         :param next_states:
         :return:
         """

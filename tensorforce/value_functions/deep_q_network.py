@@ -34,10 +34,10 @@ from tensorforce.value_functions.value_function import ValueFunction
 
 class DeepQNetwork(ValueFunction):
     default_config = {
-        'tau': 0,
+        'tau': 0.5,
         'epsilon': 0.1,
-        'gamma': 0,
-        'alpha': 0.5,
+        'gamma': 0.9,
+        'alpha': 0.001,
         'clip_gradients': False
     }
 

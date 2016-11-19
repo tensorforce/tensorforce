@@ -29,6 +29,7 @@ from tensorflow.contrib.framework import get_variables
 from tensorforce.neural_networks.layers import dense
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
+from tensorforce.util.exploration_util import exploration_mode
 from tensorforce.value_functions.value_function import ValueFunction
 
 
@@ -62,13 +63,15 @@ class NormalizedAdvantageFunctions(ValueFunction):
         else:
             self.random = np.random.RandomState()
 
+        self.exploration = exploration_mode[self.config.exploration_mode]
+
         self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
         self.next_states = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="next_states")
         self.actions = tf.placeholder(tf.int64, [None], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
         self.target_network_update = []
-        self.step = 0
+        self.episode = 0
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
         self.training_model = NeuralNetwork(self.config.network_layers, self.state, 'training')
@@ -83,28 +86,18 @@ class NormalizedAdvantageFunctions(ValueFunction):
         self.saver = tf.train.Saver()
 
 
-    def get_noise(self, episode):
-        """
-        Returns a noise sample from the configured exploration strategy.
 
-        :param episode: Current episode
-        :return:
-        """
-
-        # TODO build global exploration strategy helper
-        return self.random.random_sample(1) / (episode + 1)
-
-    def get_action(self, state):
+    def get_action(self, state, episode=1):
         """
         Returns naf actions.
 
-        :param state:
+        :param state: Current state
+        :param episode: Current episode
         :return:
         """
         action = self.session.run(self.mu, {self.state: [state]})
 
-        # TODO add episode semantics
-        return action + self.get_noise(1)
+        return action + self.exploration(self.random, self.episode)
 
     def update(self, batch):
         """
@@ -134,11 +127,11 @@ class NormalizedAdvantageFunctions(ValueFunction):
 
         with tf.name_scope(scope):
             # State-value function
-            v = dense(last_hidden_layer, {'neurons': 1, 'regularization': self.config['regularizer'],
+            v = dense(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
                                           'regularization_param': self.config['regularization_param']}, 'v')
 
             # Action outputs
-            mu = dense(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config['regularizer'],
+            mu = dense(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
                                            'regularization_param': self.config['regularization_param']}, 'v')
 
             # Advantage computation

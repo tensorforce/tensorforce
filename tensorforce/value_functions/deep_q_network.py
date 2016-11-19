@@ -86,11 +86,12 @@ class DeepQNetwork(ValueFunction):
         writer = tf.train.SummaryWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.initialize_all_variables())
 
-    def get_action(self, state):
+    def get_action(self, state, episode=1):
         """
         Returns the predicted action for a given state.
 
         :param state: State tensor
+        :param episode: Current episode
         :return:
         """
 

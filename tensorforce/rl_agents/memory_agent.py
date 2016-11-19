@@ -59,7 +59,7 @@ class MemoryAgent(RLAgent):
         if self.value_function_ref:
             self.value_function = self.value_function_ref(self.config)
 
-    def get_action(self, state):
+    def get_action(self, state, episode=1):
         """
         Executes one reinforcement learning step. Implicitly computes updates
         according to the update frequency.
@@ -67,7 +67,7 @@ class MemoryAgent(RLAgent):
         :param state: Observed state tensor
         :return: Which action to take
         """
-        action = self.value_function.get_action(state)
+        action = self.value_function.get_action(state, episode)
 
         return action
 

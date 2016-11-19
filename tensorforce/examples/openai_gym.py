@@ -76,7 +76,7 @@ def main():
         state = env.reset()
         j = -1
         for j in xrange(max_timesteps):
-            action = agent.get_action(state)
+            action = agent.get_action(state, i)
             result = env.execute_action(action)
 
             agent.add_observation(state, action, result['reward'], result['terminal_state'])

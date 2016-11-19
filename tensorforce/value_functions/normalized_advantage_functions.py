@@ -15,6 +15,7 @@
 
 """
 Implements normalized advantage functions as described here:
+
 https://arxiv.org/abs/1603.00748
 """
 
@@ -79,6 +80,8 @@ class NormalizedAdvantageFunctions(ValueFunction):
             self.training_model.get_output(), 'outputs_training')
         self.target_v, _, _, _, self.target_output_vars = self.create_outputs(self.target_model.get_output(),
                                                                               'outputs_target')
+        self.saver = tf.train.Saver()
+
 
     def get_noise(self, episode):
         """
@@ -107,7 +110,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
         """
         Executes a NAF update on a training batch.
 
-        :param batch:
+        :param batch:=
         :return:
         """
         float_terminals = tf.to_float(batch['terminals'])

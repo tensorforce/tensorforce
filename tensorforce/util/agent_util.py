@@ -24,6 +24,7 @@ from __future__ import division
 from tensorforce.config import Config
 from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
 from tensorforce.rl_agents import *
+from tensorforce.rl_agents.naf_agent import NAFAgent
 
 
 def create_agent(agent_type, config):
@@ -59,5 +60,6 @@ def get_default_config(agent_type):
 
 agents = {
     'RandomAgent': RandomAgent,
-    'DQNAgent': DQNAgent
+    'DQNAgent': DQNAgent,
+    'NAFAgent': NAFAgent
 }

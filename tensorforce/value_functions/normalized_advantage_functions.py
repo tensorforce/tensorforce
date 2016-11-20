@@ -26,6 +26,7 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.contrib.framework import get_variables
 
+from tensorforce.config import create_config
 from tensorforce.neural_networks.layers import dense
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
@@ -50,8 +51,8 @@ class NormalizedAdvantageFunctions(ValueFunction):
         :param config: Configuration parameters
         """
         super(NormalizedAdvantageFunctions, self).__init__(config)
+        self.config = create_config(config, default=self.default_config)
         self.action_count = self.config.actions
-        self.config = config
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon
         self.gamma = self.config.gamma
@@ -137,14 +138,14 @@ class NormalizedAdvantageFunctions(ValueFunction):
 
             # Action outputs
             mu = dense(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
-                                           'regularization_param': self.config.regularization_param}, 'v')
+                                           'regularization_param': self.config.regularization_param}, 'mu')
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
-            lower_triangular_size = self.action_count * (self.action_count + 1) / 2
+            lower_triangular_size = int(self.action_count * (self.action_count + 1) / 2)
             l_entries = dense(last_hidden_layer, {'neurons': lower_triangular_size,
                                                   'regularization': self.config.regularizer,
-                                                  'regularization_param': self.config.regularization_param}, 'v')
+                                                  'regularization_param': self.config.regularization_param}, 'l')
 
             # Iteratively construct matrix. Extra verbose comment here
             l_rows = []
@@ -153,9 +154,12 @@ class NormalizedAdvantageFunctions(ValueFunction):
             for i in xrange(self.action_count):
                 # Diagonal elements are exponentiated, otherwise gradient often 0
                 # Slice out lower triangular entries from flat representation through moving offset
+                print('i=' + str(i))
+                print(l_entries)
+                print('offset=' + str(offset))
                 diagonal = tf.exp(tf.slice(l_entries, (0, offset), (-1, 1)))
 
-                n = self.actions - i - 1
+                n = self.action_count - i - 1
                 # Slice out non-zero non-diagonal entries, - 1 because we already took the diagonal
                 non_diagonal = tf.slice(l_entries, (0, offset + 1), (-1, n))
 

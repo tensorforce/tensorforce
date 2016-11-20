@@ -66,7 +66,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
 
         self.exploration = exploration_mode[self.config.exploration_mode]
 
-        if self.config.concat_length is not None and self.config.concat_length > 1:
+        if self.config.concat is not None and self.config.concat > 1:
             self.state = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape), name="state")
             self.next_states = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape), name="next_states")
         else:

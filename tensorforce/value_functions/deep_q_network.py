@@ -96,9 +96,11 @@ class DeepQNetwork(ValueFunction):
         """
 
         if self.random.random_sample() < self.epsilon:
-            return self.random.randint(0, self.env_actions)
+            action = self.random.randint(0, self.env_actions)
         else:
-            return self.session.run(self.dqn_action, {self.state: [state]})
+            action = self.session.run(self.dqn_action, {self.state: [state]})
+            print("Executing DQN action: {}".format(action))
+        return action
 
     def update(self, batch):
         """

@@ -27,6 +27,7 @@ from six.moves import xrange
 from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
+from tensorforce.state_wrappers.concat_wrapper import ConcatWrapper
 
 
 def main():
@@ -70,13 +71,21 @@ def main():
     if args.monitor:
         env.gym.monitor.start(args.monitor)
 
+    state_wrapper = None
+    if config.concat > 1:
+        state_wrapper = ConcatWrapper(config.concat)
+
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     i = -1
     for i in xrange(episodes):
         state = env.reset()
         j = -1
         for j in xrange(max_timesteps):
-            action = agent.get_action(state, i)
+            if state_wrapper:
+                full_state = state_wrapper.get_full_state(state)
+            else:
+                full_state = state
+            action = agent.get_action(full_state, i)
             result = env.execute_action(action)
 
             agent.add_observation(state, action, result['reward'], result['terminal_state'])

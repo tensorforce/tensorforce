@@ -66,7 +66,6 @@ class ReplayMemory(object):
         self.capacity = memory_capacity
         self.size = 0
         self.concat = concat
-        self.concat_length = concat_length
 
         # Explicitly set data types for every tensor to make for easier adjustments
         # if backend precision changes
@@ -123,30 +122,33 @@ class ReplayMemory(object):
         if batch_size < 0:
             raise ArgumentMustBePositiveError('Batch size must be positive')
 
-        batch_states = np.zeros((batch_size, self.concat_length) + self.state_shape,
-                                dtype=self.state_type)
-        batch_actions = np.zeros((batch_size, self.action_shape), dtype=self.action_type)
+        if self.concat > 1:
+            batch_states = np.zeros((batch_size, self.concat) + self.state_shape, dtype=self.state_type)
+            batch_next_states = np.zeros((batch_size, self.concat) + self.state_shape, dtype=self.state_type)
+        else:
+            batch_states = np.zeros((batch_size, ) + self.state_shape, dtype=self.state_type)
+            batch_next_states = np.zeros((batch_size, ) + self.state_shape, dtype=self.state_type)
+
+        batch_actions = np.zeros((batch_size, ) + self.action_shape, dtype=self.action_type)
         batch_rewards = np.zeros(batch_size, dtype=self.reward_type)
-        batch_next_states = np.zeros((batch_size, self.concat_length) + self.state_shape,
-                                     dtype=self.state_type)
         batch_terminals = np.zeros(batch_size, dtype='bool')
 
         for i in xrange(batch_size):
             start_index = self.random.randint(self.bottom,
                                               self.bottom + self.size - self.concat_length)
             end_index = start_index
-            if self.concat:
-                state_index = np.arange(start_index, self.concat_length, 1)
-                end_index = start_index + self.concat_length - 1
-            else:
-                state_index = start_index
+            #if self.concat:
+            #    state_index = np.arange(start_index, self.concat_length, 1)
+            #    end_index = start_index + self.concat_length - 1
+            #else:
+            state_index = start_index
 
             # Either range or single index depending on whether concatenation is active
             next_state_index = state_index + 1
 
             # Skip if concatenated index is between episodes
-            if self.concat and np.any(self.terminals.take(state_index[0:-1], mode='wrap')):
-                continue
+            #if self.concat and np.any(self.terminals.take(state_index[0:-1], mode='wrap')):
+            #    continue
 
             batch_states[i] = self.states.take(state_index, axis=0, mode='wrap')
             batch_actions[i] = self.actions.take(end_index, mode='wrap')

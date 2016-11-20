@@ -100,7 +100,8 @@ class NormalizedAdvantageFunctions(ValueFunction):
         :param episode: Current episode
         :return:
         """
-        action = self.session.run(self.mu, {self.state: [state]})
+        action = self.session.run(self.mu, {self.state: [state]})[0]
+        print(action)
 
         return action + self.exploration(self.random, self.episode)
 
@@ -153,9 +154,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
             for i in xrange(self.action_count):
                 # Diagonal elements are exponentiated, otherwise gradient often 0
                 # Slice out lower triangular entries from flat representation through moving offset
-                print('i=' + str(i))
-                print(l_entries)
-                print('offset=' + str(offset))
+
                 diagonal = tf.exp(tf.slice(l_entries, (0, offset), (-1, 1)))
 
                 n = self.action_count - i - 1
@@ -216,4 +215,5 @@ class NormalizedAdvantageFunctions(ValueFunction):
         :param next_states:
         :return:
         """
+
         return self.session.run(self.target_v, {self.next_states: next_states})

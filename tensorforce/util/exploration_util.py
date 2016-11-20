@@ -18,11 +18,10 @@ Implements and registers exploration strategies for continuous control problems.
 """
 import numpy as np
 
-def linear_decay(episode):
-    np.random.random_sample(1) / (episode + 1)
+def linear_decay(random, episode):
+    random.random_sample(1) / (episode + 1)
 
-
-def zero(episode=None):
+def zero(random=None, episode=None):
     return 0
 
 exploration_mode = {

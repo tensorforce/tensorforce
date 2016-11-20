@@ -28,5 +28,5 @@ class AtariWrapper(ConcatWrapper):
 
     def get_full_state(self, state):
         # TODO: preprocess state (grayscale)
-
+        
         return super(AtariWrapper).get_full_state(state)

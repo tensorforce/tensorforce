@@ -50,7 +50,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
         :param config: Configuration parameters
         """
         super(NormalizedAdvantageFunctions, self).__init__(config)
-        self.action_count = self.config['actions']
+        self.action_count = self.config.actions
         self.config = config
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon

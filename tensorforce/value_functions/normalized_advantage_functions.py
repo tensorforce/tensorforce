@@ -65,8 +65,13 @@ class NormalizedAdvantageFunctions(ValueFunction):
 
         self.exploration = exploration_mode[self.config.exploration_mode]
 
-        self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
-        self.next_states = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="next_states")
+        if self.config.concat_length is not None and self.config.concat_length > 1:
+            self.state = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape), name="state")
+            self.next_states = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape), name="next_states")
+        else:
+            self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
+            self.next_states = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="next_states")
+
         self.actions = tf.placeholder(tf.int64, [None], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
@@ -128,18 +133,18 @@ class NormalizedAdvantageFunctions(ValueFunction):
         with tf.name_scope(scope):
             # State-value function
             v = dense(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
-                                          'regularization_param': self.config['regularization_param']}, 'v')
+                                          'regularization_param': self.config.regularization_param}, 'v')
 
             # Action outputs
             mu = dense(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
-                                           'regularization_param': self.config['regularization_param']}, 'v')
+                                           'regularization_param': self.config.regularization_param}, 'v')
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
             lower_triangular_size = self.action_count * (self.action_count + 1) / 2
             l_entries = dense(last_hidden_layer, {'neurons': lower_triangular_size,
-                                                  'regularization': self.config['regularizer'],
-                                                  'regularization_param': self.config['regularization_param']}, 'v')
+                                                  'regularization': self.config.regularizer,
+                                                  'regularization_param': self.config.regularization_param}, 'v')
 
             # Iteratively construct matrix. Extra verbose comment here
             l_rows = []

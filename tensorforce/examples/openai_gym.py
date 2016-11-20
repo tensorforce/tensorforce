@@ -27,7 +27,7 @@ from six.moves import xrange
 from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
-from tensorforce.state_wrappers.concat_wrapper import ConcatWrapper
+from tensorforce.util.wrapper_util import create_wrapper
 
 
 def main():
@@ -72,8 +72,8 @@ def main():
         env.gym.monitor.start(args.monitor)
 
     state_wrapper = None
-    if config.concat > 1:
-        state_wrapper = ConcatWrapper(config.concat)
+    if config.state_wrapper:
+        state_wrapper = create_wrapper(config.state_wrapper, config.state_wrapper_param)
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     i = -1

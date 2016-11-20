@@ -12,3 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+__all__ = ['ConcatWrapper', 'AtariWrapper']
+
+from tensorforce.state_wrappers.concat_wrapper import ConcatWrapper
+from tensorforce.state_wrappers.atari_wrapper import AtariWrapper

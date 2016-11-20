@@ -14,33 +14,34 @@
 # ==============================================================================
 
 """
-Concatenate states
+Utility functions concerning state wrappers.
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from collections import deque
-import numpy as np
+from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
+from tensorforce.state_wrappers import *
 
 
-class ConcatWrapper(object):
-    def __init__(self, config):
-        self.concat_length = config.concat_length
-        self._queue = deque(maxlen=self.concat_length)
+def create_wrapper(wrapper_type, config):
+    """
+    Create wrapper instance by providing type as a string parameter.
 
-    def get_full_state(self, state):
-        """
-        Return full concatenated state including new state state.
+    :param wrapper_type: String parameter containing wrapper type
+    :param config: Dict containing configuration
+    :return: Wrapper instance
+    """
+    wrapper_class = wrappers.get(wrapper_type)
 
-        :param state: New state to be added
-        :return: State tensor of shape (concat_length, state_shape)
-        """
-        self._queue.append(state)
+    if not wrapper_class:
+        raise TensorForceValueError("No such wrapper: {}".format(wrapper_type))
 
-        # If queue is too short, fill with current state.
-        while len(self._queue) < self.concat_length:
-            self._queue.append(state)
+    return wrapper_class(config)
 
-        return np.array(self._queue)
+
+wrappers = {
+    'ConcatWrapper': ConcatWrapper,
+    'AtariWrapper': AtariWrapper
+}

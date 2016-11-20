@@ -1,7 +1,9 @@
 {
-  "memory_capacity": 1000,
+  "memory_capacity": 100,
   "batch_size": 50,
   "update_rate": 0.01,
   "min_replay_size": 100,
-  "concat": 4
+  "concat": 4,
+  "state_wrapper": "AtariWrapper",
+  "state_wrapper_param": {"concat": 4}
 }

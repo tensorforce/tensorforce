@@ -21,26 +21,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from collections import deque
-import numpy as np
+from tensorforce.state_wrappers.concat_wrapper import ConcatWrapper
 
 
-class ConcatWrapper(object):
-    def __init__(self, config):
-        self.concat_length = config.concat_length
-        self._queue = deque(maxlen=self.concat_length)
+class AtariWrapper(ConcatWrapper):
 
     def get_full_state(self, state):
-        """
-        Return full concatenated state including new state state.
+        # TODO: preprocess state (grayscale)
 
-        :param state: New state to be added
-        :return: State tensor of shape (concat_length, state_shape)
-        """
-        self._queue.append(state)
-
-        # If queue is too short, fill with current state.
-        while len(self._queue) < self.concat_length:
-            self._queue.append(state)
-
-        return np.array(self._queue)
+        return super(AtariWrapper).get_full_state(state)

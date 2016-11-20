@@ -38,8 +38,7 @@ class ReplayMemory(object):
                  state_type=np.float32,
                  action_type=np.int,
                  reward_type=np.float32,
-                 concat=False,
-                 concat_length=1,
+                 concat=None,
                  deterministic_mode=False,
                  *args,
                  **kwargs):
@@ -75,10 +74,16 @@ class ReplayMemory(object):
         self.action_type = action_type
         self.reward_type = reward_type
 
-        self.states = np.zeros((self.capacity,) + self.state_shape, dtype=self.state_type)
-        self.actions = np.zeros((self.capacity,) + self.action_shape, dtype=self.action_type)
-        self.rewards = np.zeros(self.capacity, dtype=self.reward_type)
-        self.terminals = np.zeros(self.capacity, dtype=bool)
+        if concat is not None and concat > 1:
+            self.batch_shape = [self.capacity, concat]
+        else:
+            self.batch_shape = [self.capacity]
+
+
+        self.states = np.zeros(self.batch_shape + list(self.state_shape), dtype=self.state_type)
+        self.actions = np.zeros(self.batch_shape + list(self.action_shape), dtype=self.action_type)
+        self.rewards = np.zeros(self.batch_shape, dtype=self.reward_type)
+        self.terminals = np.zeros(self.batch_shape, dtype=bool)
 
         if deterministic_mode:
             self.random = global_seed()
@@ -122,24 +127,20 @@ class ReplayMemory(object):
         if batch_size < 0:
             raise ArgumentMustBePositiveError('Batch size must be positive')
 
-        if self.concat > 1:
-            batch_states = np.zeros((batch_size, self.concat) + self.state_shape, dtype=self.state_type)
-            batch_next_states = np.zeros((batch_size, self.concat) + self.state_shape, dtype=self.state_type)
-        else:
-            batch_states = np.zeros((batch_size, ) + self.state_shape, dtype=self.state_type)
-            batch_next_states = np.zeros((batch_size, ) + self.state_shape, dtype=self.state_type)
+        batch_states = np.zeros(self.batch_shape + list(self.state_shape), dtype=self.state_type)
+        batch_next_states = np.zeros(self.batch_shape + list(self.state_shape), dtype=self.state_type)
 
-        batch_actions = np.zeros((batch_size, ) + self.action_shape, dtype=self.action_type)
-        batch_rewards = np.zeros(batch_size, dtype=self.reward_type)
-        batch_terminals = np.zeros(batch_size, dtype='bool')
+        batch_actions = np.zeros(self.batch_shape + list(self.action_shape), dtype=self.action_type)
+        batch_rewards = np.zeros(self.batch_shape, dtype=self.reward_type)
+        batch_terminals = np.zeros(self.batch_shape, dtype='bool')
 
         for i in xrange(batch_size):
             start_index = self.random.randint(self.bottom,
                                               self.bottom + self.size - self.concat_length)
             end_index = start_index
-            #if self.concat:
-            #    state_index = np.arange(start_index, self.concat_length, 1)
-            #    end_index = start_index + self.concat_length - 1
+            #if self.concat is not None and self.concat > 1:
+            #    state_index = np.arange(start_index, self.concat, 1)
+            #    end_index = start_index + self.concat - 1
             #else:
             state_index = start_index
 

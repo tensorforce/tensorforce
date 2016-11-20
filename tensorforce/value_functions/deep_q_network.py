@@ -67,10 +67,10 @@ class DeepQNetwork(ValueFunction):
             self.random = np.random.RandomState()
 
         # Input placeholders
-        self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
-        self.next_states = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="next_states")
-        self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
-        self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
+        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+        self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="next_states")
+        self.terminals = tf.placeholder(tf.float32, self.batch_shape, name='terminals')
+        self.rewards = tf.placeholder(tf.float32, self.batch_shape, name='rewards')
 
         self.target_network_update = []
 

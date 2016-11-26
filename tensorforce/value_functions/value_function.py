@@ -37,10 +37,7 @@ class ValueFunction(object):
         self.session = tf.Session()
         self.saver = None
 
-        if config.concat is not None and config.concat > 1:
-            self.batch_shape = [None, config.concat]
-        else:
-            self.batch_shape = [None]
+        self.batch_shape = [None]
 
     def get_action(self, state):
         raise NotImplementedError

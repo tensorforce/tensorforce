@@ -35,4 +35,4 @@ class AtariWrapper(ConcatWrapper):
         return super(AtariWrapper, self).get_full_state(state)
 
     def state_shape(self, original_shape):
-        return list(original_shape[:2])
+        return [self.concat_length] + list(original_shape[:2])

@@ -70,7 +70,7 @@ def main():
     if config.state_wrapper:
         state_wrapper = create_wrapper(config.state_wrapper, config.state_wrapper_param)
         config.state_shape = state_wrapper.state_shape(config.state_shape)
-
+    print(config)
     agent = create_agent(args.agent, config)
 
     if args.monitor:
@@ -89,7 +89,7 @@ def main():
             action = agent.get_action(full_state, i)
             result = env.execute_action(action)
 
-            agent.add_observation(state, action, result['reward'], result['terminal_state'])
+            agent.add_observation(full_state, action, result['reward'], result['terminal_state'])
 
             state = result['state']
             if result['terminal_state']:

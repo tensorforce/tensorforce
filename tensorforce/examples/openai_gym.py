@@ -54,9 +54,14 @@ def main():
 
     env = OpenAIGymEnvironment(gym_id)
 
+    # config = Config({
+    #     'actions': env.gym.action_space.shape[0],
+    #     'action_shape': (env.gym.action_space.shape[0],),
+    #     'state_shape': env.gym.observation_space.shape
+    # })
     config = Config({
-        'actions': env.gym.action_space.shape[0],
-        'action_shape': (env.gym.action_space.shape[0],),
+        'actions': env.gym.action_space.n,
+        'action_shape': (env.gym.action_space.n,),
         'state_shape': env.gym.observation_space.shape
     })
 

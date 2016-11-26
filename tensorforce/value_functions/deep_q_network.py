@@ -50,7 +50,7 @@ class DeepQNetwork(ValueFunction):
         super(DeepQNetwork, self).__init__(config)
 
         self.config = create_config(config, default=self.default_config)
-        self.env_actions = self.config.actions
+        self.action_count = self.config.actions
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon
         self.gamma = self.config.gamma
@@ -96,7 +96,7 @@ class DeepQNetwork(ValueFunction):
         """
 
         if self.random.random_sample() < self.epsilon:
-            action = self.random.randint(0, self.env_actions)
+            action = self.random.randint(0, self.action_count)
         else:
             action = self.session.run(self.dqn_action, {self.state: [state]})
             print("Executing DQN action: {}".format(action))
@@ -137,10 +137,10 @@ class DeepQNetwork(ValueFunction):
 
         with tf.name_scope("update"):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
-            self.actions = tf.placeholder(tf.int64, [None], name='actions')
+            self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
 
             # Q values for actions taken in batch
-            actions_one_hot = tf.one_hot(self.actions, self.env_actions, 1.0, 0.0, name='action_one_hot')
+            actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
             q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 

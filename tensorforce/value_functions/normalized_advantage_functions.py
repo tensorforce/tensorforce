@@ -35,7 +35,6 @@ from tensorforce.value_functions.value_function import ValueFunction
 
 
 class NormalizedAdvantageFunctions(ValueFunction):
-
     default_config = {
         'tau': 0.5,
         'epsilon': 0.1,
@@ -67,13 +66,16 @@ class NormalizedAdvantageFunctions(ValueFunction):
         self.exploration = exploration_mode[self.config.exploration_mode]
 
         if self.config.concat is not None and self.config.concat > 1:
-            self.state = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape), name="state")
-            self.next_states = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape), name="next_states")
+            self.state = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape),
+                                        name="state")
+            self.next_states = tf.placeholder(tf.float32,
+                                              [None, self.config.concat_length] + list(self.config.state_shape),
+                                              name="next_states")
         else:
             self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
             self.next_states = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="next_states")
 
-        self.actions = tf.placeholder(tf.float32, [None], name='actions')
+        self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
         self.target_network_update = []
@@ -115,8 +117,8 @@ class NormalizedAdvantageFunctions(ValueFunction):
         """
         float_terminals = batch['terminals'].astype(float)
 
-        q_targets = batch['rewards'] + (1. - float_terminals) \
-                                       * self.gamma * self.get_target_value_estimate(batch['next_states'])
+        q_targets = batch['rewards'] + (1. - float_terminals) * self.gamma * np.squeeze(
+            self.get_target_value_estimate(batch['next_states']))
 
         self.session.run([self.optimize_op, self.loss, self.training_v, self.advantage, self.q], {
             self.q_targets: q_targets,
@@ -147,7 +149,8 @@ class NormalizedAdvantageFunctions(ValueFunction):
             lower_triangular_size = int(self.action_count * (self.action_count + 1) / 2)
             l_entries = dense(last_hidden_layer, {'neurons': lower_triangular_size,
                                                   'regularization': self.config.regularizer,
-                                                  'regularization_param': self.config.regularization_param}, scope + 'l')
+                                                  'regularization_param': self.config.regularization_param},
+                              scope + 'l')
 
             # Iteratively construct matrix. Extra verbose comment here
             l_rows = []

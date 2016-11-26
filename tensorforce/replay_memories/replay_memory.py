@@ -74,16 +74,11 @@ class ReplayMemory(object):
         self.action_type = action_type
         self.reward_type = reward_type
 
-        if concat is not None and concat > 1:
-            self.batch_shape = [self.capacity, concat]
-        else:
-            self.batch_shape = [self.capacity]
-
-
-        self.states = np.zeros(self.batch_shape + list(self.state_shape), dtype=self.state_type)
-        self.actions = np.zeros(self.batch_shape + list(self.action_shape), dtype=self.action_type)
-        self.rewards = np.zeros(self.batch_shape, dtype=self.reward_type)
-        self.terminals = np.zeros(self.batch_shape, dtype=bool)
+        # self batch shape
+        self.states = np.zeros([self.capacity] + list(self.state_shape), dtype=self.state_type)
+        self.actions = np.zeros([self.capacity] + list(self.action_shape), dtype=self.action_type)
+        self.rewards = np.zeros([self.capacity], dtype=self.reward_type)
+        self.terminals = np.zeros([self.capacity], dtype=bool)
 
         if deterministic_mode:
             self.random = global_seed()
@@ -123,24 +118,22 @@ class ReplayMemory(object):
         :return: A Tensor containing experience tuples of length batch_size
 
         """
+        batch_shape = [batch_size]
 
         if batch_size < 0:
             raise ArgumentMustBePositiveError('Batch size must be positive')
 
-        batch_states = np.zeros(self.batch_shape + list(self.state_shape), dtype=self.state_type)
-        batch_next_states = np.zeros(self.batch_shape + list(self.state_shape), dtype=self.state_type)
+        batch_states = np.zeros(batch_shape + list(self.state_shape), dtype=self.state_type)
+        batch_next_states = np.zeros(batch_shape + list(self.state_shape), dtype=self.state_type)
 
-        batch_actions = np.zeros(self.batch_shape + list(self.action_shape), dtype=self.action_type)
-        batch_rewards = np.zeros(self.batch_shape, dtype=self.reward_type)
-        batch_terminals = np.zeros(self.batch_shape, dtype='bool')
+        batch_actions = np.zeros(batch_shape + list(self.action_shape), dtype=self.action_type)
+        batch_rewards = np.zeros(batch_shape, dtype=self.reward_type)
+        batch_terminals = np.zeros(batch_shape, dtype='bool')
 
         for i in xrange(batch_size):
-            if self.concat is not None and self.concat > 1:
-                start_index = self.random.randint(self.bottom, self.bottom + self.size - self.concat)
-            else:
-                start_index = self.random.randint(self.bottom, self.bottom + self.size)
-
+            start_index = self.random.randint(self.bottom, self.bottom + self.size)
             end_index = start_index
+
             #if self.concat is not None and self.concat > 1:
             #    state_index = np.arange(start_index, self.concat, 1)
             #    end_index = start_index + self.concat - 1

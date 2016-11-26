@@ -137,9 +137,10 @@ class DeepQNetwork(ValueFunction):
 
         with tf.name_scope("update"):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
-            self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
+            self.actions = tf.placeholder(tf.int32, [None, self.action_count], name='actions')
 
             # Q values for actions taken in batch
+            print(self.actions)
             actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
             q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')

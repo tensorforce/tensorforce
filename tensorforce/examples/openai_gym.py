@@ -54,15 +54,10 @@ def main():
 
     env = OpenAIGymEnvironment(gym_id)
 
-    # config = Config({
-    #     'actions': env.gym.action_space.shape[0],
-    #     'action_shape': (env.gym.action_space.shape[0],),
-    #     'state_shape': env.gym.observation_space.shape
-    # })
     config = Config({
-        'actions': env.gym.action_space.n,
-        'action_shape': (env.gym.action_space.n,),
-        'state_shape': env.gym.observation_space.shape
+        'actions': env.actions,
+        'action_shape': env.action_shape,
+        'state_shape': env.state_shape
     })
 
     if args.agent_config:
@@ -71,14 +66,15 @@ def main():
     if args.network_config:
         config.read_json(args.network_config)
 
+    state_wrapper = None
+    if config.state_wrapper:
+        state_wrapper = create_wrapper(config.state_wrapper, config.state_wrapper_param)
+        config.state_shape = state_wrapper.state_shape(config.state_shape)
+
     agent = create_agent(args.agent, config)
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
-
-    state_wrapper = None
-    if config.state_wrapper:
-        state_wrapper = create_wrapper(config.state_wrapper, config.state_wrapper_param)
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     i = -1

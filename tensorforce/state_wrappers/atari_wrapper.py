@@ -28,5 +28,11 @@ class AtariWrapper(ConcatWrapper):
 
     def get_full_state(self, state):
         # TODO: preprocess state (grayscale)
-        
+        weights = [0.299, 0.587, 0.114]
+
+        state = (weights * state).sum(-1)
+
         return super(AtariWrapper).get_full_state(state)
+
+    def state_shape(self, original_shape):
+        return list(original_shape[:2])

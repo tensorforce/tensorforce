@@ -22,6 +22,7 @@ from __future__ import print_function
 from __future__ import division
 
 import gym
+from gym.spaces.discrete import Discrete
 from tensorforce.environments.environment import Environment
 
 
@@ -57,3 +58,21 @@ class OpenAIGymEnvironment(Environment):
                     reward=reward,
                     terminal_state=terminal_state,
                     info=info)
+
+    @property
+    def actions(self):
+        if isinstance(self.gym.action_space, Discrete):
+            return self.gym.action_space.n
+        else:
+            return self.gym.aciton_space.shape[0]
+
+    @property
+    def action_shape(self):
+        if isinstance(self.gym.action_space, Discrete):
+            return (self.gym.action_space.n,)
+        else:
+            return (self.gym.aciton_space.shape[0],)
+
+    @property
+    def state_shape(self):
+        return self.gym.observation_space.shape

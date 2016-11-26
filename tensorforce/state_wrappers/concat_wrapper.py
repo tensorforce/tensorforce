@@ -27,7 +27,7 @@ import numpy as np
 
 class ConcatWrapper(object):
     def __init__(self, config):
-        self.concat_length = config.concat_length
+        self.concat_length = config.get('concat', 1)
         self._queue = deque(maxlen=self.concat_length)
 
     def get_full_state(self, state):

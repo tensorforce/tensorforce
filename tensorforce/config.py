@@ -30,6 +30,9 @@ class Config(dict):
     def __getattr__(self, item):
         return self.get(item)
 
+    def __setattr__(self, item, value):
+        self[item] = value
+
     def read_json(self, filename):
         """
         Read configuration from json file

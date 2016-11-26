@@ -32,7 +32,7 @@ class AtariWrapper(ConcatWrapper):
 
         state = (weights * state).sum(-1)
 
-        return super(AtariWrapper).get_full_state(state)
+        return super(AtariWrapper, self).get_full_state(state)
 
     def state_shape(self, original_shape):
         return list(original_shape[:2])

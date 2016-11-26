@@ -70,7 +70,7 @@ def main():
     if config.state_wrapper:
         state_wrapper = create_wrapper(config.state_wrapper, config.state_wrapper_param)
         config.state_shape = state_wrapper.state_shape(config.state_shape)
-    print(config)
+
     agent = create_agent(args.agent, config)
 
     if args.monitor:
@@ -79,6 +79,8 @@ def main():
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     i = -1
     for i in xrange(episodes):
+        print("Starting new episode {}".format(i + 1))  # TODO: remove after debugging?
+        agent.value_function.last_dqn_action = -1
         state = env.reset()
         j = -1
         for j in xrange(max_timesteps):

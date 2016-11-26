@@ -86,6 +86,8 @@ class DeepQNetwork(ValueFunction):
         writer = tf.train.SummaryWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.initialize_all_variables())
 
+        self.last_dqn_action = -1  # TODO: remove after debugging
+
     def get_action(self, state, episode=1):
         """
         Returns the predicted action for a given state.
@@ -99,7 +101,9 @@ class DeepQNetwork(ValueFunction):
             action = self.random.randint(0, self.action_count)
         else:
             action = self.session.run(self.dqn_action, {self.state: [state]})
-            print("Executing DQN action: {}".format(action))
+            if action != self.last_dqn_action:  # TODO: remove this block after debugging
+                print("Changed DQN action: {}".format(action))
+                self.last_dqn_action = action
         return action
 
     def update(self, batch):

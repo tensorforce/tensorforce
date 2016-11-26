@@ -135,8 +135,11 @@ class ReplayMemory(object):
         batch_terminals = np.zeros(self.batch_shape, dtype='bool')
 
         for i in xrange(batch_size):
-            start_index = self.random.randint(self.bottom,
-                                              self.bottom + self.size - self.concat_length)
+            if self.concat is not None and self.concat > 1:
+                start_index = self.random.randint(self.bottom, self.bottom + self.size - self.concat)
+            else:
+                start_index = self.random.randint(self.bottom, self.bottom + self.size)
+
             end_index = start_index
             #if self.concat is not None and self.concat > 1:
             #    state_index = np.arange(start_index, self.concat, 1)

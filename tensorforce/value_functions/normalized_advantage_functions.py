@@ -89,6 +89,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
             self.training_model.get_output(), 'outputs_training')
         self.target_v, _, _, _, self.target_output_vars = self.create_outputs(self.target_model.get_output(),
                                                                               'outputs_target')
+        self.create_training_operations()
         self.saver = tf.train.Saver()
         self.session.run(tf.initialize_all_variables())
 
@@ -112,7 +113,8 @@ class NormalizedAdvantageFunctions(ValueFunction):
         :param batch:=
         :return:
         """
-        float_terminals = tf.to_float(batch['terminals'])
+        float_terminals = batch['terminals'].astype(float)
+
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                        * self.gamma * self.get_target_value_estimate(batch['next_states'])
 

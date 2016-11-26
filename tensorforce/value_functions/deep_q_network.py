@@ -111,7 +111,7 @@ class DeepQNetwork(ValueFunction):
         """
 
         # Compute estimated future value
-        float_terminals = tf.to_float(batch['terminals'])
+        float_terminals = batch['terminals'].astype(float)
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                        * self.gamma * self.get_target_values(batch['next_states'])
 

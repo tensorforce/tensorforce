@@ -71,7 +71,7 @@ class OpenAIGymEnvironment(Environment):
         if isinstance(self.gym.action_space, Discrete):
             return []
         else:
-            return (self.gym.aciton_space.shape[0],)
+            return (self.gym.action_space.shape[0],)
 
     @property
     def state_shape(self):

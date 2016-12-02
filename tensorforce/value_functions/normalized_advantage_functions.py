@@ -36,10 +36,10 @@ from tensorforce.value_functions.value_function import ValueFunction
 
 class NormalizedAdvantageFunctions(ValueFunction):
     default_config = {
-        'tau': 0.5,
+        'tau': 0.9,
         'epsilon': 0.1,
-        'gamma': 0.9,
-        'alpha': 0.001,
+        'gamma': 0.95,
+        'alpha': 0.005,
         'clip_gradients': False
     }
 
@@ -104,7 +104,6 @@ class NormalizedAdvantageFunctions(ValueFunction):
         :return:
         """
         action = self.session.run(self.mu, {self.state: [state]})[0]
-        print(action)
 
         return action + self.exploration(self.random, self.episode)
 

@@ -39,7 +39,7 @@ def main():
                         default='examples/configs/dqn_agent.json')
     parser.add_argument('-n', '--network-config', help="Network configuration file",
                         default='examples/configs/dqn_network.json')
-    parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
+    parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=100, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
 
@@ -48,7 +48,7 @@ def main():
     gym_id = args.gym_id
 
     episodes = args.episodes
-    report_episodes = episodes // 10
+    report_episodes = episodes / 100
 
     max_timesteps = args.max_timesteps
 
@@ -79,10 +79,11 @@ def main():
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     i = -1
     for i in xrange(episodes):
-        print("Starting new episode {}".format(i + 1))  # TODO: remove after debugging?
+        #print("Starting new episode {}".format(i + 1))  # TODO: remove after debugging?
         agent.value_function.last_dqn_action = -1
         state = env.reset()
         j = -1
+        episode_reward = 0
         for j in xrange(max_timesteps):
             if state_wrapper:
                 full_state = state_wrapper.get_full_state(state)
@@ -90,15 +91,17 @@ def main():
                 full_state = state
             action = agent.get_action(full_state, i)
             result = env.execute_action(action)
-
+            episode_reward += result['reward']
             agent.add_observation(full_state, action, result['reward'], result['terminal_state'])
 
             state = result['state']
             if result['terminal_state']:
                 break
 
-        if (i + 1) % report_episodes == 0:
+        if i % report_episodes == 0:
             print("Finished episode {ep} after {ts} timesteps".format(ep=i + 1, ts=j + 1))
+            print("Total reward=" + str(episode_reward))
+
 
     if args.monitor:
         env.gym.monitor.close()

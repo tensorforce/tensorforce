@@ -2,7 +2,7 @@
   "network_layers": [
     {
       "type": "dense",
-      "neurons": 50,
+      "neurons": 64,
       "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weight_init_param": { },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
@@ -14,7 +14,7 @@
     },
     {
       "type": "dense",
-      "neurons": 50,
+      "neurons": 64,
       "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weight_init_param": { },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",

@@ -78,18 +78,24 @@ def main():
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     i = -1
+    repeat_actions = config.get('repeat_actions', 4)
     for i in xrange(episodes):
         #print("Starting new episode {}".format(i + 1))  # TODO: remove after debugging?
         agent.value_function.last_dqn_action = -1
         state = env.reset()
         j = -1
         episode_reward = 0
+        repeat_action_count = 0
         for j in xrange(max_timesteps):
             if state_wrapper:
                 full_state = state_wrapper.get_full_state(state)
             else:
                 full_state = state
-            action = agent.get_action(full_state, i)
+            if repeat_action_count <= 0:
+                action = agent.get_action(full_state, i)
+                repeat_action_count = repeat_actions
+            else:
+                repeat_action_count -= 1
             result = env.execute_action(action)
             episode_reward += result['reward']
             agent.add_observation(full_state, action, result['reward'], result['terminal_state'])

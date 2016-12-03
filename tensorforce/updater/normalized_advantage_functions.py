@@ -31,7 +31,7 @@ from tensorforce.neural_networks.layers import dense
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.exploration_util import exploration_mode
-from tensorforce.value_functions.value_function import ValueFunction
+from tensorforce.updater.value_function import ValueFunction
 
 
 class NormalizedAdvantageFunctions(ValueFunction):

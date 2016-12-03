@@ -61,8 +61,7 @@ class MemoryAgent(RLAgent):
 
     def get_action(self, state, episode=1):
         """
-        Executes one reinforcement learning step. Implicitly computes updates
-        according to the update frequency.
+        Executes one reinforcement learning step.
 
         :param state: Observed state tensor
         :return: Which action to take
@@ -73,7 +72,8 @@ class MemoryAgent(RLAgent):
 
     def add_observation(self, state, action, reward, terminal):
         """
-        Adds an observation for training purposes.
+        Adds an observation for training purposes. Implicitly computes updates
+        according to the update frequency.
 
         :param state: State observed
         :param action: Action taken in state

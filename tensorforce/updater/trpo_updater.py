@@ -14,26 +14,20 @@
 # ==============================================================================
 
 """
-Standard DQN. The piece de resistance of deep reinforcement learning.
-Chooses from one of a number of discrete actions by taking the maximum Q-value
-from the value function with one output neuron per available action.
+Implements trust region policy optimization with general advantage estimation (TRPO-GAE) as
+introduced by Schulman et al.
 """
-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.rl_agents.memory_agent import MemoryAgent
-from tensorforce.updater.deep_q_network import DeepQNetwork
+from tensorforce.updater.value_function import ValueFunction
 
 
-class DQNAgent(MemoryAgent):
+# Note: Calling this a value function is a little imprecise, since it encapsulates more than a VF.
+class TRPOUpdater(ValueFunction):
 
-    default_config = {
-        'batch_size': 100,
-        'update_steps': 10,
-        'min_replay_size': 100,
-        'deterministic_mode': False
-    }
+    def __init__(self, config):
+        super(TRPOUpdater, self).__init__(config)
 
-    value_function_ref = DeepQNetwork
+    def get_action(self, state):
+            pass
+
+    def update(self, batch):
+            pass

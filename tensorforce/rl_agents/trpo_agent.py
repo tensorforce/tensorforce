@@ -1,3 +1,4 @@
+
 # Copyright 2016 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,22 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """
-Standard DQN. The piece de resistance of deep reinforcement learning.
-Chooses from one of a number of discrete actions by taking the maximum Q-value
-from the value function with one output neuron per available action.
+
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.rl_agents.memory_agent import MemoryAgent
-from tensorforce.updater.deep_q_network import DeepQNetwork
+from tensorforce.rl_agents.pg_agent import PGAgent
+from tensorforce.updater.trpo_updater import TRPOUpdater
 
 
-class DQNAgent(MemoryAgent):
+class TRPOAgent(PGAgent):
 
     default_config = {
         'batch_size': 100,
@@ -36,4 +34,4 @@ class DQNAgent(MemoryAgent):
         'deterministic_mode': False
     }
 
-    value_function_ref = DeepQNetwork
+    value_function_ref = TRPOUpdater

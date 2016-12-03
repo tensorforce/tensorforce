@@ -29,7 +29,7 @@ import tensorflow as tf
 from tensorforce.config import create_config
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
-from tensorforce.value_functions.value_function import ValueFunction
+from tensorforce.updater.value_function import ValueFunction
 
 
 class DeepQNetwork(ValueFunction):

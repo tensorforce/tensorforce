@@ -59,14 +59,13 @@ class MemoryAgent(RLAgent):
         if self.value_function_ref:
             self.value_function = self.value_function_ref(self.config)
 
-    def get_action(self, state, episode=1):
+    def get_action(self, *args, **kwargs):
         """
         Executes one reinforcement learning step.
 
-        :param state: Observed state tensor
         :return: Which action to take
         """
-        action = self.value_function.get_action(state, episode)
+        action = self.value_function.get_action(*args, **kwargs)
 
         return action
 

@@ -35,7 +35,9 @@ from tensorforce.updater.value_function import ValueFunction
 class DeepQNetwork(ValueFunction):
     default_config = {
         'tau': 0.5,
-        'epsilon': 0.1,
+        'epsilon': 1.0,
+        'epsilon_final': 0.1,
+        'epsilon_states': 1e6,
         'gamma': 0.99,
         'alpha': 0.00025,
         'clip_gradients': False
@@ -53,6 +55,8 @@ class DeepQNetwork(ValueFunction):
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon
+        self.epsilon_final = self.config.epsilon_final
+        self.epsilon_states = self.config.epsilon_states
         self.gamma = self.config.gamma
         self.alpha = self.config.alpha
         self.batch_size = self.config.batch_size
@@ -88,7 +92,7 @@ class DeepQNetwork(ValueFunction):
 
         self.last_dqn_action = -1  # TODO: remove after debugging
 
-    def get_action(self, state, episode=1):
+    def get_action(self, state, episode=1, total_states=0):
         """
         Returns the predicted action for a given state.
 
@@ -97,7 +101,14 @@ class DeepQNetwork(ValueFunction):
         :return:
         """
 
-        if self.random.random_sample() < self.epsilon:
+        if not self.epsilon_final or total_states == 0:
+            epsilon = self.epsilon
+        elif total_states > self.epsilon_states:
+            epsilon = self.epsilon_final
+        else:
+            epsilon = self.epsilon + ((self.epsilon_final - self.epsilon) / self.epsilon_states) * total_states
+
+        if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
         else:
             action = self.session.run(self.dqn_action, {self.state: [state]})

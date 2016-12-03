@@ -3,6 +3,9 @@
   "batch_size": 50,
   "update_rate": 0.01,
   "min_replay_size": 100,
+  "epsilon": 1,
+  "epsilon_final": 0.1,
+  "epsilon_states": 1e6,
   "concat": 4,
   "state_wrapper": "AtariWrapper",
   "state_wrapper_param": {"concat": 4}

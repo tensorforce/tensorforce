@@ -15,6 +15,8 @@
 """
 Generic policy gradient agent.
 """
+from collections import defaultdict
+
 from tensorforce.config import create_config
 from tensorforce.rl_agents.rl_agent import RLAgent
 
@@ -35,6 +37,9 @@ class PGAgent(RLAgent):
 
         self.config = create_config(config, default=self.default_config)
         self.updater = None
+        self.current_batch = defaultdict(list)
+        self.batch_steps = 0
+        self.batch_size = config.batch_size
 
         if self.value_function_ref:
             self.updater = self.value_function_ref(self.config)
@@ -56,16 +61,30 @@ class PGAgent(RLAgent):
         Adds an observation and performs a pg update if the necessary conditions
         are satisfied, i.e. if one batch of experience has been collected as defined
         by the batch size.
+
+        In particular, note that episode control happens outside of the agent since
+        the agent should be agnostic to how the training data is created.
+
         :param state:
         :param action:
         :param reward:
         :param terminal:
         :return:
         """
-        pass
+        self.current_batch['states'].append(state)
+        self.current_batch['actions'].append(action)
+        self.current_batch['reward'].append(reward)
+        self.current_batch['terminals'].append(terminal)
+        self.batch_steps += 1
 
-    def load_model(self, path):
-        pass
+        if self.batch_steps == self.batch_size:
+            self.updater.update(self.current_batch)
+            self.current_batch.clear()
+            self.batch_steps = 0
+
 
     def save_model(self, path):
-        pass
+        self.updater.save_model(path)
+
+    def load_model(self, path):
+        self.updater.load_model(path)

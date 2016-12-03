@@ -44,3 +44,7 @@ class ConcatWrapper(object):
             self._queue.append(state)
 
         return np.array(self._queue)
+
+
+    def state_shape(self, original_shape):
+        return [self.concat_length] + list(original_shape)

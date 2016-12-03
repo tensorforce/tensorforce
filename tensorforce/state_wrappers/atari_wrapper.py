@@ -21,18 +21,27 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import numpy as np
+from scipy.misc import imresize
 from tensorforce.state_wrappers.concat_wrapper import ConcatWrapper
 
 
 class AtariWrapper(ConcatWrapper):
 
-    def get_full_state(self, state):
-        # TODO: preprocess state (grayscale)
-        weights = [0.299, 0.587, 0.114]
+    def __init__(self, config):
+        super(AtariWrapper, self).__init__(config)
 
+        self.resize = config.get('resize', [80, 80])
+
+    def get_full_state(self, state):
+        # greyscale
+        weights = [0.299, 0.587, 0.114]
         state = (weights * state).sum(-1)
+
+        # resize
+        state = imresize(state.astype(np.uint8), self.resize)
 
         return super(AtariWrapper, self).get_full_state(state)
 
     def state_shape(self, original_shape):
-        return [self.concat_length] + list(original_shape[:2])
+        return [self.concat_length] + list(self.resize)

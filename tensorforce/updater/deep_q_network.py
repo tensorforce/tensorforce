@@ -36,8 +36,8 @@ class DeepQNetwork(ValueFunction):
     default_config = {
         'tau': 0.5,
         'epsilon': 0.1,
-        'gamma': 0.9,
-        'alpha': 0.001,
+        'gamma': 0.99,
+        'alpha': 0.00025,
         'clip_gradients': False
     }
 

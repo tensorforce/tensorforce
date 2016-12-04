@@ -16,6 +16,7 @@
 Generic policy gradient agent.
 """
 from collections import defaultdict
+from copy import copy
 
 from tensorforce.config import create_config
 from tensorforce.rl_agents.rl_agent import RLAgent
@@ -25,9 +26,9 @@ class PGAgent(RLAgent):
 
     default_config = {
         'batch_size': 10000,
-        'episode_length': 100,
+        'max_episode_length': 1000,
         'deterministic_mode': False,
-        'max_kl': 0.01,
+        'gamma': 0.99
     }
 
     value_function_ref = None
@@ -37,7 +38,8 @@ class PGAgent(RLAgent):
 
         self.config = create_config(config, default=self.default_config)
         self.updater = None
-        self.current_batch = defaultdict(list)
+        self.current_batch = []
+        self.current_episode = defaultdict(list)
         self.batch_steps = 0
         self.batch_size = config.batch_size
 
@@ -71,15 +73,24 @@ class PGAgent(RLAgent):
         :param terminal:
         :return:
         """
-        self.current_batch['states'].append(state)
-        self.current_batch['actions'].append(action)
-        self.current_batch['reward'].append(reward)
-        self.current_batch['terminals'].append(terminal)
+
         self.batch_steps += 1
+        self.current_episode['states'].append(state)
+        self.current_episode['actions'].append(action)
+        self.current_episode['reward'].append(reward)
+
+        if terminal:
+            # Batch could also end before episode is terminated
+            self.current_episode['terminated'] = True
+
+            # Append episode to batch, start new episode dict
+            self.current_batch.append(copy(self.current_episode))
+            self.current_episode = defaultdict(list)
 
         if self.batch_steps == self.batch_size:
-            self.updater.update(self.current_batch)
-            self.current_batch.clear()
+            self.updater.update(copy(self.current_batch))
+            self.current_episode = defaultdict(list)
+            self.current_batch = []
             self.batch_steps = 0
 
 

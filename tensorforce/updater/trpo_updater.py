@@ -20,11 +20,17 @@ introduced by Schulman et al.
 from tensorforce.updater.value_function import ValueFunction
 
 
-# Note: Calling this a value function is a little imprecise, since it encapsulates more than a VF.
 class TRPOUpdater(ValueFunction):
+
+    default_config = {
+        'cg_damping': 0.1,
+        'max_kl_divergence': 0.01,
+    }
 
     def __init__(self, config):
         super(TRPOUpdater, self).__init__(config)
+
+
 
     def get_action(self, state):
             pass

@@ -16,7 +16,7 @@
 Generic policy gradient agent.
 """
 from collections import defaultdict
-from copy import copy
+from copy import copy, deepcopy
 
 from tensorforce.config import create_config
 from tensorforce.rl_agents.rl_agent import RLAgent
@@ -84,15 +84,14 @@ class PGAgent(RLAgent):
             self.current_episode['terminated'] = True
 
             # Append episode to batch, start new episode dict
-            self.current_batch.append(copy(self.current_episode))
+            self.current_batch.append(deepcopy(self.current_episode))
             self.current_episode = defaultdict(list)
 
         if self.batch_steps == self.batch_size:
-            self.updater.update(copy(self.current_batch))
+            self.updater.update(deepcopy(self.current_batch))
             self.current_episode = defaultdict(list)
             self.current_batch = []
             self.batch_steps = 0
-
 
     def save_model(self, path):
         self.updater.save_model(path)

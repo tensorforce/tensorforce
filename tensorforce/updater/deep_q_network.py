@@ -30,6 +30,7 @@ from tensorforce.config import create_config
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.updater.value_function import ValueFunction
+from tensorforce.util.exploration_util import exploration_mode
 
 
 class DeepQNetwork(ValueFunction):
@@ -70,6 +71,8 @@ class DeepQNetwork(ValueFunction):
         else:
             self.random = np.random.RandomState()
 
+        self.exploration = exploration_mode['epsilon_decay']
+
         # Input placeholders
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="next_states")
@@ -99,12 +102,7 @@ class DeepQNetwork(ValueFunction):
         :return:
         """
 
-        if not self.epsilon_final or total_states == 0:
-            epsilon = self.epsilon
-        elif total_states > self.epsilon_states:
-            epsilon = self.epsilon_final
-        else:
-            epsilon = self.epsilon + ((self.epsilon_final - self.epsilon) / self.epsilon_states) * total_states
+        epsilon = self.exploration(self.epsilon_final, total_states, self.epsilon_states, self.epsilon)
 
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)

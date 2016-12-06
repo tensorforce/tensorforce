@@ -32,15 +32,16 @@ from tensorforce.util.experiment_util import global_seed
 from tensorforce.updater.value_function import ValueFunction
 
 
-class DeepQNetwork(ValueFunction):
+class DoubleDeepQNetwork(ValueFunction):
     default_config = {
         'tau': 0.5,
-        'epsilon': 1.0,
+        'epsilon': 1,
         'epsilon_final': 0.1,
         'epsilon_states': 1e6,
         'gamma': 0.99,
         'alpha': 0.00025,
-        'clip_gradients': False
+        'clip_gradients': True,
+        'clip_value': 1.0
     }
 
     def __init__(self, config):
@@ -49,7 +50,7 @@ class DeepQNetwork(ValueFunction):
 
         :param config: Configuration parameters
         """
-        super(DeepQNetwork, self).__init__(config)
+        super(DoubleDeepQNetwork, self).__init__(config)
 
         self.config = create_config(config, default=self.default_config)
         self.action_count = self.config.actions
@@ -145,12 +146,10 @@ class DeepQNetwork(ValueFunction):
 
         with tf.name_scope("predict"):
             self.dqn_action = tf.argmax(self.training_output, dimension=1, name='dqn_action')
-            self.dqn_action = tf.Print(self.dqn_action, ('!!!', self.training_output[0]), summarize=10)
 
         with tf.name_scope("targets"):
-            self.target_values = tf.reduce_max(self.target_output, reduction_indices=1,
-                                               name='target_values')
-            self.target_values = tf.Print(self.target_values, (self.target_output[0], self.target_values[0]), summarize=10)
+            selector = tf.one_hot(self.dqn_action, self.action_count, name='selector')
+            self.target_values = tf.reduce_sum(tf.multiply(self.target_output, selector), reduction_indices=1, name='target_values')
 
         with tf.name_scope("update"):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
@@ -186,4 +185,4 @@ class DeepQNetwork(ValueFunction):
         :param next_states:
         :return:
         """
-        return self.session.run(self.target_values, {self.next_states: next_states})
+        return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})

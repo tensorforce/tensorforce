@@ -1,9 +1,9 @@
 {
-  "memory_capacity": 1e4,
+  "memory_capacity": 10000,
   "batch_size": 50,
-  "update_rate": 0.01,
+  "update_rate": 0.001,
   "min_replay_size": 100,
-  "epsilon": 1,
+  "epsilon": 0.1,
   "epsilon_final": 0.1,
   "epsilon_states": 1e6,
   "concat": 4,

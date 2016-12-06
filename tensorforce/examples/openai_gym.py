@@ -80,8 +80,6 @@ def main():
     total_states = 0
     repeat_actions = config.get('repeat_actions', 4)
     for i in xrange(episodes):
-        #print("Starting new episode {}".format(i + 1))  # TODO: remove after debugging?
-        agent.value_function.last_dqn_action = -1
         state = env.reset()
         episode_reward = 0
         repeat_action_count = 0

@@ -18,13 +18,30 @@ Implements and registers exploration strategies for continuous control problems.
 """
 import numpy as np
 
+
+# TODO implement ornstein-uhlenbeck process
+
 def linear_decay(random, episode):
     return random.random_sample(1) / (episode + 1)
+
 
 def zero(random=None, episode=None):
     return 0
 
+
+def epsilon_decay(epsilon_final, total_states, epsilon_states, epsilon):
+    if not epsilon_final or total_states == 0:
+        epsilon = epsilon
+    elif total_states > epsilon_states:
+        epsilon = epsilon_final
+    else:
+        epsilon = epsilon + ((epsilon_final - epsilon) / epsilon_states) * total_states
+
+    return epsilon
+
+
 exploration_mode = {
-    'None' : zero,
-    'linear_decay' : linear_decay
+    'None': zero,
+    'linear_decay': linear_decay,
+    'epsilon_decay': epsilon_decay
 }

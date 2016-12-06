@@ -30,6 +30,7 @@ from tensorforce.config import create_config
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.updater.value_function import ValueFunction
+from tensorforce.util.exploration_util import exploration_mode
 
 
 class DeepQNetwork(ValueFunction):
@@ -70,6 +71,8 @@ class DeepQNetwork(ValueFunction):
         else:
             self.random = np.random.RandomState()
 
+        self.exploration = exploration_mode['epsilon_decay']
+
         # Input placeholders
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="next_states")
@@ -90,8 +93,6 @@ class DeepQNetwork(ValueFunction):
         writer = tf.train.SummaryWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.global_variables_initializer())
 
-        self.last_dqn_action = -1  # TODO: remove after debugging
-
     def get_action(self, state, episode=1, total_states=0):
         """
         Returns the predicted action for a given state.
@@ -101,20 +102,12 @@ class DeepQNetwork(ValueFunction):
         :return:
         """
 
-        if not self.epsilon_final or total_states == 0:
-            epsilon = self.epsilon
-        elif total_states > self.epsilon_states:
-            epsilon = self.epsilon_final
-        else:
-            epsilon = self.epsilon + ((self.epsilon_final - self.epsilon) / self.epsilon_states) * total_states
+        epsilon = self.exploration(self.epsilon_final, total_states, self.epsilon_states, self.epsilon)
 
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
         else:
-            action = self.session.run(self.dqn_action, {self.state: [state]})[0]
-            if action != self.last_dqn_action:  # TODO: remove this block after debugging
-                print("Changed DQN action: {}".format(action))
-                self.last_dqn_action = action
+            action = self.session.run(self.dqn_action, {self.state: [state]})
         return action
 
     def update(self, batch):
@@ -145,12 +138,10 @@ class DeepQNetwork(ValueFunction):
 
         with tf.name_scope("predict"):
             self.dqn_action = tf.argmax(self.training_output, dimension=1, name='dqn_action')
-            self.dqn_action = tf.Print(self.dqn_action, ('!!!', self.training_output[0]), summarize=10)
 
         with tf.name_scope("targets"):
             self.target_values = tf.reduce_max(self.target_output, reduction_indices=1,
                                                name='target_values')
-            self.target_values = tf.Print(self.target_values, (self.target_output[0], self.target_values[0]), summarize=10)
 
         with tf.name_scope("update"):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')

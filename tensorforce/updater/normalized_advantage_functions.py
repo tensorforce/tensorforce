@@ -95,7 +95,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
         self.saver = tf.train.Saver()
         self.session.run(tf.initialize_all_variables())
 
-    def get_action(self, state, episode=1):
+    def get_action(self, state, episode=1, total_states=0):
         """
         Returns naf actions.
 

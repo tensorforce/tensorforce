@@ -24,6 +24,8 @@ from __future__ import division
 import argparse
 from six.moves import xrange
 
+import numpy as np
+
 from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
@@ -40,8 +42,9 @@ def main():
     parser.add_argument('-n', '--network-config', help="Network configuration file",
                         default='examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
-    parser.add_argument('-t', '--max-timesteps', type=int, default=100, help="Maximum number of timesteps per episode")
+    parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
+
 
     args = parser.parse_args()
 
@@ -75,10 +78,12 @@ def main():
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
+        env.gym.monitor.configure(video_callable=lambda count: count % 500 == 0)
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     total_states = 0
     repeat_actions = config.get('repeat_actions', 4)
+    episode_rewards = []
     for i in xrange(episodes):
         state = env.reset()
         episode_reward = 0
@@ -102,9 +107,13 @@ def main():
             if result['terminal_state']:
                 break
 
+        episode_rewards.append(episode_reward)
+
         if i % report_episodes == 0:
             print("Finished episode {ep} after {ts} timesteps".format(ep=i + 1, ts=j + 1))
-            print("Total reward=" + str(episode_reward))
+            print("Total reward: {}".format(episode_reward))
+            print("Average of last 500 rewards: {}".format(np.mean(episode_rewards[-500:])))
+            print("Average of last 100 rewards: {}".format(np.mean(episode_rewards[-100:])))
 
 
     if args.monitor:

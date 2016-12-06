@@ -123,7 +123,7 @@ class DeepQNetwork(ValueFunction):
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                        * self.gamma * self.get_target_values(batch['next_states'])
 
-        self.session.run([self.optimize_op, self.training_output], {
+        self.session.run([self.optimize_op, self.training_output, self.target_network_update], {
             self.q_targets: q_targets,
             self.actions: batch['actions'],
             self.state: batch['states']})

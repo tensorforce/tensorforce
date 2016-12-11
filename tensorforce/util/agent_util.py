@@ -25,7 +25,6 @@ from tensorforce.config import Config
 from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
 from tensorforce.rl_agents.random_agent import RandomAgent
 from tensorforce.rl_agents.dqn_agent import DQNAgent
-from tensorforce.rl_agents.double_dqn_agent import DoubleDQNAgent
 from tensorforce.rl_agents.naf_agent import NAFAgent
 
 
@@ -63,6 +62,5 @@ def get_default_config(agent_type):
 agents = {
     'RandomAgent': RandomAgent,
     'DQNAgent': DQNAgent,
-    'DoubleDQNAgent': DoubleDQNAgent,
     'NAFAgent': NAFAgent
 }

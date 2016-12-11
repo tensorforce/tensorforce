@@ -81,8 +81,22 @@ class DeepQNetwork(ValueFunction):
 
         self.target_network_update = []
 
-        self.training_model = NeuralNetwork(self.config.network_layers, self.state, 'training')
-        self.target_model = NeuralNetwork(self.config.network_layers, self.next_states, 'target')
+        # output layer
+        output_layer_config = {
+            "type": "dense",
+            "neurons": 6,
+            "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+            "weight_init_param": {},
+            "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
+            "bias_init_param": None,
+            "activation": "tensorflow.python.ops.nn.relu",
+            "activation_param": None,
+            "regularization": None,
+            "regularization_param": None
+        }
+
+        self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, 'training')
+        self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, 'target')
         self.training_output = self.training_model.get_output()
         self.target_output = self.target_model.get_output()
 

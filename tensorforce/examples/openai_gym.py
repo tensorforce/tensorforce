@@ -78,7 +78,7 @@ def main():
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
-        env.gym.monitor.configure(video_callable=lambda count: count % 500 == 0)
+        env.gym.monitor.configure(video_callable=lambda count: False) # count % 500 == 0)
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
     total_states = 0

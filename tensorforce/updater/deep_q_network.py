@@ -88,7 +88,7 @@ class DeepQNetwork(ValueFunction):
         # output layer
         output_layer_config = {
             "type": "dense",
-            "neurons": 6,
+            "neurons": self.config.actions,
             "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
             "weight_init_param": {},
             "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",

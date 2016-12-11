@@ -35,13 +35,15 @@ from tensorforce.util.exploration_util import exploration_mode
 
 class DeepQNetwork(ValueFunction):
     default_config = {
+        'double_dqn': False,
         'tau': 0.5,
         'epsilon': 1.0,
         'epsilon_final': 0.1,
         'epsilon_states': 1e6,
         'gamma': 0.99,
         'alpha': 0.00025,
-        'clip_gradients': False
+        'clip_gradients': True,
+        'clip_value': 1.0
     }
 
     def __init__(self, config):
@@ -61,6 +63,8 @@ class DeepQNetwork(ValueFunction):
         self.gamma = self.config.gamma
         self.alpha = self.config.alpha
         self.batch_size = self.config.batch_size
+
+        self.double_dqn = self.config.double_dqn
 
         self.gradient_clipping = None
         if self.config.clip_gradients:
@@ -121,7 +125,10 @@ class DeepQNetwork(ValueFunction):
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
         else:
-            action = self.session.run(self.dqn_action, {self.state: [state]})
+            if self.double_dqn:
+                action = self.session.run(self.dqn_action, {self.state: [state]})[0]
+            else:
+                action = self.session.run(self.dqn_action, {self.state: [state]})
         return action
 
     def update(self, batch):
@@ -154,8 +161,13 @@ class DeepQNetwork(ValueFunction):
             self.dqn_action = tf.argmax(self.training_output, dimension=1, name='dqn_action')
 
         with tf.name_scope("targets"):
-            self.target_values = tf.reduce_max(self.target_output, reduction_indices=1,
-                                               name='target_values')
+            if self.double_dqn:
+                selector = tf.one_hot(self.dqn_action, self.action_count, name='selector')
+                self.target_values = tf.reduce_sum(tf.multiply(self.target_output, selector), reduction_indices=1,
+                                                   name='target_values')
+            else:
+                self.target_values = tf.reduce_max(self.target_output, reduction_indices=1,
+                                                   name='target_values')
 
         with tf.name_scope("update"):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
@@ -191,4 +203,7 @@ class DeepQNetwork(ValueFunction):
         :param next_states:
         :return:
         """
-        return self.session.run(self.target_values, {self.next_states: next_states})
+        if self.double_dqn:
+            return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})
+        else:
+            return self.session.run(self.target_values, {self.next_states: next_states})

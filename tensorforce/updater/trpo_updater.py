@@ -190,14 +190,14 @@ class TRPOUpdater(ValueFunction):
             return self.session.run(self.fisher_vector_product, input_feed) + p * self.cg_damping
 
         gradient = self.session.run(self.policy_gradient, feed_dict=input_feed)
-        cg_direction = conjugate_gradient(fisher_vector_product, -g)
+        cg_direction = conjugate_gradient(fisher_vector_product, -gradient)
 
         shs = (.5 * cg_direction.dot(fisher_vector_product(cg_direction)))
 
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
 
         update_step = cg_direction / lagrange_multiplier
-        negative_gradient_direction = -g.dot(cg_direction)
+        #negative_gradient_direction = -g.dot(cg_direction)
 
         def loss(theta):
             self.flat_variable_helper.set(theta)

@@ -16,7 +16,7 @@
 Generic policy gradient agent.
 """
 from collections import defaultdict
-from copy import copy, deepcopy
+from copy import deepcopy
 
 from tensorforce.config import create_config
 from tensorforce.rl_agents.rl_agent import RLAgent
@@ -55,7 +55,12 @@ class PGAgent(RLAgent):
         :return: Which action to take
         """
 
-        return self.updater.get_action(state, episode)
+        action, outputs = self.updater.get_action(state, episode)
+        # TODO this assumes we always call get action/add observation together, need safeguards
+        self.current_episode['action_means'].append(outputs['action_means'])
+        self.current_episode['action_log_stds'].append(outputs['action_log_stds'])
+
+        return action
 
 
     def add_observation(self, state, action, reward, terminal):

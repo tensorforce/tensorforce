@@ -26,6 +26,7 @@ from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
 from tensorforce.rl_agents.random_agent import RandomAgent
 from tensorforce.rl_agents.dqn_agent import DQNAgent
 from tensorforce.rl_agents.naf_agent import NAFAgent
+from tensorforce.rl_agents.trpo_agent import TRPOAgent
 
 
 def create_agent(agent_type, config):
@@ -62,5 +63,6 @@ def get_default_config(agent_type):
 agents = {
     'RandomAgent': RandomAgent,
     'DQNAgent': DQNAgent,
-    'NAFAgent': NAFAgent
+    'NAFAgent': NAFAgent,
+    'TRPOAgent': TRPOAgent
 }

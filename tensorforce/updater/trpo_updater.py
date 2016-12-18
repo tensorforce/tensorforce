@@ -36,6 +36,7 @@ class TRPOUpdater(ValueFunction):
     default_config = {
         'cg_damping': 0.1,
         'max_kl_divergence': 0.01,
+        'gae_lambda': 0.97  # GAE-lambda
     }
 
     def __init__(self, config):
@@ -46,6 +47,7 @@ class TRPOUpdater(ValueFunction):
         self.action_count = self.config.actions
         self.cg_damping = self.config.cg_damping
         self.max_kl_divergence = self.config.max_kl_divergence
+        self.gae_lambda = self.config.gae_lambda
 
         self.gamma = self.config.gamma
 
@@ -76,7 +78,7 @@ class TRPOUpdater(ValueFunction):
 
         self.create_outputs()
         self.create_training_operations()
-        self.linear_value_function = LinearValueFunction()
+        self.value_function = LinearValueFunction()
 
         self.session.run(tf.initialize_all_variables())
 
@@ -108,8 +110,7 @@ class TRPOUpdater(ValueFunction):
 
             surrogate_loss = -tf.reduce_mean(prob_ratio * self.advantage)
             mean_kl_divergence = get_kl_divergence_gaussian(self.prev_action_means, self.prev_action_log_stds,
-                                                            self.action_means, self.action_log_stds) / float(
-                self.batch_size)
+                                                            self.action_means, self.action_log_stds) / float(self.batch_size)
             mean_entropy = get_entropy_gaussian(self.action_log_stds) / float(self.batch_size)
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
@@ -130,7 +131,6 @@ class TRPOUpdater(ValueFunction):
                 size = np.prod(shape)
                 param = tf.reshape(self.flat_tangent[offset:(offset + size)], shape)
                 tangents.append(param)
-
                 offset += size
 
             gradient_vector_product = [tf.reduce_sum(g * t) for (g, t) in zip(gradients, tangents)]
@@ -155,30 +155,22 @@ class TRPOUpdater(ValueFunction):
 
     def update(self, batch):
         """
-        Compute update for one batch of experiences.
+        Compute update for one batch of experiences using general advantage estimation
+        and the natural policy gradient.
         :param batch:
         :return:
         """
 
-        # Estimate per episode advantages and returns through linear baseline estimate
-        for path in batch:
-            path['baseline'] = self.linear_value_function.predict(path)
-            path['returns'] = discount(path['rewards'], self.gamma)
-            path['advantage'] = path['returns'] - path['baseline']
+        # Set per episode advantage using GAE
+        self.compute_gae_advantage(batch)
 
-        action_means = np.concatenate([path['action_means'] for path in batch])
-        action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
-
-        states = np.concatenate([path['states'] for path in batch])
-        actions = np.concatenate([path['actions'] for path in batch])
-        advantages = [path['advantages'] for path in batch]
-        advantages = zero_mean_unit_variance(advantages)
-
-        self.linear_value_function.fit(batch)
+        # Merge inputs
+        action_log_stds, action_means, actions, batch_advantage, states = self.merge_episodes(batch)
+        self.value_function.fit(batch)
 
         input_feed = {self.state: states,
                       self.actions: actions,
-                      self.advantage: advantages,
+                      self.advantage: batch_advantage,
                       self.prev_action_means: action_means,
                       self.prev_action_log_stds: action_log_stds}
 
@@ -192,19 +184,47 @@ class TRPOUpdater(ValueFunction):
         gradient = self.session.run(self.policy_gradient, feed_dict=input_feed)
         cg_direction = conjugate_gradient(fisher_vector_product, -gradient)
 
-        shs = (.5 * cg_direction.dot(fisher_vector_product(cg_direction)))
-
+        shs = (0.5 * cg_direction.dot(fisher_vector_product(cg_direction)))
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
-
         update_step = cg_direction / lagrange_multiplier
-        #negative_gradient_direction = -g.dot(cg_direction)
+        negative_gradient_direction = -gradient.dot(cg_direction)
 
         def loss(theta):
             self.flat_variable_helper.set(theta)
             return self.session.run(self.losses[0], feed_dict=input_feed)
 
-        # TODO do we need line search in practice?
-
-        theta = previous_theta + update_step
+        theta = line_search(loss, previous_theta, update_step, negative_gradient_direction / lagrange_multiplier)
         self.flat_variable_helper.set(theta)
+
         self.session.run(self.losses, feed_dict=input_feed)
+
+    def merge_episodes(self, batch):
+        """
+        Merge episodes into single input variables.
+        :param batch:
+        :return:
+        """
+        batch_advantage = np.concatenate([path["advantage"] for path in batch])
+        batch_advantage = zero_mean_unit_variance(batch_advantage)
+        action_means = np.concatenate([path['action_means'] for path in batch])
+        action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
+        states = np.concatenate([path['states'] for path in batch])
+        actions = np.concatenate([path['actions'] for path in batch])
+        return action_log_stds, action_means, actions, batch_advantage, states
+
+    def compute_gae_advantage(self, batch):
+        """
+        Expects a batch containing at least one episode, sets advantages according to GAE.
+
+        :param batch: Sequence of observations for at least one episode.
+        """
+        for path in batch:
+            baseline = self.value_function.predict(path)
+            if path['terminated']:
+                adjusted_baseline = np.append(baseline, 0)
+            else:
+                adjusted_baseline = np.append(baseline, baseline[-1])
+
+            deltas = path['reward"'] + self.gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
+            path['advantage'] = discount(deltas, deltas * self.gae_lambda)
+

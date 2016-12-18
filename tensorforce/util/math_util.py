@@ -34,6 +34,9 @@ def zero_mean_unit_variance(data):
 
     return data
 
+def discount_gae(rewards, gamma, gae_lambda):
+
+    return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
 
 def discount(rewards, gamma):
 
@@ -97,8 +100,6 @@ def get_entropy_gaussian(log_std):
 
 def get_shape(variable):
     shape = [k.value for k in variable.get_shape()]
-    assert all(isinstance(a, int) for a in shape), \
-        "shape function assumes that shape is fully known"
     return shape
 
 
@@ -211,7 +212,7 @@ def conjugate_gradient(f_Ax, b, cg_iterations=10, residual_tol=1e-10):
     x = np.zeros_like(b)
     residual_dot_residual = residual.dot(residual)
 
-    # TODO should we not use len(b) as number of iterations
+    # TODO should we not use len(b) as maximal number of iterations?
     for _ in xrange(cg_iterations):
         z = f_Ax(conjugate_vectors_p)
         v = residual_dot_residual / conjugate_vectors_p.dot(z)
@@ -228,3 +229,35 @@ def conjugate_gradient(f_Ax, b, cg_iterations=10, residual_tol=1e-10):
             break
 
     return x
+
+
+def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=10, accept_ratio=0.1):
+    """
+    Line search for TRPO where a full step is taken first and then backtracked to
+    find optimal step size.
+
+    :param f:
+    :param initial_x:
+    :param full_step:
+    :param expected_improve_rate:
+    :param max_backtracks:
+    :param accept_ratio:
+    :return:
+    """
+    function_value = f(initial_x)
+
+    # TODO Why sqrt step sizing?
+    for step_fraction in enumerate(0.5 ** np.arange(max_backtracks)):
+
+        updated_x = initial_x + step_fraction * full_step
+        new_function_value = f(updated_x)
+
+        actual_improve = function_value - new_function_value
+        expected_improve = expected_improve_rate * step_fraction
+
+        improve_ratio = actual_improve / expected_improve
+        
+        if improve_ratio > accept_ratio and actual_improve > 0:
+            return updated_x
+
+    return initial_x

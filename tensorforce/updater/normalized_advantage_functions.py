@@ -22,6 +22,8 @@ https://arxiv.org/abs/1603.00748
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+from six.moves import xrange
+
 import tensorflow as tf
 import numpy as np
 from tensorflow.contrib.framework import get_variables
@@ -93,7 +95,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
                                                                               'outputs_target')
         self.create_training_operations()
         self.saver = tf.train.Saver()
-        self.session.run(tf.tf.global_variables_initializer())
+        self.session.run(tf.global_variables_initializer())
 
     def get_action(self, state, episode=1, total_states=0):
         """

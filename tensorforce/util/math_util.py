@@ -134,6 +134,7 @@ class FlatVarHelper(object):
 
         for (shape, v) in zip(shapes, var_list):
             size = np.prod(shape)
+
             assigns.append(tf.assign(v, tf.reshape(theta[start:start + size], shape)))
             start += size
 

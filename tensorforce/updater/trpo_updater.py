@@ -43,7 +43,7 @@ class TRPOUpdater(ValueFunction):
         super(TRPOUpdater, self).__init__(config)
 
         self.config = create_config(config, default=self.default_config)
-        self.batch_size = config.batch_size
+        self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
         self.cg_damping = self.config.cg_damping
         self.max_kl_divergence = self.config.max_kl_divergence
@@ -72,15 +72,13 @@ class TRPOUpdater(ValueFunction):
 
         self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state, 'value_function')
 
-        self.variables = tf.trainable_variables()
-        self.flat_variable_helper = FlatVarHelper(self.session, self.variables)
         self.saver = tf.train.Saver()
 
         self.create_outputs()
-        self.create_training_operations()
         self.value_function = LinearValueFunction()
+        self.create_training_operations()
 
-        self.session.run(tf.initialize_all_variables())
+        self.session.run(tf.global_variables_initializer())
 
     def create_outputs(self):
         # Output action means and log standard deviations
@@ -91,7 +89,7 @@ class TRPOUpdater(ValueFunction):
                                        'regularization_param': self.config.regularization_param}, 'action_mu')
 
             # Random init for log standard deviations
-            log_standard_devs_init = tf.Variable(0.01 * self.random.randn(1, self.action_count))
+            log_standard_devs_init = tf.Variable(0.01 * self.random.randn(1, self.action_count), dtype=tf.float32)
 
             self.action_log_stds = tf.tile(log_standard_devs_init, tf.pack((tf.shape(self.action_means)[0], 1)))
 
@@ -109,33 +107,37 @@ class TRPOUpdater(ValueFunction):
             prob_ratio = tf.exp(current_log_prob - prev_log_prob)
 
             surrogate_loss = -tf.reduce_mean(prob_ratio * self.advantage)
+            variables = tf.trainable_variables()
+
             mean_kl_divergence = get_kl_divergence_gaussian(self.prev_action_means, self.prev_action_log_stds,
-                                                            self.action_means, self.action_log_stds) / float(self.batch_size)
+                                                            self.action_means, self.action_log_stds) / float(
+                self.batch_size)
             mean_entropy = get_entropy_gaussian(self.action_log_stds) / float(self.batch_size)
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
 
             # Get symbolic gradient expressions
-            self.policy_gradient = get_flattened_gradient(self.losses, self.variables)
+            self.policy_gradient = get_flattened_gradient(self.losses, variables)
 
             # Natural gradient update
             fixed_kl_divergence = get_fixed_kl_divergence_gaussian(self.action_means, self.action_log_stds) \
                                   / float(self.batch_size)
 
-            variable_shapes = map(get_shape, self.variables)
+            variable_shapes = map(get_shape, variables)
+
             offset = 0
             tangents = []
-            gradients = tf.gradients(fixed_kl_divergence, self.variables)
-
             for shape in variable_shapes:
                 size = np.prod(shape)
                 param = tf.reshape(self.flat_tangent[offset:(offset + size)], shape)
                 tangents.append(param)
                 offset += size
 
+            gradients = tf.gradients(fixed_kl_divergence, variables)
             gradient_vector_product = [tf.reduce_sum(g * t) for (g, t) in zip(gradients, tangents)]
+            self.flat_variable_helper = FlatVarHelper(self.session, variables)
 
-            self.fisher_vector_product = get_flattened_gradient(gradient_vector_product, self.variables)
+            self.fisher_vector_product = get_flattened_gradient(gradient_vector_product, variables)
 
     def get_action(self, state):
         """
@@ -210,6 +212,7 @@ class TRPOUpdater(ValueFunction):
         action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
         states = np.concatenate([path['states'] for path in batch])
         actions = np.concatenate([path['actions'] for path in batch])
+
         return action_log_stds, action_means, actions, batch_advantage, states
 
     def compute_gae_advantage(self, batch):
@@ -221,10 +224,9 @@ class TRPOUpdater(ValueFunction):
         for path in batch:
             baseline = self.value_function.predict(path)
             if path['terminated']:
-                adjusted_baseline = np.append(baseline, 0)
+                adjusted_baseline = np.append(baseline, [0])
             else:
                 adjusted_baseline = np.append(baseline, baseline[-1])
 
             deltas = path['reward"'] + self.gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
             path['advantage'] = discount(deltas, deltas * self.gae_lambda)
-

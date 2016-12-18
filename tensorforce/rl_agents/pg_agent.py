@@ -26,7 +26,6 @@ class PGAgent(RLAgent):
 
     default_config = {
         'batch_size': 10000,
-        'max_episode_length': 1000,
         'deterministic_mode': False,
         'gamma': 0.99
     }

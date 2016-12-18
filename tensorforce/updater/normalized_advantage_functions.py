@@ -93,7 +93,7 @@ class NormalizedAdvantageFunctions(ValueFunction):
                                                                               'outputs_target')
         self.create_training_operations()
         self.saver = tf.train.Saver()
-        self.session.run(tf.initialize_all_variables())
+        self.session.run(tf.tf.global_variables_initializer())
 
     def get_action(self, state, episode=1, total_states=0):
         """

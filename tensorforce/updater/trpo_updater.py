@@ -135,11 +135,11 @@ class TRPOUpdater(ValueFunction):
 
             gradients = tf.gradients(fixed_kl_divergence, variables)
             gradient_vector_product = [tf.reduce_sum(g * t) for (g, t) in zip(gradients, tangents)]
-            self.flat_variable_helper = FlatVarHelper(self.session, variables)
 
+            self.flat_variable_helper = FlatVarHelper(self.session, variables)
             self.fisher_vector_product = get_flattened_gradient(gradient_vector_product, variables)
 
-    def get_action(self, state):
+    def get_action(self, state, episode=1, total_states=0):
         """
 
         :param state: State tensor

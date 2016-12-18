@@ -45,7 +45,7 @@ class PGAgent(RLAgent):
         if self.value_function_ref:
             self.updater = self.value_function_ref(self.config)
 
-    def get_action(self, state, episode=1):
+    def get_action(self, *args, **kwargs):
         """
         Executes one reinforcement learning step.
 
@@ -54,7 +54,7 @@ class PGAgent(RLAgent):
         :return: Which action to take
         """
 
-        action, outputs = self.updater.get_action(state, episode)
+        action, outputs = self.updater.get_action(*args, **kwargs)
         # TODO this assumes we always call get action/add observation together, need safeguards
         self.current_episode['action_means'].append(outputs['action_means'])
         self.current_episode['action_log_stds'].append(outputs['action_log_stds'])

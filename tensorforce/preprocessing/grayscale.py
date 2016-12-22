@@ -14,37 +14,33 @@
 # ==============================================================================
 
 """
-Concatenate states
+Comment
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from collections import deque
-import numpy as np
+from tensorforce.preprocessing.preprocessor import Preprocessor
 
 
-class ConcatWrapper(object):
-    def __init__(self, config):
-        self.concat_length = config.get('concat', 1)
-        self._queue = deque(maxlen=self.concat_length)
+class Grayscale(Preprocessor):
 
-    def get_full_state(self, state):
+    default_config = {
+        'weights': [0.299, 0.587, 0.114]
+    }
+
+    config_args = [
+        'weights'
+    ]
+
+    def process(self, state):
         """
-        Return full concatenated state including new state state.
-
-        :param state: New state to be added
-        :return: State tensor of shape (concat_length, state_shape)
+        Turn 3D color state into grayscale, thereby removing the last dimension.
+        :param state: state input
+        :return: new_state
         """
-        self._queue.append(state)
+        return (self.config.weights * state).sum(-1)
 
-        # If queue is too short, fill with current state.
-        while len(self._queue) < self.concat_length:
-            self._queue.append(state)
-
-        return np.array(self._queue)
-
-
-    def state_shape(self, original_shape):
-        return [self.concat_length] + list(original_shape)
+    def shape(self, original_shape):
+        return list(original_shape[:-1])

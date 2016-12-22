@@ -14,34 +14,45 @@
 # ==============================================================================
 
 """
-Concatenate states
+Preprocessing stack class
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import numpy as np
-from scipy.misc import imresize
-from tensorforce.state_wrappers.concat_wrapper import ConcatWrapper
 
+class Stack(object):
+    def __init__(self):
+        self._stack = list()
 
-class AtariWrapper(ConcatWrapper):
+    def __iadd__(self, other):
+        self._stack.append(other)
+        return self
 
-    def __init__(self, config):
-        super(AtariWrapper, self).__init__(config)
+    append = __iadd__
 
-        self.resize = config.get('resize', [80, 80])
+    def process(self, state):
+        """
+        Process state.
 
-    def get_full_state(self, state):
-        # greyscale
-        weights = [0.299, 0.587, 0.114]
-        state = (weights * state).sum(-1)
+        :param state: state array
+        :return: new state array
+        """
+        for processor in self._stack:
+            state = processor.process(state)
 
-        # resize
-        state = imresize(state.astype(np.uint8), self.resize)
+        return state
 
-        return super(AtariWrapper, self).get_full_state(state)
+    def shape(self, original_shape):
+        """
+        Return output shape of stack
 
-    def state_shape(self, original_shape):
-        return [self.concat_length] + list(self.resize)
+        :param original_shape: original shape array
+        :return: new shape array
+        """
+        shape = original_shape
+        for processor in self._stack:
+            shape = processor.shape(shape)
+
+        return shape

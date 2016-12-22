@@ -14,34 +14,37 @@
 # ==============================================================================
 
 """
-Utility functions concerning state wrappers.
+Comment
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
-from tensorforce.state_wrappers import *
+import numpy as np
+
+from tensorforce.preprocessing.preprocessor import Preprocessor
+from scipy.misc import imresize
 
 
-def create_wrapper(wrapper_type, config):
-    """
-    Create wrapper instance by providing type as a string parameter.
+class Imresize(Preprocessor):
 
-    :param wrapper_type: String parameter containing wrapper type
-    :param config: Dict containing configuration
-    :return: Wrapper instance
-    """
-    wrapper_class = wrappers.get(wrapper_type)
+    default_config = {
+        'dimensions': [80, 80]
+    }
 
-    if not wrapper_class:
-        raise TensorForceValueError("No such wrapper: {}".format(wrapper_type))
+    config_args = [
+        'dimensions'
+    ]
 
-    return wrapper_class(config)
+    def process(self, state):
+        """
+        Resize image.
 
+        :param state: state input
+        :return: new_state
+        """
+        return imresize(state.astype(np.uint8), self.config.dimensions)
 
-wrappers = {
-    'ConcatWrapper': ConcatWrapper,
-    'AtariWrapper': AtariWrapper
-}
+    def shape(self, original_shape):
+        return list(original_shape[:-2]) + self.config.dimensions

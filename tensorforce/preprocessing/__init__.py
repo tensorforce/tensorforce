@@ -13,7 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-__all__ = ['ConcatWrapper', 'AtariWrapper']
+import tensorforce.preprocessing.stack
+import tensorforce.preprocessing.preprocessor
+import tensorforce.preprocessing.concat
+import tensorforce.preprocessing.grayscale
+import tensorforce.preprocessing.imresize
 
-from tensorforce.state_wrappers.concat_wrapper import ConcatWrapper
-from tensorforce.state_wrappers.atari_wrapper import AtariWrapper
+__all__ = ["stack", "preprocessor", "concat", "grayscale", "imresize"]

@@ -29,7 +29,8 @@ import numpy as np
 from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
-from tensorforce.util.wrapper_util import create_wrapper
+
+from tensorforce import preprocessing
 
 
 def main():
@@ -69,10 +70,13 @@ def main():
     if args.network_config:
         config.read_json(args.network_config)
 
-    state_wrapper = None
-    if config.state_wrapper:
-        state_wrapper = create_wrapper(config.state_wrapper, config.state_wrapper_param)
-        config.state_shape = state_wrapper.state_shape(config.state_shape)
+    # TODO: make stack configurable
+    stack = preprocessing.stack.Stack()
+    stack += preprocessing.grayscale.Grayscale()
+    stack += preprocessing.imresize.Imresize([80, 80])
+    stack += preprocessing.concat.Concat(4)
+
+    config.state_shape = stack.shape(config.state_shape)
 
     agent = create_agent(args.agent, config)
 
@@ -89,8 +93,8 @@ def main():
         episode_reward = 0
         repeat_action_count = 0
         for j in xrange(max_timesteps):
-            if state_wrapper:
-                full_state = state_wrapper.get_full_state(state)
+            if stack:
+                full_state = stack.process(state)
             else:
                 full_state = state
             if repeat_action_count <= 0:

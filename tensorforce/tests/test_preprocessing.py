@@ -21,11 +21,23 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import unittest
+import numpy as np
 
+from tensorforce import preprocessing
 
 def test_preprocessing_grayscale():
     """
-    Test grayscale preprocessor. Assert shape and values.
-    :return:
+    Testing grayscale preprocessor. Verifies expected and calculated state shapes.
     """
+    pp = preprocessing.grayscale.Grayscale([0.5, 0.2, 0.8])
+
+    shape = list(np.random.randint(0, 200, size=2)) + [3]
+    state = np.random.randint(0, 255, size=shape)
+
+    processed_shape = pp.shape(shape)
+
+    assert processed_shape == shape[0:2]
+
+    processed_state = pp.process(state)
+
+    assert processed_state.shape == processed_shape

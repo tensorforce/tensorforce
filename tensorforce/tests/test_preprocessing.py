@@ -29,15 +29,35 @@ def test_preprocessing_grayscale():
     """
     Testing grayscale preprocessor. Verifies expected and calculated state shapes.
     """
-    pp = preprocessing.grayscale.Grayscale([0.5, 0.2, 0.8])
+    pp = preprocessing.grayscale.Grayscale()
 
     shape = list(np.random.randint(0, 200, size=2)) + [3]
     state = np.random.randint(0, 255, size=shape)
 
     processed_shape = pp.shape(shape)
 
-    assert processed_shape == shape[0:2]
+    assert tuple(processed_shape) == tuple(shape[0:2])
 
     processed_state = pp.process(state)
 
-    assert processed_state.shape == processed_shape
+    assert processed_state.shape == tuple(processed_shape)
+
+
+def test_preprocessing_concat():
+    """
+    Testing concat preprocessor. Verifies expected and calculated state shapes.
+    """
+    concat_length = np.random.randint(1, 100)
+
+    pp = preprocessing.concat.Concat(concat_length)
+
+    shape = list(np.random.randint(0, 200, size=3))
+    state = np.random.randint(0, 255, size=shape)
+
+    processed_shape = pp.shape(shape)
+
+    assert tuple(processed_shape) == tuple([concat_length] + shape)
+
+    processed_state = pp.process(state)
+
+    assert processed_state.shape == tuple(processed_shape)

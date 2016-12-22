@@ -21,30 +21,38 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from collections import deque
+
 import numpy as np
 
 from tensorforce.preprocessing.preprocessor import Preprocessor
-from scipy.misc import imresize
 
 
-class Imresize(Preprocessor):
+class Maximum(Preprocessor):
 
     default_config = {
-        'dimensions': [80, 80]
+        'count': 2
     }
 
     config_args = [
-        'dimensions'
+        'count'
     ]
+
+    def __init__(self, config, *args, **kwargs):
+        super(Maximum, self).__init__(config, *args, **kwargs)
+
+        self._queue = deque(maxlen=self.config.count)
 
     def process(self, state):
         """
-        Resize image.
-
+        Returns maximum of states over the last self.config.count states
         :param state: state input
         :return: new_state
         """
-        return imresize(state.astype(np.uint8), self.config.dimensions)
+        self._queue.append(state)
 
-    def shape(self, original_shape):
-        return original_shape[:-2] + self.config.dimensions
+        # If queue is too short, fill with current state.
+        while len(self._queue) < self.config.concat_length:
+            self._queue.append(state)
+
+        return np.max(np.array(self._queue), axis=0)

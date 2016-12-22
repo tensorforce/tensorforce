@@ -15,8 +15,10 @@
 
 import tensorforce.preprocessing.stack
 import tensorforce.preprocessing.preprocessor
+
 import tensorforce.preprocessing.concat
 import tensorforce.preprocessing.grayscale
 import tensorforce.preprocessing.imresize
+import tensorforce.preprocessing.maximum
 
-__all__ = ["stack", "preprocessor", "concat", "grayscale", "imresize"]
+__all__ = ["stack", "preprocessor", "concat", "grayscale", "imresize", "maximum"]

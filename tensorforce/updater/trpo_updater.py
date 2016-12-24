@@ -56,12 +56,7 @@ class TRPOUpdater(ValueFunction):
         else:
             self.random = np.random.RandomState()
 
-        if self.config.concat is not None and self.config.concat > 1:
-            self.state = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape),
-                                        name="state")
-        else:
-            self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
-
+        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.episode = 0
 
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
@@ -121,7 +116,7 @@ class TRPOUpdater(ValueFunction):
 
             # Natural gradient update
             fixed_kl_divergence = get_fixed_kl_divergence_gaussian(self.action_means, self.action_log_stds) \
-                                  / float(self.batch_size)
+                                   / float(self.batch_size)
 
             variable_shapes = map(get_shape, variables)
 
@@ -148,7 +143,7 @@ class TRPOUpdater(ValueFunction):
 
         action_means, action_log_stds = self.session.run([self.action_means,
                                                           self.action_log_stds],
-                                                         {self.state: state})
+                                                         {self.state: [state]})
 
         action = action_means + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
 

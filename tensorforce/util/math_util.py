@@ -126,23 +126,23 @@ def get_flattened_gradient(loss, variables):
 
 
 class FlatVarHelper(object):
-    def __init__(self, session, var_list):
+    def __init__(self, session, variables):
         self.session = session
-        shapes = map(get_shape, var_list)
+        shapes = map(get_shape, variables)
         total_size = sum(np.prod(shape) for shape in shapes)
         self.theta = tf.placeholder(tf.float32, [total_size])
-        theta = tf.placeholder(tf.float32, [total_size])
+       # theta = tf.placeholder(tf.float32, [total_size])
 
         start = 0
         assigns = []
 
-        for (shape, v) in zip(shapes, var_list):
+        for (shape, variable) in zip(shapes, variables):
             size = np.prod(shape)
-            assigns.append(tf.assign(v, tf.reshape(theta[start:start + size], shape)))
+            assigns.append(tf.assign(variable, tf.reshape(self.theta[start:start + size], shape)))
             start += size
 
         self.set_op = tf.group(*assigns)
-        self.get_op = tf.concat(0, [tf.reshape(v, [get_number_of_elements(v)]) for v in var_list])
+        self.get_op = tf.concat(0, [tf.reshape(variable, [get_number_of_elements(variable)]) for variable in variables])
 
     def set(self, theta):
         """
@@ -150,9 +150,6 @@ class FlatVarHelper(object):
 
         :param theta: values
         """
-        print(theta.shape)
-        print(theta.dtype)
-
         self.session.run(self.set_op, feed_dict={self.theta: theta})
 
     def get(self):
@@ -251,9 +248,8 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
     """
     function_value = f(initial_x)
 
-    # TODO Why sqrt step sizing?
-    for step_fraction in enumerate(0.5 ** np.arange(max_backtracks)):
-
+    # TODO Make backtrack intervals configurable
+    for _, step_fraction in enumerate(0.5 ** np.arange(max_backtracks)):
         updated_x = initial_x + step_fraction * full_step
         new_function_value = f(updated_x)
 

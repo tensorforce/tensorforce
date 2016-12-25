@@ -188,12 +188,13 @@ class TRPOUpdater(ValueFunction):
 
         def loss(theta_values):
             self.flat_variable_helper.set(theta_values)
-            return self.session.run(self.losses[0], feed_dict=input_feed)[0]
+
+            return self.session.run(self.losses[0], input_feed)
 
         theta = line_search(loss, previous_theta, update_step, negative_gradient_direction / lagrange_multiplier)
         self.flat_variable_helper.set(theta)
 
-        self.session.run(self.losses, feed_dict=input_feed)
+        self.session.run(self.losses, input_feed)
 
     def merge_episodes(self, batch):
         """

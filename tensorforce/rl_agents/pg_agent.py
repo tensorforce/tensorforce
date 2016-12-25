@@ -106,7 +106,9 @@ class PGAgent(RLAgent):
 
             path = self.get_path()
             self.current_batch.append(path)
+            print('Updating trpo policy')
             self.updater.update(deepcopy(self.current_batch))
+            print('Finished update')
             self.current_episode = defaultdict(list)
             self.current_batch = []
             self.batch_steps = 0

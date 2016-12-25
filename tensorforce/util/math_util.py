@@ -23,6 +23,9 @@ import scipy.signal
 from six.moves import xrange
 
 
+# TODO split this into preprocessing, an optimiser package, and a generic distribution hierarchy
+
+
 def zero_mean_unit_variance(data):
     """
     Transform array to zero mean unit variance.
@@ -34,13 +37,14 @@ def zero_mean_unit_variance(data):
 
     return data
 
-def discount_gae(rewards, gamma, gae_lambda):
 
+def discount_gae(rewards, gamma, gae_lambda):
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
+
 
 def discount(rewards, gamma):
-
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
+
 
 def get_log_prob_gaussian(action_dist_mean, log_std, actions):
     """
@@ -134,7 +138,6 @@ class FlatVarHelper(object):
 
         for (shape, v) in zip(shapes, var_list):
             size = np.prod(shape)
-
             assigns.append(tf.assign(v, tf.reshape(theta[start:start + size], shape)))
             start += size
 
@@ -147,6 +150,8 @@ class FlatVarHelper(object):
 
         :param theta: values
         """
+        print(theta.shape)
+        print(theta.dtype)
 
         self.session.run(self.set_op, feed_dict={self.theta: theta})
 
@@ -165,7 +170,7 @@ class LinearValueFunction(object):
         self.coefficients = None
 
     def get_features(self, path):
-        states = path["states"].astype('float32')
+        states = path["states"]
         states = states.reshape(states.shape[0], -1)
 
         path_length = len(path["rewards"])
@@ -178,7 +183,6 @@ class LinearValueFunction(object):
         returns = np.concatenate([path["returns"] for path in paths])
 
         columns = feature_matrix.shape[1]
-
         lamb = 2.0
 
         self.coefficients = np.linalg.lstsq(feature_matrix.T.dot(feature_matrix)
@@ -198,6 +202,7 @@ class LinearValueFunction(object):
             return self.get_features(path).dot(self.coefficients)
 
 
+# TODO build optimiser class, implement generic constrainted optimisation solvers
 def conjugate_gradient(f_Ax, b, cg_iterations=10, residual_tol=1e-10):
     """
     Conjugate gradient solver.
@@ -213,7 +218,6 @@ def conjugate_gradient(f_Ax, b, cg_iterations=10, residual_tol=1e-10):
     x = np.zeros_like(b)
     residual_dot_residual = residual.dot(residual)
 
-    # TODO should we not use len(b) as maximal number of iterations?
     for _ in xrange(cg_iterations):
         z = f_Ax(conjugate_vectors_p)
         v = residual_dot_residual / conjugate_vectors_p.dot(z)
@@ -257,7 +261,7 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
         expected_improve = expected_improve_rate * step_fraction
 
         improve_ratio = actual_improve / expected_improve
-        
+
         if improve_ratio > accept_ratio and actual_improve > 0:
             return updated_x
 

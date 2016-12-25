@@ -17,7 +17,7 @@ Generic policy gradient agent.
 """
 from collections import defaultdict
 from copy import deepcopy
-
+import numpy as np
 from tensorforce.config import create_config
 from tensorforce.rl_agents.rl_agent import RLAgent
 
@@ -25,9 +25,8 @@ from tensorforce.rl_agents.rl_agent import RLAgent
 class PGAgent(RLAgent):
 
     default_config = {
-        'batch_size': 10000,
+        'batch_size': 5000,
         'deterministic_mode': False,
-        'gamma': 0.99
     }
 
     value_function_ref = None
@@ -41,6 +40,10 @@ class PGAgent(RLAgent):
         self.current_episode = defaultdict(list)
         self.batch_steps = 0
         self.batch_size = config.batch_size
+        self.last_action = None
+        self.last_action_means = None
+        self.last_action_log_stds = None
+        self.continuous = self.config.continuous
 
         if self.value_function_ref:
             self.updater = self.value_function_ref(self.config)
@@ -53,14 +56,17 @@ class PGAgent(RLAgent):
         :param episode: Optional, current episode
         :return: Which action to take
         """
-
         action, outputs = self.updater.get_action(*args, **kwargs)
-        # TODO this assumes we always call get action/add observation together, need safeguards
-        self.current_episode['action_means'].append(outputs['action_means'])
-        self.current_episode['action_log_stds'].append(outputs['action_log_stds'])
+
+        # Cache last action in case action is used multiple times in environment
+        self.last_action_means = outputs['action_means']
+        self.last_action_log_stds = outputs['action_log_stds']
+        self.last_action = action
+
+        if not self.continuous:
+            action = np.argmax(action)
 
         return action
-
 
     def add_observation(self, state, action, reward, terminal):
         """
@@ -80,22 +86,44 @@ class PGAgent(RLAgent):
 
         self.batch_steps += 1
         self.current_episode['states'].append(state)
-        self.current_episode['actions'].append(action)
-        self.current_episode['reward'].append(reward)
+        self.current_episode['actions'].append(self.last_action)
+        self.current_episode['rewards'].append(reward)
+        self.current_episode['action_means'].append(self.last_action_means)
+        self.current_episode['action_log_stds'].append(self.last_action_log_stds)
 
         if terminal:
             # Batch could also end before episode is terminated
             self.current_episode['terminated'] = True
 
-            # Append episode to batch, start new episode dict
-            self.current_batch.append(deepcopy(self.current_episode))
+            # Transform into np arrays, append episode to batch, start new episode dict
+            path = self.get_path()
+            self.current_batch.append(path)
             self.current_episode = defaultdict(list)
 
         if self.batch_steps == self.batch_size:
+            if not terminal:
+                self.current_episode['terminated'] = False
+
+            path = self.get_path()
+            self.current_batch.append(path)
             self.updater.update(deepcopy(self.current_batch))
             self.current_episode = defaultdict(list)
             self.current_batch = []
             self.batch_steps = 0
+
+    def get_path(self):
+        """
+        Finalises an episode and turns it into a dict pointing to numpy arrays.
+        :return:
+        """
+        path = {'states': np.concatenate(np.expand_dims(self.current_episode['states'], 0)),
+                'actions': np.array(self.current_episode['actions']),
+                'terminated': self.current_episode['terminated'],
+                'action_means': np.concatenate(self.current_episode['action_means']),
+                'action_log_stds': np.concatenate(self.current_episode['action_log_stds']),
+                'rewards': np.array(self.current_episode['rewards'])}
+
+        return path
 
     def save_model(self, path):
         self.updater.save_model(path)

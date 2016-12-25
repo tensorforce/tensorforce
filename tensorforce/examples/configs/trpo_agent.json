@@ -1,5 +1,6 @@
 {
-  "batch_size": 10000,
-  "gae_lambda": 0.99,
-  "update_rate": 0.01
+  "batch_size": 5000,
+  "gae_lambda": 0.97,
+  "gamma": 0.99,
+  "continuous": false
 }

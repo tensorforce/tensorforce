@@ -33,10 +33,10 @@ from tensorforce.neural_networks.layers import dense
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.exploration_util import exploration_mode
-from tensorforce.updater.value_function import ValueFunction
+from tensorforce.updater.model import Model
 
 
-class NormalizedAdvantageFunctions(ValueFunction):
+class NormalizedAdvantageFunctions(Model):
     default_config = {
         'tau': 0.9,
         'epsilon': 0.1,

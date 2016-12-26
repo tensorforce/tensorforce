@@ -29,11 +29,11 @@ import tensorflow as tf
 from tensorforce.config import create_config
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
-from tensorforce.updater.value_function import ValueFunction
+from tensorforce.updater.model import Model
 from tensorforce.util.exploration_util import exploration_mode
 
 
-class DeepQNetwork(ValueFunction):
+class DeepQNetwork(Model):
     default_config = {
         'double_dqn': False,
         'tau': 0.5,

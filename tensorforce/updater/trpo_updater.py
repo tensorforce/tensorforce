@@ -25,7 +25,7 @@ from tensorforce.config import create_config
 from tensorforce.neural_networks.layers import dense
 from tensorforce.neural_networks.neural_network import NeuralNetwork
 from tensorforce.updater.linear_value_function import LinearValueFunction
-from tensorforce.updater.value_function import ValueFunction
+from tensorforce.updater.model import Model
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.math_util import *
 
@@ -33,7 +33,7 @@ import numpy as np
 import tensorflow as tf
 
 
-class TRPOUpdater(ValueFunction):
+class TRPOUpdater(Model):
     default_config = {
         'cg_damping': 0.001,
         'max_kl_divergence': 0.01,

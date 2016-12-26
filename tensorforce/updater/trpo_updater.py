@@ -200,6 +200,7 @@ class TRPOUpdater(Model):
     def merge_episodes(self, batch):
         """
         Merge episodes into single input variables.
+
         :param batch:
         :return:
         """
@@ -218,6 +219,7 @@ class TRPOUpdater(Model):
 
         :param batch: Sequence of observations for at least one episode.
         """
+
         for episode in batch:
             baseline = self.value_function.predict(episode)
             if episode['terminated']:

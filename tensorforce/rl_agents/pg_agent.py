@@ -103,12 +103,9 @@ class PGAgent(RLAgent):
         if self.batch_steps == self.batch_size:
             if not terminal:
                 self.current_episode['terminated'] = False
-
-            path = self.get_path()
-            self.current_batch.append(path)
-            print('Updating trpo policy')
+                path = self.get_path()
+                self.current_batch.append(path)
             self.updater.update(deepcopy(self.current_batch))
-            print('Finished update')
             self.current_episode = defaultdict(list)
             self.current_batch = []
             self.batch_steps = 0
@@ -118,6 +115,7 @@ class PGAgent(RLAgent):
         Finalises an episode and turns it into a dict pointing to numpy arrays.
         :return:
         """
+
         path = {'states': np.concatenate(np.expand_dims(self.current_episode['states'], 0)),
                 'actions': np.array(self.current_episode['actions']),
                 'terminated': self.current_episode['terminated'],

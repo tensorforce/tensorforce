@@ -24,6 +24,7 @@ modularisation.
 from tensorforce.config import create_config
 from tensorforce.neural_networks.layers import dense
 from tensorforce.neural_networks.neural_network import NeuralNetwork
+from tensorforce.updater.linear_value_function import LinearValueFunction
 from tensorforce.updater.value_function import ValueFunction
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.math_util import *

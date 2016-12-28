@@ -13,12 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorforce.preprocessing.stack
-import tensorforce.preprocessing.preprocessor
+from tensorforce.preprocessing.stack import Stack
+from tensorforce.preprocessing.preprocessor import Preprocessor
 
-import tensorforce.preprocessing.concat
-import tensorforce.preprocessing.grayscale
-import tensorforce.preprocessing.imresize
-import tensorforce.preprocessing.maximum
+from tensorforce.preprocessing.concat import Concat
+from tensorforce.preprocessing.grayscale import Grayscale
+from tensorforce.preprocessing.imresize import Imresize
+from tensorforce.preprocessing.maximum import Maximum
 
-__all__ = ["stack", "preprocessor", "concat", "grayscale", "imresize", "maximum"]
+__all__ = ["Stack", "Preprocessor", "Concat", "Grayscale", "Imresize", "Maximum"]

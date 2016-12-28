@@ -19,7 +19,7 @@ from collections import defaultdict
 from copy import deepcopy
 import numpy as np
 from tensorforce.config import create_config
-from tensorforce.rl_agents.rl_agent import RLAgent
+from tensorforce.rl_agents import RLAgent
 
 
 class PGAgent(RLAgent):

@@ -30,10 +30,10 @@ from tensorflow.contrib.framework import get_variables
 
 from tensorforce.config import create_config
 from tensorforce.neural_networks.layers import dense
-from tensorforce.neural_networks.neural_network import NeuralNetwork
+from tensorforce.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.exploration_util import exploration_mode
-from tensorforce.updater.model import Model
+from tensorforce.updater import Model
 
 
 class NormalizedAdvantageFunctions(Model):

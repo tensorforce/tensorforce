@@ -27,9 +27,9 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce.config import create_config
-from tensorforce.neural_networks.neural_network import NeuralNetwork
+from tensorforce.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
-from tensorforce.updater.model import Model
+from tensorforce.updater import Model
 from tensorforce.util.exploration_util import exploration_mode
 
 

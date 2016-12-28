@@ -23,8 +23,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.rl_agents.memory_agent import MemoryAgent
-from tensorforce.updater.deep_q_network import DeepQNetwork
+from tensorforce.rl_agents import MemoryAgent
+from tensorforce.updater import DeepQNetwork
 
 
 class DQNAgent(MemoryAgent):

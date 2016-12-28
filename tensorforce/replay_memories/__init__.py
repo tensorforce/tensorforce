@@ -13,3 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.replay_memories.replay_memory import ReplayMemory
+
+__all__ = ['ReplayMemory']

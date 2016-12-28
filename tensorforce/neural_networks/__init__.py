@@ -12,3 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+from tensorforce.neural_networks.neural_network import NeuralNetwork
+
+__all__ = ['NeuralNetwork']

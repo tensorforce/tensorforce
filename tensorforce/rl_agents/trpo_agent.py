@@ -21,8 +21,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.rl_agents.pg_agent import PGAgent
-from tensorforce.updater.trpo_updater import TRPOUpdater
+from tensorforce.rl_agents import PGAgent
+from tensorforce.updater import TRPOUpdater
 
 
 class TRPOAgent(PGAgent):

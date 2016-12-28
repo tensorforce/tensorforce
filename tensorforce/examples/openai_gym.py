@@ -71,10 +71,10 @@ def main():
         config.read_json(args.network_config)
 
     # TODO: make stack configurable
-    stack = preprocessing.stack.Stack()
-    stack += preprocessing.grayscale.Grayscale()
-    stack += preprocessing.imresize.Imresize([80, 80])
-    stack += preprocessing.concat.Concat(4)
+    stack = preprocessing.Stack()
+    stack += preprocessing.Grayscale()
+    stack += preprocessing.Imresize([80, 80])
+    stack += preprocessing.Concat(4)
 
     config.state_shape = stack.shape(config.state_shape)
 

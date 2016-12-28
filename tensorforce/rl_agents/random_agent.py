@@ -23,7 +23,7 @@ from __future__ import division
 
 import numpy as np
 
-from tensorforce.rl_agents.rl_agent import RLAgent
+from tensorforce.rl_agents import RLAgent
 from tensorforce.util.experiment_util import global_seed
 
 

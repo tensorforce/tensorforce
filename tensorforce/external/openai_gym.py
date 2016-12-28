@@ -23,7 +23,7 @@ from __future__ import division
 
 import gym
 from gym.spaces.discrete import Discrete
-from tensorforce.environments.environment import Environment
+from tensorforce.environments import Environment
 
 
 class OpenAIGymEnvironment(Environment):

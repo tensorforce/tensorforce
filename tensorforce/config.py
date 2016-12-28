@@ -46,7 +46,7 @@ class Config(dict):
             self.update(json.loads(f.read()))
 
 
-def create_config(array, default=None):
+def create_config(array, default=None, parameters=None):
     """
     Create Config object from array. Use default dict for default values.
 

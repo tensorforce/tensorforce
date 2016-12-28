@@ -26,7 +26,9 @@ from six.moves import xrange
 
 import numpy as np
 
-from tensorforce.config import Config
+from tensorforce.config import Config, create_config
+from tensorforce.environments.runner import Runner
+from tensorforce.environments.async_runner import AsyncRunner
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
 from tensorforce.util.wrapper_util import create_wrapper
@@ -43,31 +45,18 @@ def main():
                         default='examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
+    parser.add_argument('-r', '--repeat-actions', type=int, default=4, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
-
-
     args = parser.parse_args()
 
-    gym_id = args.gym_id
-
-    episodes = args.episodes
-    report_episodes = episodes / 100
-
-    max_timesteps = args.max_timesteps
-
-    env = OpenAIGymEnvironment(gym_id)
-
-    config = Config({
-        'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape
-    })
-
+    environment = OpenAIGymEnvironment(args.gym_id)
+    config = Config(environment)
     if args.agent_config:
         config.read_json(args.agent_config)
-
     if args.network_config:
         config.read_json(args.network_config)
+
+    report_episodes = args.episodes / 10
 
     state_wrapper = None
     if config.state_wrapper:
@@ -76,50 +65,25 @@ def main():
 
     agent = create_agent(args.agent, config)
 
+    def episode_finished(r):
+        if r.episode % report_episodes == 0:
+            print("Finished episode {ep} after ??? timesteps".format(ep=r.episode + 1, ts=None))
+            print("Total reward: {}".format(r.episode_rewards[-1]))
+            print("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
+            print("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
+        return True
+
+    print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=args.gym_id))
     if args.monitor:
-        env.gym.monitor.start(args.monitor)
-        env.gym.monitor.configure(video_callable=lambda count: False) # count % 500 == 0)
+        environment.gym.monitor.start(args.monitor)
+        environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
-    total_states = 0
-    repeat_actions = config.get('repeat_actions', 4)
-    episode_rewards = []
-    for i in xrange(episodes):
-        state = env.reset()
-        episode_reward = 0
-        repeat_action_count = 0
-        for j in xrange(max_timesteps):
-            if state_wrapper:
-                full_state = state_wrapper.get_full_state(state)
-            else:
-                full_state = state
-            if repeat_action_count <= 0:
-                action = agent.get_action(full_state, i, total_states)
-                repeat_action_count = repeat_actions - 1
-            else:
-                repeat_action_count -= 1
-            result = env.execute_action(action)
-            episode_reward += result['reward']
-            agent.add_observation(full_state, action, result['reward'], result['terminal_state'])
-
-            state = result['state']
-            total_states += 1
-            if result['terminal_state']:
-                break
-
-        episode_rewards.append(episode_reward)
-
-        if i % report_episodes == 0:
-            print("Finished episode {ep} after {ts} timesteps".format(ep=i + 1, ts=j + 1))
-            print("Total reward: {}".format(episode_reward))
-            print("Average of last 500 rewards: {}".format(np.mean(episode_rewards[-500:])))
-            print("Average of last 100 rewards: {}".format(np.mean(episode_rewards[-100:])))
-
+    runner = AsyncRunner(vars(args), agent=agent, environment=environment, state_wrapper=state_wrapper)
+    runner.run(episode_finished=episode_finished)
 
     if args.monitor:
-        env.gym.monitor.close()
-
-    print("Learning finished. Total episodes: {ep}".format(ep=i + 1))
+        environment.gym.monitor.close()
+    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
     # TODO: Print results.
 
 

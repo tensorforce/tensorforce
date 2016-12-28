@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-OpenAI gym runner
+OpenAI universe runner
 """
 
 from __future__ import absolute_import
@@ -27,7 +27,7 @@ from six.moves import xrange
 import numpy as np
 
 from tensorforce.config import Config
-from tensorforce.external.openai_gym import OpenAIGymEnvironment
+from tensorforce.external.openai_universe import OpenAIUniverseEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
 from tensorforce.util.wrapper_util import create_wrapper
 
@@ -35,7 +35,7 @@ from tensorforce.util.wrapper_util import create_wrapper
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('gym_id', help="ID of the gym environment")
+    parser.add_argument('env_id', help="ID of the universe environment", default='HarvestDay-v0')
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file",
                         default='examples/configs/dqn_agent.json')
@@ -48,19 +48,19 @@ def main():
 
     args = parser.parse_args()
 
-    gym_id = args.gym_id
+    env_id = args.env_id
 
     episodes = args.episodes
     report_episodes = episodes / 100
 
     max_timesteps = args.max_timesteps
 
-    env = OpenAIGymEnvironment(gym_id)
+    environment = OpenAIUniverseEnvironment(env_id)
 
     config = Config({
-        'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape
+        'actions': environment.actions,
+        'action_shape': environment.action_shape,
+        'state_shape': environment.state_shape
     })
 
     if args.agent_config:
@@ -77,15 +77,15 @@ def main():
     agent = create_agent(args.agent, config)
 
     if args.monitor:
-        env.gym.monitor.start(args.monitor)
-        env.gym.monitor.configure(video_callable=lambda count: False) # count % 500 == 0)
+        environment.env.monitor.start(args.monitor)
+        environment.env.monitor.configure(video_callable=lambda count: False) # count % 500 == 0)
 
-    print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=gym_id))
+    print("Starting {agent_type} for OpenAI Universe environment '{env_id}'".format(agent_type=args.agent, env_id=env_id))
     total_states = 0
     repeat_actions = config.get('repeat_actions', 4)
     episode_rewards = []
     for i in xrange(episodes):
-        state = env.reset()
+        state = environment.reset()
         episode_reward = 0
         repeat_action_count = 0
         for j in xrange(max_timesteps):
@@ -98,7 +98,7 @@ def main():
                 repeat_action_count = repeat_actions - 1
             else:
                 repeat_action_count -= 1
-            result = env.execute_action(action)
+            result = environment.execute_action(action)
             episode_reward += result['reward']
             agent.add_observation(full_state, action, result['reward'], result['terminal_state'])
 
@@ -117,7 +117,7 @@ def main():
 
 
     if args.monitor:
-        env.gym.monitor.close()
+        environment.env.monitor.close()
 
     print("Learning finished. Total episodes: {ep}".format(ep=i + 1))
     # TODO: Print results.

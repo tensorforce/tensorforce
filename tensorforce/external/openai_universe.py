@@ -14,7 +14,8 @@
 # ==============================================================================
 
 """
-OpenAI Gym Integration: https://gym.openai.com/.
+OpenAI Universe Integration: https://universe.openai.com/.
+Contains OpenAI Gym: https://gym.openai.com/.
 """
 
 from __future__ import absolute_import
@@ -22,69 +23,58 @@ from __future__ import print_function
 from __future__ import division
 
 import gym
+import universe
 from gym.spaces.discrete import Discrete
 from tensorforce.environments.environment import Environment
 
 
-class OpenAIGymEnvironment(Environment):
-    def __init__(self, gym_id):
+class OpenAIUniverseEnvironment(Environment):
+    def __init__(self, env_id):
         """
-        Initialize open ai gym environment.
+        Initialize open ai universe environment.
 
-        :param gym_id: string with id/descriptor of the gym environment, e.g. 'CartPole-v0'
+        :param env_id: string with id/descriptor of the universe environment, e.g. 'HarvestDay-v0'
         """
-        self.gym_id = gym_id
-        self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
+        self.env_id = env_id
+        self.env = gym.make(env_id)
 
     def reset(self):
         """
-        Pass reset function to gym.
+        Pass reset function to universe environment.
 
         :return: ndarray containing initial state
         """
-        return self.gym.reset()
+        return self.env.reset()
 
     def execute_action(self, action):
         """
-        Pass action to gym, return reward, next step, terminal state and additional info.
+        Pass action to universe environment, return reward, next step, terminal state and additional info.
 
         :param action: Action to execute
         :return: dict containing next_state, reward, and a boolean indicating
-            if next state is a terminal state, as well as additional information provided by the gym
+            if next state is a terminal state, as well as additional information provided by the universe environment
         """
-        state, reward, terminal_state, info = self.gym.step(action)
+        state, reward, terminal_state, info = self.env.step(action)
 
         return dict(state=state,
                     reward=reward,
                     terminal_state=terminal_state,
                     info=info)
 
-    def __iter__(self):
-        state_shape = self.gym.observation_space.shape
-        if isinstance(self.gym.action_space, Discrete):
-            actions = self.gym.action_space.n
-            action_shape = []
-        else:
-            actions = self.gym.action_space.shape[0]
-            action_shape = (self.gym.action_space.shape[0],)
-        yield 'actions', actions
-        yield 'action_shape', action_shape
-        yield 'state_shape', state_shape
-
     @property
     def actions(self):
-        if isinstance(self.gym.action_space, Discrete):
-            return self.gym.action_space.n
+        if isinstance(self.env.action_space, Discrete):
+            return self.env.action_space.n
         else:
-            return self.gym.action_space.shape[0]
+            return self.env.action_space.shape[0]
 
     @property
     def action_shape(self):
-        if isinstance(self.gym.action_space, Discrete):
+        if isinstance(self.env.action_space, Discrete):
             return []
         else:
-            return (self.gym.action_space.shape[0],)
+            return (self.env.action_space.shape[0],)
 
     @property
     def state_shape(self):
-        return self.gym.observation_space.shape
+        return self.env.observation_space.shape

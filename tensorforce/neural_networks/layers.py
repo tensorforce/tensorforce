@@ -97,7 +97,38 @@ def conv2d(input, config, scope):
                           **kwargs)
 
 
+def actions(input, config, scope):
+    """
+    Final actions layer.     !!!!!!!!!!!!!!!!!!!!!!
+
+    :param input: Input to the layer, e.g. handle to another layer
+    :param config: Layer config
+    :param scope: Layer name
+    :return:
+    """
+    kwargs = {
+        'weights_initializer':  get_function(config.get('weight_init'),
+                                             config.get('weight_init_param'),
+                                             initializers.xavier_initializer()),
+        'biases_initializer':   get_function(config.get('bias_init'),
+                                             config.get('bias_init_param'),
+                                             init_ops.zeros_initializer),
+        'activation_fn':        get_function('softmax???'),
+        'weights_regularizer':  get_function(config.get('regularization'),
+                                             config.get('regularization_param'),
+                                             None),
+    }
+    # Flatten
+    input = tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:]))))
+
+    return tf_slim.fully_connected(input,
+                                   config['actions'],
+                                   scope=scope,
+                                   **kwargs)
+
+
 layers = {
     'dense': dense,
-    'conv2d': conv2d
+    'conv2d': conv2d,
+    'actions': actions
 }

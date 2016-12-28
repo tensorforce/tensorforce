@@ -28,6 +28,7 @@ from tensorforce.updater import DeepQNetwork
 
 
 class DQNAgent(MemoryAgent):
+    name = 'DQNAgent'
 
     default_config = {
         'batch_size': 100,

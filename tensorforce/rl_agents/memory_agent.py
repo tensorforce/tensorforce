@@ -27,6 +27,7 @@ from tensorforce.rl_agents import RLAgent
 
 
 class MemoryAgent(RLAgent):
+    name = 'MemoryAgent'
 
     default_config = {
         'batch_size': 100,

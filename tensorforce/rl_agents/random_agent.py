@@ -28,6 +28,8 @@ from tensorforce.util.experiment_util import global_seed
 
 
 class RandomAgent(RLAgent):
+    name = 'RandomAgent'
+
     def __init__(self, config):
         super(RandomAgent, self).__init__()
 

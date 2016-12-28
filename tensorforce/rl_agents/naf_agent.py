@@ -25,6 +25,7 @@ from tensorforce.updater import NormalizedAdvantageFunctions
 
 
 class NAFAgent(MemoryAgent):
+    name = 'NAFAgent'
 
     default_config = {
         'batch_size': 100,

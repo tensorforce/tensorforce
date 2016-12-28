@@ -23,6 +23,7 @@ from tensorforce.rl_agents import RLAgent
 
 
 class PGAgent(RLAgent):
+    name = 'PGAgent'
 
     default_config = {
         'batch_size': 5000,

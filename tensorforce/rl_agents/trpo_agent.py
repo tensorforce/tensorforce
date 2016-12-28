@@ -26,6 +26,7 @@ from tensorforce.updater import TRPOUpdater
 
 
 class TRPOAgent(PGAgent):
+    name = 'TRPOAgent'
 
     default_config = {
         'batch_size': 100,

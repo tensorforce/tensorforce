@@ -36,6 +36,9 @@ class OpenAIGymEnvironment(Environment):
         self.gym_id = gym_id
         self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
 
+    def __str__(self):
+        return self.gym_id
+
     def reset(self):
         """
         Pass reset function to gym.

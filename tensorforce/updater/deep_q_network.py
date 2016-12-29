@@ -170,15 +170,20 @@ class DeepQNetwork(Model):
                                                    name='target_values')
 
         with tf.name_scope("update"):
+            # self.q_targets gets fed the actual observed rewards and expected future rewards
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
+
+            # self.actions gets fed the actual actions that have been taken
             self.actions = tf.placeholder(tf.int32, [None], name='actions')
 
-            # Q values for actions taken in batch
+            # we now calculate a one_hot tensor of the actions that have been taken
             actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
+
+            # now we calculate the training output, so we get the expected rewards given the actual states and actions
             q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 
-            # Mean squared error
+            # we calculate the loss as the mean squared error between actual observed rewards and expected rewards
             loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
 
             if self.gradient_clipping is not None:

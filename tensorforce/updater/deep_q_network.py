@@ -199,7 +199,6 @@ class DeepQNetwork(Model):
         with tf.name_scope("update_target"):
             for v_source, v_target in zip(self.training_model.get_variables(), self.target_model.get_variables()):
                 update = v_target.assign_sub(self.tau * (v_target - v_source))
-
                 self.target_network_update.append(update)
 
     def get_target_values(self, next_states):

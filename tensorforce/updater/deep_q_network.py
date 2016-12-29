@@ -193,7 +193,7 @@ class DeepQNetwork(Model):
             else:
                 self.loss = tf.reduce_mean(tf.square(delta), name='loss')
 
-            self.optimize_op = self.optimizer.minimize(loss)
+            self.optimize_op = self.optimizer.minimize(self.loss)
 
         # Update target network with update weight tau
         with tf.name_scope("update_target"):

@@ -25,6 +25,7 @@ from __future__ import print_function
 from __future__ import division
 
 class RLAgent(object):
+    name = 'RLAgent'
 
     def get_action(self, state):
         raise NotImplementedError
@@ -37,3 +38,6 @@ class RLAgent(object):
 
     def save_model(self, path):
         raise NotImplementedError
+
+    def __str__(self):
+        return self.name

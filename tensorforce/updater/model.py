@@ -14,37 +14,40 @@
 # ==============================================================================
 
 """
-Concatenate states
+Base class for value functions, contains general tensorflow utility
+that all value functions need.
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from collections import deque
-import numpy as np
+import tensorflow as tf
 
 
-class ConcatWrapper(object):
+class Model(object):
     def __init__(self, config):
-        self.concat_length = config.get('concat', 1)
-        self._queue = deque(maxlen=self.concat_length)
-
-    def get_full_state(self, state):
         """
-        Return full concatenated state including new state state.
+        Models provide the general interface to TensorFlow functionality,
+        manages TensorFlow session and execution. In particular, a model for reinforcement learning
+        always needs to provide a function that gives an action, and one to trigger updates.
 
-        :param state: New state to be added
-        :return: State tensor of shape (concat_length, state_shape)
+        :param config: Configuration parameters
         """
-        self._queue.append(state)
 
-        # If queue is too short, fill with current state.
-        while len(self._queue) < self.concat_length:
-            self._queue.append(state)
+        self.session = tf.Session()
+        self.saver = None
 
-        return np.array(self._queue)
+        self.batch_shape = [None]
 
+    def get_action(self, state):
+        raise NotImplementedError
 
-    def state_shape(self, original_shape):
-        return [self.concat_length] + list(original_shape)
+    def update(self, batch):
+        raise NotImplementedError
+
+    def load_model(self, path):
+        self.saver.restore(self.session, path)
+
+    def save_model(self, path):
+        self.saver.save(self.session, path)

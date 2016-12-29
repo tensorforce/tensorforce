@@ -31,7 +31,7 @@ from tensorforce.environments.runner import Runner
 from tensorforce.environments.async_runner import AsyncRunner
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
-from tensorforce.util.wrapper_util import create_wrapper
+from tensorforce import preprocessing
 
 
 def main():
@@ -58,10 +58,12 @@ def main():
 
     report_episodes = args.episodes / 10
 
-    state_wrapper = None
-    if config.state_wrapper:
-        state_wrapper = create_wrapper(config.state_wrapper, config.state_wrapper_param)
-        config.state_shape = state_wrapper.state_shape(config.state_shape)
+    stack = preprocessing.Stack()
+    stack += preprocessing.Grayscale()
+    stack += preprocessing.Imresize([80, 80])
+    stack += preprocessing.Concat(4)
+
+    config.state_shape = stack.shape(config.state_shape)
 
     agent = create_agent(args.agent, config)
 
@@ -78,7 +80,7 @@ def main():
         environment.gym.monitor.start(args.monitor)
         environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    runner = AsyncRunner(vars(args), agent=agent, environment=environment, state_wrapper=state_wrapper)
+    runner = AsyncRunner(vars(args), agent=agent, environment=environment, preprocessor=stack)
     runner.run(episode_finished=episode_finished)
 
     if args.monitor:

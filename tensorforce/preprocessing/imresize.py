@@ -14,39 +14,37 @@
 # ==============================================================================
 
 """
-Base class for value functions, contains general tensorflow utility
-that all value functions need.
+Comment
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import tensorflow as tf
+import numpy as np
+
+from tensorforce.preprocessing import Preprocessor
+from scipy.misc import imresize
 
 
-class ValueFunction(object):
-    def __init__(self, config):
+class Imresize(Preprocessor):
+
+    default_config = {
+        'dimensions': [80, 80]
+    }
+
+    config_args = [
+        'dimensions'
+    ]
+
+    def process(self, state):
         """
-        Value functions provide the general interface to TensorFlow functionality,
-        manages TensorFlow session and execution.
+        Resize image.
 
-        :param config: Configuration parameters
+        :param state: state input
+        :return: new_state
         """
+        return imresize(state.astype(np.uint8), self.config.dimensions)
 
-        self.session = tf.Session()
-        self.saver = None
-
-        self.batch_shape = [None]
-
-    def get_action(self, state):
-        raise NotImplementedError
-
-    def update(self, batch):
-        raise NotImplementedError
-
-    def load_model(self, path):
-        self.saver.restore(self.session, path)
-
-    def save_model(self, path):
-        self.saver.save(self.session, path)
+    def shape(self, original_shape):
+        return original_shape[:-2] + self.config.dimensions

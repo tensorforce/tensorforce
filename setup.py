@@ -30,6 +30,8 @@ setup(name='tensorforce',
       install_requires=[
           'tensorflow',
           'numpy',
-          'six'
+          'six',
+          'scipy',
+          'nose'
       ],
       zip_safe=False)

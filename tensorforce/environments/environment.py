@@ -23,6 +23,8 @@ from __future__ import division
 
 
 class Environment(object):
+    def __str__(self):
+        return 'Environment'
 
     def reset(self):
         """

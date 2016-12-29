@@ -23,6 +23,9 @@ import scipy.signal
 from six.moves import xrange
 
 
+# TODO split this into preprocessing, an optimiser package, and a generic distribution hierarchy
+
+
 def zero_mean_unit_variance(data):
     """
     Transform array to zero mean unit variance.
@@ -34,13 +37,14 @@ def zero_mean_unit_variance(data):
 
     return data
 
-def discount_gae(rewards, gamma, gae_lambda):
 
+def discount_gae(rewards, gamma, gae_lambda):
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
+
 
 def discount(rewards, gamma):
-
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
+
 
 def get_log_prob_gaussian(action_dist_mean, log_std, actions):
     """
@@ -122,24 +126,23 @@ def get_flattened_gradient(loss, variables):
 
 
 class FlatVarHelper(object):
-    def __init__(self, session, var_list):
+    def __init__(self, session, variables):
         self.session = session
-        shapes = map(get_shape, var_list)
+        shapes = map(get_shape, variables)
         total_size = sum(np.prod(shape) for shape in shapes)
         self.theta = tf.placeholder(tf.float32, [total_size])
-        theta = tf.placeholder(tf.float32, [total_size])
+       # theta = tf.placeholder(tf.float32, [total_size])
 
         start = 0
         assigns = []
 
-        for (shape, v) in zip(shapes, var_list):
+        for (shape, variable) in zip(shapes, variables):
             size = np.prod(shape)
-
-            assigns.append(tf.assign(v, tf.reshape(theta[start:start + size], shape)))
+            assigns.append(tf.assign(variable, tf.reshape(self.theta[start:start + size], shape)))
             start += size
 
         self.set_op = tf.group(*assigns)
-        self.get_op = tf.concat(0, [tf.reshape(v, [get_number_of_elements(v)]) for v in var_list])
+        self.get_op = tf.concat(0, [tf.reshape(variable, [get_number_of_elements(variable)]) for variable in variables])
 
     def set(self, theta):
         """
@@ -147,7 +150,6 @@ class FlatVarHelper(object):
 
         :param theta: values
         """
-
         self.session.run(self.set_op, feed_dict={self.theta: theta})
 
     def get(self):
@@ -160,44 +162,7 @@ class FlatVarHelper(object):
         return self.session.run(self.get_op)
 
 
-class LinearValueFunction(object):
-    def __init__(self):
-        self.coefficients = None
-
-    def get_features(self, path):
-        states = path["states"].astype('float32')
-        states = states.reshape(states.shape[0], -1)
-
-        path_length = len(path["rewards"])
-        al = np.arange(path_length).reshape(-1, 1) / 100.0
-
-        return np.concatenate([states, states ** 2, al, al ** 2, np.ones((path_length, 1))], axis=1)
-
-    def fit(self, paths):
-        feature_matrix = np.concatenate([self.get_features(path) for path in paths])
-        returns = np.concatenate([path["returns"] for path in paths])
-
-        columns = feature_matrix.shape[1]
-
-        lamb = 2.0
-
-        self.coefficients = np.linalg.lstsq(feature_matrix.T.dot(feature_matrix)
-                                            + lamb * np.identity(columns), feature_matrix.T.dot(returns))[0]
-
-    def predict(self, path):
-        """
-        Predict path value based on linear coefficients.
-
-        :param path:
-        :return: Returns value estimate or 0 if coefficients have not been set
-        """
-
-        if self.coefficients is None:
-            return np.zeros(len(path["rewards"]))
-        else:
-            return self.get_features(path).dot(self.coefficients)
-
-
+# TODO build optimiser class, implement generic constrainted optimisation solvers
 def conjugate_gradient(f_Ax, b, cg_iterations=10, residual_tol=1e-10):
     """
     Conjugate gradient solver.
@@ -213,7 +178,6 @@ def conjugate_gradient(f_Ax, b, cg_iterations=10, residual_tol=1e-10):
     x = np.zeros_like(b)
     residual_dot_residual = residual.dot(residual)
 
-    # TODO should we not use len(b) as maximal number of iterations?
     for _ in xrange(cg_iterations):
         z = f_Ax(conjugate_vectors_p)
         v = residual_dot_residual / conjugate_vectors_p.dot(z)
@@ -247,9 +211,8 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
     """
     function_value = f(initial_x)
 
-    # TODO Why sqrt step sizing?
-    for step_fraction in enumerate(0.5 ** np.arange(max_backtracks)):
-
+    # TODO Make backtrack intervals configurable
+    for _, step_fraction in enumerate(0.5 ** np.arange(max_backtracks)):
         updated_x = initial_x + step_fraction * full_step
         new_function_value = f(updated_x)
 
@@ -257,7 +220,7 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
         expected_improve = expected_improve_rate * step_fraction
 
         improve_ratio = actual_improve / expected_improve
-        
+
         if improve_ratio > accept_ratio and actual_improve > 0:
             return updated_x
 

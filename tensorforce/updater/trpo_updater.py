@@ -17,14 +17,15 @@
 Implements trust region policy optimization with general advantage estimation (TRPO-GAE) as
 introduced by Schulman et al.
 
-Based on https://github.com/ilyasu123/trpo, with a slightly more readable
+Based on https://github.com/ilyasu123/trpo, with a hopefully slightly more readable
 modularisation.
 
 """
 from tensorforce.config import create_config
 from tensorforce.neural_networks.layers import dense
-from tensorforce.neural_networks.neural_network import NeuralNetwork
-from tensorforce.updater.value_function import ValueFunction
+from tensorforce.neural_networks import NeuralNetwork
+from tensorforce.updater import LinearValueFunction
+from tensorforce.updater import Model
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.math_util import *
 
@@ -32,10 +33,11 @@ import numpy as np
 import tensorflow as tf
 
 
-class TRPOUpdater(ValueFunction):
+class TRPOUpdater(Model):
     default_config = {
-        'cg_damping': 0.1,
+        'cg_damping': 0.001,
         'max_kl_divergence': 0.01,
+        'gamma': 0.99,
         'gae_lambda': 0.97  # GAE-lambda
     }
 
@@ -56,12 +58,7 @@ class TRPOUpdater(ValueFunction):
         else:
             self.random = np.random.RandomState()
 
-        if self.config.concat is not None and self.config.concat > 1:
-            self.state = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape),
-                                        name="state")
-        else:
-            self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
-
+        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.episode = 0
 
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
@@ -121,7 +118,7 @@ class TRPOUpdater(ValueFunction):
 
             # Natural gradient update
             fixed_kl_divergence = get_fixed_kl_divergence_gaussian(self.action_means, self.action_log_stds) \
-                                  / float(self.batch_size)
+                                   / float(self.batch_size)
 
             variable_shapes = map(get_shape, variables)
 
@@ -148,13 +145,12 @@ class TRPOUpdater(ValueFunction):
 
         action_means, action_log_stds = self.session.run([self.action_means,
                                                           self.action_log_stds],
-                                                         {self.state: state})
-
+                                                         {self.state: [state]})
         action = action_means + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
-
-        return action, dict(action_means=action_means,
+        return action.ravel(), dict(action_means=action_means,
                             action_log_stds=action_log_stds)
 
+    # TODO refactor to use modular constrained optimisation api
     def update(self, batch):
         """
         Compute update for one batch of experiences using general advantage estimation
@@ -191,18 +187,20 @@ class TRPOUpdater(ValueFunction):
         update_step = cg_direction / lagrange_multiplier
         negative_gradient_direction = -gradient.dot(cg_direction)
 
-        def loss(theta):
-            self.flat_variable_helper.set(theta)
-            return self.session.run(self.losses[0], feed_dict=input_feed)
+        def loss(theta_values):
+            self.flat_variable_helper.set(theta_values)
+
+            return self.session.run(self.losses[0], input_feed)
 
         theta = line_search(loss, previous_theta, update_step, negative_gradient_direction / lagrange_multiplier)
         self.flat_variable_helper.set(theta)
 
-        self.session.run(self.losses, feed_dict=input_feed)
+        self.session.run(self.losses, input_feed)
 
     def merge_episodes(self, batch):
         """
         Merge episodes into single input variables.
+
         :param batch:
         :return:
         """
@@ -221,12 +219,14 @@ class TRPOUpdater(ValueFunction):
 
         :param batch: Sequence of observations for at least one episode.
         """
-        for path in batch:
-            baseline = self.value_function.predict(path)
-            if path['terminated']:
+
+        for episode in batch:
+            baseline = self.value_function.predict(episode)
+            if episode['terminated']:
                 adjusted_baseline = np.append(baseline, [0])
             else:
                 adjusted_baseline = np.append(baseline, baseline[-1])
 
-            deltas = path['reward"'] + self.gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
-            path['advantage'] = discount(deltas, deltas * self.gae_lambda)
+            deltas = episode['rewards'] + self.gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
+            episode['returns'] = discount(episode['rewards'], self.gamma)
+            episode['advantage'] = discount(deltas, self.gamma * self.gae_lambda)

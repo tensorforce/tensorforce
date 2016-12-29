@@ -23,10 +23,7 @@ from __future__ import division
 
 from tensorforce.config import Config
 from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
-from tensorforce.rl_agents.random_agent import RandomAgent
-from tensorforce.rl_agents.dqn_agent import DQNAgent
-from tensorforce.rl_agents.naf_agent import NAFAgent
-from tensorforce.rl_agents.trpo_agent import TRPOAgent
+from tensorforce.rl_agents import *
 
 
 def create_agent(agent_type, config):

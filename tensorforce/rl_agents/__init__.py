@@ -13,7 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-__all__ = ['RandomAgent', 'DQNAgent']
-
+from tensorforce.rl_agents.rl_agent import RLAgent
 from tensorforce.rl_agents.random_agent import RandomAgent
+from tensorforce.rl_agents.memory_agent import MemoryAgent
 from tensorforce.rl_agents.dqn_agent import DQNAgent
+from tensorforce.rl_agents.naf_agent import NAFAgent
+from tensorforce.rl_agents.pg_agent import PGAgent
+from tensorforce.rl_agents.trpo_agent import TRPOAgent
+
+__all__ = ['RLAgent', 'RandomAgent', 'MemoryAgent', 'DQNAgent', 'NAFAgent', 'PGAgent', 'TRPOAgent']

@@ -14,34 +14,33 @@
 # ==============================================================================
 
 """
-Utility functions concerning state wrappers.
+Comment
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
-from tensorforce.state_wrappers import *
+from tensorforce.preprocessing import Preprocessor
 
 
-def create_wrapper(wrapper_type, config):
-    """
-    Create wrapper instance by providing type as a string parameter.
+class Grayscale(Preprocessor):
 
-    :param wrapper_type: String parameter containing wrapper type
-    :param config: Dict containing configuration
-    :return: Wrapper instance
-    """
-    wrapper_class = wrappers.get(wrapper_type)
+    default_config = {
+        'weights': [0.299, 0.587, 0.114]
+    }
 
-    if not wrapper_class:
-        raise TensorForceValueError("No such wrapper: {}".format(wrapper_type))
+    config_args = [
+        'weights'
+    ]
 
-    return wrapper_class(config)
+    def process(self, state):
+        """
+        Turn 3D color state into grayscale, thereby removing the last dimension.
+        :param state: state input
+        :return: new_state
+        """
+        return (self.config.weights * state).sum(-1)
 
-
-wrappers = {
-    'ConcatWrapper': ConcatWrapper,
-    'AtariWrapper': AtariWrapper
-}
+    def shape(self, original_shape):
+        return list(original_shape[:-1])

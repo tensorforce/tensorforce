@@ -20,11 +20,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.rl_agents.memory_agent import MemoryAgent
-from tensorforce.updater.normalized_advantage_functions import NormalizedAdvantageFunctions
+from tensorforce.rl_agents import MemoryAgent
+from tensorforce.updater import NormalizedAdvantageFunctions
 
 
 class NAFAgent(MemoryAgent):
+    name = 'NAFAgent'
 
     default_config = {
         'batch_size': 100,

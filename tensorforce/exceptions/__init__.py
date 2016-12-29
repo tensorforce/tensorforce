@@ -13,3 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.exceptions.tensorforce_exceptions import TensorForceError, TensorForceValueError, ConfigError, ArgumentMustBePositiveError
+
+__all__ = ['TensorForceError', 'TensorForceValueError', 'ConfigError', 'ArgumentMustBePositiveError']

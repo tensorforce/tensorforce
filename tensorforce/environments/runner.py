@@ -29,7 +29,7 @@ class Runner(object):
         'repeat_actions': 4
     }
 
-    def __init__(self, config, agent, environment, state_wrapper=None):
+    def __init__(self, config, agent, environment, preprocessor=None):
         self.config = create_config(config, default=self.default_config)
         self.episodes = self.config.episodes
         self.max_timesteps = self.config.max_timesteps
@@ -37,10 +37,9 @@ class Runner(object):
 
         self.agent = agent
         self.environment = environment
-        self.state_wrapper = state_wrapper
+        self.preprocessor = preprocessor
 
     def run(self, episode_finished=None):
-        self.stop_execution = False
         self.total_states = 0
         self.episode_rewards = []
 
@@ -50,24 +49,27 @@ class Runner(object):
             repeat_action_count = 0
 
             for j in xrange(self.max_timesteps):
-                if self.state_wrapper:
-                    full_state = self.state_wrapper.get_full_state(state)
+                if self.preprocessor:
+                    processed_state = self.preprocessor.process(state)
                 else:
-                    full_state = state
+                    processed_state = state
                 if repeat_action_count <= 0:
-                    action = self.agent.get_action(full_state, episode=self.episode, total_states=self.total_states)
+                    action = self.agent.get_action(processed_state, episode=self.episode, total_states=self.total_states)
                     repeat_action_count = self.repeat_actions - 1
                 else:
                     repeat_action_count -= 1
 
                 result = self.environment.execute_action(action)
                 episode_reward += result['reward']
-                self.agent.add_observation(full_state, action, result['reward'], result['terminal_state'])
+                self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])
 
                 state = result['state']
                 self.total_states += 1
                 if result['terminal_state']:
                     break
+
             self.episode_rewards.append(episode_reward)
+            print('episode finished', self.episode_rewards)
             if episode_finished and not episode_finished(self):
+                print('end')
                 return

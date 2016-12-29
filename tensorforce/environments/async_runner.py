@@ -13,42 +13,55 @@
 # limitations under the License.
 # ==============================================================================
 
-from threading import Event, Thread
+from copy import deepcopy
+from threading import Condition, Thread
+
+from tensorforce.environments.runner import Runner
 
 
 class AsyncRunner(Runner):
 
-    def __init__(self, config, agent, environment, state_wrapper=None):
-        super().__init__(config, agent, environment, state_wrapper=state_wrapper)
-        self.n_runners = self.config.n_runners
+    default_config = {
+        'episodes': 10000,
+        'max_timesteps': 2000,
+        'repeat_actions': 4,
+        'n_runners': 2
+    }
 
-    def run(self, episode_finished):
+    def __init__(self, config, agent, environment, preprocessor=None):
+        super().__init__(config, agent, environment, preprocessor=preprocessor)
+        self.n_runners = self.config.n_runners
+        self.episodes = 3
+
+    def run(self, episode_finished=None):
         self.total_states = 0
         self.episode_rewards = []
 
         runners = []
         threads = []
-        events = []
+        conditions = []
         continue_execution = True
         for _ in range(self.n_runners):
-            event = Event()
-            events.append(events)
+            condition = Condition()
+            conditions.append(condition)
 
-            def episode_finished(r):
-                event.clear()
-                event.wait()
+            runner = Runner(self.config, self.agent, self.environment, preprocessor=self.preprocessor)  # deepcopy
+            runners.append(runner)
+
+            def runner_episode_finished(r):
+                condition.acquire()
+                condition.wait()
                 return continue_execution
 
-            runner = Runner(self.config, deepcopy(self.agent), deepcopy(self.environment), state_wrapper=self.state_wrapper)
-            runners.append(runner)
-            thread = Thread(target=runner.run, kwargs={'episode_finished': episode_finished})
+            thread = Thread(target=runner.run, kwargs={'episode_finished': runner_episode_finished})
             threads.append(thread)
             thread.start()
+
         self.episode = 0
         loop = True
         while loop:
-            for event, runner in zip(events, runners):
-                if not event.is_set():
+            for condition, runner in zip(conditions, runners):
+                if condition._waiters:
                     self.episode += 1
                     self.episode_rewards.append(runner.episode_rewards[-1])
                     # perform async update of parameters
@@ -56,15 +69,23 @@ class AsyncRunner(Runner):
                     #     update target network
                     # clear gradient
                     # sync parameters
+                    condition.acquire()
+                    condition.notify()
+                    condition.release()
                     if self.episode >= self.episodes or (episode_finished and not episode_finished(self)):
                         loop = False
                         break
-                    event.set()
             self.total_states = sum(runner.total_states for runner in runners)
 
         continue_execution = False
         stopped = 0
         while stopped < self.n_runners:
-            for event, runner in zip(events, runners):
-                if not event.is_set():
-                    event.set()
+            for condition, thread in zip(conditions, threads):
+                if condition._waiters:
+                    condition.acquire()
+                    condition.notify()
+                    condition.release()
+                    conditions.remove(condition)
+                if not thread.is_alive():
+                    threads.remove(thread)
+                    stopped += 1

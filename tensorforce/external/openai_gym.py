@@ -23,7 +23,7 @@ from __future__ import division
 
 import gym
 from gym.spaces.discrete import Discrete
-from tensorforce.environments.environment import Environment
+from tensorforce.environments import Environment
 
 
 class OpenAIGymEnvironment(Environment):
@@ -35,6 +35,9 @@ class OpenAIGymEnvironment(Environment):
         """
         self.gym_id = gym_id
         self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
+
+    def __str__(self):
+        return self.gym_id
 
     def reset(self):
         """

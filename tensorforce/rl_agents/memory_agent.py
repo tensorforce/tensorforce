@@ -22,11 +22,12 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.config import create_config
-from tensorforce.replay_memories.replay_memory import ReplayMemory
-from tensorforce.rl_agents.rl_agent import RLAgent
+from tensorforce.replay_memories import ReplayMemory
+from tensorforce.rl_agents import RLAgent
 
 
 class MemoryAgent(RLAgent):
+    name = 'MemoryAgent'
 
     default_config = {
         'batch_size': 100,

@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-__all__ = ['ConcatWrapper', 'AtariWrapper']
+from tensorforce.runner.runner import Runner
 
-from tensorforce.state_wrappers.concat_wrapper import ConcatWrapper
-from tensorforce.state_wrappers.atari_wrapper import AtariWrapper
+__all__ = ['Runner']

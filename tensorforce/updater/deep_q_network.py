@@ -184,14 +184,14 @@ class DeepQNetwork(Model):
                                                    name='q_acted')
 
             # we calculate the loss as the mean squared error between actual observed rewards and expected rewards
-            loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
+            delta = self.q_targets - q_values_actions_taken
 
-            if self.gradient_clipping is not None:
-                grads_and_vars = self.optimizer.compute_gradients(loss)
-                for idx, (grad, var) in enumerate(grads_and_vars):
-                    if grad is not None:
-                        grads_and_vars[idx] = (tf.clip_by_norm(grad, self.gradient_clipping), var)
-                self.optimize_op = self.optimizer.apply_gradients(grads_and_vars)
+            # if gradient clipping is used, calculate the huber loss
+            if self.config.clip_gradients:
+                huber_loss = tf.select(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+                self.loss = tf.reduce_mean(huber_loss, name='loss')
+            else:
+                self.loss = tf.reduce_mean(tf.square(delta), name='loss')
 
             self.optimize_op = self.optimizer.minimize(loss)
 

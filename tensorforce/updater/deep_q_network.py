@@ -99,8 +99,9 @@ class DeepQNetwork(Model):
             "regularization_param": None
         }]
 
-        self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, 'training')
-        self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, 'target')
+        scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
+        self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, scope=scope + 'training')
+        self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, scope=scope + 'target')
         self.training_output = self.training_model.get_output()
         self.target_output = self.target_model.get_output()
 

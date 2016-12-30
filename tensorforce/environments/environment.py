@@ -23,6 +23,7 @@ from __future__ import division
 
 
 class Environment(object):
+
     def __str__(self):
         return 'Environment'
 
@@ -31,6 +32,12 @@ class Environment(object):
         Reset environment and setup for new episode.
 
         :return: initial state
+        """
+        raise NotImplementedError
+
+    def close(self):
+        """
+        Close environment. No other method calls possible afterwards.
         """
         raise NotImplementedError
 

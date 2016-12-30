@@ -27,6 +27,7 @@ from tensorforce.environments import Environment
 
 
 class OpenAIGymEnvironment(Environment):
+
     def __init__(self, gym_id):
         """
         Initialize open ai gym environment.
@@ -47,13 +48,19 @@ class OpenAIGymEnvironment(Environment):
         """
         return self.gym.reset()
 
+    def close(self):
+        """
+        Close environment. No other method calls possible afterwards.
+        """
+        self.gym = None
+
     def execute_action(self, action):
         """
         Pass action to gym, return reward, next step, terminal state and additional info.
 
         :param action: Action to execute
-        :return: dict containing next_state, reward, and a boolean indicating
-            if next state is a terminal state, as well as additional information provided by the gym
+        :return: dict containing the next state, the reward, and a boolean indicating
+            if the next state is a terminal state, as well as additional information provided by the gym
         """
         state, reward, terminal_state, info = self.gym.step(action)
 
@@ -61,18 +68,6 @@ class OpenAIGymEnvironment(Environment):
                     reward=reward,
                     terminal_state=terminal_state,
                     info=info)
-
-    def __iter__(self):
-        state_shape = self.gym.observation_space.shape
-        if isinstance(self.gym.action_space, Discrete):
-            actions = self.gym.action_space.n
-            action_shape = []
-        else:
-            actions = self.gym.action_space.shape[0]
-            action_shape = (self.gym.action_space.shape[0],)
-        yield 'actions', actions
-        yield 'action_shape', action_shape
-        yield 'state_shape', state_shape
 
     @property
     def actions(self):

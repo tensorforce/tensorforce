@@ -46,6 +46,12 @@ class OpenAIUniverseEnvironment(Environment):
         """
         return self.env.reset()
 
+    def close(self):
+        """
+        Close environment. No other method calls possible afterwards.
+        """
+        self.env = None
+
     def execute_action(self, action):
         """
         Pass action to universe environment, return reward, next step, terminal state and additional info.

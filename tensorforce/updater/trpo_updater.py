@@ -67,7 +67,8 @@ class TRPOUpdater(Model):
         self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count])
         self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
 
-        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state, 'value_function')
+        scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
+        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state, scope=scope + 'value_function')
 
         self.saver = tf.train.Saver()
 

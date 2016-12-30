@@ -23,6 +23,8 @@ from __future__ import division
 
 import argparse
 
+import numpy as np
+
 from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
@@ -77,9 +79,21 @@ def main():
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
-        env.gym.monitor.configure(video_callable=lambda count: False) # count % 500 == 0)
+        env.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    runner.run(args.episodes, args.max_timesteps, report=True)
+    report_episodes = args.episodes // 100
+
+    def episode_finished(r):
+        if r.episode % report_episodes == 0:
+            print("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
+            print("Episode reward: {}".format(r.episode_rewards[-1]))
+            print("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
+            print("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
+        return True
+
+    print("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
+    runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
+    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
 
     if args.monitor:
         env.gym.monitor.close()

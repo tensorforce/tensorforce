@@ -82,4 +82,3 @@ class NeuralNetwork(object):
             return self.variables
         else:
             return self.variables
-

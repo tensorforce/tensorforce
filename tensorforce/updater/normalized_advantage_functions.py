@@ -84,8 +84,9 @@ class NormalizedAdvantageFunctions(Model):
         self.episode = 0
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
-        self.training_model = NeuralNetwork(self.config.network_layers, self.state, 'training')
-        self.target_model = NeuralNetwork(self.config.network_layers, self.next_states, 'target')
+        scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
+        self.training_model = NeuralNetwork(self.config.network_layers, self.state, scope=scope + 'training')
+        self.target_model = NeuralNetwork(self.config.network_layers, self.next_states, scope=scope + 'target')
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
 
         # Create output fields

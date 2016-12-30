@@ -23,8 +23,6 @@ from __future__ import division
 
 from six.moves import xrange
 
-import numpy as np
-
 
 class Runner(object):
 
@@ -34,27 +32,23 @@ class Runner(object):
         self.preprocessor = preprocessor
         self.repeat_actions = repeat_actions
 
-    def run(self, episodes, max_timesteps, report=True, report_episodes=None):
-        total_states = 0      # count all states
-        episode_rewards = []  # save all episode rewards for statistics
-        if not report_episodes:
-            report_episodes = episodes // 100
+    def run(self, episodes, max_timesteps, episode_finished=None):
+        self.total_states = 0      # count all states
+        self.episode_rewards = []  # save all episode rewards for statistics
 
-        if report:
-            print("Starting {agent} for Environment '{env}'".format(agent=self.agent, env=self.environment))
-        for episode_num in xrange(episodes):
+        for self.episode in xrange(episodes):
             state = self.environment.reset()
             episode_reward = 0
             repeat_action_count = 0
 
-            for timestep_num in xrange(max_timesteps):
+            for self.timestep in xrange(max_timesteps):
                 if self.preprocessor:
                     processed_state = self.preprocessor.process(state)
                 else:
                     processed_state = state
 
                 if repeat_action_count <= 0:
-                    action = self.agent.get_action(processed_state, episode_num, total_states)
+                    action = self.agent.get_action(processed_state, self.episode, self.total_states)
                     repeat_action_count = self.repeat_actions - 1
                 else:
                     repeat_action_count -= 1
@@ -65,16 +59,11 @@ class Runner(object):
                 self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])
 
                 state = result['state']
-                total_states += 1
+                self.total_states += 1
 
                 if result['terminal_state']:
                     break
 
-            episode_rewards.append(episode_reward)
-
-            if report and episode_num % report_episodes == 0:
-                print("Finished episode {ep} after {ts} timesteps".format(ep=episode_num + 1, ts=timestep_num + 1))
-                print("Episode reward: {}".format(episode_reward))
-                print("Average of last 500 rewards: {}".format(np.mean(episode_rewards[-500:])))
-                print("Average of last 100 rewards: {}".format(np.mean(episode_rewards[-100:])))
-        print("Learning finished. Total episodes: {ep}".format(ep=episode_num + 1))
+            self.episode_rewards.append(episode_reward)
+            if episode_finished and not episode_finished(self):
+                return

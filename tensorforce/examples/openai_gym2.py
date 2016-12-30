@@ -27,8 +27,7 @@ from six.moves import xrange
 import numpy as np
 
 from tensorforce.config import Config, create_config
-from tensorforce.environments.runner import Runner
-from tensorforce.environments.async_runner import AsyncRunner
+from tensorforce.runner.async_runner import AsyncRunner
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.agent_util import create_agent, get_default_config
 from tensorforce import preprocessing
@@ -49,8 +48,13 @@ def main():
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     args = parser.parse_args()
 
-    environment = OpenAIGymEnvironment(args.gym_id)
-    config = Config(environment)
+    environments = [OpenAIGymEnvironment(args.gym_id), OpenAIGymEnvironment(args.gym_id), OpenAIGymEnvironment(args.gym_id)]
+
+    config = Config({
+        'actions': environments[0].actions,
+        'action_shape': environments[0].action_shape,
+        'state_shape': environments[0].state_shape
+    })
     if args.agent_config:
         config.read_json(args.agent_config)
     if args.network_config:
@@ -65,7 +69,7 @@ def main():
 
     config.state_shape = stack.shape(config.state_shape)
 
-    agent = create_agent(args.agent, config)
+    agents = [create_agent(args.agent, config), create_agent(args.agent, config + {'tf_scope': 'worker0'}), create_agent(args.agent, config + {'tf_scope': 'worker1'})]
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
@@ -77,14 +81,16 @@ def main():
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=args.gym_id))
     if args.monitor:
-        environment.gym.monitor.start(args.monitor)
-        environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
+        for environment in environments:
+            environment.gym.monitor.start(args.monitor)
+            environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    runner = AsyncRunner(vars(args), agent=agent, environment=environment, preprocessor=stack)
+    runner = AsyncRunner(agents=agents, environments=environments, preprocessor=stack, repeat_actions=args.repeat_actions)
     runner.run(episode_finished=episode_finished)
 
     if args.monitor:
-        environment.gym.monitor.close()
+        for environment in environments:
+            environment.gym.monitor.close()
     print("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
     # TODO: Print results.
 

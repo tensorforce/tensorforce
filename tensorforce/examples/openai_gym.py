@@ -67,8 +67,9 @@ def main():
 
     # TODO: make stack configurable
     stack = preprocessing.Stack()
+    stack += preprocessing.Maximum(2)
     stack += preprocessing.Grayscale()
-    stack += preprocessing.Imresize([80, 80])
+    stack += preprocessing.Imresize([84, 84])
     stack += preprocessing.Concat(4)
 
     config.state_shape = stack.shape(config.state_shape)

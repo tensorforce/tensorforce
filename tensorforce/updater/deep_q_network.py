@@ -87,7 +87,7 @@ class DeepQNetwork(Model):
 
         # output layer
         output_layer_config = [{
-            "type": "dense",
+            "type": "linear",
             "neurons": self.config.actions,
             "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
             "weight_init_param": {},
@@ -171,31 +171,35 @@ class DeepQNetwork(Model):
                                                    name='target_values')
 
         with tf.name_scope("update"):
+            # self.q_targets gets fed the actual observed rewards and expected future rewards
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
+
+            # self.actions gets fed the actual actions that have been taken
             self.actions = tf.placeholder(tf.int32, [None], name='actions')
 
-            # Q values for actions taken in batch
+            # we now calculate a one_hot tensor of the actions that have been taken
             actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
+
+            # now we calculate the training output, so we get the expected rewards given the actual states and actions
             q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 
-            # Mean squared error
-            loss = tf.reduce_mean(tf.square(self.q_targets - q_values_actions_taken), name='loss')
+            # we calculate the loss as the mean squared error between actual observed rewards and expected rewards
+            delta = self.q_targets - q_values_actions_taken
 
-            if self.gradient_clipping is not None:
-                grads_and_vars = self.optimizer.compute_gradients(loss)
-                for idx, (grad, var) in enumerate(grads_and_vars):
-                    if grad is not None:
-                        grads_and_vars[idx] = (tf.clip_by_norm(grad, self.gradient_clipping), var)
-                self.optimize_op = self.optimizer.apply_gradients(grads_and_vars)
+            # if gradient clipping is used, calculate the huber loss
+            if self.config.clip_gradients:
+                huber_loss = tf.select(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+                self.loss = tf.reduce_mean(huber_loss, name='loss')
+            else:
+                self.loss = tf.reduce_mean(tf.square(delta), name='loss')
 
-            self.optimize_op = self.optimizer.minimize(loss)
+            self.optimize_op = self.optimizer.minimize(self.loss)
 
         # Update target network with update weight tau
         with tf.name_scope("update_target"):
             for v_source, v_target in zip(self.training_model.get_variables(), self.target_model.get_variables()):
                 update = v_target.assign_sub(self.tau * (v_target - v_source))
-
                 self.target_network_update.append(update)
 
     def get_target_values(self, next_states):

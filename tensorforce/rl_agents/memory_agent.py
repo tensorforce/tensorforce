@@ -25,7 +25,6 @@ from tensorforce.config import create_config
 from tensorforce.replay_memories import ReplayMemory
 from tensorforce.rl_agents import RLAgent
 
-
 class MemoryAgent(RLAgent):
     name = 'MemoryAgent'
 
@@ -83,7 +82,8 @@ class MemoryAgent(RLAgent):
         self.memory.add_experience(state, action, reward, terminal)
 
         if self.step_count > self.min_replay_size and self.step_count % self.update_steps == 0:
-            self.value_function.update(self.memory.sample_batch(self.batch_size))
+            batch = self.memory.sample_batch(self.batch_size)
+            self.value_function.update(batch)
 
         self.step_count += 1
 

@@ -45,6 +45,7 @@ def main():
     parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
+    parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
 
     args = parser.parse_args()
@@ -74,7 +75,17 @@ def main():
 
     config.state_shape = stack.shape(config.state_shape)
 
+    if args.debug:
+        print("-" * 16)
+        print("File configuration:")
+        print(config)
+
     agent = create_agent(args.agent, config)
+
+    if args.debug:
+        print("-" * 16)
+        print("Agent configuration:")
+        print(config)
 
     runner = Runner(agent, env, preprocessor=stack, repeat_actions=4)
 
@@ -82,7 +93,9 @@ def main():
         env.gym.monitor.start(args.monitor)
         env.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    report_episodes = args.episodes // 1000
+    report_episodes = args.episodes // 100
+    if args.debug:
+        report_episodes = 1
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:

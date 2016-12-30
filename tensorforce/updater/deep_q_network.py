@@ -150,6 +150,10 @@ class DeepQNetwork(Model):
             self.actions: batch['actions'],
             self.state: batch['states']})
 
+        for v_source, v_target in zip(self.training_model.get_variables(), self.target_model.get_variables()):
+            val_source, val_target = self.session.run([v_source, v_target])
+            print("Target for {}: {}".format(v_target, np.sum(val_target)))
+
     def create_training_operations(self):
         """
         Create graph operations for loss computation and

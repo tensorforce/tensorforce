@@ -87,7 +87,7 @@ class DeepQNetwork(Model):
 
         # output layer
         output_layer_config = [{
-            "type": "dense",
+            "type": "linear",
             "neurons": self.config.actions,
             "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
             "weight_init_param": {},

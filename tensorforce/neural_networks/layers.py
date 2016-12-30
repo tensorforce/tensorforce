@@ -43,18 +43,18 @@ def dense(input, config, scope):
     :return:
     """
     kwargs = {
-        'weights_initializer':  get_function(config.get('weight_init'),
-                                             config.get('weight_init_param'),
-                                             initializers.xavier_initializer()),
-        'biases_initializer':   get_function(config.get('bias_init'),
-                                             config.get('bias_init_param'),
-                                             init_ops.zeros_initializer),
-        'activation_fn':        get_function(config.get('activation'),
-                                             config.get('activation_param'),
-                                             nn.relu),
-        'weights_regularizer':  get_function(config.get('regularization'),
-                                             config.get('regularization_param'),
-                                             None),
+        'weights_initializer': get_function(config.get('weight_init'),
+                                            config.get('weight_init_param'),
+                                            initializers.xavier_initializer()),
+        'biases_initializer': get_function(config.get('bias_init'),
+                                           config.get('bias_init_param'),
+                                           init_ops.zeros_initializer),
+        'activation_fn': get_function(config.get('activation'),
+                                      config.get('activation_param'),
+                                      nn.relu),
+        'weights_regularizer': get_function(config.get('regularization'),
+                                            config.get('regularization_param'),
+                                            None),
     }
     # Flatten
     input = tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:]))))
@@ -75,18 +75,18 @@ def conv2d(input, config, scope):
     :return:
     """
     kwargs = {
-        'weights_initializer':  get_function(config.get('weight_init'),
-                                             config.get('weight_init_param'),
-                                             initializers.xavier_initializer()),
-        'biases_initializer':   get_function(config.get('bias_init'),
-                                             config.get('bias_init_param'),
-                                             init_ops.zeros_initializer),
-        'activation_fn':        get_function(config.get('activation'),
-                                             config.get('activation_param'),
-                                             nn.relu),
-        'weights_regularizer':  get_function(config.get('regularization'),
-                                             config.get('regularization_param'),
-                                             None),
+        'weights_initializer': get_function(config.get('weight_init'),
+                                            config.get('weight_init_param'),
+                                            initializers.xavier_initializer()),
+        'biases_initializer': get_function(config.get('bias_init'),
+                                           config.get('bias_init_param'),
+                                           init_ops.zeros_initializer),
+        'activation_fn': get_function(config.get('activation'),
+                                      config.get('activation_param'),
+                                      nn.relu),
+        'weights_regularizer': get_function(config.get('regularization'),
+                                            config.get('regularization_param'),
+                                            None),
     }
 
     return tf_slim.conv2d(input,
@@ -97,9 +97,9 @@ def conv2d(input, config, scope):
                           **kwargs)
 
 
-def actions(input, config, scope):
+def linear(input, config, scope):
     """
-    Final actions layer.     !!!!!!!!!!!!!!!!!!!!!!
+    Fully connected layer.
 
     :param input: Input to the layer, e.g. handle to another layer
     :param config: Layer config
@@ -107,28 +107,26 @@ def actions(input, config, scope):
     :return:
     """
     kwargs = {
-        'weights_initializer':  get_function(config.get('weight_init'),
-                                             config.get('weight_init_param'),
-                                             initializers.xavier_initializer()),
-        'biases_initializer':   get_function(config.get('bias_init'),
-                                             config.get('bias_init_param'),
-                                             init_ops.zeros_initializer),
-        'activation_fn':        get_function('softmax???'),
-        'weights_regularizer':  get_function(config.get('regularization'),
-                                             config.get('regularization_param'),
-                                             None),
+        'weights_initializer': get_function(config.get('weight_init'),
+                                            config.get('weight_init_param'),
+                                            initializers.xavier_initializer()),
+        'biases_initializer': get_function(config.get('bias_init'),
+                                           config.get('bias_init_param'),
+                                           init_ops.zeros_initializer),
+        'weights_regularizer': get_function(config.get('regularization'),
+                                            config.get('regularization_param'),
+                                            None),
     }
     # Flatten
     input = tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:]))))
 
-    return tf_slim.fully_connected(input,
-                                   config['actions'],
-                                   scope=scope,
-                                   **kwargs)
-
+    return tf_slim.linear(input,
+                          config['neurons'],
+                          scope=scope,
+                          **kwargs)
 
 layers = {
     'dense': dense,
     'conv2d': conv2d,
-    'actions': actions
+    'linear': linear
 }

@@ -82,7 +82,7 @@ def main():
         env.gym.monitor.start(args.monitor)
         env.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    report_episodes = args.episodes // 100
+    report_episodes = args.episodes // 10
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:

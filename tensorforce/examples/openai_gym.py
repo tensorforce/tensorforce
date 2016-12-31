@@ -43,7 +43,7 @@ def main():
     parser.add_argument('-n', '--network-config', help="Network configuration file",
                         default='examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
-    parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
+    parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
@@ -67,13 +67,13 @@ def main():
         config.read_json(args.network_config)
 
     # TODO: make stack configurable
-    stack = preprocessing.Stack()
-    stack += preprocessing.Maximum(2)
-    stack += preprocessing.Grayscale()
-    stack += preprocessing.Imresize([84, 84])
-    stack += preprocessing.Concat(4)
+    #stack = preprocessing.Stack()
+    #stack += preprocessing.Maximum(2)
+    #stack += preprocessing.Grayscale()
+    #stack += preprocessing.Imresize([84, 84])
+    #stack += preprocessing.Concat(4)
 
-    config.state_shape = stack.shape(config.state_shape)
+    #config.state_shape = stack.shape(config.state_shape)
 
     if args.debug:
         print("-" * 16)
@@ -87,13 +87,13 @@ def main():
         print("Agent configuration:")
         print(config)
 
-    runner = Runner(agent, env, preprocessor=stack, repeat_actions=4)
+    runner = Runner(agent, env, preprocessor=None, repeat_actions=1)
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
         env.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    report_episodes = args.episodes // 100
+    report_episodes = args.episodes // 10
     if args.debug:
         report_episodes = 1
 

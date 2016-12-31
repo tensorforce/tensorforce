@@ -33,11 +33,6 @@ def zero_mean_unit_variance(data):
 
     return data
 
-
-def discount_gae(rewards, gamma, gae_lambda):
-    return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
-
-
 def discount(rewards, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
 
@@ -127,8 +122,6 @@ class FlatVarHelper(object):
         shapes = map(get_shape, variables)
         total_size = sum(np.prod(shape) for shape in shapes)
         self.theta = tf.placeholder(tf.float32, [total_size])
-       # theta = tf.placeholder(tf.float32, [total_size])
-
         start = 0
         assigns = []
 
@@ -171,6 +164,7 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
     :param accept_ratio:
     :return:
     """
+
     function_value = f(initial_x)
 
     for _, step_fraction in enumerate(0.5 ** np.arange(max_backtracks)):

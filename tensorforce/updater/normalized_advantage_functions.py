@@ -202,7 +202,7 @@ class NormalizedAdvantageFunctions(Model):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
 
             # MSE
-            self.loss = tf.reduce_mean(tf.squared_difference(self.q_targets, tf.squeeze(self.q)), name='loss')
+            self.loss = tf.reduce_mean(tf.squared_difference(self.q_targets, tf.squeeze(self.q)), name='compute_surrogate_loss')
             self.optimize_op = self.optimizer.minimize(self.loss)
 
         with tf.name_scope("update_target"):

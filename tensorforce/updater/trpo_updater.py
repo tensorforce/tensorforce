@@ -18,7 +18,7 @@ Implements trust region policy optimization with general advantage estimation (T
 introduced by Schulman et al.
 
 Based on https://github.com/ilyasu123/trpo, with a hopefully slightly more readable
-modularisation.
+modularisation and some modifications (e.g. actually using the line search result).
 
 """
 from tensorforce.config import create_config
@@ -37,6 +37,7 @@ import tensorflow as tf
 class TRPOUpdater(Model):
     default_config = {
         'cg_damping': 0.001,
+        'cg_iterations': 10,
         'max_kl_divergence': 0.01,
         'gamma': 0.99,
         'gae_lambda': 0.97  # GAE-lambda
@@ -51,7 +52,7 @@ class TRPOUpdater(Model):
         self.cg_damping = self.config.cg_damping
         self.max_kl_divergence = self.config.max_kl_divergence
         self.gae_lambda = self.config.gae_lambda
-        self.cg_optimizer = ConjugateGradientOptimizer()
+        self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
 
         self.gamma = self.config.gamma
 
@@ -62,6 +63,7 @@ class TRPOUpdater(Model):
 
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.episode = 0
+        self.input_feed = None
 
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.advantage = tf.placeholder(tf.float32, shape=[None])
@@ -70,7 +72,8 @@ class TRPOUpdater(Model):
         self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
 
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
-        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state, scope=scope + 'baseline_value_function')
+        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state,
+                                           scope=scope + 'value_function')
 
         self.saver = tf.train.Saver()
 
@@ -109,7 +112,8 @@ class TRPOUpdater(Model):
             variables = tf.trainable_variables()
 
             mean_kl_divergence = get_kl_divergence_gaussian(self.prev_action_means, self.prev_action_log_stds,
-                                                            self.action_means, self.action_log_stds) / float(self.batch_size)
+                                                            self.action_means, self.action_log_stds) / float(
+                self.batch_size)
             mean_entropy = get_entropy_gaussian(self.action_log_stds) / float(self.batch_size)
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
@@ -118,7 +122,7 @@ class TRPOUpdater(Model):
             self.policy_gradient = get_flattened_gradient(self.losses, variables)
 
             fixed_kl_divergence = get_fixed_kl_divergence_gaussian(self.action_means, self.action_log_stds) \
-                                   / float(self.batch_size)
+                                  / float(self.batch_size)
 
             variable_shapes = map(get_shape, variables)
             offset = 0
@@ -147,9 +151,8 @@ class TRPOUpdater(Model):
                                                          {self.state: [state]})
         action = action_means + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
         return action.ravel(), dict(action_means=action_means,
-                            action_log_stds=action_log_stds)
+                                    action_log_stds=action_log_stds)
 
-    # TODO refactor to use modular constrained optimisation api
     def update(self, batch):
         """
         Compute update for one batch of experiences using general advantage estimation
@@ -167,37 +170,24 @@ class TRPOUpdater(Model):
         # Merge episode inputs into single arrays
         action_log_stds, action_means, actions, batch_advantage, states = self.merge_episodes(batch)
 
-        input_feed = {self.state: states,
-                      self.actions: actions,
-                      self.advantage: batch_advantage,
-                      self.prev_action_means: action_means,
-                      self.prev_action_log_stds: action_log_stds}
+        self.input_feed = {self.state: states,
+                           self.actions: actions,
+                           self.advantage: batch_advantage,
+                           self.prev_action_means: action_means,
+                           self.prev_action_log_stds: action_log_stds}
 
         previous_theta = self.flat_variable_helper.get()
+        gradient = self.session.run(self.policy_gradient, self.input_feed)
+        cg_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
 
-        # Compute the natural gradient update
-        def fisher_vector_product(p):
-            input_feed[self.flat_tangent] = p
-
-            return self.session.run(self.fisher_vector_product, input_feed) + p * self.cg_damping
-
-        gradient = self.session.run(self.policy_gradient, input_feed)
-        cg_direction = self.cg_optimizer.solve(fisher_vector_product, -gradient)
-
-        shs = (0.5 * cg_direction.dot(fisher_vector_product(cg_direction)))
+        shs = (0.5 * cg_direction.dot(self.compute_fvp(cg_direction)))
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
         update_step = cg_direction / lagrange_multiplier
         negative_gradient_direction = -gradient.dot(cg_direction)
 
-        def loss(theta_values):
-            self.flat_variable_helper.set(theta_values)
-
-            return self.session.run(self.losses[0], input_feed)
-
-        theta = line_search(loss, previous_theta, update_step, negative_gradient_direction / lagrange_multiplier)
+        theta = line_search(self.compute_surrogate_loss, previous_theta, update_step, negative_gradient_direction / lagrange_multiplier)
         self.flat_variable_helper.set(theta)
-
-        self.session.run(self.losses, input_feed)
+        self.session.run(self.losses, self.input_feed)
 
     def merge_episodes(self, batch):
         """
@@ -206,14 +196,24 @@ class TRPOUpdater(Model):
         :param batch:
         :return:
         """
+        action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
+        action_means = np.concatenate([path['action_means'] for path in batch])
+        actions = np.concatenate([path['actions'] for path in batch])
         batch_advantage = np.concatenate([path["advantage"] for path in batch])
         batch_advantage = zero_mean_unit_variance(batch_advantage)
-        action_means = np.concatenate([path['action_means'] for path in batch])
-        action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
         states = np.concatenate([path['states'] for path in batch])
-        actions = np.concatenate([path['actions'] for path in batch])
 
         return action_log_stds, action_means, actions, batch_advantage, states
+
+    def compute_fvp(self, p):
+        self.input_feed[self.flat_tangent] = p
+        return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping
+
+    def compute_surrogate_loss(self, theta):
+        self.flat_variable_helper.set(theta)
+
+        # Losses[0] = surrogate_loss
+        return self.session.run(self.losses[0], self.input_feed)
 
     def compute_gae_advantage(self, batch):
         """

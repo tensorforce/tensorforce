@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """
-Simple conjugate gradient optimiser using backtracking line search, as used in the TRPO implementations of Schulman
+Simple conjugate gradient solver, as used in the TRPO implementations of Schulman
 and others.
 
 Conjugate gradients solve linear systems of equations Ax=b through iteratively constructing n conjugate

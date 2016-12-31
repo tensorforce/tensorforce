@@ -156,7 +156,7 @@ class DeepQNetwork(Model):
 
     def create_training_operations(self):
         """
-        Create graph operations for loss computation and
+        Create graph operations for compute_surrogate_loss computation and
         target network updates.
 
         :return:
@@ -188,15 +188,15 @@ class DeepQNetwork(Model):
             q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 
-            # we calculate the loss as the mean squared error between actual observed rewards and expected rewards
+            # we calculate the compute_surrogate_loss as the mean squared error between actual observed rewards and expected rewards
             delta = self.q_targets - q_values_actions_taken
 
-            # if gradient clipping is used, calculate the huber loss
+            # if gradient clipping is used, calculate the huber compute_surrogate_loss
             if self.config.clip_gradients:
                 huber_loss = tf.select(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
-                self.loss = tf.reduce_mean(huber_loss, name='loss')
+                self.loss = tf.reduce_mean(huber_loss, name='compute_surrogate_loss')
             else:
-                self.loss = tf.reduce_mean(tf.square(delta), name='loss')
+                self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
 
             self.optimize_op = self.optimizer.minimize(self.loss)
 

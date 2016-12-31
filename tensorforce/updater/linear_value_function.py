@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """
+Linear value function for baseline prediction in TRPO.
+
 N.b. as part of TRPO implementation from https://github.com/ilyasu123/trpo
 """
 import numpy as np

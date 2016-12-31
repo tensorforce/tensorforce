@@ -30,7 +30,7 @@ tf_slim = tf.contrib.slim
 
 class NeuralNetwork(object):
 
-    def __init__(self, network_layers, input_data, scope='value_function'):
+    def __init__(self, network_layers, input_data, scope='baseline_value_function'):
         """
         Creates a neural network according to the given config.
 

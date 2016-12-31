@@ -1,5 +1,5 @@
 {
-  "batch_size": 5000,
+  "batch_size": 200,
   "gae_lambda": 0.97,
   "max_kl_divergence": 0.02,
   "gamma": 0.99,

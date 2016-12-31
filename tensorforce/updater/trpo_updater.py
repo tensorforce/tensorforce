@@ -24,6 +24,7 @@ modularisation.
 from tensorforce.config import create_config
 from tensorforce.neural_networks.layers import dense
 from tensorforce.neural_networks import NeuralNetwork
+from tensorforce.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 from tensorforce.updater import LinearValueFunction
 from tensorforce.updater import Model
 from tensorforce.util.experiment_util import global_seed
@@ -50,6 +51,7 @@ class TRPOUpdater(Model):
         self.cg_damping = self.config.cg_damping
         self.max_kl_divergence = self.config.max_kl_divergence
         self.gae_lambda = self.config.gae_lambda
+        self.cg_optimizer = ConjugateGradientOptimizer()
 
         self.gamma = self.config.gamma
 
@@ -68,12 +70,12 @@ class TRPOUpdater(Model):
         self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
 
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
-        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state, scope=scope + 'value_function')
+        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state, scope=scope + 'baseline_value_function')
 
         self.saver = tf.train.Saver()
 
         self.create_outputs()
-        self.value_function = LinearValueFunction()
+        self.baseline_value_function = LinearValueFunction()
         self.create_training_operations()
 
         self.session.run(tf.global_variables_initializer())
@@ -101,15 +103,13 @@ class TRPOUpdater(Model):
         with tf.variable_scope("update"):
             current_log_prob = get_log_prob_gaussian(self.action_means, self.action_log_stds, self.actions)
             prev_log_prob = get_log_prob_gaussian(self.prev_action_means, self.prev_action_log_stds, self.actions)
-
             prob_ratio = tf.exp(current_log_prob - prev_log_prob)
 
             surrogate_loss = -tf.reduce_mean(prob_ratio * self.advantage)
             variables = tf.trainable_variables()
 
             mean_kl_divergence = get_kl_divergence_gaussian(self.prev_action_means, self.prev_action_log_stds,
-                                                            self.action_means, self.action_log_stds) / float(
-                self.batch_size)
+                                                            self.action_means, self.action_log_stds) / float(self.batch_size)
             mean_entropy = get_entropy_gaussian(self.action_log_stds) / float(self.batch_size)
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
@@ -117,12 +117,10 @@ class TRPOUpdater(Model):
             # Get symbolic gradient expressions
             self.policy_gradient = get_flattened_gradient(self.losses, variables)
 
-            # Natural gradient update
             fixed_kl_divergence = get_fixed_kl_divergence_gaussian(self.action_means, self.action_log_stds) \
                                    / float(self.batch_size)
 
             variable_shapes = map(get_shape, variables)
-
             offset = 0
             tangents = []
             for shape in variable_shapes:
@@ -155,17 +153,19 @@ class TRPOUpdater(Model):
     def update(self, batch):
         """
         Compute update for one batch of experiences using general advantage estimation
-        and the natural policy gradient.
+        and the constrained optimisation based on the fixed kl-divergence constraint.
+
         :param batch:
         :return:
         """
-
         # Set per episode advantage using GAE
         self.compute_gae_advantage(batch)
 
-        # Merge inputs
+        # Update linear value function for baseline prediction
+        self.baseline_value_function.fit(batch)
+
+        # Merge episode inputs into single arrays
         action_log_stds, action_means, actions, batch_advantage, states = self.merge_episodes(batch)
-        self.value_function.fit(batch)
 
         input_feed = {self.state: states,
                       self.actions: actions,
@@ -175,13 +175,14 @@ class TRPOUpdater(Model):
 
         previous_theta = self.flat_variable_helper.get()
 
+        # Compute the natural gradient update
         def fisher_vector_product(p):
             input_feed[self.flat_tangent] = p
 
             return self.session.run(self.fisher_vector_product, input_feed) + p * self.cg_damping
 
-        gradient = self.session.run(self.policy_gradient, feed_dict=input_feed)
-        cg_direction = conjugate_gradient(fisher_vector_product, -gradient)
+        gradient = self.session.run(self.policy_gradient, input_feed)
+        cg_direction = self.cg_optimizer.solve(fisher_vector_product, -gradient)
 
         shs = (0.5 * cg_direction.dot(fisher_vector_product(cg_direction)))
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
@@ -200,7 +201,7 @@ class TRPOUpdater(Model):
 
     def merge_episodes(self, batch):
         """
-        Merge episodes into single input variables.
+        Merge episodes of a batch into single input variables.
 
         :param batch:
         :return:
@@ -222,7 +223,7 @@ class TRPOUpdater(Model):
         """
 
         for episode in batch:
-            baseline = self.value_function.predict(episode)
+            baseline = self.baseline_value_function.predict(episode)
             if episode['terminated']:
                 adjusted_baseline = np.append(baseline, [0])
             else:

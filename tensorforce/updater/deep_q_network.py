@@ -106,7 +106,7 @@ class DeepQNetwork(Model):
         self.target_output = self.target_model.get_output()
 
         # Create training operations
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
+        self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
         self.create_training_operations()
         self.saver = tf.train.Saver()
         writer = tf.train.SummaryWriter('logs', graph=tf.get_default_graph())

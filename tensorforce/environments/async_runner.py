@@ -29,7 +29,7 @@ class AsyncRunner(Runner):
     }
 
     def __init__(self, config, agent, environment, preprocessor=None):
-        super(AsynRunner, self).__init__(config, agent, environment, preprocessor=preprocessor)
+        super(AsyncRunner, self).__init__(config, agent, environment, preprocessor=preprocessor)
         self.n_runners = self.config.n_runners
         self.episodes = 3
 
@@ -89,3 +89,5 @@ class AsyncRunner(Runner):
                 if not thread.is_alive():
                     threads.remove(thread)
                     stopped += 1
+
+

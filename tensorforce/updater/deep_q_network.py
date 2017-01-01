@@ -88,15 +88,7 @@ class DeepQNetwork(Model):
         # output layer
         output_layer_config = [{
             "type": "linear",
-            "neurons": self.config.actions,
-            "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-            "weight_init_param": {},
-            "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
-            "bias_init_param": None,
-            "activation": "tensorflow.python.ops.nn.relu",
-            "activation_param": None,
-            "regularization": None,
-            "regularization_param": None
+            "neurons": self.config.actions
         }]
 
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'

@@ -67,13 +67,13 @@ def main():
         config.read_json(args.network_config)
 
     # TODO: make stack configurable
-    #stack = preprocessing.Stack()
-    #stack += preprocessing.Maximum(2)
-    #stack += preprocessing.Grayscale()
-    #stack += preprocessing.Imresize([84, 84])
-    #stack += preprocessing.Concat(4)
+    stack = preprocessing.Stack()
+    stack += preprocessing.Maximum(2)
+    stack += preprocessing.Grayscale()
+    stack += preprocessing.Imresize([84, 84])
+    stack += preprocessing.Concat(4)
 
-    #config.state_shape = stack.shape(config.state_shape)
+    config.state_shape = stack.shape(config.state_shape)
 
     if args.debug:
         print("-" * 16)
@@ -87,7 +87,7 @@ def main():
         print("Agent configuration:")
         print(config)
 
-    runner = Runner(agent, env, preprocessor=None, repeat_actions=1)
+    runner = Runner(agent, env, preprocessor=stack, repeat_actions=1)
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)

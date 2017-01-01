@@ -87,7 +87,7 @@ def main():
         print("Agent configuration:")
         print(config)
 
-    runner = Runner(agent, env, preprocessor=stack, repeat_actions=1)
+    runner = Runner(agent, env, preprocessor=stack, repeat_actions=4)
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)

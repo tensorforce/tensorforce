@@ -177,16 +177,28 @@ class TRPOUpdater(Model):
                            self.prev_action_log_stds: action_log_stds}
 
         previous_theta = self.flat_variable_helper.get()
+
+        # Do natural policy gradient update
         gradient = self.session.run(self.policy_gradient, self.input_feed)
-        cg_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
 
-        shs = (0.5 * cg_direction.dot(self.compute_fvp(cg_direction)))
+        # The details of the approximations used here to solve the constrained
+        # optimisation can be found in Appendix C of TRPO paper
+        # Note that no subsampling is used here, which would improve computational performance
+        search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
+
+        # Search direction has now been approximated as cg-solution s= A^-1g where A is
+        # Fisher matrix, which is a local approximation (hence: Trust region method) of
+        # KL divergence constraint
+        shs = (0.5 * search_direction.dot(self.compute_fvp(search_direction)))
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
-        update_step = cg_direction / lagrange_multiplier
-        negative_gradient_direction = -gradient.dot(cg_direction)
+        update_step = search_direction / lagrange_multiplier
+        negative_gradient_direction = -gradient.dot(search_direction)
 
+        # Improve update step through simple backtracking line search
         theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
                             negative_gradient_direction / lagrange_multiplier)
+
+        # Compute full update based on line search result
         self.flat_variable_helper.set(theta)
         self.session.run(self.losses, self.input_feed)
 
@@ -208,6 +220,7 @@ class TRPOUpdater(Model):
 
     def compute_fvp(self, p):
         self.input_feed[self.flat_tangent] = p
+
         return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping
 
     def compute_surrogate_loss(self, theta):

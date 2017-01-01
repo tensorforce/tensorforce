@@ -185,7 +185,8 @@ class TRPOUpdater(Model):
         update_step = cg_direction / lagrange_multiplier
         negative_gradient_direction = -gradient.dot(cg_direction)
 
-        theta = line_search(self.compute_surrogate_loss, previous_theta, update_step, negative_gradient_direction / lagrange_multiplier)
+        theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
+                            negative_gradient_direction / lagrange_multiplier)
         self.flat_variable_helper.set(theta)
         self.session.run(self.losses, self.input_feed)
 

@@ -24,6 +24,8 @@ search direction, instead of using a memory intensive orthogonalization process.
 """
 from six.moves import xrange
 import numpy as np
+
+
 # TODO This should ultimately be refactored to do a full constrainted optimization as in rllab
 
 
@@ -36,10 +38,9 @@ class ConjugateGradientOptimizer(object):
     def solve(self, f_Ax, b):
         """
         Conjugate gradient solver.
+
         :param f_Ax: Ax of Ax=b
         :param b: b in Ax = b
-        :param cg_iterations:
-        :param residual_tol: Break condition for residual
         :return:
         """
 

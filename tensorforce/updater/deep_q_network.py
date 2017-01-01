@@ -66,9 +66,9 @@ class DeepQNetwork(Model):
 
         self.double_dqn = self.config.double_dqn
 
-        self.gradient_clipping = None
+        self.clip_value = None
         if self.config.clip_gradients:
-            self.gradient_clipping = self.config.clip_value
+            self.clip_value = self.config.clip_value
 
         if self.config.deterministic_mode:
             self.random = global_seed()
@@ -175,25 +175,25 @@ class DeepQNetwork(Model):
                                                    name='target_values')
 
         with tf.name_scope("update"):
-            # self.q_targets gets fed the actual observed rewards and expected future rewards
+            # Self.q_targets gets fed the actual observed rewards and expected future rewards
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
 
-            # self.actions gets fed the actual actions that have been taken
+            # Self.actions gets fed the actual actions that have been taken
             self.actions = tf.placeholder(tf.int32, [None], name='actions')
 
-            # we now calculate a one_hot tensor of the actions that have been taken
+            # One_hot tensor of the actions that have been taken
             actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
 
-            # now we calculate the training output, so we get the expected rewards given the actual states and actions
+            # Training output, so we get the expected rewards given the actual states and actions
             q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 
-            # we calculate the compute_surrogate_loss as the mean squared error between actual observed rewards and expected rewards
+            # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
             delta = self.q_targets - q_values_actions_taken
 
-            # if gradient clipping is used, calculate the huber compute_surrogate_loss
+            # if gradient clipping is used, calculate the huber loss
             if self.config.clip_gradients:
-                huber_loss = tf.select(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+                huber_loss = tf.select(tf.abs(delta) < self.clip_value, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
                 self.loss = tf.reduce_mean(huber_loss, name='compute_surrogate_loss')
             else:
                 self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')

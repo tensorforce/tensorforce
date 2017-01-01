@@ -14,9 +14,8 @@
 # ==============================================================================
 
 """
-Implements and registers exploration strategies for continuous control problems.
+Implements and registers exploration strategies.
 """
-import numpy as np
 
 
 # TODO implement ornstein-uhlenbeck process
@@ -38,7 +37,6 @@ def epsilon_decay(epsilon_final, total_states, epsilon_states, epsilon):
         epsilon = epsilon + ((epsilon_final - epsilon) / epsilon_states) * total_states
 
     return epsilon
-
 
 exploration_mode = {
     'None': zero,

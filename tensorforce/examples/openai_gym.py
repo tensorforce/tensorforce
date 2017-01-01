@@ -42,8 +42,8 @@ def main():
                         default='examples/configs/dqn_agent.json')
     parser.add_argument('-n', '--network-config', help="Network configuration file",
                         default='examples/configs/dqn_network.json')
-    parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
-    parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
+    parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
+    parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
@@ -95,7 +95,7 @@ def main():
 
     report_episodes = args.episodes // 10
     if args.debug:
-        report_episodes = 1
+        report_episodes = 10
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:

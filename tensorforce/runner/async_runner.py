@@ -22,7 +22,7 @@ from tensorforce.runner import Runner
 class AsyncRunner(Runner):
 
     def __init__(self, agents, environments, preprocessor=None, repeat_actions=1):
-        super().__init__(agents[0], environments[0], preprocessor=preprocessor, repeat_actions=repeat_actions)
+        super(AsyncRunner, self).__init__(agents[0], environments[0], preprocessor=preprocessor, repeat_actions=repeat_actions)
         self.agents = agents[1:]
         self.environments = environments[1:]
         self.continue_execution = False

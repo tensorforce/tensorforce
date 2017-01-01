@@ -47,9 +47,11 @@ class Runner(object):
                 else:
                     processed_state = state
 
+                # TODO: fix frame skip observations
                 if repeat_action_count <= 0:
                     action = self.agent.get_action(processed_state, self.episode, self.total_states)
                     repeat_action_count = self.repeat_actions - 1
+                    self.timestep += 1
                 else:
                     repeat_action_count -= 1
 

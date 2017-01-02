@@ -1,7 +1,7 @@
 {
   "memory_capacity": 1e5,
   "batch_size": 32,
-  "update_rate": 0.001,
+  "update_rate": 0.0001,
   "min_replay_size": 5e4,
   "epsilon": 1.0,
   "epsilon_final": 0.1,

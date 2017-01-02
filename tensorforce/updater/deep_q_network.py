@@ -36,7 +36,7 @@ from tensorforce.util.exploration_util import exploration_mode
 class DeepQNetwork(Model):
     default_config = {
         'double_dqn': False,
-        'tau': 0.5,
+        'tau': 1.0,
         'epsilon': 1.0,
         'epsilon_final': 0.1,
         'epsilon_states': 1e6,

@@ -90,8 +90,9 @@ class MemoryAgent(RLAgent):
             batch = self.memory.sample_batch(self.batch_size)
             self.value_function.update(batch)
 
-            if self.use_target_network and self.step_count % self.target_update_steps:
-                self.value_function.update_target_network()
+        if self.step_count > self.min_replay_size and self.use_target_network \
+                and self.step_count % self.target_update_steps == 0:
+            self.value_function.update_target_network()
 
         self.step_count += 1
 

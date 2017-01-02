@@ -221,3 +221,12 @@ class NormalizedAdvantageFunctions(Model):
         """
 
         return self.session.run(self.target_v, {self.next_states: next_states})
+
+
+    def update_target_network(self):
+        """
+        Updates target network.
+
+        :return:
+        """
+        self.session.run(self.target_network_update)

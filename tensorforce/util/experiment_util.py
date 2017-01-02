@@ -21,6 +21,15 @@ import numpy as np
 
 from six.moves import xrange
 
+from tensorforce.exceptions import ConfigError
+from tensorforce import preprocessing
+
+preprocessors = {
+    'concat': preprocessing.Concat,
+    'grayscale': preprocessing.Grayscale,
+    'imresize': preprocessing.Imresize,
+    'maximum': preprocessing.Maximum
+}
 
 def global_seed():
     """
@@ -55,3 +64,22 @@ def repeat_action(environment, action, repeat_action=1):
                 reward=reward,
                 terminal_state=terminal_state,
                 info=info)
+
+def build_preprocessing_stack(config):
+    stack = preprocessing.Stack()
+
+    for preprocessor_conf in config:
+        preprocessor_name = preprocessor_conf[0]
+
+        preprocessor_params = []
+        if len(preprocessor_conf) > 1:
+            preprocessor_params = preprocessor_conf[1:]
+
+        preprocessor_class = preprocessors.get(preprocessor_name, None)
+        if not preprocessor_class:
+            raise ConfigError("No such preprocessor: {}".format(preprocessor_name))
+
+        preprocessor = preprocessor_class(*preprocessor_params)
+        stack += preprocessor
+
+    return stack

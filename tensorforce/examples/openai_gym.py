@@ -27,6 +27,7 @@ import numpy as np
 
 from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
+from tensorforce.util.experiment_util import build_preprocessing_stack
 from tensorforce.util.agent_util import create_agent, get_default_config
 from tensorforce.runner import Runner
 
@@ -66,12 +67,7 @@ def main():
     if args.network_config:
         config.read_json(args.network_config)
 
-    # TODO: make stack configurable
-    stack = preprocessing.Stack()
-    stack += preprocessing.Maximum(2)
-    stack += preprocessing.Grayscale()
-    stack += preprocessing.Imresize([84, 84])
-    stack += preprocessing.Concat(4)
+    stack = build_preprocessing_stack(config.get('preprocessing'))
 
     config.state_shape = stack.shape(config.state_shape)
 

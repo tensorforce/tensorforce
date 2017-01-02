@@ -7,5 +7,11 @@
   "min_replay_size": 5e4,
   "epsilon": 1.0,
   "epsilon_final": 0.1,
-  "epsilon_states": 1e6
+  "epsilon_states": 1e6,
+  "preprocessing": [
+    ["maximum", 2],
+    ["grayscale"],
+    ["imresize", 84, 84],
+    ["concat", 4]
+  ]
 }

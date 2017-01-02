@@ -177,17 +177,15 @@ class TRPOUpdater(Model):
                            self.prev_action_log_stds: action_log_stds}
 
         previous_theta = self.flat_variable_helper.get()
-
-        # Do natural policy gradient update
         gradient = self.session.run(self.policy_gradient, self.input_feed)
 
         # The details of the approximations used here to solve the constrained
-        # optimisation can be found in Appendix C of TRPO paper
+        # optimisation can be found in Appendix C of the TRPO paper
         # Note that no subsampling is used here, which would improve computational performance
         search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
 
         # Search direction has now been approximated as cg-solution s= A^-1g where A is
-        # Fisher matrix, which is a local approximation (hence: Trust region method) of
+        # Fisher matrix, which is a local approximation of the
         # KL divergence constraint
         shs = (0.5 * search_direction.dot(self.compute_fvp(search_direction)))
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)

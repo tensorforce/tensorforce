@@ -52,6 +52,7 @@ def get_log_prob_gaussian(action_dist_mean, log_std, actions):
     return tf.reduce_sum(probability, 1)
 
 
+# TODO reorganise into distribution classes
 def get_kl_divergence_gaussian(mean_a, log_std_a, mean_b, log_std_b):
     """
     Kullback-Leibler divergence between Gaussians a and b.

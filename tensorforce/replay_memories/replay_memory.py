@@ -62,7 +62,7 @@ class ReplayMemory(object):
         """
 
         self.step_count = 0
-        self.capacity = memory_capacity
+        self.capacity = int(memory_capacity)
         self.size = 0
         self.concat = concat
 

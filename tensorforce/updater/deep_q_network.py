@@ -101,7 +101,7 @@ class DeepQNetwork(Model):
         self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
         self.create_training_operations()
         self.saver = tf.train.Saver()
-        writer = tf.train.SummaryWriter('logs', graph=tf.get_default_graph())
+        writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.global_variables_initializer())
 
     def get_action(self, state, episode=1, total_states=0):

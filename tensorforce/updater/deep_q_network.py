@@ -137,7 +137,7 @@ class DeepQNetwork(Model):
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                        * self.gamma * self.get_target_values(batch['next_states'])
 
-        self.session.run([self.optimize_op, self.training_output, self.target_network_update], {
+        self.session.run([self.optimize_op, self.training_output], {
             self.q_targets: q_targets,
             self.actions: batch['actions'],
             self.state: batch['states']})
@@ -208,3 +208,11 @@ class DeepQNetwork(Model):
             return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})
         else:
             return self.session.run(self.target_values, {self.next_states: next_states})
+
+    def update_target_network(self):
+        """
+        Updates target network.
+
+        :return:
+        """
+        self.session.run(self.target_network_update)

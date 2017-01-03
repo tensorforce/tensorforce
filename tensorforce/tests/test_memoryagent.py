@@ -53,20 +53,20 @@ class TestModel(Model):
 def test_memoryagent_update_frequency():
     """Test MemoryAgent update frequency for SGD and value function updates."""
     update_steps = np.random.randint(1, 10)
-    target_update_steps = np.random.randint(100, 2000)
+    target_update_steps = np.random.randint(20, 200)
 
-    state_shape = list(np.random.randint(1, 20, size=2))
-    min_replay_size = np.random.randint(int(1e3), int(1e4))
+    state_shape = list(np.random.randint(1, 10, size=2))
+    min_replay_size = np.random.randint(int(1e3), int(2e3))
 
     config = {
         'actions': np.random.randint(2, 10),
         'batch_size': np.random.randint(2, 32),
-        'update_rate': 1 / update_steps,
-        'target_network_update_rate': 1 / target_update_steps,
+        'update_rate': 1.0 / update_steps,
+        'target_network_update_rate': 1.0 / target_update_steps,
         'min_replay_size': min_replay_size,
         'deterministic_mode': False,
         'use_target_network': True,
-        'memory_capacity': np.random.randint(int(1e4), int(1e5)),
+        'memory_capacity': np.random.randint(int(5e3), int(1e4)),
         'state_shape': state_shape,
         'action_shape': []
     }
@@ -84,7 +84,7 @@ def test_memoryagent_update_frequency():
     assert agent.min_replay_size == config['min_replay_size']
     assert agent.use_target_network == config['use_target_network']
 
-    max_steps = np.random.randint(int(1e5), int(2e5))
+    max_steps = np.random.randint(int(1e4), int(2e4))
 
     print("Testing MemoryAgent for {} steps.".format(max_steps))
     print("Memory capacity: {}".format(config['memory_capacity']))
@@ -97,15 +97,23 @@ def test_memoryagent_update_frequency():
 
     print("-" * 16)
 
+    history = []
     for step_count in xrange(max_steps):
         state = np.random.randint(0, 255, size=state_shape)
         action = agent.get_action(state)
         reward = np.random.randint(0, 100) // 80 # p = .8 for reward = 1
 
         agent.add_observation(state, action, reward, False)
+        history.append((state, action, reward, False))
 
-    expected_updates = step_count // update_steps - min_replay_size // update_steps
-    expected_target_updates = step_count // target_update_steps - min_replay_size // target_update_steps
+    # all steps - steps before min_replay_size + possible step if min_replay_size is a step itself
+
+    expected_updates = (step_count + 1) // update_steps \
+                       - min_replay_size // update_steps \
+                       + int(min_replay_size % update_steps == 0)
+    expected_target_updates = (step_count + 1) // target_update_steps \
+                              - min_replay_size // target_update_steps \
+                              + int(min_replay_size % target_update_steps == 0)
 
     print("Took {} steps.".format(step_count + 1))
     print("Observed {} updates (expected {})".format(model.count_updates, expected_updates))

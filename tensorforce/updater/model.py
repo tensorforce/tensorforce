@@ -14,8 +14,11 @@
 # ==============================================================================
 
 """
-Base class for value functions, contains general tensorflow utility
-that all value functions need.
+Models provide the general interface to TensorFlow functionality,
+manages TensorFlow session and execution. In particular, a model for reinforcement learning
+always needs to provide a function that gives an action, and one to trigger updates.
+A model may use one more multiple neural networks and implement the update logic of a particular
+RL algorithm.
 """
 
 from __future__ import absolute_import
@@ -28,13 +31,11 @@ import tensorflow as tf
 class Model(object):
     def __init__(self, config):
         """
-        Models provide the general interface to TensorFlow functionality,
-        manages TensorFlow session and execution. In particular, a model for reinforcement learning
-        always needs to provide a function that gives an action, and one to trigger updates.
 
         :param config: Configuration parameters
         """
 
+        # TODO move several default params up here
         self.session = tf.Session()
         self.saver = None
 

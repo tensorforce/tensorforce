@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Runner base class
+Runner base class.
 """
 
 from __future__ import absolute_import
@@ -22,6 +22,8 @@ from __future__ import print_function
 from __future__ import division
 
 from six.moves import xrange
+
+from tensorforce.util.experiment_util import repeat_action
 
 
 class Runner(object):
@@ -39,7 +41,6 @@ class Runner(object):
         for self.episode in xrange(episodes):
             state = self.environment.reset()
             episode_reward = 0
-            repeat_action_count = 0
 
             for self.timestep in xrange(max_timesteps):
                 if self.preprocessor:
@@ -47,13 +48,8 @@ class Runner(object):
                 else:
                     processed_state = state
 
-                if repeat_action_count <= 0:
-                    action = self.agent.get_action(processed_state, self.episode, self.total_states)
-                    repeat_action_count = self.repeat_actions - 1
-                else:
-                    repeat_action_count -= 1
-
-                result = self.environment.execute_action(action)
+                action = self.agent.get_action(processed_state, self.episode, self.total_states)
+                result = repeat_action(self.environment, action, self.repeat_actions)
 
                 episode_reward += result['reward']
                 self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])

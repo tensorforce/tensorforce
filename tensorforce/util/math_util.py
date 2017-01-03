@@ -20,10 +20,6 @@ Contains various mathematical utility functions used for policy gradient methods
 import numpy as np
 import tensorflow as tf
 import scipy.signal
-from six.moves import xrange
-
-
-# TODO split this into preprocessing, an optimiser package, and a generic distribution hierarchy
 
 
 def zero_mean_unit_variance(data):
@@ -36,11 +32,6 @@ def zero_mean_unit_variance(data):
     data /= (data.std() + 1e-8)
 
     return data
-
-
-def discount_gae(rewards, gamma, gae_lambda):
-    return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
-
 
 def discount(rewards, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
@@ -61,6 +52,7 @@ def get_log_prob_gaussian(action_dist_mean, log_std, actions):
     return tf.reduce_sum(probability, 1)
 
 
+# TODO reorganise into distribution classes
 def get_kl_divergence_gaussian(mean_a, log_std_a, mean_b, log_std_b):
     """
     Kullback-Leibler divergence between Gaussians a and b.
@@ -131,8 +123,6 @@ class FlatVarHelper(object):
         shapes = map(get_shape, variables)
         total_size = sum(np.prod(shape) for shape in shapes)
         self.theta = tf.placeholder(tf.float32, [total_size])
-       # theta = tf.placeholder(tf.float32, [total_size])
-
         start = 0
         assigns = []
 
@@ -162,40 +152,6 @@ class FlatVarHelper(object):
         return self.session.run(self.get_op)
 
 
-# TODO build optimiser class, implement generic constrainted optimisation solvers
-def conjugate_gradient(f_Ax, b, cg_iterations=10, residual_tol=1e-10):
-    """
-    Conjugate gradient solver.
-    :param f_Ax: Ax of Ax=b
-    :param b: b in Ax = b
-    :param cg_iterations:
-    :param residual_tol: Break condition for residual
-    :return:
-    """
-
-    conjugate_vectors_p = b.copy()
-    residual = b.copy()
-    x = np.zeros_like(b)
-    residual_dot_residual = residual.dot(residual)
-
-    for _ in xrange(cg_iterations):
-        z = f_Ax(conjugate_vectors_p)
-        v = residual_dot_residual / conjugate_vectors_p.dot(z)
-        x += v * conjugate_vectors_p
-
-        residual -= v * z
-        new_residual_dot_residual = residual.dot(residual)
-        alpha = new_residual_dot_residual / residual_dot_residual
-
-        conjugate_vectors_p = residual + alpha * conjugate_vectors_p
-        residual_dot_residual = new_residual_dot_residual
-
-        if residual_dot_residual < residual_tol:
-            break
-
-    return x
-
-
 def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=10, accept_ratio=0.1):
     """
     Line search for TRPO where a full step is taken first and then backtracked to
@@ -209,9 +165,9 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
     :param accept_ratio:
     :return:
     """
+
     function_value = f(initial_x)
 
-    # TODO Make backtrack intervals configurable
     for _, step_fraction in enumerate(0.5 ** np.arange(max_backtracks)):
         updated_x = initial_x + step_fraction * full_step
         new_function_value = f(updated_x)

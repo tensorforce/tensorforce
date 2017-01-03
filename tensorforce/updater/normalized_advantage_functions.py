@@ -14,9 +14,11 @@
 # ==============================================================================
 
 """
-Implements normalized advantage functions as described here:
+Implements normalized advantage functions, largely following
 
-https://arxiv.org/abs/1603.00748
+https://github.com/carpedm20/NAF-tensorflow/blob/master/src/network.py
+
+for the update logic.
 """
 
 from __future__ import absolute_import
@@ -67,16 +69,10 @@ class NormalizedAdvantageFunctions(Model):
 
         self.exploration = exploration_mode[self.config.exploration_mode]
 
-        if self.config.concat is not None and self.config.concat > 1:
-            self.state = tf.placeholder(tf.float32, [None, self.config.concat_length] + list(self.config.state_shape),
-                                        name="state")
-            self.next_states = tf.placeholder(tf.float32,
-                                              [None, self.config.concat_length] + list(self.config.state_shape),
-                                              name="next_states")
-        else:
-            self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
-            self.next_states = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="next_states")
-
+        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+        self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+                                          name="next_states")
+        
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
@@ -202,7 +198,8 @@ class NormalizedAdvantageFunctions(Model):
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
 
             # MSE
-            self.loss = tf.reduce_mean(tf.squared_difference(self.q_targets, tf.squeeze(self.q)), name='loss')
+            self.loss = tf.reduce_mean(tf.squared_difference(self.q_targets, tf.squeeze(self.q)),
+                                       name='compute_surrogate_loss')
             self.optimize_op = self.optimizer.minimize(self.loss)
 
         with tf.name_scope("update_target"):
@@ -224,3 +221,12 @@ class NormalizedAdvantageFunctions(Model):
         """
 
         return self.session.run(self.target_v, {self.next_states: next_states})
+
+
+    def update_target_network(self):
+        """
+        Updates target network.
+
+        :return:
+        """
+        self.session.run(self.target_network_update)

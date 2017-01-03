@@ -36,7 +36,7 @@ from tensorforce.util.exploration_util import exploration_mode
 class DeepQNetwork(Model):
     default_config = {
         'double_dqn': False,
-        'tau': 0.5,
+        'tau': 1.0,
         'epsilon': 1.0,
         'epsilon_final': 0.1,
         'epsilon_states': 1e6,
@@ -66,9 +66,9 @@ class DeepQNetwork(Model):
 
         self.double_dqn = self.config.double_dqn
 
-        self.gradient_clipping = None
+        self.clip_value = None
         if self.config.clip_gradients:
-            self.gradient_clipping = self.config.clip_value
+            self.clip_value = self.config.clip_value
 
         if self.config.deterministic_mode:
             self.random = global_seed()
@@ -88,15 +88,7 @@ class DeepQNetwork(Model):
         # output layer
         output_layer_config = [{
             "type": "linear",
-            "neurons": self.config.actions,
-            "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-            "weight_init_param": {},
-            "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
-            "bias_init_param": None,
-            "activation": "tensorflow.python.ops.nn.relu",
-            "activation_param": None,
-            "regularization": None,
-            "regularization_param": None
+            "neurons": self.config.actions
         }]
 
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
@@ -106,10 +98,10 @@ class DeepQNetwork(Model):
         self.target_output = self.target_model.get_output()
 
         # Create training operations
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
+        self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
         self.create_training_operations()
         self.saver = tf.train.Saver()
-        writer = tf.train.SummaryWriter('logs', graph=tf.get_default_graph())
+        writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.global_variables_initializer())
 
     def get_action(self, state, episode=1, total_states=0):
@@ -145,14 +137,14 @@ class DeepQNetwork(Model):
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                        * self.gamma * self.get_target_values(batch['next_states'])
 
-        self.session.run([self.optimize_op, self.training_output, self.target_network_update], {
+        self.session.run([self.optimize_op, self.training_output], {
             self.q_targets: q_targets,
             self.actions: batch['actions'],
             self.state: batch['states']})
 
     def create_training_operations(self):
         """
-        Create graph operations for loss computation and
+        Create graph operations for compute_surrogate_loss computation and
         target network updates.
 
         :return:
@@ -171,28 +163,28 @@ class DeepQNetwork(Model):
                                                    name='target_values')
 
         with tf.name_scope("update"):
-            # self.q_targets gets fed the actual observed rewards and expected future rewards
+            # Self.q_targets gets fed the actual observed rewards and expected future rewards
             self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
 
-            # self.actions gets fed the actual actions that have been taken
+            # Self.actions gets fed the actual actions that have been taken
             self.actions = tf.placeholder(tf.int32, [None], name='actions')
 
-            # we now calculate a one_hot tensor of the actions that have been taken
+            # One_hot tensor of the actions that have been taken
             actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
 
-            # now we calculate the training output, so we get the expected rewards given the actual states and actions
+            # Training output, so we get the expected rewards given the actual states and actions
             q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
                                                    name='q_acted')
 
-            # we calculate the loss as the mean squared error between actual observed rewards and expected rewards
+            # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
             delta = self.q_targets - q_values_actions_taken
 
             # if gradient clipping is used, calculate the huber loss
             if self.config.clip_gradients:
-                huber_loss = tf.select(tf.abs(delta) < 1.0, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
-                self.loss = tf.reduce_mean(huber_loss, name='loss')
+                huber_loss = tf.select(tf.abs(delta) < self.clip_value, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+                self.loss = tf.reduce_mean(huber_loss, name='compute_surrogate_loss')
             else:
-                self.loss = tf.reduce_mean(tf.square(delta), name='loss')
+                self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
 
             self.optimize_op = self.optimizer.minimize(self.loss)
 
@@ -212,3 +204,11 @@ class DeepQNetwork(Model):
             return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})
         else:
             return self.session.run(self.target_values, {self.next_states: next_states})
+
+    def update_target_network(self):
+        """
+        Updates target network.
+
+        :return:
+        """
+        self.session.run(self.target_network_update)

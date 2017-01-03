@@ -13,7 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 """
-Generic policy gradient agent.
+Generic policy gradient agent. Manages batching and episodes internally, that is,
+the only information needed is whether an episode ends.
 """
 from collections import defaultdict
 from copy import deepcopy
@@ -34,7 +35,6 @@ class PGAgent(RLAgent):
 
 
     def __init__(self, config):
-
         self.config = create_config(config, default=self.default_config)
         self.updater = None
         self.current_batch = []

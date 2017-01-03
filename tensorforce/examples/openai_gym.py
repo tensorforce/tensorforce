@@ -27,10 +27,9 @@ import numpy as np
 
 from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
-from tensorforce.util.agent_util import create_agent, get_default_config
+from tensorforce.util.experiment_util import build_preprocessing_stack
+from tensorforce.util.agent_util import create_agent
 from tensorforce.runner import Runner
-
-from tensorforce import preprocessing
 
 
 def main():
@@ -42,10 +41,10 @@ def main():
                         default='examples/configs/dqn_agent.json')
     parser.add_argument('-n', '--network-config', help="Network configuration file",
                         default='examples/configs/dqn_network.json')
-    parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
+    parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
-
+    parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
     args = parser.parse_args()
 
@@ -54,6 +53,7 @@ def main():
     env = OpenAIGymEnvironment(gym_id)
 
     config = Config({
+        'repeat_actions': 1,
         'actions': env.actions,
         'action_shape': env.action_shape,
         'state_shape': env.state_shape
@@ -65,24 +65,31 @@ def main():
     if args.network_config:
         config.read_json(args.network_config)
 
-    # TODO: make stack configurable
-    stack = preprocessing.Stack()
-    stack += preprocessing.Maximum(2)
-    stack += preprocessing.Grayscale()
-    stack += preprocessing.Imresize([84, 84])
-    stack += preprocessing.Concat(4)
+    stack = build_preprocessing_stack(config.get('preprocessing'))
 
     config.state_shape = stack.shape(config.state_shape)
 
+    if args.debug:
+        print("-" * 16)
+        print("File configuration:")
+        print(config)
+
     agent = create_agent(args.agent, config)
 
-    runner = Runner(agent, env, preprocessor=stack, repeat_actions=4)
+    if args.debug:
+        print("-" * 16)
+        print("Agent configuration:")
+        print(config)
+
+    runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)
         env.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    report_episodes = args.episodes // 100
+    report_episodes = args.episodes // 10
+    if args.debug:
+        report_episodes = 10
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:

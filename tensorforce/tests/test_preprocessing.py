@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Comment
+Preprocessor testing.
 """
 
 from __future__ import absolute_import
@@ -71,7 +71,15 @@ def test_preprocessing_concat():
         states.append(new_state)
         processed_state = pp.process(new_state)
 
-    assert (np.array(states) - processed_state).any() is False
+    assert not (np.array(states) - processed_state).any()
+
+    # add another state
+    new_state = np.random.randint(0, 255, size=shape)
+    states.append(new_state)
+    processed_state = pp.process(new_state)
+
+    assert not (np.array(states[1:]) - processed_state).any()
+
 
 
 def test_preprocessing_imresize():
@@ -80,7 +88,7 @@ def test_preprocessing_imresize():
     """
     dimensions = list(np.random.randint(10, 20, size=2))
 
-    pp = preprocessing.imresize.Imresize(dimensions)
+    pp = preprocessing.imresize.Imresize(*dimensions)
 
     shape = list(np.random.randint(1, 20, size=2))
     state = np.random.randint(0, 255, size=shape)
@@ -98,7 +106,7 @@ def test_preprocessing_maximum():
     """
     Testing maximum preprocessor. Verifies expected and calculated state shapes.
     """
-    count = np.random.randint(0, 10)
+    count = np.random.randint(1, 10)
 
     pp = preprocessing.maximum.Maximum(count)
 
@@ -129,4 +137,4 @@ def test_preprocessing_maximum():
         states.append(new_state)
         processed_state = pp.process(new_state)
 
-    assert (max_state.reshape(shape) - processed_state).any() is False
+    assert not (max_state.reshape(shape) - processed_state).any()

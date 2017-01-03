@@ -38,7 +38,6 @@ class ReplayMemory(object):
                  state_type=np.float32,
                  action_type=np.int,
                  reward_type=np.float32,
-                 concat=None,
                  deterministic_mode=False,
                  *args,
                  **kwargs):
@@ -51,20 +50,14 @@ class ReplayMemory(object):
         :param action_shape: Shape of action tensor
         :param action_type: Data type of action tensor
         :param reward_type: Data type of reward function
-        :param concat: Whether to apply preprocessing to satisfy Markov property -
-        for some environments, single frames do not satisfy the Markov property but
-        a concatenation of frames (for Atari 4) does.
-        :param concat_length: State preprocessor function sigma, here given as
-        length to satisfy Markov property, default 1 means no concatenation of states.
         :param deterministic_mode: If true, global random number generation
         is controlled by passing the same seed to all generators, if false,
         no seed is used for sampling.
         """
 
         self.step_count = 0
-        self.capacity = memory_capacity
+        self.capacity = int(memory_capacity)
         self.size = 0
-        self.concat = concat
 
         # Explicitly set data types for every tensor to make for easier adjustments
         # if backend precision changes
@@ -85,8 +78,7 @@ class ReplayMemory(object):
         else:
             self.random = np.random.RandomState()
 
-        # Indices to control sampling
-        self.bottom = 0
+        # Index to control sampling
         self.top = 0
 
     def add_experience(self, state, action, reward, terminal):
@@ -105,9 +97,7 @@ class ReplayMemory(object):
         self.rewards[self.top] = reward
         self.terminals[self.top] = terminal
 
-        if self.size == self.capacity:
-            self.bottom = (self.bottom + 1) % self.capacity
-        else:
+        if self.size < self.capacity:
             self.size += 1
         self.top = (self.top + 1) % self.capacity
 
@@ -131,26 +121,23 @@ class ReplayMemory(object):
         batch_terminals = np.zeros(batch_shape, dtype='bool')
 
         for i in xrange(batch_size):
-            start_index = self.random.randint(self.bottom, self.bottom + self.size)
-            end_index = start_index
+            last_experience = self.top - 1 if self.top > 0 else self.size - 1
+            index = last_experience
 
-            #if self.concat is not None and self.concat > 1:
-            #    state_index = np.arange(start_index, self.concat, 1)
-            #    end_index = start_index + self.concat - 1
-            #else:
-            state_index = start_index
+            # last added experience has no next state, avoid
+            while index == last_experience:
+                index = self.random.randint(self.size)
 
-            # Either range or single index depending on whether concatenation is active
-            next_state_index = state_index + 1
+            if index == self.size:
+                next_index = 0
+            else:
+                next_index = index + 1
 
-            # Skip if concatenated index is between episodes
-            #if self.concat and np.any(self.terminals.take(state_index[0:-1], mode='wrap')):
-            #    continue
-
-            batch_states[i] = self.states.take(state_index, axis=0, mode='wrap')
-            batch_actions[i] = self.actions.take(end_index, mode='wrap')
-            batch_rewards[i] = self.rewards.take(end_index, mode='wrap')
-            batch_next_states[i] = self.states.take(next_state_index, axis=0, mode='wrap')
+            batch_states[i] = self.states.take(index, axis=0, mode='wrap')
+            batch_actions[i] = self.actions.take(index, mode='wrap')
+            batch_rewards[i] = self.rewards.take(index, mode='wrap')
+            batch_terminals[i] = self.terminals.take(index, axis=0, mode='wrap')
+            batch_next_states[i] = self.states.take(next_index, axis=0, mode='wrap')
 
         return dict(states=batch_states,
                     actions=batch_actions,

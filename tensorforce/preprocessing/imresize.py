@@ -30,11 +30,13 @@ from scipy.misc import imresize
 class Imresize(Preprocessor):
 
     default_config = {
-        'dimensions': [80, 80]
+        'dimension_x': 84,
+        'dimension_y': 84
     }
 
     config_args = [
-        'dimensions'
+        'dimension_x',
+        'dimension_y'
     ]
 
     def process(self, state):
@@ -44,7 +46,7 @@ class Imresize(Preprocessor):
         :param state: state input
         :return: new_state
         """
-        return imresize(state.astype(np.uint8), self.config.dimensions)
+        return imresize(state.astype(np.uint8), [self.config.dimension_x, self.config.dimension_y])
 
     def shape(self, original_shape):
-        return original_shape[:-2] + self.config.dimensions
+        return original_shape[:-2] + [self.config.dimension_x, self.config.dimension_y]

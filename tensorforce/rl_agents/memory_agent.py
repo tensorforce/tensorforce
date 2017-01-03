@@ -25,15 +25,16 @@ from tensorforce.config import create_config
 from tensorforce.replay_memories import ReplayMemory
 from tensorforce.rl_agents import RLAgent
 
-
 class MemoryAgent(RLAgent):
     name = 'MemoryAgent'
 
     default_config = {
-        'batch_size': 100,
-        'update_steps': 100,
-        'min_replay_size': 100,
-        'deterministic_mode': False
+        'batch_size': 32,
+        'update_rate': 0.25,
+        'target_network_update_rate': 0.0001,
+        'min_replay_size': 5e4,
+        'deterministic_mode': False,
+        'use_target_network': False
     }
 
     value_function_ref = None
@@ -54,7 +55,12 @@ class MemoryAgent(RLAgent):
         self.memory = ReplayMemory(**config)
         self.step_count = 0
         self.batch_size = self.config.batch_size
-        self.update_steps = 1 / self.config.update_rate
+        self.update_steps = int(round(1 / self.config.update_rate))
+        self.use_target_network = self.config.use_target_network
+
+        if self.use_target_network:
+            self.target_update_steps = int(round(1 / self.config.target_network_update_rate))
+
         self.min_replay_size = self.config.min_replay_size
 
         if self.value_function_ref:
@@ -82,10 +88,15 @@ class MemoryAgent(RLAgent):
         """
         self.memory.add_experience(state, action, reward, terminal)
 
-        if self.step_count > self.min_replay_size and self.step_count % self.update_steps == 0:
-            self.value_function.update(self.memory.sample_batch(self.batch_size))
-
         self.step_count += 1
+
+        if self.step_count >= self.min_replay_size and self.step_count % self.update_steps == 0:
+            batch = self.memory.sample_batch(self.batch_size)
+            self.value_function.update(batch)
+
+        if self.step_count >= self.min_replay_size and self.use_target_network \
+                and self.step_count % self.target_update_steps == 0:
+            self.value_function.update_target_network()
 
     def save_model(self, path):
         self.value_function.save_model(path)

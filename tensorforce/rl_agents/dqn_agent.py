@@ -31,10 +31,12 @@ class DQNAgent(MemoryAgent):
     name = 'DQNAgent'
 
     default_config = {
-        'batch_size': 100,
-        'update_steps': 10,
-        'min_replay_size': 100,
-        'deterministic_mode': False
+        'batch_size': 32,
+        'update_rate': 0.25,
+        'target_network_update_rate': 0.0001,
+        'min_replay_size': 5e4,
+        'deterministic_mode': False,
+        'use_target_network': True
     }
 
     value_function_ref = DeepQNetwork

@@ -1,12 +1,17 @@
 {
-  "memory_capacity": 5000,
-  "batch_size": 50,
-  "update_rate": 0.001,
-  "min_replay_size": 100,
-  "epsilon": 0.1,
+  "memory_capacity": 1e5,
+  "batch_size": 32,
+  "update_rate": 0.25,
+  "use_target_network": true,
+  "target_network_update_rate": 0.0001,
+  "min_replay_size": 5e4,
+  "epsilon": 1.0,
   "epsilon_final": 0.1,
   "epsilon_states": 1e6,
-  "concat": 4,
-  "state_wrapper": "AtariWrapper",
-  "state_wrapper_param": {"concat": 4}
+  "preprocessing": [
+    ["grayscale"],
+    ["imresize", 84, 84],
+    ["concat", 4]
+  ],
+  "repeat_actions": 1
 }

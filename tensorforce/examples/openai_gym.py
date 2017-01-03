@@ -28,10 +28,8 @@ import numpy as np
 from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.experiment_util import build_preprocessing_stack
-from tensorforce.util.agent_util import create_agent, get_default_config
+from tensorforce.util.agent_util import create_agent
 from tensorforce.runner import Runner
-
-from tensorforce import preprocessing
 
 
 def main():
@@ -48,7 +46,6 @@ def main():
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
-
     args = parser.parse_args()
 
     gym_id = args.gym_id
@@ -56,6 +53,7 @@ def main():
     env = OpenAIGymEnvironment(gym_id)
 
     config = Config({
+        'repeat_actions': 1,
         'actions': env.actions,
         'action_shape': env.action_shape,
         'state_shape': env.state_shape
@@ -83,7 +81,7 @@ def main():
         print("Agent configuration:")
         print(config)
 
-    runner = Runner(agent, env, preprocessor=stack, repeat_actions=4)
+    runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
 
     if args.monitor:
         env.gym.monitor.start(args.monitor)

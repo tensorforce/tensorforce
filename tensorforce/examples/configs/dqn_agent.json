@@ -9,9 +9,9 @@
   "epsilon_final": 0.1,
   "epsilon_states": 1e6,
   "preprocessing": [
-    ["maximum", 2],
     ["grayscale"],
     ["imresize", 84, 84],
     ["concat", 4]
-  ]
+  ],
+  "repeat_actions": 1
 }

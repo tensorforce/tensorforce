@@ -181,7 +181,7 @@ class TRPOUpdater(Model):
 
         # The details of the approximations used here to solve the constrained
         # optimisation can be found in Appendix C of the TRPO paper
-        # Note that no subsampling is used here, which would improve computational performance
+        # Note that no subsampling is used, which would improve computational performance
         search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
 
         # Search direction has now been approximated as cg-solution s= A^-1g where A is

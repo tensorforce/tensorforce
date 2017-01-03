@@ -98,6 +98,7 @@ def main():
 
     if args.monitor:
         env.gym.monitor.close()
+    env.close()
 
 
 if __name__ == '__main__':

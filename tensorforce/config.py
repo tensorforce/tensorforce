@@ -34,7 +34,7 @@ class Config(dict):
         self[item] = value
 
     def __add__(self, other):
-        result = dict(self.items())
+        result = Config(self.items())
         result.update(other)
         return result
 

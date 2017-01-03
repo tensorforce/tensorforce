@@ -73,7 +73,7 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            print("Finished episode {ep} after ??? timesteps".format(ep=r.episode + 1, ts=None))
+            print("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
             print("Total reward: {}".format(r.episode_rewards[-1]))
             print("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
             print("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
@@ -91,8 +91,9 @@ def main():
     if args.monitor:
         for environment in environments:
             environment.gym.monitor.close()
-    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
-    # TODO: Print results.
+    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
+    for environment in environments:
+        environment.close()
 
 
 if __name__ == '__main__':

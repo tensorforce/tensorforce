@@ -38,7 +38,6 @@ class ReplayMemory(object):
                  state_type=np.float32,
                  action_type=np.int,
                  reward_type=np.float32,
-                 concat=None,
                  deterministic_mode=False,
                  *args,
                  **kwargs):
@@ -51,11 +50,6 @@ class ReplayMemory(object):
         :param action_shape: Shape of action tensor
         :param action_type: Data type of action tensor
         :param reward_type: Data type of reward function
-        :param concat: Whether to apply preprocessing to satisfy Markov property -
-        for some environments, single frames do not satisfy the Markov property but
-        a concatenation of frames (for Atari 4) does.
-        :param concat_length: State preprocessor function sigma, here given as
-        length to satisfy Markov property, default 1 means no concatenation of states.
         :param deterministic_mode: If true, global random number generation
         is controlled by passing the same seed to all generators, if false,
         no seed is used for sampling.
@@ -64,7 +58,6 @@ class ReplayMemory(object):
         self.step_count = 0
         self.capacity = int(memory_capacity)
         self.size = 0
-        self.concat = concat
 
         # Explicitly set data types for every tensor to make for easier adjustments
         # if backend precision changes
@@ -134,18 +127,8 @@ class ReplayMemory(object):
             start_index = self.random.randint(self.bottom, self.bottom + self.size)
             end_index = start_index
 
-            #if self.concat is not None and self.concat > 1:
-            #    state_index = np.arange(start_index, self.concat, 1)
-            #    end_index = start_index + self.concat - 1
-            #else:
             state_index = start_index
-
-            # Either range or single index depending on whether concatenation is active
             next_state_index = state_index + 1
-
-            # Skip if concatenated index is between episodes
-            #if self.concat and np.any(self.terminals.take(state_index[0:-1], mode='wrap')):
-            #    continue
 
             batch_states[i] = self.states.take(state_index, axis=0, mode='wrap')
             batch_actions[i] = self.actions.take(end_index, mode='wrap')

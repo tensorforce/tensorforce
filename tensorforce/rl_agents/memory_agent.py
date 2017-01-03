@@ -29,9 +29,10 @@ class MemoryAgent(RLAgent):
     name = 'MemoryAgent'
 
     default_config = {
-        'batch_size': 100,
-        'update_steps': 100,
-        'min_replay_size': 100,
+        'batch_size': 32,
+        'update_rate': 0.25,
+        'target_network_update_rate': 0.0001,
+        'min_replay_size': 5e4,
         'deterministic_mode': False,
         'use_target_network': False
     }

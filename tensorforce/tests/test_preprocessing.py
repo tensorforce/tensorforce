@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Comment
+Preprocessor testing.
 """
 
 from __future__ import absolute_import
@@ -88,7 +88,7 @@ def test_preprocessing_imresize():
     """
     dimensions = list(np.random.randint(10, 20, size=2))
 
-    pp = preprocessing.imresize.Imresize(dimensions)
+    pp = preprocessing.imresize.Imresize(*dimensions)
 
     shape = list(np.random.randint(1, 20, size=2))
     state = np.random.randint(0, 255, size=shape)

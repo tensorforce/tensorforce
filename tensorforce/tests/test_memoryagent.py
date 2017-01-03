@@ -55,8 +55,10 @@ def test_memoryagent_update_frequency():
     update_steps = np.random.randint(1, 10)
     target_update_steps = np.random.randint(20, 200)
 
-    state_shape = list(np.random.randint(1, 10, size=2))
+    state_shape = [1, 3] # list(np.random.randint(1, 10, size=2))
     min_replay_size = np.random.randint(int(1e3), int(2e3))
+
+    memory_capacity = 4 # np.random.randint(int(5e3), int(1e4))
 
     config = {
         'actions': np.random.randint(2, 10),
@@ -66,7 +68,7 @@ def test_memoryagent_update_frequency():
         'min_replay_size': min_replay_size,
         'deterministic_mode': False,
         'use_target_network': True,
-        'memory_capacity': np.random.randint(int(5e3), int(1e4)),
+        'memory_capacity': memory_capacity,
         'state_shape': state_shape,
         'action_shape': []
     }
@@ -99,12 +101,18 @@ def test_memoryagent_update_frequency():
 
     history = []
     for step_count in xrange(max_steps):
-        state = np.random.randint(0, 255, size=state_shape)
-        action = agent.get_action(state)
-        reward = np.random.randint(0, 100) // 80 # p = .8 for reward = 1
+        while True:
+            state = np.random.randint(0, 255, size=state_shape)
+            action = agent.get_action(state)
+            reward = float(np.random.randint(0, 100) // 80) # p = .8 for reward = 1
+            terminal = bool(np.random.randint(0, 100) // 95)
 
-        agent.add_observation(state, action, reward, False)
-        history.append((state, action, reward, False))
+            # avoid duplicate experiences
+            if not np.any(history == (state.astype(np.float32), action, reward, terminal)):
+                break
+
+        agent.add_observation(state, action, reward, terminal)
+        history.append((state.astype(np.float32), action, reward, terminal))
 
     # all steps - steps before min_replay_size + possible step if min_replay_size is a step itself
 
@@ -118,6 +126,24 @@ def test_memoryagent_update_frequency():
     print("Took {} steps.".format(step_count + 1))
     print("Observed {} updates (expected {})".format(model.count_updates, expected_updates))
     print("Observed {} target updates (expected {})".format(model.count_target_updates, expected_target_updates))
+    print("Memory has size {}".format(agent.memory.size))
 
     assert model.count_updates == expected_updates
     assert model.count_target_updates == expected_target_updates
+
+    assert memory_capacity == agent.memory.size
+
+    batch = agent.memory.sample_batch(config['batch_size'])
+    experiences = zip(list(batch['states']), batch['actions'], batch['rewards'], batch['terminals'], batch['next_states'])
+
+    # warning: since we're testing a random batch, some of the following assertions could be True by coincidence
+    # In this test, states are unique, so we can just compare state tensors with each other
+
+    first_state = history[0][0]
+    last_state = history[-1][0]
+    for (state, action, reward, terminal, next_state) in experiences:
+        # last state must not be in experiences, as it has no next state
+        assert np.all(state - last_state)
+
+        # first state must not be in next_states, as it has no previous state
+        assert np.all(state - first_state)

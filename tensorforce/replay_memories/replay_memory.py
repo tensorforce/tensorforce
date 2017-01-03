@@ -78,8 +78,7 @@ class ReplayMemory(object):
         else:
             self.random = np.random.RandomState()
 
-        # Indices to control sampling
-        self.bottom = 0
+        # Index to control sampling
         self.top = 0
 
     def add_experience(self, state, action, reward, terminal):
@@ -98,9 +97,7 @@ class ReplayMemory(object):
         self.rewards[self.top] = reward
         self.terminals[self.top] = terminal
 
-        if self.size == self.capacity:
-            self.bottom = (self.bottom + 1) % self.capacity
-        else:
+        if self.size < self.capacity:
             self.size += 1
         self.top = (self.top + 1) % self.capacity
 
@@ -124,16 +121,23 @@ class ReplayMemory(object):
         batch_terminals = np.zeros(batch_shape, dtype='bool')
 
         for i in xrange(batch_size):
-            start_index = self.random.randint(self.bottom, self.bottom + self.size)
-            end_index = start_index
+            last_experience = self.top - 1 if self.top > 0 else self.size - 1
+            index = last_experience
 
-            state_index = start_index
-            next_state_index = state_index + 1
+            # last added experience has no next state, avoid
+            while index == last_experience:
+                index = self.random.randint(self.size)
 
-            batch_states[i] = self.states.take(state_index, axis=0, mode='wrap')
-            batch_actions[i] = self.actions.take(end_index, mode='wrap')
-            batch_rewards[i] = self.rewards.take(end_index, mode='wrap')
-            batch_next_states[i] = self.states.take(next_state_index, axis=0, mode='wrap')
+            if index == self.size:
+                next_index = 0
+            else:
+                next_index = index + 1
+
+            batch_states[i] = self.states.take(index, axis=0, mode='wrap')
+            batch_actions[i] = self.actions.take(index, mode='wrap')
+            batch_rewards[i] = self.rewards.take(index, mode='wrap')
+            batch_terminals[i] = self.terminals.take(index, axis=0, mode='wrap')
+            batch_next_states[i] = self.states.take(next_index, axis=0, mode='wrap')
 
         return dict(states=batch_states,
                     actions=batch_actions,

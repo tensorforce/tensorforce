@@ -51,7 +51,10 @@ class TestModel(Model):
 
 
 def test_memoryagent_update_frequency():
-    """Test MemoryAgent update frequency for SGD and value function updates."""
+    """
+    Test MemoryAgent update frequency for SGD and value function updates.
+
+    """
     update_steps = np.random.randint(1, 10)
     target_update_steps = np.random.randint(20, 200)
 
@@ -76,10 +79,10 @@ def test_memoryagent_update_frequency():
     agent = MemoryAgent(config)
     model = TestModel(config)
 
-    # set value function manually
+    # Set value function manually
     agent.value_function = model
 
-    # assert config values
+    # Assert config values
     assert agent.batch_size == config['batch_size']
     assert agent.update_steps == update_steps
     assert agent.target_update_steps == target_update_steps
@@ -119,7 +122,7 @@ def test_memoryagent_update_frequency():
         agent.add_observation(state, action, reward, terminal)
         history.append((state.astype(np.float32), action, reward, terminal))
 
-    # all steps - steps before min_replay_size + possible step if min_replay_size is a step itself
+    # All steps - steps before min_replay_size + possible step if min_replay_size is a step itself
 
     expected_updates = (step_count + 1) // update_steps\
                        - min_replay_size // update_steps \
@@ -142,7 +145,7 @@ def test_memoryagent_update_frequency():
     batch = agent.memory.sample_batch(config['batch_size'])
     exp = zip(list(batch['states']), batch['actions'], batch['rewards'], batch['terminals'], batch['next_states'])
 
-    # warning: since we're testing a random batch, some of the following assertions could be True by coincidence
+    # Warning: since we're testing a random batch, some of the following assertions could be True by coincidence
     # In this test, states are unique, so we can just compare state tensors with each other
 
     first_state = history[0][0]

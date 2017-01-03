@@ -55,10 +55,10 @@ def test_memoryagent_update_frequency():
     update_steps = np.random.randint(1, 10)
     target_update_steps = np.random.randint(20, 200)
 
-    state_shape = [1, 3] # list(np.random.randint(1, 10, size=2))
+    state_shape = list(np.random.randint(1, 10, size=2))
     min_replay_size = np.random.randint(int(1e3), int(2e3))
 
-    memory_capacity = 4 # np.random.randint(int(5e3), int(1e4))
+    memory_capacity = np.random.randint(int(5e3), int(1e4))
 
     config = {
         'actions': np.random.randint(2, 10),
@@ -99,16 +99,21 @@ def test_memoryagent_update_frequency():
 
     print("-" * 16)
 
+    step_count = 0
     history = []
     for step_count in xrange(max_steps):
         while True:
             state = np.random.randint(0, 255, size=state_shape)
             action = agent.get_action(state)
-            reward = float(np.random.randint(0, 100) // 80) # p = .8 for reward = 1
+            reward = float(np.random.randint(0, 100) // 80)  # p = .8 for reward = 1
             terminal = bool(np.random.randint(0, 100) // 95)
 
             # avoid duplicate experiences
-            if not np.any(history == (state.astype(np.float32), action, reward, terminal)):
+            unique = True
+            for (hs, ha, hr, tw) in history:
+                if hs == state:
+                    unique = False
+            if unique:
                 break
 
         agent.add_observation(state, action, reward, terminal)
@@ -116,9 +121,10 @@ def test_memoryagent_update_frequency():
 
     # all steps - steps before min_replay_size + possible step if min_replay_size is a step itself
 
-    expected_updates = (step_count + 1) // update_steps \
+    expected_updates = (step_count + 1) // update_steps\
                        - min_replay_size // update_steps \
                        + int(min_replay_size % update_steps == 0)
+
     expected_target_updates = (step_count + 1) // target_update_steps \
                               - min_replay_size // target_update_steps \
                               + int(min_replay_size % target_update_steps == 0)
@@ -134,14 +140,14 @@ def test_memoryagent_update_frequency():
     assert memory_capacity == agent.memory.size
 
     batch = agent.memory.sample_batch(config['batch_size'])
-    experiences = zip(list(batch['states']), batch['actions'], batch['rewards'], batch['terminals'], batch['next_states'])
+    exp = zip(list(batch['states']), batch['actions'], batch['rewards'], batch['terminals'], batch['next_states'])
 
     # warning: since we're testing a random batch, some of the following assertions could be True by coincidence
     # In this test, states are unique, so we can just compare state tensors with each other
 
     first_state = history[0][0]
     last_state = history[-1][0]
-    for (state, action, reward, terminal, next_state) in experiences:
+    for (state, action, reward, terminal, next_state) in exp:
         # last state must not be in experiences, as it has no next state
         assert np.all(state - last_state)
 

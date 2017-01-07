@@ -21,22 +21,25 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from six import callable
 import importlib
 
 
-def get_function(string, param=None, default=None):
+def get_function(fn, param=None, default=None):
     """
     Get function reference by full module path. Either returns the function reference or calls the function
     if param is not None and returns the result.
 
-    :param string: String containing the full function path
+    :param fn: Callable object or String containing the full function path
     :param param: None to return function name, kwargs dict to return executed function
     :param default: Default reference to return if str is None or empty
     :return: Function reference, or result from function call
     """
-    if not string:
+    if not fn:
         return default
-    module_name, function_name = string.rsplit('.', 1)
+    if callable(fn):
+        return fn
+    module_name, function_name = fn.rsplit('.', 1)
     module = importlib.import_module(module_name)
     func = getattr(module, function_name)
 

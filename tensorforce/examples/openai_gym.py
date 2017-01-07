@@ -65,9 +65,12 @@ def main():
     if args.network_config:
         config.read_json(args.network_config)
 
-    stack = build_preprocessing_stack(config.get('preprocessing'))
-
-    config.state_shape = stack.shape(config.state_shape)
+    preprocessing_config = config.get('preprocessing')
+    if preprocessing_config:
+        stack = build_preprocessing_stack(preprocessing_config)
+        config.state_shape = stack.shape(config.state_shape)
+    else:
+        stack = None
 
     if args.debug:
         print("-" * 16)

@@ -1,0 +1,7 @@
+{
+  "alpha": 0.001,
+  "batch_size": 1000,
+  "gae_lambda": 0.97,
+  "gamma": 0.99,
+  "continuous": false
+}

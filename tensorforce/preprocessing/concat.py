@@ -31,11 +31,13 @@ from tensorforce.preprocessing import Preprocessor
 class Concat(Preprocessor):
 
     default_config = {
-        'concat_length': 1
+        'concat_length': 1,
+        'dimension_position': 'prepend'
     }
 
     config_args = [
-        'concat_length'
+        'concat_length',
+        'dimension_position'
     ]
 
     def __init__(self, config, *args, **kwargs):
@@ -56,7 +58,14 @@ class Concat(Preprocessor):
         while len(self._queue) < self.config.concat_length:
             self._queue.append(state)
 
-        return np.array(self._queue)
+        if self.config.dimension_position == 'append':
+            concatted = np.array(self._queue)
+            return np.moveaxis(concatted, 0, -1)
+        else:
+            return np.array(self._queue)
 
     def shape(self, original_shape):
-        return [self.config.concat_length] + list(original_shape)
+        if self.config.dimension_position == 'append':
+            return list(original_shape) + [self.config.concat_length]
+        else:
+            return [self.config.concat_length] + list(original_shape)

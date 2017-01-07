@@ -1,4 +1,5 @@
 {
+  "alpha": 0.00025,
   "memory_capacity": 1e5,
   "batch_size": 32,
   "update_rate": 0.25,
@@ -11,7 +12,7 @@
   "preprocessing": [
     ["grayscale"],
     ["imresize", 84, 84],
-    ["concat", 4]
+    ["concat", 4, "append"]
   ],
   "repeat_actions": 1
 }

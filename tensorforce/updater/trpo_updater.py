@@ -17,8 +17,9 @@
 Implements trust region policy optimization with general advantage estimation (TRPO-GAE) as
 introduced by Schulman et al.
 
-Based on https://github.com/ilyasu123/trpo, with a hopefully slightly more readable
-modularisation and some modifications (e.g. actually using the line search result).
+Based on https://github.com/joschu/modular_rl/blob/master/modular_rl/trpo.py and
+https://github.com/ilyasu123/trpo, with a hopefully slightly more readable
+modularisation and some modifications.
 
 """
 from tensorforce.config import create_config
@@ -27,6 +28,7 @@ from tensorforce.neural_networks import NeuralNetwork
 from tensorforce.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 from tensorforce.updater import LinearValueFunction
 from tensorforce.updater import Model
+from tensorforce.updater.pg_model import PGModel
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.math_util import *
 
@@ -34,7 +36,7 @@ import numpy as np
 import tensorflow as tf
 
 
-class TRPOUpdater(Model):
+class TRPOUpdater(PGModel):
     default_config = {
         'cg_damping': 0.001,
         'cg_iterations': 10,
@@ -162,7 +164,7 @@ class TRPOUpdater(Model):
         :return:
         """
         # Set per episode advantage using GAE
-        self.compute_gae_advantage(batch)
+        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)
@@ -200,22 +202,6 @@ class TRPOUpdater(Model):
         self.flat_variable_helper.set(theta)
         self.session.run(self.losses, self.input_feed)
 
-    def merge_episodes(self, batch):
-        """
-        Merge episodes of a batch into single input variables.
-
-        :param batch:
-        :return:
-        """
-        action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
-        action_means = np.concatenate([path['action_means'] for path in batch])
-        actions = np.concatenate([path['actions'] for path in batch])
-        batch_advantage = np.concatenate([path["advantage"] for path in batch])
-        batch_advantage = zero_mean_unit_variance(batch_advantage)
-        states = np.concatenate([path['states'] for path in batch])
-
-        return action_log_stds, action_means, actions, batch_advantage, states
-
     def compute_fvp(self, p):
         self.input_feed[self.flat_tangent] = p
 
@@ -227,20 +213,3 @@ class TRPOUpdater(Model):
         # Losses[0] = surrogate_loss
         return self.session.run(self.losses[0], self.input_feed)
 
-    def compute_gae_advantage(self, batch):
-        """
-        Expects a batch containing at least one episode, sets advantages according to GAE.
-
-        :param batch: Sequence of observations for at least one episode.
-        """
-
-        for episode in batch:
-            baseline = self.baseline_value_function.predict(episode)
-            if episode['terminated']:
-                adjusted_baseline = np.append(baseline, [0])
-            else:
-                adjusted_baseline = np.append(baseline, baseline[-1])
-
-            deltas = episode['rewards'] + self.gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
-            episode['returns'] = discount(episode['rewards'], self.gamma)
-            episode['advantage'] = discount(deltas, self.gamma * self.gae_lambda)

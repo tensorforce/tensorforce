@@ -1,3 +1,4 @@
+
 # Copyright 2016 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,16 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""
+Vanilla policy gradient agent with GAE.
+"""
 
-from tensorforce.rl_agents.rl_agent import RLAgent
-from tensorforce.rl_agents.random_agent import RandomAgent
-from tensorforce.rl_agents.memory_agent import MemoryAgent
-from tensorforce.rl_agents.dqn_agent import DQNAgent
-from tensorforce.rl_agents.naf_agent import NAFAgent
-from tensorforce.rl_agents.pg_agent import PGAgent
-from tensorforce.rl_agents.trpo_agent import TRPOAgent
-from tensorforce.rl_agents.vpg_agent import VPGAgent
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+from tensorforce.rl_agents import PGAgent
+from tensorforce.updater.vpg_updater import VPGUpdater
 
 
-__all__ = ['RLAgent', 'RandomAgent', 'MemoryAgent', 'DQNAgent', 'NAFAgent',
-           'PGAgent', 'TRPOAgent', 'VPGAgent']
+class VPGAgent(PGAgent):
+    name = 'VPGAgent'
+
+    default_config = {
+        'batch_size': 100,
+        'update_steps': 10,
+        'deterministic_mode': False
+    }
+
+    value_function_ref = VPGUpdater

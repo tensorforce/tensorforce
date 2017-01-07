@@ -78,7 +78,7 @@ class VPGUpdater(PGModel):
                                                     {self.state: [state]})
 
         # NOTE log stds are currently not updated
-        action = outputs # + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
+        action = outputs + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
         return action.ravel(), dict(action_means=outputs,
                                     action_log_stds=action_log_stds)
 

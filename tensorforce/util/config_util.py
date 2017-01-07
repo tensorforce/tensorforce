@@ -38,10 +38,11 @@ def get_function(fn, param=None, default=None):
     if not fn:
         return default
     if callable(fn):
-        return fn
-    module_name, function_name = fn.rsplit('.', 1)
-    module = importlib.import_module(module_name)
-    func = getattr(module, function_name)
+        func = fn
+    else:
+        module_name, function_name = fn.rsplit('.', 1)
+        module = importlib.import_module(module_name)
+        func = getattr(module, function_name)
 
     if isinstance(param, dict):
         return func(**param)

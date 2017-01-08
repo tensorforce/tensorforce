@@ -96,14 +96,15 @@ class NormalizedAdvantageFunctions(Model):
 
     def get_action(self, state, episode=1, total_states=0):
         """
-        Returns naf actions.
+        Returns naf action(s) as given by the mean output of the network.
 
         :param state: Current state
         :param episode: Current episode
+        :param total_states: Total states processed
         :return:
         """
-        action = self.session.run(self.mu, {self.state: state})
-        print('naf_action =' + str(action))
+        action = self.session.run(self.mu, {self.state: [state]})[0]
+
         return action + self.exploration(self.random, self.episode)
 
     def update(self, batch):

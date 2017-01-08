@@ -2,27 +2,27 @@
   "network_layers": [
     {
       "type": "dense",
-      "neurons": 32,
+      "neurons": 100,
       "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weight_init_param": { },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.relu",
+      "activation": "tensorflow.python.ops.nn.tanh",
       "activation_param": null,
-      "regularization": null,
-      "regularization_param": null
+      "regularization": "tensorflow.python.ops.nn.l2_loss",
+      "regularization_param": 0.001
     },
     {
       "type": "dense",
-      "neurons": 32,
+      "neurons": 100,
       "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weight_init_param": { },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.relu",
+      "activation": "tensorflow.python.ops.nn.tanh",
       "activation_param": null,
-      "regularization": null,
-      "regularization_param": null
+      "regularization": "tensorflow.python.ops.nn.l2_loss",
+      "regularization_param": 0.001
     }
   ]
 }

@@ -102,7 +102,7 @@ class NormalizedAdvantageFunctions(Model):
         :param episode: Current episode
         :return:
         """
-        action = self.session.run(self.mu, {self.state: [state]})
+        action = self.session.run(self.mu, {self.state: state})
         print('naf_action =' + str(action))
         return action + self.exploration(self.random, self.episode)
 

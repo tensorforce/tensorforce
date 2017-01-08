@@ -195,6 +195,7 @@ class TRPOUpdater(PGModel):
         negative_gradient_direction = -gradient.dot(search_direction)
 
         # Improve update step through simple backtracking line search
+        # N.b. some implementations skip the line search
         theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
                             negative_gradient_direction / lagrange_multiplier)
 

@@ -16,7 +16,7 @@
 from tensorforce.updater.model import Model
 from tensorforce.updater.deep_q_network import DeepQNetwork
 from tensorforce.updater.linear_value_function import LinearValueFunction
-from tensorforce.updater.normalized_advantage_functions import NormalizedAdvantageFunctions
+from tensorforce.updater.naf_network import NormalizedAdvantageFunctions
 from tensorforce.updater.trpo_updater import TRPOUpdater
 
 __all__ = ['Model', 'DeepQNetwork', 'LinearValueFunction', 'NormalizedAdvantageFunctions', 'TRPOUpdater']

@@ -40,7 +40,7 @@ from tensorforce.updater import Model
 
 class NormalizedAdvantageFunctions(Model):
     default_config = {
-        'tau': 0.9,
+        'tau': 0.001,
         'epsilon': 0.1,
         'gamma': 0.95,
         'alpha': 0.005,

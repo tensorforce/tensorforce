@@ -1,8 +1,10 @@
 {
   "alpha": 0.0001,
+  "use_target_network": true,
+  "target_network_update_rate": 0.0001,
   "memory_capacity": 1000,
   "batch_size": 25,
   "update_rate": 0.25,
-  "min_replay_size": 100,
+  "min_replay_size": 1000,
   "exploration_mode": "linear_decay"
 }

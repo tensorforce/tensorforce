@@ -103,7 +103,6 @@ class NormalizedAdvantageFunctions(Model):
         :return:
         """
         action = self.session.run(self.mu, {self.state: [state]})[0]
-
         return action + self.exploration(self.random, self.episode)
 
     def update(self, batch):

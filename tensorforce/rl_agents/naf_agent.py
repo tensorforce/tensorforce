@@ -28,7 +28,7 @@ class NAFAgent(MemoryAgent):
     name = 'NAFAgent'
 
     default_config = {
-        'batch_size': 100,
+        'batch_size': 20,
         'update_steps': 10,
         'min_replay_size': 100,
         'deterministic_mode': False

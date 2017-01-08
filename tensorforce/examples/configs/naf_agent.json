@@ -1,7 +1,8 @@
 {
-  "memory_capacity": 10000,
+  "alpha": 0.0001,
+  "memory_capacity": 1000,
   "batch_size": 25,
-  "update_rate": 0.01,
-  "min_replay_size": 1000,
+  "update_rate": 0.25,
+  "min_replay_size": 100,
   "exploration_mode": "linear_decay"
 }

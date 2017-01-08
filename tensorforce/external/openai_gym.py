@@ -29,14 +29,22 @@ from tensorforce.environments import Environment
 
 class OpenAIGymEnvironment(Environment):
 
-    def __init__(self, gym_id):
+    def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0):
         """
         Initialize open ai gym environment.
 
         :param gym_id: string with id/descriptor of the gym environment, e.g. 'CartPole-v0'
+        :param monitor:
         """
         self.gym_id = gym_id
         self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
+
+        if monitor:
+            if monitor_video == 0:
+                video_callable = False
+            else:
+                video_callable = lambda x: x % monitor_video == 0
+            self.gym = Monitor(self.gym, monitor, force=not monitor_safe, video_callable=video_callable)
 
     def __str__(self):
         return self.gym_id

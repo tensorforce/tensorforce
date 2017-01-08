@@ -33,6 +33,12 @@ class Runner(object):
         self.environment = environment
         self.preprocessor = preprocessor
         self.repeat_actions = repeat_actions
+        self.save_model_path = None
+        self.save_model_episodes = 0
+
+    def save_model(self, path, num_episodes):
+        self.save_model_path = path
+        self.save_model_episodes = num_episodes
 
     def run(self, episodes, max_timesteps, episode_finished=None):
         self.total_states = 0      # count all states
@@ -61,5 +67,10 @@ class Runner(object):
                     break
 
             self.episode_rewards.append(episode_reward)
+
+            if self.save_model_path and self.save_model_episodes > 0 and self.episode % self.save_model_episodes == 0:
+                print("Saving model after episode {}".format(self.episode))
+                self.agent.save_model(self.save_model_path)
+
             if episode_finished and not episode_finished(self):
                 return

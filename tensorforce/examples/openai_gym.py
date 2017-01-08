@@ -87,8 +87,7 @@ def main():
     runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
 
     if args.monitor:
-        env.gym.monitor.start(args.monitor)
-        env.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
+        env.monitor(args.monitor)
 
     report_episodes = args.episodes // 10
     if args.debug:
@@ -105,10 +104,6 @@ def main():
     print("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
     print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
-
-    if args.monitor:
-        env.gym.monitor.close()
-
 
 if __name__ == '__main__':
     main()

@@ -22,6 +22,7 @@ from __future__ import print_function
 from __future__ import division
 
 import gym
+from gym.wrappers import Monitor
 from gym.spaces.discrete import Discrete
 from tensorforce.environments import Environment
 
@@ -39,6 +40,9 @@ class OpenAIGymEnvironment(Environment):
 
     def __str__(self):
         return self.gym_id
+
+    def monitor(self, path):
+        self.gym = Monitor(self.gym, path)
 
     def reset(self):
         """

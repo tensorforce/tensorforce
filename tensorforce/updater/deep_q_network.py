@@ -75,7 +75,9 @@ class DeepQNetwork(Model):
         else:
             self.random = np.random.RandomState()
 
-        self.exploration = exploration_mode['epsilon_decay']
+        exploration_fn = exploration_mode[config.get('exploration', 'zero')]
+        exploration_param = config.get('exploration_param', {})
+        self.exploration = exploration_fn(self.config.deterministic_mode, **exploration_param)
 
         # Input placeholders
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
@@ -102,7 +104,7 @@ class DeepQNetwork(Model):
         writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.global_variables_initializer())
 
-    def get_action(self, state, episode=1, total_states=0):
+    def get_action(self, state, episode=1):
         """
         Returns the predicted action for a given state.
 
@@ -111,7 +113,7 @@ class DeepQNetwork(Model):
         :return:
         """
 
-        epsilon = self.exploration(self.epsilon_final, total_states, self.epsilon_states, self.epsilon)
+        epsilon = self.exploration.get_noise(episode, self.total_states)
 
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
@@ -120,6 +122,8 @@ class DeepQNetwork(Model):
                 action = self.session.run(self.dqn_action, {self.state: [state]})[0]
             else:
                 action = self.session.run(self.dqn_action, {self.state: [state]})
+
+        self.total_states += 1
         return action
 
     def update(self, batch):

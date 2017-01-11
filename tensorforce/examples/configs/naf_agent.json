@@ -6,5 +6,5 @@
   "batch_size": 100,
   "update_rate": 0.25,
   "min_replay_size": 1000,
-  "exploration_mode": "linear_decay"
+  "exploration_mode": "ornstein_uhlenbeck"
 }

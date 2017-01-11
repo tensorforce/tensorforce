@@ -37,6 +37,7 @@ class Model(object):
 
         # TODO move several default params up here
         self.session = tf.Session()
+        self.total_states = 0
         self.saver = None
 
         self.batch_shape = [None]

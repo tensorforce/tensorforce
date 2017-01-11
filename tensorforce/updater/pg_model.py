@@ -27,7 +27,7 @@ class PGModel(Model):
         super(PGModel, self).__init__(config)
         self.baseline_value_function = None
 
-    def get_action(self, state, episode=1, total_states=0):
+    def get_action(self, state, episode=1):
         pass
 
     def update(self, batch):

@@ -67,7 +67,9 @@ class NormalizedAdvantageFunctions(Model):
         else:
             self.random = np.random.RandomState()
 
-        self.exploration = exploration_mode[self.config.exploration_mode]
+        exploration_fn = exploration_mode[config.get('exploration')]
+        exploration_param = config.get('exploration_param', {})
+        self.exploration = exploration_fn(self.config.deterministic_mode, **exploration_param)
 
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
@@ -94,7 +96,7 @@ class NormalizedAdvantageFunctions(Model):
         self.saver = tf.train.Saver()
         self.session.run(tf.global_variables_initializer())
 
-    def get_action(self, state, episode=1, total_states=0):
+    def get_action(self, state, episode=1):
         """
         Returns naf action(s) as given by the mean output of the network.
 
@@ -103,9 +105,11 @@ class NormalizedAdvantageFunctions(Model):
         :param total_states: Total states processed
         :return:
         """
-        action = self.session.run(self.mu, {self.state: [state]})[0]
+        action = self.session.run(self.mu, {self.state: [state]})[0] \
+                 + self.exploration.get_noise(episode, self.total_states)
+        self.total_states +=1
 
-        return action + self.exploration(self.random, self.episode)
+        return action
 
     def update(self, batch):
         """

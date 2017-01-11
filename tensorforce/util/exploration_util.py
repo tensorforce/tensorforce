@@ -21,48 +21,76 @@ import numpy as np
 from tensorforce.util.experiment_util import global_seed
 
 
-class OrnsteinUhlenbeckProcess(object):
+class Exploration():
+    def __init__(self, deterministic_mode=False):
 
-  def __init__(self, action_count, sigma=0.3, mu=0, theta=0.15, deterministic_mode=False):
-    self.action_count = action_count
-    self.mu = mu
-    self.theta = theta
-    self.sigma = sigma
+        if deterministic_mode:
+            self.random = global_seed()
+        else:
+            self.random = np.random.RandomState()
 
-    if deterministic_mode:
-        self.random = global_seed()
-    else:
-        self.random = np.random.RandomState()
-
-    self.state = np.ones(action_count) * self.mu
-
-  def get_noise(self):
-    x = self.state
-    dx = self.theta * (self.mu - x) + self.sigma * self.random.randn(len(x), 1)
-    self.state = x + dx
-
-    return self.state
-
-def linear_decay(random, episode):
-    return random.random_sample(1) / (episode + 1)
+    def get_noise(self, episode=0, states=0):
+        pass
 
 
-def zero(random=None, episode=None):
-    return 0
+class OrnsteinUhlenbeckProcess(Exploration):
+    def __init__(self, deterministic_mode, action_count=1, sigma=0.3, mu=0, theta=0.15):
+        Exploration.__init__(self, deterministic_mode)
+        self.action_count = action_count
+        self.mu = mu
+        self.theta = theta
+        self.sigma = sigma
+
+        if deterministic_mode:
+            self.random = global_seed()
+        else:
+            self.random = np.random.RandomState()
+
+        self.state = np.ones(action_count) * self.mu
+
+    def get_noise(self, episode=0, states=0):
+        state = self.state
+        dx = self.theta * (self.mu - state) + self.sigma * self.random.randn(len(state), 1)
+        self.state = state + dx
+
+        return self.state
 
 
-def epsilon_decay(epsilon_final, total_states, epsilon_states, epsilon):
-    if not epsilon_final or total_states == 0:
-        epsilon = epsilon
-    elif total_states > epsilon_states:
-        epsilon = epsilon_final
-    else:
-        epsilon = epsilon + ((epsilon_final - epsilon) / epsilon_states) * total_states
+class LinearDecay(Exploration):
+    def __init__(self, deterministic_mode):
+        Exploration.__init__(self, deterministic_mode)
 
-    return epsilon
+    def get_noise(self, episode=0, states=0):
+        return self.random.random_sample(1) / (episode + 1)
+
+
+class ZeroExploration(Exploration):
+    def __init__(self, deterministic_mode):
+        Exploration.__init__(self, deterministic_mode)
+
+    def get_noise(self, episode=None, states=None):
+        return 0
+
+
+class EpsilonDecay(Exploration):
+    def __init__(self, deterministic_mode, epsilon=0.1, epsilon_final=0.1, epsilon_states=10000):
+        Exploration.__init__(self, deterministic_mode)
+        self.epsilon_final = epsilon_final
+        self.epsilon = epsilon
+        self.epsilon_states = epsilon_states
+
+    def get_noise(self, episode=None, states=None):
+        if states > self.epsilon_states:
+            self.epsilon = self.epsilon_final
+        else:
+            self.epsilon += ((self.epsilon_final - self.epsilon) / self.epsilon_states) * states
+
+        return self.epsilon
+
 
 exploration_mode = {
-    'None': zero,
-    'linear_decay': linear_decay,
-    'epsilon_decay': epsilon_decay
+    'None': ZeroExploration,
+    'linear_decay': LinearDecay,
+    'epsilon_decay': EpsilonDecay,
+    'ornstein_uhlenbeck': OrnsteinUhlenbeckProcess
 }

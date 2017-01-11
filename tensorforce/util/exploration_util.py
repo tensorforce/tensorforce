@@ -28,7 +28,7 @@ class Exploration(object):
         else:
             self.random = np.random.RandomState()
 
-    def get_noise(self, episode=0, states=0):
+    def __call__(self, episode=0, states=0):
         pass
 
 
@@ -47,7 +47,7 @@ class OrnsteinUhlenbeckProcess(Exploration):
 
         self.state = np.ones(action_count) * self.mu
 
-    def get_noise(self, episode=0, states=0):
+    def __call__(self, episode=0, states=0):
         state = self.state
         dx = self.theta * (self.mu - state) + self.sigma * self.random.randn(len(state), 1)
         self.state = state + dx
@@ -59,7 +59,7 @@ class LinearDecay(Exploration):
     def __init__(self, deterministic_mode):
         super(LinearDecay, self).__init__(deterministic_mode)
 
-    def get_noise(self, episode=0, states=0):
+    def __call__(self, episode=0, states=0):
         return self.random.random_sample(1) / (episode + 1)
 
 
@@ -68,7 +68,7 @@ class ConstantExploration(Exploration):
         super(ConstantExploration, self).__init__(deterministic_mode)
         self.constant = constant
 
-    def get_noise(self, episode=None, states=None):
+    def __call__(self, episode=None, states=None):
         return self.constant
 
 
@@ -79,7 +79,7 @@ class EpsilonDecay(Exploration):
         self.epsilon = epsilon
         self.epsilon_states = epsilon_states
 
-    def get_noise(self, episode=None, states=None):
+    def __call__(self, episode=None, states=None):
         if states > self.epsilon_states:
             self.epsilon = self.epsilon_final
         else:

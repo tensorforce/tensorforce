@@ -106,7 +106,7 @@ class NormalizedAdvantageFunctions(Model):
         :return:
         """
         action = self.session.run(self.mu, {self.state: [state]})[0] \
-                 + self.exploration.get_noise(episode, self.total_states)
+                 + self.exploration(episode, self.total_states)
         self.total_states +=1
 
         return action

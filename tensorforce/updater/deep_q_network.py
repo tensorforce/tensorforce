@@ -113,7 +113,7 @@ class DeepQNetwork(Model):
         :return:
         """
 
-        epsilon = self.exploration.get_noise(episode, self.total_states)
+        epsilon = self.exploration(episode, self.total_states)
 
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)

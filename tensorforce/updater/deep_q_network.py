@@ -86,14 +86,12 @@ class DeepQNetwork(Model):
         self.target_network_update = []
 
         # output layer
-        output_layer_config = [{
-            "type": "linear",
-            "neurons": self.config.actions
-        }]
+        output_layer_training = [{"type": "linear", "neurons": self.config.actions, "trainable": True}]
+        output_layer_target = [{"type": "linear", "neurons": self.config.actions, "trainable": False}]
 
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
-        self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, scope=scope + 'training')
-        self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, scope=scope + 'target')
+        self.training_model = NeuralNetwork(self.config.network_layers + output_layer_training, self.state, scope=scope + 'training')
+        self.target_model = NeuralNetwork(self.config.network_layers + output_layer_target, self.next_states, scope=scope + 'target')
         self.training_output = self.training_model.get_output()
         self.target_output = self.target_model.get_output()
 

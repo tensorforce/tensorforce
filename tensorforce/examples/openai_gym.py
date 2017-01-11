@@ -39,9 +39,9 @@ def main():
     parser.add_argument('gym_id', help="ID of the gym environment")
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file",
-                        default='tensorfoce/examples/configs/dqn_agent.json')
+                        default='tensorforce/examples/configs/dqn_agent.json')
     parser.add_argument('-n', '--network-config', help="Network configuration file",
-                        default='tensorfoce/examples/configs/dqn_network.json')
+                        default='tensorforce/examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this directory")

@@ -21,9 +21,8 @@ import numpy as np
 from tensorforce.util.experiment_util import global_seed
 
 
-class Exploration():
+class Exploration(object):
     def __init__(self, deterministic_mode=False):
-
         if deterministic_mode:
             self.random = global_seed()
         else:
@@ -35,7 +34,7 @@ class Exploration():
 
 class OrnsteinUhlenbeckProcess(Exploration):
     def __init__(self, deterministic_mode, action_count=1, sigma=0.3, mu=0, theta=0.15):
-        Exploration.__init__(self, deterministic_mode)
+        super(OrnsteinUhlenbeckProcess, self).__init__(deterministic_mode)
         self.action_count = action_count
         self.mu = mu
         self.theta = theta
@@ -58,23 +57,24 @@ class OrnsteinUhlenbeckProcess(Exploration):
 
 class LinearDecay(Exploration):
     def __init__(self, deterministic_mode):
-        Exploration.__init__(self, deterministic_mode)
+        super(LinearDecay, self).__init__(deterministic_mode)
 
     def get_noise(self, episode=0, states=0):
         return self.random.random_sample(1) / (episode + 1)
 
 
-class ZeroExploration(Exploration):
-    def __init__(self, deterministic_mode):
-        Exploration.__init__(self, deterministic_mode)
+class ConstantExploration(Exploration):
+    def __init__(self, deterministic_mode, constant=0.):
+        super(ConstantExploration, self).__init__(deterministic_mode)
+        self.constant = constant
 
     def get_noise(self, episode=None, states=None):
-        return 0
+        return self.constant
 
 
 class EpsilonDecay(Exploration):
     def __init__(self, deterministic_mode, epsilon=0.1, epsilon_final=0.1, epsilon_states=10000):
-        Exploration.__init__(self, deterministic_mode)
+        super(EpsilonDecay, self).__init__(deterministic_mode)
         self.epsilon_final = epsilon_final
         self.epsilon = epsilon
         self.epsilon_states = epsilon_states
@@ -89,7 +89,7 @@ class EpsilonDecay(Exploration):
 
 
 exploration_mode = {
-    'None': ZeroExploration,
+    'constant': ConstantExploration,
     'linear_decay': LinearDecay,
     'epsilon_decay': EpsilonDecay,
     'ornstein_uhlenbeck': OrnsteinUhlenbeckProcess

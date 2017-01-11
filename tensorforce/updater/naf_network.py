@@ -40,7 +40,7 @@ from tensorforce.updater import Model
 
 class NormalizedAdvantageFunctions(Model):
     default_config = {
-        'tau': 0.9,
+        'tau': 0.001,
         'epsilon': 0.1,
         'gamma': 0.95,
         'alpha': 0.005,
@@ -72,7 +72,7 @@ class NormalizedAdvantageFunctions(Model):
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
                                           name="next_states")
-        
+
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
@@ -137,18 +137,21 @@ class NormalizedAdvantageFunctions(Model):
         with tf.name_scope(scope):
             # State-value function
             v = dense(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
-                                          'regularization_param': self.config.regularization_param}, scope + 'v')
+                                          'regularization_param': self.config.regularization_param,
+                                          'activation': tf.nn.tanh}, scope + 'v')
 
             # Action outputs
             mu = dense(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
-                                           'regularization_param': self.config.regularization_param}, scope + 'mu')
+                                           'regularization_param': self.config.regularization_param,
+                                           'activation': tf.nn.tanh}, scope + 'mu')
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
             lower_triangular_size = int(self.action_count * (self.action_count + 1) / 2)
             l_entries = dense(last_hidden_layer, {'neurons': lower_triangular_size,
                                                   'regularization': self.config.regularizer,
-                                                  'regularization_param': self.config.regularization_param},
+                                                  'regularization_param': self.config.regularization_param,
+                                                  'activation': tf.nn.tanh},
                               scope + 'l')
 
             # Iteratively construct matrix. Extra verbose comment here
@@ -222,7 +225,6 @@ class NormalizedAdvantageFunctions(Model):
         """
 
         return self.session.run(self.target_v, {self.next_states: next_states})
-
 
     def update_target_network(self):
         """

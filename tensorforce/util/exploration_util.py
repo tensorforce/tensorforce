@@ -16,9 +16,32 @@
 """
 Implements and registers exploration strategies.
 """
+import numpy as np
+
+from tensorforce.util.experiment_util import global_seed
 
 
-# TODO implement ornstein-uhlenbeck process
+class OrnsteinUhlenbeckProcess(object):
+
+  def __init__(self, action_count, sigma=0.3, mu=0, theta=0.15, deterministic_mode=False):
+    self.action_count = action_count
+    self.mu = mu
+    self.theta = theta
+    self.sigma = sigma
+
+    if deterministic_mode:
+        self.random = global_seed()
+    else:
+        self.random = np.random.RandomState()
+
+    self.state = np.ones(action_count) * self.mu
+
+  def get_noise(self):
+    x = self.state
+    dx = self.theta * (self.mu - x) + self.sigma * self.random.randn(len(x), 1)
+    self.state = x + dx
+
+    return self.state
 
 def linear_decay(random, episode):
     return random.random_sample(1) / (episode + 1)

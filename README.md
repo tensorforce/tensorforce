@@ -38,6 +38,14 @@ tensorforce currently integrates with the OpenAI Gym API, OpenAI Universe and De
 
 ## Installation
 
+For the most straight-forward install via pip, execute:
+
+```
+git clone https://github.com/tensorforce/tensorforce
+cd tensorforce
+pip install -e .
+```
+
 ## Examples and documentation
 
 For a quick start, you can run one of our example scripts using the provided configurations, e.g. to 

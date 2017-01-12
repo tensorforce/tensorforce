@@ -88,7 +88,7 @@ def main():
     if args.load:
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):
-            raise IOError("Could not load model from {}: No such directory.".format(load_dir))
+            raise OSError("Could not load model from {}: No such directory.".format(load_dir))
         agent.load_model(args.load)
 
     if args.debug:
@@ -104,7 +104,7 @@ def main():
             try:
                 os.mkdir(save_dir, 0o755)
             except OSError:
-                raise IOError("Cannot save model to dir {} ()".format(save_dir))
+                raise OSError("Cannot save model to dir {} ()".format(save_dir))
         runner.save_model(args.save, args.save_episodes)
 
     report_episodes = args.episodes // 10

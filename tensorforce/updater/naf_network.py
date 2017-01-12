@@ -58,7 +58,6 @@ class NAFNetwork(Model):
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon
         self.gamma = self.config.gamma
-        self.alpha = self.config.alpha
         self.batch_size = self.config.batch_size
 
         if self.config.deterministic_mode:
@@ -80,7 +79,6 @@ class NAFNetwork(Model):
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
         self.training_model = NeuralNetwork(self.config.network_layers, self.state, scope=scope + 'training')
         self.target_model = NeuralNetwork(self.config.network_layers, self.next_states, scope=scope + 'target')
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
 
         # Create output fields
         self.training_v, self.mu, self.advantage, self.q, self.training_output_vars = self.create_outputs(

@@ -28,6 +28,7 @@ from __future__ import division
 import tensorflow as tf
 
 from tensorforce.config import create_config
+from tensorforce.util.config_util import get_function
 from tensorforce.util.exploration_util import exploration_mode
 
 class Model(object):
@@ -48,6 +49,16 @@ class Model(object):
         self.batch_shape = [None]
 
         self.deterministic_mode = config.get('deterministic_mode', False)
+
+        self.alpha = config.get('alpha', 0.001)
+
+        optimizer = config.get('optimizer')
+        if not optimizer:
+            self.optimizer = tf.train.AdamOptimizer(self.alpha)
+        else:
+            kwargs = config.get('optimizer_param', {})
+            optimizer_cls = get_function(optimizer)
+            self.optimizer = optimizer_cls(self.alpha, **kwargs)
 
         exploration = config.get('exploration')
         if not exploration:

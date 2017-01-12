@@ -39,7 +39,6 @@ class VPGUpdater(PGModel):
         super(VPGUpdater, self).__init__(config)
         self.action_count = self.config.actions
         self.gamma = self.config.gamma
-        self.alpha = self.config.alpha
         self.batch_size = self.config.batch_size
         self.gae_lambda = self.config.gae_lambda
 
@@ -63,7 +62,6 @@ class VPGUpdater(PGModel):
         self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state,
                                            scope=scope + 'value_function')
 
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.saver = tf.train.Saver()
         self.create_outputs()
         self.baseline_value_function = LinearValueFunction()

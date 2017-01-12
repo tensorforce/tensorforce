@@ -60,7 +60,6 @@ class DeepQNetwork(Model):
         self.epsilon_final = self.config.epsilon_final
         self.epsilon_states = self.config.epsilon_states
         self.gamma = self.config.gamma
-        self.alpha = self.config.alpha
         self.batch_size = self.config.batch_size
 
         self.double_dqn = self.config.double_dqn
@@ -93,7 +92,6 @@ class DeepQNetwork(Model):
         self.target_output = self.target_model.get_output()
 
         # Create training operations
-        self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
         self.create_training_operations()
         self.saver = tf.train.Saver()
         writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())

@@ -2,9 +2,9 @@
   "alpha": 0.0001,
   "use_target_network": true,
   "target_network_update_rate": 1,
-  "memory_capacity": 1000,
+  "memory_capacity": 50000,
   "batch_size": 100,
-  "update_rate": 0.25,
+  "update_rate": 1,
   "min_replay_size": 1000,
   "exploration_mode": "ornstein_uhlenbeck",
   "exploration_param": {

@@ -38,7 +38,7 @@ from tensorforce.util.exploration_util import exploration_mode
 from tensorforce.updater import Model
 
 
-class NormalizedAdvantageFunctions(Model):
+class NAFNetwork(Model):
     default_config = {
         'tau': 0.001,
         'epsilon': 0.1,
@@ -53,8 +53,7 @@ class NormalizedAdvantageFunctions(Model):
 
         :param config: Configuration parameters
         """
-        super(NormalizedAdvantageFunctions, self).__init__(config)
-        self.config = create_config(config, default=self.default_config)
+        super(NAFNetwork, self).__init__(config)
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon
@@ -66,10 +65,6 @@ class NormalizedAdvantageFunctions(Model):
             self.random = global_seed()
         else:
             self.random = np.random.RandomState()
-
-        exploration_fn = exploration_mode[config.get('exploration')]
-        exploration_param = config.get('exploration_param', {})
-        self.exploration = exploration_fn(self.config.deterministic_mode, **exploration_param)
 
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),

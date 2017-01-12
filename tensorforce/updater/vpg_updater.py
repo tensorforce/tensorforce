@@ -37,7 +37,6 @@ class VPGUpdater(PGModel):
 
     def __init__(self, config):
         super(VPGUpdater, self).__init__(config)
-        self.config = create_config(config, default=self.default_config)
         self.action_count = self.config.actions
         self.gamma = self.config.gamma
         self.alpha = self.config.alpha

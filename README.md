@@ -1,24 +1,24 @@
-# *tensorforce - modular deep reinforcement learning on tensorflow by reinforce.io*
+# *TensorForce - modular deep reinforcement learning on tensorflow by reinforce.io*
 
 ## Introduction
 
-tensorforce is an open source reinforcement library focused on providing clear APIs, readability and modularisation to deploy 
+TensorForce is an open source reinforcement library focused on providing clear APIs, readability and modularisation to deploy 
 reinforcement learning solutions both in research and practice. The main difference to existing libraries
 such as rllab is a strict separation of environments, agents and update logic that facilitates usage in non-simulation
 environments (see our architecture overview page for details). Further, research code often relies on fixed
-network architectures that have been used to tackle particular benchmarks. tensorforce is built with the idea
+network architectures that have been used to tackle particular benchmarks. TensorForce is built with the idea
 that (almost) everything should be optionally configurable and in particular uses value function template configurations
-to be able to quickly experiment with new models. The goal of tensorforce is to provide a reinforcement
+to be able to quickly experiment with new models. The goal of TensorForce is to provide a practitioner's reinforcement
 learning framework that smoothly integrates into modern software service architectures.
 
-tensorforce is actively being maintained and developed both to continuously improve the existing code as well as to
+TensorForce is actively being maintained and developed both to continuously improve the existing code as well as to
 reflect new developments as they arise (see roadmap for more). The aim is not to include every new trick as quickly as possible but to
 adopt methods as they prove themselves stable, e.g. as of early 2017 A3C and TRPO variants are the basis of a lot
 of research. We also offer tensorforce support through our gitter channel.
 
 ## Acknowledgements
 
-The goal of tensorforce is not to re-implement existing algorithms, but to provide clear APIs and modularisations,
+The goal of TensorForce is not to re-implement existing algorithms, but to provide clear APIs and modularisations,
 and later provide serving, integration and deployment components. The credit for original open source implementations, which we have adopted and modified into our architecture, 
 fully belongs to the original authors, which have all made their code available under MIT licenses.
 

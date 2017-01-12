@@ -27,9 +27,12 @@ from __future__ import division
 
 import tensorflow as tf
 
+from tensorforce.config import create_config
 from tensorforce.util.exploration_util import exploration_mode
 
 class Model(object):
+    default_config = None
+
     def __init__(self, config):
         """
 
@@ -40,6 +43,7 @@ class Model(object):
         self.session = tf.Session()
         self.total_states = 0
         self.saver = None
+        self.config = create_config(config, default=self.default_config)
 
         self.batch_shape = [None]
 
@@ -47,10 +51,10 @@ class Model(object):
 
         exploration = config.get('exploration')
         if not exploration:
-            self.exploration = exploration_mode['constant'](self.deterministic_mode, 0)
+            self.exploration = exploration_mode['constant'](self, 0)
         else:
             kwargs = config.get('exploration_param', {})
-            self.exploration = exploration_mode[exploration](self.deterministic_mode, **kwargs)
+            self.exploration = exploration_mode[exploration](self, **kwargs)
 
     def get_action(self, state):
         raise NotImplementedError

@@ -21,7 +21,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.rl_agents import MemoryAgent
-from tensorforce.updater import NormalizedAdvantageFunctions
+from tensorforce.updater import NAFNetwork
 
 
 class NAFAgent(MemoryAgent):
@@ -34,4 +34,4 @@ class NAFAgent(MemoryAgent):
         'deterministic_mode': False
     }
 
-    value_function_ref = NormalizedAdvantageFunctions
+    value_function_ref = NAFNetwork

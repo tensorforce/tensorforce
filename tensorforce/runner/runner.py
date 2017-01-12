@@ -41,7 +41,6 @@ class Runner(object):
         self.save_model_episodes = num_episodes
 
     def run(self, episodes, max_timesteps, episode_finished=None):
-        self.total_states = 0      # count all states
         self.episode_rewards = []  # save all episode rewards for statistics
 
         for self.episode in xrange(episodes):
@@ -54,14 +53,13 @@ class Runner(object):
                 else:
                     processed_state = state
 
-                action = self.agent.get_action(processed_state, self.episode, self.total_states)
+                action = self.agent.get_action(processed_state, self.episode)
                 result = repeat_action(self.environment, action, self.repeat_actions)
 
                 episode_reward += result['reward']
                 self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])
 
                 state = result['state']
-                self.total_states += 1
 
                 if result['terminal_state']:
                     break

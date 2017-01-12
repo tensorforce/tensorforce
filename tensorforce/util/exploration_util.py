@@ -22,8 +22,13 @@ from tensorforce.util.experiment_util import global_seed
 
 
 class Exploration(object):
-    def __init__(self, deterministic_mode=False):
-        if deterministic_mode:
+    """
+    Generic exploration object. Holds a reference to a model to request
+    shapes of action dimensions and deterministic mode.
+    """
+    def __init__(self, model=None):
+        self.model = model
+        if self.model.config.deterministic_mode:
             self.random = global_seed()
         else:
             self.random = np.random.RandomState()
@@ -33,19 +38,14 @@ class Exploration(object):
 
 
 class OrnsteinUhlenbeckProcess(Exploration):
-    def __init__(self, deterministic_mode, action_count=1, sigma=0.3, mu=0, theta=0.15):
-        super(OrnsteinUhlenbeckProcess, self).__init__(deterministic_mode)
-        self.action_count = action_count
+    def __init__(self, model, sigma=0.3, mu=0, theta=0.15):
+        super(OrnsteinUhlenbeckProcess, self).__init__(model)
+        self.action_count = self.model.action_count
         self.mu = mu
         self.theta = theta
         self.sigma = sigma
 
-        if deterministic_mode:
-            self.random = global_seed()
-        else:
-            self.random = np.random.RandomState()
-
-        self.state = np.ones(action_count) * self.mu
+        self.state = np.ones(self.action_count) * self.mu
 
     def __call__(self, episode=0, states=0):
         state = self.state
@@ -56,16 +56,23 @@ class OrnsteinUhlenbeckProcess(Exploration):
 
 
 class LinearDecay(Exploration):
-    def __init__(self, deterministic_mode):
-        super(LinearDecay, self).__init__(deterministic_mode)
+    """
+    Linear decay based on episode number.
+    """
+    def __init__(self, model):
+        super(LinearDecay, self).__init__(model)
 
     def __call__(self, episode=0, states=0):
         return self.random.random_sample(1) / (episode + 1)
 
 
 class ConstantExploration(Exploration):
-    def __init__(self, deterministic_mode, constant=0.):
-        super(ConstantExploration, self).__init__(deterministic_mode)
+    """
+    Constant exploration value, set to 0 if no configuration parameter is
+    set.
+    """
+    def __init__(self, model, constant=0.):
+        super(ConstantExploration, self).__init__(model)
         self.constant = constant
 
     def __call__(self, episode=None, states=None):
@@ -73,8 +80,12 @@ class ConstantExploration(Exploration):
 
 
 class EpsilonDecay(Exploration):
-    def __init__(self, deterministic_mode, epsilon=0.1, epsilon_final=0.1, epsilon_states=10000):
-        super(EpsilonDecay, self).__init__(deterministic_mode)
+    """
+    Linearly decaying epsilon parameter based on number of states,
+    an initial random epsilon and a final random epsilon.
+    """
+    def __init__(self, model, epsilon=0.1, epsilon_final=0.1, epsilon_states=10000):
+        super(EpsilonDecay, self).__init__(model)
         self.epsilon_final = epsilon_final
         self.epsilon = epsilon
         self.epsilon_states = epsilon_states

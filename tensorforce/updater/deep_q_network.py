@@ -54,7 +54,6 @@ class DeepQNetwork(Model):
         """
         super(DeepQNetwork, self).__init__(config)
 
-        self.config = create_config(config, default=self.default_config)
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon
@@ -74,10 +73,6 @@ class DeepQNetwork(Model):
             self.random = global_seed()
         else:
             self.random = np.random.RandomState()
-
-        exploration_fn = exploration_mode[config.get('exploration', 'zero')]
-        exploration_param = config.get('exploration_param', {})
-        self.exploration = exploration_fn(self.config.deterministic_mode, **exploration_param)
 
         # Input placeholders
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")

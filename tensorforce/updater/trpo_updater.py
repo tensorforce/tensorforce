@@ -47,8 +47,6 @@ class TRPOUpdater(PGModel):
 
     def __init__(self, config):
         super(TRPOUpdater, self).__init__(config)
-
-        self.config = create_config(config, default=self.default_config)
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
         self.cg_damping = self.config.cg_damping

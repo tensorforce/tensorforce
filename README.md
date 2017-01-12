@@ -31,7 +31,7 @@ tutorials.
 
 tensorforce currently integrates with the OpenAI Gym API, OpenAI Universe and DeepMind lab. The following algorithms are available:
 1. A3C
-2. TRPO with generalised advantage estimation (GAE)
+2. Trust Region Policy Optimization (TRPO) with generalised advantage estimation (GAE)
 3. Normalised Advantage functions
 4. DQN/Double-DQN
 5. Vanilla Policy Gradients (also using with GAE)

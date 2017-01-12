@@ -1,5 +1,5 @@
 {
-  "alpha": 0.0001,
+  "alpha": 0.00025,
   "use_target_network": true,
   "target_network_update_rate": 1,
   "memory_capacity": 50000,

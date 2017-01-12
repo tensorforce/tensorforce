@@ -55,8 +55,8 @@ def dense(input, config, scope):
         'weights_regularizer': get_function(config.get('regularization'),
                                             config.get('regularization_param'),
                                             None),
-        'normalizer_fn': get_function(config.get('batch_norm'),
-                                            config.get('batch_norm_param'),
+        'normalizer_fn': get_function(config.get('normalizer'),
+                                            config.get('normalizer_param'),
                                             None)
     }
     # Flatten

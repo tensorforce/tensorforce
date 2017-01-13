@@ -20,10 +20,11 @@ Default implementation for using a replay memory.
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
-
+from six.moves import xrange
 from tensorforce.config import create_config
 from tensorforce.replay_memories import ReplayMemory
 from tensorforce.rl_agents import RLAgent
+
 
 class MemoryAgent(RLAgent):
     name = 'MemoryAgent'
@@ -34,7 +35,8 @@ class MemoryAgent(RLAgent):
         'target_network_update_rate': 0.0001,
         'min_replay_size': 5e4,
         'deterministic_mode': False,
-        'use_target_network': False
+        'use_target_network': False,
+        'update_repeat': 1
     }
 
     value_function_ref = None
@@ -54,6 +56,7 @@ class MemoryAgent(RLAgent):
 
         self.memory = ReplayMemory(**config)
         self.step_count = 0
+        self.update_repeat = self.config.update_repeat
         self.batch_size = self.config.batch_size
         self.update_steps = int(round(1 / self.config.update_rate))
         self.use_target_network = self.config.use_target_network
@@ -91,8 +94,9 @@ class MemoryAgent(RLAgent):
         self.step_count += 1
 
         if self.step_count >= self.min_replay_size and self.step_count % self.update_steps == 0:
-            batch = self.memory.sample_batch(self.batch_size)
-            self.value_function.update(batch)
+            for i in xrange(self.update_repeat):
+                batch = self.memory.sample_batch(self.batch_size)
+                self.value_function.update(batch)
 
         if self.step_count >= self.min_replay_size and self.use_target_network \
                 and self.step_count % self.target_update_steps == 0:

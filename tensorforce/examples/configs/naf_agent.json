@@ -1,14 +1,17 @@
 {
-  "alpha": 0.00025,
+  "alpha": 0.001,
   "use_target_network": true,
   "target_network_update_rate": 1,
+  "tau": 0.001,
+  "gamma": 0.99,
   "memory_capacity": 50000,
   "batch_size": 100,
   "update_rate": 1,
+  "update_repeat" : 10,
   "min_replay_size": 1000,
   "exploration_mode": "ornstein_uhlenbeck",
   "exploration_param": {
-    "sigma": 0.3,
+    "sigma": 0.2,
     "mu": 0,
     "theta": 0.15
   }

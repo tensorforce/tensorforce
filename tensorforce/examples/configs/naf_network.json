@@ -25,7 +25,7 @@
       "activation_param": null,
       "regularization": "tensorflow.python.ops.nn.l2_loss",
       "regularization_param": 0.001,
-      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm"
+      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm",
       "normalizer_param": null
     }
   ]

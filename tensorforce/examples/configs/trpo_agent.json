@@ -1,7 +1,7 @@
 {
   "batch_size": 2000,
   "gae_lambda": 0.97,
-  "max_kl_divergence": 0.01,
+  "max_kl_divergence": 0.05,
   "gamma": 0.99,
-  "continuous": true
+  "continuous": false
 }

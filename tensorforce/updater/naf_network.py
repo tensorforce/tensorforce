@@ -30,11 +30,9 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.contrib.framework import get_variables
 
-from tensorforce.config import create_config
-from tensorforce.neural_networks.layers import dense, linear
+from tensorforce.neural_networks.layers import linear
 from tensorforce.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
-from tensorforce.util.exploration_util import exploration_mode
 from tensorforce.updater import Model
 
 
@@ -99,8 +97,7 @@ class NAFNetwork(Model):
         :param total_states: Total states processed
         :return:
         """
-        action = self.session.run(self.mu, {self.state: [state]})[0] \
-                 + self.exploration(episode, self.total_states)
+        action = self.session.run(self.mu, {self.state: [state]})[0] + self.exploration(episode, self.total_states)
         self.total_states += 1
 
         return action
@@ -135,7 +132,7 @@ class NAFNetwork(Model):
         with tf.name_scope(scope):
             # State-value function
             v = linear(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
-                                          'regularization_param': self.config.regularization_param}, scope + 'v')
+                                           'regularization_param': self.config.regularization_param}, scope + 'v')
 
             # Action outputs
             mu = linear(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
@@ -197,7 +194,7 @@ class NAFNetwork(Model):
         with tf.name_scope("update"):
             # MSE
             self.loss = tf.reduce_mean(tf.squared_difference(self.q_targets, tf.squeeze(self.q)),
-                                       name='compute_surrogate_loss')
+                                       name='loss')
             self.optimize_op = self.optimizer.minimize(self.loss)
 
         with tf.name_scope("update_target"):

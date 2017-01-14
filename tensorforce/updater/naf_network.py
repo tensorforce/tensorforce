@@ -72,6 +72,7 @@ class NAFNetwork(Model):
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
+        self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
         self.target_network_update = []
         self.episode = 0
 
@@ -180,8 +181,9 @@ class NAFNetwork(Model):
             action_diff = tf.expand_dims(self.actions - mu, -1)
 
             # A = -0.5 (a - mu)P(a - mu)
-            advantage = -0.5 * -tf.batch_matmul(tf.transpose(action_diff, [0, 2, 1]),
+            advantage = -0.5 * tf.batch_matmul(tf.transpose(action_diff, [0, 2, 1]),
                                                 tf.batch_matmul(p_matrix, action_diff))
+            advantage = tf.reshape(advantage, [-1, 1])
 
             with tf.name_scope('q_values'):
                 # Q = A + V
@@ -196,8 +198,6 @@ class NAFNetwork(Model):
         """
 
         with tf.name_scope("update"):
-            self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
-
             # MSE
             self.loss = tf.reduce_mean(tf.squared_difference(self.q_targets, tf.squeeze(self.q)),
                                        name='compute_surrogate_loss')

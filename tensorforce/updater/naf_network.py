@@ -18,7 +18,7 @@ Implements normalized advantage functions, largely following
 
 https://github.com/carpedm20/NAF-tensorflow/blob/master/src/network.py
 
-for the update logic.
+for the update logic with different modularisation.
 """
 
 from __future__ import absolute_import
@@ -31,7 +31,7 @@ import numpy as np
 from tensorflow.contrib.framework import get_variables
 
 from tensorforce.config import create_config
-from tensorforce.neural_networks.layers import dense
+from tensorforce.neural_networks.layers import dense, linear
 from tensorforce.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.exploration_util import exploration_mode
@@ -101,7 +101,7 @@ class NAFNetwork(Model):
         """
         action = self.session.run(self.mu, {self.state: [state]})[0] \
                  + self.exploration(episode, self.total_states)
-        self.total_states +=1
+        self.total_states += 1
 
         return action
 
@@ -134,23 +134,20 @@ class NAFNetwork(Model):
 
         with tf.name_scope(scope):
             # State-value function
-            v = dense(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
-                                          'regularization_param': self.config.regularization_param,
-                                          'activation': tf.nn.tanh}, scope + 'v')
+            v = linear(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
+                                          'regularization_param': self.config.regularization_param}, scope + 'v')
 
             # Action outputs
-            mu = dense(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
-                                           'regularization_param': self.config.regularization_param,
-                                           'activation': tf.nn.tanh}, scope + 'mu')
+            mu = linear(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
+                                            'regularization_param': self.config.regularization_param}, scope + 'mu')
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
             lower_triangular_size = int(self.action_count * (self.action_count + 1) / 2)
-            l_entries = dense(last_hidden_layer, {'neurons': lower_triangular_size,
-                                                  'regularization': self.config.regularizer,
-                                                  'regularization_param': self.config.regularization_param,
-                                                  'activation': tf.nn.tanh},
-                              scope + 'l')
+            l_entries = linear(last_hidden_layer, {'neurons': lower_triangular_size,
+                                                   'regularization': self.config.regularizer,
+                                                   'regularization_param': self.config.regularization_param},
+                               scope + 'l')
 
             # Iteratively construct matrix. Extra verbose comment here
             l_rows = []
@@ -182,7 +179,7 @@ class NAFNetwork(Model):
 
             # A = -0.5 (a - mu)P(a - mu)
             advantage = -0.5 * tf.batch_matmul(tf.transpose(action_diff, [0, 2, 1]),
-                                                tf.batch_matmul(p_matrix, action_diff))
+                                               tf.batch_matmul(p_matrix, action_diff))
             advantage = tf.reshape(advantage, [-1, 1])
 
             with tf.name_scope('q_values'):

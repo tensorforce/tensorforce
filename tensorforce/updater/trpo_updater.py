@@ -42,7 +42,8 @@ class TRPOUpdater(PGModel):
         'cg_iterations': 15,
         'max_kl_divergence': 0.01,
         'gamma': 0.99,
-        'gae_lambda': 0.97  # GAE-lambda
+        'gae_lambda': 0.97 , # GAE-lambda
+        'line_search_steps' : 10
     }
 
     def __init__(self, config):
@@ -50,6 +51,7 @@ class TRPOUpdater(PGModel):
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
         self.cg_damping = self.config.cg_damping
+        self.line_search_steps = self.config.line_search_steps
         self.max_kl_divergence = self.config.max_kl_divergence
         self.gae_lambda = self.config.gae_lambda
         self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
@@ -195,7 +197,7 @@ class TRPOUpdater(PGModel):
         # Improve update step through simple backtracking line search
         # N.b. some implementations skip the line search
         improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
-                            negative_gradient_direction / lagrange_multiplier, 20)
+                            negative_gradient_direction / lagrange_multiplier, self.line_search_steps)
 
         # Use line search results, otherwise take full step
         if improved:

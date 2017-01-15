@@ -187,7 +187,13 @@ class TRPOUpdater(PGModel):
         # Search direction has now been approximated as cg-solution s= A^-1g where A is
         # Fisher matrix, which is a local approximation of the
         # KL divergence constraint
-        shs = (0.5 * search_direction.dot(self.compute_fvp(search_direction)))
+
+        def compute_fvp(p):
+            self.input_feed[self.flat_tangent] = p
+
+            return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping
+
+        shs = (0.5 * search_direction.dot(compute_fvp(search_direction)))
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
         update_step = search_direction / lagrange_multiplier
         negative_gradient_direction = -gradient.dot(search_direction)

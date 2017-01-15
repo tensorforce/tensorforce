@@ -110,19 +110,18 @@ class TRPOUpdater(PGModel):
 
             surrogate_loss = -tf.reduce_mean(prob_ratio * self.advantage)
             variables = tf.trainable_variables()
+            batch_float = tf.cast(self.batch_size, tf.float32)
 
             mean_kl_divergence = get_kl_divergence_gaussian(self.prev_action_means, self.prev_action_log_stds,
-                                                            self.action_means, self.action_log_stds) / float(
-                self.batch_size)
-            mean_entropy = get_entropy_gaussian(self.action_log_stds) / float(self.batch_size)
+                                                            self.action_means, self.action_log_stds) / batch_float
+            mean_entropy = get_entropy_gaussian(self.action_log_stds) / batch_float
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
 
             # Get symbolic gradient expressions
             self.policy_gradient = get_flattened_gradient(self.losses, variables)
-
             fixed_kl_divergence = get_fixed_kl_divergence_gaussian(self.action_means, self.action_log_stds) \
-                                  / float(self.batch_size)
+                                  / batch_float
 
             variable_shapes = map(get_shape, variables)
             offset = 0
@@ -187,13 +186,7 @@ class TRPOUpdater(PGModel):
         # Search direction has now been approximated as cg-solution s= A^-1g where A is
         # Fisher matrix, which is a local approximation of the
         # KL divergence constraint
-
-        def compute_fvp(p):
-            self.input_feed[self.flat_tangent] = p
-
-            return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping
-
-        shs = (0.5 * search_direction.dot(compute_fvp(search_direction)))
+        shs = (0.5 * search_direction.dot(self.compute_fvp(search_direction)))
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
         update_step = search_direction / lagrange_multiplier
         negative_gradient_direction = -gradient.dot(search_direction)

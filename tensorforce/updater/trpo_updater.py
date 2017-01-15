@@ -203,9 +203,9 @@ class TRPOUpdater(PGModel):
         if improved:
             print('Updating with line search result..')
             self.flat_variable_helper.set(theta)
-        else:
-            print('Updating with full step..')
-            self.flat_variable_helper.set(previous_theta + update_step)
+        #else:
+        #    print('Updating with full step..')
+        #    self.flat_variable_helper.set(previous_theta + update_step)
 
         # Compute full update based on line search result
         surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)

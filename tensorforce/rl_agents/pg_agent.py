@@ -62,11 +62,11 @@ class PGAgent(RLAgent):
         # Cache last action in case action is used multiple times in environment
         self.last_action_means = outputs['action_means']
         self.last_action_log_stds = outputs['action_log_stds']
-
-        if not self.continuous:
-            action = np.argmax(action)
-
         self.last_action = action
+
+        #if not self.continuous:
+        #    action = np.argmax(action)
+
         return action
 
     def add_observation(self, state, action, reward, terminal):

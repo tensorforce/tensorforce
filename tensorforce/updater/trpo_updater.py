@@ -169,7 +169,7 @@ class TRPOUpdater(PGModel):
 
         # Merge episode inputs into single arrays
         action_log_stds, action_means, actions, batch_advantage, states = self.merge_episodes(batch)
-
+        print(batch_advantage)
         self.input_feed = {self.state: states,
                            self.actions: actions,
                            self.advantage: batch_advantage,
@@ -178,9 +178,6 @@ class TRPOUpdater(PGModel):
 
         previous_theta = self.flat_variable_helper.get()
         gradient = self.session.run(self.policy_gradient, self.input_feed)
-        zero = np.zeros_like(gradient)
-        if np.allclose(gradient, zero):
-            print('Policy gradient 0')
 
         # The details of the approximations used here to solve the constrained
         # optimisation can be found in Appendix C of the TRPO paper

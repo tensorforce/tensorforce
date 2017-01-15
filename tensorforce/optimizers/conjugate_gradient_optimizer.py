@@ -49,7 +49,7 @@ class ConjugateGradientOptimizer(object):
         x = np.zeros_like(b)
         residual_dot_residual = residual.dot(residual)
 
-        for _ in xrange(self.iterations):
+        for i in xrange(self.iterations):
             z = f_Ax(cg_vector_p)
             v = residual_dot_residual / cg_vector_p.dot(z)
             x += v * cg_vector_p
@@ -62,7 +62,7 @@ class ConjugateGradientOptimizer(object):
             residual_dot_residual = new_residual_dot_residual
 
             if residual_dot_residual < self.stop_residual:
-                # TODO logging
+                print('Approximate cg solution found after ' + str(i) + ' iterations')
                 break
 
         return x

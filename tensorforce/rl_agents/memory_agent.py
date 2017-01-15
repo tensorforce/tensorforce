@@ -94,7 +94,7 @@ class MemoryAgent(RLAgent):
         self.step_count += 1
 
         if self.step_count >= self.min_replay_size and self.step_count % self.update_steps == 0:
-            for i in xrange(self.update_repeat):
+            for _ in xrange(self.update_repeat):
                 batch = self.memory.sample_batch(self.batch_size)
                 self.value_function.update(batch)
 

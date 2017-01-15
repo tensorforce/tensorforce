@@ -38,8 +38,8 @@ import tensorflow as tf
 
 class TRPOUpdater(PGModel):
     default_config = {
-        'cg_damping': 0.001,
-        'cg_iterations': 10,
+        'cg_damping': 0.01,
+        'cg_iterations': 15,
         'max_kl_divergence': 0.01,
         'gamma': 0.99,
         'gae_lambda': 0.97  # GAE-lambda

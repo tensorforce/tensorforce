@@ -57,6 +57,7 @@ class ConjugateGradientOptimizer(object):
             new_residual_dot_residual = residual.dot(residual)
             alpha = new_residual_dot_residual / residual_dot_residual
 
+            # Construct new search direction
             cg_vector_p = residual + alpha * cg_vector_p
             residual_dot_residual = new_residual_dot_residual
 
@@ -64,5 +65,4 @@ class ConjugateGradientOptimizer(object):
                 print('Approximate cg solution found after ' + str(i) + ' iterations')
                 break
 
-        print('CG did not reach stop residual within given iterations')
         return x

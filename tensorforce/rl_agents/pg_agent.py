@@ -105,7 +105,7 @@ class PGAgent(RLAgent):
                 self.current_batch.append(path)
 
             print('Computing TRPO update..')
-            self.updater.update(deepcopy(self.current_batch))
+            self.updater.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []
             self.batch_steps = 0

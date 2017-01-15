@@ -1,9 +1,9 @@
 {
-  "batch_size": 2000,
+  "batch_size": 10000,
   "gae_lambda": 1,
   "cg_iterations" : 20,
   "cg_camping" : 0.01,
-  "max_kl_divergence": 0.05,
+  "max_kl_divergence": 0.025,
   "gamma": 0.99,
   "continuous": true
 }

@@ -194,11 +194,18 @@ class TRPOUpdater(PGModel):
 
         # Improve update step through simple backtracking line search
         # N.b. some implementations skip the line search
-        theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
-                            negative_gradient_direction / lagrange_multiplier)
+        improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
+                            negative_gradient_direction / lagrange_multiplier, 20)
+
+        # Use line search results, otherwise take full step
+        if improved:
+            print('Updating with line search result..')
+            self.flat_variable_helper.set(theta)
+        else:
+            print('Updating with full step..')
+            self.flat_variable_helper.set(previous_theta + update_step)
 
         # Compute full update based on line search result
-        self.flat_variable_helper.set(theta)
         surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
 
         print('Surrogate loss=' + str(surrogate_loss))

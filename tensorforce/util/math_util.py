@@ -178,8 +178,6 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
         improve_ratio = actual_improve / expected_improve
 
         if improve_ratio > accept_ratio and actual_improve > 0:
-            print('Found improved solution through line search')
-            return updated_x
+            return True, updated_x
 
-    print('No line search solution found, returning original step')
-    return initial_x
+    return False, initial_x

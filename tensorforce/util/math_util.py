@@ -49,7 +49,7 @@ def get_log_prob_gaussian(action_dist_mean, log_std, actions):
                   - 0.5 * tf.log(tf.constant(2 * np.pi)) - log_std
 
     # Sum logs
-    return tf.reduce_sum(probability, 1)
+    return tf.reduce_sum(probability, [1])
 
 
 # TODO reorganise into distribution classes

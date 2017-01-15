@@ -169,7 +169,7 @@ class TRPOUpdater(PGModel):
 
         # Merge episode inputs into single arrays
         action_log_stds, action_means, actions, batch_advantage, states = self.merge_episodes(batch)
-        print(batch_advantage)
+
         self.input_feed = {self.state: states,
                            self.actions: actions,
                            self.advantage: batch_advantage,
@@ -200,6 +200,7 @@ class TRPOUpdater(PGModel):
         # Compute full update based on line search result
         self.flat_variable_helper.set(theta)
         surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
+
         print('Surrogate loss=' + str(surrogate_loss))
         print('KL-divergence after update=' + str(kl_divergence))
         print('Entropy=' + str(entropy))

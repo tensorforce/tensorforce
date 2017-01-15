@@ -64,9 +64,6 @@ class PGAgent(RLAgent):
         self.last_action_log_stds = outputs['action_log_stds']
         self.last_action = action
 
-        #if not self.continuous:
-        #    action = np.argmax(action)
-
         return action
 
     def add_observation(self, state, action, reward, terminal):

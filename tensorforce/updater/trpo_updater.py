@@ -161,6 +161,7 @@ class TRPOUpdater(PGModel):
         :return:
         """
         # Set per episode advantage using GAE
+        self.input_feed = None
         self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
 
         # Update linear value function for baseline prediction
@@ -169,60 +170,48 @@ class TRPOUpdater(PGModel):
         # Merge episode inputs into single arrays
         action_log_stds, action_means, actions, batch_advantage, states = self.merge_episodes(batch)
 
-        input_feed = {self.state: states,
-                      self.actions: actions,
-                      self.advantage: batch_advantage,
-                      self.prev_action_means: action_means,
-                      self.prev_action_log_stds: action_log_stds}
+        self.input_feed = {self.state: states,
+                           self.actions: actions,
+                           self.advantage: batch_advantage,
+                           self.prev_action_means: action_means,
+                           self.prev_action_log_stds: action_log_stds}
 
         previous_theta = self.flat_variable_helper.get()
-        gradient = self.session.run(self.policy_gradient, input_feed)
-
-        def compute_fvp(p):
-            input_feed[self.flat_tangent] = p
-
-            return self.session.run(self.fisher_vector_product, input_feed) + p * self.cg_damping
+        gradient = self.session.run(self.policy_gradient, self.input_feed)
 
         # The details of the approximations used here to solve the constrained
         # optimisation can be found in Appendix C of the TRPO paper
         # Note that no subsampling is used, which would improve computational performance
-        search_direction = self.cg_optimizer.solve(compute_fvp, -gradient)
+        search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
 
         # Search direction has now been approximated as cg-solution s= A^-1g where A is
         # Fisher matrix, which is a local approximation of the
         # KL divergence constraint
-        shs = (0.5 * search_direction.dot(compute_fvp(search_direction)))
-
+        shs = (0.5 * search_direction.dot(self.compute_fvp(search_direction)))
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
         update_step = search_direction / lagrange_multiplier
         negative_gradient_direction = -gradient.dot(search_direction)
 
         # Improve update step through simple backtracking line search
         # N.b. some implementations skip the line search
-        def compute_surrogate_loss(theta):
-            self.flat_variable_helper.set(theta)
-
-            # Losses[0] = surrogate_loss
-            return self.session.run(self.losses[0], input_feed)
-
-        theta = line_search(compute_surrogate_loss, previous_theta, update_step,
+        theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
                             negative_gradient_direction / lagrange_multiplier)
 
         # Compute full update based on line search result
         self.flat_variable_helper.set(theta)
-        surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, input_feed)
-
+        surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
         print('Surrogate loss=' + str(surrogate_loss))
         print('KL-divergence after update=' + str(kl_divergence))
         print('Entropy=' + str(entropy))
 
-    #def compute_fvp(self, p):
-#        self.input_feed[self.flat_tangent] = p
+    def compute_fvp(self, p):
+        self.input_feed[self.flat_tangent] = p
 
-#        return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping
+        return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping
 
- #   def compute_surrogate_loss(self, theta):
-  #      self.flat_variable_helper.set(theta)
+    def compute_surrogate_loss(self, theta):
+        self.flat_variable_helper.set(theta)
 
         # Losses[0] = surrogate_loss
- #       return self.session.run(self.losses[0], self.input_feed)
+        return self.session.run(self.losses[0], self.input_feed)
+

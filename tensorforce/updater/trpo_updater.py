@@ -200,7 +200,7 @@ class TRPOUpdater(PGModel):
         # Compute full update based on line search result
         self.flat_variable_helper.set(theta)
         surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
-        print('KL-divergence after update' + str(kl_divergence))
+        print('KL-divergence after update=' + str(kl_divergence))
 
     def compute_fvp(self, p):
         self.input_feed[self.flat_tangent] = p

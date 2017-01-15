@@ -64,5 +64,5 @@ class ConjugateGradientOptimizer(object):
                 print('Approximate cg solution found after ' + str(i) + ' iterations')
                 break
 
-        print('')
+        print('CG did not reach stop residual within given iterations')
         return x

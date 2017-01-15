@@ -8,7 +8,9 @@
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
       "activation": "tensorflow.python.ops.nn.relu",
-      "activation_param": null
+      "activation_param": null,
+      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm",
+      "normalizer_param": null
     },
     {
       "type": "dense",
@@ -18,7 +20,9 @@
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
       "activation": "tensorflow.python.ops.nn.relu",
-      "activation_param": null
+      "activation_param": null,
+      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm",
+      "normalizer_param": null
     }
   ]
 }

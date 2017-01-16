@@ -3,26 +3,28 @@
     {
       "type": "dense",
       "neurons": 64,
-      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weight_init_param": { },
+      "weight_init": "tensorflow.python.ops.init_ops.random_uniform_initializer",
+      "weight_init_param": {
+        "minval": -0.05,
+        "maxval": 0.05
+      },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
       "activation": "tensorflow.python.ops.nn.relu",
-      "activation_param": null,
-      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm",
-      "normalizer_param": null
+      "activation_param": null
     },
     {
       "type": "dense",
       "neurons": 64,
-      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weight_init_param": { },
+      "weight_init": "tensorflow.python.ops.init_ops.random_uniform_initializer",
+      "weight_init_param": {
+        "minval": -0.05,
+        "maxval": 0.05
+      },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
       "activation": "tensorflow.python.ops.nn.relu",
-      "activation_param": null,
-      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm",
-      "normalizer_param": null
+      "activation_param": null
     }
   ]
 }

@@ -32,6 +32,7 @@ from tensorforce.util.math_util import discount, zero_mean_unit_variance
 class VPGUpdater(PGModel):
     default_config = {
         'gamma': 0.99,
+        'use_gae' : False,
         'gae_lambda': 0.97  # GAE-lambda
     }
 
@@ -41,7 +42,7 @@ class VPGUpdater(PGModel):
         self.gamma = self.config.gamma
         self.batch_size = self.config.batch_size
         self.gae_lambda = self.config.gae_lambda
-
+        self.use_gae = self.config.use_gae
         self.gamma = self.config.gamma
 
         if self.config.deterministic_mode:

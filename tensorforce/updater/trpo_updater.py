@@ -42,8 +42,9 @@ class TRPOUpdater(PGModel):
         'cg_iterations': 15,
         'max_kl_divergence': 0.01,
         'gamma': 0.99,
-        'gae_lambda': 0.97 , # GAE-lambda
-        'line_search_steps' : 10
+        'use_gae': False,
+        'gae_lambda': 0.97,  # GAE-lambda
+        'line_search_steps': 10
     }
 
     def __init__(self, config):
@@ -53,6 +54,7 @@ class TRPOUpdater(PGModel):
         self.cg_damping = self.config.cg_damping
         self.line_search_steps = self.config.line_search_steps
         self.max_kl_divergence = self.config.max_kl_divergence
+        self.use_gae = self.config.use_gae
         self.gae_lambda = self.config.gae_lambda
         self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
 
@@ -164,7 +166,7 @@ class TRPOUpdater(PGModel):
         """
         # Set per episode advantage using GAE
         self.input_feed = None
-        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
+        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda, self.use_gae)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)
@@ -200,13 +202,13 @@ class TRPOUpdater(PGModel):
             # Improve update step through simple backtracking line search
             # N.b. some implementations skip the line search
             improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
-                                negative_gradient_direction / lagrange_multiplier, self.line_search_steps)
+                                          negative_gradient_direction / lagrange_multiplier, self.line_search_steps)
 
             # Use line search results, otherwise take full step
             if improved:
                 print('Updating with line search result..')
                 self.flat_variable_helper.set(theta)
-            #else:
+            # else:
             #    print('Updating with full step..')
             #    self.flat_variable_helper.set(previous_theta + update_step)
 
@@ -227,4 +229,3 @@ class TRPOUpdater(PGModel):
 
         # Losses[0] = surrogate_loss
         return self.session.run(self.losses[0], self.input_feed)
-

@@ -4,6 +4,7 @@
   "gae_lambda": 0.97,
   "cg_iterations" : 20,
   "cg_camping" : 0.001,
+  "std_scale": 0.001,
   "line_search_steps" : 20,
   "max_kl_divergence": 0.01,
   "gamma": 0.99,

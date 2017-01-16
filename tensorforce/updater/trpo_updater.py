@@ -56,6 +56,7 @@ class TRPOUpdater(PGModel):
         self.max_kl_divergence = self.config.max_kl_divergence
         self.use_gae = self.config.use_gae
         self.gae_lambda = self.config.gae_lambda
+        self.std_scale = self.config.std_scale
         self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
 
         self.gamma = self.config.gamma
@@ -96,7 +97,7 @@ class TRPOUpdater(PGModel):
                                        'regularization_param': self.config.regularization_param}, 'action_mu')
 
             # Random init for log standard deviations
-            log_standard_devs_init = tf.Variable(0.01 * self.random.randn(1, self.action_count), dtype=tf.float32)
+            log_standard_devs_init = tf.Variable(self.std_scale * self.random.randn(1, self.action_count), dtype=tf.float32)
 
             self.action_log_stds = tf.tile(log_standard_devs_init, tf.pack((tf.shape(self.action_means)[0], 1)))
 

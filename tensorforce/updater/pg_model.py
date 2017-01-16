@@ -69,4 +69,4 @@ class PGModel(Model):
                 deltas = episode['rewards'] + gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
                 episode['advantage'] = discount(deltas, gamma * gae_lambda)
             else:
-                episode['advantage'] = episode['returns'] - baseline
+                episode['advantage'] = episode['returns'] - adjusted_baseline

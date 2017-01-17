@@ -23,7 +23,7 @@ modularisation and some modifications.
 
 """
 from tensorforce.config import create_config
-from tensorforce.neural_networks.layers import dense
+from tensorforce.neural_networks.layers import dense, linear
 from tensorforce.neural_networks import NeuralNetwork
 from tensorforce.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 from tensorforce.updater import LinearValueFunction
@@ -92,12 +92,13 @@ class TRPOUpdater(PGModel):
         # Output action means and log standard deviations
 
         with tf.variable_scope("policy"):
-            self.action_means = dense(self.hidden_layers.get_output(),
+            self.action_means = linear(self.hidden_layers.get_output(),
                                       {'neurons': self.action_count, 'regularization': self.config.regularizer,
                                        'regularization_param': self.config.regularization_param}, 'action_mu')
 
             # Random init for log standard deviations
-            log_standard_devs_init = tf.Variable(self.std_scale * self.random.randn(1, self.action_count), dtype=tf.float32)
+            log_standard_devs_init = tf.Variable(self.std_scale * self.random.randn(1, self.action_count),
+                                                 dtype=tf.float32)
 
             self.action_log_stds = tf.tile(log_standard_devs_init, tf.pack((tf.shape(self.action_means)[0], 1)))
 
@@ -195,7 +196,7 @@ class TRPOUpdater(PGModel):
             # Search direction has now been approximated as cg-solution s= A^-1g where A is
             # Fisher matrix, which is a local approximation of the
             # KL divergence constraint
-            shs = (0.5 * search_direction.dot(self.compute_fvp(search_direction)))
+            shs = 0.5 * search_direction.dot(self.compute_fvp(search_direction))
             lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
             update_step = search_direction / lagrange_multiplier
             negative_gradient_direction = -gradient.dot(search_direction)

@@ -25,7 +25,7 @@ class LinearValueFunction(object):
         self.coefficients = None
 
     def get_features(self, path):
-        states = path["states"].astype('float32 ')
+        states = path["states"]
         states = states.reshape(states.shape[0], -1)
 
         path_length = len(path["rewards"])

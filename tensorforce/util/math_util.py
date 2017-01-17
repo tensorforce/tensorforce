@@ -122,13 +122,13 @@ class FlatVarHelper(object):
         self.session = session
         shapes = map(get_shape, variables)
         total_size = sum(np.prod(shape) for shape in shapes)
-        self.theta = theta = tf.placeholder(tf.float32, [total_size])
+        self.theta = tf.placeholder(tf.float32, [total_size])
         start = 0
         assigns = []
 
         for (shape, variable) in zip(shapes, variables):
             size = np.prod(shape)
-            assigns.append(tf.assign(variable, tf.reshape(theta[start:start + size], shape)))
+            assigns.append(tf.assign(variable, tf.reshape(self.theta[start:start + size], shape)))
             start += size
 
         self.set_op = tf.group(*assigns)

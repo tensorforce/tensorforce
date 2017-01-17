@@ -4,3 +4,4 @@
 /.idea/
 /logs/*
 /tensorforce/logs/*
+tensorforce-home.sublime-project

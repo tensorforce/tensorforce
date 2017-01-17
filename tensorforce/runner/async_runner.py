@@ -21,68 +21,149 @@ from tensorforce.runner import Runner
 
 class AsyncRunner(Runner):
 
-    def __init__(self, agents, environments, preprocessor=None, repeat_actions=1):
-        super(AsyncRunner, self).__init__(agents[0], environments[0], preprocessor=preprocessor, repeat_actions=repeat_actions)
-        self.agents = agents[1:]
-        self.environments = environments[1:]
-        self.continue_execution = False
+    def __init__(self, config, agent_type, environment, preprocessor=None, repeat_actions=1):
+        super().__init__(create_agent(agent_type, agent_config + {'tf_device': 'replica', 'tf_worker_device': '/job:master'}), environment, preprocessor=preprocessor, repeat_actions=repeat_actions)
+        self.agent_type = agent_type
+        self.agent_config = agent_config
+        ps_hosts = [config.ps_host]
+        worker_hosts = config.worker_hosts
+        self.cluster_spec = tf.train.ClusterSpec({'ps': ps_hosts, 'worker': worker_hosts})
 
-    def get_episode_finished_handler(self, condition):
-        def episode_finished(runner):
-            condition.acquire()
-            condition.wait()
-            return self.continue_execution
-        return episode_finished
 
     def run(self, episodes, max_timesteps, episode_finished=None):
-        self.total_states = 0
-        self.episode_rewards = []
+        self.threads = []
         self.continue_execution = True
 
-        runners = []
-        threads = []
-        conditions = []
-        for agent, environment in zip(self.agents, self.environments):
-            condition = Condition()
-            conditions.append(condition)
+        global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer, trainable=False)
+        server = tf.train.Server(cluster, job_name=???, task_index=???)
+        supervisor = tf.train.Supervisor(
+            is_chief=master,
+            logdir="/tmp/train_logs",
+            init_op=init_op,
+            summary_op=summary_op,
+            saver=saver,
+            global_step=global_episode,
+            save_model_secs=600)
 
-            runner = Runner(agent, environment, preprocessor=self.preprocessor, repeat_actions=self.repeat_actions)  # deepcopy?
-            runners.append(runner)
+        with supervisor.managed_session(server.target) as session:
 
-            thread = Thread(target=runner.run, args=(episodes, max_timesteps), kwargs={'episode_finished': self.get_episode_finished_handler(condition)})
-            threads.append(thread)
-            thread.start()
+            for ... in ...:
+                thread = Thread(target=worker_thread, args=(self, index, episodes, max_timesteps))
+                self.threads.append(thread)
+                thread.start()
 
-        self.episode = 0
-        loop = True
-        while loop:
-            for condition, runner in zip(conditions, runners):
-                if condition._waiters:
-                    self.timestep = runner.timestep
-                    self.episode += 1
-                    self.episode_rewards.append(runner.episode_rewards[-1])
-                    # perform async update of parameters
-                    # if T mod Itarget == 0:
-                    #     update target network
-                    # clear gradient
-                    # sync parameters
-                    condition.acquire()
-                    condition.notify()
-                    condition.release()
-                    if self.episode >= episodes or (episode_finished and not episode_finished(self)):
-                        loop = False
-                        break
-            self.total_states = sum(runner.total_states for runner in runners)
+            while not supervisor.should_stop() and global_episode < episodes:
+                global_episode = session.run(global_episode)
+        supervisor.stop()
 
         self.continue_execution = False
-        stopped = 0
-        while stopped < self.n_runners:
-            for condition, thread in zip(conditions, threads):
-                if condition._waiters:
-                    condition.acquire()
-                    condition.notify()
-                    condition.release()
-                    conditions.remove(condition)
+        while self.threads:
+            for thread in list(self.threads):
                 if not thread.is_alive():
-                    threads.remove(thread)
-                    stopped += 1
+                    self.threads.remove(thread)
+
+
+def worker_thread(master, index, episodes, max_timesteps):
+    if not master.continue_execution:
+        return
+
+    global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer, trainable=False)
+    server = tf.train.Server(cluster, job_name=???, task_index=???)
+    supervisor = tf.train.Supervisor(
+        is_chief=master,
+        logdir="/tmp/train_logs",
+        init_op=init_op,
+        summary_op=summary_op,
+        saver=saver,
+        global_step=global_episode,
+        save_model_secs=600)
+
+    worker_device = '/job:worker{}'.format(index)
+    ps_agent = create_agent(master.agent_type, master.agent_config + {'tf_device': 'replica', 'tf_worker_device': worker_device})
+    worker = Runner(create_agent(master.agent_type, master.agent_config + {'tf_device': worker_device}), deepcopy(master.environment), preprocessor=master.preprocessor, repeat_actions=master.repeat_actions)
+
+    with supervisor.managed_session(server.target) as session:
+
+        def episode_finished(r):
+            grads, _ = zip(*r.agent.get_gradients())
+            grads_and_vars = list(zip(grads, ps_agent.get_variables()))
+            ps_agent.apply_gradients(grads_and_vars)
+            r.assign_variables(ps_agent.get_variables())
+            increment_episode_op = global_episode.assign_add(1)
+            session.run(increment_episode_op)  # necessary?
+            return master.continue_execution
+
+        worker.run(episodes, max_timesteps, episode_finished=episode_finished)
+
+    supervisor.stop()
+
+
+
+
+
+
+
+
+
+
+
+
+    # def get_episode_finished_handler(self, condition):
+    #     def episode_finished(runner):
+    #         condition.acquire()
+    #         condition.wait()
+    #         return self.continue_execution
+    #     return episode_finished
+
+    # def run(self, episodes, max_timesteps, episode_finished=None):
+    #     self.total_states = 0
+    #     self.episode_rewards = []
+    #     self.continue_execution = True
+
+    #     runners = []
+    #     threads = []
+    #     conditions = []
+    #     for agent, environment in zip(self.agents, self.environments):
+    #         condition = Condition()
+    #         conditions.append(condition)
+
+    #         runner = Runner(agent, environment, preprocessor=self.preprocessor, repeat_actions=self.repeat_actions)  # deepcopy?
+    #         runners.append(runner)
+
+    #         thread = Thread(target=runner.run, args=(episodes, max_timesteps), kwargs={'episode_finished': self.get_episode_finished_handler(condition)})
+    #         threads.append(thread)
+    #         thread.start()
+
+    #     self.episode = 0
+    #     loop = True
+    #     while loop:
+    #         for condition, runner in zip(conditions, runners):
+    #             if condition._waiters:
+    #                 self.timestep = runner.timestep
+    #                 self.episode += 1
+    #                 self.episode_rewards.append(runner.episode_rewards[-1])
+    #                 # perform async update of parameters
+    #                 # if T mod Itarget == 0:
+    #                 #     update target network
+    #                 # clear gradient
+    #                 # sync parameters
+    #                 condition.acquire()
+    #                 condition.notify()
+    #                 condition.release()
+    #                 if self.episode >= episodes or (episode_finished and not episode_finished(self)):
+    #                     loop = False
+    #                     break
+    #         self.total_states = sum(runner.total_states for runner in runners)
+
+    #     self.continue_execution = False
+    #     stopped = 0
+    #     while stopped < self.n_runners:
+    #         for condition, thread in zip(conditions, threads):
+    #             if condition._waiters:
+    #                 condition.acquire()
+    #                 condition.notify()
+    #                 condition.release()
+    #                 conditions.remove(condition)
+    #             if not thread.is_alive():
+    #                 threads.remove(thread)
+    #                 stopped += 1

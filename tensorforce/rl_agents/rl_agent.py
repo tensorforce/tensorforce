@@ -33,6 +33,18 @@ class RLAgent(object):
     def add_observation(self, state, action, reward, terminal):
         raise NotImplementedError
 
+    def get_variables(self):
+        raise NotImplementedError
+
+    def assign_variables(self, values):
+        raise NotImplementedError
+
+    def get_gradients(self):
+        raise NotImplementedError
+
+    def apply_gradients(self, grads_and_vars):
+        raise NotImplementedError
+
     def load_model(self, path):
         raise NotImplementedError
 

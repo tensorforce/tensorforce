@@ -1,0 +1,591 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+		]
+	},
+	"build_system": "",
+	"build_system_choices":
+	[
+		[
+			[
+				[
+					"Anaconda Python Builder",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					""
+				],
+				[
+					"Packages/Python/Python.sublime-build",
+					"Syntax Check"
+				],
+				[
+					"Packages/SublimeREPL/sublimerepl_build_system_hack.sublime-build",
+					""
+				]
+			],
+			[
+				"Anaconda Python Builder",
+				""
+			]
+		]
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 85.0,
+		"last_filter": "remove p",
+		"selected_items":
+		[
+			[
+				"remove p",
+				"Package Control: Remove Package"
+			],
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"remove",
+				"Package Control: Remove Package"
+			],
+			[
+				"install pa",
+				"Package Control: Install Package"
+			]
+		],
+		"width": 435.0
+	},
+	"console":
+	{
+		"height": 319.0,
+		"history":
+		[
+			"test",
+			"import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((\"localhost\", 58416));",
+			".",
+			"import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((\"localhost\", 58416))",
+			"quit()",
+			"cd ..",
+			"dir",
+			"import urllib.request,os,hashlib; h = '2915d1851351e5ee549c20394736b442' + '8bc59f460fa1548d1514676163dafc88'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)",
+			"python dmrs.py sd",
+			"import urllib.request,os,hashlib; h = '2915d1851351e5ee549c20394736b442' + '8bc59f460fa1548d1514676163dafc88'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)",
+			"import urllib.request,os,hashlib; h = '2deb499853c4371624f5a07e27c334aa' + 'bf8c4e67d14fb0525ba4f89698a6d7e1'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"file_history":
+	[
+		"/C/Users/alexk/OneDrive/Documents/Online-Banking/HSBC/Investments/investments.txt",
+		"/Z/unix_home/phd/hpcs/reports/oneshape3_cnn_lstm_fuse.csv",
+		"/Z/unix_home/phd/shapeworld/reports/oneshape3_cnn_lstm_fuse.csv",
+		"/Z/unix_home/phd/shapeworld/data/oneshape1/train.tfrecords",
+		"/C/Users/alexk/Downloads/mcrae_explanation.csv",
+		"/C/Users/alexk/Downloads/mcrae.csv",
+		"/Z/unix_home/phd/hpcs/scripts/script1.sh",
+		"/Z/unix_home/phd/hpcs/scripts/script2.sh",
+		"/Z/unix_home/phd/hpcs/scripts/script3.sh",
+		"/Z/unix_home/phd/hpcs/scripts/script4.sh",
+		"/Z/unix_home/phd/hpcs/scripts/script5.sh",
+		"/Z/unix_home/phd/hpcs/scripts/script6.sh",
+		"/Z/unix_home/phd/hpcs/scripts/script7.sh",
+		"/Z/unix_home/phd/shapeworld/configs/oneshape1.json",
+		"/Z/unix_home/phd/shapeworld/configs/comparison1.json",
+		"/Z/unix_home/phd/shapeworld/configs/classification1.json",
+		"/Z/unix_home/phd/shapeworld/configs/multishape1.json",
+		"/Z/unix_home/phd/shapeworld/configs/multishape2.json",
+		"/Z/unix_home/phd/shapeworld/configs/multishape3.json",
+		"/Z/unix_home/phd/shapeworld/configs/oneshape3.json",
+		"/Z/unix_home/phd/shapeworld/configs/oneshape4.json",
+		"/Z/unix_home/phd/shapeworld/plot.sh",
+		"/Z/unix_home/phd/shapeworld/network.py",
+		"/Z/unix_home/phd/shapeworld/configs/oneshape3.txt",
+		"/Z/unix_home/phd/shapeworld/configs/oneshape2.txt",
+		"/Z/unix_home/phd/shapeworld/configs/oneshape1.txt",
+		"/Z/unix_home/phd/hpcs/reports/classification1_cnn_classification.txt",
+		"/Z/unix_home/phd/hpcs/reports/multishape1_cnn_lstm_fuse.txt",
+		"/Z/unix_home/phd/shapeworld/configs/comparison1.txt",
+		"/Z/unix_home/phd/hpcs/hpcs-send.sh",
+		"/Z/unix_home/phd/hpcs/hpcs-receive.sh",
+		"/Z/unix_home/phd/shapeworld/cnn_lstm_fuse.py",
+		"/Z/unix_home/phd/shapeworld/configs/classification1.txt",
+		"/Z/unix_home/phd/shapeworld/configs/multishape1.txt",
+		"/Z/unix_home/phd/hpcs/output/slurm-4701457.out",
+		"/Z/unix_home/phd/shapeworld/configs/multishape2.txt",
+		"/Z/unix_home/phd/shapeworld/configs/multishape3.txt",
+		"/Z/unix_home/phd/shapeworld/configs/spatial1.txt",
+		"/Z/unix_home/phd/shapeworld/configs/quantifier1.txt",
+		"/Z/unix_home/phd/shapeworld/reports/oneshape1_cnn_lstm_fuse.txt",
+		"/Z/unix_home/phd/shapeworld/reports/oneshape1_cnn_lstm_fuse.csv",
+		"/Z/unix_home/phd/hpcs/hpcs-send-full.sh",
+		"/Z/unix_home/phd/shapeworld/cnn_lstm_concat.py",
+		"/Z/unix_home/phd/hpcs/output/slurm-4701453.out",
+		"/Z/unix_home/phd/shapeworld/reports/classification1_cnn_classification.csv",
+		"/Z/unix_home/phd/hpcs/output/slurm-4701458.out",
+		"/Z/unix_home/phd/sendmail.py",
+		"/Z/unix_home/phd/hpcs/output/slurm-4701461.out",
+		"/Z/unix_home/phd/hpcs/output/slurm-4701460.out",
+		"/Z/unix_home/phd/hpcs/output/slurm-4701459.out",
+		"/Z/unix_home/phd/hpcs/output/slurm-4701403.out",
+		"/Z/unix_home/phd/shapeworld/reports/multishape1_attention.pdf",
+		"/Z/unix_home/phd/shapeworld/reports/multishape1_attention.csv",
+		"/Z/unix_home/phd/shapeworld/reports/multishape1_cnn_lstm_fuse.csv",
+		"/Z/unix_home/phd/shapeworld/reports/multishape2_cnn_lstm_fuse.csv",
+		"/Z/unix_home/phd/shapeworld/reports/multishape3_cnn_lstm_fuse.csv",
+		"/C/Users/alexk/Downloads/attributes.json/attributes.json",
+		"/Z/unix_home/data/similarity_judgements.txt",
+		"/Z/unix_home/data/visa_dataset/PLANTS_structured_final.xml",
+		"/Z/unix_home/data/visa_dataset/CONTAINER_structured_final.xml",
+		"/Z/unix_home/data/visa_dataset/ANIMALS_structured_final.xml",
+		"/C/Users/alexk/Downloads/abstract.txt",
+		"/Z/unix_home/phd/shapeworld/tensorflow_macros.py",
+		"/Z/unix_home/phd/shapeworld/configs/multishape6.txt",
+		"/Z/unix_home/phd/shapeworld/configs/multishape4.txt",
+		"/Z/unix_home/phd/ace.py",
+		"/C/Users/AlexKuhnle/OneDrive/Applications/OperaMail/profile/mail/incoming1.txt",
+		"/Z/unix_home/phd/shapeworld/configs/oneshape5.txt",
+		"/Z/unix_home/ShapeWorld/shapeworld/datasets/multishape.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/core.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/dataset.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/public.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/captions.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/read_config.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/worlds.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/datasets.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/datasets/spatial.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/datasets/quantifier.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/datasets/oneshape.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/datasets/classification.py",
+		"/Z/unix_home/ShapeWorld/shapeworld/datasets/comparison.py",
+		"/Z/unix_home/phd/shapeworld/reports/quantifier1_3cnn_lstm_fuse.py.txt",
+		"/Z/unix_home/phd/hpcs/output/slurm-4608493.out",
+		"/Z/unix_home/phd/shapeworld/reports/quantifier1_3cnn_lstm_fuse.py.csv",
+		"/Z/unix_home/phd/hpcs/output/slurm-4588396.out",
+		"/Z/unix_home/phd/hpcs/output/slurm-4588397.out",
+		"/Z/unix_home/phd/shapeworld/3cnn_lstm_fuse.py",
+		"/Z/unix_home/phd/shapeworld/configs/oneshape6.txt",
+		"/Z/unix_home/phd/shapeworld/configs/multishape5.txt",
+		"/Z/unix_home/phd/shapeworld/cnn_lstm_fuse2.py",
+		"/Z/unix_home/phd/shapeworld/configs/classification2.txt",
+		"/Z/unix_home/phd/shapeworld/datasets.py",
+		"/Z/unix_home/phd/shapeworld/cnn_classification.py",
+		"/Z/unix_home/phd/shapeworld/cnn_comparison.py",
+		"/Z/unix_home/phd/shapeworld/configs/read_config.py",
+		"/Z/unix_home/phd/shapeworld/data.py",
+		"/Z/unix_home/phd/shapeworld/colors.py",
+		"/Z/unix_home/phd/shapeworld/cnn_baseline2.py",
+		"/Z/unix_home/phd/shapeworld/3cnn_lstm_fuse2.py",
+		"/Z/unix_home/phd/shapeworld/3cnn_lstm_concat.py",
+		"/Z/unix_home/phd/shapeworld/3cnn_baseline.py",
+		"/Z/unix_home/phd/shapeworld/3cnn_baseline2.py",
+		"/Z/unix_home/phd/hpcs/slurm_submit_wilkes.sh",
+		"/Z/unix_home/phd/hpcs/output/slurm-4580594.out",
+		"/Z/unix_home/phd/hpcs/output/slurm-4567535.out",
+		"/Z/unix_home/phd/shapeworld/reports/quantifier1_3cnn_lstm_fuse.py.pdf",
+		"/Z/unix_home/phd/shapeworld/reports/multishape2_3cnn_lstm_fuse.py.csv",
+		"/Z/unix_home/phd/hpcs/output/slurm-4503992.out",
+		"/Z/unix_home/phd/hpcs/output/slurm-4504004.out",
+		"/Z/unix_home/phd/mrs.py",
+		"/Z/unix_home/lib/erg/syntax.tdl",
+		"/Z/unix_home/lib/erg/fundamentals.tdl",
+		"/Z/unix_home/lib/erg/lexicon.tdl",
+		"/Z/unix_home/lib/erg/letypes.tdl",
+		"/Z/unix_home/lib/erg/etc/erg.smi",
+		"/Z/unix_home/bin/ace-0.9.22/erg-files/config.tdl",
+		"/Z/unix_home/lib/erg/etc/core.smi",
+		"/Z/unix_home/lib/erg/ace/config.tdl",
+		"/Z/unix_home/phd/derivtree.py",
+		"/Z/unix_home/phd/mrs_load.py",
+		"/Z/unix_home/lib/erg/constructions.tdl",
+		"/Z/unix_home/lib/erg/english.tdl",
+		"/Z/unix_home/lib/erg/lexrinst.tdl",
+		"/Z/unix_home/lib/erg/lexrules.tdl",
+		"/Z/unix_home/lib/erg/lextypes.tdl",
+		"/Z/unix_home/phd/hpcs/output/slurm-4503980.out",
+		"/Z/unix_home/phd/hpcs/output/slurm-4503985.out",
+		"/Z/unix_home/phd/hpcs/output/slurm-4448148.out"
+	],
+	"find":
+	{
+		"height": 33.0
+	},
+	"find_in_files":
+	{
+		"height": 131.0,
+		"where_history":
+		[
+			""
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"config['training:",
+			"config['architecture:",
+			"config['training:",
+			"summary",
+			"print(",
+			"self.outputs",
+			"step_start",
+			"output_name",
+			"self.losses",
+			"i, ",
+			"n ",
+			"variables.get",
+			"variables[",
+			"tuple(",
+			"none_to_one",
+			".pop(",
+			"parameters",
+			"classificationd",
+			"comparisond",
+			"comparison",
+			"__init__",
+			"caption_relation",
+			".write(",
+			"comparisond",
+			"tf.reshape",
+			"reduce_",
+			"tf.mul(",
+			"tf.neg",
+			"variables[name",
+			"variables[",
+			"relu",
+			"focus",
+			"ICONS",
+			"info",
+			"info-str",
+			"focus",
+			"icon",
+			"focus",
+			"find_sub",
+			"stringlib",
+			"icon",
+			"*avm",
+			"ICONS",
+			"icon",
+			"ICONS",
+			"script",
+			"placeholder",
+			"unravel",
+			"mpi_task",
+			"cmd",
+			"mpi_tas",
+			"applica",
+			"report_",
+			"export ",
+			"print(",
+			"/",
+			"\\x",
+			"b\"",
+			"b'",
+			"subprocess",
+			"print(",
+			"applica",
+			"dmrs_check",
+			"get_word_ids",
+			"__Str__",
+			"focus",
+			"icon",
+			"caption",
+			"semi",
+			"ellips",
+			"ellipse",
+			"n_-_c_le",
+			"rectangle_n_1",
+			"n_pp_c-of_le",
+			"square_n",
+			"ace",
+			"print(",
+			"_left_n_",
+			"assert ",
+			"str(",
+			"== 1",
+			"center(",
+			"parameters",
+			"semi-",
+			"half",
+			"generate(",
+			"generate_train",
+			"generate(",
+			"ace.gen(",
+			"ace.generate(",
+			"print(",
+			"len",
+			"a_q",
+			"most_q",
+			"shape_n",
+			"ellip",
+			"ellipsis_n",
+			"half_n",
+			"circle_n",
+			"ellipsis_n",
+			"ellipsis",
+			"oneshape",
+			"print(",
+			"**",
+			"ace",
+			"**",
+			"print",
+			"Quantifier",
+			".dmrs",
+			"attributere",
+			"attribute",
+			"read_prop",
+			"read_file",
+			"dropout",
+			"initial",
+			"parse_te",
+			"text",
+			"intro",
+			"print(",
+			"titles",
+			"super().__",
+			"entity",
+			"tf.",
+			"learning",
+			"'], ",
+			"parameters[",
+			"world_size",
+			"shapes["
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+			"training_config['",
+			"network_config['",
+			"training_config['",
+			"n, ",
+			"self.variables.get",
+			"self.variables[",
+			"config",
+			"caption_generator",
+			"training",
+			"'), ",
+			"parameters.pop(",
+			"parameters",
+			"architecture:",
+			"",
+			"    ",
+			"",
+			"noise_range=0.1",
+			"n_shape",
+			"n_color",
+			"n_entity",
+			".positive()",
+			"randint",
+			"entity_count",
+			"entity_count_range",
+			"distortion",
+			"(0.05, 0.15)",
+			"background=",
+			".size_",
+			".extent_",
+			"._extent",
+			"._size",
+			"",
+			"size_range",
+			"size",
+			"extent",
+			"size",
+			"ext",
+			"shape",
+			"",
+			"</em>",
+			"<em>",
+			"self.world_size",
+			"latin_1",
+			"ascii",
+			"world",
+			"",
+			"\\textbf{\\normalsize ",
+			"automobile-n",
+			"race-v",
+			"color-n",
+			"photograph-n",
+			"park-v",
+			"theater-n",
+			"freeze-v",
+			"swim-v",
+			"skate-v",
+			"cook-v",
+			"shop-v",
+			"smoke-v",
+			"recognize",
+			"organize",
+			"allow_one_sense",
+			"shortform",
+			"(",
+			"in (None, 'u', '?')",
+			", queries, equalities)",
+			"\n    assert '' in generate(dmrs)",
+			"",
+			"parse",
+			"replace_dmrs",
+			"search_dmrs",
+			"pronouns",
+			"update",
+			"requires_preds",
+			"filter_labels",
+			"_drink_n_1",
+			"filehandle",
+			"node;",
+			"node'",
+			"node ",
+			"decode()",
+			"pred",
+			", vs, rs)",
+			"lambda matching, dmrs: dmrs[matching[nodeid]]",
+			"    print('->', generate_dmrs(dmrs))\n    dmrs_mapping(dmrs, new_dmrs, old_dmrs, copy_dmrs=False)\n    print('->', generate_dmrs(dmrs))",
+			"",
+			"vs, max_index)",
+			"dmrs_mapping(dmrs, old_dmrs, new_dmrs, copy_dmrs=False, all_matches=False)",
+			"copy_dmrs",
+			"result_dmrs",
+			"query_key",
+			"dmrs_mapping(",
+			"all_matches=True))",
+			"",
+			"replace_matching",
+			"search_matching",
+			"search_dmrs",
+			"sub_mapping",
+			"replace_dmrs",
+			"match_dmrs",
+			"matching",
+			"node?",
+			"_read_reference",
+			"_read_handle",
+			"AnchorNode",
+			"",
+			"=0",
+			"self._dmrs",
+			"_",
+			"",
+			"_rlinks",
+			"_nodes",
+			"_links",
+			"return '",
+			"'.",
+			"ET.",
+			"lemmas",
+			"ThemRole",
+			"abstract/physical",
+			"\"ThemRole\"",
+			"and",
+			"or",
+			"!=",
+			"'"
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"incremental_find":
+	{
+		"height": 33.0
+	},
+	"input":
+	{
+		"height": 65.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 409.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"output.git":
+	{
+		"height": 232.0
+	},
+	"pinned_build_system": "",
+	"replace":
+	{
+		"height": 62.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 500.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 380.0
+	},
+	"select_symbol":
+	{
+		"height": 375.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 516.0
+	},
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 493.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

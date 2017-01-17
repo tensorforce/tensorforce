@@ -77,29 +77,34 @@ class DeepQNetwork(Model):
 
         self.exploration = exploration_mode['epsilon_decay']
 
-        # Input placeholders
-        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
-        self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="next_states")
-        self.terminals = tf.placeholder(tf.float32, self.batch_shape, name='terminals')
-        self.rewards = tf.placeholder(tf.float32, self.batch_shape, name='rewards')
-
         self.target_network_update = []
-
         # output layer
         output_layer_config = [{
             "type": "linear",
             "neurons": self.config.actions
         }]
 
-        scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
-        self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, scope=scope + 'training')
-        self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, scope=scope + 'target')
+        self.device = self.config.tf_device
+        if self.device == 'replica':
+            self.device = tf.train.replica_device_setter(ps_tasks=1, worker_device=self.config.tf_worker_device)
+
+        with tf.device(self.device):
+            # Input placeholders
+            self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+            self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="next_states")
+            self.terminals = tf.placeholder(tf.float32, self.batch_shape, name='terminals')
+            self.rewards = tf.placeholder(tf.float32, self.batch_shape, name='rewards')
+
+            self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, scope='training')
+            self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, scope='target')
+
+            # Create training operations
+            self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
+            self.create_training_operations()
+
         self.training_output = self.training_model.get_output()
         self.target_output = self.target_model.get_output()
 
-        # Create training operations
-        self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
-        self.create_training_operations()
         self.saver = tf.train.Saver()
         writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.global_variables_initializer())
@@ -141,6 +146,20 @@ class DeepQNetwork(Model):
             self.q_targets: q_targets,
             self.actions: batch['actions'],
             self.state: batch['states']})
+
+    def get_variables(self):
+        return self.training_model.get_variables()
+
+    def assign_variables(self, values):
+        assign_variables_ops = [variable.assign(value) for variable, value in zip(self.get_variables(), values)]
+        self.session.run(tf.group(assign_variables_ops))
+
+    def get_gradients(self):
+        return self.grads_and_vars
+
+    def apply_gradients(self, grads_and_vars):
+        apply_gradients_op = self.optimizer.apply_gradients(grads_and_vars)
+        self.session.run(apply_gradients_op)
 
     def create_training_operations(self):
         """
@@ -186,7 +205,8 @@ class DeepQNetwork(Model):
             else:
                 self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
 
-            self.optimize_op = self.optimizer.minimize(self.loss)
+            self.grads_and_vars = opt.compute_gradients(self.loss)
+            self.optimize_op = self.optimizer.apply_gradients(self.grads_and_vars)
 
         # Update target network with update weight tau
         with tf.name_scope("update_target"):

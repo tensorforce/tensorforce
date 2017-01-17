@@ -47,6 +47,18 @@ class Model(object):
     def update(self, batch):
         raise NotImplementedError
 
+    def get_variables(self):
+        raise NotImplementedError
+
+    def assign_variables(self, values):
+        raise NotImplementedError
+
+    def get_gradients(self):
+        raise NotImplementedError
+
+    def apply_gradients(self, grads_and_vars):
+        raise NotImplementedError
+
     def load_model(self, path):
         self.saver.restore(self.session, path)
 

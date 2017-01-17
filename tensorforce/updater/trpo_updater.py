@@ -93,8 +93,7 @@ class TRPOUpdater(PGModel):
 
         with tf.variable_scope("policy"):
             self.action_means = linear(self.hidden_layers.get_output(),
-                                      {'neurons': self.action_count, 'regularization': self.config.regularizer,
-                                       'regularization_param': self.config.regularization_param}, 'action_mu')
+                                      {'neurons': self.action_count}, 'action_mu')
 
             # Random init for log standard deviations
             log_standard_devs_init = tf.Variable(self.std_scale * self.random.randn(1, self.action_count),

@@ -153,8 +153,8 @@ class TRPOUpdater(PGModel):
                                                           self.action_log_stds],
                                                          {self.state: [state]})
         std = np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
-        print('action_means =' + str(action_means))
-        print('std=' + str(std))
+        # print('action_means =' + str(action_means))
+        # print('std=' + str(std))
         action = action_means # + std
         return action.ravel(), dict(action_means=action_means,
                                     action_log_stds=action_log_stds)

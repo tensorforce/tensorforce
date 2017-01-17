@@ -109,6 +109,7 @@ def linear(input, config, scope):
     :param scope: Layer name
     :return:
     """
+
     kwargs = {
         'weights_initializer': get_function(config.get('weight_init'),
                                             config.get('weight_init_param'),

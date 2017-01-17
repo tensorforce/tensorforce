@@ -21,3 +21,12 @@ Generic policy class for policy gradients.
 class Policy(object):
     def __init__(self):
         pass
+
+    def log_prob(self, dist, action):
+        raise NotImplementedError
+
+    def kl_divergence(self, dist_a, dist_b):
+        raise NotImplementedError
+
+    def entropy(self, dist):
+        raise NotImplementedError

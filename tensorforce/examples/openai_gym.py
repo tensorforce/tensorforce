@@ -21,6 +21,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import os
 import argparse
 
 import numpy as np
@@ -38,19 +39,24 @@ def main():
     parser.add_argument('gym_id', help="ID of the gym environment")
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file",
-                        default='examples/configs/dqn_agent.json')
+                        default='tensorforce/examples/configs/dqn_agent.json')
     parser.add_argument('-n', '--network-config', help="Network configuration file",
-                        default='examples/configs/dqn_network.json')
+                        default='tensorforce/examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
-    parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
-    parser.add_argument('-m', '--monitor', help="Save results to this file")
+    parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
+    parser.add_argument('-m', '--monitor', help="Save results to this directory")
+    parser.add_argument('-ms', '--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
+    parser.add_argument('-mv', '--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
+    parser.add_argument('-s', '--save', help="Save model to this dir")
+    parser.add_argument('-se', '--save-episodes', type=int, default=100, help="Save model every x episodes")
+    parser.add_argument('-l', '--load', help="Load model from this dir")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
     args = parser.parse_args()
 
     gym_id = args.gym_id
 
-    env = OpenAIGymEnvironment(gym_id)
+    env = OpenAIGymEnvironment(gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
 
     config = Config({
         'repeat_actions': 1,
@@ -79,6 +85,12 @@ def main():
 
     agent = create_agent(args.agent, config)
 
+    if args.load:
+        load_dir = os.path.dirname(args.load)
+        if not os.path.isdir(load_dir):
+            raise OSError("Could not load model from {}: No such directory.".format(load_dir))
+        agent.load_model(args.load)
+
     if args.debug:
         print("-" * 16)
         print("Agent configuration:")
@@ -86,9 +98,14 @@ def main():
 
     runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
 
-    if args.monitor:
-        env.gym.monitor.start(args.monitor)
-        env.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
+    if args.save:
+        save_dir = os.path.dirname(args.save)
+        if not os.path.isdir(save_dir):
+            try:
+                os.mkdir(save_dir, 0o755)
+            except OSError:
+                raise OSError("Cannot save model to dir {} ()".format(save_dir))
+        runner.save_model(args.save, args.save_episodes)
 
     report_episodes = args.episodes // 10
     if args.debug:

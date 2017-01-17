@@ -28,11 +28,4 @@ from tensorforce.updater import TRPOUpdater
 class TRPOAgent(PGAgent):
     name = 'TRPOAgent'
 
-    default_config = {
-        'batch_size': 100,
-        'update_steps': 10,
-        'min_replay_size': 100,
-        'deterministic_mode': False
-    }
-
     value_function_ref = TRPOUpdater

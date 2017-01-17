@@ -27,8 +27,13 @@ from __future__ import division
 
 import tensorflow as tf
 
+from tensorforce.config import create_config
+from tensorforce.util.config_util import get_function
+from tensorforce.util.exploration_util import exploration_mode
 
 class Model(object):
+    default_config = None
+
     def __init__(self, config):
         """
 
@@ -37,9 +42,30 @@ class Model(object):
 
         # TODO move several default params up here
         self.session = tf.Session()
+        self.total_states = 0
         self.saver = None
+        self.config = create_config(config, default=self.default_config)
 
         self.batch_shape = [None]
+
+        self.deterministic_mode = config.get('deterministic_mode', False)
+
+        self.alpha = config.get('alpha', 0.001)
+
+        optimizer = config.get('optimizer')
+        if not optimizer:
+            self.optimizer = tf.train.AdamOptimizer(self.alpha)
+        else:
+            kwargs = config.get('optimizer_param', {})
+            optimizer_cls = get_function(optimizer)
+            self.optimizer = optimizer_cls(self.alpha, **kwargs)
+
+        exploration = config.get('exploration')
+        if not exploration:
+            self.exploration = exploration_mode['constant'](self, 0)
+        else:
+            kwargs = config.get('exploration_param', {})
+            self.exploration = exploration_mode[exploration](self, **kwargs)
 
     def get_action(self, state):
         raise NotImplementedError

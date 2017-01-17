@@ -54,14 +54,12 @@ class DeepQNetwork(Model):
         """
         super(DeepQNetwork, self).__init__(config)
 
-        self.config = create_config(config, default=self.default_config)
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon
         self.epsilon_final = self.config.epsilon_final
         self.epsilon_states = self.config.epsilon_states
         self.gamma = self.config.gamma
-        self.alpha = self.config.alpha
         self.batch_size = self.config.batch_size
 
         self.double_dqn = self.config.double_dqn
@@ -78,11 +76,9 @@ class DeepQNetwork(Model):
         self.exploration = exploration_mode['epsilon_decay']
 
         self.target_network_update = []
+
         # output layer
-        output_layer_config = [{
-            "type": "linear",
-            "neurons": self.config.actions
-        }]
+        output_layer_config = [{"type": "linear", "neurons": self.config.actions, "trainable": True}]
 
         self.device = self.config.tf_device
         if self.device == 'replica':
@@ -99,8 +95,8 @@ class DeepQNetwork(Model):
             self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, scope='target')
 
             # Create training operations
-            self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
             self.create_training_operations()
+            self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
 
         self.training_output = self.training_model.get_output()
         self.target_output = self.target_model.get_output()
@@ -109,7 +105,7 @@ class DeepQNetwork(Model):
         writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
         self.session.run(tf.global_variables_initializer())
 
-    def get_action(self, state, episode=1, total_states=0):
+    def get_action(self, state, episode=1):
         """
         Returns the predicted action for a given state.
 
@@ -118,7 +114,7 @@ class DeepQNetwork(Model):
         :return:
         """
 
-        epsilon = self.exploration(self.epsilon_final, total_states, self.epsilon_states, self.epsilon)
+        epsilon = self.exploration(episode, self.total_states)
 
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
@@ -127,6 +123,8 @@ class DeepQNetwork(Model):
                 action = self.session.run(self.dqn_action, {self.state: [state]})[0]
             else:
                 action = self.session.run(self.dqn_action, {self.state: [state]})
+
+        self.total_states += 1
         return action
 
     def update(self, batch):

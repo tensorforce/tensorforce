@@ -1,14 +1,26 @@
 {
-  "alpha": 0.00025,
   "memory_capacity": 1e5,
   "batch_size": 32,
   "update_rate": 0.25,
+  "update_repeat": 1,
   "use_target_network": true,
   "target_network_update_rate": 0.0001,
   "min_replay_size": 5e4,
+  "alpha": 0.00025,
+  "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
+  "optimizer_param": {
+    "momentum": 0.95,
+    "epsilon": 0.01
+  },
   "epsilon": 1.0,
   "epsilon_final": 0.1,
   "epsilon_states": 1e6,
+  "exploration": "epsilon_decay",
+  "exploration_param": {
+    "epsilon": 1.0,
+    "epsilon_final": 0.1,
+    "epsilon_states": 1e6
+  },
   "preprocessing": [
     ["grayscale"],
     ["imresize", 84, 84],

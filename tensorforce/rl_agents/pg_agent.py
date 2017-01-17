@@ -64,9 +64,6 @@ class PGAgent(RLAgent):
         self.last_action_log_stds = outputs['action_log_stds']
         self.last_action = action
 
-        if not self.continuous:
-            action = np.argmax(action)
-
         return action
 
     def add_observation(self, state, action, reward, terminal):
@@ -106,7 +103,9 @@ class PGAgent(RLAgent):
                 self.current_episode['terminated'] = False
                 path = self.get_path()
                 self.current_batch.append(path)
-            self.updater.update(deepcopy(self.current_batch))
+
+            print('Computing TRPO update..')
+            self.updater.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []
             self.batch_steps = 0

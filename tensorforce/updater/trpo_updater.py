@@ -38,22 +38,25 @@ import tensorflow as tf
 
 class TRPOUpdater(PGModel):
     default_config = {
-        'cg_damping': 0.001,
-        'cg_iterations': 10,
+        'cg_damping': 0.01,
+        'cg_iterations': 15,
         'max_kl_divergence': 0.01,
         'gamma': 0.99,
-        'gae_lambda': 0.97  # GAE-lambda
+        'use_gae': False,
+        'gae_lambda': 0.97,  # GAE-lambda
+        'line_search_steps': 10
     }
 
     def __init__(self, config):
         super(TRPOUpdater, self).__init__(config)
-
-        self.config = create_config(config, default=self.default_config)
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
         self.cg_damping = self.config.cg_damping
+        self.line_search_steps = self.config.line_search_steps
         self.max_kl_divergence = self.config.max_kl_divergence
+        self.use_gae = self.config.use_gae
         self.gae_lambda = self.config.gae_lambda
+        self.std_scale = self.config.std_scale
         self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
 
         self.gamma = self.config.gamma
@@ -94,7 +97,7 @@ class TRPOUpdater(PGModel):
                                        'regularization_param': self.config.regularization_param}, 'action_mu')
 
             # Random init for log standard deviations
-            log_standard_devs_init = tf.Variable(0.01 * self.random.randn(1, self.action_count), dtype=tf.float32)
+            log_standard_devs_init = tf.Variable(self.std_scale * self.random.randn(1, self.action_count), dtype=tf.float32)
 
             self.action_log_stds = tf.tile(log_standard_devs_init, tf.pack((tf.shape(self.action_means)[0], 1)))
 
@@ -112,19 +115,18 @@ class TRPOUpdater(PGModel):
 
             surrogate_loss = -tf.reduce_mean(prob_ratio * self.advantage)
             variables = tf.trainable_variables()
+            batch_float = tf.cast(self.batch_size, tf.float32)
 
             mean_kl_divergence = get_kl_divergence_gaussian(self.prev_action_means, self.prev_action_log_stds,
-                                                            self.action_means, self.action_log_stds) / float(
-                self.batch_size)
-            mean_entropy = get_entropy_gaussian(self.action_log_stds) / float(self.batch_size)
+                                                            self.action_means, self.action_log_stds) / batch_float
+            mean_entropy = get_entropy_gaussian(self.action_log_stds) / batch_float
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
 
             # Get symbolic gradient expressions
             self.policy_gradient = get_flattened_gradient(self.losses, variables)
-
             fixed_kl_divergence = get_fixed_kl_divergence_gaussian(self.action_means, self.action_log_stds) \
-                                  / float(self.batch_size)
+                                  / batch_float
 
             variable_shapes = map(get_shape, variables)
             offset = 0
@@ -141,7 +143,7 @@ class TRPOUpdater(PGModel):
             self.flat_variable_helper = FlatVarHelper(self.session, variables)
             self.fisher_vector_product = get_flattened_gradient(gradient_vector_product, variables)
 
-    def get_action(self, state, episode=1, total_states=0):
+    def get_action(self, state, episode=1):
         """
 
         :param state: State tensor
@@ -164,7 +166,8 @@ class TRPOUpdater(PGModel):
         :return:
         """
         # Set per episode advantage using GAE
-        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
+        self.input_feed = None
+        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda, self.use_gae)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)
@@ -180,27 +183,42 @@ class TRPOUpdater(PGModel):
 
         previous_theta = self.flat_variable_helper.get()
         gradient = self.session.run(self.policy_gradient, self.input_feed)
+        zero = np.zeros_like(gradient)
+        if np.allclose(gradient, zero):
+            print('Gradient zero, skipping update')
+        else:
+            # The details of the approximations used here to solve the constrained
+            # optimisation can be found in Appendix C of the TRPO paper
+            # Note that no subsampling is used, which would improve computational performance
+            search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
 
-        # The details of the approximations used here to solve the constrained
-        # optimisation can be found in Appendix C of the TRPO paper
-        # Note that no subsampling is used, which would improve computational performance
-        search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
+            # Search direction has now been approximated as cg-solution s= A^-1g where A is
+            # Fisher matrix, which is a local approximation of the
+            # KL divergence constraint
+            shs = (0.5 * search_direction.dot(self.compute_fvp(search_direction)))
+            lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
+            update_step = search_direction / lagrange_multiplier
+            negative_gradient_direction = -gradient.dot(search_direction)
 
-        # Search direction has now been approximated as cg-solution s= A^-1g where A is
-        # Fisher matrix, which is a local approximation of the
-        # KL divergence constraint
-        shs = (0.5 * search_direction.dot(self.compute_fvp(search_direction)))
-        lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
-        update_step = search_direction / lagrange_multiplier
-        negative_gradient_direction = -gradient.dot(search_direction)
+            # Improve update step through simple backtracking line search
+            # N.b. some implementations skip the line search
+            improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
+                                          negative_gradient_direction / lagrange_multiplier, self.line_search_steps)
 
-        # Improve update step through simple backtracking line search
-        theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
-                            negative_gradient_direction / lagrange_multiplier)
+            # Use line search results, otherwise take full step
+            if improved:
+                print('Updating with line search result..')
+                self.flat_variable_helper.set(theta)
+            else:
+                print('Updating with full step..')
+                self.flat_variable_helper.set(previous_theta + update_step)
 
-        # Compute full update based on line search result
-        self.flat_variable_helper.set(theta)
-        self.session.run(self.losses, self.input_feed)
+            # Compute full update based on line search result
+            surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
+
+            print('Surrogate loss=' + str(surrogate_loss))
+            print('KL-divergence after update=' + str(kl_divergence))
+            print('Entropy=' + str(entropy))
 
     def compute_fvp(self, p):
         self.input_feed[self.flat_tangent] = p
@@ -212,4 +230,3 @@ class TRPOUpdater(PGModel):
 
         # Losses[0] = surrogate_loss
         return self.session.run(self.losses[0], self.input_feed)
-

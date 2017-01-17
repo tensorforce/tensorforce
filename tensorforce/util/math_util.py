@@ -49,7 +49,7 @@ def get_log_prob_gaussian(action_dist_mean, log_std, actions):
                   - 0.5 * tf.log(tf.constant(2 * np.pi)) - log_std
 
     # Sum logs
-    return tf.reduce_sum(probability, 1)
+    return tf.reduce_sum(probability, [1])
 
 
 # TODO reorganise into distribution classes
@@ -178,6 +178,6 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
         improve_ratio = actual_improve / expected_improve
 
         if improve_ratio > accept_ratio and actual_improve > 0:
-            return updated_x
+            return True, updated_x
 
-    return initial_x
+    return False, initial_x

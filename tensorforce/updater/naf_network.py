@@ -18,7 +18,7 @@ Implements normalized advantage functions, largely following
 
 https://github.com/carpedm20/NAF-tensorflow/blob/master/src/network.py
 
-for the update logic.
+for the update logic with different modularisation.
 """
 
 from __future__ import absolute_import
@@ -30,17 +30,15 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.contrib.framework import get_variables
 
-from tensorforce.config import create_config
-from tensorforce.neural_networks.layers import dense
+from tensorforce.neural_networks.layers import linear
 from tensorforce.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
-from tensorforce.util.exploration_util import exploration_mode
 from tensorforce.updater import Model
 
 
-class NormalizedAdvantageFunctions(Model):
+class NAFNetwork(Model):
     default_config = {
-        'tau': 0.9,
+        'tau': 0.001,
         'epsilon': 0.1,
         'gamma': 0.95,
         'alpha': 0.005,
@@ -53,13 +51,11 @@ class NormalizedAdvantageFunctions(Model):
 
         :param config: Configuration parameters
         """
-        super(NormalizedAdvantageFunctions, self).__init__(config)
-        self.config = create_config(config, default=self.default_config)
+        super(NAFNetwork, self).__init__(config)
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon
         self.gamma = self.config.gamma
-        self.alpha = self.config.alpha
         self.batch_size = self.config.batch_size
 
         if self.config.deterministic_mode:
@@ -67,15 +63,14 @@ class NormalizedAdvantageFunctions(Model):
         else:
             self.random = np.random.RandomState()
 
-        self.exploration = exploration_mode[self.config.exploration_mode]
-
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
         self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
                                           name="next_states")
-        
+
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
         self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
+        self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
         self.target_network_update = []
         self.episode = 0
 
@@ -83,7 +78,6 @@ class NormalizedAdvantageFunctions(Model):
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
         self.training_model = NeuralNetwork(self.config.network_layers, self.state, scope=scope + 'training')
         self.target_model = NeuralNetwork(self.config.network_layers, self.next_states, scope=scope + 'target')
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
 
         # Create output fields
         self.training_v, self.mu, self.advantage, self.q, self.training_output_vars = self.create_outputs(
@@ -94,17 +88,19 @@ class NormalizedAdvantageFunctions(Model):
         self.saver = tf.train.Saver()
         self.session.run(tf.global_variables_initializer())
 
-    def get_action(self, state, episode=1, total_states=0):
+    def get_action(self, state, episode=1):
         """
-        Returns naf actions.
+        Returns naf action(s) as given by the mean output of the network.
 
         :param state: Current state
         :param episode: Current episode
+        :param total_states: Total states processed
         :return:
         """
-        action = self.session.run(self.mu, {self.state: [state]})[0]
+        action = self.session.run(self.mu, {self.state: [state]})[0] + self.exploration(episode, self.total_states)
+        self.total_states += 1
 
-        return action + self.exploration(self.random, self.episode)
+        return action
 
     def update(self, batch):
         """
@@ -135,20 +131,20 @@ class NormalizedAdvantageFunctions(Model):
 
         with tf.name_scope(scope):
             # State-value function
-            v = dense(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
-                                          'regularization_param': self.config.regularization_param}, scope + 'v')
+            v = linear(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
+                                           'regularization_param': self.config.regularization_param}, scope + 'v')
 
             # Action outputs
-            mu = dense(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
-                                           'regularization_param': self.config.regularization_param}, scope + 'mu')
+            mu = linear(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
+                                            'regularization_param': self.config.regularization_param}, scope + 'mu')
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
             lower_triangular_size = int(self.action_count * (self.action_count + 1) / 2)
-            l_entries = dense(last_hidden_layer, {'neurons': lower_triangular_size,
-                                                  'regularization': self.config.regularizer,
-                                                  'regularization_param': self.config.regularization_param},
-                              scope + 'l')
+            l_entries = linear(last_hidden_layer, {'neurons': lower_triangular_size,
+                                                   'regularization': self.config.regularizer,
+                                                   'regularization_param': self.config.regularization_param},
+                               scope + 'l')
 
             # Iteratively construct matrix. Extra verbose comment here
             l_rows = []
@@ -179,8 +175,9 @@ class NormalizedAdvantageFunctions(Model):
             action_diff = tf.expand_dims(self.actions - mu, -1)
 
             # A = -0.5 (a - mu)P(a - mu)
-            advantage = -0.5 * -tf.batch_matmul(tf.transpose(action_diff, [0, 2, 1]),
-                                                tf.batch_matmul(p_matrix, action_diff))
+            advantage = -0.5 * tf.batch_matmul(tf.transpose(action_diff, [0, 2, 1]),
+                                               tf.batch_matmul(p_matrix, action_diff))
+            advantage = tf.reshape(advantage, [-1, 1])
 
             with tf.name_scope('q_values'):
                 # Q = A + V
@@ -195,11 +192,9 @@ class NormalizedAdvantageFunctions(Model):
         """
 
         with tf.name_scope("update"):
-            self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
-
             # MSE
             self.loss = tf.reduce_mean(tf.squared_difference(self.q_targets, tf.squeeze(self.q)),
-                                       name='compute_surrogate_loss')
+                                       name='loss')
             self.optimize_op = self.optimizer.minimize(self.loss)
 
         with tf.name_scope("update_target"):
@@ -221,7 +216,6 @@ class NormalizedAdvantageFunctions(Model):
         """
 
         return self.session.run(self.target_v, {self.next_states: next_states})
-
 
     def update_target_network(self):
         """

@@ -52,7 +52,9 @@
       "activation": "tensorflow.python.ops.nn.relu",
       "activation_param": null,
       "regularization": null,
-      "regularization_param": null
+      "regularization_param": null,
+      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm",
+      "normalizer_param": null
     }
   ]
 }

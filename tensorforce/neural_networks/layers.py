@@ -55,6 +55,9 @@ def dense(input, config, scope):
         'weights_regularizer': get_function(config.get('regularization'),
                                             config.get('regularization_param'),
                                             None),
+        'normalizer_fn': get_function(config.get('normalizer'),
+                                            config.get('normalizer_param'),
+                                            None)
     }
     # Flatten
     input = tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:]))))

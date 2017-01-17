@@ -32,18 +32,17 @@ from tensorforce.util.math_util import discount, zero_mean_unit_variance
 class VPGUpdater(PGModel):
     default_config = {
         'gamma': 0.99,
+        'use_gae' : False,
         'gae_lambda': 0.97  # GAE-lambda
     }
 
     def __init__(self, config):
         super(VPGUpdater, self).__init__(config)
-        self.config = create_config(config, default=self.default_config)
         self.action_count = self.config.actions
         self.gamma = self.config.gamma
-        self.alpha = self.config.alpha
         self.batch_size = self.config.batch_size
         self.gae_lambda = self.config.gae_lambda
-
+        self.use_gae = self.config.use_gae
         self.gamma = self.config.gamma
 
         if self.config.deterministic_mode:
@@ -64,7 +63,6 @@ class VPGUpdater(PGModel):
         self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state,
                                            scope=scope + 'value_function')
 
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.saver = tf.train.Saver()
         self.create_outputs()
         self.baseline_value_function = LinearValueFunction()

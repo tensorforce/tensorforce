@@ -44,6 +44,7 @@ class PGAgent(RLAgent):
         self.last_action_means = None
         self.last_action_log_stds = None
         self.continuous = self.config.continuous
+        self.filter = Filter()
 
         if self.value_function_ref:
             self.updater = self.value_function_ref(self.config)
@@ -80,7 +81,7 @@ class PGAgent(RLAgent):
         :param terminal:
         :return:
         """
-
+        state = self.filter(state)
         self.batch_steps += 1
         self.current_episode['states'].append(state)
         self.current_episode['actions'].append(self.last_action)
@@ -101,12 +102,13 @@ class PGAgent(RLAgent):
             if not terminal:
                 self.current_episode['terminated'] = False
                 path = self.get_path()
+
                 self.current_batch.append(path)
+
             print('last means=' + str(self.last_action_means))
             print('last stds=' + str(self.last_action_log_stds))
             print('last actions=' + str(self.last_action))
-
-            print('Computing TRPO update..')
+            print('Computing TRPO update, episodes =' + str(len(self.current_batch)))
             self.updater.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []
@@ -135,3 +137,23 @@ class PGAgent(RLAgent):
 
     def load_model(self, path):
         self.updater.load_model(path)
+
+
+class Filter:
+    def __init__(self, filter_mean=True):
+        self.m1 = 0
+        self.v = 0
+        self.n = 0.
+        self.filter_mean = filter_mean
+
+    def __call__(self, o):
+        self.m1 = self.m1 * (self.n / (self.n + 1)) + o    * 1/(1 + self.n)
+        self.v = self.v * (self.n / (self.n + 1)) + (o - self.m1)**2 * 1/(1 + self.n)
+        self.std = (self.v + 1e-6)**.5 # std
+        self.n += 1
+        if self.filter_mean:
+            o1 =  (o - self.m1)/self.std
+        else:
+            o1 =  o/self.std
+        o1 = (o1 > 10) * 10 + (o1 < -10)* (-10) + (o1 < 10) * (o1 > -10) * o1
+        return o1

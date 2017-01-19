@@ -185,6 +185,7 @@ class TRPOUpdater(PGModel):
         previous_theta = self.flat_variable_helper.get()
         gradient = self.session.run(self.policy_gradient, self.input_feed)
         zero = np.zeros_like(gradient)
+
         if np.allclose(gradient, zero):
             print('Gradient zero, skipping update')
         else:
@@ -214,7 +215,7 @@ class TRPOUpdater(PGModel):
                 print('Updating with full step..')
                 self.flat_variable_helper.set(previous_theta + update_step)
 
-            # Compute full update based on line search result
+            # Get loss values for progress monitoring
             surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
 
             print('Surrogate loss=' + str(surrogate_loss))

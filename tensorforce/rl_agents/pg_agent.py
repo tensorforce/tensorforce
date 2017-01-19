@@ -102,11 +102,17 @@ class PGAgent(RLAgent):
                 self.current_episode['terminated'] = False
                 path = self.get_path()
                 self.current_batch.append(path)
+            print('last means=' + str(self.last_action_means))
             print('last stds=' + str(self.last_action_log_stds))
+            print('last actions=' + str(self.last_action))
+
             print('Computing TRPO update..')
             self.updater.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []
+            self.last_action = None
+            self.last_action_means = None
+            self.last_action_log_stds = None
             self.batch_steps = 0
 
     def get_path(self):

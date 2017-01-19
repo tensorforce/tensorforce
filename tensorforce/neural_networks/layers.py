@@ -90,6 +90,7 @@ def conv2d(input, config, scope):
         'weights_regularizer': get_function(config.get('regularization'),
                                             config.get('regularization_param'),
                                             None),
+        'padding': config.get('padding', 'VALID')
     }
 
     return tf_slim.conv2d(input,
@@ -119,7 +120,7 @@ def linear(input, config, scope):
                                            init_ops.zeros_initializer),
         'weights_regularizer': get_function(config.get('regularization'),
                                             config.get('regularization_param'),
-                                            None),
+                                            None)
     }
     # Flatten
     input = tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:]))))

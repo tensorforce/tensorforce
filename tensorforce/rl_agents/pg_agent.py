@@ -95,7 +95,6 @@ class PGAgent(RLAgent):
             # Transform into np arrays, append episode to batch, start new episode dict
             path = self.get_path()
             self.current_batch.append(path)
-            print('Episode finished, length=' + str(len(path['states'])))
             self.current_episode = defaultdict(list)
 
         if self.batch_steps == self.batch_size:

@@ -52,7 +52,7 @@ class PGModel(Model):
 
     def compute_gae_advantage(self, batch, gamma, gae_lambda, use_gae=False):
         """
-        Expects a batch containing at least one episode, sets advantages according to GAE.
+        Expects a batch containing at least one episode, sets advantages according to use_gae.
 
         :param batch: Sequence of observations for at least one episode.
         """

@@ -84,6 +84,7 @@ class TRPOUpdater(PGModel):
         self.create_outputs()
         self.baseline_value_function = LinearValueFunction()
         self.create_training_operations()
+        writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
 
         self.session.run(tf.global_variables_initializer())
 

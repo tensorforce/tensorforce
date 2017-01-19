@@ -33,7 +33,6 @@ class PGAgent(RLAgent):
 
     value_function_ref = None
 
-
     def __init__(self, config):
         self.config = create_config(config, default=self.default_config)
         self.updater = None
@@ -103,7 +102,7 @@ class PGAgent(RLAgent):
                 self.current_episode['terminated'] = False
                 path = self.get_path()
                 self.current_batch.append(path)
-
+            print('last stds=' + str(self.last_action_log_stds))
             print('Computing TRPO update..')
             self.updater.update(self.current_batch)
             self.current_episode = defaultdict(list)

@@ -23,10 +23,27 @@ class Policy(object):
         pass
 
     def log_prob(self, dist, action):
+        """
+        Compute log probability for given policy distribution and actions.
+        :param dist:
+        :param action:
+        :return:
+        """
         raise NotImplementedError
 
     def kl_divergence(self, dist_a, dist_b):
+        """
+        Get KL divergence between distributions a and b.
+        :param dist_a:
+        :param dist_b:
+        :return:
+        """
         raise NotImplementedError
 
     def entropy(self, dist):
+        """
+        Get current entropy, mainly used for debugging purposes.
+        :param dist:
+        :return:
+        """
         raise NotImplementedError

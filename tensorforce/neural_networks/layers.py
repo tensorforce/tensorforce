@@ -60,7 +60,6 @@ def dense(input, config, scope):
                                             None)
     }
     # Flatten
-    input = tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:]))))
 
     return tf_slim.fully_connected(input,
                                    config['neurons'],

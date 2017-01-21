@@ -75,12 +75,20 @@ class PGModel(Model):
                                                   'categorical_policy')
             self.prev_dist = dict(policy_output=self.prev_action_means)
 
+        # Probability distribution used in the current policy
         self.dist = self.policy.get_distribution()
 
         # TODO configurable value functions
         self.baseline_value_function = LinearValueFunction()
 
     def get_action(self, state, episode=1):
+        """
+        Actions are directly sampled from the policy.
+
+        :param state:
+        :param episode:
+        :return:
+        """
         return self.policy.sample(state)
 
     def update(self, batch):

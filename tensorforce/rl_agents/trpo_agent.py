@@ -22,10 +22,10 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.rl_agents import PGAgent
-from tensorforce.updater import TRPOUpdater
+from tensorforce.models import TRPOModel
 
 
 class TRPOAgent(PGAgent):
     name = 'TRPOAgent'
 
-    value_function_ref = TRPOUpdater
+    value_function_ref = TRPOModel

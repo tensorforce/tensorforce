@@ -22,7 +22,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.rl_agents import PGAgent
-from tensorforce.updater.vpg_updater import VPGUpdater
+from tensorforce.models.vpg_model import VPGModel
 
 
 class VPGAgent(PGAgent):
@@ -34,4 +34,4 @@ class VPGAgent(PGAgent):
         'deterministic_mode': False
     }
 
-    value_function_ref = VPGUpdater
+    value_function_ref = VPGModel

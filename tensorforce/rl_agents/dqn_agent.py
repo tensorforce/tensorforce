@@ -24,7 +24,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.rl_agents import MemoryAgent
-from tensorforce.updater import DeepQNetwork
+from tensorforce.models import DQNModel
 
 
 class DQNAgent(MemoryAgent):
@@ -39,4 +39,4 @@ class DQNAgent(MemoryAgent):
         'use_target_network': True
     }
 
-    value_function_ref = DeepQNetwork
+    value_function_ref = DQNModel

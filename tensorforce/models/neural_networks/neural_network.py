@@ -18,12 +18,13 @@ Creates neural networks from a configuration dict.
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
 import tensorflow as tf
+
 from tensorforce.exceptions.tensorforce_exceptions import ConfigError
-from tensorforce.neural_networks.layers import layers
+from tensorforce.models.neural_networks import layers
 
 tf_slim = tf.contrib.slim
 

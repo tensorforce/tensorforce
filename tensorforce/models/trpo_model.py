@@ -22,21 +22,19 @@ https://github.com/ilyasu123/trpo, with a hopefully slightly more readable
 modularisation and some modifications.
 
 """
-from tensorforce.config import create_config
-from tensorforce.neural_networks.layers import dense, linear
-from tensorforce.neural_networks import NeuralNetwork
-from tensorforce.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
-from tensorforce.updater import LinearValueFunction
-from tensorforce.updater import Model
-from tensorforce.updater.pg_model import PGModel
-from tensorforce.util.experiment_util import global_seed
-from tensorforce.util.math_util import *
-
 import numpy as np
 import tensorflow as tf
 
+from tensorforce.models import LinearValueFunction
+from tensorforce.models.neural_networks import NeuralNetwork
+from tensorforce.models.neural_networks.layers import linear
+from tensorforce.models.pg_model import PGModel
+from tensorforce.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
+from tensorforce.util.experiment_util import global_seed
+from tensorforce.util.math_util import *
 
-class TRPOUpdater(PGModel):
+
+class TRPOModel(PGModel):
     default_config = {
         'cg_damping': 0.01,
         'cg_iterations': 15,
@@ -48,15 +46,11 @@ class TRPOUpdater(PGModel):
     }
 
     def __init__(self, config):
-        super(TRPOUpdater, self).__init__(config)
+        super(TRPOModel, self).__init__(config)
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
-        self.cg_damping = self.config.cg_damping
-        self.line_search_steps = self.config.line_search_steps
-        self.max_kl_divergence = self.config.max_kl_divergence
         self.use_gae = self.config.use_gae
         self.gae_lambda = self.config.gae_lambda
-        self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
 
         self.gamma = self.config.gamma
 
@@ -71,18 +65,21 @@ class TRPOUpdater(PGModel):
 
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.advantage = tf.placeholder(tf.float32, shape=[None])
+
+        # TRPO specific parameters
+        self.cg_damping = self.config.cg_damping
+        self.max_kl_divergence = self.config.max_kl_divergence
+        self.line_search_steps = self.config.line_search_steps
+        self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
+
         self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
         self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count])
         self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
 
-        scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
-        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state,
-                                           scope=scope + 'value_function')
 
         self.saver = tf.train.Saver()
 
         self.create_outputs()
-        self.baseline_value_function = LinearValueFunction()
         self.create_training_operations()
         writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
 
@@ -142,21 +139,6 @@ class TRPOUpdater(PGModel):
 
             self.flat_variable_helper = FlatVarHelper(self.session, variables)
             self.fisher_vector_product = get_flattened_gradient(gradient_vector_product, variables)
-
-    def get_action(self, state, episode=1):
-        """
-
-        :param state: State tensor
-        :return: Action and network output
-        """
-
-        action_means, action_log_stds = self.session.run([self.action_means,
-                                                          self.action_log_stds],
-                                                         {self.state: [state]})
-
-        action = action_means + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
-        return action.ravel(), dict(action_means=action_means,
-                                    action_log_stds=action_log_stds)
 
     def update(self, batch):
         """

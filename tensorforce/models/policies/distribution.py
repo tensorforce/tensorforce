@@ -18,11 +18,11 @@ Generic policy class for policy gradients.
 """
 
 
-class Policy(object):
+class Distribution(object):
     def __init__(self):
         pass
 
-    def log_prob(self, dist, action):
+    def log_prob(self, dist, actions):
         """
         Compute log probability for given policy distribution and actions.
         :param dist:

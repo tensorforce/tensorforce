@@ -26,7 +26,7 @@ from six.moves import xrange
 import numpy as np
 
 from tensorforce.rl_agents import MemoryAgent
-from tensorforce.updater import Model
+from tensorforce.models import Model
 from tensorforce.config import create_config
 
 

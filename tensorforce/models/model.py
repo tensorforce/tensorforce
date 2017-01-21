@@ -31,6 +31,7 @@ from tensorforce.config import create_config
 from tensorforce.util.config_util import get_function
 from tensorforce.util.exploration_util import exploration_mode
 
+
 class Model(object):
     default_config = None
 

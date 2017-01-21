@@ -13,10 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.updater.model import Model
-from tensorforce.updater.deep_q_network import DeepQNetwork
-from tensorforce.updater.linear_value_function import LinearValueFunction
-from tensorforce.updater.naf_network import NAFNetwork
-from tensorforce.updater.trpo_updater import TRPOUpdater
+from tensorforce.models.dqn_model import DQNModel
+from tensorforce.models.model import Model
+from tensorforce.models.naf_model import NAFModel
+from tensorforce.models.trpo_model import TRPOModel
 
-__all__ = ['Model', 'DeepQNetwork', 'LinearValueFunction', 'NAFNetwork', 'TRPOUpdater']
+
+__all__ = ['Model', 'DQNModel', 'NAFModel', 'TRPOModel', 'VPGModel']

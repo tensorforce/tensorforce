@@ -16,25 +16,64 @@
 A policy gradient model provides generic methods used in pg algorithms, e.g.
 GAE-computation or merging of episode data.
 """
-from tensorforce.updater import Model
+import tensorflow as tf
+from tensorforce.models import Model
 import numpy as np
 
+from tensorforce.models.baselines.linear_value_function import LinearValueFunction
+from tensorforce.models.neural_networks import NeuralNetwork
+from tensorforce.models.policies import CategoricalOneHotPolicy
+from tensorforce.models.policies import GaussianPolicy
+from tensorforce.models.policies.stochastic_policy import stochastic_policies
+from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.math_util import discount, zero_mean_unit_variance
 
 
 class PGModel(Model):
     def __init__(self, config):
         super(PGModel, self).__init__(config)
+        self.batch_size = self.config.batch_size
+        self.action_count = self.config.actions
+        self.use_gae = self.config.use_gae
+        self.gae_lambda = self.config.gae_lambda
 
-        self.baseline_value_function = None
+        self.gamma = self.config.gamma
+
+        if self.config.deterministic_mode:
+            self.random = global_seed()
+        else:
+            self.random = np.random.RandomState()
+
+        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+        self.episode = 0
+        self.input_feed = None
+
+        self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
+        self.advantage = tf.placeholder(tf.float32, shape=[None])
+        self.policy = None
+
+        scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
+        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state,
+                                           scope=scope + 'value_function')
+
+        # From an API perspective, continuous vs discrete might be easier than
+        # requiring to set the concrete policy, at least currently
+        if self.config.continuous:
+            self.policy = GaussianPolicy(self.session, self.state, self.random, self.action_count,
+                                         'gaussian_policy')
+        else:
+            self.policy = CategoricalOneHotPolicy(self.session, self.state, self.random, self.action_count,
+                                                  'categorical_policy')
+
+        self.baseline_value_function = LinearValueFunction()
 
     def get_action(self, state, episode=1):
-        pass
+        self.policy.sample(state)
 
     def update(self, batch):
         pass
 
-    def merge_episodes(self, batch):
+    def merge_episodes(self, batch, discrete=True):
         """
         Merge episodes of a batch into single input variables.
 

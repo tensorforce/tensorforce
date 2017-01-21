@@ -15,21 +15,17 @@
 """
 Vanilla policy gradient implementation.
 """
-from tensorforce.config import create_config
-from tensorforce.neural_networks import NeuralNetwork
-from tensorforce.neural_networks.layers import dense
-from tensorforce.updater import LinearValueFunction
 import numpy as np
-
-from tensorforce.updater.pg_model import PGModel
-from tensorforce.util.experiment_util import global_seed
-from tensorforce.util.exploration_util import exploration_mode
 import tensorflow as tf
 
-from tensorforce.util.math_util import discount, zero_mean_unit_variance
+from tensorforce.models import LinearValueFunction
+from tensorforce.models.neural_networks import NeuralNetwork
+from tensorforce.models.neural_networks.layers import linear
+from tensorforce.models.pg_model import PGModel
+from tensorforce.util.experiment_util import global_seed
 
 
-class VPGUpdater(PGModel):
+class VPGModel(PGModel):
     default_config = {
         'gamma': 0.99,
         'use_gae' : False,
@@ -37,13 +33,12 @@ class VPGUpdater(PGModel):
     }
 
     def __init__(self, config):
-        super(VPGUpdater, self).__init__(config)
+        super(VPGModel, self).__init__(config)
         self.action_count = self.config.actions
         self.gamma = self.config.gamma
         self.batch_size = self.config.batch_size
         self.gae_lambda = self.config.gae_lambda
         self.use_gae = self.config.use_gae
-        self.gamma = self.config.gamma
 
         if self.config.deterministic_mode:
             self.random = global_seed()
@@ -70,19 +65,8 @@ class VPGUpdater(PGModel):
 
         self.session.run(tf.global_variables_initializer())
 
-    def get_action(self, state, episode=1, total_states=0):
-        outputs, action_log_stds = self.session.run([self.outputs,
-                                                     self.action_log_stds],
-                                                    {self.state: [state]})
-
-        # NOTE log stds are currently not updated
-        action = outputs + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
-        return action.ravel(), dict(action_means=outputs,
-                                    action_log_stds=action_log_stds)
-
     def create_training_operations(self):
         with tf.variable_scope("update"):
-            # TODO this is a categorial softmax policy, doesnt cover continuous case
             log_probabilities = tf.log(tf.reduce_sum(tf.mul(self.outputs, self.actions), reduction_indices=[1]))
 
             self.loss = -tf.reduce_mean(log_probabilities * self.advantages, name="loss_op")
@@ -115,7 +99,7 @@ class VPGUpdater(PGModel):
         with tf.variable_scope("policy"):
             # TODO softmax here is meant for discrete actions, needs to be an optional
             # TODO mapping to e.g. a Gaussian for continuous actions
-            self.outputs = dense(self.hidden_layers.get_output(),
+            self.outputs = linear(self.hidden_layers.get_output(),
                                  {'neurons': self.action_count, 'regularization': self.config.regularizer,
                                   'regularization_param': self.config.regularization_param,
                                   'activation': tf.nn.softmax}, 'action_mu')

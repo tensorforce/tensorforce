@@ -47,24 +47,6 @@ class TRPOModel(PGModel):
 
     def __init__(self, config):
         super(TRPOModel, self).__init__(config)
-        self.batch_size = self.config.batch_size
-        self.action_count = self.config.actions
-        self.use_gae = self.config.use_gae
-        self.gae_lambda = self.config.gae_lambda
-
-        self.gamma = self.config.gamma
-
-        if self.config.deterministic_mode:
-            self.random = global_seed()
-        else:
-            self.random = np.random.RandomState()
-
-        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
-        self.episode = 0
-        self.input_feed = None
-
-        self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
-        self.advantage = tf.placeholder(tf.float32, shape=[None])
 
         # TRPO specific parameters
         self.cg_damping = self.config.cg_damping
@@ -73,30 +55,9 @@ class TRPOModel(PGModel):
         self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
 
         self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
-        self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count])
-        self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
 
-
-        self.saver = tf.train.Saver()
-
-        self.create_outputs()
         self.create_training_operations()
-        writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
-
         self.session.run(tf.global_variables_initializer())
-
-    def create_outputs(self):
-        # Output action means and log standard deviations
-
-        with tf.variable_scope("policy"):
-            self.action_means = linear(self.hidden_layers.get_output(),
-                                      {'neurons': self.action_count}, 'action_mu')
-
-            # Random init for log standard deviations
-            log_standard_devs_init = tf.Variable(0.01 * self.random.randn(1, self.action_count),
-                                                 dtype=tf.float32)
-
-            self.action_log_stds = tf.tile(log_standard_devs_init, tf.pack((tf.shape(self.action_means)[0], 1)))
 
     def create_training_operations(self):
         """
@@ -106,24 +67,24 @@ class TRPOModel(PGModel):
         """
 
         with tf.variable_scope("update"):
-            current_log_prob = get_log_prob_gaussian(self.action_means, self.action_log_stds, self.actions)
-            prev_log_prob = get_log_prob_gaussian(self.prev_action_means, self.prev_action_log_stds, self.actions)
-            prob_ratio = tf.exp(current_log_prob - prev_log_prob)
+            current_log_prob = self.dist.log_prob(self.policy.get_output_variables(), self.actions)
+            prev_log_prob = self.dist.log_prob(self.prev_dist, self.actions)
 
+            prob_ratio = tf.exp(current_log_prob - prev_log_prob)
             surrogate_loss = -tf.reduce_mean(prob_ratio * self.advantage)
             variables = tf.trainable_variables()
             batch_float = tf.cast(self.batch_size, tf.float32)
 
-            mean_kl_divergence = get_kl_divergence_gaussian(self.prev_action_means, self.prev_action_log_stds,
-                                                            self.action_means, self.action_log_stds) / batch_float
-            mean_entropy = get_entropy_gaussian(self.action_log_stds) / batch_float
+            # TODO check if right direction p/q
+            mean_kl_divergence = self.dist.kl_divergence(self.prev_dist, self.policy.get_output_variables())\
+                                 / batch_float
+            mean_entropy = self.dist.entropy(self.policy.get_output_variables()) / batch_float
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
 
             # Get symbolic gradient expressions
             self.policy_gradient = get_flattened_gradient(self.losses, variables)
-            fixed_kl_divergence = get_fixed_kl_divergence_gaussian(self.action_means, self.action_log_stds) \
-                                  / batch_float
+            fixed_kl_divergence = self.dist.fixed_kl(self.policy.get_output_variables()) / batch_float
 
             variable_shapes = map(get_shape, variables)
             offset = 0
@@ -161,8 +122,9 @@ class TRPOModel(PGModel):
         self.input_feed = {self.state: states,
                            self.actions: actions,
                            self.advantage: batch_advantage,
-                           self.prev_action_means: action_means,
-                           self.prev_action_log_stds: action_log_stds}
+                           self.prev_action_means: action_means}
+        if self.continuous:
+            self.input_feed[self.prev_action_log_stds] = action_log_stds
 
         previous_theta = self.flat_variable_helper.get()
         gradient = self.session.run(self.policy_gradient, self.input_feed)

@@ -24,7 +24,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 from tensorforce.exceptions.tensorforce_exceptions import ConfigError
-from tensorforce.models.neural_networks import layers
+from tensorforce.models.neural_networks.layers import layers
 
 tf_slim = tf.contrib.slim
 

@@ -1,9 +1,6 @@
 """
 Generic stochastic policy for policy gradients.
 """
-from tensorforce.models.policies.categorical import Categorical
-from tensorforce.models.policies.gaussian_policy import GaussianPolicy
-
 
 class StochasticPolicy(object):
     def __init__(self,
@@ -17,8 +14,8 @@ class StochasticPolicy(object):
 
         :param neural_network: Handle to policy network used for prediction
         """
-        self.session = session
         self.neural_network = neural_network
+        self.session = session
         self.state = state
         self.action_count = action_count
         self.random = random
@@ -32,8 +29,3 @@ class StochasticPolicy(object):
     def get_output_variables(self):
         raise NotImplementedError
 
-
-stochastic_policies = {
-    'gaussian' : GaussianPolicy,
-    'categorical': Categorical
-}

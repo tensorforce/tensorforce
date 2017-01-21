@@ -59,8 +59,9 @@ class PGAgent(RLAgent):
         action, outputs = self.updater.get_action(*args, **kwargs)
 
         # Cache last action in case action is used multiple times in environment
-        self.last_action_means = outputs['action_means']
-        self.last_action_log_stds = outputs['action_log_stds']
+        self.last_action_means = outputs['policy_outputs']
+        if self.continuous:
+            self.last_action_log_stds = outputs['policy_log_stds']
         self.last_action = action
 
         return action
@@ -86,7 +87,9 @@ class PGAgent(RLAgent):
         self.current_episode['actions'].append(self.last_action)
         self.current_episode['rewards'].append(reward)
         self.current_episode['action_means'].append(self.last_action_means)
-        self.current_episode['action_log_stds'].append(self.last_action_log_stds)
+
+        if self.continuous:
+            self.current_episode['action_log_stds'].append(self.last_action_log_stds)
 
         if terminal:
             # Batch could also end before episode is terminated
@@ -105,7 +108,8 @@ class PGAgent(RLAgent):
                 self.current_batch.append(path)
 
             print('last means=' + str(self.last_action_means))
-            print('last stds=' + str(self.last_action_log_stds))
+            if self.continuous:
+                print('last stds=' + str(self.last_action_log_stds))
             print('last actions=' + str(self.last_action))
 
             print('Computing TRPO update, episodes =' + str(len(self.current_batch)))
@@ -127,8 +131,10 @@ class PGAgent(RLAgent):
                 'actions': np.array(self.current_episode['actions']),
                 'terminated': self.current_episode['terminated'],
                 'action_means': np.concatenate(self.current_episode['action_means']),
-                'action_log_stds': np.concatenate(self.current_episode['action_log_stds']),
                 'rewards': np.array(self.current_episode['rewards'])}
+
+        if self.continuous:
+            path['action_log_stds'] = np.concatenate(self.current_episode['action_log_stds'])
 
         return path
 

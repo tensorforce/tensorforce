@@ -3,8 +3,8 @@ Standard Gaussian policy.
 """
 
 from tensorforce.models.neural_networks.layers import linear
+from tensorforce.models.policies import StochasticPolicy
 from tensorforce.models.policies.gaussian import Gaussian
-from tensorforce.models.policies.stochastic_policy import StochasticPolicy
 import numpy as np
 import tensorflow as tf
 
@@ -36,8 +36,8 @@ class GaussianPolicy(StochasticPolicy):
 
         action = action_means + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
 
-        return action.ravel(), dict(action_means=action_means,
-                                    action_log_stds=action_log_stds)
+        return action.ravel(), dict(policy_outputs=action_means,
+                                    policy_log_stds=action_log_stds)
 
     def get_distribution(self):
         return self.dist
@@ -45,3 +45,4 @@ class GaussianPolicy(StochasticPolicy):
     def get_output_variables(self):
         return dict(policy_output=self.action_means,
                     policy_log_std=self.action_log_stds)
+

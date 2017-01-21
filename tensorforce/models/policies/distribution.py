@@ -25,8 +25,9 @@ class Distribution(object):
     def log_prob(self, dist, actions):
         """
         Compute log probability for given policy distribution and actions.
-        :param dist:
-        :param action:
+
+        :param dist: Dict of distribution params
+        :param actions: Actions taken
         :return:
         """
         raise NotImplementedError

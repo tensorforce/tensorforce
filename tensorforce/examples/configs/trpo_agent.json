@@ -1,11 +1,11 @@
 {
-  "batch_size": 200,
+  "batch_size": 5000,
   "use_gae": true,
   "gae_lambda": 0.97,
   "cg_iterations" : 20,
   "cg_camping" : 0.001,
   "line_search_steps" : 20,
-  "max_kl_divergence": 0.1,
+  "max_kl_divergence": 0.01,
   "gamma": 0.99,
   "continuous": true
 }

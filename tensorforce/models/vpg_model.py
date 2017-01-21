@@ -35,12 +35,7 @@ class VPGModel(PGModel):
     def __init__(self, config):
         super(VPGModel, self).__init__(config)
 
-        self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count])
-        self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
-
-
         self.create_training_operations()
-
         self.session.run(tf.global_variables_initializer())
 
     def create_training_operations(self):

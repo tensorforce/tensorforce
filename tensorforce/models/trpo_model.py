@@ -55,7 +55,6 @@ class TRPOModel(PGModel):
         self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
 
         self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
-
         self.create_training_operations()
         self.session.run(tf.global_variables_initializer())
 

@@ -3,9 +3,9 @@
   "use_gae": true,
   "gae_lambda": 0.97,
   "cg_iterations" : 20,
-  "cg_camping" : 0.001,
+  "cg_camping" : 0.1,
   "line_search_steps" : 20,
-  "max_kl_divergence": 0.01,
+  "max_kl_divergence": 0.05,
   "gamma": 0.99,
   "continuous": true
 }

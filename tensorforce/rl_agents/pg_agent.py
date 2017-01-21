@@ -42,7 +42,7 @@ class PGAgent(RLAgent):
         self.batch_size = config.batch_size
         self.last_action = None
         self.last_action_means = None
-        self.last_action_log_stds = None
+        self.last_action_log_std = None
         self.continuous = self.config.continuous
 
         if self.value_function_ref:
@@ -59,11 +59,16 @@ class PGAgent(RLAgent):
         action, outputs = self.updater.get_action(*args, **kwargs)
 
         # Cache last action in case action is used multiple times in environment
-        self.last_action_means = outputs['policy_outputs']
-        if self.continuous:
-            self.last_action_log_stds = outputs['policy_log_stds']
+        self.last_action_means = outputs['policy_output']
         self.last_action = action
+        #print('action one hot =' + str(action))
 
+        if self.continuous:
+            self.last_action_log_std = outputs['policy_log_std']
+        else:
+            action = np.argmax(action)
+
+        #print('action selected' + str(action))
         return action
 
     def add_observation(self, state, action, reward, terminal):
@@ -89,7 +94,7 @@ class PGAgent(RLAgent):
         self.current_episode['action_means'].append(self.last_action_means)
 
         if self.continuous:
-            self.current_episode['action_log_stds'].append(self.last_action_log_stds)
+            self.current_episode['action_log_stds'].append(self.last_action_log_std)
 
         if terminal:
             # Batch could also end before episode is terminated
@@ -109,7 +114,7 @@ class PGAgent(RLAgent):
 
             print('last means=' + str(self.last_action_means))
             if self.continuous:
-                print('last stds=' + str(self.last_action_log_stds))
+                print('last stds=' + str(self.last_action_log_std))
             print('last actions=' + str(self.last_action))
 
             print('Computing TRPO update, episodes =' + str(len(self.current_batch)))
@@ -118,7 +123,7 @@ class PGAgent(RLAgent):
             self.current_batch = []
             self.last_action = None
             self.last_action_means = None
-            self.last_action_log_stds = None
+            self.last_action_log_std = None
             self.batch_steps = 0
 
     def get_path(self):

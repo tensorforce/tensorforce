@@ -66,7 +66,7 @@ class TRPOModel(PGModel):
         """
 
         with tf.variable_scope("update"):
-            current_log_prob = self.dist.log_prob(self.policy.get_output_variables(), self.actions)
+            current_log_prob = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
             prev_log_prob = self.dist.log_prob(self.prev_dist, self.actions)
 
             prob_ratio = tf.exp(current_log_prob - prev_log_prob)
@@ -75,15 +75,15 @@ class TRPOModel(PGModel):
             batch_float = tf.cast(self.batch_size, tf.float32)
 
             # TODO check if right direction p/q
-            mean_kl_divergence = self.dist.kl_divergence(self.prev_dist, self.policy.get_output_variables())\
+            mean_kl_divergence = self.dist.kl_divergence(self.prev_dist, self.policy.get_policy_variables())\
                                  / batch_float
-            mean_entropy = self.dist.entropy(self.policy.get_output_variables()) / batch_float
+            mean_entropy = self.dist.entropy(self.policy.get_policy_variables()) / batch_float
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
 
             # Get symbolic gradient expressions
             self.policy_gradient = get_flattened_gradient(self.losses, variables)
-            fixed_kl_divergence = self.dist.fixed_kl(self.policy.get_output_variables()) / batch_float
+            fixed_kl_divergence = self.dist.fixed_kl(self.policy.get_policy_variables()) / batch_float
 
             variable_shapes = map(get_shape, variables)
             offset = 0
@@ -126,6 +126,9 @@ class TRPOModel(PGModel):
             self.input_feed[self.prev_action_log_stds] = action_log_stds
 
         previous_theta = self.flat_variable_helper.get()
+
+        print(action_means.shape)
+
         gradient = self.session.run(self.policy_gradient, self.input_feed)
         zero = np.zeros_like(gradient)
 

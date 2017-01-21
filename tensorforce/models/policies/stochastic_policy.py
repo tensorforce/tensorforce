@@ -26,6 +26,6 @@ class StochasticPolicy(object):
     def get_distribution(self):
         raise NotImplementedError
 
-    def get_output_variables(self):
+    def get_policy_variables(self):
         raise NotImplementedError
 

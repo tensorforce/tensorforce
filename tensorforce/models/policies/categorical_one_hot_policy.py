@@ -29,11 +29,15 @@ class CategoricalOneHotPolicy(StochasticPolicy):
         output_dist = self.session.run(self.outputs, {self.state: [state]})
 
         if sample:
-            action = int(self.dist.sample(output_dist))
+            action = self.dist.sample(dict(policy_output=output_dist))
         else:
             action = int(np.argmax(output_dist))
 
-        return action, dict(policy_output=output_dist)
+        #print('action after dist sample ' + str(action))
 
-    def get_output_variables(self):
+        one_hot = np.zeros_like(output_dist)
+        one_hot[action] = 1
+        return one_hot.ravel(), dict(policy_output=output_dist)
+
+    def get_policy_variables(self):
         return dict(policy_output=self.outputs)

@@ -48,7 +48,6 @@ class PGModel(Model):
         self.episode = 0
         self.input_feed = None
 
-        self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.advantage = tf.placeholder(tf.float32, shape=[None])
         self.policy = None
 
@@ -56,8 +55,8 @@ class PGModel(Model):
         self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state,
                                            scope=scope + 'value_function')
 
-
         self.saver = tf.train.Saver()
+        self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
         self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count])
 
         # From an API perspective, continuous vs discrete might be easier than
@@ -71,8 +70,10 @@ class PGModel(Model):
                                   policy_log_std=self.prev_action_log_stds)
 
         else:
-            self.policy = CategoricalOneHotPolicy(self.hidden_layers, self.session, self.state, self.random, self.action_count,
-                                                  'categorical_policy')
+            # Only storing one discrete action
+
+            self.policy = CategoricalOneHotPolicy(self.hidden_layers, self.session, self.state, self.random,
+                                                  self.action_count,'categorical_policy')
             self.prev_dist = dict(policy_output=self.prev_action_means)
 
         # Probability distribution used in the current policy

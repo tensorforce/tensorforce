@@ -73,4 +73,5 @@ class NeuralNetwork(object):
     def get_variables(self):
         if self.variables is None:
             self.variables = tf_slim.get_variables(scope=self.scope)
+
         return self.variables

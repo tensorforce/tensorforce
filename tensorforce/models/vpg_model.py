@@ -40,7 +40,7 @@ class VPGModel(PGModel):
 
     def create_training_operations(self):
         with tf.variable_scope("update"):
-            log_probabilities = self.dist.log_prob(self.policy.get_output_variables(), self.actions)
+            log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
 
             self.loss = -tf.reduce_mean(log_probabilities * self.advantage, name="loss_op")
 

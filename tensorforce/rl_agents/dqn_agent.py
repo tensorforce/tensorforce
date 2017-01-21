@@ -39,4 +39,4 @@ class DQNAgent(MemoryAgent):
         'use_target_network': True
     }
 
-    value_function_ref = DQNModel
+    model_ref = DQNModel

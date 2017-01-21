@@ -31,7 +31,7 @@ class PGAgent(RLAgent):
         'deterministic_mode': False,
     }
 
-    value_function_ref = None
+    model_ref = None
 
     def __init__(self, config):
         self.config = create_config(config, default=self.default_config)
@@ -45,8 +45,8 @@ class PGAgent(RLAgent):
         self.last_action_log_std = None
         self.continuous = self.config.continuous
 
-        if self.value_function_ref:
-            self.updater = self.value_function_ref(self.config)
+        if self.model_ref:
+            self.updater = self.model_ref(self.config)
 
     def get_action(self, *args, **kwargs):
         """

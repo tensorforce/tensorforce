@@ -28,4 +28,4 @@ from tensorforce.models import TRPOModel
 class TRPOAgent(PGAgent):
     name = 'TRPOAgent'
 
-    value_function_ref = TRPOModel
+    model_ref = TRPOModel

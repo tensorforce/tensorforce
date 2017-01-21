@@ -34,4 +34,4 @@ class VPGAgent(PGAgent):
         'deterministic_mode': False
     }
 
-    value_function_ref = VPGModel
+    model_ref = VPGModel

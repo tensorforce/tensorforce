@@ -34,4 +34,4 @@ class NAFAgent(MemoryAgent):
         'deterministic_mode': False
     }
 
-    value_function_ref = NAFModel
+    model_ref = NAFModel

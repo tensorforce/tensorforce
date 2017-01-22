@@ -20,7 +20,7 @@ Generic policy class for policy gradients.
 
 class Distribution(object):
     def __init__(self):
-        pass
+        self.epsilon =1e-6
 
     def log_prob(self, dist, actions):
         """

@@ -127,7 +127,10 @@ class TRPOModel(PGModel):
 
         previous_theta = self.flat_variable_helper.get()
 
-        print(action_means.shape)
+        # print('action shape' + str(actions.shape))
+        # print('action means shape' + str(action_means.shape))
+        # print('advantage shape' + str(batch_advantage.shape))
+        # print('log stds shape' + str(action_log_stds.shape))
 
         gradient = self.session.run(self.policy_gradient, self.input_feed)
         zero = np.zeros_like(gradient)

@@ -27,17 +27,21 @@ class CategoricalOneHotPolicy(StochasticPolicy):
 
     def sample(self, state, sample=True):
         output_dist = self.session.run(self.outputs, {self.state: [state]})
+        output_dist = output_dist.ravel()
 
         if sample:
-            action = self.dist.sample(dict(policy_output=output_dist))
+            action = self.dist.sample(dict(policy_output=output_dist))[0]
         else:
             action = int(np.argmax(output_dist))
 
-        #print('action after dist sample ' + str(action))
+        # print('action after dist sample ' + str(action))
 
         one_hot = np.zeros_like(output_dist)
         one_hot[action] = 1
-        return one_hot.ravel(), dict(policy_output=output_dist)
+        # print('action after one hot  ' + str(one_hot))
+
+        # We return a one hot vector and then extract the concrete action in the pg agent
+        return one_hot, dict(policy_output=output_dist)
 
     def get_policy_variables(self):
         return dict(policy_output=self.outputs)

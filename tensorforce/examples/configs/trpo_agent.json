@@ -7,5 +7,5 @@
   "line_search_steps" : 20,
   "max_kl_divergence": 0.05,
   "gamma": 0.99,
-  "continuous": true
+  "continuous": false
 }

@@ -36,8 +36,9 @@ class GaussianPolicy(StochasticPolicy):
 
         action = action_means + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
 
-        return action.ravel(), dict(policy_output=action_means,
-                                    policy_log_std=action_log_stds)
+        # ravel from [[]] to []
+        return action.ravel(), dict(policy_output=action_means.ravel(),
+                                    policy_log_std=action_log_stds.ravel())
 
     def get_distribution(self):
         return self.dist

@@ -61,6 +61,7 @@ class PGAgent(RLAgent):
         # Cache last action in case action is used multiple times in environment
         self.last_action_means = outputs['policy_output']
         self.last_action = action
+
         #print('action one hot =' + str(action))
 
         if self.continuous:
@@ -109,7 +110,6 @@ class PGAgent(RLAgent):
             if not terminal:
                 self.current_episode['terminated'] = False
                 path = self.get_path()
-
                 self.current_batch.append(path)
 
             print('last means=' + str(self.last_action_means))
@@ -135,7 +135,7 @@ class PGAgent(RLAgent):
         path = {'states': np.concatenate(np.expand_dims(self.current_episode['states'], 0)),
                 'actions': np.array(self.current_episode['actions']),
                 'terminated': self.current_episode['terminated'],
-                'action_means': np.concatenate(self.current_episode['action_means']),
+                'action_means': np.array(self.current_episode['action_means']),
                 'rewards': np.array(self.current_episode['rewards'])}
 
         if self.continuous:

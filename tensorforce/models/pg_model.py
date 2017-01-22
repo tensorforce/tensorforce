@@ -48,7 +48,7 @@ class PGModel(Model):
         self.episode = 0
         self.input_feed = None
 
-        self.advantage = tf.placeholder(tf.float32, shape=[None])
+        self.advantage = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
         self.policy = None
 
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
@@ -57,7 +57,7 @@ class PGModel(Model):
 
         self.saver = tf.train.Saver()
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
-        self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count])
+        self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count], name='prev_actions')
 
         # From an API perspective, continuous vs discrete might be easier than
         # requiring to set the concrete policy, at least currently
@@ -110,6 +110,7 @@ class PGModel(Model):
         """
         if self.continuous:
             action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
+            action_log_stds = np.expand_dims(action_log_stds, axis=1)
         else:
             action_log_stds = None
 
@@ -117,6 +118,7 @@ class PGModel(Model):
         actions = np.concatenate([path['actions'] for path in batch])
         batch_advantage = np.concatenate([path["advantage"] for path in batch])
         batch_advantage = zero_mean_unit_variance(batch_advantage)
+        batch_advantage = np.expand_dims(batch_advantage, axis=1)
         states = np.concatenate([path['states'] for path in batch])
 
         return action_log_stds, action_means, actions, batch_advantage, states

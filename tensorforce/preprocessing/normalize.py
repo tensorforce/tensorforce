@@ -13,15 +13,32 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.preprocessing.stack import Stack
-from tensorforce.preprocessing.preprocessor import Preprocessor
+"""
+Normalize data by rescaling.
+"""
 
-from tensorforce.preprocessing.concat import Concat
-from tensorforce.preprocessing.grayscale import Grayscale
-from tensorforce.preprocessing.imresize import Imresize
-from tensorforce.preprocessing.maximum import Maximum
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
 
-from tensorforce.preprocessing.normalize import Normalize
-from tensorforce.preprocessing.standardize import Standardize
+import numpy as np
 
-__all__ = ["Stack", "Preprocessor", "Concat", "Grayscale", "Imresize", "Maximum", "Normalize", "Standardize"]
+from tensorforce.preprocessing import Preprocessor
+from tensorforce.util.math_util import unity_based_normalization
+
+
+class Normalize(Preprocessor):
+
+    default_config = {
+    }
+
+    config_args = [
+    ]
+
+    def process(self, state):
+        """
+        Standardize the data.
+        :param state: state input
+        :return: new_state
+        """
+        return unity_based_normalization(state.astype(np.float32))

@@ -24,7 +24,8 @@
   "preprocessing": [
     ["grayscale"],
     ["imresize", 84, 84],
-    ["concat", 4, "append"]
+    ["concat", 4, "append"],
+    ["normalize"]
   ],
   "repeat_actions": 1
 }

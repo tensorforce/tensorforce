@@ -1,4 +1,3 @@
-
 # Copyright 2016 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,25 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""
-Vanilla policy gradient agent with GAE.
-"""
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.rl_agents import PGAgent
-from tensorforce.models.vpg_model import VPGModel
+from tensorforce.models.model import Model
+from tensorforce.models.dqn_model import DQNModel
+from tensorforce.models.naf_model import NAFModel
+from tensorforce.models.baselines import LinearValueFunction
+from tensorforce.models.trpo_model import TRPOModel
 
 
-class VPGAgent(PGAgent):
-    name = 'VPGAgent'
-
-    default_config = {
-        'batch_size': 100,
-        'update_steps': 10,
-        'deterministic_mode': False
-    }
-
-    model_ref = VPGModel
+__all__ = ['Model', 'DQNModel', 'NAFModel', 'LinearValueFunction', 'TRPOModel', 'VPGModel']

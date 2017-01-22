@@ -18,9 +18,13 @@ and others.
 
 Conjugate gradients solve linear systems of equations Ax=b through iteratively constructing n conjugate
 search directions, thus guaranteeing convergence in at most n steps, although in practice much fewer steps are
-used for large sparse systems. The key idea of cg ist that the next conjugate vector p_k can be computed
+used for large sparse systems.
+
+The key idea of cg ist that the next conjugate vector p_k can be computed
 just based on the previous search direction as a linear combination of the negative residual and previous
 search direction, instead of using a memory intensive orthogonalization process such as Gram-Schmidt.
+
+
 """
 from six.moves import xrange
 import numpy as np
@@ -31,6 +35,7 @@ import numpy as np
 
 class ConjugateGradientOptimizer(object):
     def __init__(self, cg_iterations=10, stop_residual=1e-10):
+
         self.iterations = cg_iterations
         self.stop_residual = stop_residual
 
@@ -57,7 +62,8 @@ class ConjugateGradientOptimizer(object):
             new_residual_dot_residual = residual.dot(residual)
             alpha = new_residual_dot_residual / residual_dot_residual
 
-            # Construct new search direction
+            # Construct new search direction as linear combination of residual and previous
+            # search vector.
             cg_vector_p = residual + alpha * cg_vector_p
             residual_dot_residual = new_residual_dot_residual
 

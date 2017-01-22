@@ -26,7 +26,7 @@ from six.moves import xrange
 import numpy as np
 
 from tensorforce.rl_agents import MemoryAgent
-from tensorforce.updater import Model
+from tensorforce.models import Model
 from tensorforce.config import create_config
 
 
@@ -80,7 +80,7 @@ def test_memoryagent_update_frequency():
     model = TestModel(config)
 
     # Set value function manually
-    agent.value_function = model
+    agent.model = model
 
     # Assert config values
     assert agent.batch_size == config['batch_size']

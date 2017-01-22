@@ -19,21 +19,18 @@ in the DQN paper.
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
 import numpy as np
-
 import tensorflow as tf
 
-from tensorforce.config import create_config
-from tensorforce.neural_networks import NeuralNetwork
+from tensorforce.models import Model
+from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
-from tensorforce.updater import Model
-from tensorforce.util.exploration_util import exploration_mode
 
 
-class DeepQNetwork(Model):
+class DQNModel(Model):
     default_config = {
         'double_dqn': False,
         'tau': 1.0,
@@ -52,7 +49,7 @@ class DeepQNetwork(Model):
 
         :param config: Configuration parameters
         """
-        super(DeepQNetwork, self).__init__(config)
+        super(DQNModel, self).__init__(config)
 
         self.action_count = self.config.actions
         self.tau = self.config.tau

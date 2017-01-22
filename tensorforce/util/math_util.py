@@ -36,64 +36,6 @@ def zero_mean_unit_variance(data):
 def discount(rewards, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
 
-
-def get_log_prob_gaussian(action_dist_mean, log_std, actions):
-    """
-
-    :param action_dist_mean: Mean of action distribution
-    :param log_std: Log standard deviations
-    :param actions: Actions for which to compute log probabilities.
-    :return:
-    """
-    probability = -tf.square(actions - action_dist_mean) / (2 * tf.exp(2 * log_std)) \
-                  - 0.5 * tf.log(tf.constant(2 * np.pi)) - log_std
-
-    # Sum logs
-    return tf.reduce_sum(probability, [1])
-
-
-# TODO reorganise into distribution classes
-def get_kl_divergence_gaussian(mean_a, log_std_a, mean_b, log_std_b):
-    """
-    Kullback-Leibler divergence between Gaussians a and b.
-
-    :param mean_a: Mean of first Gaussian
-    :param log_std_a: Log std of first Gaussian
-    :param mean_b: Mean of second Gaussian
-    :param log_std_b: Log std of second Gaussian
-    :return: KL-Divergence between a and b
-    """
-    exp_std_a = tf.exp(2 * log_std_a)
-    exp_std_b = tf.exp(2 * log_std_b)
-
-    return tf.reduce_sum(log_std_b - log_std_a
-                         + (exp_std_a + tf.square(mean_a - mean_b)) / (2 * exp_std_b) - 0.5)
-
-
-def get_fixed_kl_divergence_gaussian(mean, log_std):
-    """
-    KL divergence with first param fixed. Used in TRPO update.
-
-    :param mean:
-    :param log_std:
-    :return:
-    """
-    mean_a, log_std_a = map(tf.stop_gradient, [mean, log_std])
-    mean_b, log_std_b = mean, log_std
-
-    return get_kl_divergence_gaussian(mean_a, log_std_a, mean_b, log_std_b)
-
-
-def get_entropy_gaussian(log_std):
-    """
-    Gaussian entropy; n.b. does not depend on mean but covariance only.
-
-    :param log_std:
-    :return: Gaussian entropy for a given covariance
-    """
-    return tf.reduce_sum(log_std + tf.constant(0.5 * np.log(2 * np.pi * np.e), tf.float32))
-
-
 def get_shape(variable):
     shape = [k.value for k in variable.get_shape()]
     return shape

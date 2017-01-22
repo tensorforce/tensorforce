@@ -54,7 +54,7 @@ def get_default_config(agent_type):
     if not agent_class:
         raise TensorForceValueError("No such agent: {}".format(agent_type))
 
-    return Config(agent_class.default_config), Config(agent_class.value_function_ref.default_config)
+    return Config(agent_class.default_config), Config(agent_class.model_ref.default_config)
 
 
 agents = {

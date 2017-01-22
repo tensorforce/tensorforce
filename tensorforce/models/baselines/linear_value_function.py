@@ -25,7 +25,7 @@ class LinearValueFunction(object):
         self.coefficients = None
 
     def get_features(self, path):
-        states = path["states"].astype('float32 ')
+        states = path["states"]
         states = states.reshape(states.shape[0], -1)
 
         path_length = len(path["rewards"])
@@ -38,7 +38,7 @@ class LinearValueFunction(object):
         returns = np.concatenate([path["returns"] for path in paths])
 
         columns = feature_matrix.shape[1]
-        lamb = 2.0
+        lamb = 2
 
         self.coefficients = np.linalg.lstsq(feature_matrix.T.dot(feature_matrix)
                                             + lamb * np.identity(columns), feature_matrix.T.dot(returns))[0]

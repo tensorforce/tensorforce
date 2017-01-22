@@ -39,7 +39,7 @@ class MemoryAgent(RLAgent):
         'update_repeat': 1
     }
 
-    value_function_ref = None
+    model_ref = None
 
     def __init__(self, config):
         """
@@ -52,7 +52,7 @@ class MemoryAgent(RLAgent):
         and so forth.
         """
         self.config = create_config(config, default=self.default_config)
-        self.value_function = None
+        self.model = None
 
         self.memory = ReplayMemory(**config)
         self.step_count = 0
@@ -66,8 +66,8 @@ class MemoryAgent(RLAgent):
 
         self.min_replay_size = self.config.min_replay_size
 
-        if self.value_function_ref:
-            self.value_function = self.value_function_ref(self.config)
+        if self.model_ref:
+            self.model = self.model_ref(self.config)
 
     def get_action(self, *args, **kwargs):
         """
@@ -75,7 +75,7 @@ class MemoryAgent(RLAgent):
 
         :return: Which action to take
         """
-        action = self.value_function.get_action(*args, **kwargs)
+        action = self.model.get_action(*args, **kwargs)
 
         return action
 
@@ -96,11 +96,11 @@ class MemoryAgent(RLAgent):
         if self.step_count >= self.min_replay_size and self.step_count % self.update_steps == 0:
             for _ in xrange(self.update_repeat):
                 batch = self.memory.sample_batch(self.batch_size)
-                self.value_function.update(batch)
+                self.model.update(batch)
 
         if self.step_count >= self.min_replay_size and self.use_target_network \
                 and self.step_count % self.target_update_steps == 0:
-            self.value_function.update_target_network()
+            self.model.update_target_network()
 
     def get_variables(self):
         return self.value_function.get_variables()
@@ -115,7 +115,7 @@ class MemoryAgent(RLAgent):
         self.value_function.apply_gradients(grads_and_vars)
 
     def save_model(self, path):
-        self.value_function.save_model(path)
+        self.model.save_model(path)
 
     def load_model(self, path):
-        self.value_function.load_model(path)
+        self.model.load_model(path)

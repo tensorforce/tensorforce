@@ -22,21 +22,21 @@ for the update logic with different modularisation.
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
-from six.moves import xrange
+from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+from six.moves import xrange
 from tensorflow.contrib.framework import get_variables
 
-from tensorforce.neural_networks.layers import linear
-from tensorforce.neural_networks import NeuralNetwork
+from tensorforce.models import Model
+from tensorforce.models.neural_networks import NeuralNetwork
+from tensorforce.models.neural_networks.layers import linear
 from tensorforce.util.experiment_util import global_seed
-from tensorforce.updater import Model
 
 
-class NAFNetwork(Model):
+class NAFModel(Model):
     default_config = {
         'tau': 0.001,
         'epsilon': 0.1,
@@ -51,7 +51,7 @@ class NAFNetwork(Model):
 
         :param config: Configuration parameters
         """
-        super(NAFNetwork, self).__init__(config)
+        super(NAFModel, self).__init__(config)
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon

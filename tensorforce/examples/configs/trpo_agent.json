@@ -1,5 +1,5 @@
 {
-  "batch_size": 5000,
+  "batch_size": 100,
   "use_gae": true,
   "gae_lambda": 0.97,
   "cg_iterations" : 20,

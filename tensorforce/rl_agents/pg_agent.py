@@ -117,7 +117,7 @@ class PGAgent(RLAgent):
                 print('last stds=' + str(self.last_action_log_std))
             print('last actions=' + str(self.last_action))
 
-            print('Computing TRPO update, episodes =' + str(len(self.current_batch)))
+            print('Computing PG update, episodes =' + str(len(self.current_batch)))
             self.updater.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []

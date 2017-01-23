@@ -38,7 +38,6 @@ class CategoricalOneHotPolicy(StochasticPolicy):
 
         one_hot = np.zeros_like(output_dist)
         one_hot[action] = 1
-        # print('action after one hot  ' + str(one_hot))
 
         # We return a one hot vector and then extract the concrete action in the pg agent
         return one_hot, dict(policy_output=output_dist)

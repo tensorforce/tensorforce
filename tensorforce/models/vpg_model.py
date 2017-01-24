@@ -43,7 +43,7 @@ class VPGModel(PGModel):
             # If output 0, log NaN -> add epsilon to outputs for good measure?
             self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
 
-            self.loss = -tf.reduce_mean(self.log_probabilities * self.advantage, name="loss_op")
+            self.loss = -tf.reduce_sum(self.log_probabilities * self.advantage, name="loss_op")
 
             self.optimize_op = self.optimizer.minimize(self.loss)
 

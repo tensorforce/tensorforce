@@ -112,10 +112,10 @@ class PGAgent(RLAgent):
                 path = self.get_path()
                 self.current_batch.append(path)
 
-            print('last means=' + str(self.last_action_means))
-            if self.continuous:
-                print('last stds=' + str(self.last_action_log_std))
-            print('last actions=' + str(self.last_action))
+            #print('last means=' + str(self.last_action_means))
+            #if self.continuous:
+                #print('last stds=' + str(self.last_action_log_std))
+            #print('last actions=' + str(self.last_action))
 
             print('Computing PG update, episodes =' + str(len(self.current_batch)))
             self.updater.update(self.current_batch)

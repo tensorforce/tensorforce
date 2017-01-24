@@ -27,12 +27,9 @@ class CategoricalOneHotPolicy(StochasticPolicy):
         return self.dist
 
     def sample(self, state, sample=True):
-        action_layer, output_dist = self.session.run([self.action_layer, self.outputs], {self.state: [state]})
+        output_dist = self.session.run(self.outputs, {self.state: [state]})
 
-        print("Action layer output:")
-        print(action_layer)
-        print("After softmax:")
-        print(output_dist)
+#        print(output_dist)
 
         output_dist = output_dist.ravel()
 
@@ -41,7 +38,7 @@ class CategoricalOneHotPolicy(StochasticPolicy):
         else:
             action = int(np.argmax(output_dist))
 
-        print('action after dist sample ' + str(action))
+#        print('action after dist sample ' + str(action))
 
         one_hot = np.zeros_like(output_dist)
         one_hot[action] = 1

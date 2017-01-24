@@ -40,7 +40,6 @@ class Categorical(Distribution):
         prob = dist['policy_output']
 
         cumulative_prob = np.cumsum(prob, axis=0)
-        print(cumulative_prob)
         samples = cumulative_prob > np.random.rand(len(dist), 1)
 
         return np.argmax(samples.ravel())

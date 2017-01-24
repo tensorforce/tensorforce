@@ -68,9 +68,7 @@ class VPGModel(PGModel):
                       self.advantage: batch_advantage}
 
         log_probs, loss, _ = self.session.run([self.log_probabilities, self.loss, self.optimize_op], input_feed)
-
-        print('log_probs' + str(log_probs))
-        print('loss' + str(loss))
+        print('loss:' + str(loss))
 
 
 

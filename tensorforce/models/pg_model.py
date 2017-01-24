@@ -62,18 +62,16 @@ class PGModel(Model):
         # From an API perspective, continuous vs discrete might be easier than
         # requiring to set the concrete policy, at least currently
         if self.continuous:
-            self.policy = GaussianPolicy(self.hidden_layers, self.session, self.state, self.random, self.action_count,
-                                         'gaussian_policy')
+            self.policy = GaussianPolicy(self.hidden_layers, self.session, self.state, self.random,
+                                         self.action_count, 'gaussian_policy')
             self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
 
             self.prev_dist = dict(policy_output=self.prev_action_means,
                                   policy_log_std=self.prev_action_log_stds)
 
         else:
-            # Only storing one discrete action
-
             self.policy = CategoricalOneHotPolicy(self.hidden_layers, self.session, self.state, self.random,
-                                                  self.action_count,'categorical_policy')
+                                                  self.action_count, 'categorical_policy')
             self.prev_dist = dict(policy_output=self.prev_action_means)
 
         # Probability distribution used in the current policy

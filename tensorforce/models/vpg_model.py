@@ -28,7 +28,7 @@ from tensorforce.util.experiment_util import global_seed
 class VPGModel(PGModel):
     default_config = {
         'gamma': 0.99,
-        'use_gae' : False,
+        'use_gae': False,
         'gae_lambda': 0.97  # GAE-lambda
     }
 
@@ -42,7 +42,6 @@ class VPGModel(PGModel):
         with tf.variable_scope("update"):
             # If output 0, log NaN -> add epsilon to outputs for good measure?
             self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
-
             self.loss = -tf.reduce_sum(self.log_probabilities * self.advantage, name="loss_op")
 
             self.optimize_op = self.optimizer.minimize(self.loss)
@@ -63,12 +62,7 @@ class VPGModel(PGModel):
         # Merge episode inputs into single arrays
         _, _, actions, batch_advantage, states = self.merge_episodes(batch)
 
-        input_feed = {self.state: states,
-                      self.actions: actions,
-                      self.advantage: batch_advantage}
-
-        self.session.run(self.optimize_op, input_feed)
-        #print('loss:' + str(loss))
-
-
-
+        self.session.run(self.optimize_op, {self.state: states,
+                                            self.actions: actions,
+                                            self.advantage: batch_advantage})
+        # print('loss:' + str(loss))

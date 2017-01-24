@@ -23,8 +23,7 @@ class Categorical(Distribution):
     def log_prob(self, dist, actions):
         prob = dist['policy_output']
 
-        return tf.log(tf.reduce_sum(tf.mul(prob, actions), [1]))
-
+        return tf.log(tf.reduce_sum(tf.mul(prob, actions)))
 
     def fixed_kl(self, dist):
         """

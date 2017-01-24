@@ -1,8 +1,8 @@
 {
   "alpha": 0.01,
-  "batch_size": 2000,
+  "batch_size": 200,
   "use_gae": false,
   "gae_lambda": 0.97,
   "gamma": 0.97,
-  "continuous": true
+  "continuous": false
 }

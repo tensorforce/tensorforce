@@ -132,12 +132,14 @@ class PGModel(Model):
 
         for episode in batch:
             baseline = self.baseline_value_function.predict(episode)
+
             if episode['terminated']:
                 adjusted_baseline = np.append(baseline, [0])
             else:
                 adjusted_baseline = np.append(baseline, baseline[-1])
 
             episode['returns'] = discount(episode['rewards'], gamma)
+
             if use_gae:
                 deltas = episode['rewards'] + gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
                 episode['advantage'] = discount(deltas, gamma * gae_lambda)

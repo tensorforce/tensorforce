@@ -19,14 +19,21 @@ class CategoricalOneHotPolicy(StochasticPolicy):
         self.dist = Categorical()
 
         with tf.variable_scope(scope):
-            self.outputs = linear(self.neural_network.get_output(),
-                                  {'neurons': self.action_count, 'activation': tf.nn.softmax}, 'outputs')
+            self.action_layer = linear(self.neural_network.get_output(),
+                                  {'neurons': self.action_count}, 'outputs')
+            self.outputs = tf.nn.softmax(self.action_layer)
 
     def get_distribution(self):
         return self.dist
 
     def sample(self, state, sample=True):
-        output_dist = self.session.run(self.outputs, {self.state: [state]})
+        action_layer, output_dist = self.session.run([self.action_layer, self.outputs], {self.state: [state]})
+
+        print("Action layer output:")
+        print(action_layer)
+        print("After softmax:")
+        print(output_dist)
+
         output_dist = output_dist.ravel()
 
         if sample:

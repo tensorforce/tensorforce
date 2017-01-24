@@ -10,7 +10,7 @@
       },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.relu",
+      "activation": "tensorflow.python.ops.nn.tanh",
       "activation_param": null
     },
     {
@@ -23,7 +23,7 @@
       },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.relu",
+      "activation": "tensorflow.python.ops.nn.tanh",
       "activation_param": null
     }
   ]

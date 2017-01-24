@@ -1,4 +1,5 @@
 {
+  "memory_capacity": 1e4,
   "batch_size": 100,
   "use_gae": true,
   "gae_lambda": 0.97,

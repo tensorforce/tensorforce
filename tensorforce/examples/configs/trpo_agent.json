@@ -1,6 +1,7 @@
 {
   "batch_size": 5000,
   "use_gae": true,
+  "normalize_advantage" : false,
   "gae_lambda": 0.97,
   "cg_iterations" : 20,
   "cg_camping" : 0.1,

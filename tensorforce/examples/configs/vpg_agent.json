@@ -1,6 +1,7 @@
 {
   "alpha": 0.01,
   "batch_size": 200,
+  "normalize_advantage" : false,
   "use_gae": false,
   "gae_lambda": 0.97,
   "gamma": 0.97,

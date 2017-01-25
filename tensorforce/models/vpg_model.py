@@ -56,7 +56,7 @@ class VPGModel(PGModel):
 
         # Merge episode inputs into single arrays
         _, _, actions, batch_advantage, states = self.merge_episodes(batch)
-
+        
         log_probs, loss, _ = self.session.run([self.log_probabilities, self.loss, self.optimize_op],
                                                      {self.state: states,
                                                       self.actions: actions,

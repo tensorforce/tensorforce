@@ -38,6 +38,7 @@ class PGModel(Model):
 
         self.gamma = self.config.gamma
         self.continuous = self.config.continuous
+        self.normalize_advantage = self.config.normalise_advantage
 
         if self.config.deterministic_mode:
             self.random = global_seed()
@@ -115,7 +116,8 @@ class PGModel(Model):
         action_means = np.concatenate([path['action_means'] for path in batch])
         actions = np.concatenate([path['actions'] for path in batch])
         batch_advantage = np.concatenate([path["advantage"] for path in batch])
-        batch_advantage = zero_mean_unit_variance(batch_advantage)
+        if self.normalize_advantage:
+            batch_advantage = zero_mean_unit_variance(batch_advantage)
         batch_advantage = np.expand_dims(batch_advantage, axis=1)
         states = np.concatenate([path['states'] for path in batch])
 

@@ -4,8 +4,8 @@ import tensorflow as tf
 
 
 class Categorical(Distribution):
-    def __init__(self):
-        super(Categorical, self).__init__()
+    def __init__(self, random):
+        super(Categorical, self).__init__(random)
 
     def kl_divergence(self, dist_a, dist_b):
         prob_a = dist_a['policy_output']
@@ -22,7 +22,7 @@ class Categorical(Distribution):
     def log_prob(self, dist, actions):
         prob = dist['policy_output']
 
-        return tf.log(tf.reduce_sum(tf.mul(prob, actions)))
+        return tf.log(tf.reduce_sum(tf.mul(prob, actions), [1]))
 
     def fixed_kl(self, dist):
         """
@@ -38,4 +38,4 @@ class Categorical(Distribution):
         prob = dist['policy_output']
 
         # Categorical dist is special case of multinomial
-        return np.flatnonzero(np.random.multinomial(1, prob, 1))[0]
+        return np.flatnonzero(self.random.multinomial(1, prob, 1))[0]

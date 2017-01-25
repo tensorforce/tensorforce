@@ -16,7 +16,7 @@ class CategoricalOneHotPolicy(StochasticPolicy):
                  action_count=1,
                  scope='policy'):
         super(CategoricalOneHotPolicy, self).__init__(neural_network, session, state, random, action_count)
-        self.dist = Categorical()
+        self.dist = Categorical(random)
 
         with tf.variable_scope(scope):
             self.action_layer = linear(self.neural_network.get_output(),

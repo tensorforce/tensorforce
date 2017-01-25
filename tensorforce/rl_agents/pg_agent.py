@@ -57,10 +57,11 @@ class PGAgent(RLAgent):
         :return: Which action to take
         """
         action, outputs = self.updater.get_action(*args, **kwargs)
-
+        #print(outputs)
         # Cache last action in case action is used multiple times in environment
         self.last_action_means = outputs['policy_output']
         self.last_action = action
+
 
         #print('action one hot =' + str(action))
 
@@ -68,6 +69,7 @@ class PGAgent(RLAgent):
             self.last_action_log_std = outputs['policy_log_std']
         else:
             action = np.argmax(action)
+
 
         #print('action selected' + str(action))
         return action

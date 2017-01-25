@@ -44,8 +44,10 @@ def unity_based_normalization(data):
 
     return data
 
+
 def discount(rewards, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
+
 
 def get_shape(variable):
     shape = [k.value for k in variable.get_shape()]

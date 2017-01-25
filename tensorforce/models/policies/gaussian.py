@@ -6,8 +6,8 @@ from tensorforce.models.policies.distribution import Distribution
 
 class Gaussian(Distribution):
 
-    def __init__(self):
-        super(Gaussian, self).__init__()
+    def __init__(self, random):
+        super(Gaussian, self).__init__(random)
 
     def log_prob(self, dist, actions=0):
         mean = dist['policy_output']

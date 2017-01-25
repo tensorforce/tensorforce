@@ -26,12 +26,6 @@ from tensorforce.util.experiment_util import global_seed
 
 
 class VPGModel(PGModel):
-    default_config = {
-        'gamma': 0.99,
-        'use_gae': False,
-        'gae_lambda': 0.97  # GAE-lambda
-    }
-
     def __init__(self, config):
         super(VPGModel, self).__init__(config)
 
@@ -62,7 +56,11 @@ class VPGModel(PGModel):
         # Merge episode inputs into single arrays
         _, _, actions, batch_advantage, states = self.merge_episodes(batch)
 
-        self.session.run(self.optimize_op, {self.state: states,
-                                            self.actions: actions,
-                                            self.advantage: batch_advantage})
-        # print('loss:' + str(loss))
+        log_probs, loss, optimise = self.session.run([self.log_probabilities, self.loss, self.optimize_op],
+                                                     {self.state: states,
+                                                      self.actions: actions,
+                                                      self.advantage: batch_advantage})
+        print('log probs:' + str(log_probs))
+
+        print('loss:' + str(loss))
+        print('opt:' + str(optimise))

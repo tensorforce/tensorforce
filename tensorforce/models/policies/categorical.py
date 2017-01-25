@@ -4,7 +4,6 @@ import tensorflow as tf
 
 
 class Categorical(Distribution):
-
     def __init__(self):
         super(Categorical, self).__init__()
 
@@ -13,7 +12,7 @@ class Categorical(Distribution):
         prob_b = dist_b['policy_output']
 
         # Need to ensure numerical stability
-        return tf.reduce_sum(prob_a * tf.log((prob_a + self.epsilon) /(prob_b + self.epsilon)))
+        return tf.reduce_sum(prob_a * tf.log((prob_a + self.epsilon) / (prob_b + self.epsilon)))
 
     def entropy(self, dist):
         prob = dist['policy_output']
@@ -38,7 +37,5 @@ class Categorical(Distribution):
     def sample(self, dist):
         prob = dist['policy_output']
 
-        cumulative_prob = np.cumsum(prob, axis=0)
-        samples = cumulative_prob > np.random.rand(len(dist), 1)
-
-        return np.argmax(samples.ravel())
+        # Categorical dist is special case of multinomial
+        return np.flatnonzero(np.random.multinomial(1, prob, 1))[0]

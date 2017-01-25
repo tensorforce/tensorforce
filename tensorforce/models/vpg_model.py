@@ -36,7 +36,8 @@ class VPGModel(PGModel):
         with tf.variable_scope("update"):
             # If output 0, log NaN -> add epsilon to outputs for good measure?
             self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
-            self.loss = -tf.reduce_sum(self.log_probabilities * self.advantage, name="loss_op")
+
+            self.loss = -tf.reduce_mean(self.log_probabilities * self.advantage, name="loss_op")
 
             self.optimize_op = self.optimizer.minimize(self.loss)
 
@@ -56,11 +57,9 @@ class VPGModel(PGModel):
         # Merge episode inputs into single arrays
         _, _, actions, batch_advantage, states = self.merge_episodes(batch)
 
-        log_probs, loss, optimise = self.session.run([self.log_probabilities, self.loss, self.optimize_op],
+        log_probs, loss, _ = self.session.run([self.log_probabilities, self.loss, self.optimize_op],
                                                      {self.state: states,
                                                       self.actions: actions,
                                                       self.advantage: batch_advantage})
-        print('log probs:' + str(log_probs))
-
-        print('loss:' + str(loss))
-        print('opt:' + str(optimise))
+       # print('log probs:' + str(log_probs))
+       # print('loss:' + str(loss))

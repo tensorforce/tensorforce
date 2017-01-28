@@ -34,7 +34,7 @@ class GaussianPolicy(StochasticPolicy):
                                                           self.action_log_stds],
                                                          {self.state: [state]})
 
-        action = action_means + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
+        action = action_means + np.exp(action_log_stds) * self.random.normal(size=action_log_stds.shape)
 
         # ravel from [[]] to []
         return action.ravel(), dict(policy_output=action_means.ravel(),

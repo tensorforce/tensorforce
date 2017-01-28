@@ -62,7 +62,7 @@ class PGAgent(RLAgent):
         self.last_action_means = outputs['policy_output']
         self.last_action = action
 
-        #print('action one hot =' + str(action))
+        # print('action =' + str(action))
 
         if self.continuous:
             self.last_action_log_std = outputs['policy_log_std']

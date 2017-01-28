@@ -72,7 +72,6 @@ class TRPOModel(PGModel):
             variables = tf.trainable_variables()
             batch_float = tf.cast(self.batch_size, tf.float32)
 
-            # TODO check if right direction p/q
             mean_kl_divergence = self.dist.kl_divergence(self.prev_dist, self.policy.get_policy_variables())\
                                  / batch_float
             mean_entropy = self.dist.entropy(self.policy.get_policy_variables()) / batch_float
@@ -124,11 +123,6 @@ class TRPOModel(PGModel):
             self.input_feed[self.prev_action_log_stds] = action_log_stds
 
         previous_theta = self.flat_variable_helper.get()
-
-        # print('action shape' + str(actions.shape))
-        # print('action means shape' + str(action_means.shape))
-        # print('advantage shape' + str(batch_advantage.shape))
-        # print('log stds shape' + str(action_log_stds.shape))
 
         gradient = self.session.run(self.policy_gradient, self.input_feed)
         zero = np.zeros_like(gradient)

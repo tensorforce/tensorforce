@@ -28,7 +28,9 @@ preprocessors = {
     'concat': preprocessing.Concat,
     'grayscale': preprocessing.Grayscale,
     'imresize': preprocessing.Imresize,
-    'maximum': preprocessing.Maximum
+    'maximum': preprocessing.Maximum,
+    'normalize': preprocessing.Normalize,
+    'standardize': preprocessing.Standardize
 }
 
 def global_seed():

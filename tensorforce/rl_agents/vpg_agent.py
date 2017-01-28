@@ -28,10 +28,4 @@ from tensorforce.models.vpg_model import VPGModel
 class VPGAgent(PGAgent):
     name = 'VPGAgent'
 
-    default_config = {
-        'batch_size': 100,
-        'update_steps': 10,
-        'deterministic_mode': False
-    }
-
     model_ref = VPGModel

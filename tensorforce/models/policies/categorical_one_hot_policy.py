@@ -16,11 +16,12 @@ class CategoricalOneHotPolicy(StochasticPolicy):
                  action_count=1,
                  scope='policy'):
         super(CategoricalOneHotPolicy, self).__init__(neural_network, session, state, random, action_count)
-        self.dist = Categorical()
+        self.dist = Categorical(random)
 
         with tf.variable_scope(scope):
-            self.outputs = linear(self.neural_network.get_output(),
-                                  {'neurons': self.action_count, 'activation': tf.nn.softmax}, 'outputs')
+            self.action_layer = linear(self.neural_network.get_output(),
+                                  {'neurons': self.action_count}, 'outputs')
+            self.outputs = tf.nn.softmax(self.action_layer)
 
     def get_distribution(self):
         return self.dist
@@ -28,16 +29,22 @@ class CategoricalOneHotPolicy(StochasticPolicy):
     def sample(self, state, sample=True):
         output_dist = self.session.run(self.outputs, {self.state: [state]})
 
+#       print(output_dist)
+
+        output_dist = output_dist.ravel()
+
         if sample:
             action = self.dist.sample(dict(policy_output=output_dist))
         else:
             action = int(np.argmax(output_dist))
 
-        #print('action after dist sample ' + str(action))
+ #       print('action after dist sample ' + str(action))
 
         one_hot = np.zeros_like(output_dist)
         one_hot[action] = 1
-        return one_hot.ravel(), dict(policy_output=output_dist)
+
+        # We return a one hot vector and then extract the concrete action in the pg agent
+        return one_hot, dict(policy_output=output_dist)
 
     def get_policy_variables(self):
         return dict(policy_output=self.outputs)

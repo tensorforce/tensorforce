@@ -19,8 +19,9 @@ Generic policy class for policy gradients.
 
 
 class Distribution(object):
-    def __init__(self):
-        pass
+    def __init__(self, random):
+        self.random = random
+        self.epsilon =1e-6
 
     def log_prob(self, dist, actions):
         """

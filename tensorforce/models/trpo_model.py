@@ -35,13 +35,11 @@ from tensorforce.util.math_util import *
 
 
 class TRPOModel(PGModel):
+    
     default_config = {
         'cg_damping': 0.01,
         'cg_iterations': 15,
         'max_kl_divergence': 0.01,
-        'gamma': 0.99,
-        'use_gae': False,
-        'gae_lambda': 0.97,  # GAE-lambda
         'line_search_steps': 10
     }
 
@@ -74,7 +72,6 @@ class TRPOModel(PGModel):
             variables = tf.trainable_variables()
             batch_float = tf.cast(self.batch_size, tf.float32)
 
-            # TODO check if right direction p/q
             mean_kl_divergence = self.dist.kl_divergence(self.prev_dist, self.policy.get_policy_variables())\
                                  / batch_float
             mean_entropy = self.dist.entropy(self.policy.get_policy_variables()) / batch_float
@@ -126,8 +123,6 @@ class TRPOModel(PGModel):
             self.input_feed[self.prev_action_log_stds] = action_log_stds
 
         previous_theta = self.flat_variable_helper.get()
-
-        print(action_means.shape)
 
         gradient = self.session.run(self.policy_gradient, self.input_feed)
         zero = np.zeros_like(gradient)

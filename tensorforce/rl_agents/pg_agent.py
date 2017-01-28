@@ -57,18 +57,19 @@ class PGAgent(RLAgent):
         :return: Which action to take
         """
         action, outputs = self.updater.get_action(*args, **kwargs)
-
+        #print(outputs)
         # Cache last action in case action is used multiple times in environment
         self.last_action_means = outputs['policy_output']
         self.last_action = action
-        #print('action one hot =' + str(action))
+
+        # print('action =' + str(action))
 
         if self.continuous:
             self.last_action_log_std = outputs['policy_log_std']
         else:
             action = np.argmax(action)
 
-        #print('action selected' + str(action))
+        # print('action selected' + str(action))
         return action
 
     def add_observation(self, state, action, reward, terminal):
@@ -109,15 +110,14 @@ class PGAgent(RLAgent):
             if not terminal:
                 self.current_episode['terminated'] = False
                 path = self.get_path()
-
                 self.current_batch.append(path)
 
-            print('last means=' + str(self.last_action_means))
-            if self.continuous:
-                print('last stds=' + str(self.last_action_log_std))
-            print('last actions=' + str(self.last_action))
+            #print('last means=' + str(self.last_action_means))
+            #if self.continuous:
+                #print('last stds=' + str(self.last_action_log_std))
+            #print('last actions=' + str(self.last_action))
 
-            print('Computing TRPO update, episodes =' + str(len(self.current_batch)))
+            print('Computing PG update, episodes =' + str(len(self.current_batch)))
             self.updater.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []
@@ -135,7 +135,7 @@ class PGAgent(RLAgent):
         path = {'states': np.concatenate(np.expand_dims(self.current_episode['states'], 0)),
                 'actions': np.array(self.current_episode['actions']),
                 'terminated': self.current_episode['terminated'],
-                'action_means': np.concatenate(self.current_episode['action_means']),
+                'action_means': np.array(self.current_episode['action_means']),
                 'rewards': np.array(self.current_episode['rewards'])}
 
         if self.continuous:

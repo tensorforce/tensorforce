@@ -33,8 +33,21 @@ def zero_mean_unit_variance(data):
 
     return data
 
+def unity_based_normalization(data):
+    """
+    Transform array to values between [0; 1]
+    :param data:
+    :return:
+    """
+    data -= data.min()
+    data /= (data.max() - data.min())
+
+    return data
+
+
 def discount(rewards, gamma):
     return scipy.signal.lfilter([1], [1, -gamma], rewards[::-1], axis=0)[::-1]
+
 
 def get_shape(variable):
     shape = [k.value for k in variable.get_shape()]

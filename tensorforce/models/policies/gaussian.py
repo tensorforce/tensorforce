@@ -6,6 +6,9 @@ from tensorforce.models.policies.distribution import Distribution
 
 class Gaussian(Distribution):
 
+    def __init__(self, random):
+        super(Gaussian, self).__init__(random)
+
     def log_prob(self, dist, actions=0):
         mean = dist['policy_output']
         log_std = dist['policy_log_std']
@@ -14,13 +17,13 @@ class Gaussian(Distribution):
                       - 0.5 * tf.log(tf.constant(2 * np.pi)) - log_std
 
         # Sum logs
-        return tf.reduce_sum(probability, [1])
+        return tf.reduce_sum(probability)
 
     def kl_divergence(self, dist_a, dist_b,):
         mean_a = dist_a['policy_output']
         log_std_a = dist_a['policy_log_std']
 
-        mean_b= dist_b['policy_output']
+        mean_b = dist_b['policy_output']
         log_std_b = dist_b['policy_log_std']
 
         exp_std_a = tf.exp(2 * log_std_a)

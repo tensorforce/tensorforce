@@ -17,7 +17,7 @@ class GaussianPolicy(StochasticPolicy):
                  action_count=1,
                  scope='policy'):
         super(GaussianPolicy, self).__init__(neural_network, session, state, random, action_count)
-        self.dist = Gaussian()
+        self.dist = Gaussian(random)
 
         with tf.variable_scope(scope):
             self.action_means = linear(self.neural_network.get_output(),
@@ -34,10 +34,11 @@ class GaussianPolicy(StochasticPolicy):
                                                           self.action_log_stds],
                                                          {self.state: [state]})
 
-        action = action_means + np.exp(action_log_stds) * self.random.randn(*action_log_stds.shape)
+        action = action_means + np.exp(action_log_stds) * self.random.normal(size=action_log_stds.shape)
 
-        return action.ravel(), dict(policy_output=action_means,
-                                    policy_log_std=action_log_stds)
+        # ravel from [[]] to []
+        return action.ravel(), dict(policy_output=action_means.ravel(),
+                                    policy_log_std=action_log_stds.ravel())
 
     def get_distribution(self):
         return self.dist

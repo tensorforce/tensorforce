@@ -35,13 +35,11 @@ from tensorforce.util.math_util import *
 
 
 class TRPOModel(PGModel):
+    
     default_config = {
         'cg_damping': 0.01,
         'cg_iterations': 15,
         'max_kl_divergence': 0.01,
-        'gamma': 0.99,
-        'use_gae': False,
-        'gae_lambda': 0.97,  # GAE-lambda
         'line_search_steps': 10
     }
 

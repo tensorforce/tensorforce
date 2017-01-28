@@ -2,29 +2,27 @@
   "network_layers": [
     {
       "type": "dense",
-      "neurons": 64,
-      "weight_init": "tensorflow.python.ops.init_ops.random_uniform_initializer",
-      "weight_init_param": {
-        "minval": -0.05,
-        "maxval": 0.05
-      },
+      "neurons": 32,
+      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+      "weight_init_param": { },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.tanh",
-      "activation_param": null
+      "activation": "tensorflow.python.ops.nn.relu",
+      "activation_param": null,
+      "regularization": null,
+      "regularization_param": null
     },
     {
       "type": "dense",
-      "neurons": 64,
-      "weight_init": "tensorflow.python.ops.init_ops.random_uniform_initializer",
-      "weight_init_param": {
-        "minval": -0.05,
-        "maxval": 0.05
-      },
+      "neurons": 32,
+      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+      "weight_init_param": { },
       "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
       "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.tanh",
-      "activation_param": null
+      "activation": "tensorflow.python.ops.nn.relu",
+      "activation_param": null,
+      "regularization": null,
+      "regularization_param": null
     }
   ]
 }

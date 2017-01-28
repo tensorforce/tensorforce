@@ -1,5 +1,5 @@
 {
-  "batch_size": 100,
+  "batch_size": 1000,
   "use_gae": false,
   "normalize_advantage" : false,
   "gae_lambda": 0.97,
@@ -8,5 +8,5 @@
   "line_search_steps" : 20,
   "max_kl_divergence": 0.001,
   "gamma": 0.97,
-  "continuous": false
+  "continuous": true
 }

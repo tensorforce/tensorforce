@@ -62,7 +62,6 @@ class PGAgent(RLAgent):
         self.last_action_means = outputs['policy_output']
         self.last_action = action
 
-
         #print('action one hot =' + str(action))
 
         if self.continuous:
@@ -70,8 +69,7 @@ class PGAgent(RLAgent):
         else:
             action = np.argmax(action)
 
-
-        #print('action selected' + str(action))
+        # print('action selected' + str(action))
         return action
 
     def add_observation(self, state, action, reward, terminal):

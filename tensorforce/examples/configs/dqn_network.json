@@ -6,7 +6,7 @@
       "kernel_size": [8, 8],
       "stride": [4, 4],
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_args": { },
+      "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
       "biases_initializer_kwargs": null,
       "activation_fn": "tensorflow.python.ops.nn.relu",

@@ -70,8 +70,6 @@ class DQNModel(Model):
         else:
             self.random = np.random.RandomState()
 
-        self.exploration = exploration_mode['epsilon_decay']
-
         self.target_network_update = []
 
         # output layer
@@ -200,7 +198,7 @@ class DQNModel(Model):
             else:
                 self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
 
-            self.grads_and_vars = opt.compute_gradients(self.loss)
+            self.grads_and_vars = self.optimizer.compute_gradients(self.loss)
             self.optimize_op = self.optimizer.apply_gradients(self.grads_and_vars)
 
         # Update target network with update weight tau

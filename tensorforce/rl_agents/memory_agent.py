@@ -103,16 +103,16 @@ class MemoryAgent(RLAgent):
             self.model.update_target_network()
 
     def get_variables(self):
-        return self.value_function.get_variables()
+        return self.model.get_variables()
 
     def assign_variables(self, values):
-        self.value_function.assign_variables(values)
+        self.model.assign_variables(values)
 
     def get_gradients(self):
-        return self.value_function.get_gradients()
+        return self.model.get_gradients()
 
     def apply_gradients(self, grads_and_vars):
-        self.value_function.apply_gradients(grads_and_vars)
+        self.model.apply_gradients(grads_and_vars)
 
     def save_model(self, path):
         self.model.save_model(path)

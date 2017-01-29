@@ -73,7 +73,7 @@ class DQNModel(Model):
         self.target_network_update = []
 
         # output layer
-        output_layer_config = [{"type": "linear", "neurons": self.config.actions, "trainable": True}]
+        output_layer_config = [{"type": "linear", "num_outputs": self.config.actions, "trainable": True}]
 
         self.device = self.config.tf_device
         if self.device == 'replica':
@@ -89,12 +89,12 @@ class DQNModel(Model):
             self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, scope='training')
             self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, scope='target')
 
+            self.training_output = self.training_model.get_output()
+            self.target_output = self.target_model.get_output()
+
             # Create training operations
             self.create_training_operations()
             self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
-
-        self.training_output = self.training_model.get_output()
-        self.target_output = self.target_model.get_output()
 
         self.saver = tf.train.Saver()
         writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())

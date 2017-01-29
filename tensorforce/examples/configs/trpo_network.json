@@ -2,27 +2,23 @@
   "network_layers": [
     {
       "type": "dense",
-      "neurons": 32,
-      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weight_init_param": { },
-      "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.relu",
-      "activation_param": null,
-      "regularization": null,
-      "regularization_param": null
+      "num_outputs": 32,
+      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+      "weights_initializer_kwargs": { },
+      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
+      "biases_inititializer_kwargs": null,
+      "activation_fn": "tensorflow.python.ops.nn.relu",
+      "weights_regularizer": null
     },
     {
       "type": "dense",
-      "neurons": 32,
-      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weight_init_param": { },
-      "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.relu",
-      "activation_param": null,
-      "regularization": null,
-      "regularization_param": null
+      "num_outputs": 32,
+      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+      "weights_initializer_kwargs": { },
+      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
+      "biases_inititializer_kwargs": null,
+      "activation_fn": "tensorflow.python.ops.nn.relu",
+      "weights_regularizer": null
     }
   ]
 }

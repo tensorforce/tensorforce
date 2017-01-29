@@ -2,31 +2,27 @@
   "network_layers": [
     {
       "type": "dense",
-      "neurons": 100,
-      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weight_init_param": { },
-      "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.tanh",
-      "activation_param": null,
-      "regularization": "tensorflow.python.ops.nn.l2_loss",
-      "regularization_param": 0.001,
-      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm",
-      "normalizer_param": null
+      "num_outputs": 100,
+      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+      "weights_initializer_kwargs": { },
+      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
+      "activation_fn": "tensorflow.python.ops.nn.tanh",
+      "weights_regularizer": "tensorflow.python.ops.nn.l2_loss",
+      "weights_regularizer_args": [0.001],
+      "normalizer_fn": "tensorflow.contrib.layers.python.layers.batch_norm",
+      "normalizer_params": null
     },
     {
       "type": "dense",
-      "neurons": 100,
-      "weight_init": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weight_init_param": { },
-      "bias_init": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "bias_init_param": null,
-      "activation": "tensorflow.python.ops.nn.tanh",
-      "activation_param": null,
-      "regularization": "tensorflow.python.ops.nn.l2_loss",
-      "regularization_param": 0.001,
-      "normalizer": "tensorflow.contrib.layers.python.layers.batch_norm",
-      "normalizer_param": null
+      "num_outputs": 100,
+      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
+      "weights_initializer_kwargs": { },
+      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
+      "activation_fn": "tensorflow.python.ops.nn.tanh",
+      "weights_regularizer": "tensorflow.python.ops.nn.l2_loss",
+      "weights_regularizer_args": [0.001],
+      "normalizer_fn": "tensorflow.contrib.layers.python.layers.batch_norm",
+      "normalizer_params": null
     }
   ]
 }

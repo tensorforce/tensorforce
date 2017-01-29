@@ -131,19 +131,19 @@ class NAFModel(Model):
 
         with tf.name_scope(scope):
             # State-value function
-            v = linear(last_hidden_layer, {'neurons': 1, 'regularization': self.config.regularizer,
-                                           'regularization_param': self.config.regularization_param}, scope + 'v')
+            v = linear(last_hidden_layer, {'num_outputs': 1, 'weights_regularizer': self.config.weights_regularizer,
+                                           'weights_regularizer_args': [self.config.weights_regularizer_args]}, scope + 'v')
 
             # Action outputs
-            mu = linear(last_hidden_layer, {'neurons': self.action_count, 'regularization': self.config.regularizer,
-                                            'regularization_param': self.config.regularization_param}, scope + 'mu')
+            mu = linear(last_hidden_layer, {'num_outputs': self.action_count, 'weights_regularizer': self.config.weights_regularizer,
+                                            'weights_regularizer_args': [self.config.weights_regularizer_args]}, scope + 'mu')
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
             lower_triangular_size = int(self.action_count * (self.action_count + 1) / 2)
-            l_entries = linear(last_hidden_layer, {'neurons': lower_triangular_size,
-                                                   'regularization': self.config.regularizer,
-                                                   'regularization_param': self.config.regularization_param},
+            l_entries = linear(last_hidden_layer, {'num_outputs': lower_triangular_size,
+                                                   'weights_regularizer': self.config.weights_regularizer,
+                                                   'weights_regularizer_args': [self.config.weights_regularizer_args]},
                                scope + 'l')
 
             # Iteratively construct matrix. Extra verbose comment here

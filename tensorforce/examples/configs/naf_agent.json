@@ -4,7 +4,7 @@
   "target_network_update_rate": 1,
   "tau": 0.001,
   "gamma": 0.99,
-  "memory_capacity": 50000,
+  "memory_capacity": 5e4,
   "batch_size": 100,
   "update_rate": 1,
   "update_repeat" : 10,

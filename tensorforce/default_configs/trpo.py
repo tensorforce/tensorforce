@@ -14,42 +14,43 @@
 # ==============================================================================
 
 """
-Default configuration for DQN Agent and DQN Model.
+Default configuration for TRPO Agent and TRPO Model.
 """
 
-DQNAgentConfig = {
+TRPOAgentConfig = {
     "memory_capacity": 1e5,
-    "batch_size": 32,
+    "batch_size": 20,
 
     "update_rate": 0.25,
     "update_repeat": 1,
     "use_target_network": True,
-    "target_network_update_rate": 0.0001,
-    "min_replay_size": 5e4
+    "target_network_update_rate": 0.01,
+    "min_replay_size": 100
 }
 
-DQNModelConfig = {
-    "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
-    "optimizer_kwargs": {
-        "momentum": 0.95,
-        "epsilon": 0.01
-    },
+TRPOModelConfig = {
+    "optimizer": "tensorflow.python.training.adam.AdamOptimizer",
+    "optimizer_kwargs": {},
 
-    "exploration": "epsilon_decay",
-    "exploration_kwargs": {
-        "epsilon": 1.0,
-        "epsilon_final": 0.1,
-        "epsilon_states": 1e6
+    "exploration_mode": "ornstein_uhlenbeck",
+    "exploration_param": {
+        "sigma": 0.2,
+        "mu": 0,
+        "theta": 0.15
     },
 
     "actions": None,
+    "continuous": False,
 
     "alpha": 0.00025,
-    "gamma": 0.99,
-    "tau": 1.0,
+    "gamma": 0.97,
+    "use_gae": False,
+    "gae_gamma": 0.97,
 
-    "double_dqn": False,
+    "cg_iterations": 20,
+    "cg_camping": 0.001,
+    "line_search_steps": 20,
+    "max_kl_divergence": 0.001,
 
-    "clip_gradients": True,
-    "clip_value": 1.0
+    "normalize_advantage": False
 }

@@ -35,15 +35,10 @@ from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.models.neural_networks.layers import linear
 from tensorforce.util.experiment_util import global_seed
 
+from tensorforce.default_configs import NAFModelConfig
 
 class NAFModel(Model):
-    default_config = {
-        'tau': 0.001,
-        'epsilon': 0.1,
-        'gamma': 0.95,
-        'alpha': 0.005,
-        'clip_gradients': False
-    }
+    default_config = NAFModelConfig
 
     def __init__(self, config):
         """

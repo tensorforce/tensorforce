@@ -12,22 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""
 
 """
+Default configuration for NAF Agent and NAF Model.
+"""
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+NAFAgentConfig = {
+    "memory_capacity": 1e5,
+    "batch_size": 20,
 
-from tensorforce.agents import MemoryAgent
-from tensorforce.models import NAFModel
+    "update_rate": 0.25,
+    "update_repeat": 1,
+    "use_target_network": True,
+    "target_network_update_rate": 0.01,
+    "min_replay_size": 100
+}
 
-from tensorforce.default_configs import NAFAgentConfig
+NAFModelConfig = {
+    "optimizer": "tensorflow.python.training.adam.AdamOptimizer",
+    "optimizer_kwargs": {},
 
-class NAFAgent(MemoryAgent):
-    name = 'NAFAgent'
+    "exploration_mode": "ornstein_uhlenbeck",
+    "exploration_param": {
+        "sigma": 0.2,
+        "mu": 0,
+        "theta": 0.15
+    },
 
-    default_config = NAFAgentConfig
+    "actions": None,
 
-    model_ref = NAFModel
+    "alpha": 0.00025,
+    "gamma": 0.99,
+    "tau": 1.0
+}

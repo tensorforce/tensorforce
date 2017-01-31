@@ -24,8 +24,11 @@ from __future__ import division
 from tensorforce.agents import PGAgent
 from tensorforce.models import TRPOModel
 
+from tensorforce.default_configs import TRPOAgentConfig
 
 class TRPOAgent(PGAgent):
     name = 'TRPOAgent'
 
     model_ref = TRPOModel
+
+    default_config = TRPOAgentConfig

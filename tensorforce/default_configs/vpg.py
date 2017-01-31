@@ -1,4 +1,3 @@
-
 # Copyright 2016 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,22 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 """
-Vanilla policy gradient agent with GAE.
+Default configuration for NAF Agent and VPG Model.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+VPGAgentConfig = {
+    "memory_capacity": 1e5,
+    "batch_size": 20,
 
-from tensorforce.agents import PGAgent
-from tensorforce.models.vpg_model import VPGModel
+    "update_rate": 0.25,
+    "update_repeat": 1,
+    "use_target_network": True,
+    "target_network_update_rate": 0.01,
+    "min_replay_size": 100
+}
 
-from tensorforce.default_configs import VPGAgentConfig
+VPGModelConfig = {
+    "optimizer": "tensorflow.python.training.adam.AdamOptimizer",
+    "optimizer_kwargs": {},
 
-class VPGAgent(PGAgent):
-    name = 'VPGAgent'
+    "exploration_mode": "ornstein_uhlenbeck",
+    "exploration_param": {
+        "sigma": 0.2,
+        "mu": 0,
+        "theta": 0.15
+    },
 
-    model_ref = VPGModel
+    "actions": None,
+    "continuous": False,
 
-    default_config = VPGAgentConfig
+    "alpha": 0.00025,
+    "gamma": 0.97,
+    "use_gae": False,
+    "gae_gamma": 0.97,
+
+    "normalize_advantage": False
+}

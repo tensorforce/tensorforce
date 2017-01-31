@@ -33,7 +33,7 @@ from tensorforce.util.exploration_util import exploration_mode
 
 
 class Model(object):
-    default_config = None
+    default_config = {}
 
     def __init__(self, config):
         """
@@ -57,16 +57,18 @@ class Model(object):
         if not optimizer:
             self.optimizer = tf.train.AdamOptimizer(self.alpha)
         else:
-            kwargs = config.get('optimizer_param', {})
+            args = config.get('optimizer_args', [])
+            kwargs = config.get('optimizer_kwargs', {})
             optimizer_cls = get_function(optimizer)
-            self.optimizer = optimizer_cls(self.alpha, **kwargs)
+            self.optimizer = optimizer_cls(self.alpha, *args, **kwargs)
 
         exploration = config.get('exploration')
         if not exploration:
             self.exploration = exploration_mode['constant'](self, 0)
         else:
-            kwargs = config.get('exploration_param', {})
-            self.exploration = exploration_mode[exploration](self, **kwargs)
+            args = config.get('exploration_args', [])
+            kwargs = config.get('exploration_kwargs', {})
+            self.exploration = exploration_mode[exploration](self, *args, **kwargs)
 
     def get_action(self, state):
         raise NotImplementedError

@@ -26,10 +26,7 @@ from tensorforce.agents import RLAgent
 class PGAgent(RLAgent):
     name = 'PGAgent'
 
-    default_config = {
-        'batch_size': 5000,
-        'deterministic_mode': False,
-    }
+    default_config = {}
 
     model_ref = None
 

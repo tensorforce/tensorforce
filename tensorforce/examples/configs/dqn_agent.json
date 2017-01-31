@@ -12,9 +12,6 @@
     "momentum": 0.95,
     "epsilon": 0.01
   },
-  "epsilon": 1.0,
-  "epsilon_final": 0.1,
-  "epsilon_states": 1e6,
   "exploration": "epsilon_decay",
   "exploration_param": {
     "epsilon": 1.0,

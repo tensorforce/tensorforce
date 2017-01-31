@@ -39,7 +39,7 @@ class DQNModel(Model):
         """
         Training logic for DQN.
 
-        :param config: Configuration parameters
+        :param config: Configuration dict
         """
         super(DQNModel, self).__init__(config)
 
@@ -98,7 +98,7 @@ class DQNModel(Model):
 
         :param state: State tensor
         :param episode: Current episode
-        :return:
+        :return: action number
         """
 
         epsilon = self.exploration(episode, self.total_states)
@@ -119,7 +119,7 @@ class DQNModel(Model):
         Perform a single training step and updates the target network.
 
         :param batch: Mini batch to use for training
-        :return:
+        :return: void
         """
 
         # Compute estimated future value

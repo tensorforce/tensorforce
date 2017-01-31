@@ -23,20 +23,15 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.rl_agents import MemoryAgent
+from tensorforce.agents import MemoryAgent
 from tensorforce.models import DQNModel
+
+from tensorforce.default_configs import DQNAgentConfig
 
 
 class DQNAgent(MemoryAgent):
     name = 'DQNAgent'
 
-    default_config = {
-        'batch_size': 32,
-        'update_rate': 0.25,
-        'target_network_update_rate': 0.0001,
-        'min_replay_size': 5e4,
-        'deterministic_mode': False,
-        'use_target_network': True
-    }
+    default_config = DQNAgentConfig
 
     model_ref = DQNModel

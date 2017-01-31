@@ -1,4 +1,3 @@
-
 # Copyright 2016 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,19 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""
 
-"""
+from tensorforce.agents.rl_agent import RLAgent
+from tensorforce.agents.random_agent import RandomAgent
+from tensorforce.agents.memory_agent import MemoryAgent
+from tensorforce.agents.dqn_agent import DQNAgent
+from tensorforce.agents.naf_agent import NAFAgent
+from tensorforce.agents.pg_agent import PGAgent
+from tensorforce.agents.trpo_agent import TRPOAgent
+from tensorforce.agents.vpg_agent import VPGAgent
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
 
-from tensorforce.rl_agents import PGAgent
-from tensorforce.models import TRPOModel
-
-
-class TRPOAgent(PGAgent):
-    name = 'TRPOAgent'
-
-    model_ref = TRPOModel
+__all__ = ['RLAgent', 'RandomAgent', 'MemoryAgent', 'DQNAgent', 'NAFAgent',
+           'PGAgent', 'TRPOAgent', 'VPGAgent']

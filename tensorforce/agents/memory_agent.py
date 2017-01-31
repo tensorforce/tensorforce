@@ -23,7 +23,7 @@ from __future__ import division
 from six.moves import xrange
 from tensorforce.config import create_config
 from tensorforce.replay_memories import ReplayMemory
-from tensorforce.rl_agents import RLAgent
+from tensorforce.agents import RLAgent
 
 
 class MemoryAgent(RLAgent):
@@ -54,7 +54,7 @@ class MemoryAgent(RLAgent):
         self.config = create_config(config, default=self.default_config)
         self.model = None
 
-        self.memory = ReplayMemory(**config)
+        self.memory = ReplayMemory(**self.config)
         self.step_count = 0
         self.update_repeat = self.config.update_repeat
         self.batch_size = self.config.batch_size

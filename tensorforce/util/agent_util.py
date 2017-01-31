@@ -23,7 +23,7 @@ from __future__ import division
 
 from tensorforce.config import Config
 from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
-from tensorforce.rl_agents import *
+from tensorforce.agents import *
 
 
 def create_agent(agent_type, config):

@@ -29,19 +29,11 @@ from tensorforce.models import Model
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 
+from tensorforce.default_configs import DQNModelConfig
+
 
 class DQNModel(Model):
-    default_config = {
-        'double_dqn': False,
-        'tau': 1.0,
-        'epsilon': 1.0,
-        'epsilon_final': 0.1,
-        'epsilon_states': 1e6,
-        'gamma': 0.99,
-        'alpha': 0.00025,
-        'clip_gradients': True,
-        'clip_value': 1.0
-    }
+    default_config = DQNModelConfig
 
     def __init__(self, config):
         """

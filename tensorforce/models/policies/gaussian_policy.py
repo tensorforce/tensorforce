@@ -21,7 +21,7 @@ class GaussianPolicy(StochasticPolicy):
 
         with tf.variable_scope(scope):
             self.action_means = linear(self.neural_network.get_output(),
-                                       {'neurons': self.action_count}, 'action_mu')
+                                       {'num_outputs': self.action_count}, 'action_mu')
 
             # Random init for log standard deviations
             log_standard_devs_init = tf.Variable(0.01 * self.random.randn(1, self.action_count),

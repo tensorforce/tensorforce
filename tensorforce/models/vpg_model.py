@@ -24,8 +24,11 @@ from tensorforce.models.neural_networks.layers import linear
 from tensorforce.models.pg_model import PGModel
 from tensorforce.util.experiment_util import global_seed
 
+from tensorforce.default_configs import VPGModelConfig
 
 class VPGModel(PGModel):
+    default_config = VPGModelConfig
+
     def __init__(self, config):
         super(VPGModel, self).__init__(config)
 

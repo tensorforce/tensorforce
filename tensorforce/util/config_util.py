@@ -25,26 +25,55 @@ from six import callable
 import importlib
 
 
-def get_function(fn, param=None, default=None):
+def get_function(fn):
     """
-    Get function reference by full module path. Either returns the function reference or calls the function
-    if param is not None and returns the result.
+    Get function reference by full module path.
 
     :param fn: Callable object or String containing the full function path
-    :param param: None to return function name, kwargs dict to return executed function
-    :param default: Default reference to return if str is None or empty
-    :return: Function reference, or result from function call
+    :return: Function reference
     """
-    if not fn:
-        return default
     if callable(fn):
-        func = fn
+        return fn
     else:
         module_name, function_name = fn.rsplit('.', 1)
         module = importlib.import_module(module_name)
-        func = getattr(module, function_name)
+        return getattr(module, function_name)
 
-    if isinstance(param, dict):
-        return func(**param)
+
+def make_function(data, fk):
+    """
+    Take data dict and convert string function reference with key `fk` to a real function reference, using
+    `fk`_args as *args and `fk`_kwargs as **kwargs, removing these keys from the data dict.
+
+    :param data: data dict
+    :param fn: string function name
+    :return: boolean
+    """
+    fn = data.get(fk)
+
+    if fn is None:
+        return True
+    elif callable(fn):
+        return True
     else:
-        return func
+        args_val = "{}_args".format(fk)
+        kwargs_val = "{}_kwargs".format(fk)
+
+        args = data.pop(args_val, None)
+        kwargs = data.pop(kwargs_val, None)
+
+        func = get_function(fn)
+
+        if args is None and kwargs is None:
+            # If there are no args and no kwargs, just return the function reference
+            data[fk] = func
+            return True
+
+        # Otherwise, call the function
+        if args is None:
+            args = []
+        if kwargs is None:
+            kwargs = {}
+
+        data[fk] = func(*args, **kwargs)
+        return True

@@ -29,25 +29,17 @@ from tensorforce.models import Model
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 
+from tensorforce.default_configs import DQNModelConfig
+
 
 class DQNModel(Model):
-    default_config = {
-        'double_dqn': False,
-        'tau': 1.0,
-        'epsilon': 1.0,
-        'epsilon_final': 0.1,
-        'epsilon_states': 1e6,
-        'gamma': 0.99,
-        'alpha': 0.00025,
-        'clip_gradients': True,
-        'clip_value': 1.0
-    }
+    default_config = DQNModelConfig
 
     def __init__(self, config):
         """
         Training logic for DQN.
 
-        :param config: Configuration parameters
+        :param config: Configuration dict
         """
         super(DQNModel, self).__init__(config)
 
@@ -70,12 +62,10 @@ class DQNModel(Model):
         else:
             self.random = np.random.RandomState()
 
-        self.exploration = exploration_mode['epsilon_decay']
-
         self.target_network_update = []
 
         # output layer
-        output_layer_config = [{"type": "linear", "neurons": self.config.actions, "trainable": True}]
+        output_layer_config = [{"type": "linear", "num_outputs": self.config.actions, "trainable": True}]
 
         self.device = self.config.tf_device
         if self.device == 'replica':
@@ -91,6 +81,9 @@ class DQNModel(Model):
             self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, scope='training')
             self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, scope='target')
 
+            self.training_output = self.training_model.get_output()
+            self.target_output = self.target_model.get_output()
+
             # Create training operations
             self.create_training_operations()
             self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
@@ -99,6 +92,7 @@ class DQNModel(Model):
         self.target_output = self.target_model.get_output()
 
         self.init_op = tf.global_variables_initializer()
+
         self.saver = tf.train.Saver()
         self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
 
@@ -111,7 +105,7 @@ class DQNModel(Model):
 
         :param state: State tensor
         :param episode: Current episode
-        :return:
+        :return: action number
         """
 
         epsilon = self.exploration(episode, self.total_states)
@@ -132,7 +126,7 @@ class DQNModel(Model):
         Perform a single training step and updates the target network.
 
         :param batch: Mini batch to use for training
-        :return:
+        :return: void
         """
 
         # Compute estimated future value
@@ -203,7 +197,7 @@ class DQNModel(Model):
             else:
                 self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
 
-            self.grads_and_vars = opt.compute_gradients(self.loss)
+            self.grads_and_vars = self.optimizer.compute_gradients(self.loss)
             self.optimize_op = self.optimizer.apply_gradients(self.grads_and_vars)
 
         # Update target network with update weight tau

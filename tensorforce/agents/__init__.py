@@ -13,14 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.rl_agents.rl_agent import RLAgent
-from tensorforce.rl_agents.random_agent import RandomAgent
-from tensorforce.rl_agents.memory_agent import MemoryAgent
-from tensorforce.rl_agents.dqn_agent import DQNAgent
-from tensorforce.rl_agents.naf_agent import NAFAgent
-from tensorforce.rl_agents.pg_agent import PGAgent
-from tensorforce.rl_agents.trpo_agent import TRPOAgent
-from tensorforce.rl_agents.vpg_agent import VPGAgent
+from tensorforce.agents.rl_agent import RLAgent
+from tensorforce.agents.random_agent import RandomAgent
+from tensorforce.agents.memory_agent import MemoryAgent
+from tensorforce.agents.dqn_agent import DQNAgent
+from tensorforce.agents.naf_agent import NAFAgent
+from tensorforce.agents.pg_agent import PGAgent
+from tensorforce.agents.trpo_agent import TRPOAgent
+from tensorforce.agents.vpg_agent import VPGAgent
 
 
 __all__ = ['RLAgent', 'RandomAgent', 'MemoryAgent', 'DQNAgent', 'NAFAgent',

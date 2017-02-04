@@ -1,3 +1,4 @@
+
 # Copyright 2016 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,18 +21,14 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.rl_agents import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.agents import PGAgent
+from tensorforce.models import TRPOModel
 
+from tensorforce.default_configs import TRPOAgentConfig
 
-class NAFAgent(MemoryAgent):
-    name = 'NAFAgent'
+class TRPOAgent(PGAgent):
+    name = 'TRPOAgent'
 
-    default_config = {
-        'batch_size': 20,
-        'update_steps': 10,
-        'min_replay_size': 100,
-        'deterministic_mode': False
-    }
+    model_ref = TRPOModel
 
-    model_ref = NAFModel
+    default_config = TRPOAgentConfig

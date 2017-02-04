@@ -25,7 +25,7 @@ from tensorforce.util.agent_util import create_agent
 class AsyncRunner(Runner):
 
     def __init__(self, agent_type, agent_config, n_agents, environment, preprocessor=None, repeat_actions=1):
-        super().__init__(create_agent(agent_type, agent_config + {'tf_device': 'replica', 'tf_worker_device': '/job:master'}), environment, preprocessor=preprocessor, repeat_actions=repeat_actions)
+        super(AsyncRunner).__init__(create_agent(agent_type, agent_config + {'tf_device': 'replica', 'tf_worker_device': '/job:master'}), environment, preprocessor=preprocessor, repeat_actions=repeat_actions)
         self.agent_type = agent_type
         self.agent_config = agent_config
         self.n_agents = n_agents

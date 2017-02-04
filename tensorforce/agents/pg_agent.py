@@ -20,16 +20,13 @@ from collections import defaultdict
 from copy import deepcopy
 import numpy as np
 from tensorforce.config import create_config
-from tensorforce.rl_agents import RLAgent
+from tensorforce.agents import RLAgent
 
 
 class PGAgent(RLAgent):
     name = 'PGAgent'
 
-    default_config = {
-        'batch_size': 5000,
-        'deterministic_mode': False,
-    }
+    default_config = {}
 
     model_ref = None
 

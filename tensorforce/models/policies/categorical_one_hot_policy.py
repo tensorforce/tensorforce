@@ -28,9 +28,6 @@ class CategoricalOneHotPolicy(StochasticPolicy):
 
     def sample(self, state, sample=True):
         output_dist = self.session.run(self.outputs, {self.state: [state]})
-
-#       print(output_dist)
-
         output_dist = output_dist.ravel()
 
         if sample:
@@ -38,12 +35,11 @@ class CategoricalOneHotPolicy(StochasticPolicy):
         else:
             action = int(np.argmax(output_dist))
 
- #       print('action after dist sample ' + str(action))
-
         one_hot = np.zeros_like(output_dist)
         one_hot[action] = 1
 
         # We return a one hot vector and then extract the concrete action in the pg agent
+        # This is so we can have the same tensor shapes for discrete vs continuous actions
         return one_hot, dict(policy_output=output_dist)
 
     def get_policy_variables(self):

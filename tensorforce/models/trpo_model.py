@@ -32,16 +32,11 @@ from tensorforce.models.pg_model import PGModel
 from tensorforce.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.math_util import *
-
+from tensorforce.default_configs import TRPOModelConfig
 
 class TRPOModel(PGModel):
     
-    default_config = {
-        'cg_damping': 0.01,
-        'cg_iterations': 15,
-        'max_kl_divergence': 0.01,
-        'line_search_steps': 10
-    }
+    default_config = TRPOModelConfig
 
     def __init__(self, config):
         super(TRPOModel, self).__init__(config)

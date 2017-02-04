@@ -12,31 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """
-Standard DQN. The piece de resistance of deep reinforcement learning.
-Chooses from one of a number of discrete actions by taking the maximum Q-value
-from the value function with one output neuron per available action.
+
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.rl_agents import MemoryAgent
-from tensorforce.models import DQNModel
+from tensorforce.agents import MemoryAgent
+from tensorforce.models import NAFModel
 
+from tensorforce.default_configs import NAFAgentConfig
 
-class DQNAgent(MemoryAgent):
-    name = 'DQNAgent'
+class NAFAgent(MemoryAgent):
+    name = 'NAFAgent'
 
-    default_config = {
-        'batch_size': 32,
-        'update_rate': 0.25,
-        'target_network_update_rate': 0.0001,
-        'min_replay_size': 5e4,
-        'deterministic_mode': False,
-        'use_target_network': True
-    }
+    default_config = NAFAgentConfig
 
-    model_ref = DQNModel
+    model_ref = NAFModel

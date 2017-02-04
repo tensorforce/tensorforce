@@ -56,10 +56,14 @@ def create_config(values, default=None):
     Create Config object from dict. Use default dict for default values.
 
     :param values: dict containing actual values
-    :param default: dict containing default values
+    :param default: dict containing default values or string pointing to default file
     :return: Config object
     """
     if default:
+        if isinstance(default, dict):
+            default_data = default
+        else:
+            raise ValueError("Invalid default config data.")
         config = Config(default)
         if values:
             config.update(values)

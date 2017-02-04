@@ -23,111 +23,44 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import copy
+
 import tensorflow as tf
-from tensorflow.contrib.layers.python.layers import initializers
-from tensorflow.python.ops import nn
-from tensorflow.python.ops import init_ops
-from tensorforce.util.config_util import get_function
+from tensorforce.util.config_util import make_function
 import numpy as np
 
 tf_slim = tf.contrib.slim
 
 
-def dense(input, config, scope):
-    """
-    Fully connected layer.
+def layer_wrapper(layer_constructor, reshape=None):
+    def layer_fn(input, config, scope=None):
+        """
+        Initialize layer of any kind.
+        :param input: input layer
+        :param config: layer configuration
+        :param scope: tensorflow scope
+        """
+        kwargs = copy.copy(config)
 
-    :param input: Input to the layer, e.g. handle to another layer
-    :param config: Layer config
-    :param scope: Layer name
-    :return:
-    """
-    kwargs = {
-        'weights_initializer': get_function(config.get('weight_init'),
-                                            config.get('weight_init_param'),
-                                            initializers.xavier_initializer()),
-        'biases_initializer': get_function(config.get('bias_init'),
-                                           config.get('bias_init_param'),
-                                           init_ops.zeros_initializer),
-        'activation_fn': get_function(config.get('activation'),
-                                      config.get('activation_param'),
-                                      nn.relu),
-        'weights_regularizer': get_function(config.get('regularization'),
-                                            config.get('regularization_param'),
-                                            None),
-        'normalizer_fn': get_function(config.get('normalizer'),
-                                            config.get('normalizer_param'),
-                                            None)
-    }
-    # Flatten
+        # Remove `type` from kwargs array.
+        kwargs.pop("type", None)
 
-    return tf_slim.fully_connected(input,
-                                   config['neurons'],
-                                   scope=scope,
-                                   **kwargs)
+        for fk in ["weights_initializer", "weights_regularizer", "biases_initializer", "activation_fn", "normalizer_fn"]:
+            make_function(kwargs, fk)
 
+        # Force our own scope definitions
+        kwargs['scope'] = scope
 
-def conv2d(input, config, scope):
-    """
-    Convolutional 2d layer.
+        if reshape and callable(reshape):
+            input = reshape(input)
 
-    :param input: Input to the layer, e.g. handle to another layer
-    :param config: Layer config
-    :param scope: Layer name
-    :return:
-    """
-    kwargs = {
-        'weights_initializer': get_function(config.get('weight_init'),
-                                            config.get('weight_init_param'),
-                                            initializers.xavier_initializer()),
-        'biases_initializer': get_function(config.get('bias_init'),
-                                           config.get('bias_init_param'),
-                                           init_ops.zeros_initializer),
-        'activation_fn': get_function(config.get('activation'),
-                                      config.get('activation_param'),
-                                      nn.relu),
-        'weights_regularizer': get_function(config.get('regularization'),
-                                            config.get('regularization_param'),
-                                            None),
-        'padding': config.get('padding', 'VALID')
-    }
+        return layer_constructor(input, **kwargs)
 
-    return tf_slim.conv2d(input,
-                          config['neurons'],
-                          config['kernel_size'],
-                          config['stride'],
-                          scope=scope,
-                          **kwargs)
+    return layer_fn
 
-
-def linear(input, config, scope):
-    """
-    Fully connected layer.
-
-    :param input: Input to the layer, e.g. handle to another layer
-    :param config: Layer config
-    :param scope: Layer name
-    :return:
-    """
-
-    kwargs = {
-        'weights_initializer': get_function(config.get('weight_init'),
-                                            config.get('weight_init_param'),
-                                            initializers.xavier_initializer()),
-        'biases_initializer': get_function(config.get('bias_init'),
-                                           config.get('bias_init_param'),
-                                           init_ops.zeros_initializer),
-        'weights_regularizer': get_function(config.get('regularization'),
-                                            config.get('regularization_param'),
-                                            None)
-    }
-    # Flatten
-    input = tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:]))))
-
-    return tf_slim.linear(input,
-                          config['neurons'],
-                          scope=scope,
-                          **kwargs)
+dense = layer_wrapper(tf_slim.fully_connected)
+conv2d = layer_wrapper(tf_slim.conv2d)
+linear = layer_wrapper(tf_slim.linear, reshape=lambda input: tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:])))))
 
 layers = {
     'dense': dense,

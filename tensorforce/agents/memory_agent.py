@@ -23,21 +23,13 @@ from __future__ import division
 from six.moves import xrange
 from tensorforce.config import create_config
 from tensorforce.replay_memories import ReplayMemory
-from tensorforce.rl_agents import RLAgent
+from tensorforce.agents import RLAgent
 
 
 class MemoryAgent(RLAgent):
     name = 'MemoryAgent'
 
-    default_config = {
-        'batch_size': 32,
-        'update_rate': 0.25,
-        'target_network_update_rate': 0.0001,
-        'min_replay_size': 5e4,
-        'deterministic_mode': False,
-        'use_target_network': False,
-        'update_repeat': 1
-    }
+    default_config = {}
 
     model_ref = None
 
@@ -54,7 +46,7 @@ class MemoryAgent(RLAgent):
         self.config = create_config(config, default=self.default_config)
         self.model = None
 
-        self.memory = ReplayMemory(**config)
+        self.memory = ReplayMemory(**self.config)
         self.step_count = 0
         self.update_repeat = self.config.update_repeat
         self.batch_size = self.config.batch_size
@@ -103,16 +95,16 @@ class MemoryAgent(RLAgent):
             self.model.update_target_network()
 
     def get_variables(self):
-        return self.value_function.get_variables()
+        return self.model.get_variables()
 
     def assign_variables(self, values):
-        self.value_function.assign_variables(values)
+        self.model.assign_variables(values)
 
     def get_gradients(self):
-        return self.value_function.get_gradients()
+        return self.model.get_gradients()
 
     def apply_gradients(self, grads_and_vars):
-        self.value_function.apply_gradients(grads_and_vars)
+        self.model.apply_gradients(grads_and_vars)
 
     def save_model(self, path):
         self.model.save_model(path)

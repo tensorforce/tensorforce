@@ -19,19 +19,13 @@ N.b. as part of TRPO implementation from https://github.com/ilyasu123/trpo
 """
 import numpy as np
 
+from tensorforce.models.baselines.value_function import ValueFunction
 
-class LinearValueFunction(object):
+
+class LinearValueFunction(ValueFunction):
     def __init__(self):
         self.coefficients = None
 
-    def get_features(self, path):
-        states = path["states"]
-        states = states.reshape(states.shape[0], -1)
-
-        path_length = len(path["rewards"])
-        al = np.arange(path_length).reshape(-1, 1) / 100.0
-
-        return np.concatenate([states, states ** 2, al, al ** 2, np.ones((path_length, 1))], axis=1)
 
     def fit(self, paths):
         feature_matrix = np.concatenate([self.get_features(path) for path in paths])

@@ -21,6 +21,7 @@ from tensorforce.models import Model
 import numpy as np
 
 from tensorforce.models.baselines.linear_value_function import LinearValueFunction
+from tensorforce.models.baselines.mlp_value_function import MLPValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.models.policies import CategoricalOneHotPolicy
 from tensorforce.models.policies import GaussianPolicy
@@ -79,7 +80,7 @@ class PGModel(Model):
         self.dist = self.policy.get_distribution()
 
         # TODO configurable value functions
-        self.baseline_value_function = LinearValueFunction()
+        self.baseline_value_function = MLPValueFunction(self.session, 100, 64)
 
     def get_action(self, state, episode=1):
         """

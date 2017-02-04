@@ -160,7 +160,7 @@ class TRPOModel(PGModel):
 
     def compute_fvp(self, p):
         self.input_feed[self.flat_tangent] = p
-        print(self.cg_damping)
+
         return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping
 
     def compute_surrogate_loss(self, theta):

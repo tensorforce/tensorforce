@@ -7,7 +7,7 @@ Introduction
 TensorForce is an open source reinforcement learning library focused on
 providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
-TensorForce integrates seamlessly with Google TensorFlow.
+TensorForce integrates with Google TensorFlow.
 
 The main difference to existing libraries (such as rllab) is a strict
 separation of environments, agents and update logic that facilitates
@@ -18,13 +18,13 @@ TensorForce is built with the idea that (almost) everything should be
 optionally configurable and in particular uses value function template
 configurations to be able to quickly experiment with new models. The
 goal of TensorForce is to provide a practitioner's reinforcement
-learning framework that smoothly integrates into modern software service
+learning framework that integrates into modern software service
 architectures.
 
 TensorForce is actively being maintained and developed both to
 continuously improve the existing code as well as to reflect new
-developments as they arise (see roadmap for more). The aim is not to
-include every new trick as quickly as possible but to adopt methods as
+developments as they arise (see road map for more). The aim is not to
+include every new trick but to adopt methods as
 they prove themselves stable, e.g. as of early 2017 A3C and TRPO
 variants are the basis of a lot of research. We also offer TensorForce
 support through our Gitter channel.
@@ -52,7 +52,7 @@ TensorForce currently integrates with the OpenAI Gym API, OpenAI
 Universe and DeepMind lab. The following algorithms are available: 1.
 A3C 2. Trust Region Policy Optimization (TRPO) with generalised
 advantage estimation (GAE) 3. Normalised Advantage functions 4.
-DQN/Double-DQN 5. Vanilla Policy Gradients (also using with GAE)
+DQN/Double-DQN 5. Vanilla Policy Gradients (also using GAE)
 
 Installation
 ------------

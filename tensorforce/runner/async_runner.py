@@ -94,12 +94,14 @@ def worker_thread(master, index, episodes, max_timesteps):
     with supervisor.managed_session(server.target) as session:
 
         def episode_finished(r):
+            print('Episode finished')
             grads, _ = zip(*r.agent.get_gradients())
             grads_and_vars = list(zip(grads, ps_agent.get_variables()))
             ps_agent.apply_gradients(grads_and_vars)
             r.assign_variables(ps_agent.get_variables())
             increment_episode_op = global_episode.assign_add(1)
             session.run(increment_episode_op)  # necessary?
+
             return master.continue_execution
 
         worker.run(episodes, max_timesteps, episode_finished=episode_finished)

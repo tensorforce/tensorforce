@@ -48,13 +48,22 @@ def main():
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     args = parser.parse_args()
 
-    environment = OpenAIGymEnvironment(args.gym_id)
+    env = OpenAIGymEnvironment(args.gym_id)
 
     config = Config()
+
     if args.agent_config:
         config.read_json(args.agent_config)
     if args.network_config:
         config.read_json(args.network_config)
+
+    config = Config({
+        'repeat_actions': 1,
+        'actions': env.actions,
+        'action_shape': env.action_shape,
+        'state_shape': env.state_shape
+    })
+
 
     report_episodes = args.episodes / 10
 
@@ -79,8 +88,8 @@ def main():
     #         environment.gym.monitor.start(args.monitor)
     #         environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    runner = AsyncRunner(agent_type=args.agents, agent_config=config, n_agents=3, environment=environment, preprocessor=stack, repeat_actions=args.repeat_actions)
-    runner.run(episode_finished=episode_finished)
+    runner = AsyncRunner(agent_type=args.agent, agent_config=config, n_agents=3, environment=env, preprocessor=stack, repeat_actions=args.repeat_actions)
+    runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
 
     # if args.monitor:
     #     for environment in environments:

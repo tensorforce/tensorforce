@@ -29,6 +29,7 @@ import numpy as np
 from tensorforce.config import Config, create_config
 from tensorforce.runner.async_runner import AsyncRunner
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
+from tensorforce.util.experiment_util import build_preprocessing_stack
 from tensorforce.util.agent_util import create_agent, get_default_config
 from tensorforce import preprocessing
 
@@ -67,12 +68,12 @@ def main():
 
     report_episodes = args.episodes / 10
 
-    stack = preprocessing.Stack()
-    stack += preprocessing.Grayscale()
-    stack += preprocessing.Imresize([80, 80])
-    stack += preprocessing.Concat(4)
-
-    config.state_shape = stack.shape(config.state_shape)
+    preprocessing_config = config.get('preprocessing')
+    if preprocessing_config:
+        stack = build_preprocessing_stack(preprocessing_config)
+        config.state_shape = stack.shape(config.state_shape)
+    else:
+        stack = None
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:

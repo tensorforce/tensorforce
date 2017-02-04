@@ -98,9 +98,12 @@ class DQNModel(Model):
         self.training_output = self.training_model.get_output()
         self.target_output = self.target_model.get_output()
 
+        self.init_op = tf.global_variables_initializer()
         self.saver = tf.train.Saver()
-        writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
-        self.session.run(tf.global_variables_initializer())
+        self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
+
+    def initialize(self):
+        self.session.run(self.init_op)
 
     def get_action(self, state, episode=1):
         """

@@ -16,71 +16,80 @@
 from copy import deepcopy
 from threading import Condition, Thread
 
+import tensorflow as tf
+
 from tensorforce.runner import Runner
+from tensorforce.util.agent_util import create_agent
 
 
 class AsyncRunner(Runner):
 
-    def __init__(self, config, agent_type, environment, preprocessor=None, repeat_actions=1):
+    def __init__(self, agent_type, agent_config, n_agents, environment, preprocessor=None, repeat_actions=1):
         super().__init__(create_agent(agent_type, agent_config + {'tf_device': 'replica', 'tf_worker_device': '/job:master'}), environment, preprocessor=preprocessor, repeat_actions=repeat_actions)
         self.agent_type = agent_type
         self.agent_config = agent_config
-        ps_hosts = [config.ps_host]
-        worker_hosts = config.worker_hosts
+        self.n_agents = n_agents
+        ps_hosts = ['127.0.0.1:12222']
+        worker_hosts = ['127.0.0.1:{}'.format(n) for n in range(12223, 12223 + n_agents)]
         self.cluster_spec = tf.train.ClusterSpec({'ps': ps_hosts, 'worker': worker_hosts})
-
 
     def run(self, episodes, max_timesteps, episode_finished=None):
         self.threads = []
         self.continue_execution = True
 
-        global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer, trainable=False)
-        server = tf.train.Server(cluster, job_name=???, task_index=???)
-        supervisor = tf.train.Supervisor(
-            is_chief=master,
-            logdir="/tmp/train_logs",
-            init_op=init_op,
-            summary_op=summary_op,
-            saver=saver,
-            global_step=global_episode,
-            save_model_secs=600)
+        # global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer, trainable=False)
+        # server = tf.train.Server(self.cluster_spec.as_cluster_def(), job_name='ps', task_index=0)
 
-        with supervisor.managed_session(server.target) as session:
 
-            for ... in ...:
-                thread = Thread(target=worker_thread, args=(self, index, episodes, max_timesteps))
-                self.threads.append(thread)
-                thread.start()
 
-            while not supervisor.should_stop() and global_episode < episodes:
-                global_episode = session.run(global_episode)
-        supervisor.stop()
+        # supervisor = tf.train.Supervisor(
+        #     is_chief=master,
+        #     logdir="/tmp/train_logs",
+        #     init_op=init_op,
+        #     summary_op=summary_op,
+        #     saver=saver,
+        #     global_step=global_episode,
+        #     save_model_secs=600)
 
-        self.continue_execution = False
-        while self.threads:
-            for thread in list(self.threads):
-                if not thread.is_alive():
-                    self.threads.remove(thread)
+        # with supervisor.managed_session(server.target) as session:
+
+        for index in range(self.n_agents):
+            thread = Thread(target=worker_thread, args=(self, index, episodes, max_timesteps))
+            self.threads.append(thread)
+            thread.start()
+
+        #     while not supervisor.should_stop() and global_episode < episodes:
+        #         global_episode = session.run(global_episode)
+        # supervisor.stop()
+
+        # self.continue_execution = False
+        # while self.threads:
+        #     for thread in list(self.threads):
+        #         if not thread.is_alive():
+        #             self.threads.remove(thread)
 
 
 def worker_thread(master, index, episodes, max_timesteps):
     if not master.continue_execution:
         return
 
-    global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer, trainable=False)
-    server = tf.train.Server(cluster, job_name=???, task_index=???)
-    supervisor = tf.train.Supervisor(
-        is_chief=master,
-        logdir="/tmp/train_logs",
-        init_op=init_op,
-        summary_op=summary_op,
-        saver=saver,
-        global_step=global_episode,
-        save_model_secs=600)
-
     worker_device = '/job:worker{}'.format(index)
+
+    global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer, trainable=False)
+    server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='worker', task_index=index)
+
+    worker_agent = create_agent(master.agent_type, master.agent_config + {'tf_device': worker_device})
+    supervisor = tf.train.Supervisor(
+        is_chief=(index == 0),
+        # logdir="/tmp/train_logs",
+        init_op=worker_agent.init_op,
+        # summary_op=summary_op,
+        saver=worker_agent.saver,
+        global_step=global_episode,
+        summary_writer=worker_agent.writer)
+
+    worker = Runner(worker_agent, deepcopy(master.environment), preprocessor=master.preprocessor, repeat_actions=master.repeat_actions)
     ps_agent = create_agent(master.agent_type, master.agent_config + {'tf_device': 'replica', 'tf_worker_device': worker_device})
-    worker = Runner(create_agent(master.agent_type, master.agent_config + {'tf_device': worker_device}), deepcopy(master.environment), preprocessor=master.preprocessor, repeat_actions=master.repeat_actions)
 
     with supervisor.managed_session(server.target) as session:
 

@@ -88,6 +88,12 @@
 	},
 	"file_history":
 	[
+		"/C/Users/AlexKuhnle/OneDrive/University/PhD Computer Science/LaTeX/bibliography.bib",
+		"/C/Users/alexk/OneDrive/University/MCR Secretary/Committee.txt",
+		"/Z/unix_home/TensorForce/.gitignore",
+		"/Z/unix_home/TensorForce/tensorforce/runner/runner.py",
+		"/Z/unix_home/TensorForce/tensorforce/examples/openai_gym.py",
+		"/Z/unix_home/TensorForce/tensorforce/updater/deep_q_network.py",
 		"/C/Users/alexk/OneDrive/Documents/Online-Banking/HSBC/Investments/investments.txt",
 		"/Z/unix_home/phd/hpcs/reports/oneshape3_cnn_lstm_fuse.csv",
 		"/Z/unix_home/phd/shapeworld/reports/oneshape3_cnn_lstm_fuse.csv",
@@ -209,17 +215,11 @@
 		"/Z/unix_home/phd/derivtree.py",
 		"/Z/unix_home/phd/mrs_load.py",
 		"/Z/unix_home/lib/erg/constructions.tdl",
-		"/Z/unix_home/lib/erg/english.tdl",
-		"/Z/unix_home/lib/erg/lexrinst.tdl",
-		"/Z/unix_home/lib/erg/lexrules.tdl",
-		"/Z/unix_home/lib/erg/lextypes.tdl",
-		"/Z/unix_home/phd/hpcs/output/slurm-4503980.out",
-		"/Z/unix_home/phd/hpcs/output/slurm-4503985.out",
-		"/Z/unix_home/phd/hpcs/output/slurm-4448148.out"
+		"/Z/unix_home/lib/erg/english.tdl"
 	],
 	"find":
 	{
-		"height": 33.0
+		"height": 43.0
 	},
 	"find_in_files":
 	{
@@ -234,6 +234,7 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"summary",
 			"config['training:",
 			"config['architecture:",
 			"config['training:",
@@ -360,8 +361,7 @@
 			"learning",
 			"'], ",
 			"parameters[",
-			"world_size",
-			"shapes["
+			"world_size"
 		],
 		"highlight": true,
 		"in_selection": false,

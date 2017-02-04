@@ -48,13 +48,9 @@ def main():
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     args = parser.parse_args()
 
-    environments = [OpenAIGymEnvironment(args.gym_id), OpenAIGymEnvironment(args.gym_id), OpenAIGymEnvironment(args.gym_id)]
+    environment = OpenAIGymEnvironment(args.gym_id)
 
-    config = Config({
-        'actions': environments[0].actions,
-        'action_shape': environments[0].action_shape,
-        'state_shape': environments[0].state_shape
-    })
+    config = Config()
     if args.agent_config:
         config.read_json(args.agent_config)
     if args.network_config:
@@ -69,8 +65,6 @@ def main():
 
     config.state_shape = stack.shape(config.state_shape)
 
-    agents = [create_agent(args.agent, config), create_agent(args.agent, config + {'tf_scope': 'worker0'}), create_agent(args.agent, config + {'tf_scope': 'worker1'})]
-
     def episode_finished(r):
         if r.episode % report_episodes == 0:
             print("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
@@ -80,20 +74,20 @@ def main():
         return True
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=args.gym_id))
-    if args.monitor:
-        for environment in environments:
-            environment.gym.monitor.start(args.monitor)
-            environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
+    # if args.monitor:
+    #     for environment in environments:
+    #         environment.gym.monitor.start(args.monitor)
+    #         environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    runner = AsyncRunner(agents=agents, environments=environments, preprocessor=stack, repeat_actions=args.repeat_actions)
+    runner = AsyncRunner(agent_type=args.agents, agent_config=config, n_agents=3, environment=environment, preprocessor=stack, repeat_actions=args.repeat_actions)
     runner.run(episode_finished=episode_finished)
 
-    if args.monitor:
-        for environment in environments:
-            environment.gym.monitor.close()
+    # if args.monitor:
+    #     for environment in environments:
+    #         environment.gym.monitor.close()
     print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
-    for environment in environments:
-        environment.close()
+    # for environment in environments:
+    #     environment.close()
 
 
 if __name__ == '__main__':

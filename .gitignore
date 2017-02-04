@@ -5,3 +5,4 @@
 /logs/*
 /tensorforce/logs/*
 tensorforce-home.sublime-project
+tensorforce-lab.sublime-project

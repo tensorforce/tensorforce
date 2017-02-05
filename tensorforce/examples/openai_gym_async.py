@@ -51,13 +51,6 @@ def main():
 
     env = OpenAIGymEnvironment(args.gym_id)
 
-    config = Config()
-
-    if args.agent_config:
-        config.read_json(args.agent_config)
-    if args.network_config:
-        config.read_json(args.network_config)
-
     config = Config({
         'repeat_actions': 1,
         'actions': env.actions,
@@ -65,6 +58,10 @@ def main():
         'state_shape': env.state_shape
     })
 
+    if args.agent_config:
+        config.read_json(args.agent_config)
+    if args.network_config:
+        config.read_json(args.network_config)
 
     report_episodes = args.episodes / 10
 
@@ -84,6 +81,8 @@ def main():
         return True
 
     print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=args.gym_id))
+    print("Config:")
+    print(config)
     # if args.monitor:
     #     for environment in environments:
     #         environment.gym.monitor.start(args.monitor)

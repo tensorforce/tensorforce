@@ -15,6 +15,7 @@ class MLPValueFunction(ValueFunction):
         self.mlp = None
         self.update_iterations = update_iterations
         self.layer_size = layer_size
+        self.labels = tf.placeholder(tf.float32, shape=[None], name="labels")
 
     def predict(self, path):
         if self.mlp is None:
@@ -37,7 +38,6 @@ class MLPValueFunction(ValueFunction):
         print('input shape ' + str(input_shape))
         with tf.variable_scope("mlp_value_function"):
             self.input = tf.placeholder(tf.float32, shape=[None, input_shape], name="input")
-            self.labels = tf.placeholder(tf.float32, shape=[None], name="labels")
 
             hidden_1 = dense(self.input, {'num_outputs': input_shape}, 'hidden_1')
             hidden_2 = dense(hidden_1, {'num_outputs': self.layer_size}, 'hidden_2')

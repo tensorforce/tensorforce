@@ -88,13 +88,13 @@ def main():
     #         environment.gym.monitor.start(args.monitor)
     #         environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    runner = AsyncRunner(agent_type=args.agent, agent_config=config, n_agents=3, environment=env, preprocessor=stack, repeat_actions=args.repeat_actions)
+    runner = AsyncRunner(agent_type=args.agent, agent_config=config, n_agents=2, environment=env, preprocessor=stack, repeat_actions=args.repeat_actions)
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
 
     # if args.monitor:
     #     for environment in environments:
     #         environment.gym.monitor.close()
-    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
+    #print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
     # for environment in environments:
     #     environment.close()
 

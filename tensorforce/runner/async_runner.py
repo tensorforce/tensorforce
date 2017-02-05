@@ -23,9 +23,10 @@ from tensorforce.util.agent_util import create_agent
 
 
 class AsyncRunner(Runner):
-
     def __init__(self, agent_type, agent_config, n_agents, environment, preprocessor=None, repeat_actions=1):
-        super(AsyncRunner, self).__init__(create_agent(agent_type, agent_config + {'tf_device': 'replica', 'tf_worker_device': '/job:master'}), environment, preprocessor=preprocessor, repeat_actions=repeat_actions)
+        super(AsyncRunner, self).__init__(
+            create_agent(agent_type, agent_config + {'tf_device': 'replica', 'tf_worker_device': '/job:master'}),
+            environment, preprocessor=preprocessor, repeat_actions=repeat_actions)
         self.agent_type = agent_type
         self.agent_config = agent_config
         self.n_agents = n_agents
@@ -39,8 +40,6 @@ class AsyncRunner(Runner):
 
         # global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer, trainable=False)
         # server = tf.train.Server(self.cluster_spec.as_cluster_def(), job_name='ps', task_index=0)
-
-
 
         # supervisor = tf.train.Supervisor(
         #     is_chief=master,
@@ -58,15 +57,15 @@ class AsyncRunner(Runner):
             self.threads.append(thread)
             thread.start()
 
-        #     while not supervisor.should_stop() and global_episode < episodes:
-        #         global_episode = session.run(global_episode)
-        # supervisor.stop()
+            #     while not supervisor.should_stop() and global_episode < episodes:
+            #         global_episode = session.run(global_episode)
+            # supervisor.stop()
 
-        # self.continue_execution = False
-        # while self.threads:
-        #     for thread in list(self.threads):
-        #         if not thread.is_alive():
-        #             self.threads.remove(thread)
+            # self.continue_execution = False
+            # while self.threads:
+            #     for thread in list(self.threads):
+            #         if not thread.is_alive():
+            #             self.threads.remove(thread)
 
 
 def worker_thread(master, index, episodes, max_timesteps):
@@ -75,10 +74,15 @@ def worker_thread(master, index, episodes, max_timesteps):
 
     worker_device = '/job:worker{}'.format(index)
 
-    global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer, trainable=False)
+    with tf.device(worker_device):
+        global_episode = tf.get_variable('global_episode', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer,
+                                         trainable=False)
     server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='worker', task_index=index)
 
     worker_agent = create_agent(master.agent_type, master.agent_config + {'tf_device': worker_device})
+    ps_agent = create_agent(master.agent_type,
+                            master.agent_config + {'tf_device': 'replica', 'tf_worker_device': worker_device})
+
     supervisor = tf.train.Supervisor(
         is_chief=(index == 0),
         # logdir="/tmp/train_logs",
@@ -88,11 +92,10 @@ def worker_thread(master, index, episodes, max_timesteps):
         global_step=global_episode,
         summary_writer=worker_agent.model.writer)
 
-    worker = Runner(worker_agent, deepcopy(master.environment), preprocessor=master.preprocessor, repeat_actions=master.repeat_actions)
-    ps_agent = create_agent(master.agent_type, master.agent_config + {'tf_device': 'replica', 'tf_worker_device': worker_device})
+    worker = Runner(worker_agent, deepcopy(master.environment), preprocessor=master.preprocessor,
+                    repeat_actions=master.repeat_actions)
 
     with supervisor.managed_session(server.target) as session:
-
         def episode_finished(r):
             print('Episode finished')
             grads, _ = zip(*r.agent.get_gradients())

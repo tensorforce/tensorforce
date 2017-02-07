@@ -26,12 +26,13 @@ from tensorforce.exceptions.tensorforce_exceptions import TensorForceValueError
 from tensorforce.agents import *
 
 
-def create_agent(agent_type, config):
+def create_agent(agent_type, config, scope='prefixed_scope'):
     """
     Create agent instance by providing type as a string parameter.
 
     :param agent_type: String parameter containing agent type
     :param config: Dict containing configuration
+    :param scope: Scope prefix used for distributed tensorflow scope separation
     :return: Agent instance
     """
     agent_class = agents.get(agent_type)
@@ -39,7 +40,7 @@ def create_agent(agent_type, config):
     if not agent_class:
         raise TensorForceValueError("No such agent: {}".format(agent_type))
 
-    return agent_class(config)
+    return agent_class(config, scope)
 
 
 def get_default_config(agent_type):

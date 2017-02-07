@@ -35,13 +35,13 @@ from tensorforce.default_configs import DQNModelConfig
 class DQNModel(Model):
     default_config = DQNModelConfig
 
-    def __init__(self, config):
+    def __init__(self, config, scope):
         """
         Training logic for DQN.
 
         :param config: Configuration dict
         """
-        super(DQNModel, self).__init__(config)
+        super(DQNModel, self).__init__(config, scope)
 
         self.action_count = self.config.actions
         self.tau = self.config.tau
@@ -74,12 +74,15 @@ class DQNModel(Model):
         with tf.device(self.device):
             # Input placeholders
             self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
-            self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="next_states")
+            self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+                                              name="next_states")
             self.terminals = tf.placeholder(tf.float32, self.batch_shape, name='terminals')
             self.rewards = tf.placeholder(tf.float32, self.batch_shape, name='rewards')
 
-            self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state, scope='training')
-            self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states, scope='target')
+            self.training_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.state,
+                                                scope=self.scope + 'training')
+            self.target_model = NeuralNetwork(self.config.network_layers + output_layer_config, self.next_states,
+                                              scope=self.scope + 'target')
 
             self.training_output = self.training_model.get_output()
             self.target_output = self.target_model.get_output()
@@ -160,62 +163,62 @@ class DQNModel(Model):
 
         :return:
         """
+        with tf.name_scope(self.scope):
+            with tf.name_scope("predict"):
+                self.dqn_action = tf.argmax(self.training_output, dimension=1, name='dqn_action')
 
-        with tf.name_scope("predict"):
-            self.dqn_action = tf.argmax(self.training_output, dimension=1, name='dqn_action')
+            with tf.name_scope("targets"):
+                if self.double_dqn:
+                    selector = tf.one_hot(self.dqn_action, self.action_count, name='selector')
+                    self.target_values = tf.reduce_sum(tf.multiply(self.target_output, selector), reduction_indices=1,
+                                                       name='target_values')
+                else:
+                    self.target_values = tf.reduce_max(self.target_output, reduction_indices=1,
+                                                       name='target_values')
 
-        with tf.name_scope("targets"):
+            with tf.name_scope("update"):
+                # Self.q_targets gets fed the actual observed rewards and expected future rewards
+                self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
+
+                # Self.actions gets fed the actual actions that have been taken
+                self.actions = tf.placeholder(tf.int32, [None], name='actions')
+
+                # One_hot tensor of the actions that have been taken
+                actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
+
+                # Training output, so we get the expected rewards given the actual states and actions
+                q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
+                                                       name='q_acted')
+
+                # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
+                delta = self.q_targets - q_values_actions_taken
+
+                # if gradient clipping is used, calculate the huber loss
+                if self.config.clip_gradients:
+                    huber_loss = tf.select(tf.abs(delta) < self.clip_value, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+                    self.loss = tf.reduce_mean(huber_loss, name='compute_surrogate_loss')
+                else:
+                    self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
+
+                self.grads_and_vars = self.optimizer.compute_gradients(self.loss)
+                self.optimize_op = self.optimizer.apply_gradients(self.grads_and_vars)
+
+            # Update target network with update weight tau
+            with tf.name_scope("update_target"):
+                for v_source, v_target in zip(self.training_model.get_variables(), self.target_model.get_variables()):
+                    update = v_target.assign_sub(self.tau * (v_target - v_source))
+                    self.target_network_update.append(update)
+
+        def get_target_values(self, next_states):
+            """
+            Estimate of next state Q values.
+            :param next_states:
+            :return:
+            """
             if self.double_dqn:
-                selector = tf.one_hot(self.dqn_action, self.action_count, name='selector')
-                self.target_values = tf.reduce_sum(tf.multiply(self.target_output, selector), reduction_indices=1,
-                                                   name='target_values')
+                return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})
             else:
-                self.target_values = tf.reduce_max(self.target_output, reduction_indices=1,
-                                                   name='target_values')
-
-        with tf.name_scope("update"):
-            # Self.q_targets gets fed the actual observed rewards and expected future rewards
-            self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
-
-            # Self.actions gets fed the actual actions that have been taken
-            self.actions = tf.placeholder(tf.int32, [None], name='actions')
-
-            # One_hot tensor of the actions that have been taken
-            actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
-
-            # Training output, so we get the expected rewards given the actual states and actions
-            q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
-                                                   name='q_acted')
-
-            # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
-            delta = self.q_targets - q_values_actions_taken
-
-            # if gradient clipping is used, calculate the huber loss
-            if self.config.clip_gradients:
-                huber_loss = tf.select(tf.abs(delta) < self.clip_value, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
-                self.loss = tf.reduce_mean(huber_loss, name='compute_surrogate_loss')
-            else:
-                self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
-
-            self.grads_and_vars = self.optimizer.compute_gradients(self.loss)
-            self.optimize_op = self.optimizer.apply_gradients(self.grads_and_vars)
-
-        # Update target network with update weight tau
-        with tf.name_scope("update_target"):
-            for v_source, v_target in zip(self.training_model.get_variables(), self.target_model.get_variables()):
-                update = v_target.assign_sub(self.tau * (v_target - v_source))
-                self.target_network_update.append(update)
-
-    def get_target_values(self, next_states):
-        """
-        Estimate of next state Q values.
-        :param next_states:
-        :return:
-        """
-        if self.double_dqn:
-            return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})
-        else:
-            return self.session.run(self.target_values, {self.next_states: next_states})
+                return self.session.run(self.target_values, {self.next_states: next_states})
 
     def update_target_network(self):
         """

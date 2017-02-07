@@ -40,13 +40,13 @@ from tensorforce.default_configs import NAFModelConfig
 class NAFModel(Model):
     default_config = NAFModelConfig
 
-    def __init__(self, config):
+    def __init__(self, config, scope):
         """
         Training logic for NAFs.
 
         :param config: Configuration parameters
         """
-        super(NAFModel, self).__init__(config)
+        super(NAFModel, self).__init__(config, scope)
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.epsilon = self.config.epsilon

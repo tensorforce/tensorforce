@@ -41,7 +41,7 @@ class MemoryAgent(RLAgent):
 
     model_ref = None
 
-    def __init__(self, config):
+    def __init__(self, config, scope):
         """
         Initialize a vanilla DQN agent as described in
         http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.
@@ -67,7 +67,7 @@ class MemoryAgent(RLAgent):
         self.min_replay_size = self.config.min_replay_size
 
         if self.model_ref:
-            self.model = self.model_ref(self.config)
+            self.model = self.model_ref(self.config, scope)
 
     def get_action(self, *args, **kwargs):
         """

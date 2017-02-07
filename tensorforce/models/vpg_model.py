@@ -29,8 +29,8 @@ from tensorforce.default_configs import VPGModelConfig
 class VPGModel(PGModel):
     default_config = VPGModelConfig
 
-    def __init__(self, config):
-        super(VPGModel, self).__init__(config)
+    def __init__(self, config, scope):
+        super(VPGModel, self).__init__(config, scope)
 
         self.create_training_operations()
         self.session.run(tf.global_variables_initializer())

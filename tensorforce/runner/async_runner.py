@@ -24,9 +24,10 @@ from tensorforce.util.agent_util import create_agent
 
 class AsyncRunner(Runner):
     def __init__(self, agent_type, agent_config, n_agents, environment, preprocessor=None, repeat_actions=1):
-        super(AsyncRunner, self).__init__(
-            create_agent(agent_type, agent_config + {'tf_device': 'replica', 'tf_worker_device': '/job:master'}),
-            environment, preprocessor=preprocessor, repeat_actions=repeat_actions)
+        super(AsyncRunner, self).__init__(None,
+                                          environment,
+                                          preprocessor=preprocessor,
+                                          repeat_actions=repeat_actions)
         self.agent_type = agent_type
         self.agent_config = agent_config
         self.n_agents = n_agents
@@ -79,9 +80,14 @@ def worker_thread(master, index, episodes, max_timesteps):
                                          trainable=False)
     server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='worker', task_index=index)
 
-    worker_agent = create_agent(master.agent_type, master.agent_config + {'tf_device': worker_device})
+    # Agent specific scope
+    scope = 'worker_' + str(index)
+    worker_agent = create_agent(master.agent_type, master.agent_config + {'tf_device': worker_device}, scope)
+
+    scope = 'parameter_server' + str(index)
     ps_agent = create_agent(master.agent_type,
-                            master.agent_config + {'tf_device': 'replica', 'tf_worker_device': worker_device})
+                            master.agent_config + {'tf_device': 'replica', 'tf_worker_device': worker_device},
+                            scope)
 
     supervisor = tf.train.Supervisor(
         is_chief=(index == 0),

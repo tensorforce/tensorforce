@@ -30,8 +30,8 @@ from tensorforce.util.math_util import discount, zero_mean_unit_variance
 
 
 class PGModel(Model):
-    def __init__(self, config):
-        super(PGModel, self).__init__(config)
+    def __init__(self, config, scope):
+        super(PGModel, self).__init__(config, scope)
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
         self.use_gae = self.config.use_gae

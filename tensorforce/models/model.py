@@ -35,10 +35,11 @@ from tensorforce.util.exploration_util import exploration_mode
 class Model(object):
     default_config = {}
 
-    def __init__(self, config):
+    def __init__(self, config, scope):
         """
 
         :param config: Configuration parameters
+        :param scope: TensorFlow scope
         """
 
         # TODO move several default params up here
@@ -47,6 +48,8 @@ class Model(object):
         self.saver = None
         self.config = create_config(config, default=self.default_config)
 
+        # This is the scope used to prefix variable creation for distributed TensorFlow
+        self.scope = scope
         self.batch_shape = [None]
 
         self.deterministic_mode = config.get('deterministic_mode', False)

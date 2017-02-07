@@ -30,7 +30,7 @@ from tensorforce.util.experiment_util import global_seed
 class RandomAgent(RLAgent):
     name = 'RandomAgent'
 
-    def __init__(self, config):
+    def __init__(self, config, scope):
         super(RandomAgent, self).__init__()
 
         if config.deterministic_mode:

@@ -30,7 +30,7 @@ class PGAgent(RLAgent):
 
     model_ref = None
 
-    def __init__(self, config):
+    def __init__(self, config, scope):
         self.config = create_config(config, default=self.default_config)
         self.updater = None
         self.current_batch = []
@@ -43,7 +43,7 @@ class PGAgent(RLAgent):
         self.continuous = self.config.continuous
 
         if self.model_ref:
-            self.updater = self.model_ref(self.config)
+            self.updater = self.model_ref(self.config, scope)
 
     def get_action(self, *args, **kwargs):
         """

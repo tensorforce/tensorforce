@@ -38,8 +38,8 @@ class TRPOModel(PGModel):
     
     default_config = TRPOModelConfig
 
-    def __init__(self, config):
-        super(TRPOModel, self).__init__(config)
+    def __init__(self, config, scope):
+        super(TRPOModel, self).__init__(config, scope)
 
         # TRPO specific parameters
         self.cg_damping = self.config.cg_damping

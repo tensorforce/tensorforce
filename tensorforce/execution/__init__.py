@@ -13,6 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.runner.runner import Runner
+from tensorforce.execution.runner import Runner
 
 __all__ = ['Runner']

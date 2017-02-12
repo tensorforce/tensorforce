@@ -35,7 +35,6 @@ from tensorforce.util.math_util import *
 from tensorforce.default_configs import TRPOModelConfig
 
 class TRPOModel(PGModel):
-    
     default_config = TRPOModelConfig
 
     def __init__(self, config, scope):
@@ -144,6 +143,7 @@ class TRPOModel(PGModel):
                                           negative_gradient_direction / lagrange_multiplier, self.line_search_steps)
 
             # Use line search results, otherwise take full step
+            # N.B. some implementations don't use the line search
             if improved:
                 print('Updating with line search result..')
                 self.flat_variable_helper.set(theta)

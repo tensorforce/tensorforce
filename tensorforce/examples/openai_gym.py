@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-OpenAI gym runner
+OpenAI gym execution
 """
 
 from __future__ import absolute_import
@@ -30,7 +30,7 @@ from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.experiment_util import build_preprocessing_stack
 from tensorforce.util.agent_util import create_agent
-from tensorforce.runner import Runner
+from tensorforce.execution import Runner
 
 
 def main():

@@ -14,7 +14,8 @@
 # ==============================================================================
 
 """
-Runner base class.
+Simple runner for non-realtime single process execution, appropriate for
+OpenAI gym.
 """
 
 from __future__ import absolute_import

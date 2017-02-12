@@ -35,7 +35,6 @@ class MLPValueFunction(ValueFunction):
             self.session.run(self.update, {self.input: feature_matrix, self.labels: returns})
 
     def create_net(self, input_shape):
-        print('input shape ' + str(input_shape))
         with tf.variable_scope("mlp_value_function"):
             self.input = tf.placeholder(tf.float32, shape=[None, input_shape], name="input")
 

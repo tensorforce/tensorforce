@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-OpenAI gym runner
+OpenAI gym execution
 """
 
 from __future__ import absolute_import
@@ -27,7 +27,7 @@ from six.moves import xrange
 import numpy as np
 
 from tensorforce.config import Config, create_config
-from tensorforce.runner.async_runner import AsyncRunner
+from tensorforce.execution.distributed_runner import DistributedRunner
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.experiment_util import build_preprocessing_stack
 from tensorforce.util.agent_util import create_agent, get_default_config
@@ -66,6 +66,7 @@ def main():
     report_episodes = args.episodes / 10
 
     preprocessing_config = config.get('preprocessing')
+
     if preprocessing_config:
         stack = build_preprocessing_stack(preprocessing_config)
         config.state_shape = stack.shape(config.state_shape)
@@ -88,13 +89,13 @@ def main():
     #         environment.gym.monitor.start(args.monitor)
     #         environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    runner = AsyncRunner(agent_type=args.agent, agent_config=config, n_agents=2, environment=env, preprocessor=stack, repeat_actions=args.repeat_actions)
+    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=2, environment=env, preprocessor=stack, repeat_actions=args.repeat_actions)
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
 
     # if args.monitor:
     #     for environment in environments:
     #         environment.gym.monitor.close()
-    #print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
+    #print("Learning finished. Total episodes: {ep}".format(ep=execution.episode + 1))
     # for environment in environments:
     #     environment.close()
 

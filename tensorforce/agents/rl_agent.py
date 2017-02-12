@@ -16,13 +16,16 @@
 """
 Basic Reinforcement learning agent. An agent encapsulates execution logic
 of a particular reinforcement learning algorithm and defines the external interface
-to the environment. The agent hence acts an intermediate layer between environment
+to the environment.
+
+ The agent hence acts an intermediate layer between environment
 and backend execution (value function or policy updates).
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+
 
 class RLAgent(object):
     name = 'RLAgent'

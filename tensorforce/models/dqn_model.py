@@ -209,16 +209,16 @@ class DQNModel(Model):
                     update = v_target.assign_sub(self.tau * (v_target - v_source))
                     self.target_network_update.append(update)
 
-        def get_target_values(self, next_states):
-            """
-            Estimate of next state Q values.
-            :param next_states:
-            :return:
-            """
-            if self.double_dqn:
-                return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})
-            else:
-                return self.session.run(self.target_values, {self.next_states: next_states})
+    def get_target_values(self, next_states):
+        """
+        Estimate of next state Q values.
+        :param next_states:
+        :return:
+        """
+        if self.double_dqn:
+            return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})
+        else:
+            return self.session.run(self.target_values, {self.next_states: next_states})
 
     def update_target_network(self):
         """

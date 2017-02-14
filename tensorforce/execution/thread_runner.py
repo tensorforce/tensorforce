@@ -14,11 +14,11 @@ from tensorforce.util.experiment_util import repeat_action
 
 class ThreadRunner(Thread):
 
-    def __init__(self, agent, environment, episodes, max_timesteps, preprocessor=None, repeat_actions=1):
+    def __init__(self, model, environment, episodes, max_timesteps, preprocessor=None, repeat_actions=1):
         super(ThreadRunner, self).__init__()
         self.experience_queue = queue.Queue(10)
 
-        self.agent = agent
+        self.model = model
         self.environment = environment
         self.preprocessor = preprocessor
         self.repeat_actions = repeat_actions
@@ -28,13 +28,12 @@ class ThreadRunner(Thread):
         self.save_model_path = None
         self.save_model_episodes = 0
 
-    def run(self):
+    def run(self, session):
         """
         Starts threaded execution of environment execution.
-        :return:
         """
+        self.model.set_session(session)
         executor = self.execute()
-
         while True:
             self.experience_queue.put(next(executor), timeout=600.0)
 
@@ -44,7 +43,7 @@ class ThreadRunner(Thread):
         """
 
         self.episode_rewards = []
-        self.agent.model.initialize()
+        self.model.initialize()
 
         # TODO
         # Currently update is hidden due to API
@@ -61,11 +60,10 @@ class ThreadRunner(Thread):
                 else:
                     processed_state = state
 
-                action = self.agent.get_action(processed_state, self.episode)
+                action = self.model.get_action(processed_state, self.episode)
                 result = repeat_action(self.environment, action, self.repeat_actions)
 
                 episode_reward += result['reward']
-                self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])
 
                 state = result['state']
 

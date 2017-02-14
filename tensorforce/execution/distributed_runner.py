@@ -22,6 +22,7 @@ from multiprocessing import Process
 import time
 import tensorflow as tf
 
+from tensorforce.agents.distributed_agent import DistributedAgent
 from tensorforce.execution.thread_runner import ThreadRunner
 from tensorforce.util.agent_util import create_agent
 
@@ -98,7 +99,7 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
         scope = 'worker_' + str(index)
         server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='worker', task_index=index)
 
-        worker_agent = create_agent(master.agent_type, master.agent_config + {'tf_device': worker_device}, scope)
+        worker_agent = DistributedAgent(master.agent_config + {'tf_device': worker_device}, scope)
 
         supervisor = tf.train.Supervisor(
             is_chief=(index == 0),
@@ -119,10 +120,12 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
 
         # Connecting to parameter server
         with supervisor.managed_session(server.target, config) as session:
-            runner.run()
+            runner.run(session)
+            global_step = worker_agent.increment_global_step()
 
             while not supervisor.should_stop() and global_step_count < global_steps:
                 runner.try_update()
+                global_step = worker_agent.increment_global_step()
 
         print('Stopping supervisor')
         supervisor.stop()

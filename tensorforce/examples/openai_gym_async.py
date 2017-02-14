@@ -89,8 +89,10 @@ def main():
     #         environment.gym.monitor.start(args.monitor)
     #         environment.gym.monitor.configure(video_callable=lambda count: False)  # count % 500 == 0)
 
-    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=2, environment=env, preprocessor=stack, repeat_actions=args.repeat_actions)
-    runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
+    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=2,
+                               environment=env, preprocessor=stack, repeat_actions=args.repeat_actions,
+                               episodes=args.episodes, max_timesteps=args.max_timesteps, n_param_servers=1)
+    runner.run()
 
     # if args.monitor:
     #     for environment in environments:

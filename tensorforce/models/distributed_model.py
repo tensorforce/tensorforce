@@ -16,6 +16,7 @@ from tensorforce.models.policies import GaussianPolicy
 from tensorforce.util.config_util import get_function
 from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.exploration_util import exploration_mode
+from tensorforce.util.math_util import zero_mean_unit_variance, discount
 
 
 class DistributedModel(object):
@@ -147,7 +148,25 @@ class DistributedModel(object):
         return self.policy.sample(state)
 
     def update(self, batch):
+        """
+        Get global parameters, compute update, then send results to parameter server.
+        :param batch:
+        :return:
+        """
         self.sync_global_to_local()
+
+        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
+
+        # Update linear value function for baseline prediction
+        self.baseline_value_function.fit(batch)
+
+        # Merge episode inputs into single arrays
+        _, _, actions, batch_advantage, states = self.merge_episodes(batch)
+
+        self.session.run([self.loss, self.optimize_op],
+                         {self.state: states,
+                          self.actions: actions,
+                          self.advantage: batch_advantage})
 
     def get_global_step(self):
         """
@@ -177,3 +196,54 @@ class DistributedModel(object):
 
     def save_model(self, path):
         self.saver.save(self.session, path)
+
+
+    # TODO remove this duplication, move to util or let distributed model
+    # have a pg model as a field
+    def merge_episodes(self, batch):
+        """
+        Merge episodes of a batch into single input variables.
+
+        :param batch:
+        :return:
+        """
+        if self.continuous:
+            action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
+            action_log_stds = np.expand_dims(action_log_stds, axis=1)
+        else:
+            action_log_stds = None
+
+        action_means = np.concatenate([path['action_means'] for path in batch])
+        actions = np.concatenate([path['actions'] for path in batch])
+        batch_advantage = np.concatenate([path["advantage"] for path in batch])
+
+        if self.normalize_advantage:
+            batch_advantage = zero_mean_unit_variance(batch_advantage)
+
+        batch_advantage = np.expand_dims(batch_advantage, axis=1)
+        states = np.concatenate([path['states'] for path in batch])
+
+        return action_log_stds, action_means, actions, batch_advantage, states
+
+    def compute_gae_advantage(self, batch, gamma, gae_lambda, use_gae=False):
+        """
+        Expects a batch containing at least one episode, sets advantages according to use_gae.
+
+        :param batch: Sequence of observations for at least one episode.
+        """
+
+        for episode in batch:
+            baseline = self.baseline_value_function.predict(episode)
+
+            if episode['terminated']:
+                adjusted_baseline = np.append(baseline, [0])
+            else:
+                adjusted_baseline = np.append(baseline, baseline[-1])
+
+            episode['returns'] = discount(episode['rewards'], gamma)
+
+            if use_gae:
+                deltas = episode['rewards'] + gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
+                episode['advantage'] = discount(deltas, gamma * gae_lambda)
+            else:
+                episode['advantage'] = episode['returns'] - baseline

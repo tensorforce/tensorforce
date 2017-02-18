@@ -28,9 +28,6 @@ class DistributedAgent(object):
     def get_variables(self):
         raise NotImplementedError
 
-    def assign_variables(self, values):
-        raise NotImplementedError
-
     def get_gradients(self):
         raise NotImplementedError
 

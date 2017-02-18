@@ -60,9 +60,10 @@ class DistributedModel(object):
         with tf.device(tf.train.replica_device_setter(1, worker_device=self.worker_device)):
             with tf.variable_scope("global"):
                 # Dummy input, not used
-                self.global_state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+                self.global_state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+                                                   name="state")
                 self.global_network = NeuralNetwork(self.config.network_layers, self.global_state,
-                                                   scope=scope + 'global_model')
+                                                    scope=scope + 'global_model')
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
@@ -101,7 +102,9 @@ class DistributedModel(object):
                 self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
 
                 self.local_network = NeuralNetwork(self.config.network_layers, self.state,
-                                                    scope=self.scope + 'local_model')
+                                                   scope=self.scope + 'local_model')
+                # TODO possibly problematic, check
+                self.local_step = self.global_step
 
             self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
             self.advantage = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
@@ -122,20 +125,29 @@ class DistributedModel(object):
 
             # Probability distribution used in the current policy
             self.dist = self.policy.get_distribution()
-
             self.baseline_value_function = LinearValueFunction()
             self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
 
             # Concise: Get log likelihood of actions, weigh by advantages, compute gradient on that
             self.loss = -tf.reduce_mean(self.log_probabilities * self.advantage, name="loss_op")
 
-            self.optimize_op = self.optimizer.minimize(self.loss)
+            self.gradients = tf.gradients(self.loss, self.local_network.get_variables())
+            grad_var_list = list(zip(self.gradients, self.local_network.get_variables()))
+
+            global_step_inc = self.global_step.assign_add(self.batch_size)
+
+            self.assign_global_to_local = tf.group(*[v1.assign(v2) for v1, v2 in
+                                                     zip(self.local_network.get_variables(),
+                                                         self.global_network.get_variables())])
+
+            self.optimize_op = tf.group(self.optimizer.apply_gradients(grad_var_list),
+                                     global_step_inc)
 
     def get_action(self, state):
-        raise NotImplementedError
+        return self.policy.sample(state)
 
     def update(self, batch):
-        pass
+        self.sync_global_to_local()
 
     def get_global_step(self):
         """
@@ -147,8 +159,12 @@ class DistributedModel(object):
     def get_variables(self):
         raise NotImplementedError
 
-    def assign_variables(self, values):
-        raise NotImplementedError
+    def sync_global_to_local(self):
+        """
+        Copy shared global weights to local network.
+
+        """
+        self.session.run(self.assign_global_to_local)
 
     def get_gradients(self):
         raise NotImplementedError

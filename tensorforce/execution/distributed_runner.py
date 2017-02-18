@@ -120,12 +120,12 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
 
         # Connecting to parameter server
         with supervisor.managed_session(server.target, config) as session:
-            runner.run(session)
-            global_step = worker_agent.increment_global_step()
+            runner.start_thread(session)
+            global_step_count = worker_agent.increment_global_step()
 
             while not supervisor.should_stop() and global_step_count < global_steps:
                 runner.try_update()
-                global_step = worker_agent.increment_global_step()
+                global_step_count = worker_agent.increment_global_step()
 
         print('Stopping supervisor')
         supervisor.stop()

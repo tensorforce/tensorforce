@@ -20,7 +20,7 @@ class DistributedAgent(object):
         self.model = DistributedModel(config, scope, task_index)
 
     def increment_global_step(self):
-        self.model.increment_global_step()
+        self.model.get_global_step()
 
     def get_action(self, state):
         raise NotImplementedError

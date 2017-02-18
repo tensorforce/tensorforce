@@ -28,11 +28,15 @@ class ThreadRunner(Thread):
         self.save_model_path = None
         self.save_model_episodes = 0
 
-    def run(self, session):
+    def start_thread(self, session):
         """
         Starts threaded execution of environment execution.
         """
         self.model.set_session(session)
+        self.start()
+
+
+    def run(self):
         executor = self.execute()
         while True:
             self.experience_queue.put(next(executor), timeout=600.0)

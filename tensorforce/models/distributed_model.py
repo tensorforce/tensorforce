@@ -25,7 +25,8 @@ class DistributedModel(object):
     def __init__(self, config, scope, task_index):
         """
 
-        A distributed model must synchronise local and global parameters. 
+        A distributed agent must synchronise local and global parameters under different
+        scopes.
 
         :param config: Configuration parameters
         :param scope: TensorFlow scope
@@ -91,11 +92,11 @@ class DistributedModel(object):
 
     def create_training_operations(self):
         """
-        Currently a duplicate of the pg model logic, to be made generic later to allow
+        Currently a duplicate of the pg agent logic, to be made generic later to allow
         all models to be executed asynchronously/distributed seamlessly.
 
         """
-        # TODO rewrite model logic so core update logic can be composed into
+        # TODO rewrite agent logic so core update logic can be composed into
         # TODO distributed logic
 
         with tf.device(self.worker_device):
@@ -125,8 +126,9 @@ class DistributedModel(object):
                 self.prev_dist = dict(policy_output=self.prev_action_means)
 
             # Probability distribution used in the current policy
-            self.dist = self.policy.get_distribution()
             self.baseline_value_function = LinearValueFunction()
+
+            self.dist = self.policy.get_distribution()
             self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
 
             # Concise: Get log likelihood of actions, weigh by advantages, compute gradient on that
@@ -185,12 +187,6 @@ class DistributedModel(object):
         """
         self.session.run(self.assign_global_to_local)
 
-    def get_gradients(self):
-        raise NotImplementedError
-
-    def apply_gradients(self, grads_and_vars):
-        raise NotImplementedError
-
     def load_model(self, path):
         self.saver.restore(self.session, path)
 
@@ -198,8 +194,8 @@ class DistributedModel(object):
         self.saver.save(self.session, path)
 
 
-    # TODO remove this duplication, move to util or let distributed model
-    # have a pg model as a field
+    # TODO remove this duplication, move to util or let distributed agent
+    # have a pg agent as a field
     def merge_episodes(self, batch):
         """
         Merge episodes of a batch into single input variables.

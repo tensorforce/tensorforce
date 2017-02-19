@@ -15,9 +15,9 @@
 
 """
 Models provide the general interface to TensorFlow functionality,
-manages TensorFlow session and execution. In particular, a model for reinforcement learning
+manages TensorFlow session and execution. In particular, a agent for reinforcement learning
 always needs to provide a function that gives an action, and one to trigger updates.
-A model may use one more multiple neural networks and implement the update logic of a particular
+A agent may use one more multiple neural networks and implement the update logic of a particular
 RL algorithm.
 """
 

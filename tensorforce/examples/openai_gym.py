@@ -45,9 +45,9 @@ def main():
     parser.add_argument('-m', '--monitor', help="Save results to this directory")
     parser.add_argument('-ms', '--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
     parser.add_argument('-mv', '--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
-    parser.add_argument('-s', '--save', help="Save model to this dir")
-    parser.add_argument('-se', '--save-episodes', type=int, default=100, help="Save model every x episodes")
-    parser.add_argument('-l', '--load', help="Load model from this dir")
+    parser.add_argument('-s', '--save', help="Save agent to this dir")
+    parser.add_argument('-se', '--save-episodes', type=int, default=100, help="Save agent every x episodes")
+    parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
     args = parser.parse_args()
@@ -86,7 +86,7 @@ def main():
     if args.load:
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):
-            raise OSError("Could not load model from {}: No such directory.".format(load_dir))
+            raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
         agent.load_model(args.load)
 
     if args.debug:
@@ -102,7 +102,7 @@ def main():
             try:
                 os.mkdir(save_dir, 0o755)
             except OSError:
-                raise OSError("Cannot save model to dir {} ()".format(save_dir))
+                raise OSError("Cannot save agent to dir {} ()".format(save_dir))
         runner.save_model(args.save, args.save_episodes)
 
     report_episodes = args.episodes // 10

@@ -23,7 +23,7 @@ from tensorforce.util.experiment_util import global_seed
 
 class Exploration(object):
     """
-    Generic exploration object. Holds a reference to a model to request
+    Generic exploration object. Holds a reference to a agent to request
     shapes of action dimensions and deterministic mode.
     """
     def __init__(self, model=None):

@@ -14,16 +14,16 @@ from tensorforce.util.experiment_util import repeat_action
 
 class ThreadRunner(Thread):
 
-    def __init__(self, model, environment, episodes, max_timesteps, preprocessor=None, repeat_actions=1):
+    def __init__(self, agent, environment, episodes, local_steps, preprocessor=None, repeat_actions=1):
         super(ThreadRunner, self).__init__()
         self.experience_queue = queue.Queue(10)
 
-        self.model = model
+        self.agent = agent
         self.environment = environment
         self.preprocessor = preprocessor
         self.repeat_actions = repeat_actions
         self.episodes = episodes
-        self.max_timesteps = max_timesteps
+        self.local_steps = local_steps
 
         self.save_model_path = None
         self.save_model_episodes = 0
@@ -32,12 +32,13 @@ class ThreadRunner(Thread):
         """
         Starts threaded execution of environment execution.
         """
-        self.model.set_session(session)
+        self.agent.set_session(session)
         self.start()
 
 
     def run(self):
         executor = self.execute()
+
         while True:
             self.experience_queue.put(next(executor), timeout=600.0)
 
@@ -45,9 +46,8 @@ class ThreadRunner(Thread):
         """
         Queued thread executor.
         """
-
         self.episode_rewards = []
-        self.model.initialize()
+        self.agent.initialize()
 
         # TODO
         # Currently update is hidden due to API
@@ -58,14 +58,15 @@ class ThreadRunner(Thread):
             state = self.environment.reset()
             episode_reward = 0
 
-            for self.timestep in xrange(self.max_timesteps):
+            for self.timestep in xrange(self.local_steps):
                 if self.preprocessor:
                     processed_state = self.preprocessor.process(state)
                 else:
                     processed_state = state
 
-                action = self.model.get_action(processed_state, self.episode)
+                action = self.agent.get_action(processed_state, self.episode)
                 result = repeat_action(self.environment, action, self.repeat_actions)
+                self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])
 
                 episode_reward += result['reward']
 
@@ -76,7 +77,25 @@ class ThreadRunner(Thread):
 
             self.episode_rewards.append(episode_reward)
 
-    def try_update(self):
-        pass
+        # Let agent manage experience collection in internal batch -> possibly move the yield
+        # into agent
+        yield self.agent.batch
+
+    def update(self):
+        batch = self.experience_queue.get(timeout=600.0)
+
+        # Turn the openai starter agent logic on its head so we can
+        # actively call update and don't break encapsulation of our model logic ->
+        # model does not know or care about environment
+        while not batch.terminal:
+            try:
+                batch.extend(self.experience_queue.queue.get_nowait())
+            except queue.Empty:
+                break
+
+        # Delegate update to distributed model, separate queue runner and update
+        self.agent.update(batch.current_batch)
+
+
 
 

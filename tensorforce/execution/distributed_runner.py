@@ -110,10 +110,10 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
             global_step=global_step_count,
             summary_writer=worker_agent.model.writer)
 
-        global_steps = max_timesteps * episodes
+        global_steps = 10000000
 
         runner = ThreadRunner(worker_agent, deepcopy(master.environment),
-                              episodes, max_timesteps, preprocessor=master.preprocessor,
+                              episodes, 20, preprocessor=master.preprocessor,
                               repeat_actions=master.repeat_actions)
 
         config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)])
@@ -124,7 +124,7 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
             global_step_count = worker_agent.increment_global_step()
 
             while not supervisor.should_stop() and global_step_count < global_steps:
-                runner.try_update()
+                runner.update()
                 global_step_count = worker_agent.increment_global_step()
 
         print('Stopping supervisor')

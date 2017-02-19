@@ -70,7 +70,7 @@ class Runner(object):
             self.episode_rewards.append(episode_reward)
 
             if self.save_model_path and self.save_model_episodes > 0 and self.episode % self.save_model_episodes == 0:
-                print("Saving model after episode {}".format(self.episode))
+                print("Saving agent after episode {}".format(self.episode))
                 self.agent.save_model(self.save_model_path)
 
             if episode_finished and not episode_finished(self):

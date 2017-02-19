@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """
-A policy gradient model provides generic methods used in pg algorithms, e.g.
+A policy gradient agent provides generic methods used in pg algorithms, e.g.
 GAE-computation or merging of episode data.
 """
 import tensorflow as tf

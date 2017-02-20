@@ -1,3 +1,6 @@
+# Copyright 2016 reinforce.io. All Rights Reserved.
+# ==============================================================================
+
 import numpy as np
 import tensorflow as tf
 

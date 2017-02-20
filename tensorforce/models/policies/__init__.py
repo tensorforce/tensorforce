@@ -1,3 +1,5 @@
+# Copyright 2016 reinforce.io. All Rights Reserved.
+# ==============================================================================
 
 from tensorforce.models.policies.distribution import Distribution
 from tensorforce.models.policies.categorical import Categorical

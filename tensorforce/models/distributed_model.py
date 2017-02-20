@@ -1,3 +1,6 @@
+# Copyright 2016 reinforce.io. All Rights Reserved.
+# ==============================================================================
+
 """
 Model for distributed tensorflow. Not generic yet, testing with vpg.
 

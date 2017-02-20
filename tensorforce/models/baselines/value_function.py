@@ -1,3 +1,6 @@
+# Copyright 2016 reinforce.io. All Rights Reserved.
+# ==============================================================================
+
 """
 Generic baseline value function for policy gradient methods.
 """

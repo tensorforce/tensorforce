@@ -1,3 +1,6 @@
+# Copyright 2016 reinforce.io. All Rights Reserved.
+# ==============================================================================
+
 """
 Categorial one hot policy, used for discrete policy gradients.
 """

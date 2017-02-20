@@ -1,3 +1,5 @@
+# Copyright 2016 reinforce.io. All Rights Reserved.
+# ==============================================================================
 """
 Standard Gaussian policy.
 """

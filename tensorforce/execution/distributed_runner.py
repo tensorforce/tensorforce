@@ -66,8 +66,8 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
     :param is_param_server:
 
     """
-    if not master.continue_execution:
-        return
+    # if not master.continue_execution:
+    #     return
 
     worker_device = '/job:worker{}'.format(index)
 
@@ -110,6 +110,7 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
         print('Connection to session..')
         with supervisor.managed_session(server.target, config) as session:
             print('Connected to session, starting runner..')
+
             runner.start_thread(session)
             global_step_count = worker_agent.increment_global_step()
 

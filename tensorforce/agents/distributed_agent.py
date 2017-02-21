@@ -24,12 +24,8 @@ class DistributedAgent(object):
 
     def __init__(self, config, scope, task_index):
         self.config = create_config(config, default=self.default_config)
-        self.current_batch = []
         self.current_episode = defaultdict(list)
 
-        self.last_action = None
-        self.last_action_means = None
-        self.last_action_log_std = None
         self.continuous = self.config.continuous
         self.batch = Batch(self.config)
         self.model = DistributedModel(config, scope, task_index)
@@ -77,13 +73,13 @@ class DistributedAgent(object):
         action, outputs = self.model.get_action(*args, **kwargs)
         #print(outputs)
         # Cache last action in case action is used multiple times in environment
-        self.last_action_means = outputs['policy_output']
-        self.last_action = action
+        self.batch.last_action_means = outputs['policy_output']
+        self.batch.last_action = action
 
         # print('action =' + str(action))
 
         if self.continuous:
-            self.last_action_log_std = outputs['policy_log_std']
+            self.batch.last_action_log_std = outputs['policy_log_std']
         else:
             action = np.argmax(action)
 

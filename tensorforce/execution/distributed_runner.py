@@ -107,7 +107,9 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
         config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)])
 
         # Connecting to parameter server
+        print('Connection to session..')
         with supervisor.managed_session(server.target, config) as session:
+            print('Connected to session, starting runner..')
             runner.start_thread(session)
             global_step_count = worker_agent.increment_global_step()
 

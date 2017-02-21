@@ -38,7 +38,6 @@ class ThreadRunner(Thread):
         self.agent.set_session(session)
         self.start()
 
-
     def run(self):
         executor = self.execute()
 
@@ -92,7 +91,7 @@ class ThreadRunner(Thread):
         # model does not know or care about environment
         while not batch.terminal:
             try:
-                batch.extend(self.experience_queue.queue.get_nowait())
+                batch.extend(self.experience_queue.get_nowait())
             except queue.Empty:
                 break
 

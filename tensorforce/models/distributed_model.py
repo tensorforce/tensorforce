@@ -74,6 +74,11 @@ class DistributedModel(object):
                                                    trainable=False)
 
         optimizer = config.get('optimizer')
+
+        # TODO write summaries
+        self.summary_writer = tf.summary.FileWriter('log' + "_%d" % task_index)
+        self.init_op = tf.global_variables_initializer()
+
         if not optimizer:
             self.optimizer = tf.train.AdamOptimizer(self.alpha)
         else:

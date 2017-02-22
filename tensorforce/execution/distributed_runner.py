@@ -9,10 +9,11 @@ from copy import deepcopy
 from multiprocessing import Process
 import time
 import tensorflow as tf
+import sys
+import os
 
 from tensorforce.agents.distributed_agent import DistributedAgent
 from tensorforce.execution.thread_runner import ThreadRunner
-from tensorforce.util.agent_util import create_agent
 
 
 class DistributedRunner(object):
@@ -32,8 +33,9 @@ class DistributedRunner(object):
 
         port = 12222
         ps_hosts = ['127.0.0.1:{}'.format(n) for n in range(port, port + self.n_param_servers)]
-        worker_hosts = ['127.0.0.1:{}'.format(n) for n in range(self.n_param_servers,
-                                                                self.n_param_servers + n_agents)]
+        print(len(ps_hosts))
+        worker_hosts = ['127.0.0.1:{}'.format(n) for n in range(port,
+                                                                port + n_agents)]
 
         self.cluster_spec = tf.train.ClusterSpec({'ps': ps_hosts, 'worker': worker_hosts})
 
@@ -68,16 +70,12 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
     """
     # if not master.continue_execution:
     #     return
-
-    worker_device = '/job:worker{}'.format(index)
-
-    with tf.device(worker_device):
-        global_step_count = tf.get_variable('global_step_count', shape=(), dtype=tf.int32, initializer=tf.zeros_initializer,
-                                         trainable=False)
+    sys.stdout = open('worker_' + str(index) + '.out', 'w')
 
     if is_param_server:
         server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='ps', task_index=index,
-                                 config=tf.ConfigProto(device_filters=["/job:ps"]))
+                                 config=tf.ConfigProto(device_filters=["/job:ps"],
+                                                       allow_soft_placement=True))
 
         # Param server does nothing actively
         while True:
@@ -85,9 +83,12 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
     else:
         # Worker creates runner for execution
         scope = 'worker_' + str(index)
-        server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='worker', task_index=index)
+        server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='worker', task_index=index,
+                                 config=tf.ConfigProto(intra_op_parallelism_threads=1,
+                                                       inter_op_parallelism_threads=2,
+                                                       allow_soft_placement=True))
 
-        worker_agent = DistributedAgent(master.agent_config + {'tf_device': worker_device}, scope)
+        worker_agent = DistributedAgent(master.agent_config, scope, index)
 
         supervisor = tf.train.Supervisor(
             is_chief=(index == 0),
@@ -95,8 +96,8 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
             init_op=worker_agent.model.init_op,
             # summary_op=summary_op,
             saver=worker_agent.model.saver,
-            global_step=global_step_count,
-            summary_writer=worker_agent.model.writer)
+            global_step=worker_agent.model.global_step,
+            summary_writer=worker_agent.model.summary_writer)
 
         global_steps = 10000000
 
@@ -104,11 +105,12 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
                               episodes, 20, preprocessor=master.preprocessor,
                               repeat_actions=master.repeat_actions)
 
-        config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)])
+        config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)],
+                                allow_soft_placement=True)
 
         # Connecting to parameter server
         print('Connection to session..')
-        with supervisor.managed_session(server.target, config) as session:
+        with supervisor.managed_session(server.target, config) as session, session.as_default():
             print('Connected to session, starting runner..')
 
             runner.start_thread(session)

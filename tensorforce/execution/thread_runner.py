@@ -39,6 +39,7 @@ class ThreadRunner(Thread):
         self.start()
 
     def run(self):
+        print('Starting thread runner..')
         executor = self.execute()
 
         while True:
@@ -50,11 +51,6 @@ class ThreadRunner(Thread):
         """
         self.episode_rewards = []
         self.agent.initialize()
-
-        # TODO
-        # Currently update is hidden due to API
-        # Need to be able to control this from outside
-        # for asynchronous updates
 
         for self.episode in xrange(self.episodes):
             state = self.environment.reset()
@@ -96,6 +92,7 @@ class ThreadRunner(Thread):
                 break
 
         # Delegate update to distributed model, separate queue runner and update
+        print('Calling update of distributed agent')
         self.agent.update(batch.current_batch)
 
 

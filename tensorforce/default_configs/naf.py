@@ -20,6 +20,9 @@ NAFModelConfig = {
     "optimizer": "tensorflow.python.training.adam.AdamOptimizer",
     "optimizer_kwargs": {},
 
+    "weights_regularizer": "tensorflow.contrib.slim.l2_regularizer",
+    "weights_regularizer_args": [0.001],
+
     "exploration_mode": "ornstein_uhlenbeck",
     "exploration_param": {
         "sigma": 0.2,

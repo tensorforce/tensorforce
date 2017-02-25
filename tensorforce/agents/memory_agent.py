@@ -57,6 +57,14 @@ class MemoryAgent(RLAgent):
         if self.model_ref:
             self.model = self.model_ref(self.config, scope)
 
+    def setup(self):
+        """
+        Prepares the agent to run
+
+        :return:
+        """
+        self.model.initialize()
+
     def get_action(self, *args, **kwargs):
         """
         Executes one reinforcement learning step.

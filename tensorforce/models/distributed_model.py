@@ -25,7 +25,7 @@ from tensorforce.util.math_util import zero_mean_unit_variance, discount
 class DistributedModel(object):
     default_config = {}
 
-    def __init__(self, config, scope, task_index):
+    def __init__(self, config, scope, task_index, cluster_spec):
         """
 
         A distributed agent must synchronise local and global parameters under different
@@ -55,20 +55,17 @@ class DistributedModel(object):
 
         # This is the scope used to prefix variable creation for distributed TensorFlow
         self.batch_shape = [None]
-
         self.deterministic_mode = config.get('deterministic_mode', False)
-
         self.alpha = config.get('alpha', 0.001)
+        self.init_op = tf.global_variables_initializer()
 
         self.worker_device = "/job:worker/task:{}/cpu:0".format(task_index)
 
-        with tf.device(tf.train.replica_device_setter(1, worker_device=self.worker_device)):
+        with tf.device(tf.train.replica_device_setter(1, worker_device=self.worker_device, cluster=cluster_spec)):
             with tf.variable_scope("global"):
-                # Dummy input, not used
                 self.global_state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
-                                                   name="state")
-                self.global_network = NeuralNetwork(self.config.network_layers, self.global_state,
-                                                    scope=scope + 'global_model')
+                                                   name="global_state")
+                self.global_network = NeuralNetwork(self.config.network_layers, self.global_state)
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
@@ -77,7 +74,6 @@ class DistributedModel(object):
 
         # TODO write summaries
         self.summary_writer = tf.summary.FileWriter('log' + "_%d" % task_index)
-        self.init_op = tf.global_variables_initializer()
 
         if not optimizer:
             self.optimizer = tf.train.AdamOptimizer(self.alpha)
@@ -95,6 +91,8 @@ class DistributedModel(object):
             kwargs = config.get('exploration_kwargs', {})
             self.exploration = exploration_mode[exploration](self, *args, **kwargs)
 
+        self.create_training_operations()
+
     def set_session(self, session):
         self.session = session
 
@@ -109,10 +107,10 @@ class DistributedModel(object):
 
         with tf.device(self.worker_device):
             with tf.variable_scope("local"):
-                self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+                self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+                                            name="state")
 
-                self.local_network = NeuralNetwork(self.config.network_layers, self.state,
-                                                   scope=self.scope + 'local_model')
+                self.local_network = NeuralNetwork(self.config.network_layers, self.state)
                 # TODO possibly problematic, check
                 self.local_step = self.global_step
 
@@ -143,6 +141,7 @@ class DistributedModel(object):
             self.loss = -tf.reduce_mean(self.log_probabilities * self.advantage, name="loss_op")
 
             self.gradients = tf.gradients(self.loss, self.local_network.get_variables())
+
             grad_var_list = list(zip(self.gradients, self.local_network.get_variables()))
 
             global_step_inc = self.global_step.assign_add(self.batch_size)
@@ -154,7 +153,7 @@ class DistributedModel(object):
             self.optimize_op = tf.group(self.optimizer.apply_gradients(grad_var_list),
                                      global_step_inc)
 
-    def get_action(self, state):
+    def get_action(self, state, episode=1):
         return self.policy.sample(state)
 
     def update(self, batch):

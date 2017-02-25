@@ -22,13 +22,13 @@ class DistributedAgent(object):
 
     model_ref = None
 
-    def __init__(self, config, scope, task_index):
+    def __init__(self, config, scope, task_index, cluster_spec):
         self.config = create_config(config, default=self.default_config)
         self.current_episode = defaultdict(list)
 
         self.continuous = self.config.continuous
         self.batch = Batch(self.config)
-        self.model = DistributedModel(config, scope, task_index)
+        self.model = DistributedModel(config, scope, task_index, cluster_spec)
 
     def increment_global_step(self):
         self.model.get_global_step()
@@ -91,6 +91,9 @@ class DistributedAgent(object):
 
     def save_model(self, path):
         raise NotImplementedError
+
+    def set_session(self, session):
+        self.model.set_session(session)
 
     def __str__(self):
         return self.name

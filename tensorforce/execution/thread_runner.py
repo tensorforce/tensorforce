@@ -50,7 +50,6 @@ class ThreadRunner(Thread):
         Queued thread executor.
         """
         self.episode_rewards = []
-        self.agent.initialize()
 
         for self.episode in xrange(self.episodes):
             state = self.environment.reset()

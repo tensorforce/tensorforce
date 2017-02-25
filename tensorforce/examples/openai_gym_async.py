@@ -69,7 +69,7 @@ def main():
             print("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
         return True
 
-    print("Starting {agent_type} for OpenAI Gym '{gym_id}'".format(agent_type=args.agent, gym_id=args.gym_id))
+    print("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
     print("Config:")
     print(config)
     # if args.monitor:

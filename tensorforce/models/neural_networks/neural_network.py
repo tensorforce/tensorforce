@@ -55,6 +55,8 @@ class NeuralNetwork(object):
 
             self.output = layer  # set output to last layer
 
+            self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
+
     def get_output(self):
         return self.output
 

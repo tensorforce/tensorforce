@@ -15,7 +15,6 @@ import os
 from tensorforce.agents.distributed_agent import DistributedAgent
 from tensorforce.execution.thread_runner import ThreadRunner
 
-
 class DistributedRunner(object):
     def __init__(self, agent_type, agent_config, n_agents, n_param_servers, environment,
                  episodes, max_timesteps, preprocessor=None, repeat_actions=1):
@@ -32,12 +31,21 @@ class DistributedRunner(object):
         self.repeat_actions = repeat_actions
 
         port = 12222
-        ps_hosts = ['127.0.0.1:{}'.format(n) for n in range(port, port + self.n_param_servers)]
-        print(len(ps_hosts))
-        worker_hosts = ['127.0.0.1:{}'.format(n) for n in range(port,
-                                                                port + n_agents)]
 
-        self.cluster_spec = tf.train.ClusterSpec({'ps': ps_hosts, 'worker': worker_hosts})
+        ps_hosts = []
+        worker_hosts = []
+
+        for _ in range(self.n_param_servers):
+            ps_hosts.append('127.0.0.1:{}'.format(port))
+            port += 1
+
+        for _ in range(self.n_agents):
+            worker_hosts.append('127.0.0.1:{}'.format(port))
+            port += 1
+
+        cluster = {'ps': ps_hosts, 'worker': worker_hosts}
+
+        self.cluster_spec = tf.train.ClusterSpec(cluster)
 
     def run(self):
         """
@@ -48,6 +56,7 @@ class DistributedRunner(object):
         for index in range(self.n_param_servers):
             process = Process(target=process_worker, args=(self, index, self.episodes, self.max_timesteps, True))
             self.processes.append(process)
+
             process.start()
 
         for index in range(self.n_agents):
@@ -71,47 +80,54 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
     # if not master.continue_execution:
     #     return
     sys.stdout = open('worker_' + str(index) + '.out', 'w')
+    cluster = master.cluster_spec.as_cluster_def()
 
     if is_param_server:
-        server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='ps', task_index=index,
-                                 config=tf.ConfigProto(device_filters=["/job:ps"],
-                                                       allow_soft_placement=True))
-
+        server = tf.train.Server(cluster, job_name='ps', task_index=index,
+                                 config=tf.ConfigProto(device_filters=["/job:ps"]))
+        #               config=tf.ConfigProto(allow_soft_placement=True)
         # Param server does nothing actively
-        while True:
-            time.sleep(1000)
+        server.join()
     else:
         # Worker creates runner for execution
         scope = 'worker_' + str(index)
-        server = tf.train.Server(master.cluster_spec.as_cluster_def(), job_name='worker', task_index=index,
+
+        server = tf.train.Server(cluster, job_name='worker', task_index=index,
                                  config=tf.ConfigProto(intra_op_parallelism_threads=1,
                                                        inter_op_parallelism_threads=2,
-                                                       allow_soft_placement=True))
+                                                       log_device_placement=True))
+        #                              allow_soft_placement = True))
 
-        worker_agent = DistributedAgent(master.agent_config, scope, index)
+        worker_agent = DistributedAgent(master.agent_config, scope, index, cluster)
 
-        supervisor = tf.train.Supervisor(
-            is_chief=(index == 0),
-            logdir="/tmp/train_logs",
-            init_op=worker_agent.model.init_op,
-            # summary_op=summary_op,
-            saver=worker_agent.model.saver,
-            global_step=worker_agent.model.global_step,
-            summary_writer=worker_agent.model.summary_writer)
+        def init_fn(session):
+            session.run(worker_agent.model.init_op)
+
+        # init op problematic
+        #config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)])
+        config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)])
+
+        supervisor = tf.train.Supervisor(is_chief=(index == 0),
+                                         logdir="/tmp/train_logs",
+                                         init_op=tf.global_variables_initializer(),
+                                         # init_fn=init_fn,
+                                         summary_op=tf.summary.merge_all(),
+                                         saver=worker_agent.model.saver,
+                                         global_step=worker_agent.model.global_step,
+                                         summary_writer=worker_agent.model.summary_writer)
 
         global_steps = 10000000
-
         runner = ThreadRunner(worker_agent, deepcopy(master.environment),
                               episodes, 20, preprocessor=master.preprocessor,
                               repeat_actions=master.repeat_actions)
 
-        config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)],
-                                allow_soft_placement=True)
+        # config = tf.ConfigProto(allow_soft_placement=True)
 
         # Connecting to parameter server
-        print('Connection to session..')
-        with supervisor.managed_session(server.target, config) as session, session.as_default():
-            print('Connected to session, starting runner..')
+        print('Connecting to session..')
+        print('Server target = ' + str(server.target))
+        with supervisor.managed_session(server.target, config=config) as session, session.as_default():
+            print('Established session, starting runner..')
 
             runner.start_thread(session)
             global_step_count = worker_agent.increment_global_step()

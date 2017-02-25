@@ -36,6 +36,7 @@ class ThreadRunner(Thread):
         Starts threaded execution of environment execution.
         """
         self.agent.set_session(session)
+
         self.start()
 
     def run(self):

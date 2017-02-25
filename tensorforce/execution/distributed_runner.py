@@ -100,8 +100,8 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
 
         worker_agent = DistributedAgent(master.agent_config, scope, index, cluster)
 
-        def init_fn(session):
-            session.run(worker_agent.model.init_op)
+        def init_fn(sess):
+            sess.run(worker_agent.model.init_op)
 
         # init op problematic
         #config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)])
@@ -109,12 +109,13 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
 
         supervisor = tf.train.Supervisor(is_chief=(index == 0),
                                          logdir="/tmp/train_logs",
-                                         init_op=tf.global_variables_initializer(),
-                                         # init_fn=init_fn,
-                                         summary_op=tf.summary.merge_all(),
-                                         saver=worker_agent.model.saver,
                                          global_step=worker_agent.model.global_step,
-                                         summary_writer=worker_agent.model.summary_writer)
+                                         init_op=tf.global_variables_initializer(),
+                                         init_fn=init_fn,
+                                         saver=worker_agent.model.saver,
+                                         summary_op=tf.summary.merge_all(),
+                                         summary_writer=worker_agent.model.summary_writer
+                                         )
 
         global_steps = 10000000
         runner = ThreadRunner(worker_agent, deepcopy(master.environment),
@@ -126,6 +127,7 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
         # Connecting to parameter server
         print('Connecting to session..')
         print('Server target = ' + str(server.target))
+
         with supervisor.managed_session(server.target, config=config) as session, session.as_default():
             print('Established session, starting runner..')
 

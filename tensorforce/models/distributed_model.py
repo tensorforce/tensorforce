@@ -96,6 +96,10 @@ class DistributedModel(object):
     def set_session(self, session):
         self.session = session
 
+        # Session in policy was still 'None' when
+        # we initialised policy, hence need to set again
+        self.policy.session = session
+
     def create_training_operations(self):
         """
         Currently a duplicate of the pg agent logic, to be made generic later to allow

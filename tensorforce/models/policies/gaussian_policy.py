@@ -29,7 +29,7 @@ class GaussianPolicy(StochasticPolicy):
             log_standard_devs_init = tf.Variable(0.01 * self.random.randn(1, self.action_count),
                                                  dtype=tf.float32)
 
-            self.action_log_stds = tf.tile(log_standard_devs_init, tf.pack((tf.shape(self.action_means)[0], 1)))
+            self.action_log_stds = tf.tile(log_standard_devs_init, tf.stack((tf.shape(self.action_means)[0], 1)))
 
     def sample(self, state):
         action_means, action_log_stds = self.session.run([self.action_means,

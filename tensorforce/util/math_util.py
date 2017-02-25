@@ -56,7 +56,7 @@ def get_flattened_gradient(loss, variables):
     """
     gradients = tf.gradients(loss, variables)
 
-    return tf.concat(0, [tf.reshape(grad, [get_number_of_elements(v)])
+    return tf.concat(axis=0, values=[tf.reshape(grad, [get_number_of_elements(v)])
                          for (v, grad) in zip(variables, gradients)])
 
 
@@ -75,7 +75,7 @@ class FlatVarHelper(object):
             start += size
 
         self.set_op = tf.group(*assigns)
-        self.get_op = tf.concat(0, [tf.reshape(variable, [get_number_of_elements(variable)]) for variable in variables])
+        self.get_op = tf.concat(axis=0, values=[tf.reshape(variable, [get_number_of_elements(variable)]) for variable in variables])
 
     def set(self, theta):
         """

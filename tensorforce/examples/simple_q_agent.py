@@ -93,7 +93,7 @@ class SimpleQModel(Model):
     def create_ops(self):
         with tf.name_scope(self.scope):
             with tf.name_scope("predict"):
-                self.q_action = tf.argmax(self.network_out, dimension=1)
+                self.q_action = tf.argmax(self.network_out, axis=1)
 
             with tf.name_scope("update"):
                 self.q_targets = tf.placeholder(tf.float32, [None, self.action_count], name='q_targets')

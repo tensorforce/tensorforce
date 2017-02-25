@@ -150,15 +150,15 @@ class DQNModel(Model):
         """
         with tf.name_scope(self.scope):
             with tf.name_scope("predict"):
-                self.dqn_action = tf.argmax(self.training_output, dimension=1, name='dqn_action')
+                self.dqn_action = tf.argmax(self.training_output, axis=1, name='dqn_action')
 
             with tf.name_scope("targets"):
                 if self.double_dqn:
                     selector = tf.one_hot(self.dqn_action, self.action_count, name='selector')
-                    self.target_values = tf.reduce_sum(tf.multiply(self.target_output, selector), reduction_indices=1,
+                    self.target_values = tf.reduce_sum(tf.multiply(self.target_output, selector), axis=1,
                                                        name='target_values')
                 else:
-                    self.target_values = tf.reduce_max(self.target_output, reduction_indices=1,
+                    self.target_values = tf.reduce_max(self.target_output, axis=1,
                                                        name='target_values')
 
             with tf.name_scope("update"):
@@ -172,7 +172,7 @@ class DQNModel(Model):
                 actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
 
                 # Training output, so we get the expected rewards given the actual states and actions
-                q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, reduction_indices=1,
+                q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, axis=1,
                                                        name='q_acted')
 
                 # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
@@ -180,7 +180,7 @@ class DQNModel(Model):
 
                 # if gradient clipping is used, calculate the huber loss
                 if self.config.clip_gradients:
-                    huber_loss = tf.select(tf.abs(delta) < self.clip_value, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+                    huber_loss = tf.where(tf.abs(delta) < self.clip_value, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
                     self.loss = tf.reduce_mean(huber_loss, name='compute_surrogate_loss')
                 else:
                     self.loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')

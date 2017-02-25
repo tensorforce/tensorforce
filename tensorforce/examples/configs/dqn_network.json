@@ -8,7 +8,7 @@
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": null,
+      "biases_initializer_kwargs": { },
       "activation_fn": "tensorflow.python.ops.nn.relu",
       "weights_regularizer": null
     },
@@ -20,7 +20,7 @@
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": null,
+      "biases_initializer_kwargs": { },
       "activation_fn": "tensorflow.python.ops.nn.relu",
       "weights_regularizer": null
     },
@@ -32,7 +32,7 @@
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": null,
+      "biases_initializer_kwargs": { },
       "activation_fn": "tensorflow.python.ops.nn.relu",
       "weights_regularizer": null
     },
@@ -42,7 +42,7 @@
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": null,
+      "biases_initializer_kwargs": { },
       "activation_fn": "tensorflow.python.ops.nn.relu",
       "weights_regularizer": null,
       "normalizer_fn": "tensorflow.contrib.layers.python.layers.batch_norm",

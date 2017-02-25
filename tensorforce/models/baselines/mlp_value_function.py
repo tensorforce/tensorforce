@@ -49,7 +49,7 @@ class MLPValueFunction(ValueFunction):
             l2 = tf.nn.l2_loss(self.mlp - self.labels)
             self.update = tf.train.AdamOptimizer().minimize(l2)
 
-            self.session.run(tf.initialize_all_variables())
+            self.session.run(tf.global_variables_initializer())
 
 
 

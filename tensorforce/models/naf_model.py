@@ -144,22 +144,22 @@ class NAFModel(Model):
                 non_diagonal = tf.slice(l_entries, (0, offset + 1), (-1, n))
 
                 # Fill up row with zeros
-                row = tf.pad(tf.concat(1, (diagonal, non_diagonal)), ((0, 0), (i, 0)))
+                row = tf.pad(tf.concat(axis=1, values=(diagonal, non_diagonal)), ((0, 0), (i, 0)))
                 offset += (self.action_count - i)
                 l_rows.append(row)
 
             # Stack rows to matrix
-            l_matrix = tf.transpose(tf.pack(l_rows, axis=1), (0, 2, 1))
+            l_matrix = tf.transpose(tf.stack(l_rows, axis=1), (0, 2, 1))
 
             # P = LL^T
-            p_matrix = tf.batch_matmul(l_matrix, tf.transpose(l_matrix, (0, 2, 1)))
+            p_matrix = tf.matmul(l_matrix, tf.transpose(l_matrix, (0, 2, 1)))
 
             # Need to adjust dimensions to multiply with P.
             action_diff = tf.expand_dims(self.actions - mu, -1)
 
             # A = -0.5 (a - mu)P(a - mu)
-            advantage = -0.5 * tf.batch_matmul(tf.transpose(action_diff, [0, 2, 1]),
-                                               tf.batch_matmul(p_matrix, action_diff))
+            advantage = -0.5 * tf.matmul(tf.transpose(action_diff, [0, 2, 1]),
+                                               tf.matmul(p_matrix, action_diff))
             advantage = tf.reshape(advantage, [-1, 1])
 
             with tf.name_scope('q_values'):

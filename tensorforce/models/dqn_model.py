@@ -33,9 +33,6 @@ class DQNModel(Model):
 
         self.action_count = self.config.actions
         self.tau = self.config.tau
-        self.epsilon = self.config.epsilon
-        self.epsilon_final = self.config.epsilon_final
-        self.epsilon_states = self.config.epsilon_states
         self.gamma = self.config.gamma
         self.batch_size = self.config.batch_size
 

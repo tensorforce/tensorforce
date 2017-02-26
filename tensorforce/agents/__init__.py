@@ -10,6 +10,5 @@ from tensorforce.agents.pg_agent import PGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
 from tensorforce.agents.vpg_agent import VPGAgent
 
-
 __all__ = ['RLAgent', 'RandomAgent', 'MemoryAgent', 'DQNAgent', 'NAFAgent',
            'PGAgent', 'TRPOAgent', 'VPGAgent']

@@ -23,7 +23,7 @@ class CategoricalOneHotPolicy(StochasticPolicy):
 
         with tf.variable_scope(scope):
             self.action_layer = linear(self.neural_network.get_output(),
-                                  {'neurons': self.action_count}, 'outputs')
+                                  {'num_outputs': self.action_count}, 'outputs')
             self.outputs = tf.nn.softmax(self.action_layer)
 
     def get_distribution(self):

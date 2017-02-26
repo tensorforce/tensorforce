@@ -77,7 +77,7 @@ class ThreadRunner(Thread):
 
         # Let agent manage experience collection in internal batch -> possibly move the yield
         # into agent
-        yield self.agent.batch
+        yield self.agent.batch.current_batch
 
     def update(self):
         batch = self.experience_queue.get(timeout=600.0)

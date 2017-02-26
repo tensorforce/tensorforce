@@ -39,6 +39,6 @@ class Categorical(Distribution):
 
     def sample(self, dist):
         prob = dist['policy_output']
-
+        print(sum(prob))
         # Categorical dist is special case of multinomial
         return np.flatnonzero(self.random.multinomial(1, prob, 1))[0]

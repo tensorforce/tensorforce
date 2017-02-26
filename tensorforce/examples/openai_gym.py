@@ -92,7 +92,10 @@ def main():
     if args.debug:
         print("-" * 16)
         print("Agent configuration:")
-        print(config)
+        print(agent.config)
+        if agent.updater:
+            print("Model configuration:")
+            print(agent.updater.config)
 
     runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
 

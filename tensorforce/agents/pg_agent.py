@@ -36,7 +36,7 @@ class PGAgent(RLAgent):
         self.current_batch = []
         self.current_episode = defaultdict(list)
         self.batch_steps = 0
-        self.batch_size = config.batch_size
+        self.batch_size = self.config.batch_size
         self.last_action = None
         self.last_action_means = None
         self.last_action_log_std = None

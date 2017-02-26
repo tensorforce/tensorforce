@@ -18,7 +18,8 @@ Default configuration for NAF Agent and VPG Model.
 """
 
 VPGAgentConfig = {
-    "batch_size": 1000,
+    "batch_size": 100,
+    "continuous": False,
 }
 
 VPGModelConfig = {
@@ -26,9 +27,8 @@ VPGModelConfig = {
     "optimizer_kwargs": {},
 
     "actions": None,
-    "continuous": False,
 
-    "alpha": 0.00025,
+    "alpha": 0.01,
     "gamma": 0.97,
     "use_gae": False,
     "gae_gamma": 0.97,

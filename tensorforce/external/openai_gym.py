@@ -97,4 +97,7 @@ class OpenAIGymEnvironment(Environment):
 
     @property
     def state_shape(self):
-        return self.gym.observation_space.shape
+        if isinstance(self.gym.observation_space, Discrete):
+            return []
+        else:
+            return (self.gym.observation_space.shape[0],)

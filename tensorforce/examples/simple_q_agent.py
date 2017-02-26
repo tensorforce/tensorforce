@@ -35,7 +35,7 @@ class SimpleQModel(Model):
     default_config = {
         "gamma": 0.9,
         "network_layers": [{
-            "type": "dense",
+            "type": "linear",
             "num_outputs": 16
         }]
     }
@@ -52,7 +52,7 @@ class SimpleQModel(Model):
             self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
 
             # Create neural network
-            output_layer = [{"type": "dense", "num_outputs": self.action_count}]
+            output_layer = [{"type": "linear", "num_outputs": self.action_count}]
             self.network = NeuralNetwork(self.config.network_layers + output_layer, self.state, scope=self.scope + "network")
             self.network_out = self.network.get_output()
 
@@ -79,23 +79,21 @@ class SimpleQModel(Model):
         return action
 
     def update(self, batch):
-        # TODO: fix. https://medium.com/emergent-future/simple-reinforcement-learning-with-tensorflow-part-0-q-learning-with-tables-and-neural-networks-d195264329d0#.tjk7nwi6a
-        # Get Q values for current states
-        current_q = self.session.run(self.network_out, {
-            self.state: batch['states']
-        })
-
         # Get Q values for next states
         next_q = self.session.run(self.network_out, {
             self.state: batch['next_states']
         })
 
         # Bellmann equation Q = r + y * Q'
-        current_q[0,'actions'] = batch['rewards'] + (1. - batch['terminals'].astype(float)) \
+        q_targets = batch['rewards'] + (1. - batch['terminals'].astype(float)) \
                                        * self.config.gamma * np.max(next_q)
 
+        print(q_targets)
+        print('-'*12)
+
         self.session.run(self.optimize_op, {
-            self.state: batch['next_states'],
+            self.state: batch['states'],
+            self.actions: batch['actions'],
             self.q_targets: q_targets
         })
 
@@ -108,8 +106,16 @@ class SimpleQModel(Model):
                 self.q_action = tf.argmax(self.network_out, axis=1)
 
             with tf.name_scope("update"):
-                self.q_targets = tf.placeholder(tf.float32, [None, self.action_count], name='q_targets')
-                self.loss = tf.reduce_sum(tf.square(self.q_targets - self.network_out))
+                # Updated q values (new values obtained using Bellman equation)
+                self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
+                # Action placeholder
+                self.actions = tf.placeholder(tf.int32, [None], name='actions')
+                # One_hot tensor of the actions that have been taken
+                actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
+                # Training output, so we get the expected rewards given the actual states and actions
+                q_values_actions_taken = tf.reduce_sum(self.network_out * actions_one_hot, axis=1,
+                                                       name='q_acted')
+                self.loss = tf.reduce_sum(tf.square(self.q_targets - q_values_actions_taken ))
                 self.optimize_op = self.optimizer.minimize(self.loss)
 
 
@@ -122,17 +128,17 @@ class SimpleQAgent(MemoryAgent):
     model_ref = SimpleQModel
 
     default_config = {
-        "memory_capacity": 100,
-        "batch_size": 10,
-        "update_rate": 0.5,
-        "update_repeat": 1
+        "memory_capacity": 100,  # hold the last 100 observations in the replay memory
+        "batch_size": 10,  # train model with batches of 10
+        "update_rate": 0.5,  # update parameters every other step
+        "update_repeat": 1  # repeat update only one time
     }
 
 
 def main():
-    gym_id = 'LunarLander-v2'
-    max_episodes = 100
-    max_timesteps = 100
+    gym_id = 'FrozenLake-v0'
+    max_episodes = 10000
+    max_timesteps = 1000
 
     env = OpenAIGymEnvironment(gym_id, monitor=False, monitor_video=False)
 
@@ -140,7 +146,9 @@ def main():
         'repeat_actions': 1,
         'actions': env.actions,
         'action_shape': env.action_shape,
-        'state_shape': env.state_shape
+        'state_shape': env.state_shape,
+        'exploration': 'constant',
+        'exploration_args': [0.1]
     })
 
     agent = SimpleQAgent(config, "simpleq")
@@ -148,7 +156,7 @@ def main():
     runner = Runner(agent, env)
 
     def episode_finished(r):
-        if r.episode % 1 == 0:
+        if r.episode % 10 == 0:
             print("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
             print("Episode reward: {}".format(r.episode_rewards[-1]))
             print("Average of last 10 rewards: {}".format(np.mean(r.episode_rewards[-10:])))

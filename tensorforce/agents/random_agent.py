@@ -40,7 +40,7 @@ class RandomAgent(RLAgent):
 
         self.actions = config.actions
 
-    def get_action(self, state):
+    def get_action(self, state, episode=1):
         """
         Get random action from action space
 

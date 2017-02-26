@@ -113,10 +113,7 @@ class DQNModel(Model):
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
         else:
-            if self.double_dqn:
-                action = self.session.run(self.dqn_action, {self.state: [state]})[0]
-            else:
-                action = self.session.run(self.dqn_action, {self.state: [state]})
+            action = self.session.run(self.dqn_action, {self.state: [state]})[0]
 
         self.total_states += 1
         return action

@@ -17,7 +17,7 @@ from tensorforce.util.experiment_util import repeat_action
 
 class ThreadRunner(Thread):
 
-    def __init__(self, agent, environment, episodes, local_steps, preprocessor=None, repeat_actions=1):
+    def __init__(self, agent, environment, episodes, max_episode_steps, local_steps, preprocessor=None, repeat_actions=1):
         super(ThreadRunner, self).__init__()
         self.experience_queue = queue.Queue(10)
 
@@ -26,6 +26,7 @@ class ThreadRunner(Thread):
         self.preprocessor = preprocessor
         self.repeat_actions = repeat_actions
         self.episodes = episodes
+        self.max_episode_steps = max_episode_steps
         self.local_steps = local_steps
 
         self.save_model_path = None
@@ -51,33 +52,42 @@ class ThreadRunner(Thread):
         Queued thread executor.
         """
         self.episode_rewards = []
+        state = self.environment.reset()
 
-        for self.episode in xrange(self.episodes):
-            state = self.environment.reset()
-            episode_reward = 0
+        # For episode dependent exploration
+        current_episode = 1
+        current_episode_step = 0
+        current_episode_rewards = 0
 
-            for self.timestep in xrange(self.local_steps):
+        while True:
+
+            for i in xrange(self.local_steps):
                 if self.preprocessor:
                     processed_state = self.preprocessor.process(state)
                 else:
                     processed_state = state
 
-                action = self.agent.get_action(processed_state, self.episode)
+                current_episode_step += 1
+                action = self.agent.get_action(processed_state, current_episode)
                 result = repeat_action(self.environment, action, self.repeat_actions)
                 self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])
 
-                episode_reward += result['reward']
-
+                current_episode_rewards += result['reward']
                 state = result['state']
 
-                if result['terminal_state']:
+                if result['terminal_state'] or current_episode_step > self.max_episode_steps:
+                    state = self.environment.reset()
+                    self.episode_rewards.append(current_episode_rewards)
+                    current_episode += 1
+                    print('Episode finished, episode reward= ' + str(current_episode_rewards))
+                    current_episode_rewards = 0
+                    current_episode_step = 0
                     break
 
-            self.episode_rewards.append(episode_reward)
 
-        # Let agent manage experience collection in internal batch -> possibly move the yield
-        # into agent
-        yield self.agent.batch.current_batch
+            # Let agent manage experience collection in internal batch
+            # TODO argument to be made to move the queue into the agent
+            yield self.agent.batch.current_batch
 
     def update(self):
         batch = self.experience_queue.get(timeout=600.0)

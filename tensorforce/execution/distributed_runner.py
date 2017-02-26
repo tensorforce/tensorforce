@@ -15,10 +15,12 @@ import os
 from tensorforce.agents.distributed_agent import DistributedAgent
 from tensorforce.execution.thread_runner import ThreadRunner
 
+
 class DistributedRunner(object):
     def __init__(self, agent_type, agent_config, n_agents, n_param_servers, environment,
-                 episodes, max_timesteps, preprocessor=None, repeat_actions=1):
+                 episodes, max_timesteps, preprocessor=None, repeat_actions=1, local_steps=10, max_episode_steps=100):
 
+        self.max_episode_steps = max_episode_steps
         self.agent_type = agent_type
         self.agent_config = agent_config
         self.n_agents = n_agents
@@ -26,9 +28,13 @@ class DistributedRunner(object):
         self.environment = environment
         self.episodes = episodes
         self.max_timesteps = max_timesteps
-
+        self.local_steps = local_steps
         self.preprocessor = preprocessor
         self.repeat_actions = repeat_actions
+
+        # This follows the OpenAI start agent logic only that we use the multiprocessing module
+        # instead of cmd line calls for distributed tensorflow which is slightly more convenient
+        # to debug
 
         port = 12222
 
@@ -54,19 +60,24 @@ class DistributedRunner(object):
         self.processes = []
 
         for index in range(self.n_param_servers):
-            process = Process(target=process_worker, args=(self, index, self.episodes, self.max_timesteps, True))
+            process = Process(target=process_worker,
+                              args=(self, index, self.episodes, self.max_timesteps,
+                                    self.max_episode_steps, self.local_steps, True))
             self.processes.append(process)
 
             process.start()
 
         for index in range(self.n_agents):
-            process = Process(target=process_worker, args=(self, index, self.episodes, self.max_timesteps, False))
+            process = Process(target=process_worker,
+                              args=(self, index, self.episodes, self.max_timesteps,
+                                    self.max_episode_steps, self.local_steps, False))
             self.processes.append(process)
 
             process.start()
 
 
-def process_worker(master, index, episodes, max_timesteps, is_param_server=False):
+def process_worker(master, index, episodes, max_steps,
+                   max_episode_steps, local_steps, is_param_server=False):
     """
     Process execution loop.
 
@@ -77,15 +88,14 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
     :param is_param_server:
 
     """
-    # if not master.continue_execution:
-    #     return
+
     sys.stdout = open('worker_' + str(index) + '.out', 'w')
     cluster = master.cluster_spec.as_cluster_def()
 
     if is_param_server:
         server = tf.train.Server(cluster, job_name='ps', task_index=index,
                                  config=tf.ConfigProto(device_filters=["/job:ps"]))
-        #               config=tf.ConfigProto(allow_soft_placement=True)
+
         # Param server does nothing actively
         server.join()
     else:
@@ -96,15 +106,12 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
                                  config=tf.ConfigProto(intra_op_parallelism_threads=1,
                                                        inter_op_parallelism_threads=2,
                                                        log_device_placement=True))
-        #                              allow_soft_placement = True))
 
         worker_agent = DistributedAgent(master.agent_config, scope, index, cluster)
 
         def init_fn(sess):
             sess.run(worker_agent.model.init_op)
 
-        # init op problematic
-        #config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)])
         config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(index)])
 
         supervisor = tf.train.Supervisor(is_chief=(index == 0),
@@ -114,15 +121,13 @@ def process_worker(master, index, episodes, max_timesteps, is_param_server=False
                                          init_fn=init_fn,
                                          saver=worker_agent.model.saver,
                                          summary_op=tf.summary.merge_all(),
-                                         summary_writer=worker_agent.model.summary_writer
-                                         )
+                                         summary_writer=worker_agent.model.summary_writer)
 
-        global_steps = 10000000
+        global_steps = max_steps
+
         runner = ThreadRunner(worker_agent, deepcopy(master.environment),
-                              episodes, 20, preprocessor=master.preprocessor,
+                              episodes, max_episode_steps, local_steps, preprocessor=master.preprocessor,
                               repeat_actions=master.repeat_actions)
-
-        # config = tf.ConfigProto(allow_soft_placement=True)
 
         # Connecting to parameter server
         print('Connecting to session..')

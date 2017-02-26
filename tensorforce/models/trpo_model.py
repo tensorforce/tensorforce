@@ -142,6 +142,7 @@ class TRPOModel(PGModel):
             # Get loss values for progress monitoring
             surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
 
+            # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
             print('Surrogate loss=' + str(surrogate_loss))
             print('KL-divergence after update=' + str(kl_divergence))
             print('Entropy=' + str(entropy))

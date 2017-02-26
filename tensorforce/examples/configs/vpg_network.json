@@ -7,7 +7,7 @@
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
       "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.relu",
+      "activation_fn": "tensorflow.python.ops.nn.tanh",
       "weights_regularizer": null
     },
     {
@@ -17,7 +17,7 @@
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
       "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.relu",
+      "activation_fn": "tensorflow.python.ops.nn.tanh",
       "weights_regularizer": null
     }
   ]

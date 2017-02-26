@@ -33,7 +33,8 @@ from tensorforce.execution import Runner
 class SimpleQModel(Model):
     # Default config values
     default_config = {
-        "gamma": 0.9,
+        "alpha": 0.01,
+        "gamma": 0.99,
         "network_layers": [{
             "type": "linear",
             "num_outputs": 16
@@ -86,11 +87,12 @@ class SimpleQModel(Model):
 
         # Bellmann equation Q = r + y * Q'
         q_targets = batch['rewards'] + (1. - batch['terminals'].astype(float)) \
-                                       * self.config.gamma * np.max(next_q)
+                                       * self.config.gamma * np.max(next_q, axis=1)
 
-        print(q_targets)
-        print('-'*12)
-
+        if abs(np.max(batch['states'][:,0] - batch['next_states'][:,0])) > 0.2:
+            print(batch['states'])
+            print(batch['next_states'])
+            print(batch['next_states'] - batch['states'])
         self.session.run(self.optimize_op, {
             self.state: batch['states'],
             self.actions: batch['actions'],
@@ -106,16 +108,26 @@ class SimpleQModel(Model):
                 self.q_action = tf.argmax(self.network_out, axis=1)
 
             with tf.name_scope("update"):
-                # Updated q values (new values obtained using Bellman equation)
+                # These are the target Q values, i.e. the actual rewards plus the expected values of the next states
+                # (Bellman equation).
                 self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
-                # Action placeholder
+
+                # Actions that have been taken.
                 self.actions = tf.placeholder(tf.int32, [None], name='actions')
-                # One_hot tensor of the actions that have been taken
+
+                # We need the Q values of the current states to calculate the difference ("loss") between the
+                # expected values and the new values (q targets). Therefore we do a forward-pass
+                # and reduce the results to the actions that have been taken.
+
+                # One_hot tensor of the actions that have been taken.
                 actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
-                # Training output, so we get the expected rewards given the actual states and actions
+
+                # Training output, reduced to the actions that have been taken.
                 q_values_actions_taken = tf.reduce_sum(self.network_out * actions_one_hot, axis=1,
                                                        name='q_acted')
-                self.loss = tf.reduce_sum(tf.square(self.q_targets - q_values_actions_taken ))
+
+                # The loss is the difference between the q_targets and the expected q values.
+                self.loss = tf.reduce_sum(tf.square(self.q_targets - q_values_actions_taken))
                 self.optimize_op = self.optimizer.minimize(self.loss)
 
 
@@ -128,7 +140,7 @@ class SimpleQAgent(MemoryAgent):
     model_ref = SimpleQModel
 
     default_config = {
-        "memory_capacity": 100,  # hold the last 100 observations in the replay memory
+        "memory_capacity": 1000,  # hold the last 100 observations in the replay memory
         "batch_size": 10,  # train model with batches of 10
         "update_rate": 0.5,  # update parameters every other step
         "update_repeat": 1  # repeat update only one time
@@ -136,7 +148,7 @@ class SimpleQAgent(MemoryAgent):
 
 
 def main():
-    gym_id = 'FrozenLake-v0'
+    gym_id = 'CartPole-v0'
     max_episodes = 10000
     max_timesteps = 1000
 

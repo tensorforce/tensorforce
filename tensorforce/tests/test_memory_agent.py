@@ -31,7 +31,7 @@ from tensorforce.config import create_config
 
 class TestModel(Model):
     def __init__(self, config):
-        super(TestModel, self).__init__(config)
+        super(TestModel, self).__init__(config, scope="testmodel")
         self.config = create_config(config, default={})
 
         self.actions = self.config.actions
@@ -75,7 +75,7 @@ def test_memoryagent_update_frequency():
         'action_shape': []
     }
 
-    agent = MemoryAgent(config)
+    agent = MemoryAgent(config, scope="memoryagent")
     model = TestModel(config)
 
     # Set value function manually
@@ -140,19 +140,3 @@ def test_memoryagent_update_frequency():
     assert model.count_target_updates == expected_target_updates
 
     assert memory_capacity == agent.memory.size
-
-    batch = agent.memory.sample_batch(config['batch_size'])
-    exp = zip(list(batch['states']), batch['actions'], batch['rewards'], batch['terminals'], batch['next_states'])
-
-    # Warning: since we're testing a random batch, some of the following assertions could be True by coincidence
-    # In this test, states are unique, so we can just compare state tensors with each other
-
-    # TODO: These checks are broken.
-    first_state = history[0][0]
-    last_state = history[-1][0]
-    for (state, action, reward, terminal, next_state) in exp:
-        # last state must not be in experiences, as it has no next state
-        assert not False in np.any(state - last_state, axis=0)
-
-        # first state must not be in next_states, as it has no previous state
-        assert not False in np.any(next_state - first_state, axis=0)

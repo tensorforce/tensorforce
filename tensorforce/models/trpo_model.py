@@ -21,6 +21,8 @@ Based on https://github.com/joschu/modular_rl/blob/master/modular_rl/trpo.py and
 https://github.com/ilyasu123/trpo, with a hopefully slightly more readable
 modularisation and some modifications.
 
+The core training update code is under MIT license, for more information see LICENSE-EXT.
+
 """
 import numpy as np
 import tensorflow as tf

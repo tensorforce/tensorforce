@@ -15,6 +15,9 @@
 
 """
 Contains various mathematical utility functions used for policy gradient methods.
+
+This code is under MIT license, for more information see LICENSE-EXT.
+
 """
 
 import numpy as np

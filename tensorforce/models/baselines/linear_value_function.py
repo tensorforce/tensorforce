@@ -17,6 +17,9 @@
 Linear value function for baseline prediction in TRPO.
 
 N.b. as part of TRPO implementation from https://github.com/ilyasu123/trpo
+
+This code is under MIT license, for more information see LICENSE-EXT.
+
 """
 import numpy as np
 

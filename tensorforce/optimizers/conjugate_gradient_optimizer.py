@@ -14,7 +14,7 @@
 # ==============================================================================
 """
 Simple conjugate gradient solver, as used in the TRPO implementations of Schulman
-and others.
+and others. This code is under MIT license, for more information see LICENSE-EXT.
 
 Conjugate gradients solve linear systems of equations Ax=b through iteratively constructing n conjugate
 search directions, thus guaranteeing convergence in at most n steps, although in practice much fewer steps are

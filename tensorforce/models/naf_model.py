@@ -19,6 +19,9 @@ Implements normalized advantage functions, largely following
 https://github.com/carpedm20/NAF-tensorflow/blob/master/src/network.py
 
 for the update logic with different modularisation.
+
+The core training update code is under MIT license, for more information see LICENSE-EXT.
+
 """
 
 from __future__ import absolute_import

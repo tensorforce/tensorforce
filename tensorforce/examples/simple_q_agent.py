@@ -42,6 +42,12 @@ class SimpleQModel(Model):
     }
 
     def __init__(self, config, scope):
+        """
+        Initialize model, build network and tensorflow ops
+
+        :param config: Config object or dict
+        :param scope: tensorflow scope name
+        """
         super(SimpleQModel, self).__init__(config, scope)
         self.action_count = self.config.actions
 
@@ -65,6 +71,14 @@ class SimpleQModel(Model):
             self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.alpha)
 
     def get_action(self, state, episode=1):
+        """
+        Get action for a given state
+
+        :param state: ndarray containing the state
+        :param episode: number of episode (for epsilon decay and alike)
+        :return: action
+        """
+
         # self.exploration is initialized in Model.__init__ and provides an API for different explorations methods,
         # such as epsilon greedy.
         epsilon = self.exploration(episode, self.total_states)  # returns a float
@@ -80,6 +94,12 @@ class SimpleQModel(Model):
         return action
 
     def update(self, batch):
+        """
+        Update model parameters
+
+        :param batch: memory batch
+        :return:
+        """
         # Get Q values for next states
         next_q = self.session.run(self.network_out, {
             self.state: batch['next_states']
@@ -89,10 +109,6 @@ class SimpleQModel(Model):
         q_targets = batch['rewards'] + (1. - batch['terminals'].astype(float)) \
                                        * self.config.gamma * np.max(next_q, axis=1)
 
-        if abs(np.max(batch['states'][:,0] - batch['next_states'][:,0])) > 0.2:
-            print(batch['states'])
-            print(batch['next_states'])
-            print(batch['next_states'] - batch['states'])
         self.session.run(self.optimize_op, {
             self.state: batch['states'],
             self.actions: batch['actions'],
@@ -100,9 +116,18 @@ class SimpleQModel(Model):
         })
 
     def initialize(self):
+        """
+        Initialize model variables
+        :return:
+        """
         self.session.run(self.init_op)
 
     def create_ops(self):
+        """
+        Create tensorflow ops
+
+        :return:
+        """
         with tf.name_scope(self.scope):
             with tf.name_scope("predict"):
                 self.q_action = tf.argmax(self.network_out, axis=1)

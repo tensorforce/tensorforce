@@ -102,13 +102,13 @@ class DistributedAgent(object):
         :return: Which action to take
         """
         action, outputs = self.model.get_action(*args, **kwargs)
-        experience = kwargs['experience']
+        experience = kwargs.pop('experience', None)
         # Cache last action in case action is used multiple times in environment
         experience.last_action_means = outputs['policy_output']
         experience.last_action = action
 
         if self.continuous:
-            experiencelast_action_log_std = outputs['policy_log_std']
+            experience.last_action_log_std = outputs['policy_log_std']
         else:
             action = np.argmax(action)
 

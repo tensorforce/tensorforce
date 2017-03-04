@@ -101,7 +101,8 @@ def process_worker(master, index, episodes, max_steps,
 
     """
 
-    sys.stdout = open('worker_' + str(index) + '.out', 'w')
+    # Redirect process output
+    sys.stdout = open('tf_worker_' + str(index) + '.txt', 'w')
     cluster = master.cluster_spec.as_cluster_def()
 
     if is_param_server:

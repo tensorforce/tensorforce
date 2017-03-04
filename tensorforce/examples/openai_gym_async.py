@@ -39,6 +39,8 @@ def main():
                         default='examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
+    parser.add_argument('-l', '--local-steps', type=int, default=10, help="Maximum number of local steps for queueing")
+
     parser.add_argument('-r', '--repeat-actions', type=int, default=4, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     args = parser.parse_args()
@@ -72,7 +74,8 @@ def main():
     max_global_steps = 10000000
     runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=1,
                                environment=env, preprocessor=stack, repeat_actions=args.repeat_actions,
-                               episodes=args.episodes, max_timesteps=max_global_steps, local_steps=10, n_param_servers=1)
+                               episodes=args.episodes, max_timesteps=max_global_steps, local_steps=args.local_steps,
+                               n_param_servers=1)
     runner.run()
 
 

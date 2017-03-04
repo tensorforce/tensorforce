@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Generic agent for distributed training
+Generic agent for distributed realtime training.
 """
 from __future__ import absolute_import
 from __future__ import print_function
@@ -38,7 +38,6 @@ class DistributedAgent(object):
     def __init__(self, config, scope, task_index, cluster_spec):
         self.config = create_config(config, default=self.default_config)
         self.current_episode = defaultdict(list)
-
         self.continuous = self.config.continuous
         self.current_experience = Experience(self.continuous)
         self.model = DistributedModel(config, scope, task_index, cluster_spec)
@@ -72,9 +71,6 @@ class DistributedAgent(object):
 
         # Just one episode, but model logic expects list of episodes in case batch
         # spans multiple episodes
-
-        # have not appended the CURRENT experience to anything -> episode empty
-        print('Episode length in update' + str(len(self.current_episode['states'])))
         batch = [self.get_path()]
         self.model.update(deepcopy(batch))
 
@@ -106,19 +102,16 @@ class DistributedAgent(object):
         :return: Which action to take
         """
         action, outputs = self.model.get_action(*args, **kwargs)
-        #print(outputs)
+        experience = kwargs['experience']
         # Cache last action in case action is used multiple times in environment
-        self.current_experience.last_action_means = outputs['policy_output']
-        self.current_experience.last_action = action
-
-        # print('action =' + str(action))
+        experience.last_action_means = outputs['policy_output']
+        experience.last_action = action
 
         if self.continuous:
-            self.current_experience.last_action_log_std = outputs['policy_log_std']
+            experiencelast_action_log_std = outputs['policy_log_std']
         else:
             action = np.argmax(action)
 
-        # print('action selected' + str(action))
         return action
 
     def load_model(self, path):
@@ -126,7 +119,6 @@ class DistributedAgent(object):
 
     def save_model(self, path):
         raise NotImplementedError
-
 
     def get_path(self):
         """
@@ -138,9 +130,6 @@ class DistributedAgent(object):
                 'terminated': self.current_episode['terminated'],
                 'action_means': np.array(self.current_episode['action_means']),
                 'rewards': np.array(self.current_episode['rewards'])}
-
-        # print('concat path length =' + str(len(path['rewards'])))
-        # print(path['rewards'])
 
         if self.continuous:
             path['action_log_stds'] = np.concatenate(self.current_episode['action_log_stds'])
@@ -195,9 +184,7 @@ class Experience(object):
 
         if terminal:
             print('Terminating episode within add observation')
-            # Batch could also end before episode is terminated
             self.data['terminated'] = True
             self.terminated = True
-            # Transform into np arrays, append episode to batch, start new episode dict
 
 

@@ -115,7 +115,6 @@ def main():
             print("Average of last 500 rewards: {}".format(np.mean(episode_rewards[-500:])))
             print("Average of last 100 rewards: {}".format(np.mean(episode_rewards[-100:])))
 
-
     if args.monitor:
         environment.env.monitor.close()
 

@@ -22,14 +22,18 @@ from __future__ import print_function
 from __future__ import division
 
 from threading import Thread
+
+from copy import deepcopy
 from six.moves import xrange
 import six.moves.queue as queue
+
+from tensorforce.agents.distributed_agent import Experience
 from tensorforce.util.experiment_util import repeat_action
 
 
 class ThreadRunner(Thread):
-
-    def __init__(self, agent, environment, episodes, max_episode_steps, local_steps, preprocessor=None, repeat_actions=1):
+    def __init__(self, agent, environment, episodes, max_episode_steps, local_steps, preprocessor=None,
+                 repeat_actions=1):
         super(ThreadRunner, self).__init__()
         self.experience_queue = queue.Queue(10)
 
@@ -74,25 +78,27 @@ class ThreadRunner(Thread):
         while True:
 
             # Tell agent to create a new experience fragment
-            print('Creating new experience')
-            self.agent.create_experience()
+            #self.agent.create_experience()
+            experience = Experience(self.agent.continuous)
 
-            for i in xrange(self.local_steps):
+            for _ in xrange(self.local_steps):
                 if self.preprocessor:
                     processed_state = self.preprocessor.process(state)
                 else:
                     processed_state = state
 
                 current_episode_step += 1
-                action = self.agent.get_action(processed_state, current_episode)
+                action = self.agent.get_action(processed_state, current_episode, experience=experience)
                 result = repeat_action(self.environment, action, self.repeat_actions)
-                self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])
+
+                experience.add_observation(processed_state, action, result['reward'], result['terminal_state'])
 
                 current_episode_rewards += result['reward']
                 state = result['state']
 
                 if result['terminal_state'] or current_episode_step >= self.max_episode_steps:
-                    print('Episode finished, episode reward= ' + str(current_episode_rewards))
+                    print('Episode finished after' + str(current_episode_step) + ', episode reward= ' + str(
+                        current_episode_rewards))
                     self.episode_rewards.append(current_episode_rewards)
 
                     if current_episode_step >= self.max_episode_steps:
@@ -104,10 +110,9 @@ class ThreadRunner(Thread):
 
                     break
 
-
             # Let agent manage experience collection in internal batch
             # TODO argument to be made to move the queue into the agent
-            yield self.agent.current_experience
+            yield experience
 
     def update(self):
         self.agent.sync()
@@ -125,7 +130,7 @@ class ThreadRunner(Thread):
             try:
                 # This experience fragment is part of a single episode in a game
                 # the agent should know how to concatenate this
-                #experience.extend(self.experience_queue.get_nowait())
+                # experience.extend(self.experience_queue.get_nowait())
                 self.agent.extend(self.experience_queue.get_nowait())
 
             except queue.Empty:
@@ -134,7 +139,3 @@ class ThreadRunner(Thread):
         # Delegate update to distributed model, separate queue runner and update
         # agent manages experience fragments internally -> no need to pass here
         self.agent.update()
-
-
-
-

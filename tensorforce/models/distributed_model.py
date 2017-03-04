@@ -186,10 +186,6 @@ class DistributedModel(object):
         # Merge episode inputs into single arrays
         _, _, actions, batch_advantage, states = self.merge_episodes(batch)
 
-        # print('types in update feed')
-        # print(type(states))
-        # print(type(actions))
-        # print(type(batch_advantage))
         self.session.run([self.optimize_op, self.global_step],
                          {self.state: states,
                           self.actions: actions,
@@ -251,6 +247,7 @@ class DistributedModel(object):
         """
         for episode in batch:
             print('local step elements=' + str(len(episode)))
+            print('episode rewards' + str(episode['rewards']))
 
             baseline = self.baseline_value_function.predict(episode)
             if episode['terminated']:

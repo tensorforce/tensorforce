@@ -73,6 +73,10 @@ class ThreadRunner(Thread):
 
         while True:
 
+            # Tell agent to create a new experience fragment
+            print('Creating new experience')
+            self.agent.create_experience()
+
             for i in xrange(self.local_steps):
                 if self.preprocessor:
                     processed_state = self.preprocessor.process(state)
@@ -87,35 +91,49 @@ class ThreadRunner(Thread):
                 current_episode_rewards += result['reward']
                 state = result['state']
 
-                if result['terminal_state'] or current_episode_step > self.max_episode_steps:
-                    state = self.environment.reset()
-                    self.episode_rewards.append(current_episode_rewards)
-                    current_episode += 1
+                if result['terminal_state'] or current_episode_step >= self.max_episode_steps:
                     print('Episode finished, episode reward= ' + str(current_episode_rewards))
-                    current_episode_rewards = 0
+                    self.episode_rewards.append(current_episode_rewards)
+
+                    if current_episode_step >= self.max_episode_steps:
+                        state = self.environment.reset()
+                        current_episode += 1
+
                     current_episode_step = 0
+                    current_episode_rewards = 0
+
                     break
 
 
             # Let agent manage experience collection in internal batch
             # TODO argument to be made to move the queue into the agent
-            yield self.agent.batch.current_batch
+            yield self.agent.current_experience
 
     def update(self):
-        batch = self.experience_queue.get(timeout=600.0)
+        self.agent.sync()
+
+        # We yield the current episode fragment
+        experience = self.experience_queue.get(timeout=600.0)
+
+        # Append to current episode in agent
+        self.agent.extend(experience)
 
         # Turn the openai starter agent logic on its head so we can
         # actively call update and don't break encapsulation of our model logic ->
         # model does not know or care about environment
-        while not batch.terminal:
+        while not experience.data['terminated']:
             try:
-                batch.extend(self.experience_queue.get_nowait())
+                # This experience fragment is part of a single episode in a game
+                # the agent should know how to concatenate this
+                #experience.extend(self.experience_queue.get_nowait())
+                self.agent.extend(self.experience_queue.get_nowait())
+
             except queue.Empty:
                 break
 
         # Delegate update to distributed model, separate queue runner and update
-        print('Calling update of distributed agent')
-        self.agent.update(batch.current_batch)
+        # agent manages experience fragments internally -> no need to pass here
+        self.agent.update()
 
 
 

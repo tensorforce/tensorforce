@@ -178,8 +178,6 @@ class DistributedModel(object):
         :param batch:
         :return:
         """
-        self.sync_global_to_local()
-
         self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
 
         # Update linear value function for baseline prediction
@@ -188,7 +186,11 @@ class DistributedModel(object):
         # Merge episode inputs into single arrays
         _, _, actions, batch_advantage, states = self.merge_episodes(batch)
 
-        self.session.run([self.loss, self.optimize_op],
+        # print('types in update feed')
+        # print(type(states))
+        # print(type(actions))
+        # print(type(batch_advantage))
+        self.session.run([self.optimize_op, self.global_step],
                          {self.state: states,
                           self.actions: actions,
                           self.advantage: batch_advantage})
@@ -199,9 +201,6 @@ class DistributedModel(object):
         :return:
         """
         return self.session.run(self.global_step)
-
-    def get_variables(self):
-        raise NotImplementedError
 
     def sync_global_to_local(self):
         """
@@ -250,10 +249,10 @@ class DistributedModel(object):
 
         :param batch: Sequence of observations for at least one episode.
         """
-
         for episode in batch:
-            baseline = self.baseline_value_function.predict(episode)
+            print('local step elements=' + str(len(episode)))
 
+            baseline = self.baseline_value_function.predict(episode)
             if episode['terminated']:
                 adjusted_baseline = np.append(baseline, [0])
             else:

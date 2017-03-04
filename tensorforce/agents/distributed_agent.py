@@ -28,6 +28,7 @@ from tensorforce.config import create_config
 from tensorforce.models.distributed_model import DistributedModel
 
 
+# TODO move get path to utility function
 class DistributedAgent(object):
     name = 'DistributedAgent'
     default_config = {}
@@ -39,7 +40,7 @@ class DistributedAgent(object):
         self.current_episode = defaultdict(list)
 
         self.continuous = self.config.continuous
-        self.batch = Batch(self.config)
+        self.current_experience = Experience(self.continuous)
         self.model = DistributedModel(config, scope, task_index, cluster_spec)
 
     def increment_global_step(self):
@@ -61,18 +62,40 @@ class DistributedAgent(object):
         :return:
         """
 
-        self.batch.add_observation(state, action, reward, terminal)
+        self.current_experience.add_observation(state, action, reward, terminal)
 
-    def update(self, batch):
+    def update(self):
         """
         Updates the model using the given batch of experiences.
 
         """
 
-        # Instead of calling update when a batch size is reached, explicitly called by
-        # thread runner
+        # Just one episode, but model logic expects list of episodes in case batch
+        # spans multiple episodes
+
+        # have not appended the CURRENT experience to anything -> episode empty
+        print('Episode length in update' + str(len(self.current_episode['states'])))
+        batch = [self.get_path()]
         self.model.update(deepcopy(batch))
-        self.batch = Batch(self.config)
+
+        # Reset current episode
+        self.current_episode = defaultdict(list)
+
+    def create_experience(self):
+        self.current_experience = Experience(self.continuous)
+
+    def extend(self, experience):
+        self.current_episode['states'] += (experience.data['states'])
+        self.current_episode['actions'] += (experience.data['actions'])
+        self.current_episode['rewards'] += (experience.data['rewards'])
+        self.current_episode['action_means'] += (experience.data['action_means'])
+        self.current_episode['terminated'] = experience.data['terminated']
+
+        if self.continuous:
+            self.current_episode['action_log_stds'].append(experience.current_episode['action_log_stds'])
+
+    def sync(self):
+        self.model.sync_global_to_local()
 
     def get_action(self, *args, **kwargs):
         """
@@ -85,13 +108,13 @@ class DistributedAgent(object):
         action, outputs = self.model.get_action(*args, **kwargs)
         #print(outputs)
         # Cache last action in case action is used multiple times in environment
-        self.batch.last_action_means = outputs['policy_output']
-        self.batch.last_action = action
+        self.current_experience.last_action_means = outputs['policy_output']
+        self.current_experience.last_action = action
 
         # print('action =' + str(action))
 
         if self.continuous:
-            self.batch.last_action_log_std = outputs['policy_log_std']
+            self.current_experience.last_action_log_std = outputs['policy_log_std']
         else:
             action = np.argmax(action)
 
@@ -104,6 +127,26 @@ class DistributedAgent(object):
     def save_model(self, path):
         raise NotImplementedError
 
+
+    def get_path(self):
+        """
+        Finalises an episode and turns it into a dict pointing to numpy arrays.
+        :return:
+        """
+        path = {'states': np.concatenate(np.expand_dims(self.current_episode['states'], 0)),
+                'actions': np.array(self.current_episode['actions']),
+                'terminated': self.current_episode['terminated'],
+                'action_means': np.array(self.current_episode['action_means']),
+                'rewards': np.array(self.current_episode['rewards'])}
+
+        # print('concat path length =' + str(len(path['rewards'])))
+        # print(path['rewards'])
+
+        if self.continuous:
+            path['action_log_stds'] = np.concatenate(self.current_episode['action_log_stds'])
+
+        return path
+
     def set_session(self, session):
         self.model.set_session(session)
 
@@ -111,20 +154,20 @@ class DistributedAgent(object):
         return self.name
 
 
-class Batch(object):
+class Experience(object):
     """
     Helper object for queue management.
     """
 
-    def __init__(self, config):
-        self.config = config
-        self.current_episode = defaultdict(list)
+    def __init__(self, continuous):
+        self.continuous = continuous
+        self.data = defaultdict(list)
 
-        self.current_batch = []
         self.last_action = None
         self.last_action_means = None
         self.last_action_log_std = None
-        self.continuous = self.config.continuous
+        self.terminated = False
+        self.data['terminated'] = False
 
     def add_observation(self, state, action, reward, terminal):
         """
@@ -142,45 +185,19 @@ class Batch(object):
         :return:
         """
 
-        self.current_episode['states'].append(state)
-        self.current_episode['actions'].append(self.last_action)
-        self.current_episode['rewards'].append(reward)
-        self.current_episode['action_means'].append(self.last_action_means)
+        self.data['states'].append(state)
+        self.data['actions'].append(self.last_action)
+        self.data['rewards'].append(reward)
+        self.data['action_means'].append(self.last_action_means)
 
         if self.continuous:
-            self.current_episode['action_log_stds'].append(self.last_action_log_std)
+            self.data['action_log_stds'].append(self.last_action_log_std)
 
         if terminal:
+            print('Terminating episode within add observation')
             # Batch could also end before episode is terminated
-            self.current_episode['terminated'] = True
-
+            self.data['terminated'] = True
+            self.terminated = True
             # Transform into np arrays, append episode to batch, start new episode dict
-            path = self.get_path()
-            self.current_batch.append(path)
-            self.current_episode = defaultdict(list)
 
-    def extend(self, other):
-        """
-        Append another episode to this batch.
-        :param other:
-        :return:
-        """
-        # TODO this might not be correct, check episode/batch semantics
-        self.current_batch.append(other)
 
-    def get_path(self):
-        """
-        Finalises an episode and turns it into a dict pointing to numpy arrays.
-        :return:
-        """
-
-        path = {'states': np.concatenate(np.expand_dims(self.current_episode['states'], 0)),
-                'actions': np.array(self.current_episode['actions']),
-                'terminated': self.current_episode['terminated'],
-                'action_means': np.array(self.current_episode['action_means']),
-                'rewards': np.array(self.current_episode['rewards'])}
-
-        if self.continuous:
-            path['action_log_stds'] = np.concatenate(self.current_episode['action_log_stds'])
-
-        return path

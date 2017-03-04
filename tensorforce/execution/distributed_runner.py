@@ -30,7 +30,7 @@ from tensorforce.execution.thread_runner import ThreadRunner
 
 class DistributedRunner(object):
     def __init__(self, agent_type, agent_config, n_agents, n_param_servers, environment,
-                 episodes, max_timesteps, preprocessor=None, repeat_actions=1, local_steps=10, max_episode_steps=100):
+                 episodes, max_timesteps, preprocessor=None, repeat_actions=1, local_steps=20, max_episode_steps=1000):
 
         self.max_episode_steps = max_episode_steps
         self.agent_type = agent_type

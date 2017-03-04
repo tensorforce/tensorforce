@@ -38,30 +38,13 @@ class DistributedAgent(object):
     def __init__(self, config, scope, task_index, cluster_spec):
         self.config = create_config(config, default=self.default_config)
         self.current_episode = defaultdict(list)
+        self.current_episode['terminated'] = False
+
         self.continuous = self.config.continuous
-        self.current_experience = Experience(self.continuous)
         self.model = DistributedModel(config, scope, task_index, cluster_spec)
 
     def increment_global_step(self):
         self.model.get_global_step()
-
-    def add_observation(self, state, action, reward, terminal):
-        """
-        Adds an observation and performs a pg update if the necessary conditions
-        are satisfied, i.e. if one batch of experience has been collected as defined
-        by the batch size.
-
-        In particular, note that episode control happens outside of the agent since
-        the agent should be agnostic to how the training data is created.
-
-        :param state:
-        :param action:
-        :param reward:
-        :param terminal:
-        :return:
-        """
-
-        self.current_experience.add_observation(state, action, reward, terminal)
 
     def update(self):
         """
@@ -71,21 +54,23 @@ class DistributedAgent(object):
 
         # Just one episode, but model logic expects list of episodes in case batch
         # spans multiple episodes
+        print('Updating')
         batch = [self.get_path()]
         self.model.update(deepcopy(batch))
 
         # Reset current episode
         self.current_episode = defaultdict(list)
-
-    def create_experience(self):
-        self.current_experience = Experience(self.continuous)
+        self.current_episode['terminated'] = False
 
     def extend(self, experience):
-        self.current_episode['states'] += (experience.data['states'])
-        self.current_episode['actions'] += (experience.data['actions'])
-        self.current_episode['rewards'] += (experience.data['rewards'])
-        self.current_episode['action_means'] += (experience.data['action_means'])
+        self.current_episode['states'] += experience.data['states']
+        self.current_episode['actions'] += experience.data['actions']
+        self.current_episode['rewards'] += experience.data['rewards']
+        self.current_episode['action_means'] += experience.data['action_means']
+
+        print('Was terminated in extend:' + str(self.current_episode['terminated']))
         self.current_episode['terminated'] = experience.data['terminated']
+        print('After in extend:' + str(self.current_episode['terminated']))
 
         if self.continuous:
             self.current_episode['action_log_stds'].append(experience.current_episode['action_log_stds'])
@@ -103,6 +88,7 @@ class DistributedAgent(object):
         """
         experience = kwargs.pop('experience', None)
         action, outputs = self.model.get_action(*args, **kwargs)
+
         # Cache last action in case action is used multiple times in environment
         experience.last_action_means = outputs['policy_output']
         experience.last_action = action
@@ -155,7 +141,6 @@ class Experience(object):
         self.last_action = None
         self.last_action_means = None
         self.last_action_log_std = None
-        self.terminated = False
         self.data['terminated'] = False
 
     def add_observation(self, state, action, reward, terminal):
@@ -185,6 +170,5 @@ class Experience(object):
         if terminal:
             print('Terminating episode within add observation')
             self.data['terminated'] = True
-            self.terminated = True
 
 

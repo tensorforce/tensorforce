@@ -93,11 +93,11 @@ larger roadmap looks as follows:
    policies
 2. Execution configuration that abstracts away TensorFlow device
    configurations
-3. Generic parallelisation API
+3. Generic parallelisation/multi-threaded API
 4. Hybrid A3C/policy gradient algorithms - not clear yet which
    combination method will work best, but a number of papers showcasing
-   different approaches have been submitted to ICLR 2017.
-5. RL serving component. TensorFlow serving can serve trained models but
+   different approaches have been accepted to ICLR 2017.
+5. RL serving components. TensorFlow serving can serve trained models but
    is not suitable to manage RL lifecycles.
 
 Support and contact

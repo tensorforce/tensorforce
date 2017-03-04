@@ -211,7 +211,6 @@ class DistributedModel(object):
     def save_model(self, path):
         self.saver.save(self.session, path)
 
-
     # TODO remove this duplication, move to util or let distributed agent
     # have a pg agent as a field
     def merge_episodes(self, batch):
@@ -245,11 +244,10 @@ class DistributedModel(object):
 
         :param batch: Sequence of observations for at least one episode.
         """
-        for episode in batch:
-            print('local step elements=' + str(len(episode)))
-            print('episode rewards' + str(episode['rewards']))
 
+        for episode in batch:
             baseline = self.baseline_value_function.predict(episode)
+
             if episode['terminated']:
                 adjusted_baseline = np.append(baseline, [0])
             else:

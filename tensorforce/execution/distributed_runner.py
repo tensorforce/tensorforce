@@ -30,7 +30,7 @@ from tensorforce.execution.thread_runner import ThreadRunner
 
 class DistributedRunner(object):
     def __init__(self, agent_type, agent_config, n_agents, n_param_servers, environment,
-                 episodes, max_timesteps, preprocessor=None, repeat_actions=1, local_steps=20, max_episode_steps=1000):
+                 max_global_steps=1000000, max_episode_steps=1000, local_steps=20, preprocessor=None, repeat_actions=1):
 
         self.max_episode_steps = max_episode_steps
         self.agent_type = agent_type
@@ -38,9 +38,16 @@ class DistributedRunner(object):
         self.n_agents = n_agents
         self.n_param_servers = n_param_servers
         self.environment = environment
-        self.episodes = episodes
-        self.max_timesteps = max_timesteps
+
+        # Overall steps as monitored by the distributed runner
+        self.max_global_steps = max_global_steps
+
+        # Max steps in a given episode until we break
+        self.max_episode_steps = max_episode_steps
+
+        # Max local steps by a worker before we update the policy
         self.local_steps = local_steps
+
         self.preprocessor = preprocessor
         self.repeat_actions = repeat_actions
 
@@ -69,26 +76,28 @@ class DistributedRunner(object):
         """
         Creates and starts worker processes and parameter servers.
         """
+
+        # TODO we don't use this currently? -> remove
         self.processes = []
 
         for index in range(self.n_param_servers):
             process = Process(target=process_worker,
-                              args=(self, index, self.episodes, self.max_timesteps,
-                                    self.max_episode_steps, self.local_steps, True))
+                              args=(self, index, self.max_global_steps, self.max_episode_steps,
+                                    self.local_steps, False))
             self.processes.append(process)
 
             process.start()
 
         for index in range(self.n_agents):
             process = Process(target=process_worker,
-                              args=(self, index, self.episodes, self.max_timesteps,
-                                    self.max_episode_steps, self.local_steps, False))
+                              args=(self, index, self.max_global_steps, self.max_episode_steps,
+                                    self.local_steps, False))
             self.processes.append(process)
 
             process.start()
 
 
-def process_worker(master, index, episodes, max_steps,
+def process_worker(master, index, max_steps,
                    max_episode_steps, local_steps, is_param_server=False):
     """
     Process execution loop.
@@ -96,7 +105,7 @@ def process_worker(master, index, episodes, max_steps,
     :param master:
     :param index:
     :param episodes:
-    :param max_timesteps:
+    :param max_episode_steps:
     :param is_param_server:
 
     """
@@ -139,7 +148,7 @@ def process_worker(master, index, episodes, max_steps,
         global_steps = max_steps
 
         runner = ThreadRunner(worker_agent, deepcopy(master.environment),
-                              episodes, max_episode_steps, local_steps, preprocessor=master.preprocessor,
+                              max_episode_steps, local_steps, preprocessor=master.preprocessor,
                               repeat_actions=master.repeat_actions)
 
         # Connecting to parameter server
@@ -167,7 +176,7 @@ def process_worker(master, index, episodes, max_steps,
         #         return self.continue_execution
         #     return episode_finished
 
-        # def run(self, episodes, max_timesteps, episode_finished=None):
+        # def run(self, episodes, max_episode_steps, episode_finished=None):
         #     self.total_states = 0
         #     self.episode_rewards = []
         #     self.continue_execution = True
@@ -182,7 +191,7 @@ def process_worker(master, index, episodes, max_steps,
         #         execution = Runner(agent, environment, preprocessor=self.preprocessor, repeat_actions=self.repeat_actions)  # deepcopy?
         #         runners.append(execution)
 
-        #         thread = Thread(target=execution.run, args=(episodes, max_timesteps), kwargs={'episode_finished': self.get_episode_finished_handler(condition)})
+        #         thread = Thread(target=execution.run, args=(episodes, max_episode_steps), kwargs={'episode_finished': self.get_episode_finished_handler(condition)})
         #         processes.append(thread)
         #         thread.start()
 

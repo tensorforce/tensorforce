@@ -22,8 +22,6 @@ from __future__ import print_function
 from __future__ import division
 
 from threading import Thread
-
-from copy import deepcopy
 from six.moves import xrange
 import six.moves.queue as queue
 
@@ -32,16 +30,15 @@ from tensorforce.util.experiment_util import repeat_action
 
 
 class ThreadRunner(Thread):
-    def __init__(self, agent, environment, episodes, max_episode_steps, local_steps, preprocessor=None,
+    def __init__(self, agent, environment, max_episode_steps=1000, local_steps=20, preprocessor=None,
                  repeat_actions=1):
         super(ThreadRunner, self).__init__()
-        self.experience_queue = queue.Queue(10)
+        self.experience_queue = queue.Queue(5)
 
         self.agent = agent
         self.environment = environment
         self.preprocessor = preprocessor
         self.repeat_actions = repeat_actions
-        self.episodes = episodes
         self.max_episode_steps = max_episode_steps
         self.local_steps = local_steps
 
@@ -97,8 +94,10 @@ class ThreadRunner(Thread):
                 state = result['state']
 
                 if result['terminal_state'] or current_episode_step >= self.max_episode_steps:
-                    print('Episode finished after' + str(current_episode_step) + ', episode reward= ' + str(
+                    print('Episode finished after ' + str(current_episode_step) + ' steps, episode reward= ' + str(
                         current_episode_rewards))
+                    print('Was terminal: ' + str(result['terminal_state']))
+
                     self.episode_rewards.append(current_episode_rewards)
 
                     if current_episode_step >= self.max_episode_steps:
@@ -126,7 +125,7 @@ class ThreadRunner(Thread):
         # Turn the openai starter agent logic on its head so we can
         # actively call update and don't break encapsulation of our model logic ->
         # model does not know or care about environment
-        while not experience.data['terminated']:
+        while not self.agent.current_episode['terminated']:
             try:
                 # This experience fragment is part of a single episode in a game
                 # the agent should know how to concatenate this
@@ -137,5 +136,5 @@ class ThreadRunner(Thread):
                 break
 
         # Delegate update to distributed model, separate queue runner and update
-        # agent manages experience fragments internally -> no need to pass here
+        # agent manages experience internally -> no need to pass here
         self.agent.update()

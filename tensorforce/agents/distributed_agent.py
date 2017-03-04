@@ -101,8 +101,8 @@ class DistributedAgent(object):
         :param episode: Optional, current episode
         :return: Which action to take
         """
-        action, outputs = self.model.get_action(*args, **kwargs)
         experience = kwargs.pop('experience', None)
+        action, outputs = self.model.get_action(*args, **kwargs)
         # Cache last action in case action is used multiple times in environment
         experience.last_action_means = outputs['policy_output']
         experience.last_action = action

@@ -32,19 +32,17 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="ID of the gym environment")
-    #TODO adjust
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file",
                         default='examples/configs/dqn_agent.json')
     parser.add_argument('-n', '--network-config', help="Network configuration file",
                         default='examples/configs/dqn_network.json')
-    parser.add_argument('-e', '--episodes', type=int, default=10000, help="Number of episodes")
+    parser.add_argument('-e', '--global-steps', type=int, default=1000000, help="Total number of steps")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
-    parser.add_argument('-l', '--local-steps', type=int, default=20, help="Maximum number of local steps for queueing")
+    parser.add_argument('-l', '--local-steps', type=int, default=20, help="Maximum number of local steps before update")
 
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
-    parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
     args = parser.parse_args()
 
@@ -62,7 +60,6 @@ def main():
     if args.network_config:
         config.read_json(args.network_config)
 
-    report_episodes = args.episodes / 10
     preprocessing_config = config.get('preprocessing')
 
     if preprocessing_config:
@@ -74,11 +71,10 @@ def main():
     print("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
     print("Config:")
     print(config)
-    max_global_steps = 10000000
-    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=1,
-                               environment=env, preprocessor=stack, repeat_actions=args.repeat_actions,
-                               max_global_steps=max_global_steps, max_episode_steps=args.max_timesteps,
-                               local_steps=args.local_steps, n_param_servers=1)
+
+    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=1, n_param_servers=1,
+                               environment=env, global_steps=args.global_steps, max_episode_steps=args.max_timesteps,
+                               preprocessor=stack, repeat_actions=args.repeat_actions, local_steps=args.local_steps)
     runner.run()
 
 

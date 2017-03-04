@@ -22,6 +22,7 @@ from __future__ import print_function
 from __future__ import division
 
 from threading import Thread
+
 from six.moves import xrange
 import six.moves.queue as queue
 
@@ -30,7 +31,7 @@ from tensorforce.util.experiment_util import repeat_action
 
 
 class ThreadRunner(Thread):
-    def __init__(self, agent, environment, max_episode_steps=1000, local_steps=20, preprocessor=None,
+    def __init__(self, agent, environment, max_episode_steps, local_steps, preprocessor=None,
                  repeat_actions=1):
         super(ThreadRunner, self).__init__()
         self.experience_queue = queue.Queue(5)
@@ -75,7 +76,6 @@ class ThreadRunner(Thread):
         while True:
 
             # Tell agent to create a new experience fragment
-            #self.agent.create_experience()
             experience = Experience(self.agent.continuous)
 
             for _ in xrange(self.local_steps):
@@ -96,20 +96,16 @@ class ThreadRunner(Thread):
                 if result['terminal_state'] or current_episode_step >= self.max_episode_steps:
                     print('Episode finished after ' + str(current_episode_step) + ' steps, episode reward= ' + str(
                         current_episode_rewards))
-                    print('Was terminal: ' + str(result['terminal_state']))
 
                     self.episode_rewards.append(current_episode_rewards)
-
-                    if current_episode_step >= self.max_episode_steps:
-                        state = self.environment.reset()
-                        current_episode += 1
+                    state = self.environment.reset()
+                    current_episode += 1
 
                     current_episode_step = 0
                     current_episode_rewards = 0
 
                     break
 
-            # Let agent manage experience collection in internal batch
             # TODO argument to be made to move the queue into the agent
             yield experience
 
@@ -136,5 +132,5 @@ class ThreadRunner(Thread):
                 break
 
         # Delegate update to distributed model, separate queue runner and update
-        # agent manages experience internally -> no need to pass here
+        # agent manages experience fragments internally -> no need to pass here
         self.agent.update()

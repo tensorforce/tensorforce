@@ -41,6 +41,7 @@ class DistributedAgent(object):
         self.current_episode['terminated'] = False
 
         self.continuous = self.config.continuous
+        self.current_experience = Experience(self.continuous)
         self.model = DistributedModel(config, scope, task_index, cluster_spec)
 
     def increment_global_step(self):
@@ -54,7 +55,6 @@ class DistributedAgent(object):
 
         # Just one episode, but model logic expects list of episodes in case batch
         # spans multiple episodes
-        print('Updating')
         batch = [self.get_path()]
         self.model.update(deepcopy(batch))
 
@@ -67,13 +67,10 @@ class DistributedAgent(object):
         self.current_episode['actions'] += experience.data['actions']
         self.current_episode['rewards'] += experience.data['rewards']
         self.current_episode['action_means'] += experience.data['action_means']
-
-        print('Was terminated in extend:' + str(self.current_episode['terminated']))
         self.current_episode['terminated'] = experience.data['terminated']
-        print('After in extend:' + str(self.current_episode['terminated']))
 
         if self.continuous:
-            self.current_episode['action_log_stds'].append(experience.current_episode['action_log_stds'])
+            self.current_episode['action_log_stds'] += experience.current_episode['action_log_stds']
 
     def sync(self):
         self.model.sync_global_to_local()

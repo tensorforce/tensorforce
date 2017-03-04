@@ -63,7 +63,7 @@ Parameters:
 DQNAgent
 --------
 
-Standard DQN agent (Minh et al., 2015) and DDQN agent. Uses a replay memory (inherits from ``MemoryAgent``).
+Standard DQN agent (`Minh et al., 2015 <http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html>`__) and DDQN (`van Hasselt et al., 2015 <https://arxiv.org/abs/1509.06461>`__) agent. Uses a replay memory (inherits from ``MemoryAgent``).
 
 Parameters:
 ~~~~~~~~~~~
@@ -75,13 +75,96 @@ Uses all `general parameters <#RLAgent>`__ and all parameters from the
 
     # Parameters for DQNModel
     config += {
-        "double_dqn": bool,  # use double dqn network (or not)
-        "tau": float,  # indicate how fast the target network should be updated
-        "gamma": float,  # discount factor
         "alpha": float,  # learning rate
+        "gamma": float,  # discount factor
+        "tau": float,  # indicates how fast the target network should be updated
+        "double_dqn": bool,  # use double dqn network (or not)
         "clip_gradients": bool,  # clip gradients
         "clip_value": float,  # clip values exceeding [-clip_value; clip_value]
     }
+
+NAFAgent
+--------
+
+Agent using Normalized Advantage Functions (NAF; `Gu et al., 2016 <https://arxiv.org/abs/1603.00748>`__) for continuous actions. Uses a replay memory (inherits from ``MemoryAgent``).
+
+Parameters:
+~~~~~~~~~~~
+
+Uses all `general parameters <#RLAgent>`__ and all parameters from the
+`MemoryAgent <#MemoryAgent>`__. Additional parameters:
+
+.. code:: python
+
+    # Parameters for NAFModel
+    config += {
+        "alpha": float,  # learning rate
+        "gamma": float,  # discount factor
+        "tau": float,  # indicates how fast the target network should be updated
+    }
+
+PGAgent
+-------
+
+Policy Gradient base agent and model. The agent collects experiences until conditions for an update are satisfied and then passes these to an updater. `PGAgent` inherits from `RLAgent`.
+
+
+Parameters:
+~~~~~~~~~~~
+
+Uses all `general parameters <#RLAgent>`__. Additional parameters:
+
+.. code:: python
+
+    # Parameters for PGAgent
+    config += {
+        "batch_size": int,  # batch size for updates
+    }
+    
+    # Parameters for PGModel
+    config += {
+        "alpha": float,  # learning rate
+        "gamma": float,  # discount factor
+        "use_gae": boolean,  # use general advantage estimation
+        "gae_gamma": float,  # discount factor used in gae computation
+        "normalize_advantage": boolean  # Normalize advantage
+    }
+
+
+VPGAgent
+--------
+
+Vanilla Policy Gradient agent and model. `VPGAgent` inherits from `PGAgent`.
+
+
+Parameters:
+~~~~~~~~~~~
+
+Uses all `general parameters <#RLAgent>`__ and all parameters from the
+`PGAgent <#PGAgent>`__.
+
+TRPOAgent
+---------
+
+Trust Region Policy Optimization (`Schulman et al., 2015 <https://arxiv.org/abs/1502.05477>`__) agent and model. `TRPO` inherits from `PGAgent`.
+
+
+Parameters:
+~~~~~~~~~~~
+
+Uses all `general parameters <#RLAgent>`__ and all parameters from the
+`PGAgent <#PGAgent>`__. Additional parameters:
+
+.. code:: python
+    
+    # Parameters for TRPOModel
+    config += {
+        "cg_iterations": int,  # conjugate gradient interations
+        "cg_damping": float,  # damping factor for the Fisher matrix
+        "line_search_steps": int,  # line search steps
+        "max_kl_divergence": float,  # maximum kl divergence
+    }
+
 
 Building your own agent
 =======================

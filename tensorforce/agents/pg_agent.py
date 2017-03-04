@@ -32,7 +32,7 @@ class PGAgent(RLAgent):
 
     def __init__(self, config, scope):
         self.config = create_config(config, default=self.default_config)
-        self.updater = None
+        self.model = None
         self.current_batch = []
         self.current_episode = defaultdict(list)
         self.batch_steps = 0
@@ -43,7 +43,7 @@ class PGAgent(RLAgent):
         self.continuous = self.config.continuous
 
         if self.model_ref:
-            self.updater = self.model_ref(self.config, scope)
+            self.model = self.model_ref(self.config, scope)
 
     def get_action(self, *args, **kwargs):
         """
@@ -53,7 +53,7 @@ class PGAgent(RLAgent):
         :param episode: Optional, current episode
         :return: Which action to take
         """
-        action, outputs = self.updater.get_action(*args, **kwargs)
+        action, outputs = self.model.get_action(*args, **kwargs)
         #print(outputs)
         # Cache last action in case action is used multiple times in environment
         self.last_action_means = outputs['policy_output']
@@ -114,8 +114,9 @@ class PGAgent(RLAgent):
                 #print('last stds=' + str(self.last_action_log_std))
             #print('last actions=' + str(self.last_action))
 
+            # TODO: Remove debug output
             print('Computing PG update, episodes =' + str(len(self.current_batch)))
-            self.updater.update(self.current_batch)
+            self.model.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []
             self.last_action = None
@@ -141,7 +142,7 @@ class PGAgent(RLAgent):
         return path
 
     def save_model(self, path):
-        self.updater.save_model(path)
+        self.model.save_model(path)
 
     def load_model(self, path):
-        self.updater.load_model(path)
+        self.model.load_model(path)

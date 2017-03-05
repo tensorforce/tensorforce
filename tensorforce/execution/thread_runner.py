@@ -76,6 +76,7 @@ class ThreadRunner(Thread):
         while True:
 
             # Tell agent to create a new experience fragment
+            # TODO Michael -> I don't like external experience management. Refactor
             experience = Experience(self.agent.continuous)
 
             for _ in xrange(self.local_steps):

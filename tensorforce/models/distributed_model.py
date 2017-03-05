@@ -239,7 +239,7 @@ class DistributedModel(object):
 
         return action_log_stds, action_means, actions, batch_advantage, states
 
-    # TODO duplicate code -> remove in factoring
+    # TODO duplicate code -> refactor from pg model
     def compute_gae_advantage(self, batch, gamma, gae_lambda, use_gae=False):
         """
         Expects a batch containing at least one episode, sets advantages according to use_gae.

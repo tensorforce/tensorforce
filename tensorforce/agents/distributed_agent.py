@@ -29,6 +29,9 @@ from tensorforce.models.distributed_model import DistributedModel
 
 
 # TODO move get path to utility function
+from tensorforce.util.experiment_util import get_path
+
+
 class DistributedAgent(object):
     name = 'DistributedAgent'
     default_config = {}
@@ -55,7 +58,7 @@ class DistributedAgent(object):
 
         # Just one episode, but model logic expects list of episodes in case batch
         # spans multiple episodes
-        batch = [self.get_path()]
+        batch = [get_path(self.continuous, self.current_episode)]
         self.model.update(deepcopy(batch))
 
         # Reset current episode
@@ -102,22 +105,6 @@ class DistributedAgent(object):
 
     def save_model(self, path):
         raise NotImplementedError
-
-    def get_path(self):
-        """
-        Finalises an episode and turns it into a dict pointing to numpy arrays.
-        :return:
-        """
-        path = {'states': np.concatenate(np.expand_dims(self.current_episode['states'], 0)),
-                'actions': np.array(self.current_episode['actions']),
-                'terminated': self.current_episode['terminated'],
-                'action_means': np.array(self.current_episode['action_means']),
-                'rewards': np.array(self.current_episode['rewards'])}
-
-        if self.continuous:
-            path['action_log_stds'] = np.concatenate(self.current_episode['action_log_stds'])
-
-        return path
 
     def set_session(self, session):
         self.model.set_session(session)

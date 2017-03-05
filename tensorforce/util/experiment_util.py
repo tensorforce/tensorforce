@@ -40,6 +40,23 @@ def global_seed():
     """
     return np.random.RandomState(42)
 
+
+def get_path(continuous, episode):
+    """
+    Finalises an episode and turns it into a dict pointing to numpy arrays.
+    :return:
+    """
+    path = {'states': np.concatenate(np.expand_dims(episode['states'], 0)),
+            'actions': np.array(episode['actions']),
+            'terminated': episode['terminated'],
+            'action_means': np.array(episode['action_means']),
+            'rewards': np.array(episode['rewards'])}
+
+    if continuous:
+        path['action_log_stds'] = np.concatenate(episode['action_log_stds'])
+
+    return path
+
 def repeat_action(environment, action, repeat_action=1):
     """
     Repeat action `repeat_action_count` times. Cumulate reward and return last state.

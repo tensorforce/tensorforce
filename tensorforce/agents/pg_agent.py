@@ -21,6 +21,7 @@ from copy import deepcopy
 import numpy as np
 from tensorforce.config import create_config
 from tensorforce.agents import RLAgent
+from tensorforce.util.experiment_util import get_path
 
 
 class PGAgent(RLAgent):
@@ -99,14 +100,14 @@ class PGAgent(RLAgent):
             self.current_episode['terminated'] = True
 
             # Transform into np arrays, append episode to batch, start new episode dict
-            path = self.get_path()
+            path = get_path(self.continuous, self.current_episode)
             self.current_batch.append(path)
             self.current_episode = defaultdict(list)
 
         if self.batch_steps == self.batch_size:
             if not terminal:
                 self.current_episode['terminated'] = False
-                path = self.get_path()
+                path = get_path(self.continuous, self.current_episode)
                 self.current_batch.append(path)
 
             print('Computing PG update, episodes =' + str(len(self.current_batch)))
@@ -117,23 +118,6 @@ class PGAgent(RLAgent):
             self.last_action_means = None
             self.last_action_log_std = None
             self.batch_steps = 0
-
-    def get_path(self):
-        """
-        Finalises an episode and turns it into a dict pointing to numpy arrays.
-        :return:
-        """
-
-        path = {'states': np.concatenate(np.expand_dims(self.current_episode['states'], 0)),
-                'actions': np.array(self.current_episode['actions']),
-                'terminated': self.current_episode['terminated'],
-                'action_means': np.array(self.current_episode['action_means']),
-                'rewards': np.array(self.current_episode['rewards'])}
-
-        if self.continuous:
-            path['action_log_stds'] = np.concatenate(self.current_episode['action_log_stds'])
-
-        return path
 
     def save_model(self, path):
         self.model.save_model(path)

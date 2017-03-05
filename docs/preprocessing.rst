@@ -146,7 +146,7 @@ Parameters
 
 
 Normalize
---------
+---------
 
 Normalize vector (feature scaling, interval 0-1).
 
@@ -156,7 +156,7 @@ Parameters
 None
 
 Standardize
---------
+-----------
 
 Standardize vector (normal distribution)
 
@@ -171,7 +171,7 @@ Building your own preprocessor
 
 All preprocessors should inherit from ``tensorforce.preprocessing.Preprocessor``.
 
-For a start, just take a look at the source of `Grayscale preprocessor <../tensorforce/preprocessing/Grayscale.py>`__.
+For a start, take a look at the source of `Grayscale preprocessor <../tensorforce/preprocessing/Grayscale.py>`__.
 
 .. code:: python
 

@@ -1,14 +1,15 @@
 Runners
 =======
 
-A "runner" is the code used to handle the interaction between the Environment and the Agent. TensorForce comes with ready-to-use runners. Of course, you can implement your own runners, too.
+A "runner" manages the interaction between the Environment and the Agent. TensorForce comes with ready-to-use runners. Of course, you can implement your own runners, too.
+If you are not using simulation environments, the runner is simply your application code using the Agent API.
 
   Environment <-> Runner <-> Agent <-> Model
 
 Ready-to-use runners
 ====================
 
-We implemented a standard runner, a threaded runner (for asynchronous computations such as A3C) and a distributed runner if you would like to use multiple machines for computation.
+We implemented a standard runner, a threaded runner (for real-time interaction e.g. with OpenAI Universe) and a distributed runner for A3C variants.
 
 Runner
 ------
@@ -113,7 +114,7 @@ No description, yet.
 Building your own runner
 ========================
 
-There are three mandatory tasks any runner implements: Getting the action from the agent, passing it to the environment, and passing the resulting observation to the agent.
+There are three mandatory tasks any runner implements: Obtaining an action from the agent, passing it to the environment, and passing the resulting observation to the agent.
 
 .. code:: python
 
@@ -125,6 +126,10 @@ There are three mandatory tasks any runner implements: Getting the action from t
 
     # Pass observation to the agent
     agent.add_observation(state, action, result['reward'], result['terminal_state'])
+
+The key idea here is the separation of concerns. External code should not need to manage batches or remember network features, this is
+that the agent is for. Conversely, an agent need not concern itself with how a model is implemented and the API should facilitate
+easy combination of different agents and models.
     
 There are other tasks a runner could implement, such as `preprocessing <preprocessing.rst>`__, repeating actions and storing episode rewards.
 

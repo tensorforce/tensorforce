@@ -106,7 +106,9 @@ Uses all `general parameters <#RLAgent>`__ and all parameters from the
 PGAgent
 -------
 
-Policy Gradient base agent and model. The agent collects experiences until conditions for an update are satisfied and then passes these to an updater. `PGAgent` inherits from `RLAgent`.
+Policy Gradient base agent and model. The agent collects experiences until conditions for an update are satisfied and then passes these to an updater. In particular,
+the PGAgent internally manages the batching process so users do not have to.
+`PGAgent` inherits from `RLAgent`.
 
 
 Parameters:

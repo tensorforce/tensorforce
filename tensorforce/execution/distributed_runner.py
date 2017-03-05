@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 """
 Coordinator for running distributed tensorflow. Starts multiple worker processes, which
-themselves use execution classes. Runners can be threaded for realtime usage (e.g. OpenAI universe)
-"""
+themselves use execution classes. Currently to be used in conjunction with the thread runner for
+OpenAI universe. More generic distributed API coming.
 
+"""
 from copy import deepcopy
 from multiprocessing import Process
 import time

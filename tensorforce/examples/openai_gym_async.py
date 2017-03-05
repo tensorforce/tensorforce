@@ -40,7 +40,7 @@ def main():
     parser.add_argument('-e', '--global-steps', type=int, default=1000000, help="Total number of steps")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-l', '--local-steps', type=int, default=20, help="Maximum number of local steps before update")
-    parser.add_argument('-w', '--num-workers', type=int, default=2, help="Number of worker agents")
+    parser.add_argument('-w', '--num-workers', type=int, default=1, help="Number of worker agents")
 
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")

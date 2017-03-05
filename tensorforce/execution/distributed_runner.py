@@ -72,16 +72,22 @@ class DistributedRunner(object):
         """
         Creates and starts worker processes and parameter servers.
         """
+        self.processes = []
+
         for index in range(self.n_param_servers):
             process = Process(target=process_worker,
                               args=(self, index, self.global_steps,
                                     self.max_episode_steps, self.local_steps, True))
+            self.processes.append(process)
+
             process.start()
 
         for index in range(self.n_agents):
             process = Process(target=process_worker,
                               args=(self, index, self.global_steps,
                                     self.max_episode_steps, self.local_steps, False))
+            self.processes.append(process)
+
             process.start()
 
 

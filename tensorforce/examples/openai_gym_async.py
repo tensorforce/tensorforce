@@ -40,6 +40,7 @@ def main():
     parser.add_argument('-e', '--global-steps', type=int, default=1000000, help="Total number of steps")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-l', '--local-steps', type=int, default=20, help="Maximum number of local steps before update")
+    parser.add_argument('-w', '--num-workers', type=int, default=2, help="Number of worker agents")
 
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
@@ -72,7 +73,7 @@ def main():
     print("Config:")
     print(config)
 
-    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=1, n_param_servers=1,
+    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=args.num_workers, n_param_servers=1,
                                environment=env, global_steps=args.global_steps, max_episode_steps=args.max_timesteps,
                                preprocessor=stack, repeat_actions=args.repeat_actions, local_steps=args.local_steps)
     runner.run()

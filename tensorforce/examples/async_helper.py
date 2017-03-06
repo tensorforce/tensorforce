@@ -14,19 +14,10 @@
 # ==============================================================================
 
 """
-OpenAI gym execution
+Creates the cmd line call for the distributed starter, which is necessary due to TensorFlow not supporting multiprocessing.
 """
-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
 import argparse
-
-from tensorforce.config import Config, create_config
-from tensorforce.execution.distributed_runner import DistributedRunner
-from tensorforce.external.openai_gym import OpenAIGymEnvironment
-from tensorforce.util.experiment_util import build_preprocessing_stack
-
+import os
 
 def main():
     parser = argparse.ArgumentParser()
@@ -49,37 +40,8 @@ def main():
 
     args = parser.parse_args()
 
-    env = OpenAIGymEnvironment(args.gym_id)
+    #TODO create cmds, pass through config
 
-    config = Config({
-        'repeat_actions': 1,
-        'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape
-    })
-
-    if args.agent_config:
-        config.read_json(args.agent_config)
-    if args.network_config:
-        config.read_json(args.network_config)
-
-    preprocessing_config = config.get('preprocessing')
-
-    if preprocessing_config:
-        stack = build_preprocessing_stack(preprocessing_config)
-        config.state_shape = stack.shape(config.state_shape)
-    else:
-        stack = None
-
-    print("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
-    print("Config:")
-    print(config)
-
-    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=args.num_workers, n_param_servers=1,
-                               environment=env, global_steps=args.global_steps, max_episode_steps=args.max_timesteps,
-                               preprocessor=stack, repeat_actions=args.repeat_actions, local_steps=args.local_steps,
-                               task_index=args.task_index, is_ps=(args.is_ps == 1))
-    runner.run()
 
 
 if __name__ == '__main__':

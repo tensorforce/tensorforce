@@ -16,6 +16,8 @@
 """
 Creates the cmd line call for the distributed starter, which is necessary due to TensorFlow not supporting multiprocessing.
 """
+from six.moves import xrange
+
 import argparse
 import os
 
@@ -36,12 +38,19 @@ def main():
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     parser.add_argument('-i', '--task_index', default=0, help="Task index")
-    parser.add_argument('-p', '--is_ps', default=0, help="Is param server")
 
     args = parser.parse_args()
 
-    #TODO create cmds, pass through config
+    #TODO create one call for worker, parameter server, also kill old grpcs
+    cmds = ""
+    for i in xrange(args.num_workers):
+        cmds += "python openai_gym_async.py Pong-ram-v0 -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json" \
+                " -w " + str(args.num_workers) + " -i" + str(i) + " -p 0 && "
 
+    # add one PS call
+    cmds += "python openai_gym_async.py Pong-ram-v0 -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json" \
+            " -w " + str(args.num_workers) + " -i 0 -p 1"
+    os.system("\n".join(cmds))
 
 
 if __name__ == '__main__':

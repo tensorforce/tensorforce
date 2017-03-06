@@ -44,6 +44,9 @@ def main():
 
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
+    parser.add_argument('-i', '--task_index', default=0, help="Task index")
+    parser.add_argument('-p', '--is_ps', default=0, help="Is param server")
+
 
     args = parser.parse_args()
 
@@ -75,7 +78,8 @@ def main():
 
     runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=args.num_workers, n_param_servers=1,
                                environment=env, global_steps=args.global_steps, max_episode_steps=args.max_timesteps,
-                               preprocessor=stack, repeat_actions=args.repeat_actions, local_steps=args.local_steps)
+                               preprocessor=stack, repeat_actions=args.repeat_actions, local_steps=args.local_steps,
+                               task_index=args.task_index, is_ps=(args.is_ps == 1))
     runner.run()
 
 

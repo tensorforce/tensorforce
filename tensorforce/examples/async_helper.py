@@ -18,6 +18,8 @@ Creates the cmd line call for the distributed starter, which is necessary due to
 """
 from six.moves import xrange
 
+import sys
+import inspect
 import argparse
 import os
 
@@ -41,16 +43,36 @@ def main():
 
     args = parser.parse_args()
 
+    this_dir = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
+    target_script = os.path.join(this_dir, 'openai_gym_async.py')
+    def build_cmd(index, parameter_server):
+        cmd_args = [sys.executable, target_script,
+                args.gym_id,
+                '--agent-config', os.path.join(os.getcwd(), args.agent_config),
+                '--network-config', os.path.join(os.getcwd(), args.network_config),
+                '--num-workers', args.num_workers,
+                '--task_index', index,
+                '--is_ps', parameter_server
+                ]
+        print(cmd_args)
+        return cmd_args
+
+
     #TODO create one call for worker, parameter server, also kill old grpcs
-    cmds = ""
+    cmds = []
     for i in xrange(args.num_workers):
-        cmds += "python openai_gym_async.py Pong-ram-v0 -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json" \
-                " -w " + str(args.num_workers) + " -i" + str(i) + " -p 0 && "
+        cmds.append(build_cmd(i, 0))
+        # cmds += "python openai_gym_async.py Pong-ram-v0 -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json" \
+        #         " -w " + str(args.num_workers) + " -i" + str(i) + " -p 0 && "
 
     # add one PS call
-    cmds += "python openai_gym_async.py Pong-ram-v0 -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json" \
-            " -w " + str(args.num_workers) + " -i 0 -p 1"
-    os.system("\n".join(cmds))
+    cmds.append(build_cmd(0, 1))
+    # cmds += "python openai_gym_async.py Pong-ram-v0 -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json" \
+    #         " -w " + str(args.num_workers) + " -i 0 -p 1"
+
+    print(cmds)
+
+    # os.system("\n".join(cmds))
 
 
 if __name__ == '__main__':

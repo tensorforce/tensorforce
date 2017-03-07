@@ -20,7 +20,13 @@ OpenAI gym execution
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+
+import os
+import sys
+import inspect
 import argparse
+
+from six.moves import xrange, shlex_quote
 
 from tensorforce.config import Config, create_config
 from tensorforce.execution.distributed_runner import DistributedRunner
@@ -41,13 +47,65 @@ def main():
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-l', '--local-steps', type=int, default=20, help="Maximum number of local steps before update")
     parser.add_argument('-w', '--num-workers', type=int, default=1, help="Number of worker agents")
-
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
-    parser.add_argument('-i', '--task_index', default=0, help="Task index")
-    parser.add_argument('-p', '--is_ps', default=0, help="Is param server")
+    parser.add_argument('-C', '--is-child', action='store_true', default=False)
+    parser.add_argument('-i', '--task_index', type=int, default=0, help="Task index")
+    parser.add_argument('-p', '--is_ps', type=int, default=0, help="Is param server")
+    parser.add_argument('-K', '--kill', action='store_true', default=False, help="Kill runners")
 
     args = parser.parse_args()
+
+    session_name = 'openai_async'
+    shell = '/bin/bash'
+
+    kill_cmds = [
+        "kill $( lsof -i:12222-{} -t ) > /dev/null 2>&1".format(12222 + args.num_workers),
+        "tmux kill-session -t {}".format(session_name),
+    ]
+    if args.kill:
+        os.system("\n".join(kill_cmds))
+        return 0
+
+    if not args.is_child:
+        # start up child processes
+        target_script = os.path.abspath(inspect.stack()[0][1])
+
+        def wrap_cmd(session, name, cmd):
+            if isinstance(cmd, list):
+                cmd = ' '.join(shlex_quote(str(arg)) for arg in cmd)
+            return "tmux send-keys -t {}:{} {} Enter".format(session, name, shlex_quote(cmd))
+
+        def build_cmd(index, parameter_server):
+            cmd_args = [sys.executable, target_script,
+                        args.gym_id,
+                        '--is-child',
+                        '--agent-config', os.path.join(os.getcwd(), args.agent_config),
+                        '--network-config', os.path.join(os.getcwd(), args.network_config),
+                        '--num-workers', args.num_workers,
+                        '--task_index', index,
+                        '--is_ps', parameter_server
+                        ]
+
+            return cmd_args
+
+        cmds = kill_cmds + ["tmux new-session -d -s {}".format(session_name)]
+
+        for i in xrange(args.num_workers):
+            name = 'w_{}'.format(i)
+            cmds += ["tmux new-window -t {} -n {} -d {}".format(session_name, name, shell)]
+            cmds.append(wrap_cmd(session_name, name, build_cmd(i, 0)))
+
+        # add one PS call
+        name = 'ps'
+        cmds += ["tmux new-window -t {} -n {} -d {}".format(session_name, name, shell)]
+        cmds.append(wrap_cmd(session_name, name, build_cmd(0, 1)))
+
+        print("\n".join(cmds))
+        os.system("\n".join(cmds))
+
+        return 0
+
 
     env = OpenAIGymEnvironment(args.gym_id)
 

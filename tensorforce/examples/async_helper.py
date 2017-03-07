@@ -14,19 +14,12 @@
 # ==============================================================================
 
 """
-OpenAI gym execution
+Creates the cmd line call for the distributed starter, which is necessary due to TensorFlow not supporting multiprocessing.
 """
+from six.moves import xrange
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
 import argparse
-
-from tensorforce.config import Config, create_config
-from tensorforce.execution.distributed_runner import DistributedRunner
-from tensorforce.external.openai_gym import OpenAIGymEnvironment
-from tensorforce.util.experiment_util import build_preprocessing_stack
-
+import os
 
 def main():
     parser = argparse.ArgumentParser()
@@ -45,41 +38,19 @@ def main():
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     parser.add_argument('-i', '--task_index', default=0, help="Task index")
-    parser.add_argument('-p', '--is_ps', default=0, help="Is param server")
 
     args = parser.parse_args()
 
-    env = OpenAIGymEnvironment(args.gym_id)
+    #TODO create one call for worker, parameter server, also kill old grpcs
+    cmds = ""
+    for i in xrange(args.num_workers):
+        cmds += "python openai_gym_async.py Pong-ram-v0 -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json" \
+                " -w " + str(args.num_workers) + " -i" + str(i) + " -p 0 && "
 
-    config = Config({
-        'repeat_actions': 1,
-        'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape
-    })
-
-    if args.agent_config:
-        config.read_json(args.agent_config)
-    if args.network_config:
-        config.read_json(args.network_config)
-
-    preprocessing_config = config.get('preprocessing')
-
-    if preprocessing_config:
-        stack = build_preprocessing_stack(preprocessing_config)
-        config.state_shape = stack.shape(config.state_shape)
-    else:
-        stack = None
-
-    print("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
-    print("Config:")
-    print(config)
-
-    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=args.num_workers, n_param_servers=1,
-                               environment=env, global_steps=args.global_steps, max_episode_steps=args.max_timesteps,
-                               preprocessor=stack, repeat_actions=args.repeat_actions, local_steps=args.local_steps,
-                               task_index=args.task_index, is_ps=(args.is_ps == 1))
-    runner.run()
+    # add one PS call
+    cmds += "python openai_gym_async.py Pong-ram-v0 -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json" \
+            " -w " + str(args.num_workers) + " -i 0 -p 1"
+    os.system("\n".join(cmds))
 
 
 if __name__ == '__main__':

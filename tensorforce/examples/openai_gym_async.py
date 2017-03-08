@@ -38,6 +38,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="ID of the gym environment")
+    # Currently does not do anything since we don't have the distributed API for all models yet
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file",
                         default='examples/configs/dqn_agent.json')

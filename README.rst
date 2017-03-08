@@ -1,4 +1,4 @@
-*TensorForce - modular deep reinforcement learning on tensorflow by reinforce.io*
+*TensorForce - modular deep reinforcement learning with tensorflow by reinforce.io*
 =================================================================================
 
 Introduction
@@ -25,14 +25,14 @@ TensorForce is actively being maintained and developed both to
 continuously improve the existing code as well as to reflect new
 developments as they arise (see road map for more). The aim is not to
 include every new trick but to adopt methods as
-they prove themselves stable, e.g. as of early 2017 A3C and TRPO
-variants are the basis of a lot of research. We also offer TensorForce
+they prove themselves stable, e.g. as of early 2017 hybrid A3C and TRPO
+variants provide the basis for a lot of research. We also offer TensorForce
 support through our Gitter channel.
 
 Acknowledgements
 ----------------
 
-The goal of TensorForce is not to re-implement existing algorithms, but
+The goal of TensorForce is not just to re-implement existing algorithms, but
 to provide clear APIs and modularisations, and later provide serving,
 integration and deployment components. The credit for original open
 source implementations, which we have adopted and modified into our
@@ -50,9 +50,9 @@ Features
 
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
 Universe and DeepMind lab. The following algorithms are available: 1.
-A3C 2. Trust Region Policy Optimization (TRPO) with generalised
-advantage estimation (GAE) 3. Normalised Advantage functions 4.
-DQN/Double-DQN 5. Vanilla Policy Gradients (also using GAE)
+A3C using distributed TF 2. Trust Region Policy Optimization (TRPO) with generalised
+advantage estimation (GAE) 3. Normalised Advantage functions (NAFs) 4.
+DQN/Double-DQN 5. Vanilla Policy Gradients
 
 Installation
 ------------
@@ -86,17 +86,19 @@ TensorForce is still in alpha and hence continuously being updated.
 Contributions are always welcome! We will use github issues to track
 development. We ask that contributions integrate within the general code
 style and architecture. For larger features it might be sensible to join
-our Gitter chat or drop us an email to coordinate development. The
-larger roadmap looks as follows:
+our Gitter chat or drop us an email to coordinate development. There is a very long list of
+features, algorithms and infrastructure that we want to add over time and
+we will prioritise this depending on our own research, community requests and contributions. The
+larger road-map looks as follows:
 
-1. Improve policy gradient internal state management and configurable
-   policies
-2. Execution configuration that abstracts away TensorFlow device
-   configurations
-3. Generic parallelisation/multi-threaded API
-4. Hybrid A3C/policy gradient algorithms - not clear yet which
+1. More generic distributed/multi-threaded API
+2. Hybrid A3C/policy gradient algorithms - not clear yet which
    combination method will work best, but a number of papers showcasing
    different approaches have been accepted to ICLR 2017.
+3. A sub-task API. An important topic in current research is to decompose a larger tasks into
+a hierarchy of subtasks. Implementing this in an easily configurable way for end-users
+will not be trivial and it might us take some time to get it right.
+4. Transfer learning architectures (e.g. progressive neural networks, pathnet, ..).
 5. RL serving components. TensorFlow serving can serve trained models but
    is not suitable to manage RL lifecycles.
 
@@ -105,7 +107,7 @@ Support and contact
 
 tensorforce is maintained by reinforce.io, a new project focused on
 providing open source reinforcement learning infrastructure. For any
-questions or support, get in touch at contact@reinforce.io
+questions or support, get in touch at contact@reinforce.io.
 
 You are also welcome to join our Gitter channel for help with using
 TensorForce, bugs or contributions:

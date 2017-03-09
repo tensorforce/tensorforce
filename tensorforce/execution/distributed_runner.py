@@ -93,8 +93,7 @@ class DistributedRunner(object):
             worker_agent = DistributedAgent(self.agent_config, scope, self.task_index, cluster)
 
             def init_fn(sess):
-                # sess.run(worker_agent.model.init_op)
-                sess.run(tf.global_variables_initializer())
+                sess.run(worker_agent.model.init_op)
 
             config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(self.task_index)])
 

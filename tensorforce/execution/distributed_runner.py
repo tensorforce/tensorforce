@@ -102,7 +102,7 @@ class DistributedRunner(object):
                                              global_step=worker_agent.model.global_step,
                                              init_op=tf.global_variables_initializer(),
                                              init_fn=init_fn,
-                                             ready_op=None,
+                                             # ready_op=None,
                                              saver=worker_agent.model.saver,
                                              summary_op=tf.summary.merge_all(),
                                              summary_writer=worker_agent.model.summary_writer)

@@ -93,7 +93,8 @@ class DistributedRunner(object):
             worker_agent = DistributedAgent(self.agent_config, scope, self.task_index, cluster)
 
             def init_fn(sess):
-                sess.run(worker_agent.model.init_op)
+                # sess.run(worker_agent.model.init_op)
+                sess.run(tf.global_variables_initializer())
 
             config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(self.task_index)])
 
@@ -103,7 +104,7 @@ class DistributedRunner(object):
             supervisor = tf.train.Supervisor(is_chief=(self.task_index == 0),
                                              logdir="/tmp/train_logs",
                                              global_step=worker_agent.model.global_step,
-                                             init_op=init_op, # tf.global_variables_initializer(),
+                                             init_op=init_op,
                                              init_fn=init_fn,
                                              ready_op=tf.report_uninitialized_variables(variables_to_save),
                                              saver=worker_agent.model.saver,

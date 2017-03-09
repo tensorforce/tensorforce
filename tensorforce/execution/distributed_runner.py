@@ -122,7 +122,6 @@ class DistributedRunner(object):
 
             with supervisor.managed_session(server.target, config=config) as session, session.as_default():
                 print('Established session, starting runner..')
-                worker_agent.set_session(session)
                 session.run(worker_agent.model.assign_global_to_local)
 
                 runner.start_thread(session)

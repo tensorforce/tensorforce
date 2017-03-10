@@ -34,6 +34,7 @@ class ThreadRunner(Thread):
     def __init__(self, agent, environment, max_episode_steps, local_steps, preprocessor=None,
                  repeat_actions=1):
         super(ThreadRunner, self).__init__()
+        self.daemon = True
         self.experience_queue = queue.Queue(5)
 
         self.agent = agent

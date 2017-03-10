@@ -102,6 +102,9 @@ class DistributedRunner(object):
 
             config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(self.task_index)])
 
+            if self.task_index == 0:
+                tf.reset_default_graph()
+
             supervisor = tf.train.Supervisor(is_chief=(self.task_index == 0),
                                              logdir="/tmp/train_logs",
                                              global_step=worker_agent.model.global_step,

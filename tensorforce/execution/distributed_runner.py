@@ -85,13 +85,14 @@ class DistributedRunner(object):
         else:
             # Worker creates runner for execution
             scope = 'worker_' + str(self.task_index)
-
+            print('Creating server')
             server = tf.train.Server(cluster, job_name='worker', task_index=self.task_index,
                                      config=tf.ConfigProto(intra_op_parallelism_threads=1,
                                                            inter_op_parallelism_threads=2,
                                                            log_device_placement=True))
-
+            print('Created server')
             worker_agent = DistributedAgent(self.agent_config, scope, self.task_index, cluster)
+            print('Created agent')
 
             variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
             init_op = tf.variables_initializer(variables_to_save)

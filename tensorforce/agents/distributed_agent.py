@@ -48,7 +48,7 @@ class DistributedAgent(object):
         self.model = DistributedModel(config, scope, task_index, cluster_spec)
 
     def increment_global_step(self):
-        self.model.get_global_step()
+        return self.model.get_global_step()
 
     def update(self):
         """

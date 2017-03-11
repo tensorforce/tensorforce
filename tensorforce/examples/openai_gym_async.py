@@ -51,8 +51,8 @@ def main():
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     parser.add_argument('-C', '--is-child', action='store_true', default=False)
-    parser.add_argument('-i', '--task_index', type=int, default=0, help="Task index")
-    parser.add_argument('-p', '--is_ps', type=int, default=0, help="Is param server")
+    parser.add_argument('-i', '--task-index', type=int, default=0, help="Task index")
+    parser.add_argument('-p', '--is-ps', type=int, default=0, help="Is param server")
     parser.add_argument('-K', '--kill', action='store_true', default=False, help="Kill runners")
 
     args = parser.parse_args()
@@ -75,7 +75,7 @@ def main():
         def wrap_cmd(session, name, cmd):
             if isinstance(cmd, list):
                 cmd = ' '.join(shlex_quote(str(arg)) for arg in cmd)
-            return "tmux send-keys -t {}:{} {} Enter".format(session, name, shlex_quote(cmd))
+            return 'tmux send-keys -t {}:{} {} Enter'.format(session, name, shlex_quote(cmd))
 
         def build_cmd(index, parameter_server):
             cmd_args = [sys.executable, target_script,
@@ -84,23 +84,23 @@ def main():
                         '--agent-config', os.path.join(os.getcwd(), args.agent_config),
                         '--network-config', os.path.join(os.getcwd(), args.network_config),
                         '--num-workers', args.num_workers,
-                        '--task_index', index,
-                        '--is_ps', parameter_server
+                        '--task-index', index,
+                        '--is-ps', parameter_server
                         ]
 
             return cmd_args
 
-        cmds = kill_cmds + ["tmux new-session -d -s {}".format(session_name)]
+        cmds = kill_cmds + ['tmux new-session -d -s {} -n ps'.format(session_name)]
+        cmds.append(wrap_cmd(session_name, 'ps', build_cmd(0, 1)))
 
         for i in xrange(args.num_workers):
             name = 'w_{}'.format(i)
-            cmds += ["tmux new-window -t {} -n {} -d {}".format(session_name, name, shell)]
+            cmds.append('tmux new-window -t {} -n {} -d {}'.format(session_name, name, shell))
             cmds.append(wrap_cmd(session_name, name, build_cmd(i, 0)))
 
+
         # add one PS call
-        name = 'ps'
-        cmds += ["tmux new-window -t {} -n {} -d {}".format(session_name, name, shell)]
-        cmds.append(wrap_cmd(session_name, name, build_cmd(0, 1)))
+        # cmds.append('tmux new-window -t {} -n ps -d {}'.format(session_name, shell))
 
         print("\n".join(cmds))
         os.system("\n".join(cmds))

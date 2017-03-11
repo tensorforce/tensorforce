@@ -72,7 +72,7 @@ class DistributedRunner(object):
         """
 
         # Redirect process output
-        sys.stdout = open('tf_worker_' + str(self.task_index) + '.txt', 'w')
+        # sys.stdout = open('tf_worker_' + str(self.task_index) + '.txt', 'w', 0)
         cluster = self.cluster_spec.as_cluster_def()
 
         if self.is_ps:
@@ -111,11 +111,11 @@ class DistributedRunner(object):
                                   repeat_actions=self.repeat_actions)
 
             # Connecting to parameter server
-            print('Connecting to session..')
-            print('Server target = ' + str(server.target))
+            print('Connecting to session..', flush=True)
+            print('Server target = ' + str(server.target), flush=True)
 
             with supervisor.managed_session(server.target, config=config) as session, session.as_default():
-                print('Established session, starting runner..')
+                print('Established session, starting runner..', flush=True)
 
                 runner.start_thread(session)
                 global_step_count = worker_agent.increment_global_step()
@@ -124,7 +124,7 @@ class DistributedRunner(object):
                     runner.update()
                     global_step_count = worker_agent.increment_global_step()
 
-            print('Stopping supervisor')
+            print('Stopping supervisor', flush=True)
             supervisor.stop()
 
 

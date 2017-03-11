@@ -104,7 +104,7 @@ will not be trivial and it might us take some time to get it right.
 Support and contact
 -------------------
 
-tensorforce is maintained by reinforce.io, a new project focused on
+TensorForce is maintained by reinforce.io, a new project focused on
 providing open source reinforcement learning infrastructure. For any
 questions or support, get in touch at contact@reinforce.io.
 

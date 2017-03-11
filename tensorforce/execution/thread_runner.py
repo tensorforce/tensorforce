@@ -51,9 +51,10 @@ class ThreadRunner(Thread):
         """
         Starts threaded execution of environment execution.
         """
-        self.agent.set_session(session)
+        with session.as_default():
+            self.agent.set_session(session)
 
-        self.start()
+            self.start()
 
     def run(self):
         print('Starting thread runner..')
@@ -66,6 +67,7 @@ class ThreadRunner(Thread):
         """
         Queued thread executor.
         """
+
         self.episode_rewards = []
         state = self.environment.reset()
 

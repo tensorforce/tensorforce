@@ -65,6 +65,7 @@ class DistributedRunner(object):
         self.cluster_spec = tf.train.ClusterSpec(cluster)
 
 
+
     def run(self):
         """
         Process execution loop.

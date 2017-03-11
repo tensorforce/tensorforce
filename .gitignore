@@ -5,3 +5,4 @@
 /logs/*
 /tensorforce/logs/*
 /tensorforce_0.12
+/log_*

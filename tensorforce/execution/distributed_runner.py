@@ -95,6 +95,8 @@ class DistributedRunner(object):
             print('Created agent')
 
             variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
+            print([v.name for v in tf.global_variables()])
+            print([v.name for v in variables_to_save])
             init_op = tf.variables_initializer(variables_to_save)
             init_all_op = tf.global_variables_initializer()
 
@@ -110,9 +112,9 @@ class DistributedRunner(object):
                                              init_op=init_op,
                                              init_fn=init_fn,
                                              ready_op=tf.report_uninitialized_variables(variables_to_save),
-                                             saver=worker_agent.model.saver,
-                                             summary_op=tf.summary.merge_all(),
-                                             summary_writer=worker_agent.model.summary_writer)
+                                             saver=worker_agent.model.saver)
+                                             # summary_op=tf.summary.merge_all(),
+                                             # summary_writer=worker_agent.model.summary_writer)
 
             runner = ThreadRunner(worker_agent, deepcopy(self.environment),
                                   self.max_episode_steps, self.local_steps, preprocessor=self.preprocessor,

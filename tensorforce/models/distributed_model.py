@@ -51,6 +51,7 @@ class DistributedModel(object):
         self.saver = None
         self.config = create_config(config, default=self.default_config)
         self.scope = scope
+        self.task_index = task_index
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
         self.use_gae = self.config.use_gae
@@ -82,18 +83,27 @@ class DistributedModel(object):
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
 
-        optimizer = config.get('optimizer')
+                self.global_prev_action_means = tf.placeholder(tf.float32, [None, self.action_count], name='prev_actions')
 
-        # TODO write summaries
-        self.summary_writer = tf.summary.FileWriter('log' + "_%d" % task_index)
+                if self.continuous:
+                    self.global_policy = GaussianPolicy(self.global_network, self.session, self.global_state, self.random,
+                                                 self.action_count, 'gaussian_policy')
+                    self.global_prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
 
-        if not optimizer:
-            self.optimizer = tf.train.AdamOptimizer(self.alpha)
-        else:
-            args = config.get('optimizer_args', [])
-            kwargs = config.get('optimizer_kwargs', {})
-            optimizer_cls = get_function(optimizer)
-            self.optimizer = optimizer_cls(self.alpha, *args, **kwargs)
+                    self.global_prev_dist = dict(policy_output=self.global_prev_action_means,
+                                          policy_log_std=self.global_prev_action_log_stds)
+
+                else:
+                    self.global_policy = CategoricalOneHotPolicy(self.global_network, self.session, self.global_state, self.random,
+                                                          self.action_count, 'categorical_policy')
+                    self.global_prev_dist = dict(policy_output=self.global_prev_action_means)
+
+                # Probability distribution used in the current policy
+                self.global_baseline_value_function = LinearValueFunction()
+
+        self.optimizer = config.get('optimizer')
+        self.optimizer_args = config.get('optimizer_args', [])
+        self.optimizer_kwargs = config.get('optimizer_kwargs', {})
 
         exploration = config.get('exploration')
         if not exploration:
@@ -125,30 +135,30 @@ class DistributedModel(object):
             with tf.variable_scope("local"):
                 self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
                                             name="state")
+                self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count], name='prev_actions')
 
                 self.local_network = NeuralNetwork(self.config.network_layers, self.state)
                 # TODO possibly problematic, check
                 self.local_step = self.global_step
 
+                if self.continuous:
+                    self.policy = GaussianPolicy(self.local_network, self.session, self.state, self.random,
+                                                 self.action_count, 'gaussian_policy')
+                    self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
+
+                    self.prev_dist = dict(policy_output=self.prev_action_means,
+                                          policy_log_std=self.prev_action_log_stds)
+
+                else:
+                    self.policy = CategoricalOneHotPolicy(self.local_network, self.session, self.state, self.random,
+                                                          self.action_count, 'categorical_policy')
+                    self.prev_dist = dict(policy_output=self.prev_action_means)
+
+                # Probability distribution used in the current policy
+                self.baseline_value_function = LinearValueFunction()
+
             self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
             self.advantage = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
-            self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count], name='prev_actions')
-
-            if self.continuous:
-                self.policy = GaussianPolicy(self.local_network, self.session, self.state, self.random,
-                                             self.action_count, 'gaussian_policy')
-                self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
-
-                self.prev_dist = dict(policy_output=self.prev_action_means,
-                                      policy_log_std=self.prev_action_log_stds)
-
-            else:
-                self.policy = CategoricalOneHotPolicy(self.local_network, self.session, self.state, self.random,
-                                                      self.action_count, 'categorical_policy')
-                self.prev_dist = dict(policy_output=self.prev_action_means)
-
-            # Probability distribution used in the current policy
-            self.baseline_value_function = LinearValueFunction()
 
             self.dist = self.policy.get_distribution()
             self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
@@ -165,6 +175,15 @@ class DistributedModel(object):
             self.assign_global_to_local = tf.group(*[v1.assign(v2) for v1, v2 in
                                                      zip(self.local_network.get_variables(),
                                                          self.global_network.get_variables())])
+
+            # TODO write summaries
+            # self.summary_writer = tf.summary.FileWriter('log' + "_%d" % self.task_index)
+            if not self.optimizer:
+                self.optimizer = tf.train.AdamOptimizer(self.alpha)
+
+            else:
+                optimizer_cls = get_function(self.optimizer)
+                self.optimizer = optimizer_cls(self.alpha, *self.optimizer_args, **self.optimizer_kwargs)
 
             self.optimize_op = tf.group(self.optimizer.apply_gradients(grad_var_list),
                                      global_step_inc)

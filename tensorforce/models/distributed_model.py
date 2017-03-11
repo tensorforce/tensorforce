@@ -69,7 +69,7 @@ class DistributedModel(object):
         self.batch_shape = [None]
         self.deterministic_mode = config.get('deterministic_mode', False)
         self.alpha = config.get('alpha', 0.001)
-        self.init_op = tf.global_variables_initializer()
+        # self.init_op = tf.global_variables_initializer()
 
         self.worker_device = "/job:worker/task:{}/cpu:0".format(task_index)
 

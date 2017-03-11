@@ -34,6 +34,7 @@ class ThreadRunner(Thread):
     def __init__(self, agent, environment, max_episode_steps, local_steps, preprocessor=None,
                  repeat_actions=1):
         super(ThreadRunner, self).__init__()
+        self.daemon = True
         self.experience_queue = queue.Queue(5)
 
         self.agent = agent
@@ -50,9 +51,10 @@ class ThreadRunner(Thread):
         """
         Starts threaded execution of environment execution.
         """
-        self.agent.set_session(session)
+        with session.as_default():
+            self.agent.set_session(session)
 
-        self.start()
+            self.start()
 
     def run(self):
         print('Starting thread runner..')
@@ -65,6 +67,7 @@ class ThreadRunner(Thread):
         """
         Queued thread executor.
         """
+
         self.episode_rewards = []
         state = self.environment.reset()
 

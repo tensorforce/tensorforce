@@ -65,6 +65,7 @@ class DistributedRunner(object):
         self.cluster_spec = tf.train.ClusterSpec(cluster)
 
 
+
     def run(self):
         """
         Process execution loop.
@@ -84,24 +85,31 @@ class DistributedRunner(object):
         else:
             # Worker creates runner for execution
             scope = 'worker_' + str(self.task_index)
-
+            print('Creating server')
             server = tf.train.Server(cluster, job_name='worker', task_index=self.task_index,
                                      config=tf.ConfigProto(intra_op_parallelism_threads=1,
                                                            inter_op_parallelism_threads=2,
                                                            log_device_placement=True))
-
+            print('Created server')
             worker_agent = DistributedAgent(self.agent_config, scope, self.task_index, cluster)
+            print('Created agent')
+
+            variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
+            init_op = tf.variables_initializer(variables_to_save)
+            init_all_op = tf.global_variables_initializer()
 
             def init_fn(sess):
-                sess.run(worker_agent.model.init_op)
+                # sess.run(worker_agent.model.init_op)
+                sess.run(init_all_op)
 
             config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(self.task_index)])
 
             supervisor = tf.train.Supervisor(is_chief=(self.task_index == 0),
                                              logdir="/tmp/train_logs",
                                              global_step=worker_agent.model.global_step,
-                                             init_op=tf.global_variables_initializer(),
+                                             init_op=init_op,
                                              init_fn=init_fn,
+                                             ready_op=tf.report_uninitialized_variables(variables_to_save),
                                              saver=worker_agent.model.saver,
                                              summary_op=tf.summary.merge_all(),
                                              summary_writer=worker_agent.model.summary_writer)
@@ -116,6 +124,7 @@ class DistributedRunner(object):
 
             with supervisor.managed_session(server.target, config=config) as session, session.as_default():
                 print('Established session, starting runner..', flush=True)
+                session.run(worker_agent.model.assign_global_to_local)
 
                 runner.start_thread(session)
                 global_step_count = worker_agent.increment_global_step()

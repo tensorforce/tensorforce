@@ -78,7 +78,8 @@ def main():
             return 'tmux send-keys -t {}:{} {} Enter'.format(session, name, shlex_quote(cmd))
 
         def build_cmd(index, parameter_server):
-            cmd_args = [sys.executable, target_script,
+            cmd_args = ['CUDA_VISIBLE_DEVICES=',
+                        sys.executable, target_script,
                         args.gym_id,
                         '--is-child',
                         '--agent-config', os.path.join(os.getcwd(), args.agent_config),

@@ -89,23 +89,22 @@ style and architecture. For larger features it might be sensible to join
 our Gitter chat or drop us an email to coordinate development. There is a very long list of
 features, algorithms and infrastructure that we want to add over time and
 we will prioritise this depending on our own research, community requests and contributions. The
-larger road-map looks as follows:
+larger road-map of things we would like to have (in no particular order) looks as follows:
 
 1. More generic distributed/multi-threaded API
 2. Hybrid A3C/policy gradient algorithms - not clear yet which
    combination method will work best, but a number of papers showcasing
    different approaches have been accepted to ICLR 2017.
-3. A sub-task API. An important topic in current research is to decompose a larger tasks into
+3. A multi/sub-task API. An important topic in current research is to decompose a larger tasks into
 a hierarchy of subtasks. Implementing this in an easily configurable way for end-users
 will not be trivial and it might us take some time to get it right.
 4. Transfer learning architectures (e.g. progressive neural networks, pathnet, ..).
-5. RL serving components. TensorFlow serving can serve trained models but
-   is not suitable to manage RL lifecycles.
+5. RL serving components. TensorFlow serving can serve trained models but is not suitable to manage RL lifecycles.
 
 Support and contact
 -------------------
 
-tensorforce is maintained by reinforce.io, a new project focused on
+TensorForce is maintained by reinforce.io, a new project focused on
 providing open source reinforcement learning infrastructure. For any
 questions or support, get in touch at contact@reinforce.io.
 

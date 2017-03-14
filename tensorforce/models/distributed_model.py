@@ -122,6 +122,7 @@ class DistributedModel(object):
 
         # Session in policy was still 'None' when
         # we initialised policy, hence need to set again
+        self.global_policy.session = session
         self.policy.session = session
 
     def create_training_operations(self):

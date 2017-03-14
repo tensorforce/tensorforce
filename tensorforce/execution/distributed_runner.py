@@ -121,11 +121,11 @@ class DistributedRunner(object):
                                   repeat_actions=self.repeat_actions)
 
             # Connecting to parameter server
-            print('Connecting to session..', flush=True)
-            print('Server target = ' + str(server.target), flush=True)
+            print('Connecting to session..')
+            print('Server target = ' + str(server.target))
 
             with supervisor.managed_session(server.target, config=config) as session, session.as_default():
-                print('Established session, starting runner..', flush=True)
+                print('Established session, starting runner..')
                 session.run(worker_agent.model.assign_global_to_local)
 
                 runner.start_thread(session)
@@ -135,7 +135,7 @@ class DistributedRunner(object):
                     runner.update()
                     global_step_count = worker_agent.increment_global_step()
 
-            print('Stopping supervisor', flush=True)
+            print('Stopping supervisor')
             supervisor.stop()
 
 

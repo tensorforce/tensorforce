@@ -72,6 +72,8 @@ class DistributedModel(object):
         self.alpha = config.get('alpha', 0.001)
         # self.init_op = tf.global_variables_initializer()
 
+        self.optimizer = None
+
         self.worker_device = "/job:worker/task:{}/cpu:0".format(task_index)
 
         with tf.device(tf.train.replica_device_setter(1, worker_device=self.worker_device, cluster=cluster_spec)):
@@ -101,9 +103,9 @@ class DistributedModel(object):
                 # Probability distribution used in the current policy
                 self.global_baseline_value_function = LinearValueFunction()
 
-        self.optimizer = config.get('optimizer')
-        self.optimizer_args = config.get('optimizer_args', [])
-        self.optimizer_kwargs = config.get('optimizer_kwargs', {})
+            # self.optimizer = config.get('optimizer')
+            # self.optimizer_args = config.get('optimizer_args', [])
+            # self.optimizer_kwargs = config.get('optimizer_kwargs', {})
 
         exploration = config.get('exploration')
         if not exploration:
@@ -168,7 +170,7 @@ class DistributedModel(object):
 
             self.gradients = tf.gradients(self.loss, self.local_network.get_variables())
 
-            grad_var_list = list(zip(self.gradients, self.local_network.get_variables()))
+            grad_var_list = list(zip(self.gradients, self.global_network.get_variables()))
 
             global_step_inc = self.global_step.assign_add(self.batch_size)
 

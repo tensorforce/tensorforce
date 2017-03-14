@@ -95,14 +95,13 @@ class DistributedRunner(object):
             print('Created agent')
 
             variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
-            print([v.name for v in tf.global_variables()])
-            print([v.name for v in variables_to_save])
             init_op = tf.variables_initializer(variables_to_save)
+            local_init_op = tf.variables_initializer([v for v in tf.global_variables() if v.name.startswith("local")])
             init_all_op = tf.global_variables_initializer()
 
-            def init_fn(sess):
+            def init_fn(session):
                 # sess.run(worker_agent.model.init_op)
-                sess.run(init_all_op)
+                session.run(init_all_op)
 
             config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(self.task_index)])
 
@@ -110,6 +109,7 @@ class DistributedRunner(object):
                                              logdir="/tmp/train_logs",
                                              global_step=worker_agent.model.global_step,
                                              init_op=init_op,
+                                             local_init_op=local_init_op,
                                              init_fn=init_fn,
                                              ready_op=tf.report_uninitialized_variables(variables_to_save),
                                              saver=worker_agent.model.saver)

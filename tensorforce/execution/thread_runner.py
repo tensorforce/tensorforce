@@ -51,10 +51,9 @@ class ThreadRunner(Thread):
         """
         Starts threaded execution of environment execution.
         """
-        with session.as_default():
-            self.agent.set_session(session)
+        self.agent.set_session(session)
 
-            self.start()
+        self.start()
 
     def run(self):
         print('Starting thread runner..')

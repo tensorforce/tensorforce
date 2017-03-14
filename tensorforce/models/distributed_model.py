@@ -76,7 +76,7 @@ class DistributedModel(object):
 
         self.worker_device = "/job:worker/task:{}/cpu:0".format(task_index)
 
-        with tf.device(tf.train.replica_device_setter(1, worker_device=self.worker_device)):
+        with tf.device(tf.train.replica_device_setter(1, worker_device=self.worker_device, cluster=cluster_spec)):
             with tf.variable_scope("global"):
                 self.global_state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
                                                    name="global_state")
@@ -122,7 +122,6 @@ class DistributedModel(object):
 
         # Session in policy was still 'None' when
         # we initialised policy, hence need to set again
-        self.global_policy.session = session
         self.policy.session = session
 
     def create_training_operations(self):

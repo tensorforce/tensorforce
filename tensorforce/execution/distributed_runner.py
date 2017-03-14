@@ -65,7 +65,6 @@ class DistributedRunner(object):
         self.cluster_spec = tf.train.ClusterSpec(cluster)
 
 
-
     def run(self):
         """
         Process execution loop.
@@ -96,7 +95,7 @@ class DistributedRunner(object):
 
             variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
             init_op = tf.variables_initializer(variables_to_save)
-            local_init_op = tf.variables_initializer([v for v in tf.global_variables() if v.name.startswith("local")])
+            local_init_op = tf.variables_initializer(tf.local_variables() + [v for v in tf.global_variables() if v.name.startswith("local")])
             init_all_op = tf.global_variables_initializer()
 
             def init_fn(session):

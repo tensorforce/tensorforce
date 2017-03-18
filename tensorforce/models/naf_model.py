@@ -43,7 +43,7 @@ from tensorforce.default_configs import NAFModelConfig
 class NAFModel(Model):
     default_config = NAFModelConfig
 
-    def __init__(self, config, scope):
+    def __init__(self, config, scope, define_network=None):
         """
         Training logic for NAFs.
 
@@ -74,8 +74,12 @@ class NAFModel(Model):
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
-        self.training_model = NeuralNetwork(self.config.network_layers, self.state, scope=scope + 'training')
-        self.target_model = NeuralNetwork(self.config.network_layers, self.next_states, scope=scope + 'target')
+
+        if define_network is None:
+            define_network = NeuralNetwork.layered_network(self.config.network_layers)
+
+        self.training_model = NeuralNetwork(define_network, [self.state], scope=scope + 'training')
+        self.target_model = NeuralNetwork(define_network, [self.next_states], scope=scope + 'target')
 
         # Create output fields
         self.training_v, self.mu, self.advantage, self.q, self.training_output_vars = self.create_outputs(

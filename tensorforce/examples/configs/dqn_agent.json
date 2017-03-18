@@ -1,5 +1,5 @@
 {
-  "memory_capacity": 1e5,
+  "memory_capacity": 1e2,
   "batch_size": 32,
   "update_rate": 0.25,
   "update_repeat": 1,

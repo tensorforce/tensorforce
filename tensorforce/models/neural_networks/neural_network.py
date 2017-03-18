@@ -21,56 +21,64 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import Counter
+
 import tensorflow as tf
 
 from tensorforce.exceptions.tensorforce_exceptions import ConfigError
-from tensorforce.models.neural_networks.layers import layers
+from tensorforce.models.neural_networks.layers import layer_classes
 
 tf_slim = tf.contrib.slim
 
 
 class NeuralNetwork(object):
 
-    def __init__(self, network_layers, input_data, scope='value_function'):
+    def __init__(self, define_network, inputs, scope='value_function'):
         """
-        Creates a neural network according to the given config.
+        A neural network.
 
-        :param network_layers: Dict that describes a neural network layer wise
-        :param input_data: TF input placeholder
+        :param inputs: TF input placeholders
         :param scope: TF scope
         :return: A TensorFlow network
         """
-        self.layers = []
-        self.input = input_data
-        self.variables = None
-        self.scope = scope
 
         with tf.variable_scope(scope):
+            self.inputs = inputs
+            self.output = define_network(inputs)
+            self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=tf.get_variable_scope().name)
 
-            type_counter = {}
-
-            if not network_layers:
-                raise ConfigError("Invalid configuration, missing layer specification.")
-
-            layer = input_data  # for the first layer
-
-            for layer_config in network_layers:
-                layer_type = layer_config['type']
-
-                type_count = type_counter.get(layer_type, 0)
-                name = "{type}{num}".format(type=layer_type, num=type_count + 1)
-                type_counter.update({layer_type: type_count + 1})
-
-                layer = layers[layer_type](layer, layer_config, name)
-
-                self.layers.append(layer)
-
-            self.output = layer  # set output to last layer
-
-            self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
+    def get_inputs(self):
+        return self.inputs
 
     def get_output(self):
         return self.output
 
     def get_variables(self):
         return self.variables
+
+    @staticmethod
+    def layered_network(layers):
+        """
+        Returns a function defining a layered neural network according to the given configuration.
+
+        :param layers: Dict that describes a neural network layer-wise
+        :return: A function defining a TensorFlow network
+        """
+
+        if not layers:
+            raise ConfigError("Invalid configuration, missing layer specification.")
+
+        def define_network(inputs):
+            assert len(inputs) == 1  # layered network only has one input
+            layer = inputs[0]
+            type_counter = Counter()
+
+            for layer_config in layers:
+                layer_type = layer_config['type']
+                type_counter[layer_type] += 1
+                layer_name = "{type}{num}".format(type=layer_type, num=type_counter[layer_type])
+                layer = layer_classes[layer_type](layer, layer_config, layer_name)
+
+            return layer  # set output to last layer
+
+        return define_network

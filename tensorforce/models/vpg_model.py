@@ -15,16 +15,12 @@
 """
 Vanilla policy gradient implementation.
 """
-import numpy as np
 import tensorflow as tf
 
-from tensorforce.models import LinearValueFunction
-from tensorforce.models.neural_networks import NeuralNetwork
-from tensorforce.models.neural_networks.layers import linear
 from tensorforce.models.pg_model import PGModel
-from tensorforce.util.experiment_util import global_seed
 
 from tensorforce.default_configs import VPGModelConfig
+
 
 class VPGModel(PGModel):
     default_config = VPGModelConfig
@@ -44,7 +40,6 @@ class VPGModel(PGModel):
 
             self.optimize_op = self.optimizer.minimize(self.loss)
 
-
     def update(self, batch):
         """
         Compute update for one batch of experiences using general advantage estimation
@@ -60,10 +55,10 @@ class VPGModel(PGModel):
 
         # Merge episode inputs into single arrays
         _, _, actions, batch_advantage, states = self.merge_episodes(batch)
-        
+
         log_probs, loss, _ = self.session.run([self.log_probabilities, self.loss, self.optimize_op],
-                                                     {self.state: states,
-                                                      self.actions: actions,
-                                                      self.advantage: batch_advantage})
+                                              {self.state: states,
+                                               self.actions: actions,
+                                               self.advantage: batch_advantage})
        # print('log probs:' + str(log_probs))
        # print('loss:' + str(loss))

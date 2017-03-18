@@ -49,10 +49,13 @@ Features
 --------
 
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
-Universe and DeepMind lab. The following algorithms are available: 1.
-A3C using distributed TF 2. Trust Region Policy Optimization (TRPO) with generalised
-advantage estimation (GAE) 3. Normalised Advantage functions (NAFs) 4.
-DQN/Double-DQN 5. Vanilla Policy Gradients
+Universe and DeepMind lab. The following algorithms are available (all policy methods both continuous/discrete):
+1. A3C using distributed TF
+2. Trust Region Policy Optimization (TRPO) with generalised
+advantage estimation (GAE)
+3. Normalised Advantage functions (NAFs)
+4. DQN/Double-DQN
+5. Vanilla Policy Gradients (VPG)
 
 Installation
 ------------
@@ -95,8 +98,8 @@ larger road-map of things we would like to have (in no particular order) looks a
 2. Hybrid A3C/policy gradient algorithms - not clear yet which
    combination method will work best, but a number of papers showcasing
    different approaches have been accepted to ICLR 2017.
-3. A multi/sub-task API. An important topic in current research is to decompose a larger tasks into
-a hierarchy of subtasks. Implementing this in an easily configurable way for end-users
+3. A multi/sub-task API. An important topic in current research is to decompose larger tasks into
+a hierarchy of subtasks/auxiliary goals. Implementing this in an easily configurable way for end-users
 will not be trivial and it might us take some time to get it right.
 4. Transfer learning architectures (e.g. progressive neural networks, pathnet, ..).
 5. RL serving components. TensorFlow serving can serve trained models but is not suitable to manage RL lifecycles.

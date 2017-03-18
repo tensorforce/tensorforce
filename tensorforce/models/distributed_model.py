@@ -172,7 +172,7 @@ class DistributedModel(object):
 
             grad_var_list = list(zip(self.gradients, self.global_network.get_variables()))
 
-            global_step_inc = self.global_step.assign_add(self.batch_size)
+            global_step_inc = self.global_step.assign_add(tf.shape(self.state)[0])
 
             self.assign_global_to_local = tf.group(*[v1.assign(v2) for v1, v2 in
                                                      zip(self.local_network.get_variables(),

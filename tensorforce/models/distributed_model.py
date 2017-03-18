@@ -37,7 +37,7 @@ from tensorforce.util.math_util import zero_mean_unit_variance, discount
 class DistributedModel(object):
     default_config = {}
 
-    def __init__(self, config, scope, task_index, cluster_spec):
+    def __init__(self, config, scope, task_index, cluster_spec, define_network=None):
         """
 
         A distributed agent must synchronise local and global parameters under different
@@ -66,6 +66,11 @@ class DistributedModel(object):
         else:
             self.random = np.random.RandomState()
 
+        if define_network is None:
+            self.define_network = NeuralNetwork.layered_network(self.config.network_layers)
+        else:
+            self.define_network = define_network
+
         # This is the scope used to prefix variable creation for distributed TensorFlow
         self.batch_shape = [None]
         self.deterministic_mode = config.get('deterministic_mode', False)
@@ -80,7 +85,8 @@ class DistributedModel(object):
             with tf.variable_scope("global"):
                 self.global_state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
                                                    name="global_state")
-                self.global_network = NeuralNetwork(self.config.network_layers, self.global_state)
+
+                self.global_network = NeuralNetwork(self.define_network, [self.global_state])
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
@@ -139,7 +145,7 @@ class DistributedModel(object):
                                             name="state")
                 self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count], name='prev_actions')
 
-                self.local_network = NeuralNetwork(self.config.network_layers, self.state)
+                self.local_network = NeuralNetwork(self.define_network, [self.state])
                 # TODO possibly problematic, check
                 self.local_step = self.global_step
 

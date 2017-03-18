@@ -62,7 +62,7 @@ dense = layer_wrapper(tf_slim.fully_connected)
 conv2d = layer_wrapper(tf_slim.conv2d)
 linear = layer_wrapper(tf_slim.linear, reshape=lambda input: tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:])))))
 
-layers = {
+layer_classes = {
     'dense': dense,
     'conv2d': conv2d,
     'linear': linear

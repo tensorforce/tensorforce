@@ -27,14 +27,11 @@ The core training update code is under MIT license, for more information see LIC
 import numpy as np
 import tensorflow as tf
 
-from tensorforce.models import LinearValueFunction
-from tensorforce.models.neural_networks import NeuralNetwork
-from tensorforce.models.neural_networks.layers import linear
 from tensorforce.models.pg_model import PGModel
 from tensorforce.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
-from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.math_util import *
 from tensorforce.default_configs import TRPOModelConfig
+
 
 class TRPOModel(PGModel):
     default_config = TRPOModelConfig

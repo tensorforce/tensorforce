@@ -20,7 +20,6 @@ import tensorflow as tf
 from tensorforce.models import Model
 import numpy as np
 
-from tensorforce.models.baselines.linear_value_function import LinearValueFunction
 from tensorforce.models.baselines.mlp_value_function import MLPValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.models.policies import CategoricalOneHotPolicy
@@ -30,7 +29,7 @@ from tensorforce.util.math_util import discount, zero_mean_unit_variance
 
 
 class PGModel(Model):
-    def __init__(self, config, scope):
+    def __init__(self, config, scope, define_network=None):
         super(PGModel, self).__init__(config, scope)
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
@@ -54,8 +53,11 @@ class PGModel(Model):
         self.policy = None
 
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
-        self.hidden_layers = NeuralNetwork(self.config.network_layers, self.state,
-                                           scope=scope + 'value_function')
+
+        if define_network is None:
+            define_network = NeuralNetwork.layered_network(self.config.network_layers)
+
+        self.hidden_layers = NeuralNetwork(define_network, [self.state], scope=scope + 'value_function')
 
         self.saver = tf.train.Saver()
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')

@@ -32,6 +32,7 @@ setup(name='tensorforce',
           'numpy',
           'six',
           'scipy',
+          'pillow',
           'nose'
       ],
       zip_safe=False)

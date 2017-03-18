@@ -23,6 +23,8 @@ from copy import deepcopy
 import tensorflow as tf
 import sys
 
+import logging
+
 from tensorforce.agents.distributed_agent import DistributedAgent
 from tensorforce.execution.thread_runner import ThreadRunner
 
@@ -64,6 +66,10 @@ class DistributedRunner(object):
 
         self.cluster_spec = tf.train.ClusterSpec(cluster)
 
+        tf.logging.set_verbosity(tf.logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+
 
     def run(self):
         """
@@ -84,14 +90,14 @@ class DistributedRunner(object):
         else:
             # Worker creates runner for execution
             scope = 'worker_' + str(self.task_index)
-            print('Creating server')
+            self.logger.debug('Creating server')
             server = tf.train.Server(cluster, job_name='worker', task_index=self.task_index,
                                      config=tf.ConfigProto(intra_op_parallelism_threads=1,
                                                            inter_op_parallelism_threads=2,
                                                            log_device_placement=True))
-            print('Created server')
+            self.logger.debug('Created server')
             worker_agent = DistributedAgent(self.agent_config, scope, self.task_index, cluster)
-            print('Created agent')
+            self.logger.debug('Created agent')
 
             variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
             init_op = tf.variables_initializer(variables_to_save)
@@ -120,21 +126,24 @@ class DistributedRunner(object):
                                   repeat_actions=self.repeat_actions)
 
             # Connecting to parameter server
-            print('Connecting to session..')
-            print('Server target = ' + str(server.target))
+            self.logger.debug('Connecting to session..')
+            self.logger.info('Server target = ' + str(server.target))
 
             with supervisor.managed_session(server.target, config=config) as session, session.as_default():
-                print('Established session, starting runner..')
+                self.logger.info('Established session, starting runner..')
                 session.run(worker_agent.model.assign_global_to_local)
 
                 runner.start_thread(session)
+                self.logger.debug("Runner started")
                 global_step_count = worker_agent.increment_global_step()
+                self.logger.debug("Got global step count")
 
                 while not supervisor.should_stop() and global_step_count < self.global_steps:
                     runner.update()
                     global_step_count = worker_agent.increment_global_step()
+                    self.logger.debug("Global step count: {}".format(global_step_count))
 
-            print('Stopping supervisor')
+            self.logger.info('Stopping supervisor')
             supervisor.stop()
 
 

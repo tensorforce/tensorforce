@@ -21,7 +21,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from threading import Thread
+from threading import Thread, current_thread
+import logging
 
 from six.moves import xrange
 import six.moves.queue as queue
@@ -47,6 +48,9 @@ class ThreadRunner(Thread):
         self.save_model_path = None
         self.save_model_episodes = 0
 
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+
     def start_thread(self, session):
         """
         Starts threaded execution of environment execution.
@@ -56,7 +60,7 @@ class ThreadRunner(Thread):
         self.start()
 
     def run(self):
-        print('Starting thread runner..')
+        self.logger.info('Starting thread runner..')
         executor = self.execute()
 
         while True:
@@ -97,8 +101,9 @@ class ThreadRunner(Thread):
                 state = result['state']
 
                 if result['terminal_state'] or current_episode_step >= self.max_episode_steps:
-                    print('Episode finished after ' + str(current_episode_step) + ' steps, episode reward= ' + str(
-                        current_episode_rewards))
+                    self.logger.info('Episode {} finished after {} steps. Episode reward = {}'.format(
+                        current_episode, current_episode_step, current_episode_rewards
+                    ))
 
                     self.episode_rewards.append(current_episode_rewards)
                     state = self.environment.reset()

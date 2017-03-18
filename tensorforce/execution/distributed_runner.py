@@ -135,12 +135,12 @@ class DistributedRunner(object):
 
                 runner.start_thread(session)
                 self.logger.debug("Runner started")
-                global_step_count = worker_agent.increment_global_step()
+                global_step_count = worker_agent.get_global_step()
                 self.logger.debug("Got global step count")
 
                 while not supervisor.should_stop() and global_step_count < self.global_steps:
                     runner.update()
-                    global_step_count = worker_agent.increment_global_step()
+                    global_step_count = worker_agent.get_global_step()
                     self.logger.debug("Global step count: {}".format(global_step_count))
 
             self.logger.info('Stopping supervisor')

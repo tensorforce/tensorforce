@@ -47,7 +47,7 @@ class DistributedAgent(object):
         self.current_experience = Experience(self.continuous)
         self.model = DistributedModel(config, scope, task_index, cluster_spec)
 
-    def increment_global_step(self):
+    def get_global_step(self):
         return self.model.get_global_step()
 
     def update(self):

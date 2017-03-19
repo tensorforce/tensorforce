@@ -1,4 +1,4 @@
-*TensorForce - modular deep reinforcement learning with tensorflow by reinforce.io*
+*TensorForce - modular deep reinforcement learning in TensorFlow*
 =================================================================================
 
 Introduction

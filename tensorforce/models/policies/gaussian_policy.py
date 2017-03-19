@@ -16,11 +16,16 @@
 Standard Gaussian policy.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+import numpy as np
+import tensorflow as tf
+
 from tensorforce.models.neural_networks.layers import linear
 from tensorforce.models.policies import StochasticPolicy
 from tensorforce.models.policies.gaussian import Gaussian
-import numpy as np
-import tensorflow as tf
 
 
 class GaussianPolicy(StochasticPolicy):
@@ -60,4 +65,3 @@ class GaussianPolicy(StochasticPolicy):
     def get_policy_variables(self):
         return dict(policy_output=self.action_means,
                     policy_log_std=self.action_log_stds)
-

@@ -19,8 +19,12 @@ Linear value function for baseline prediction in TRPO.
 N.b. as part of TRPO implementation from https://github.com/ilyasu123/trpo
 
 This code is under MIT license, for more information see LICENSE-EXT.
-
 """
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import numpy as np
 
 from tensorforce.models.baselines.value_function import ValueFunction
@@ -29,7 +33,6 @@ from tensorforce.models.baselines.value_function import ValueFunction
 class LinearValueFunction(ValueFunction):
     def __init__(self):
         self.coefficients = None
-
 
     def fit(self, paths):
         feature_matrix = np.concatenate([self.get_features(path) for path in paths])
@@ -53,4 +56,3 @@ class LinearValueFunction(ValueFunction):
             return np.zeros(len(path["rewards"]))
         else:
             return self.get_features(path).dot(self.coefficients)
-

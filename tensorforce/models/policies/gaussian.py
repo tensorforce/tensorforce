@@ -13,6 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import numpy as np
 import tensorflow as tf
 
@@ -56,8 +60,7 @@ class Gaussian(Distribution):
         """
         KL divergence with first param fixed.
 
-        :param mean:
-        :param log_std:
+        :param dist:
         :return:
         """
         mean = dist['policy_output']

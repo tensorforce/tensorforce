@@ -130,7 +130,7 @@ class DQNModel(Model):
         # Compute estimated future value
         float_terminals = batch['terminals'].astype(float)
         q_targets = batch['rewards'] + (1. - float_terminals) \
-                                       * self.gamma * self.get_target_values(batch['next_states'])
+                                     * self.gamma * self.get_target_values(batch['next_states'])
 
         self.session.run([self.optimize_op, self.training_output], {
             self.q_targets: q_targets,

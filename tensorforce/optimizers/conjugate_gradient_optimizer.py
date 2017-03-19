@@ -23,16 +23,18 @@ used for large sparse systems.
 The key idea of cg ist that the next conjugate vector p_k can be computed
 just based on the previous search direction as a linear combination of the negative residual and previous
 search direction, instead of using a memory intensive orthogonalization process such as Gram-Schmidt.
-
-
 """
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 from six.moves import xrange
+
 import numpy as np
 
 
 # TODO This should ultimately be refactored to do a full constrainted optimization as in rllab
-
-
 class ConjugateGradientOptimizer(object):
     def __init__(self, cg_iterations=10, stop_residual=1e-10):
 

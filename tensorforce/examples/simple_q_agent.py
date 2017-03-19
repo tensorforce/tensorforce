@@ -17,9 +17,12 @@
 Simple Q agent as an example on how to implement own agents and models.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import numpy as np
 import tensorflow as tf
-from six.moves import xrange
 
 from tensorforce.agents import MemoryAgent
 from tensorforce.models import Model

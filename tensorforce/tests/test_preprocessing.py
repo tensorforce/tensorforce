@@ -81,7 +81,6 @@ def test_preprocessing_concat():
     assert not (np.array(states[1:]) - processed_state).any()
 
 
-
 def test_preprocessing_imresize():
     """
     Testing imresize preprocessor. Verifies expected and calculated state shapes.

@@ -36,6 +36,7 @@ class Runner(object):
         self.repeat_actions = repeat_actions
         self.save_model_path = None
         self.save_model_episodes = 0
+        self.episode_rewards = None
 
     def save_model(self, path, num_episodes):
         self.save_model_path = path

@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""
 
+"""
+Agent using Normalized Advantage Functions
 """
 
 from __future__ import absolute_import
@@ -24,6 +25,7 @@ from tensorforce.agents import MemoryAgent
 from tensorforce.models import NAFModel
 
 from tensorforce.default_configs import NAFAgentConfig
+
 
 class NAFAgent(MemoryAgent):
     name = 'NAFAgent'

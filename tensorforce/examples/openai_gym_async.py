@@ -123,7 +123,6 @@ def main():
 
         return 0
 
-
     env = OpenAIGymEnvironment(args.gym_id)
 
     config = Config({

@@ -16,6 +16,11 @@
 Generic stochastic policy for policy gradients.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+
 class StochasticPolicy(object):
     def __init__(self,
                  neural_network=None,
@@ -42,4 +47,3 @@ class StochasticPolicy(object):
 
     def get_policy_variables(self):
         raise NotImplementedError
-

@@ -16,11 +16,17 @@
 """
 Categorial one hot policy, used for discrete policy gradients.
 """
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+import numpy as np
+import tensorflow as tf
+
 from tensorforce.models.neural_networks.layers import linear
 from tensorforce.models.policies.categorical import Categorical
 from tensorforce.models.policies.stochastic_policy import StochasticPolicy
-import numpy as np
-import tensorflow as tf
 
 
 class CategoricalOneHotPolicy(StochasticPolicy):
@@ -35,7 +41,8 @@ class CategoricalOneHotPolicy(StochasticPolicy):
 
         with tf.variable_scope(scope):
             self.action_layer = linear(self.neural_network.get_output(),
-                                  {'num_outputs': self.action_count}, 'outputs')
+                                       {'num_outputs': self.action_count},
+                                       'outputs')
             self.outputs = tf.nn.softmax(self.action_layer)
             self.output_sample = tf.multinomial(self.outputs, 1)
 

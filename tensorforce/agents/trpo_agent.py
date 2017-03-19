@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-
+Trust Region Policy Optimization (TRPO) agent.
 """
 
 from __future__ import absolute_import
@@ -25,6 +25,7 @@ from tensorforce.agents import PGAgent
 from tensorforce.models import TRPOModel
 
 from tensorforce.default_configs import TRPOAgentConfig
+
 
 class TRPOAgent(PGAgent):
     name = 'TRPOAgent'

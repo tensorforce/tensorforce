@@ -33,6 +33,7 @@ preprocessors = {
     'standardize': preprocessing.Standardize
 }
 
+
 def global_seed():
     """
     Convenience function to control random seeding throughout the framework.
@@ -57,13 +58,14 @@ def get_path(continuous, episode):
 
     return path
 
+
 def repeat_action(environment, action, repeat_action=1):
     """
     Repeat action `repeat_action_count` times. Cumulate reward and return last state.
 
     :param environment: Environment object
     :param action: Action to be executed
-    :param repeat_action_count: How often to repeat the action
+    :param repeat_action: How often to repeat the action
     :return: result dict
     """
     if repeat_action <= 0:
@@ -83,6 +85,7 @@ def repeat_action(environment, action, repeat_action=1):
                 reward=reward,
                 terminal_state=terminal_state,
                 info=info)
+
 
 def build_preprocessing_stack(config):
     stack = preprocessing.Stack()

@@ -16,10 +16,15 @@
 """
 Multi-layer perceptron baseline value function
 """
-from tensorforce.models.baselines.value_function import ValueFunction
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import tensorflow as tf
 import numpy as np
 
+from tensorforce.models.baselines.value_function import ValueFunction
 from tensorforce.models.neural_networks.layers import dense
 
 
@@ -62,7 +67,3 @@ class MLPValueFunction(ValueFunction):
             self.update = tf.train.AdamOptimizer().minimize(l2)
 
             self.session.run(tf.global_variables_initializer())
-
-
-
-

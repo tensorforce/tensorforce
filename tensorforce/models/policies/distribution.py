@@ -17,11 +17,15 @@
 Generic policy class for policy gradients.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 
 class Distribution(object):
     def __init__(self, random):
         self.random = random
-        self.epsilon =1e-6
+        self.epsilon = 1e-6
 
     def log_prob(self, dist, actions):
         """

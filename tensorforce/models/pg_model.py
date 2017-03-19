@@ -16,10 +16,15 @@
 A policy gradient agent provides generic methods used in pg algorithms, e.g.
 GAE-computation or merging of episode data.
 """
-import tensorflow as tf
-from tensorforce.models import Model
-import numpy as np
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+import numpy as np
+import tensorflow as tf
+
+from tensorforce.models import Model
 from tensorforce.models.baselines.mlp_value_function import MLPValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.models.policies import CategoricalOneHotPolicy
@@ -130,9 +135,14 @@ class PGModel(Model):
 
     def compute_gae_advantage(self, batch, gamma, gae_lambda, use_gae=False):
         """
-        Expects a batch containing at least one episode, sets advantages according to use_gae.
+         Expects a batch containing at least one episode, sets advantages according to use_gae.
 
         :param batch: Sequence of observations for at least one episode.
+        :param batch:
+        :param gamma:
+        :param gae_lambda:
+        :param use_gae:
+        :return:
         """
 
         for episode in batch:

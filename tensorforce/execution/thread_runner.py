@@ -44,6 +44,7 @@ class ThreadRunner(Thread):
         self.repeat_actions = repeat_actions
         self.max_episode_steps = max_episode_steps
         self.local_steps = local_steps
+        self.episode_rewards = None
 
         self.save_model_path = None
         self.save_model_episodes = 0

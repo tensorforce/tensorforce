@@ -17,11 +17,10 @@
 Coordinator for running distributed tensorflow. Starts multiple worker processes, which
 themselves use execution classes. Currently to be used in conjunction with the thread runner for
 OpenAI universe. More generic distributed API coming.
-
 """
+
 from copy import deepcopy
 import tensorflow as tf
-import sys
 
 import logging
 
@@ -70,13 +69,10 @@ class DistributedRunner(object):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
-
     def run(self):
         """
         Process execution loop.
-
         """
-
         # Redirect process output
         # sys.stdout = open('tf_worker_' + str(self.task_index) + '.txt', 'w', 0)
         cluster = self.cluster_spec.as_cluster_def()
@@ -101,12 +97,12 @@ class DistributedRunner(object):
 
             variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
             init_op = tf.variables_initializer(variables_to_save)
-            local_init_op = tf.variables_initializer(tf.local_variables() + [v for v in tf.global_variables() if v.name.startswith("local")])
+            local_init_op = tf.variables_initializer(
+                tf.local_variables() + [v for v in tf.global_variables() if v.name.startswith("local")])
             init_all_op = tf.global_variables_initializer()
 
-            def init_fn(session):
-                # sess.run(worker_agent.model.init_op)
-                session.run(init_all_op)
+            def init_fn(sess):
+                sess.run(init_all_op)
 
             config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(self.task_index)])
 
@@ -145,64 +141,3 @@ class DistributedRunner(object):
 
             self.logger.info('Stopping supervisor')
             supervisor.stop()
-
-
-        # def get_episode_finished_handler(self, condition):
-        #     def episode_finished(execution):
-        #         condition.acquire()
-        #         condition.wait()
-        #         return self.continue_execution
-        #     return episode_finished
-
-        # def run(self, episodes, max_timesteps, episode_finished=None):
-        #     self.total_states = 0
-        #     self.episode_rewards = []
-        #     self.continue_execution = True
-
-        #     runners = []
-        #     processes = []
-        #     conditions = []
-        #     for agent, environment in zip(self.agents, self.environments):
-        #         condition = Condition()
-        #         conditions.append(condition)
-
-        #         execution = Runner(agent, environment, preprocessor=self.preprocessor, repeat_actions=self.repeat_actions)  # deepcopy?
-        #         runners.append(execution)
-
-        #         thread = Thread(target=execution.run, args=(episodes, max_timesteps), kwargs={'episode_finished': self.get_episode_finished_handler(condition)})
-        #         processes.append(thread)
-        #         thread.start()
-
-        #     self.episode = 0
-        #     loop = True
-        #     while loop:
-        #         for condition, execution in zip(conditions, runners):
-        #             if condition._waiters:
-        #                 self.timestep = execution.timestep
-        #                 self.episode += 1
-        #                 self.episode_rewards.append(execution.episode_rewards[-1])
-        #                 # perform async update of parameters
-        #                 # if T mod Itarget == 0:
-        #                 #     update target network
-        #                 # clear gradient
-        #                 # sync parameters
-        #                 condition.acquire()
-        #                 condition.notify()
-        #                 condition.release()
-        #                 if self.episode >= episodes or (episode_finished and not episode_finished(self)):
-        #                     loop = False
-        #                     break
-        #         self.total_states = sum(execution.total_states for execution in runners)
-
-        #     self.continue_execution = False
-        #     stopped = 0
-        #     while stopped < self.n_runners:
-        #         for condition, thread in zip(conditions, processes):
-        #             if condition._waiters:
-        #                 condition.acquire()
-        #                 condition.notify()
-        #                 condition.release()
-        #                 conditions.remove(condition)
-        #             if not thread.is_alive():
-        #                 processes.remove(thread)
-        #                 stopped += 1

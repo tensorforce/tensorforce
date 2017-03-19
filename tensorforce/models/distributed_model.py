@@ -15,14 +15,15 @@
 
 """
 Model for distributed tensorflow. Not generic yet, testing with vpg.
-
 """
+
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
 import numpy as np
+
 from tensorforce.config import create_config
 from tensorforce.models import LinearValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork

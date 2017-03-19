@@ -45,6 +45,7 @@ class RandomAgent(RLAgent):
         Get random action from action space
 
         :param state: current state (disregarded)
+        :param episode: episode number
         :return: random action
         """
         return self.random.randint(0, self.actions)

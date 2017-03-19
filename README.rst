@@ -50,6 +50,7 @@ Features
 
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
 Universe and DeepMind lab. The following algorithms are available (all policy methods both continuous/discrete):
+
 1. A3C using distributed TF
 2. Trust Region Policy Optimization (TRPO) with generalised
    advantage estimation (GAE)
@@ -83,6 +84,8 @@ from the examples folder:
 ::
 
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_agent.json -n tensorforce/examples/configs/trpo_network.json
+    
+You can find some documentation in the `docs <docs/>`__ directory, such as information about the `agents and models <docs/agents_models.rst>`__, `preprocessing <docs/preprocessing.rst>`__ and the `runners <docs/runner.rst>`__.
 
 Road map and contributions
 --------------------------
@@ -114,4 +117,4 @@ providing open source reinforcement learning infrastructure. For any
 questions or support, get in touch at contact@reinforce.io.
 
 You are also welcome to join our Gitter channel for help with using
-TensorForce, bugs or contributions:
+TensorForce, bugs or contributions: `https://gitter.im/reinforceio/TensorForce <https://gitter.im/reinforceio/TensorForce>`__

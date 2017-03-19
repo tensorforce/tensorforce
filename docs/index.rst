@@ -6,6 +6,14 @@ providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
 TensorForce is built on top on TensorFlow.
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Contents:
+   
+   agents_models.rst
+   preprocessing.rst
+   runner.rst
+
 Examples and documentation
 --------------------------
 

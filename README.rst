@@ -69,7 +69,7 @@ For the most straight-forward install via pip, execute:
 
 ::
 
-    git clone git@github.com:reinforceio/TensorForce.git
+    git clone git@github.com:reinforceio/tensorforce.git
     cd tensorforce
     pip install -e .
 

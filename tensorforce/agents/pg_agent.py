@@ -110,7 +110,6 @@ class PGAgent(RLAgent):
                 path = get_path(self.continuous, self.current_episode)
                 self.current_batch.append(path)
 
-            print('Computing PG update, episodes =' + str(len(self.current_batch)))
             self.model.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []

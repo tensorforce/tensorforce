@@ -22,5 +22,5 @@ You can find some documentation in the `docs <./>`__ directory, such as informat
 More information
 ----------------
 
-You can find more information in the at our `TensorForce GitHub repository <https://github.com/reinforceio/TensorForce>`__.
+You can find more information at our `TensorForce GitHub repository <https://github.com/reinforceio/TensorForce>`__.
 

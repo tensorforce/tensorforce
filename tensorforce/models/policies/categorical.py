@@ -57,9 +57,4 @@ class Categorical(Distribution):
         # Categorical dist is special case of multinomial
         # Renormalise for numerical stability
         prob = np.round(prob / np.sum(prob), decimals=8)
-        try:
-            return np.flatnonzero(self.random.multinomial(1, prob, 1))[0]
-        except ValueError as e:
-            print(e)
-            print(np.sum(prob))
-            print(prob)
+        return np.flatnonzero(self.random.multinomial(1, prob, 1))[0]

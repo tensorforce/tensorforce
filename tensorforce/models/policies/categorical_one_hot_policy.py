@@ -37,16 +37,18 @@ class CategoricalOneHotPolicy(StochasticPolicy):
             self.action_layer = linear(self.neural_network.get_output(),
                                   {'num_outputs': self.action_count}, 'outputs')
             self.outputs = tf.nn.softmax(self.action_layer)
+            self.output_sample = tf.multinomial(self.outputs, 1)
 
     def get_distribution(self):
         return self.dist
 
     def sample(self, state, sample=True):
-        output_dist = self.session.run(self.outputs, {self.state: [state]})
+        output_dist, output_sample = self.session.run([self.outputs, self.output_sample], {self.state: [state]})
         output_dist = output_dist.ravel()
 
         if sample:
-            action = self.dist.sample(dict(policy_output=output_dist))
+            # action = self.dist.sample(dict(policy_output=output_dist))
+            action = np.flatnonzero(output_sample)
         else:
             action = int(np.argmax(output_dist))
 

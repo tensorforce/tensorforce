@@ -52,7 +52,7 @@ TensorForce currently integrates with the OpenAI Gym API, OpenAI
 Universe and DeepMind lab. The following algorithms are available (all policy methods both continuous/discrete):
 1. A3C using distributed TF
 2. Trust Region Policy Optimization (TRPO) with generalised
-advantage estimation (GAE)
+   advantage estimation (GAE)
 3. Normalised Advantage functions (NAFs)
 4. DQN/Double-DQN
 5. Vanilla Policy Gradients (VPG)

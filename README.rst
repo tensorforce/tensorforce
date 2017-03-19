@@ -1,6 +1,10 @@
 *TensorForce - modular deep reinforcement learning in TensorFlow*
 =================================================================================
 
+.. image:: https://badges.gitter.im/reinforceio/TensorForce.svg
+   :alt: Join the chat at https://gitter.im/reinforceio/TensorForce
+   :target: https://gitter.im/reinforceio/TensorForce?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 Introduction
 ------------
 
@@ -65,7 +69,7 @@ For the most straight-forward install via pip, execute:
 
 ::
 
-    git clone https://github.com/tensorforce/tensorforce
+    git clone git@github.com:reinforceio/TensorForce.git
     cd tensorforce
     pip install -e .
 

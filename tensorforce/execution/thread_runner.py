@@ -133,7 +133,6 @@ class ThreadRunner(Thread):
             try:
                 # This experience fragment is part of a single episode in a game
                 # the agent should know how to concatenate this
-                # experience.extend(self.experience_queue.get_nowait())
                 self.agent.extend(self.experience_queue.get_nowait())
 
             except queue.Empty:

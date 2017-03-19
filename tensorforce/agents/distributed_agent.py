@@ -152,7 +152,6 @@ class Experience(object):
             self.data['action_log_stds'].append(self.last_action_log_std)
 
         if terminal:
-            print('Terminating episode within add observation')
             self.data['terminated'] = True
 
 

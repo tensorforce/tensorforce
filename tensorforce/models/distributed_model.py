@@ -205,6 +205,7 @@ class DistributedModel(object):
         :param batch:
         :return:
         """
+
         self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
 
         # Update linear value function for baseline prediction

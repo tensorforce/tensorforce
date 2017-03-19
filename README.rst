@@ -7,7 +7,7 @@ Introduction
 TensorForce is an open source reinforcement learning library focused on
 providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
-TensorForce integrates with Google TensorFlow.
+TensorForce is built on top on TensorFlow.
 
 The main difference to existing libraries (such as rllab) is a strict
 separation of environments, agents and update logic that facilitates
@@ -99,8 +99,8 @@ larger road-map of things we would like to have (in no particular order) looks a
    combination method will work best, but a number of papers showcasing
    different approaches have been accepted to ICLR 2017.
 3. A multi/sub-task API. An important topic in current research is to decompose larger tasks into
-a hierarchy of subtasks/auxiliary goals. Implementing this in an easily configurable way for end-users
-will not be trivial and it might us take some time to get it right.
+   a hierarchy of subtasks/auxiliary goals. Implementing this in an easily configurable way for end-users
+   will not be trivial and it might us take some time to get it right.
 4. Transfer learning architectures (e.g. progressive neural networks, pathnet, ..).
 5. RL serving components. TensorFlow serving can serve trained models but is not suitable to manage RL lifecycles.
 

@@ -72,6 +72,15 @@ class PGAgent(RLAgent):
 
         return action
 
+    def update(self, batch):
+        """
+        Explicitly calls update using the provided batch of experiences.
+
+        :param batch:
+        :return:
+        """
+        self.model.update(batch)
+
     def add_observation(self, state, action, reward, terminal):
         """
         Adds an observation and performs a pg update if the necessary conditions

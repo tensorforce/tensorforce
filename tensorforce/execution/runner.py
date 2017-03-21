@@ -45,8 +45,6 @@ class Runner(object):
     def run(self, episodes, max_timesteps, episode_finished=None):
         self.episode_rewards = []  # save all episode rewards for statistics
 
-        self.agent.setup()
-
         for self.episode in xrange(episodes):
             state = self.environment.reset()
             episode_reward = 0

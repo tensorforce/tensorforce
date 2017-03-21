@@ -27,6 +27,7 @@ from tensorforce.agents import RLAgent
 
 
 class MemoryAgent(RLAgent):
+
     name = 'MemoryAgent'
 
     default_config = {
@@ -74,6 +75,15 @@ class MemoryAgent(RLAgent):
         :return:
         """
         self.model.initialize()
+
+    def update(self, batch):
+        """
+        Explicitly calls update using the provided batch of experiences.
+
+        :param batch:
+        :return:
+        """
+        self.model.update(batch)
 
     def get_action(self, *args, **kwargs):
         """

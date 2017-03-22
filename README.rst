@@ -88,7 +88,7 @@ from the examples folder:
 
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_agent.json -n tensorforce/examples/configs/trpo_network.json
     
-You can find some documentation in the `docs <docs/>`__ directory, such as information about the `agents and models <docs/agents_models.rst>`__, `preprocessing <docs/preprocessing.rst>`__ and the `runners <docs/runner.rst>`__.
+You can find our documentation at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
 
 Road map and contributions
 --------------------------

@@ -15,8 +15,7 @@ TensorForce is built on top on TensorFlow.
 
 The main difference to existing libraries (such as rllab) is a strict
 separation of environments, agents and update logic that facilitates
-usage in non-simulation environments (see our architecture overview page
-for details). Further, research code often relies on fixed network
+usage in non-simulation environments. Further, research code often relies on fixed network
 architectures that have been used to tackle particular benchmarks.
 TensorForce is built with the idea that (almost) everything should be
 optionally configurable and in particular uses value function template

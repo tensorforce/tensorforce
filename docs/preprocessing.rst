@@ -1,14 +1,13 @@
 Preprocessing
 =============
 
-Sometimes it is necessary to modify state vectors before passing them to the agent. This could be due to various reasons, e.g.:
+Often it is necessary to modify state input tensors before passing them to the reinforcement learning agent. This could be due to various reasons, e.g.:
 
 * Feature scaling / input normalization,
 * Data reduction,
-* Creating the Markov property (e.g. Atari),
-* etc.
+* Ensuring the Markov property by concatenating multiple states (e.g. in Atari)
 
-TensorForce comes with some ready-to-use preprocessors, a preprocessing stack and easy ways to implement your own preprocessors.
+TensorForce comes with a number of ready-to-use preprocessors, a preprocessing stack and easy ways to implement your own preprocessors.
 
 Usage
 -----

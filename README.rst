@@ -11,7 +11,7 @@ Introduction
 TensorForce is an open source reinforcement learning library focused on
 providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
-TensorForce is built on top on TensorFlow.
+TensorForce is built on top of TensorFlow.
 
 The main difference to existing libraries (such as rllab) is a strict
 separation of environments, agents and update logic that facilitates

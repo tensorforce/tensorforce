@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Model for distributed tensorflow. Not generic yet, testing with vpg.
+Model for the distributed advantage actor critic.
 """
 
 from __future__ import absolute_import
@@ -35,7 +35,7 @@ from tensorforce.util.exploration_util import exploration_mode
 from tensorforce.util.math_util import zero_mean_unit_variance, discount
 
 
-class DistributedModel(object):
+class DistributedPGModel(object):
     default_config = {}
 
     def __init__(self, config, scope, task_index, cluster_spec, define_network=None):
@@ -76,8 +76,6 @@ class DistributedModel(object):
         self.batch_shape = [None]
         self.deterministic_mode = config.get('deterministic_mode', False)
         self.alpha = config.get('alpha', 0.001)
-        # self.init_op = tf.global_variables_initializer()
-
         self.optimizer = None
 
         self.worker_device = "/job:worker/task:{}/cpu:0".format(task_index)

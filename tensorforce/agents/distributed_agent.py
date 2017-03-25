@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Generic agent for distributed realtime training.
+Generic agent for distributed real time training.
 """
 from __future__ import absolute_import
 from __future__ import print_function
@@ -25,7 +25,7 @@ import numpy as np
 from copy import deepcopy
 
 from tensorforce.config import create_config
-from tensorforce.models.distributed_model import DistributedModel
+from tensorforce.models.distributed_pg_model import DistributedPGModel
 
 
 # TODO move get path to utility function
@@ -45,7 +45,7 @@ class DistributedAgent(object):
 
         self.continuous = self.config.continuous
         self.current_experience = Experience(self.continuous)
-        self.model = DistributedModel(config, scope, task_index, cluster_spec)
+        self.model = DistributedPGModel(config, scope, task_index, cluster_spec)
 
     def get_global_step(self):
         return self.model.get_global_step()

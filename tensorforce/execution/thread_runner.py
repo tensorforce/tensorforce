@@ -81,9 +81,8 @@ class ThreadRunner(Thread):
         current_episode_rewards = 0
 
         while True:
-
-            # Tell agent to create a new experience fragment
-            # TODO Michael -> I don't like external experience management. Refactor
+            # We pass the continuous flag to indicate whether we expect to store policy
+            # log stds in the batch.
             experience = Experience(self.agent.continuous)
 
             for _ in xrange(self.local_steps):
@@ -115,10 +114,12 @@ class ThreadRunner(Thread):
 
                     break
 
-            # TODO argument to be made to move the queue into the agent
             yield experience
 
     def update(self):
+        """
+        Syncs model parameters, then polls the queue for samples
+        """
         self.agent.sync()
 
         # We yield the current episode fragment

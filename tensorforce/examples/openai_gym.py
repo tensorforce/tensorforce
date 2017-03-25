@@ -23,7 +23,7 @@ from __future__ import division
 
 import os
 import argparse
-
+import logging
 import numpy as np
 
 from tensorforce.config import Config
@@ -52,6 +52,9 @@ def main():
 
     args = parser.parse_args()
 
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
     gym_id = args.gym_id
 
     env = OpenAIGymEnvironment(gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
@@ -77,9 +80,9 @@ def main():
         stack = None
 
     if args.debug:
-        print("-" * 16)
-        print("File configuration:")
-        print(config)
+        logger.info("-" * 16)
+        logger.info("File configuration:")
+        logger.info(config)
 
     agent = create_agent(args.agent, config)
 
@@ -90,12 +93,12 @@ def main():
         agent.load_model(args.load)
 
     if args.debug:
-        print("-" * 16)
-        print("Agent configuration:")
-        print(agent.config)
+        logger.info("-" * 16)
+        logger.info("Agent configuration:")
+        logger.info(agent.config)
         if agent.model:
-            print("Model configuration:")
-            print(agent.model.config)
+            logger.info("Model configuration:")
+            logger.info(agent.model.config)
 
     runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
 
@@ -114,15 +117,15 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            print("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
-            print("Episode reward: {}".format(r.episode_rewards[-1]))
-            print("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
-            print("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
+            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
+            logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
+            logger.info("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
+            logger.info("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
         return True
 
-    print("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
+    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
-    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
+    logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
 
     if args.monitor:
         env.gym.monitor.close()

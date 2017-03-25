@@ -95,7 +95,3 @@ class Model(object):
 
     def save_model(self, path):
         self.saver.save(self.session, path)
-
-    # TODO: move?
-    def initialize(self):
-        return True

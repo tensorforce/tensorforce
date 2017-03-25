@@ -25,6 +25,7 @@ import os
 import sys
 import inspect
 import argparse
+import logging
 
 from six.moves import xrange, shlex_quote
 
@@ -58,6 +59,9 @@ def main():
     parser.add_argument('-K', '--kill', action='store_true', default=False, help="Kill runners")
 
     args = parser.parse_args()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
 
     session_name = 'openai_async'
     shell = '/bin/bash'
@@ -145,9 +149,9 @@ def main():
     else:
         stack = None
 
-    print("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
-    print("Config:")
-    print(config)
+    logger.info("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
+    logger.info("Config:")
+    logger.info(config)
 
     runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=args.num_workers, n_param_servers=1,
                                environment=env, global_steps=args.global_steps, max_episode_steps=args.max_timesteps,

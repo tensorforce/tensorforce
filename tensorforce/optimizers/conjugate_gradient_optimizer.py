@@ -36,8 +36,8 @@ import numpy as np
 
 # TODO This should ultimately be refactored to do a full constrainted optimization as in rllab
 class ConjugateGradientOptimizer(object):
-    def __init__(self, cg_iterations=10, stop_residual=1e-10):
-
+    def __init__(self, logger=None, cg_iterations=10, stop_residual=1e-10):
+        self.logger = logger
         self.iterations = cg_iterations
         self.stop_residual = stop_residual
 
@@ -70,7 +70,7 @@ class ConjugateGradientOptimizer(object):
             residual_dot_residual = new_residual_dot_residual
 
             if residual_dot_residual < self.stop_residual:
-                print('Approximate cg solution found after ' + str(i) + ' iterations')
+                self.logger.debug('Approximate cg solution found after ' + str(i) + ' iterations')
                 break
 
         return x

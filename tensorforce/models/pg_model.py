@@ -24,6 +24,7 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
+from tensorforce.models import LinearValueFunction
 from tensorforce.models import Model
 from tensorforce.models.baselines.mlp_value_function import MLPValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
@@ -86,8 +87,7 @@ class PGModel(Model):
         # Probability distribution used in the current policy
         self.dist = self.policy.get_distribution()
 
-        # TODO configurable value functions
-        self.baseline_value_function = MLPValueFunction(self.session, 100, 64)
+        self.baseline_value_function = LinearValueFunction()
 
     def get_action(self, state, episode=1):
         """

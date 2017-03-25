@@ -47,7 +47,7 @@ class TRPOModel(PGModel):
         self.cg_damping = self.config.cg_damping
         self.max_kl_divergence = self.config.max_kl_divergence
         self.line_search_steps = self.config.line_search_steps
-        self.cg_optimizer = ConjugateGradientOptimizer(self.config.cg_iterations)
+        self.cg_optimizer = ConjugateGradientOptimizer(self.logger, self.config.cg_iterations)
 
         self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
         self.create_training_operations()
@@ -125,7 +125,7 @@ class TRPOModel(PGModel):
         zero = np.zeros_like(gradient)
 
         if np.allclose(gradient, zero):
-            print('Gradient zero, skipping update')
+            self.logger.debug('Gradient zero, skipping update')
         else:
             # The details of the approximations used here to solve the constrained
             # optimisation can be found in Appendix C of the TRPO paper
@@ -148,19 +148,19 @@ class TRPOModel(PGModel):
             # Use line search results, otherwise take full step
             # N.B. some implementations don't use the line search
             if improved:
-                print('Updating with line search result..')
+                self.logger.debug('Updating with line search result..')
                 self.flat_variable_helper.set(theta)
             else:
-                print('Updating with full step..')
+                self.logger.debug('Updating with full step..')
                 self.flat_variable_helper.set(previous_theta + update_step)
 
             # Get loss values for progress monitoring
             surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
 
             # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
-            print('Surrogate loss=' + str(surrogate_loss))
-            print('KL-divergence after update=' + str(kl_divergence))
-            print('Entropy=' + str(entropy))
+            self.logger.info('Surrogate loss=' + str(surrogate_loss))
+            self.logger.info('KL-divergence after update=' + str(kl_divergence))
+            self.logger.info('Entropy=' + str(entropy))
 
     def compute_fvp(self, p):
         self.input_feed[self.flat_tangent] = p

@@ -24,6 +24,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import logging
 import tensorflow as tf
 
 from tensorforce.config import create_config
@@ -36,16 +37,16 @@ class Model(object):
 
     def __init__(self, config, scope):
         """
-
         :param config: Configuration parameters
         :param scope: TensorFlow scope
         """
-
-        # TODO move several default params up here
         self.session = tf.Session()
         self.total_states = 0
         self.saver = None
         self.config = create_config(config, default=self.default_config)
+
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
 
         # This is the scope used to prefix variable creation for distributed TensorFlow
         self.scope = scope

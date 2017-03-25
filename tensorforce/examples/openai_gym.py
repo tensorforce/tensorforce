@@ -111,7 +111,7 @@ def main():
                 raise OSError("Cannot save agent to dir {} ()".format(save_dir))
         runner.save_model(args.save, args.save_episodes)
 
-    report_episodes = args.episodes // 10
+    report_episodes = args.episodes // 1000
     if args.debug:
         report_episodes = 10
 

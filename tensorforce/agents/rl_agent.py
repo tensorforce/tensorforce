@@ -54,14 +54,8 @@ class RLAgent(object):
     def save_model(self, path):
         raise NotImplementedError
 
-    # TODO: move? NotImplementedError? Do we need this?
-    def setup(self):
-        """
-        Prepares the agent to run
-
-        :return:
-        """
-        return True
+    def update(self, batch):
+        raise NotImplementedError
 
     def __str__(self):
         return self.name

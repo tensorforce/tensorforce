@@ -27,6 +27,7 @@ from tensorforce.agents import RLAgent
 
 
 class MemoryAgent(RLAgent):
+
     name = 'MemoryAgent'
 
     default_config = {
@@ -46,10 +47,8 @@ class MemoryAgent(RLAgent):
         Initialize a vanilla DQN agent as described in
         http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.
 
-        :param agent_config: Configuration parameters for agent
-        :param network_config: Configuration parameters for deep Q network,
-        :param tf_config: Configuration for TensorFlow execution, load/store of models,
-        and so forth.
+        :param config: Configuration parameters for agent
+        :param scope: TensorFlow scope
         """
         self.config = create_config(config, default=self.default_config)
         self.model = None
@@ -76,6 +75,15 @@ class MemoryAgent(RLAgent):
         :return:
         """
         self.model.initialize()
+
+    def update(self, batch):
+        """
+        Explicitly calls update using the provided batch of experiences.
+
+        :param batch:
+        :return:
+        """
+        self.model.update(batch)
 
     def get_action(self, *args, **kwargs):
         """

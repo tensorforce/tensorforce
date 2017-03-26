@@ -6,4 +6,5 @@
 /tensorforce/logs/*
 /tensorforce_0.12
 /log_*
+/docs/_*
 tf_worker_*.txt

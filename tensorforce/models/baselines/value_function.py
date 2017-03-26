@@ -17,6 +17,10 @@
 Generic baseline value function for policy gradient methods.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import numpy as np
 
 

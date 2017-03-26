@@ -44,6 +44,7 @@ class ThreadRunner(Thread):
         self.repeat_actions = repeat_actions
         self.max_episode_steps = max_episode_steps
         self.local_steps = local_steps
+        self.episode_rewards = None
 
         self.save_model_path = None
         self.save_model_episodes = 0
@@ -80,9 +81,8 @@ class ThreadRunner(Thread):
         current_episode_rewards = 0
 
         while True:
-
-            # Tell agent to create a new experience fragment
-            # TODO Michael -> I don't like external experience management. Refactor
+            # We pass the continuous flag to indicate whether we expect to store policy
+            # log stds in the batch.
             experience = Experience(self.agent.continuous)
 
             for _ in xrange(self.local_steps):
@@ -114,10 +114,12 @@ class ThreadRunner(Thread):
 
                     break
 
-            # TODO argument to be made to move the queue into the agent
             yield experience
 
     def update(self):
+        """
+        Syncs model parameters, then polls the queue for samples
+        """
         self.agent.sync()
 
         # We yield the current episode fragment
@@ -133,7 +135,6 @@ class ThreadRunner(Thread):
             try:
                 # This experience fragment is part of a single episode in a game
                 # the agent should know how to concatenate this
-                # experience.extend(self.experience_queue.get_nowait())
                 self.agent.extend(self.experience_queue.get_nowait())
 
             except queue.Empty:

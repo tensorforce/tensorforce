@@ -16,10 +16,16 @@
 A policy gradient agent provides generic methods used in pg algorithms, e.g.
 GAE-computation or merging of episode data.
 """
-import tensorflow as tf
-from tensorforce.models import Model
-import numpy as np
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+import numpy as np
+import tensorflow as tf
+
+from tensorforce.models import LinearValueFunction
+from tensorforce.models import Model
 from tensorforce.models.baselines.mlp_value_function import MLPValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.models.policies import CategoricalOneHotPolicy
@@ -85,11 +91,15 @@ class PGModel(Model):
         # Probability distribution used in the current policy
         self.dist = self.policy.get_distribution()
 
+<<<<<<< HEAD
         # TODO configurable value functions
         state_size = 1
         for n in self.config.state_shape:
             state_size *= n
         self.baseline_value_function = MLPValueFunction(session=self.session, state_size=state_size, layer_size=64, update_iterations=100)
+=======
+        self.baseline_value_function = LinearValueFunction()
+>>>>>>> 8877235a8dfb94345462990d776c2fcbc59a287b
 
     def get_action(self, state, episode=1):
         """
@@ -138,9 +148,14 @@ class PGModel(Model):
 
     def compute_gae_advantage(self, batch, gamma, gae_lambda, use_gae=False):
         """
-        Expects a batch containing at least one episode, sets advantages according to use_gae.
+         Expects a batch containing at least one episode, sets advantages according to use_gae.
 
         :param batch: Sequence of observations for at least one episode.
+        :param batch:
+        :param gamma:
+        :param gae_lambda:
+        :param use_gae:
+        :return:
         """
 
         for episode in batch:

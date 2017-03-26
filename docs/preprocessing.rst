@@ -1,17 +1,16 @@
 Preprocessing
 =============
 
-Sometimes it is necessary to modify state vectors before passing them to the agent. This could be due to various reasons, e.g.:
+Often it is necessary to modify state input tensors before passing them to the reinforcement learning agent. This could be due to various reasons, e.g.:
 
 * Feature scaling / input normalization,
 * Data reduction,
-* Creating the Markov property (e.g. Atari),
-* etc.
+* Ensuring the Markov property by concatenating multiple states (e.g. in Atari)
 
-TensorForce comes with some ready-to-use preprocessors, a preprocessing stack and easy ways to implement your own preprocessors.
+TensorForce comes with a number of ready-to-use preprocessors, a preprocessing stack and easy ways to implement your own preprocessors.
 
 Usage
-=====
+-----
 
 Each preprocessor implements three methods:
 
@@ -22,7 +21,7 @@ Each preprocessor implements three methods:
 The preprocessing stack iteratively calls these functions of all preprocessors in the stack and returns the result.
 
 Using one preprocessor
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: python
 
@@ -35,7 +34,7 @@ Using one preprocessor
 
 
 Using a preprocessing stack
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can stack multipe preprocessors:
 
@@ -54,7 +53,7 @@ You can stack multipe preprocessors:
     processed_state = stack.process(state)  # process state
 
 Using a configuration dict
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you use configuration objects, you can build your preprocessing stack from a config:
 
@@ -73,20 +72,20 @@ If you use configuration objects, you can build your preprocessing stack from a 
     stack = build_preprocessing_stack(preprocessing_config)
     config.state_shape = stack.shape(config.state_shape)
 
-The first item in each list refers to the preprocessor to use, and the remaining items are passed as \*args to the constructor. You can obtain a list of valid preprocessor references from `tensorforce.util.experiment_util.py <../tensorforce/util/experiment_util.py>`__.
+The first item in each list refers to the preprocessor to use, and the remaining items are passed as \*args to the constructor. You can obtain a list of valid preprocessor references from `tensorforce.util.experiment_util.py <https://github.com/reinforceio/tensorforce/blob/master/tensorforce/util/experiment_util.py>`__.
 
 Ready-to-use preprocessors
-==========================
+--------------------------
 
 These are the preprocessors that come with TensorForce:
 
 Concat
-------
+~~~~~~
 
 Concatenate ``concat_length`` state vectors. Example: Used in Atari problems to create the Markov property.
 
 Parameters
-~~~~~~~~~~
+""""""""""
 
 .. code:: python
 
@@ -102,12 +101,12 @@ With ``dimension_position = "prepend"`` the output shape is ``(2, 5, 7)``.
 With ``dimension_position = "append"``, the output shape is ``(5, 7, 2)``.
 
 Grayscale
----------
+~~~~~~~~~
 
 Turn a 3d image vector (HxWxC) into a 2d grayscale image (HxW).
 
 Parameters
-~~~~~~~~~~
+""""""""""
 
 .. code:: python
 
@@ -116,12 +115,12 @@ Parameters
     }
     
 Imresize
---------
+~~~~~~~~
 
 Resize a 2d image vector.
 
 Parameters
-~~~~~~~~~~
+""""""""""
 
 .. code:: python
 
@@ -131,12 +130,12 @@ Parameters
     }
     
 Maximum
---------
+~~~~~~~
 
 Return maximum of last ``count`` states.
 
 Parameters
-~~~~~~~~~~
+""""""""""
 
 .. code:: python
 
@@ -146,32 +145,32 @@ Parameters
 
 
 Normalize
----------
+~~~~~~~~~
 
 Normalize vector (feature scaling, interval 0-1).
 
 Parameters
-~~~~~~~~~~
+""""""""""
 
 None
 
 Standardize
------------
+~~~~~~~~~~~
 
 Standardize vector (normal distribution)
 
 Parameters
-~~~~~~~~~~
+""""""""""
 
 None
 
 
 Building your own preprocessor
-==============================
+------------------------------
 
 All preprocessors should inherit from ``tensorforce.preprocessing.Preprocessor``.
 
-For a start, take a look at the source of `Grayscale preprocessor <../tensorforce/preprocessing/Grayscale.py>`__.
+For a start, take a look at the source of `Grayscale preprocessor <https://github.com/reinforceio/tensorforce/blob/master/tensorforce/preprocessing/grayscale.py>`__.
 
 .. code:: python
 

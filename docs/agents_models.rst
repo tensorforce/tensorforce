@@ -8,12 +8,12 @@ A reinforcement learning agent provides methods to process states and return act
 Parameters to the agent are passed as a ``Config`` object or a ``dict``. The configuration is usually passed on to the ``Model``.
 
 Ready-to-use agents and models
-==============================
+------------------------------
 
 We implemented some of the most common RL algorithms and try to keep these up-to-date. Here we provide an overview over all implemented agents and models.
 
 RLAgent / General parameters
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``RLAgent`` is the base class for all reinforcement learning agents.
 Every agent inherits from this class.
@@ -21,7 +21,7 @@ Every agent inherits from this class.
 
 
 Parameters
-~~~~~~~~~~
+""""""""""
 
 .. code:: python
 
@@ -39,13 +39,13 @@ Parameters
     })
 
 MemoryAgent
------------
+~~~~~~~~~~~
 
 The ``MemoryAgent`` class implements a replay memory, from which it
 samples batches to update the value function.
 
 Parameters:
-~~~~~~~~~~~
+"""""""""""
 
 .. code:: python
 
@@ -61,12 +61,12 @@ Parameters:
     }
 
 DQNAgent
---------
+~~~~~~~~
 
 Standard DQN agent (`Minh et al., 2015 <http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html>`__) and DDQN (`van Hasselt et al., 2015 <https://arxiv.org/abs/1509.06461>`__) agent. Uses a replay memory (inherits from ``MemoryAgent``).
 
 Parameters:
-~~~~~~~~~~~
+"""""""""""
 
 Uses all `general parameters <#RLAgent>`__ and all parameters from the
 `MemoryAgent <#MemoryAgent>`__. Additional parameters:
@@ -84,12 +84,12 @@ Uses all `general parameters <#RLAgent>`__ and all parameters from the
     }
 
 NAFAgent
---------
+~~~~~~~~
 
 Agent using Normalized Advantage Functions (NAF; `Gu et al., 2016 <https://arxiv.org/abs/1603.00748>`__) for continuous actions. Uses a replay memory (inherits from ``MemoryAgent``).
 
 Parameters:
-~~~~~~~~~~~
+"""""""""""
 
 Uses all `general parameters <#RLAgent>`__ and all parameters from the
 `MemoryAgent <#MemoryAgent>`__. Additional parameters:
@@ -104,7 +104,7 @@ Uses all `general parameters <#RLAgent>`__ and all parameters from the
     }
 
 PGAgent
--------
+~~~~~~~
 
 Policy Gradient base agent and model. The agent collects experiences until conditions for an update are satisfied and then passes these to an updater. In particular,
 the PGAgent internally manages the batching process so users do not have to.
@@ -112,7 +112,7 @@ the PGAgent internally manages the batching process so users do not have to.
 
 
 Parameters:
-~~~~~~~~~~~
+"""""""""""
 
 Uses all `general parameters <#RLAgent>`__. Additional parameters:
 
@@ -134,25 +134,25 @@ Uses all `general parameters <#RLAgent>`__. Additional parameters:
 
 
 VPGAgent
---------
+~~~~~~~~
 
 Vanilla Policy Gradient agent and model. `VPGAgent` inherits from `PGAgent`.
 
 
 Parameters:
-~~~~~~~~~~~
+"""""""""""
 
 Uses all `general parameters <#RLAgent>`__ and all parameters from the
 `PGAgent <#PGAgent>`__.
 
 TRPOAgent
----------
+~~~~~~~~~
 
 Trust Region Policy Optimization (`Schulman et al., 2015 <https://arxiv.org/abs/1502.05477>`__) agent and model. `TRPO` inherits from `PGAgent`.
 
 
 Parameters:
-~~~~~~~~~~~
+"""""""""""
 
 Uses all `general parameters <#RLAgent>`__ and all parameters from the
 `PGAgent <#PGAgent>`__. Additional parameters:
@@ -169,7 +169,7 @@ Uses all `general parameters <#RLAgent>`__ and all parameters from the
 
 
 Building your own agent
-=======================
+-----------------------
 
 If you want to build your own agent, it should always inherit from
 ``RLAgent``. If your agent uses a replay memory, it should probably

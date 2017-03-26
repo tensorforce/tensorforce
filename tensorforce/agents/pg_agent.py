@@ -12,13 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 """
 Generic policy gradient agent. Manages batching and episodes internally, that is,
 the only information needed is whether an episode ends.
 """
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 from collections import defaultdict
-from copy import deepcopy
+
 import numpy as np
+
 from tensorforce.config import create_config
 from tensorforce.agents import RLAgent
 from tensorforce.util.experiment_util import get_path
@@ -50,25 +57,29 @@ class PGAgent(RLAgent):
         """
         Executes one reinforcement learning step.
 
-        :param state: Observed state tensor
-        :param episode: Optional, current episode
         :return: Which action to take
         """
         action, outputs = self.model.get_action(*args, **kwargs)
-        #print(outputs)
+
         # Cache last action in case action is used multiple times in environment
         self.last_action_means = outputs['policy_output']
         self.last_action = action
-
-        # print('action =' + str(action))
 
         if self.continuous:
             self.last_action_log_std = outputs['policy_log_std']
         else:
             action = np.argmax(action)
 
-        # print('action selected' + str(action))
         return action
+
+    def update(self, batch):
+        """
+        Explicitly calls update using the provided batch of experiences.
+
+        :param batch:
+        :return:
+        """
+        self.model.update(batch)
 
     def add_observation(self, state, action, reward, terminal):
         """
@@ -99,7 +110,6 @@ class PGAgent(RLAgent):
         if self.batch_steps == self.batch_size:
             path = get_path(self.continuous, self.current_episode)
             self.current_batch.append(path)
-            print('Computing PG update, episodes =' + str(len(self.current_batch)))
             self.model.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []

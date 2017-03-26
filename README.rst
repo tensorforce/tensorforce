@@ -1,5 +1,9 @@
-*TensorForce - modular deep reinforcement learning with tensorflow by reinforce.io*
+*TensorForce - modular deep reinforcement learning in TensorFlow*
 =================================================================================
+
+.. image:: https://badges.gitter.im/reinforceio/TensorForce.svg
+   :alt: Join the chat at https://gitter.im/reinforceio/TensorForce
+   :target: https://gitter.im/reinforceio/TensorForce?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 Introduction
 ------------
@@ -7,12 +11,11 @@ Introduction
 TensorForce is an open source reinforcement learning library focused on
 providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
-TensorForce integrates with Google TensorFlow.
+TensorForce is built on top of TensorFlow.
 
 The main difference to existing libraries (such as rllab) is a strict
 separation of environments, agents and update logic that facilitates
-usage in non-simulation environments (see our architecture overview page
-for details). Further, research code often relies on fixed network
+usage in non-simulation environments. Further, research code often relies on fixed network
 architectures that have been used to tackle particular benchmarks.
 TensorForce is built with the idea that (almost) everything should be
 optionally configurable and in particular uses value function template
@@ -49,10 +52,14 @@ Features
 --------
 
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
-Universe and DeepMind lab. The following algorithms are available: 1.
-A3C using distributed TF 2. Trust Region Policy Optimization (TRPO) with generalised
-advantage estimation (GAE) 3. Normalised Advantage functions (NAFs) 4.
-DQN/Double-DQN 5. Vanilla Policy Gradients
+Universe and DeepMind lab. The following algorithms are available (all policy methods both continuous/discrete):
+
+1. A3C using distributed TF
+2. Trust Region Policy Optimization (TRPO) with generalised
+   advantage estimation (GAE)
+3. Normalised Advantage functions (NAFs)
+4. DQN/Double-DQN
+5. Vanilla Policy Gradients (VPG)
 
 Installation
 ------------
@@ -61,12 +68,14 @@ For the most straight-forward install via pip, execute:
 
 ::
 
-    git clone https://github.com/tensorforce/tensorforce
+    git clone git@github.com:reinforceio/tensorforce.git
     cd tensorforce
     pip install -e .
 
 To update TensorForce, just run ``git pull`` in the tensorforce
 directory.
+
+Docker coming soon.
 
 Examples and documentation
 --------------------------
@@ -78,6 +87,8 @@ from the examples folder:
 ::
 
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_agent.json -n tensorforce/examples/configs/trpo_network.json
+    
+You can find our documentation at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
 
 Road map and contributions
 --------------------------
@@ -95,9 +106,9 @@ larger road-map of things we would like to have (in no particular order) looks a
 2. Hybrid A3C/policy gradient algorithms - not clear yet which
    combination method will work best, but a number of papers showcasing
    different approaches have been accepted to ICLR 2017.
-3. A multi/sub-task API. An important topic in current research is to decompose a larger tasks into
-a hierarchy of subtasks. Implementing this in an easily configurable way for end-users
-will not be trivial and it might us take some time to get it right.
+3. A multi/sub-task API. An important topic in current research is to decompose larger tasks into
+   a hierarchy of subtasks/auxiliary goals. Implementing new approaches in an easily configurable way for end-users
+   will not be trivial and it might us take some time to get to it.
 4. Transfer learning architectures (e.g. progressive neural networks, pathnet, ..).
 5. RL serving components. TensorFlow serving can serve trained models but is not suitable to manage RL lifecycles.
 
@@ -109,4 +120,4 @@ providing open source reinforcement learning infrastructure. For any
 questions or support, get in touch at contact@reinforce.io.
 
 You are also welcome to join our Gitter channel for help with using
-TensorForce, bugs or contributions:
+TensorForce, bugs or contributions: `https://gitter.im/reinforceio/TensorForce <https://gitter.im/reinforceio/TensorForce>`__

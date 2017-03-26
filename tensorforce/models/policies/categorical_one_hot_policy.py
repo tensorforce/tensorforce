@@ -16,11 +16,17 @@
 """
 Categorial one hot policy, used for discrete policy gradients.
 """
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+import numpy as np
+import tensorflow as tf
+
 from tensorforce.models.neural_networks.layers import linear
 from tensorforce.models.policies.categorical import Categorical
 from tensorforce.models.policies.stochastic_policy import StochasticPolicy
-import numpy as np
-import tensorflow as tf
 
 
 class CategoricalOneHotPolicy(StochasticPolicy):
@@ -28,21 +34,23 @@ class CategoricalOneHotPolicy(StochasticPolicy):
     def __init__(self, network, session, state, random, action_count=1, scope='policy'):
         with tf.variable_scope(scope):
             action_layer = linear(layer_input=network.output, config={'num_outputs': action_count}, scope='outputs')
-            policy_output = tf.nn.softmax(action_layer)
+            dist = tf.nn.softmax(action_layer)
+            sample = tf.multinomial(policy_dist, 1)
 
-        super(CategoricalOneHotPolicy, self).__init__(network, [policy_output], session, state, random, action_count)
+        super(CategoricalOneHotPolicy, self).__init__(network, [dist, sample], session, state, random, action_count)
         self.dist = Categorical(random)
 
     def get_distribution(self):
         return self.dist
 
     def sample(self, state, sample=True):
-        sample = super(CategoricalOneHotPolicy, self).sample(state)
-        output_dist = sample[0]
+        dist, sample = super(CategoricalOneHotPolicy, self).sample(state)
 
-        output_dist = output_dist.ravel()
+        dist = dist.ravel()
         if sample:
-            action = self.dist.sample(dict(policy_output=output_dist))
+            # We currently use tf.multinomial for sampling, as np.random.multinomial has a precision of 1e-12 and raises
+            # ValueErrors when sum(pvals) > 1.0. With tensorflow's precision of 1e-8, this might happen.
+            action = np.flatnonzero(output_sample)
         else:
             action = int(np.argmax(output_dist))
 

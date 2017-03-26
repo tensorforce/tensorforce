@@ -14,15 +14,16 @@
 # ==============================================================================
 
 """
-Model for distributed tensorflow. Not generic yet, testing with vpg.
-
+Model for the distributed advantage actor critic.
 """
+
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
 import numpy as np
+
 from tensorforce.config import create_config
 from tensorforce.models import LinearValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
@@ -34,7 +35,7 @@ from tensorforce.util.exploration_util import exploration_mode
 from tensorforce.util.math_util import zero_mean_unit_variance, discount
 
 
-class DistributedModel(object):
+class DistributedPGModel(object):
     default_config = {}
 
     def __init__(self, config, scope, task_index, cluster_spec, define_network=None):
@@ -75,8 +76,6 @@ class DistributedModel(object):
         self.batch_shape = [None]
         self.deterministic_mode = config.get('deterministic_mode', False)
         self.alpha = config.get('alpha', 0.001)
-        # self.init_op = tf.global_variables_initializer()
-
         self.optimizer = None
 
         self.worker_device = "/job:worker/task:{}/cpu:0".format(task_index)
@@ -178,7 +177,7 @@ class DistributedModel(object):
 
             grad_var_list = list(zip(self.gradients, self.global_network.get_variables()))
 
-            global_step_inc = self.global_step.assign_add(self.batch_size)
+            global_step_inc = self.global_step.assign_add(tf.shape(self.state)[0])
 
             self.assign_global_to_local = tf.group(*[v1.assign(v2) for v1, v2 in
                                                      zip(self.local_network.get_variables(),
@@ -205,6 +204,7 @@ class DistributedModel(object):
         :param batch:
         :return:
         """
+
         self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
 
         # Update linear value function for baseline prediction

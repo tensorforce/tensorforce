@@ -21,7 +21,6 @@ https://github.com/carpedm20/NAF-tensorflow/blob/master/src/network.py
 for the update logic with different modularisation.
 
 The core training update code is under MIT license, for more information see LICENSE-EXT.
-
 """
 
 from __future__ import absolute_import
@@ -96,8 +95,7 @@ class NAFModel(Model):
 
         :param state: Current state
         :param episode: Current episode
-        :param total_states: Total states processed
-        :return:
+        :return: action
         """
         action = self.session.run(self.mu, {self.state: [state]})[0] + self.exploration(episode, self.total_states)
         self.total_states += 1

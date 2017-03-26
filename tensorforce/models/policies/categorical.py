@@ -55,4 +55,6 @@ class Categorical(Distribution):
         # TODO if this repeatedly causes errors, we need to re-weigh to ensure sum to 1
 
         # Categorical dist is special case of multinomial
+        # Renormalise for numerical stability
+        prob = np.round(prob / np.sum(prob), decimals=8)
         return np.flatnonzero(self.random.multinomial(1, prob, 1))[0]

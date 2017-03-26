@@ -46,7 +46,7 @@ def make_function(data, fk):
     `fk`_args as *args and `fk`_kwargs as **kwargs, removing these keys from the data dict.
 
     :param data: data dict
-    :param fn: string function name
+    :param fk: string function key
     :return: boolean
     """
     fn = data.get(fk)

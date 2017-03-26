@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2016 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,23 +13,4 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Trust Region Policy Optimization (TRPO) agent.
-"""
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.agents import PGAgent
-from tensorforce.models import TRPOModel
-
-from tensorforce.default_configs import TRPOAgentConfig
-
-
-class TRPOAgent(PGAgent):
-    name = 'TRPOAgent'
-
-    model_ref = TRPOModel
-
-    default_config = TRPOAgentConfig

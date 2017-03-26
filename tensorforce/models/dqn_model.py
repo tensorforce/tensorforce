@@ -64,30 +64,26 @@ class DQNModel(Model):
         # output layer
         output_layer_config = [{"type": "linear", "num_outputs": self.config.actions, "trainable": True}]
 
-        self.device = self.config.tf_device
-        if self.device == 'replica':
-            self.device = tf.train.replica_device_setter(ps_tasks=1, worker_device=self.config.tf_worker_device)
 
-        with tf.device(self.device):
-            # Input placeholders
-            self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
-            self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
-                                              name="next_states")
-            self.terminals = tf.placeholder(tf.float32, self.batch_shape, name='terminals')
-            self.rewards = tf.placeholder(tf.float32, self.batch_shape, name='rewards')
+        # Input placeholders
+        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+        self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+                                          name="next_states")
+        self.terminals = tf.placeholder(tf.float32, self.batch_shape, name='terminals')
+        self.rewards = tf.placeholder(tf.float32, self.batch_shape, name='rewards')
 
-            if define_network is None:
-                define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
+        if define_network is None:
+            define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
 
-            self.training_model = NeuralNetwork(define_network, [self.state], scope=self.scope + 'training')
-            self.target_model = NeuralNetwork(define_network, [self.next_states], scope=self.scope + 'target')
+        self.training_model = NeuralNetwork(define_network, [self.state], scope=self.scope + 'training')
+        self.target_model = NeuralNetwork(define_network, [self.next_states], scope=self.scope + 'target')
 
-            self.training_output = self.training_model.get_output()
-            self.target_output = self.target_model.get_output()
+        self.training_output = self.training_model.get_output()
+        self.target_output = self.target_model.get_output()
 
-            # Create training operations
-            self.create_training_operations()
-            self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
+        # Create training operations
+        self.create_training_operations()
+        self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
 
         self.training_output = self.training_model.get_output()
         self.target_output = self.target_model.get_output()
@@ -96,8 +92,6 @@ class DQNModel(Model):
 
         self.saver = tf.train.Saver()
         self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
-
-    def initialize(self):
         self.session.run(self.init_op)
 
     def get_action(self, state, episode=1):
@@ -130,7 +124,7 @@ class DQNModel(Model):
         # Compute estimated future value
         float_terminals = batch['terminals'].astype(float)
         q_targets = batch['rewards'] + (1. - float_terminals) \
-                                       * self.gamma * self.get_target_values(batch['next_states'])
+                                     * self.gamma * self.get_target_values(batch['next_states'])
 
         self.session.run([self.optimize_op, self.training_output], {
             self.q_targets: q_targets,

@@ -25,6 +25,7 @@ import os
 import sys
 import inspect
 import argparse
+import logging
 
 from six.moves import xrange, shlex_quote
 
@@ -50,12 +51,17 @@ def main():
     parser.add_argument('-w', '--num-workers', type=int, default=1, help="Number of worker agents")
     parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
+    parser.add_argument('-M', '--mode', choices=['tmux', 'child'], default='tmux', help="Starter mode")
+    parser.add_argument('-L', '--logdir', default='logs_async', help="Log directory")
     parser.add_argument('-C', '--is-child', action='store_true', default=False)
     parser.add_argument('-i', '--task-index', type=int, default=0, help="Task index")
     parser.add_argument('-p', '--is-ps', type=int, default=0, help="Is param server")
     parser.add_argument('-K', '--kill', action='store_true', default=False, help="Kill runners")
 
     args = parser.parse_args()
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
 
     session_name = 'openai_async'
     shell = '/bin/bash'
@@ -75,7 +81,12 @@ def main():
         def wrap_cmd(session, name, cmd):
             if isinstance(cmd, list):
                 cmd = ' '.join(shlex_quote(str(arg)) for arg in cmd)
-            return 'tmux send-keys -t {}:{} {} Enter'.format(session, name, shlex_quote(cmd))
+            if args.mode == 'tmux':
+                return 'tmux send-keys -t {}:{} {} Enter'.format(session, name, shlex_quote(cmd))
+            elif args.mode == 'child':
+                return '{} > {}/{}.{}.out 2>&1 & echo kill $! >> {}/kill.sh'.format(
+                    cmd, args.logdir, session, name, args.logdir
+                )
 
         def build_cmd(index, parameter_server):
             cmd_args = ['CUDA_VISIBLE_DEVICES=',
@@ -91,12 +102,19 @@ def main():
 
             return cmd_args
 
-        cmds = kill_cmds + ['tmux new-session -d -s {} -n ps'.format(session_name)]
+        if args.mode == 'tmux':
+            cmds = kill_cmds + ['tmux new-session -d -s {} -n ps'.format(session_name)]
+        elif args.mode == 'child':
+            cmds = ['mkdir -p {}'.format(args.logdir),
+                    'rm -f {}/kill.sh'.format(args.logdir),
+                    'echo "#/bin/bash" > {}/kill.sh'.format(args.logdir),
+                    'chmod +x {}/kill.sh'.format(args.logdir)]
         cmds.append(wrap_cmd(session_name, 'ps', build_cmd(0, 1)))
 
         for i in xrange(args.num_workers):
             name = 'w_{}'.format(i)
-            cmds.append('tmux new-window -t {} -n {} -d {}'.format(session_name, name, shell))
+            if args.mode == 'tmux':
+                cmds.append('tmux new-window -t {} -n {} -d {}'.format(session_name, name, shell))
             cmds.append(wrap_cmd(session_name, name, build_cmd(i, 0)))
 
 
@@ -104,10 +122,10 @@ def main():
         # cmds.append('tmux new-window -t {} -n ps -d {}'.format(session_name, shell))
 
         print("\n".join(cmds))
+
         os.system("\n".join(cmds))
 
         return 0
-
 
     env = OpenAIGymEnvironment(args.gym_id)
 
@@ -131,9 +149,9 @@ def main():
     else:
         stack = None
 
-    print("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
-    print("Config:")
-    print(config)
+    logger.info("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
+    logger.info("Config:")
+    logger.info(config)
 
     runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=args.num_workers, n_param_servers=1,
                                environment=env, global_steps=args.global_steps, max_episode_steps=args.max_timesteps,

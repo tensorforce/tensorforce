@@ -17,9 +17,13 @@
 Simple Q agent as an example on how to implement own agents and models.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import numpy as np
 import tensorflow as tf
-from six.moves import xrange
+import logging
 
 from tensorforce.agents import MemoryAgent
 from tensorforce.models import Model
@@ -174,6 +178,9 @@ class SimpleQAgent(MemoryAgent):
 
 def main():
     gym_id = 'CartPole-v0'
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+
     max_episodes = 10000
     max_timesteps = 1000
 
@@ -194,14 +201,14 @@ def main():
 
     def episode_finished(r):
         if r.episode % 10 == 0:
-            print("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
-            print("Episode reward: {}".format(r.episode_rewards[-1]))
-            print("Average of last 10 rewards: {}".format(np.mean(r.episode_rewards[-10:])))
+            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
+            logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
+            logger.info("Average of last 10 rewards: {}".format(np.mean(r.episode_rewards[-10:])))
         return True
 
-    print("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
+    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
     runner.run(max_episodes, max_timesteps, episode_finished=episode_finished)
-    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
+    logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
 
 if __name__ == '__main__':
     main()

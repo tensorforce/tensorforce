@@ -21,7 +21,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import Counter
+from collections import Counter, Iterable
 
 import tensorflow as tf
 
@@ -33,7 +33,7 @@ tf_slim = tf.contrib.slim
 
 class NeuralNetwork(object):
 
-    def __init__(self, define_network, inputs, scope='value_function'):
+    def __init__(self, define_network, inputs, path_length=None, scope='value_function'):
         """
         A neural network.
 
@@ -41,20 +41,22 @@ class NeuralNetwork(object):
         :param scope: TF scope
         :return: A TensorFlow network
         """
-
         with tf.variable_scope(scope):
             self.inputs = inputs
-            self.output = define_network(inputs)
+            self.path_length = path_length
+            network = define_network(inputs, path_length)
+            if isinstance(network, list) or isinstance(network, tuple):
+                assert len(network) == 4
+                self.output = network[0]
+                self.internal_state_inputs = network[1]
+                self.internal_state_outputs = network[2]
+                self.internal_state_inits = network[3]
+            else:
+                self.output = network
+                self.internal_state_inputs = []
+                self.internal_state_outputs = []
+                self.internal_state_inits = []
             self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=tf.get_variable_scope().name)
-
-    def get_inputs(self):
-        return self.inputs
-
-    def get_output(self):
-        return self.output
-
-    def get_variables(self):
-        return self.variables
 
     @staticmethod
     def layered_network(layers):
@@ -68,17 +70,30 @@ class NeuralNetwork(object):
         if not layers:
             raise ConfigError("Invalid configuration, missing layer specification.")
 
-        def define_network(inputs):
+        def define_network(inputs, path_length=None):
             assert len(inputs) == 1  # layered network only has one input
             layer = inputs[0]
-            type_counter = Counter()
+            internal_state_inputs = []
+            internal_state_outputs = []
+            internal_state_inits = []
 
+            type_counter = Counter()
             for layer_config in layers:
                 layer_type = layer_config['type']
                 type_counter[layer_type] += 1
                 layer_name = "{type}{num}".format(type=layer_type, num=type_counter[layer_type])
-                layer = layer_classes[layer_type](layer, layer_config, layer_name)
+                layer = layer_classes[layer_type](layer_input=layer, config=layer_config, path_length=path_length, scope=layer_name)
 
-            return layer  # set output to last layer
+                if isinstance(layer, list) or isinstance(layer, tuple):
+                    assert len(layer) == 4
+                    internal_state_inputs.append(layer[1])
+                    internal_state_outputs.append(layer[2])
+                    internal_state_inits.append(layer[3])
+                    layer = layer[0]
+
+            if internal_state_inputs:
+                return layer, internal_state_inputs, internal_state_outputs, internal_state_inits
+            else:
+                return layer
 
         return define_network

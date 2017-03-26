@@ -31,6 +31,9 @@ class ValueFunction(object):
 
         return np.concatenate([states, states ** 2, al, al ** 2, np.ones((path_length, 1))], axis=1)
 
+    def get_features_size(self, state_size):
+        return 2 * state_size + 3
+
     def predict(self, path):
         raise NotImplementedError
 

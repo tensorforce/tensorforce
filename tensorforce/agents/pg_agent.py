@@ -91,33 +91,28 @@ class PGAgent(RLAgent):
         self.current_episode['actions'].append(self.last_action)
         self.current_episode['rewards'].append(reward)
         self.current_episode['action_means'].append(self.last_action_means)
+        self.current_episode['terminated'] = terminal
 
         if self.continuous:
             self.current_episode['action_log_stds'].append(self.last_action_log_std)
 
-        if terminal:
-            # Batch could also end before episode is terminated
-            self.current_episode['terminated'] = True
-
-            # Transform into np arrays, append episode to batch, start new episode dict
+        if self.batch_steps == self.batch_size:
             path = get_path(self.continuous, self.current_episode)
             self.current_batch.append(path)
-            self.current_episode = defaultdict(list)
-
-        if self.batch_steps == self.batch_size:
-            if not terminal:
-                self.current_episode['terminated'] = False
-                path = get_path(self.continuous, self.current_episode)
-                self.current_batch.append(path)
-
             print('Computing PG update, episodes =' + str(len(self.current_batch)))
             self.model.update(self.current_batch)
             self.current_episode = defaultdict(list)
             self.current_batch = []
+            self.batch_steps = 0
+
+        if terminal:
+            # Transform into np arrays, append episode to batch, start new episode dict
+            path = get_path(self.continuous, self.current_episode)
+            self.current_batch.append(path)
+            self.current_episode = defaultdict(list)
             self.last_action = None
             self.last_action_means = None
             self.last_action_log_std = None
-            self.batch_steps = 0
 
     def save_model(self, path):
         self.model.save_model(path)

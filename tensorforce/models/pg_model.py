@@ -29,6 +29,7 @@ from tensorforce.util.math_util import discount, zero_mean_unit_variance
 
 
 class PGModel(Model):
+
     def __init__(self, config, scope, define_network=None):
         super(PGModel, self).__init__(config, scope)
         self.batch_size = self.config.batch_size
@@ -46,6 +47,8 @@ class PGModel(Model):
             self.random = np.random.RandomState()
 
         self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+        self.path_length = tf.placeholder(tf.int32, self.batch_shape, name='path_length')
+        # self.path_length = tf.placeholder_with_default(input=tf.reshape(tensor=tf.ones(shape=(1,), dtype=tf.int32), shape=(-1,)), shape=(self.batch_size,), name='path_length')
         self.episode = 0
         self.input_feed = None
 
@@ -57,7 +60,8 @@ class PGModel(Model):
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers)
 
-        self.hidden_layers = NeuralNetwork(define_network, [self.state], scope=scope + 'value_function')
+        self.network = NeuralNetwork(define_network, inputs=[self.state], path_length=self.path_length, scope=scope + 'value_function')
+        self.internal_states = self.network.internal_state_inits
 
         self.saver = tf.train.Saver()
         self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
@@ -66,7 +70,7 @@ class PGModel(Model):
         # From an API perspective, continuous vs discrete might be easier than
         # requiring to set the concrete policy, at least currently
         if self.continuous:
-            self.policy = GaussianPolicy(self.hidden_layers, self.session, self.state, self.random,
+            self.policy = GaussianPolicy(self.network, self.session, self.state, self.random,
                                          self.action_count, 'gaussian_policy')
             self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
 
@@ -74,7 +78,7 @@ class PGModel(Model):
                                   policy_log_std=self.prev_action_log_stds)
 
         else:
-            self.policy = CategoricalOneHotPolicy(self.hidden_layers, self.session, self.state, self.random,
+            self.policy = CategoricalOneHotPolicy(self.network, self.session, self.state, self.random,
                                                   self.action_count, 'categorical_policy')
             self.prev_dist = dict(policy_output=self.prev_action_means)
 
@@ -82,7 +86,10 @@ class PGModel(Model):
         self.dist = self.policy.get_distribution()
 
         # TODO configurable value functions
-        self.baseline_value_function = MLPValueFunction(self.session, 100, 64)
+        state_size = 1
+        for n in self.config.state_shape:
+            state_size *= n
+        self.baseline_value_function = MLPValueFunction(session=self.session, state_size=state_size, layer_size=64, update_iterations=100)
 
     def get_action(self, state, episode=1):
         """
@@ -125,8 +132,9 @@ class PGModel(Model):
 
         batch_advantage = np.expand_dims(batch_advantage, axis=1)
         states = np.concatenate([path['states'] for path in batch])
+        path_lengths = np.asarray([len(path['states']) for path in batch] + [0] * (self.batch_size - len(batch)))
 
-        return action_log_stds, action_means, actions, batch_advantage, states
+        return action_log_stds, action_means, actions, batch_advantage, states, path_lengths
 
     def compute_gae_advantage(self, batch, gamma, gae_lambda, use_gae=False):
         """

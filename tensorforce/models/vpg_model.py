@@ -54,11 +54,17 @@ class VPGModel(PGModel):
         self.baseline_value_function.fit(batch)
 
         # Merge episode inputs into single arrays
-        _, _, actions, batch_advantage, states = self.merge_episodes(batch)
+        _, _, actions, batch_advantage, states, path_lengths = self.merge_episodes(batch)
 
-        log_probs, loss, _ = self.session.run([self.log_probabilities, self.loss, self.optimize_op],
-                                              {self.state: states,
-                                               self.actions: actions,
-                                               self.advantage: batch_advantage})
-       # print('log probs:' + str(log_probs))
-       # print('loss:' + str(loss))
+        fetches = [self.optimize_op, self.log_probabilities, self.loss]
+        fetches.extend(self.network.internal_state_outputs)
+
+        feed_dict = {self.state: states, self.path_length: path_lengths, self.actions: actions, self.advantage: batch_advantage}
+        feed_dict.update({internal_state: self.internal_states[n] for n, internal_state in enumerate(self.network.internal_state_inputs)})
+
+        fetched = self.session.run(fetches, feed_dict)
+        log_probs = fetched[1]
+        loss = fetched[2]
+        self.internal_states = fetched[3:]
+        # print('log probs:' + str(log_probs))
+        # print('loss:' + str(loss))

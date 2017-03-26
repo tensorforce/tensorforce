@@ -24,29 +24,20 @@ import tensorflow as tf
 
 
 class GaussianPolicy(StochasticPolicy):
-    def __init__(self, neural_network=None,
-                 session=None,
-                 state=None,
-                 random=None,
-                 action_count=1,
-                 scope='policy'):
-        super(GaussianPolicy, self).__init__(neural_network, session, state, random, action_count)
+
+    def __init__(self, network, session, state, random, action_count=1, scope='policy'):
+        with tf.variable_scope(scope):
+            action_means = linear(network.output, {'num_outputs': action_count}, 'action_mu')
+            # Random init for log standard deviations
+            log_standard_devs_init = tf.Variable(0.01 * random.randn(1, action_count), dtype=tf.float32)
+            action_log_stds = tf.tile(log_standard_devs_init, tf.stack((tf.shape(action_means)[0], 1)))
+
+        super(GaussianPolicy, self).__init__(network, [action_means, action_log_stds], session, state, random, action_count)
         self.dist = Gaussian(random)
 
-        with tf.variable_scope(scope):
-            self.action_means = linear(self.neural_network.get_output(),
-                                       {'num_outputs': self.action_count}, 'action_mu')
-
-            # Random init for log standard deviations
-            log_standard_devs_init = tf.Variable(0.01 * self.random.randn(1, self.action_count),
-                                                 dtype=tf.float32)
-
-            self.action_log_stds = tf.tile(log_standard_devs_init, tf.stack((tf.shape(self.action_means)[0], 1)))
-
     def sample(self, state):
-        action_means, action_log_stds = self.session.run([self.action_means,
-                                                          self.action_log_stds],
-                                                         {self.state: [state]})
+        sample = super(GaussianPolicy, self).sample(state)
+        action_means, action_log_stds = sample
 
         action = action_means + np.exp(action_log_stds) * self.random.normal(size=action_log_stds.shape)
 
@@ -58,6 +49,5 @@ class GaussianPolicy(StochasticPolicy):
         return self.dist
 
     def get_policy_variables(self):
-        return dict(policy_output=self.action_means,
-                    policy_log_std=self.action_log_stds)
-
+        return dict(policy_output=self.policy_outputs[0],
+                    policy_log_std=self.policy_outputs[1])

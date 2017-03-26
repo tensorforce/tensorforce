@@ -24,27 +24,23 @@ import tensorflow as tf
 
 
 class CategoricalOneHotPolicy(StochasticPolicy):
-    def __init__(self, neural_network=None,
-                 session=None,
-                 state=None,
-                 random=None,
-                 action_count=1,
-                 scope='policy'):
-        super(CategoricalOneHotPolicy, self).__init__(neural_network, session, state, random, action_count)
-        self.dist = Categorical(random)
 
+    def __init__(self, network, session, state, random, action_count=1, scope='policy'):
         with tf.variable_scope(scope):
-            self.action_layer = linear(self.neural_network.get_output(),
-                                  {'num_outputs': self.action_count}, 'outputs')
-            self.outputs = tf.nn.softmax(self.action_layer)
+            action_layer = linear(layer_input=network.output, config={'num_outputs': action_count}, scope='outputs')
+            policy_output = tf.nn.softmax(action_layer)
+
+        super(CategoricalOneHotPolicy, self).__init__(network, [policy_output], session, state, random, action_count)
+        self.dist = Categorical(random)
 
     def get_distribution(self):
         return self.dist
 
     def sample(self, state, sample=True):
-        output_dist = self.session.run(self.outputs, {self.state: [state]})
-        output_dist = output_dist.ravel()
+        sample = super(CategoricalOneHotPolicy, self).sample(state)
+        output_dist = sample[0]
 
+        output_dist = output_dist.ravel()
         if sample:
             action = self.dist.sample(dict(policy_output=output_dist))
         else:
@@ -58,4 +54,4 @@ class CategoricalOneHotPolicy(StochasticPolicy):
         return one_hot, dict(policy_output=output_dist)
 
     def get_policy_variables(self):
-        return dict(policy_output=self.outputs)
+        return dict(policy_output=self.policy_outputs[0])

@@ -73,7 +73,8 @@ For the most straight-forward install via pip, execute:
     pip install -e .
 
 To update TensorForce, just run ``git pull`` in the tensorforce
-directory.
+directory. Please not that we did not include OpenAI gym/Universe/DeepMind lab in the default
+install script because not everyone will want to use these.
 
 Docker coming soon.
 
@@ -88,7 +89,7 @@ from the examples folder:
 
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_agent.json -n tensorforce/examples/configs/trpo_network.json
     
-You can find our documentation at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
+Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
 
 Road map and contributions
 --------------------------

@@ -73,8 +73,10 @@ For the most straight-forward install via pip, execute:
     pip install -e .
 
 To update TensorForce, just run ``git pull`` in the tensorforce
-directory. Please not that we did not include OpenAI gym/Universe/DeepMind lab in the default
-install script because not everyone will want to use these.
+directory. Please not that we did not include OpenAI Gym/Universe/DeepMind lab in the default
+install script because not everyone will want to use these. Please install them as required,
+usually via pip.
+
 
 Docker coming soon.
 
@@ -90,6 +92,44 @@ from the examples folder:
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_agent.json -n tensorforce/examples/configs/trpo_network.json
     
 Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
+
+To use TensorForce as a library, simply install and import the library, then create an agent as follows:
+
+::
+
+   from tensorforce.config import Config
+   from tensorforce.util.agent_util import create_agent
+
+   config = Config()
+
+   # Set basic problem parameters
+   config.batch_size = 100
+   config.state_shape = [10]
+   config.actions = 5
+   config.continuous = False
+
+   # Define 2 fully connected layers
+   config.network_layers = [{"type": "linear", "num_outputs": 50},
+                            {"type": "linear", "num_outputs": 50}]
+
+   # Create a Trust Region Policy Optimization agent
+   agent = create_agent('TRPOAgent', config)
+
+   # Get new data from somewhere, e.g. some client
+   external = MyClient('http://127.0.0.1', 8080)
+
+   # Get new data from external data source
+   input = external.get_state()
+
+   # Get prediction from agent
+   action = agent.get_action(input)
+
+   # Do something with action
+   reward = external.execute(action)
+
+   # Add experience, agent automatically updates itself according to batch size
+   agent.add_observation(input, action, reward)
+
 
 Road map and contributions
 --------------------------

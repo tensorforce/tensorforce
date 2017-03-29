@@ -107,7 +107,7 @@ then create an agent and use it as seen below (see documentation for all optiona
    config = Config()
 
    # Set basic problem parameters
-   config.batch_size = 100
+   config.batch_size = 1000
    config.state_shape = [10]
    config.actions = 5
    config.continuous = False

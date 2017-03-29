@@ -113,8 +113,8 @@ then create an agent and use it as seen below (see documentation for all optiona
    config.continuous = False
 
    # Define 2 fully connected layers
-   config.network_layers = [{"type": "linear", "num_outputs": 50},
-                            {"type": "linear", "num_outputs": 50}]
+   config.network_layers = [{"type": "dense", "num_outputs": 50},
+                            {"type": "dense", "num_outputs": 50}]
 
    # Create a Trust Region Policy Optimization agent
    agent = create_agent('TRPOAgent', config)

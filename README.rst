@@ -93,8 +93,11 @@ from the examples folder:
     
 Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
 
-To use TensorForce as a library and without using the simulation runners, simply install and import the library,
-then create an agent and use it as follows (see our documentation for all optional parameters):
+Create and use agents
+---------------------
+
+To use TensorForce as a library without using the pre-defined simulation runners, simply install and import the library,
+then create an agent and use it as seen below (see documentation for all optional parameters):
 
 ::
 

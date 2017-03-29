@@ -93,7 +93,8 @@ from the examples folder:
     
 Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
 
-To use TensorForce as a library, simply install and import the library, then create an agent as follows:
+To use TensorForce as a library and without using the simulation runners, simply install and import the library,
+then create an agent and use it as follows (see our documentation for all optional parameters):
 
 ::
 
@@ -115,19 +116,19 @@ To use TensorForce as a library, simply install and import the library, then cre
    # Create a Trust Region Policy Optimization agent
    agent = create_agent('TRPOAgent', config)
 
-   # Get new data from somewhere, e.g. some client
-   external = MyClient('http://127.0.0.1', 8080)
+   # Get new data from somewhere, e.g. a client to a web app
+   client = MyClient('http://127.0.0.1', 8080)
 
-   # Get new data from external data source
-   input = external.get_state()
+   # Poll new state from client
+   input = client.get_state()
 
    # Get prediction from agent
    action = agent.get_action(input)
 
    # Do something with action
-   reward = external.execute(action)
+   reward = client.execute(action)
 
-   # Add experience, agent automatically updates itself according to batch size
+   # Add experience, agent automatically updates model according to batch size
    agent.add_observation(input, action, reward)
 
 

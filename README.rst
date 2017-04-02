@@ -73,7 +73,10 @@ For the most straight-forward install via pip, execute:
     pip install -e .
 
 To update TensorForce, just run ``git pull`` in the tensorforce
-directory.
+directory. Please not that we did not include OpenAI Gym/Universe/DeepMind lab in the default
+install script because not everyone will want to use these. Please install them as required,
+usually via pip.
+
 
 Docker coming soon.
 
@@ -88,7 +91,49 @@ from the examples folder:
 
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_agent.json -n tensorforce/examples/configs/trpo_network.json
     
-You can find our documentation at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
+Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
+
+Create and use agents
+---------------------
+
+To use TensorForce as a library without using the pre-defined simulation runners, simply install and import the library,
+then create an agent and use it as seen below (see documentation for all optional parameters):
+
+::
+
+   from tensorforce.config import Config
+   from tensorforce.util.agent_util import create_agent
+
+   config = Config()
+
+   # Set basic problem parameters
+   config.batch_size = 1000
+   config.state_shape = [10]
+   config.actions = 5
+   config.continuous = False
+
+   # Define 2 fully connected layers
+   config.network_layers = [{"type": "dense", "num_outputs": 50},
+                            {"type": "dense", "num_outputs": 50}]
+
+   # Create a Trust Region Policy Optimization agent
+   agent = create_agent('TRPOAgent', config)
+
+   # Get new data from somewhere, e.g. a client to a web app
+   client = MyClient('http://127.0.0.1', 8080)
+
+   # Poll new state from client
+   input = client.get_state()
+
+   # Get prediction from agent
+   action = agent.get_action(input)
+
+   # Do something with action
+   reward = client.execute(action)
+
+   # Add experience, agent automatically updates model according to batch size
+   agent.add_observation(input, action, reward)
+
 
 Road map and contributions
 --------------------------

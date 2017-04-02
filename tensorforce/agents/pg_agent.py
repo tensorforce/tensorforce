@@ -38,7 +38,7 @@ class PGAgent(RLAgent):
 
     model_ref = None
 
-    def __init__(self, config, scope):
+    def __init__(self, config, scope='pg_agent'):
         self.config = create_config(config, default=self.default_config)
         self.model = None
         self.current_batch = []

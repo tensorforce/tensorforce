@@ -42,7 +42,7 @@ class MemoryAgent(RLAgent):
 
     model_ref = None
 
-    def __init__(self, config, scope):
+    def __init__(self, config, scope='memory_agent'):
         """
         Initialize a vanilla DQN agent as described in
         http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.

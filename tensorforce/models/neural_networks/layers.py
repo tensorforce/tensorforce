@@ -66,8 +66,8 @@ def layer_wrapper(layer_constructor, requires_path_length=False, reshape=None):
 
 def lstm_layer(layer_input, path_length, **kwargs):
     assert layer_input.get_shape().ndims == 2
-    path_length = tf.pad(tensor=path_length, paddings=((0, 100 - tf.shape(input=path_length)[0]),))
-    path_length = tf.reshape(tensor=path_length, shape=(100,))
+    path_length = tf.pad(tensor=path_length, paddings=((0, 1000 - tf.shape(input=path_length)[0]),))
+    path_length = tf.reshape(tensor=path_length, shape=(1000,))
     lstm_size = layer_input.get_shape()[1].value
     paths = tf.split(value=layer_input, num_or_size_splits=path_length)
     lengths = tf.unstack(value=path_length)
@@ -77,7 +77,7 @@ def lstm_layer(layer_input, path_length, **kwargs):
     paths = tf.reshape(tensor=paths, shape=(-1, max_length, lstm_size))
     internal_state_input = tf.placeholder(dtype=tf.float32, shape=(2, lstm_size))
     lstm = tf.contrib.rnn.LSTMCell(num_units=lstm_size)
-    zero_state = tf.zeros_like(tensor=paths[1:, 0, :])
+    zero_state = tf.zeros(shape=(999, lstm_size))
     initial_c = tf.concat(values=(tf.expand_dims(input=internal_state_input[0, :], axis=0), zero_state), axis=0)
     initial_h = tf.concat(values=(tf.expand_dims(input=internal_state_input[1, :], axis=0), zero_state), axis=0)
     initial_state = tf.contrib.rnn.LSTMStateTuple(c=initial_c, h=initial_h)

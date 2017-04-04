@@ -91,15 +91,12 @@ class PGModel(Model):
         # Probability distribution used in the current policy
         self.dist = self.policy.get_distribution()
 
-<<<<<<< HEAD
-        # TODO configurable value functions
-        state_size = 1
-        for n in self.config.state_shape:
-            state_size *= n
-        self.baseline_value_function = MLPValueFunction(session=self.session, state_size=state_size, layer_size=64, update_iterations=100)
-=======
+        # state_size = 1
+        # for n in self.config.state_shape:
+        #     state_size *= n
+        # self.baseline_value_function = MLPValueFunction(session=self.session, state_size=state_size, layer_size=64, update_iterations=100)
         self.baseline_value_function = LinearValueFunction()
->>>>>>> 8877235a8dfb94345462990d776c2fcbc59a287b
+        # TODO configurable value functions
 
     def get_action(self, state, episode=1):
         """

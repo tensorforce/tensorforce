@@ -107,14 +107,6 @@ class PGAgent(RLAgent):
         if self.continuous:
             self.current_episode['action_log_stds'].append(self.last_action_log_std)
 
-        if self.batch_steps == self.batch_size:
-            path = get_path(self.continuous, self.current_episode)
-            self.current_batch.append(path)
-            self.model.update(self.current_batch)
-            self.current_episode = defaultdict(list)
-            self.current_batch = []
-            self.batch_steps = 0
-
         if terminal:
             # Transform into np arrays, append episode to batch, start new episode dict
             path = get_path(self.continuous, self.current_episode)
@@ -123,6 +115,15 @@ class PGAgent(RLAgent):
             self.last_action = None
             self.last_action_means = None
             self.last_action_log_std = None
+
+        if self.batch_steps == self.batch_size:
+            if self.last_action is not None:
+                path = get_path(self.continuous, self.current_episode)
+                self.current_batch.append(path)
+            self.model.update(self.current_batch)
+            self.current_episode = defaultdict(list)
+            self.current_batch = []
+            self.batch_steps = 0
 
     def save_model(self, path):
         self.model.save_model(path)

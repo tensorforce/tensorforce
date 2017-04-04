@@ -34,19 +34,19 @@ class CategoricalOneHotPolicy(StochasticPolicy):
     def __init__(self, network, session, state, random, action_count=1, scope='policy'):
         with tf.variable_scope(scope):
             action_layer = linear(layer_input=network.output, config={'num_outputs': action_count}, scope='outputs')
-            dist = tf.nn.softmax(action_layer)
-            sample = tf.multinomial(policy_dist, 1)
+            distribution = tf.nn.softmax(action_layer)
+            sample = tf.multinomial(distribution, 1)
 
-        super(CategoricalOneHotPolicy, self).__init__(network, [dist, sample], session, state, random, action_count)
+        super(CategoricalOneHotPolicy, self).__init__(network, [distribution, sample], session, state, random, action_count)
         self.dist = Categorical(random)
 
     def get_distribution(self):
         return self.dist
 
     def sample(self, state, sample=True):
-        dist, sample = super(CategoricalOneHotPolicy, self).sample(state)
+        output_dist, output_sample = super(CategoricalOneHotPolicy, self).sample(state)
 
-        dist = dist.ravel()
+        output_dist = output_dist.ravel()
         if sample:
             # We currently use tf.multinomial for sampling, as np.random.multinomial has a precision of 1e-12 and raises
             # ValueErrors when sum(pvals) > 1.0. With tensorflow's precision of 1e-8, this might happen.

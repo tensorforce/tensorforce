@@ -23,7 +23,15 @@ from __future__ import division
 
 from six import callable
 import importlib
+import logging
 
+log_levels = {
+    "info": logging.INFO,
+    "debug": logging.DEBUG,
+    "critical": logging.CRITICAL,
+    "warning": logging.WARNING,
+    "fatal": logging.FATAL
+}
 
 def get_function(fn):
     """

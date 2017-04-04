@@ -30,6 +30,7 @@ from tensorforce.config import Config
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
 from tensorforce.util.experiment_util import build_preprocessing_stack
 from tensorforce.util.agent_util import create_agent
+from tensorforce.util.config_util import log_levels
 from tensorforce.execution import Runner
 
 
@@ -52,8 +53,7 @@ def main():
 
     args = parser.parse_args()
 
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
+
 
     gym_id = args.gym_id
 
@@ -71,6 +71,9 @@ def main():
 
     if args.network_config:
         config.read_json(args.network_config)
+
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_levels[config.loglevel])
 
     preprocessing_config = config.get('preprocessing')
     if preprocessing_config:

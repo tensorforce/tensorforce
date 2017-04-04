@@ -1,4 +1,5 @@
 {
+  "loglevel": "debug",
   "alpha": 0.001,
   "use_target_network": true,
   "target_network_update_rate": 1,

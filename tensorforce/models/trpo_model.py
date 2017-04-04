@@ -110,7 +110,7 @@ class TRPOModel(PGModel):
         self.baseline_value_function.fit(batch)
 
         # Merge episode inputs into single arrays
-        action_log_stds, action_means, actions, batch_advantage, states = self.merge_episodes(batch)
+        action_log_stds, action_means, actions, batch_advantage, states, path_length = self.merge_episodes(batch)
 
         self.input_feed = {self.state: states,
                            self.actions: actions,

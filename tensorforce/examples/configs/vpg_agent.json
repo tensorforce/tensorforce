@@ -1,4 +1,5 @@
 {
+  "loglevel": "debug",
   "alpha": 0.01,
   "batch_size": 1000,
   "normalize_advantage" : false,

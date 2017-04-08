@@ -78,7 +78,6 @@ def lstm_layer(layer_input, episode_length, **kwargs):
     lstm = tf.contrib.rnn.LSTMCell(num_units=lstm_size)
     outputs, internal_state = tf.nn.dynamic_rnn(cell=lstm, inputs=layer_input, sequence_length=episode_length, initial_state=initial_state)
     internal_state_output = tf.stack(values=(internal_state.c[-1, :], internal_state.h[-1, :]))
-
     return outputs, internal_state_input, internal_state_output, internal_state_init
 
 

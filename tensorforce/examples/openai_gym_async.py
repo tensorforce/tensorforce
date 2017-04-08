@@ -32,6 +32,7 @@ from six.moves import xrange, shlex_quote
 from tensorforce.config import Config, create_config
 from tensorforce.execution.distributed_runner import DistributedRunner
 from tensorforce.external.openai_gym import OpenAIGymEnvironment
+from tensorforce.util.config_util import log_levels
 from tensorforce.util.experiment_util import build_preprocessing_stack
 
 
@@ -59,8 +60,7 @@ def main():
     parser.add_argument('-K', '--kill', action='store_true', default=False, help="Kill runners")
 
     args = parser.parse_args()
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
+
 
 
     session_name = 'openai_async'
@@ -141,6 +141,8 @@ def main():
     if args.network_config:
         config.read_json(args.network_config)
 
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_levels[config.loglevel])
     preprocessing_config = config.get('preprocessing')
 
     if preprocessing_config:

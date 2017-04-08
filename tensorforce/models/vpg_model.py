@@ -75,7 +75,7 @@ class VPGModel(PGModel):
             feed_dict[internal_state] = self.internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)
-        log_probs = fetched[1]
+
         loss = fetched[2]
         self.internal_states = fetched[3:]
 

@@ -39,6 +39,7 @@ from tensorforce.util.experiment_util import global_seed
 
 from tensorforce.default_configs import NAFModelConfig
 
+
 class NAFModel(Model):
     default_config = NAFModelConfig
 
@@ -60,13 +61,14 @@ class NAFModel(Model):
         else:
             self.random = np.random.RandomState()
 
-        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
-        self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+        self.state_shape = tuple(self.config.state_shape)
+        self.state = tf.placeholder(tf.float32, (None,) + self.state_shape, name="state")
+        self.next_states = tf.placeholder(tf.float32, (None,) + self.state_shape,
                                           name="next_states")
+        self.actions = tf.placeholder(tf.float32, (None, self.action_count), name='actions')
+        self.terminals = tf.placeholder(tf.float32, (None, self.batch_size), name='terminals')
+        self.rewards = tf.placeholder(tf.float32, (None, self.batch_size), name='rewards')
 
-        self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
-        self.terminals = tf.placeholder(tf.float32, [None], name='terminals')
-        self.rewards = tf.placeholder(tf.float32, [None], name='rewards')
         self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
         self.target_network_update = []
         self.episode = 0
@@ -77,14 +79,18 @@ class NAFModel(Model):
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers)
 
-        self.training_model = NeuralNetwork(define_network, [self.state], scope=scope + 'training')
-        self.target_model = NeuralNetwork(define_network, [self.next_states], scope=scope + 'target')
-        self.internal_states = self.training_model.internal_state_inits
+        self.training_network = NeuralNetwork(define_network, [self.state], episode_length=self.episode_length,
+                                              scope=scope + 'training')
+        self.target_network = NeuralNetwork(define_network, [self.next_states], episode_length=self.episode_length,
+                                            scope=scope + 'target')
+
+        self.training_internal_states = self.training_network.internal_state_inits
+        self.target_internal_states = self.target_network.internal_state_inits
 
         # Create output fields
         self.training_v, self.mu, self.advantage, self.q, self.training_output_vars = self.create_outputs(
-            self.training_model.get_output(), 'outputs_training')
-        self.target_v, _, _, _, self.target_output_vars = self.create_outputs(self.target_model.get_output(),
+            self.training_network.output, 'outputs_training')
+        self.target_v, _, _, _, self.target_output_vars = self.create_outputs(self.target_network.output,
                                                                               'outputs_target')
         self.create_training_operations()
         self.saver = tf.train.Saver()
@@ -115,10 +121,26 @@ class NAFModel(Model):
         q_targets = batch['rewards'] + (1. - float_terminals) * self.gamma * np.squeeze(
             self.get_target_value_estimate(batch['next_states']))
 
-        self.session.run([self.optimize_op, self.loss, self.training_v, self.advantage, self.q], {
+        feed_dict = {
+            self.episode_length: [len(batch['rewards'])],
             self.q_targets: q_targets,
             self.actions: batch['actions'],
-            self.state: batch['states']})
+            self.state: batch['states']}
+
+        fetches = [self.optimize_op, self.loss, self.training_v, self.advantage, self.q]
+        fetches.extend(self.training_network.internal_state_outputs)
+        fetches.extend(self.target_network.internal_state_outputs)
+
+        for n, internal_state in enumerate(self.training_network.internal_state_inputs):
+            feed_dict[internal_state] = self.training_internal_states[n]
+
+        for n, internal_state in enumerate(self.target_network.internal_state_inputs):
+            feed_dict[internal_state] = self.target_internal_states[n]
+
+        fetched = self.session.run(fetches, feed_dict)
+
+        self.training_internal_states = fetched[2:len(self.training_internal_states)]
+        self.target_internal_states = fetched[2 + len(self.training_internal_states):]
 
     def create_outputs(self, last_hidden_layer, scope):
         """
@@ -133,11 +155,13 @@ class NAFModel(Model):
         with tf.name_scope(scope):
             # State-value function
             v = linear(last_hidden_layer, {'num_outputs': 1, 'weights_regularizer': self.config.weights_regularizer,
-                                           'weights_regularizer_args': [self.config.weights_regularizer_args]}, scope + 'v')
+                                           'weights_regularizer_args': [self.config.weights_regularizer_args]},
+                       scope + 'v')
 
             # Action outputs
-            mu = linear(last_hidden_layer, {'num_outputs': self.action_count, 'weights_regularizer': self.config.weights_regularizer,
-                                            'weights_regularizer_args': [self.config.weights_regularizer_args]}, scope + 'mu')
+            mu = linear(last_hidden_layer,
+                        {'num_outputs': self.action_count, 'weights_regularizer': self.config.weights_regularizer,
+                         'weights_regularizer_args': [self.config.weights_regularizer_args]}, scope + 'mu')
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
@@ -177,7 +201,7 @@ class NAFModel(Model):
 
             # A = -0.5 (a - mu)P(a - mu)
             advantage = -0.5 * tf.matmul(tf.transpose(action_diff, [0, 2, 1]),
-                                               tf.matmul(p_matrix, action_diff))
+                                         tf.matmul(p_matrix, action_diff))
             advantage = tf.reshape(advantage, [-1, 1])
 
             with tf.name_scope('q_values'):
@@ -200,8 +224,8 @@ class NAFModel(Model):
 
         with tf.name_scope("update_target"):
             # Combine hidden layer variables and output layer variables
-            self.training_vars = self.training_model.get_variables() + self.training_output_vars
-            self.target_vars = self.target_model.get_variables() + self.target_output_vars
+            self.training_vars = self.training_network.variables + self.training_output_vars
+            self.target_vars = self.target_network.variables + self.target_output_vars
 
             for v_source, v_target in zip(self.training_vars, self.target_vars):
                 update = v_target.assign_sub(self.tau * (v_target - v_source))

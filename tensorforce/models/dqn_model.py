@@ -67,7 +67,7 @@ class DQNModel(Model):
         # Input placeholders
         self.state_shape = tuple(self.config.state_shape)
         self.state = tf.placeholder(tf.float32, (None, ) + self.state_shape, name="state")
-        self.next_states = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape,
+        self.next_states = tf.placeholder(tf.float32, (None, ) + self.state_shape,
                                           name="next_states")
         self.terminals = tf.placeholder(tf.float32, (None, self.batch_size), name='terminals')
         self.rewards = tf.placeholder(tf.float32, (None, self.batch_size), name='rewards')
@@ -75,13 +75,14 @@ class DQNModel(Model):
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
 
-        self.training_model = NeuralNetwork(define_network, [self.state], scope=self.scope + 'training')
-        self.target_model = NeuralNetwork(define_network, [self.next_states], scope=self.scope + 'target')
-        self.training_internal_states = self.training_model.internal_state_inits
-        self.target_internal_states = self.target_model.internal_state_inits
+        self.training_network = NeuralNetwork(define_network, [self.state], episode_length=self.episode_length, scope=self.scope + 'training')
+        self.target_network = NeuralNetwork(define_network, [self.next_states], episode_length=self.episode_length, scope=self.scope + 'target')
 
-        self.training_output = self.training_model.output
-        self.target_output = self.target_model.output
+        self.training_internal_states = self.training_network.internal_state_inits
+        self.target_internal_states = self.target_network.internal_state_inits
+
+        self.training_output = self.training_network.output
+        self.target_output = self.target_network.output
 
         # Create training operations
         self.create_training_operations()
@@ -127,6 +128,7 @@ class DQNModel(Model):
                                      * self.gamma * self.get_target_values(batch['next_states'])
 
         feed_dict = {
+            self.episode_length: [len(batch['rewards'])],
             self.q_targets: q_targets,
             self.actions: batch['actions'],
             self.state: batch['states']
@@ -136,19 +138,20 @@ class DQNModel(Model):
         fetches.extend(self.training_network.internal_state_outputs)
         fetches.extend(self.target_network.internal_state_outputs)
 
-        for n, internal_state in enumerate(self.training_model.internal_state_inputs):
+        for n, internal_state in enumerate(self.training_network.internal_state_inputs):
             feed_dict[internal_state] = self.training_internal_states[n]
 
-        for n, internal_state in enumerate(self.target_model.internal_state_inputs):
+        for n, internal_state in enumerate(self.target_network.internal_state_inputs):
                 feed_dict[internal_state] = self.target_internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)
 
+        # Update internal state list, e.g. or LSTM
         self.training_internal_states = fetched[2:len(self.training_internal_states)]
-        self.target_internal_states = fetched[2+len(self.target_internal_states):]
+        self.target_internal_states = fetched[2+len(self.training_internal_states):]
 
     def get_variables(self):
-        return self.training_model.get_variables()
+        return self.training_network.get_variables()
 
     def assign_variables(self, values):
         assign_variables_ops = [variable.assign(value) for variable, value in zip(self.get_variables(), values)]
@@ -210,7 +213,7 @@ class DQNModel(Model):
 
             # Update target network with update weight tau
                 with tf.name_scope("update_target"):
-                    for v_source, v_target in zip(self.training_model.variables, self.target_model.variables):
+                    for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
                         update = v_target.assign_sub(self.tau * (v_target - v_source))
                         self.target_network_update.append(update)
 

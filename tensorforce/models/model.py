@@ -18,6 +18,7 @@ manages TensorFlow session and execution. In particular, a agent for reinforceme
 always needs to provide a function that gives an action, and one to trigger updates.
 A agent may use one more multiple neural networks and implement the update logic of a particular
 RL algorithm.
+
 """
 
 from __future__ import absolute_import
@@ -37,6 +38,7 @@ class Model(object):
 
     def __init__(self, config, scope):
         """
+        
         :param config: Configuration parameters
         :param scope: TensorFlow scope
         """
@@ -48,10 +50,12 @@ class Model(object):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
+
         # This is the scope used to prefix variable creation for distributed TensorFlow
         self.scope = scope
 
         self.deterministic_mode = config.get('deterministic_mode', False)
+        self.episode_length = tf.placeholder(tf.int32, (None,), name='episode_length')
 
         self.alpha = config.get('alpha', 0.001)
 

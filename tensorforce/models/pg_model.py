@@ -53,7 +53,6 @@ class PGModel(Model):
         else:
             self.random = np.random.RandomState()
 
-        self.episode_length = tf.placeholder(tf.int32, (None,), name='episode_length')
         self.state_shape = tuple(self.config.state_shape)
 
         self.state = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape, name="state")
@@ -130,32 +129,6 @@ class PGModel(Model):
             zero_episode['action_log_stds'] = np.zeros(shape=(self.batch_size, self.action_count))
 
         return zero_episode
-
-    # def merge_episodes(self, batch):
-    #     """
-    #     Merge episodes of a batch into single input variables.
-
-    #     :param batch:
-    #     :return:
-    #     """
-    #     if self.continuous:
-    #         action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
-    #         action_log_stds = np.expand_dims(action_log_stds, axis=1)
-    #     else:
-    #         action_log_stds = None
-
-    #     action_means = np.concatenate([path['action_means'] for path in batch])
-    #     actions = np.concatenate([path['actions'] for path in batch])
-    #     batch_advantage = np.concatenate([path["advantage"] for path in batch])
-
-    #     if self.normalize_advantage:
-    #         batch_advantage = zero_mean_unit_variance(batch_advantage)
-
-    #     batch_advantage = np.expand_dims(batch_advantage, axis=1)
-    #     states = np.concatenate([path['states'] for path in batch])
-    #     path_lengths = np.asarray([len(path['states']) for path in batch] + [0] * (self.batch_size - len(batch)))
-
-    #     return action_log_stds, action_means, actions, batch_advantage, states, path_lengths
 
     def generalised_advantage_estimation(self, episode):
         """

@@ -55,6 +55,7 @@ class PGModel(Model):
 
         self.episode_length = tf.placeholder(tf.int32, (None,), name='episode_length')
         self.state_shape = tuple(self.config.state_shape)
+
         self.state = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape, name="state")
         self.actions = tf.placeholder(tf.float32, (None, self.batch_size, self.action_count), name='actions')
         self.prev_action_means = tf.placeholder(tf.float32, (None, self.batch_size, self.action_count), name='prev_actions')

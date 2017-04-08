@@ -165,8 +165,8 @@ class TRPOModel(PGModel):
             for n, internal_state in enumerate(self.network.internal_state_inputs):
                 self.input_feed[internal_state] = self.internal_states[n]
 
-            fetched, state = self.session.run([self.losses, self.network.internal_state_outputs],
-                                              self.input_feed)
+            self.losses.extend(self.network.internal_state_outputs)
+            fetched = self.session.run(self.losses, self.input_feed)
 
             # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
             self.logger.info('Surrogate loss = ' + str(fetched[0]))

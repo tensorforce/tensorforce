@@ -64,13 +64,13 @@ class DQNModel(Model):
         # output layer
         output_layer_config = [{"type": "linear", "num_outputs": self.config.actions, "trainable": True}]
 
-
         # Input placeholders
-        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
-        self.next_states = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+        self.state_shape = tuple(self.config.state_shape)
+        self.state = tf.placeholder(tf.float32, (None, ) + self.state_shape, name="state")
+        self.next_states = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape,
                                           name="next_states")
-        self.terminals = tf.placeholder(tf.float32, self.batch_shape, name='terminals')
-        self.rewards = tf.placeholder(tf.float32, self.batch_shape, name='rewards')
+        self.terminals = tf.placeholder(tf.float32, (None, self.batch_size), name='terminals')
+        self.rewards = tf.placeholder(tf.float32, (None, self.batch_size), name='rewards')
 
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
@@ -80,15 +80,12 @@ class DQNModel(Model):
         self.training_internal_states = self.training_model.internal_state_inits
         self.target_internal_states = self.target_model.internal_state_inits
 
-        self.training_output = self.training_model.get_output()
-        self.target_output = self.target_model.get_output()
+        self.training_output = self.training_model.output
+        self.target_output = self.target_model.output
 
         # Create training operations
         self.create_training_operations()
         self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
-
-        self.training_output = self.training_model.get_output()
-        self.target_output = self.target_model.get_output()
 
         self.init_op = tf.global_variables_initializer()
 
@@ -113,6 +110,7 @@ class DQNModel(Model):
             action = self.session.run(self.dqn_action, {self.state: [state]})[0]
 
         self.total_states += 1
+
         return action
 
     def update(self, batch):
@@ -144,13 +142,10 @@ class DQNModel(Model):
         for n, internal_state in enumerate(self.target_model.internal_state_inputs):
                 feed_dict[internal_state] = self.target_internal_states[n]
 
-        _, _, training_state, target_state = self.session.run(fetches, feed_dict)
+        fetched = self.session.run(fetches, feed_dict)
 
-        self.training_internal_states = training_state
-        self.target_internal_states = target_state
-
-
-
+        self.training_internal_states = fetched[2:len(self.training_internal_states)]
+        self.target_internal_states = fetched[2+len(self.target_internal_states):]
 
     def get_variables(self):
         return self.training_model.get_variables()
@@ -214,10 +209,10 @@ class DQNModel(Model):
                 self.optimize_op = self.optimizer.apply_gradients(self.grads_and_vars)
 
             # Update target network with update weight tau
-            with tf.name_scope("update_target"):
-                for v_source, v_target in zip(self.training_model.get_variables(), self.target_model.get_variables()):
-                    update = v_target.assign_sub(self.tau * (v_target - v_source))
-                    self.target_network_update.append(update)
+                with tf.name_scope("update_target"):
+                    for v_source, v_target in zip(self.training_model.variables, self.target_model.variables):
+                        update = v_target.assign_sub(self.tau * (v_target - v_source))
+                        self.target_network_update.append(update)
 
     def get_target_values(self, next_states):
         """

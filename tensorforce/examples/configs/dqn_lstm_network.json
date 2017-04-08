@@ -3,8 +3,8 @@
     {
       "type": "conv2d",
       "num_outputs": 32,
-      "kernel_size": 8,
-      "stride": 4,
+      "kernel_size": [8, 8],
+      "stride": [4, 4],
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
@@ -15,8 +15,8 @@
     {
       "type": "conv2d",
       "num_outputs": 64,
-      "kernel_size": 4,
-      "stride": 2,
+      "kernel_size": [4, 4],
+      "stride": [2, 2],
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
@@ -25,16 +25,7 @@
       "weights_regularizer": null
     },
     {
-      "type": "conv2d",
-      "num_outputs": 64,
-      "kernel_size": 3,
-      "stride": 1,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.relu",
-      "weights_regularizer": null
+      "type": "lstm"
     },
     {
       "type": "dense",

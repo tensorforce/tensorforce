@@ -103,6 +103,7 @@ class PGAgent(RLAgent):
         self.current_episode['actions'][self.episode_step] = self.last_action
         self.current_episode['action_means'][self.episode_step] = self.last_action_means
         self.current_episode['rewards'][self.episode_step] = reward
+
         if self.continuous:
             self.current_episode['action_log_stds'][self.episode_step] = self.last_action_log_std
 

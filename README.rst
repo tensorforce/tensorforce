@@ -135,6 +135,23 @@ then create an agent and use it as seen below (see documentation for all optiona
    agent.add_observation(input, action, reward)
 
 
+
+Update notes
+------------
+
+Coming soon/under construction:
+
+- More examples scripts and predefined configurations for typical environments
+- Example runner script for DeepMind lab
+- Q-Prop: Sample-Efficient Policy Gradient with An Off-Policy Critic - `paper <https://arxiv.org/abs/1611.02247>`__
+
+
+9th April 2017:
+
+- Optional LSTM usage in network configurations
+- Cleaner internal state management for policy gradient models
+- Log-level as config parameter, more informative logging for level INFO
+
 Road map and contributions
 --------------------------
 

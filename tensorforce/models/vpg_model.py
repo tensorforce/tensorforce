@@ -56,7 +56,7 @@ class VPGModel(PGModel):
         # Set per episode return and advantage
         for episode in batch:
             episode['returns'] = discount(episode['rewards'], self.gamma)
-            episode['advantages'] = self.advantage_estimation(episode)
+            episode['advantages'] = self.generalised_advantage_estimation(episode)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)
@@ -70,6 +70,7 @@ class VPGModel(PGModel):
             self.actions: [episode['actions'] for episode in batch],
             self.advantage: [episode['advantages'] for episode in batch]
         }
+
         for n, internal_state in enumerate(self.network.internal_state_inputs):
             feed_dict[internal_state] = self.internal_states[n]
 
@@ -77,5 +78,5 @@ class VPGModel(PGModel):
         log_probs = fetched[1]
         loss = fetched[2]
         self.internal_states = fetched[3:]
-        # print('log probs:' + str(log_probs))
-        # print('loss:' + str(loss))
+
+        self.logger.debug('Vanilla policy gradient loss = ' + str(loss))

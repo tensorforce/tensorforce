@@ -102,22 +102,27 @@ class TRPOModel(PGModel):
         :param batch:
         :return:
         """
-        # Set per episode advantage using GAE
         self.input_feed = None
-        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda, self.use_gae)
+
+        # Set per episode return and advantage
+        for episode in batch:
+            episode['returns'] = discount(episode['rewards'], self.gamma)
+            episode['advantages'] = self.generalised_advantage_estimation(episode)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)
 
-        # Merge episode inputs into single arrays
-        action_log_stds, action_means, actions, batch_advantage, states, path_length = self.merge_episodes(batch)
+        self.input_feed = {
+            self.episode_length: [episode['episode_length'] for episode in batch],
+            self.state: [episode['states'] for episode in batch],
+            self.actions: [episode['actions'] for episode in batch],
+            self.advantage: [episode['advantages'] for episode in batch],
+            self.prev_action_means: [episode['action_means'] for episode in batch]
+        }
 
-        self.input_feed = {self.state: states,
-                           self.actions: actions,
-                           self.advantage: batch_advantage,
-                           self.prev_action_means: action_means}
         if self.continuous:
-            self.input_feed[self.prev_action_log_stds] = action_log_stds
+            self.input_feed[self.prev_action_log_stds] = [episode['action_log_stds']
+                                                          for episode in batch]
 
         previous_theta = self.flat_variable_helper.get()
 
@@ -155,12 +160,21 @@ class TRPOModel(PGModel):
                 self.flat_variable_helper.set(previous_theta + update_step)
 
             # Get loss values for progress monitoring
-            surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.input_feed)
+            # Optionally manage internal LSTM state or other relevant state
+
+            for n, internal_state in enumerate(self.network.internal_state_inputs):
+                self.input_feed[internal_state] = self.internal_states[n]
+
+            fetched, state = self.session.run([self.losses, self.network.internal_state_outputs],
+                                              self.input_feed)
 
             # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
-            self.logger.info('Surrogate loss=' + str(surrogate_loss))
-            self.logger.info('KL-divergence after update=' + str(kl_divergence))
-            self.logger.info('Entropy=' + str(entropy))
+            self.logger.info('Surrogate loss = ' + str(fetched[0]))
+            self.logger.info('KL-divergence after update = ' + str(fetched[1]))
+            self.logger.info('Entropy = ' + str(fetched[2]))
+
+            # Update internal state optionally
+            self.internal_states = fetched[3:]
 
     def compute_fvp(self, p):
         self.input_feed[self.flat_tangent] = p

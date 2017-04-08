@@ -79,6 +79,7 @@ class NAFModel(Model):
 
         self.training_model = NeuralNetwork(define_network, [self.state], scope=scope + 'training')
         self.target_model = NeuralNetwork(define_network, [self.next_states], scope=scope + 'target')
+        self.internal_states = self.training_model.internal_state_inits
 
         # Create output fields
         self.training_v, self.mu, self.advantage, self.q, self.training_output_vars = self.create_outputs(

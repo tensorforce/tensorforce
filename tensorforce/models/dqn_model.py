@@ -77,6 +77,8 @@ class DQNModel(Model):
 
         self.training_model = NeuralNetwork(define_network, [self.state], scope=self.scope + 'training')
         self.target_model = NeuralNetwork(define_network, [self.next_states], scope=self.scope + 'target')
+        self.training_internal_states = self.training_model.internal_state_inits
+        self.target_internal_states = self.target_model.internal_state_inits
 
         self.training_output = self.training_model.get_output()
         self.target_output = self.target_model.get_output()
@@ -126,10 +128,29 @@ class DQNModel(Model):
         q_targets = batch['rewards'] + (1. - float_terminals) \
                                      * self.gamma * self.get_target_values(batch['next_states'])
 
-        self.session.run([self.optimize_op, self.training_output], {
+        feed_dict = {
             self.q_targets: q_targets,
             self.actions: batch['actions'],
-            self.state: batch['states']})
+            self.state: batch['states']
+        }
+
+        fetches = [self.optimize_op, self.training_output]
+        fetches.extend(self.training_network.internal_state_outputs)
+        fetches.extend(self.target_network.internal_state_outputs)
+
+        for n, internal_state in enumerate(self.training_model.internal_state_inputs):
+            feed_dict[internal_state] = self.training_internal_states[n]
+
+        for n, internal_state in enumerate(self.target_model.internal_state_inputs):
+                feed_dict[internal_state] = self.target_internal_states[n]
+
+        _, _, training_state, target_state = self.session.run(fetches, feed_dict)
+
+        self.training_internal_states = training_state
+        self.target_internal_states = target_state
+
+
+
 
     def get_variables(self):
         return self.training_model.get_variables()

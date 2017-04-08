@@ -19,6 +19,9 @@
       "biases_initializer_kwargs": { },
       "activation_fn": "tensorflow.python.ops.nn.tanh",
       "weights_regularizer": null
+    },
+    {
+      "type": "lstm"
     }
   ]
 }

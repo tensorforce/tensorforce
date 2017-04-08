@@ -45,6 +45,7 @@ class NeuralNetwork(object):
             self.inputs = inputs
             self.episode_length = episode_length
             network = define_network(inputs, episode_length)
+
             if isinstance(network, list) or isinstance(network, tuple):
                 assert len(network) == 4
                 self.output = network[0]
@@ -56,6 +57,7 @@ class NeuralNetwork(object):
                 self.internal_state_inputs = []
                 self.internal_state_outputs = []
                 self.internal_state_inits = []
+
             self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=tf.get_variable_scope().name)
 
     @staticmethod

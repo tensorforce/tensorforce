@@ -65,6 +65,14 @@ def layer_wrapper(layer_constructor, requires_episode_length=False, reshape=None
 
 
 def lstm_layer(layer_input, episode_length, **kwargs):
+    """
+    Creates an LSTM layer.
+    
+    :param layer_input: 
+    :param episode_length: 
+    :param kwargs: 
+    :return: 
+    """
     lstm_size = layer_input.get_shape()[2].value
     internal_state_input = tf.placeholder(dtype=tf.float32, shape=(2, lstm_size))
     internal_state_init = np.zeros(shape=(2, lstm_size))
@@ -78,6 +86,7 @@ def lstm_layer(layer_input, episode_length, **kwargs):
     lstm = tf.contrib.rnn.LSTMCell(num_units=lstm_size)
     outputs, internal_state = tf.nn.dynamic_rnn(cell=lstm, inputs=layer_input, sequence_length=episode_length, initial_state=initial_state)
     internal_state_output = tf.stack(values=(internal_state.c[-1, :], internal_state.h[-1, :]))
+
     return outputs, internal_state_input, internal_state_output, internal_state_init
 
 

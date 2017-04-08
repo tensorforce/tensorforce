@@ -65,7 +65,7 @@ class PGModel(Model):
         if self.config.tf_scope is None:
             scope = ''
         else:
-            self.config.tf_scope + '-'
+            scope = self.config.tf_scope + '-'
         self.network = NeuralNetwork(define_network, inputs=[self.state], episode_length=self.episode_length, scope=scope + 'value_function')
         self.internal_states = self.network.internal_state_inits
 
@@ -85,12 +85,7 @@ class PGModel(Model):
         # Probability distribution used in the current policy
         self.dist = self.policy.get_distribution()
 
-        # state_size = 1
-        # for n in self.config.state_shape:
-        #     state_size *= n
-        # self.baseline_value_function = MLPValueFunction(session=self.session, state_size=state_size, layer_size=64, update_iterations=100)
         self.baseline_value_function = LinearValueFunction()
-        # TODO configurable value functions
         self.saver = tf.train.Saver()
 
     def get_action(self, state, episode=1):
@@ -103,6 +98,7 @@ class PGModel(Model):
         """
         pseudo_episode = np.zeros(shape=((self.batch_size,) + self.state_shape))
         pseudo_episode[0] = state
+
         return self.policy.sample(pseudo_episode)
 
     def update(self, batch):
@@ -115,6 +111,11 @@ class PGModel(Model):
         raise NotImplementedError
 
     def zero_episode(self):
+        """
+        Creates a new episode dict.
+        
+        :return: 
+        """
         zero_episode = {
             'episode_length': 0,
             'terminated': False,
@@ -123,8 +124,10 @@ class PGModel(Model):
             'action_means': np.zeros(shape=(self.batch_size, self.action_count)),
             'rewards': np.zeros(shape=(self.batch_size, 1))
         }
+
         if self.continuous:
             zero_episode['action_log_stds'] = np.zeros(shape=(self.batch_size, self.action_count))
+
         return zero_episode
 
     # def merge_episodes(self, batch):
@@ -153,7 +156,7 @@ class PGModel(Model):
 
     #     return action_log_stds, action_means, actions, batch_advantage, states, path_lengths
 
-    def advantage_estimation(self, episode):
+    def generalised_advantage_estimation(self, episode):
         """
          Expects an episode, returns advantages according to config.
         """
@@ -168,7 +171,6 @@ class PGModel(Model):
             advantage = discount(deltas, self.gamma * self.gae_lambda)
         else:
             advantage = episode['returns'] - baseline
-
 
         if self.normalize_advantage:
             return zero_mean_unit_variance(advantage)

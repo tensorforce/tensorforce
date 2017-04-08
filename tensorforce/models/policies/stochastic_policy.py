@@ -31,7 +31,7 @@ class StochasticPolicy(object):
         :param neural_network: Handle to policy network used for prediction
         """
         self.policy_outputs = policy_outputs
-        self.path_length = network.path_length
+        self.episode_length = network.episode_length
         self.internal_state_inputs = network.internal_state_inputs
         self.internal_state_outputs = network.internal_state_outputs
         self.internal_states = network.internal_state_inits
@@ -40,13 +40,11 @@ class StochasticPolicy(object):
         self.action_count = action_count
         self.random = random
 
-    def sample(self, state):
+    def sample(self, states):
         fetches = list(self.policy_outputs)
         fetches.extend(self.internal_state_outputs)
 
-        feed_dict = {self.state: (state,)}
-        if self.path_length is not None:
-            feed_dict[self.path_length] = (1,) + (0,) * 99
+        feed_dict = {self.episode_length: [1], self.state: [states]}
         feed_dict.update({internal_state: self.internal_states[n] for n, internal_state in enumerate(self.internal_state_inputs)})
 
         fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)

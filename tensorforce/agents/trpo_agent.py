@@ -30,6 +30,6 @@ from tensorforce.default_configs import TRPOAgentConfig
 class TRPOAgent(PGAgent):
     name = 'TRPOAgent'
 
-    model_ref = TRPOModel
+    model = TRPOModel
 
     default_config = TRPOAgentConfig

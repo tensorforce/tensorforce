@@ -29,6 +29,6 @@ from tensorforce.default_configs import VPGAgentConfig
 class VPGAgent(PGAgent):
     name = 'VPGAgent'
 
-    model_ref = VPGModel
+    model = VPGModel
 
     default_config = VPGAgentConfig

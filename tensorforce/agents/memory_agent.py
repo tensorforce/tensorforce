@@ -40,7 +40,7 @@ class MemoryAgent(RLAgent):
         'update_repeat': 1
     }
 
-    model_ref = None
+    model = None
 
     def __init__(self, config, scope='memory_agent'):
         """
@@ -65,8 +65,8 @@ class MemoryAgent(RLAgent):
 
         self.min_replay_size = self.config.min_replay_size
 
-        if self.model_ref:
-            self.model = self.model_ref(self.config, scope)
+        if self.__class__.model:
+            self.model = self.__class__.model(self.config, scope)
 
     def setup(self):
         """

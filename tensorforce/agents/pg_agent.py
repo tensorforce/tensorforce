@@ -22,13 +22,11 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from collections import defaultdict
-
 import numpy as np
 
 from tensorforce.config import create_config
 from tensorforce.agents import RLAgent
-from tensorforce.util.experiment_util import get_path
+from tensorforce.models import PGModel
 
 
 class PGAgent(RLAgent):
@@ -36,22 +34,24 @@ class PGAgent(RLAgent):
 
     default_config = {}
 
-    model_ref = None
+    model = None
 
     def __init__(self, config, scope='pg_agent'):
         self.config = create_config(config, default=self.default_config)
-        self.model = None
-        self.current_batch = []
-        self.current_episode = defaultdict(list)
-        self.batch_steps = 0
+        assert issubclass(self.__class__.model, PGModel)
+        self.model = self.__class__.model(self.config, scope)
+        self.continuous = self.config.continuous
+
         self.batch_size = self.config.batch_size
+        self.current_batch = []
+        self.batch_step = 0
+
+        self.current_episode = self.model.zero_episode()
+        self.episode_step = 0
+
         self.last_action = None
         self.last_action_means = None
         self.last_action_log_std = None
-        self.continuous = self.config.continuous
-
-        if self.model_ref:
-            self.model = self.model_ref(self.config, scope)
 
     def get_action(self, *args, **kwargs):
         """
@@ -97,33 +97,34 @@ class PGAgent(RLAgent):
         :return:
         """
 
-        self.batch_steps += 1
-        self.current_episode['states'].append(state)
-        self.current_episode['actions'].append(self.last_action)
-        self.current_episode['rewards'].append(reward)
-        self.current_episode['action_means'].append(self.last_action_means)
+        self.current_episode['episode_length'] += 1
         self.current_episode['terminated'] = terminal
-
+        self.current_episode['states'][self.episode_step] = state
+        self.current_episode['actions'][self.episode_step] = self.last_action
+        self.current_episode['action_means'][self.episode_step] = self.last_action_means
+        self.current_episode['rewards'][self.episode_step] = reward
         if self.continuous:
-            self.current_episode['action_log_stds'].append(self.last_action_log_std)
+            self.current_episode['action_log_stds'][self.episode_step] = self.last_action_log_std
+
+        self.batch_step += 1
+        self.episode_step += 1
 
         if terminal:
             # Transform into np arrays, append episode to batch, start new episode dict
-            path = get_path(self.continuous, self.current_episode)
-            self.current_batch.append(path)
-            self.current_episode = defaultdict(list)
+            self.current_batch.append(self.current_episode)
+            self.current_episode = self.model.zero_episode()
+            self.episode_step = 0
             self.last_action = None
             self.last_action_means = None
             self.last_action_log_std = None
 
-        if self.batch_steps == self.batch_size:
-            if self.last_action is not None:
-                path = get_path(self.continuous, self.current_episode)
-                self.current_batch.append(path)
+        if self.batch_step == self.batch_size:
+            self.current_batch.append(self.current_episode)
             self.model.update(self.current_batch)
-            self.current_episode = defaultdict(list)
+            self.current_episode = self.model.zero_episode()
+            self.episode_step = 0
             self.current_batch = []
-            self.batch_steps = 0
+            self.batch_step = 0
 
     def save_model(self, path):
         self.model.save_model(path)

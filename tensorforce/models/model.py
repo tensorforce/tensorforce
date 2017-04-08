@@ -50,7 +50,6 @@ class Model(object):
 
         # This is the scope used to prefix variable creation for distributed TensorFlow
         self.scope = scope
-        self.batch_shape = [None]
 
         self.deterministic_mode = config.get('deterministic_mode', False)
 

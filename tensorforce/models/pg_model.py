@@ -24,9 +24,8 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
-from tensorforce.models import LinearValueFunction
 from tensorforce.models import Model
-from tensorforce.models.baselines.mlp_value_function import MLPValueFunction
+from tensorforce.models.baselines import LinearValueFunction, MLPValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.models.policies import CategoricalOneHotPolicy
 from tensorforce.models.policies import GaussianPolicy
@@ -38,54 +37,49 @@ class PGModel(Model):
 
     def __init__(self, config, scope, define_network=None):
         super(PGModel, self).__init__(config, scope)
+
+        self.continuous = self.config.continuous
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
-        self.use_gae = self.config.use_gae
-        self.gae_lambda = self.config.gae_lambda
 
+        # advantage estimation
         self.gamma = self.config.gamma
-        self.continuous = self.config.continuous
-        self.normalize_advantage = self.config.normalise_advantage
+        self.generalized_advantage_estimation = self.config.gae
+        self.gae_lambda = self.config.gae_lambda
+        self.normalize_advantage = self.config.normalize_advantage
 
         if self.config.deterministic_mode:
             self.random = global_seed()
         else:
             self.random = np.random.RandomState()
 
-        self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
-        self.path_length = tf.placeholder(tf.int32, self.batch_shape, name='path_length')
-        # self.path_length = tf.placeholder_with_default(input=tf.reshape(tensor=tf.ones(shape=(1,), dtype=tf.int32), shape=(-1,)), shape=(self.batch_size,), name='path_length')
-        self.episode = 0
-        self.input_feed = None
-
-        self.advantage = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
-        self.policy = None
-
-        scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
+        self.episode_length = tf.placeholder(tf.int32, (None,), name='episode_length')
+        self.state_shape = tuple(self.config.state_shape)
+        self.state = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape, name="state")
+        self.actions = tf.placeholder(tf.float32, (None, self.batch_size, self.action_count), name='actions')
+        self.prev_action_means = tf.placeholder(tf.float32, (None, self.batch_size, self.action_count), name='prev_actions')
+        self.advantage = tf.placeholder(tf.float32, shape=(None, self.batch_size, 1), name='advantage')
 
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers)
-
-        self.network = NeuralNetwork(define_network, inputs=[self.state], path_length=self.path_length, scope=scope + 'value_function')
+        if self.config.tf_scope is None:
+            scope = ''
+        else:
+            self.config.tf_scope + '-'
+        self.network = NeuralNetwork(define_network, inputs=[self.state], episode_length=self.episode_length, scope=scope + 'value_function')
         self.internal_states = self.network.internal_state_inits
-
-        self.saver = tf.train.Saver()
-        self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
-        self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count], name='prev_actions')
 
         # From an API perspective, continuous vs discrete might be easier than
         # requiring to set the concrete policy, at least currently
         if self.continuous:
-            self.policy = GaussianPolicy(self.network, self.session, self.state, self.random,
-                                         self.action_count, 'gaussian_policy')
-            self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
-
-            self.prev_dist = dict(policy_output=self.prev_action_means,
-                                  policy_log_std=self.prev_action_log_stds)
+            self.policy = GaussianPolicy(self.network, self.session, self.state, self.random, self.action_count, 'gaussian_policy')
+            self.prev_action_log_stds = tf.placeholder(tf.float32, (None, self.batch_size, self.action_count))
+            self.prev_dist = dict(
+                policy_output=self.prev_action_means,
+                policy_log_std=self.prev_action_log_stds)
 
         else:
-            self.policy = CategoricalOneHotPolicy(self.network, self.session, self.state, self.random,
-                                                  self.action_count, 'categorical_policy')
+            self.policy = CategoricalOneHotPolicy(self.network, self.session, self.state, self.random, self.action_count, 'categorical_policy')
             self.prev_dist = dict(policy_output=self.prev_action_means)
 
         # Probability distribution used in the current policy
@@ -97,6 +91,7 @@ class PGModel(Model):
         # self.baseline_value_function = MLPValueFunction(session=self.session, state_size=state_size, layer_size=64, update_iterations=100)
         self.baseline_value_function = LinearValueFunction()
         # TODO configurable value functions
+        self.saver = tf.train.Saver()
 
     def get_action(self, state, episode=1):
         """
@@ -106,7 +101,9 @@ class PGModel(Model):
         :param episode:
         :return:
         """
-        return self.policy.sample(state)
+        pseudo_episode = np.zeros(shape=((self.batch_size,) + self.state_shape))
+        pseudo_episode[0] = state
+        return self.policy.sample(pseudo_episode)
 
     def update(self, batch):
         """
@@ -117,56 +114,63 @@ class PGModel(Model):
         """
         raise NotImplementedError
 
-    def merge_episodes(self, batch):
-        """
-        Merge episodes of a batch into single input variables.
-
-        :param batch:
-        :return:
-        """
+    def zero_episode(self):
+        zero_episode = {
+            'episode_length': 0,
+            'terminated': False,
+            'states': np.zeros(shape=((self.batch_size,) + self.state_shape)),
+            'actions': np.zeros(shape=(self.batch_size, self.action_count)),
+            'action_means': np.zeros(shape=(self.batch_size, self.action_count)),
+            'rewards': np.zeros(shape=(self.batch_size, 1))
+        }
         if self.continuous:
-            action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
-            action_log_stds = np.expand_dims(action_log_stds, axis=1)
-        else:
-            action_log_stds = None
+            zero_episode['action_log_stds'] = np.zeros(shape=(self.batch_size, self.action_count))
+        return zero_episode
 
-        action_means = np.concatenate([path['action_means'] for path in batch])
-        actions = np.concatenate([path['actions'] for path in batch])
-        batch_advantage = np.concatenate([path["advantage"] for path in batch])
+    # def merge_episodes(self, batch):
+    #     """
+    #     Merge episodes of a batch into single input variables.
 
-        if self.normalize_advantage:
-            batch_advantage = zero_mean_unit_variance(batch_advantage)
+    #     :param batch:
+    #     :return:
+    #     """
+    #     if self.continuous:
+    #         action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
+    #         action_log_stds = np.expand_dims(action_log_stds, axis=1)
+    #     else:
+    #         action_log_stds = None
 
-        batch_advantage = np.expand_dims(batch_advantage, axis=1)
-        states = np.concatenate([path['states'] for path in batch])
-        path_lengths = np.asarray([len(path['states']) for path in batch] + [0] * (self.batch_size - len(batch)))
+    #     action_means = np.concatenate([path['action_means'] for path in batch])
+    #     actions = np.concatenate([path['actions'] for path in batch])
+    #     batch_advantage = np.concatenate([path["advantage"] for path in batch])
 
-        return action_log_stds, action_means, actions, batch_advantage, states, path_lengths
+    #     if self.normalize_advantage:
+    #         batch_advantage = zero_mean_unit_variance(batch_advantage)
 
-    def compute_gae_advantage(self, batch, gamma, gae_lambda, use_gae=False):
+    #     batch_advantage = np.expand_dims(batch_advantage, axis=1)
+    #     states = np.concatenate([path['states'] for path in batch])
+    #     path_lengths = np.asarray([len(path['states']) for path in batch] + [0] * (self.batch_size - len(batch)))
+
+    #     return action_log_stds, action_means, actions, batch_advantage, states, path_lengths
+
+    def advantage_estimation(self, episode):
         """
-         Expects a batch containing at least one episode, sets advantages according to use_gae.
-
-        :param batch: Sequence of observations for at least one episode.
-        :param batch:
-        :param gamma:
-        :param gae_lambda:
-        :param use_gae:
-        :return:
+         Expects an episode, returns advantages according to config.
         """
+        baseline = self.baseline_value_function.predict(episode)
 
-        for episode in batch:
-            baseline = self.baseline_value_function.predict(episode)
-
+        if self.generalized_advantage_estimation:
             if episode['terminated']:
                 adjusted_baseline = np.append(baseline, [0])
             else:
                 adjusted_baseline = np.append(baseline, baseline[-1])
+            deltas = episode['rewards'] + self.gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
+            advantage = discount(deltas, self.gamma * self.gae_lambda)
+        else:
+            advantage = episode['returns'] - baseline
 
-            episode['returns'] = discount(episode['rewards'], gamma)
 
-            if use_gae:
-                deltas = episode['rewards'] + gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
-                episode['advantage'] = discount(deltas, gamma * gae_lambda)
-            else:
-                episode['advantage'] = episode['returns'] - baseline
+        if self.normalize_advantage:
+            return zero_mean_unit_variance(advantage)
+        else:
+            return advantage

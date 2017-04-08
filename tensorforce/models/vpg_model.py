@@ -24,6 +24,7 @@ import tensorflow as tf
 
 from tensorforce.models.pg_model import PGModel
 from tensorforce.default_configs import VPGModelConfig
+from tensorforce.util.math_util import discount
 
 
 class VPGModel(PGModel):
@@ -51,20 +52,26 @@ class VPGModel(PGModel):
         :param batch:
         :return:
         """
-        # Set per episode advantage using GAE
-        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
+
+        # Set per episode return and advantage
+        for episode in batch:
+            episode['returns'] = discount(episode['rewards'], self.gamma)
+            episode['advantages'] = self.advantage_estimation(episode)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)
 
-        # Merge episode inputs into single arrays
-        _, _, actions, batch_advantage, states, path_lengths = self.merge_episodes(batch)
-
         fetches = [self.optimize_op, self.log_probabilities, self.loss]
         fetches.extend(self.network.internal_state_outputs)
 
-        feed_dict = {self.state: states, self.path_length: path_lengths, self.actions: actions, self.advantage: batch_advantage}
-        feed_dict.update({internal_state: self.internal_states[n] for n, internal_state in enumerate(self.network.internal_state_inputs)})
+        feed_dict = {
+            self.episode_length: [episode['episode_length'] for episode in batch],
+            self.state: [episode['states'] for episode in batch],
+            self.actions: [episode['actions'] for episode in batch],
+            self.advantage: [episode['advantages'] for episode in batch]
+        }
+        for n, internal_state in enumerate(self.network.internal_state_inputs):
+            feed_dict[internal_state] = self.internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)
         log_probs = fetched[1]

@@ -34,4 +34,4 @@ class DQNAgent(MemoryAgent):
 
     default_config = DQNAgentConfig
 
-    model_ref = DQNModel
+    model = DQNModel

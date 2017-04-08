@@ -14,9 +14,10 @@
 # ==============================================================================
 from tensorforce.models.model import Model
 from tensorforce.models.dqn_model import DQNModel
+from tensorforce.models.pg_model import PGModel
+from tensorforce.models.vpg_model import VPGModel
 from tensorforce.models.naf_model import NAFModel
-from tensorforce.models.baselines import LinearValueFunction
 from tensorforce.models.trpo_model import TRPOModel
 
 
-__all__ = ['Model', 'DQNModel', 'NAFModel', 'LinearValueFunction', 'TRPOModel', 'VPGModel']
+__all__ = ['Model', 'DQNModel', 'PGModel', 'VPGModel', 'NAFModel', 'TRPOModel']

@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from tensorforce.models.baselines.linear_value_function import LinearValueFunction
+from tensorforce.models.baselines.mlp_value_function import MLPValueFunction
 
 
-__all__ = ['LinearValueFunction']
+__all__ = ['LinearValueFunction', 'MLPValueFunction']

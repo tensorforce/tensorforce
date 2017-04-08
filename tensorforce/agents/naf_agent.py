@@ -32,4 +32,4 @@ class NAFAgent(MemoryAgent):
 
     default_config = NAFAgentConfig
 
-    model_ref = NAFModel
+    model = NAFModel

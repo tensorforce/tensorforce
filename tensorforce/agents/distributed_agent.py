@@ -36,7 +36,7 @@ class DistributedAgent(object):
     name = 'DistributedAgent'
     default_config = {}
 
-    model_ref = None
+    model = None
 
     def __init__(self, config, scope, task_index, cluster_spec):
         self.config = create_config(config, default=self.default_config)

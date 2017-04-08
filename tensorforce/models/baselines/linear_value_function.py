@@ -31,6 +31,7 @@ from tensorforce.models.baselines.value_function import ValueFunction
 
 
 class LinearValueFunction(ValueFunction):
+
     def __init__(self):
         self.coefficients = None
 
@@ -53,6 +54,6 @@ class LinearValueFunction(ValueFunction):
         """
 
         if self.coefficients is None:
-            return np.zeros(len(path["rewards"]))
+            return np.zeros(shape=(len(path["rewards"]), 1))
         else:
             return self.get_features(path).dot(self.coefficients)

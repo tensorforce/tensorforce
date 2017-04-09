@@ -44,8 +44,9 @@ class StochasticPolicy(object):
         fetches = list(self.policy_outputs)
         fetches.extend(self.internal_state_outputs)
 
-        feed_dict = {self.episode_length: [1], self.state: [states]}
-        feed_dict.update({internal_state: self.internal_states[n] for n, internal_state in enumerate(self.internal_state_inputs)})
+        feed_dict = {self.episode_length: [1], self.state: [(states,)]}
+        feed_dict.update({internal_state: self.internal_states[n] for n,
+                          internal_state in enumerate(self.internal_state_inputs)})
 
         fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
         sample = fetched[:len(self.policy_outputs)]

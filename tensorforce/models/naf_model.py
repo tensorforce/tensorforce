@@ -107,8 +107,10 @@ class NAFModel(Model):
         fetches = [self.mu]
         fetches.extend(self.training_internal_states)
         fetches.extend(self.target_internal_states)
-
-        feed_dict = {self.episode_length: [1], self.state: [(state,)]}
+        print('get action')
+        print(self.state.get_shape())
+        print(state.shape)
+        feed_dict = {self.episode_length: [1], self.state: [(state, )]}
 
         feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in
                           enumerate(self.training_network.internal_state_inputs)})
@@ -118,6 +120,10 @@ class NAFModel(Model):
         fetched = self.session.run(fetches, feed_dict)
 
         action = fetched[0] + self.exploration(episode, self.total_states)
+
+        # Update optional internal states, e.g. LSTM cells
+        self.training_internal_states = fetched[1:len(self.training_internal_states)]
+        self.target_internal_states = fetched[1 + len(self.training_internal_states):]
 
         self.total_states += 1
 
@@ -171,11 +177,13 @@ class NAFModel(Model):
             v = linear(last_hidden_layer, {'num_outputs': 1, 'weights_regularizer': self.config.weights_regularizer,
                                            'weights_regularizer_args': [self.config.weights_regularizer_args]},
                        scope + 'v')
+            v = tf.reshape(v, [-1, 1])
 
             # Action outputs
             mu = linear(last_hidden_layer,
                         {'num_outputs': self.action_count, 'weights_regularizer': self.config.weights_regularizer,
                          'weights_regularizer_args': [self.config.weights_regularizer_args]}, scope + 'mu')
+            mu = tf.reshape(mu, [-1, self.action_count])
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
@@ -185,7 +193,11 @@ class NAFModel(Model):
                                                    'weights_regularizer': self.config.weights_regularizer,
                                                    'weights_regularizer_args': [self.config.weights_regularizer_args]},
                                scope + 'l')
-            print(l_entries.get_shape())
+
+            # Reshape from (?, ?, lower_triangular_size)
+            l_entries = tf.reshape(l_entries, [-1, lower_triangular_size])
+
+
             # Iteratively construct matrix. Extra verbose comment here
             l_rows = []
             offset = 0
@@ -194,12 +206,11 @@ class NAFModel(Model):
                 # Diagonal elements are exponentiated, otherwise gradient often 0
                 # Slice out lower triangular entries from flat representation through moving offset
 
-                diagonal = tf.exp(tf.slice(l_entries, (0, 0, offset), (0, -1, 1)))
-                print('diagonal shape')
-                print(diagonal.get_shape())
+                diagonal = tf.exp(tf.slice(l_entries, (0, offset), (-1, 1)))
+
                 n = self.action_count - i - 1
                 # Slice out non-zero non-diagonal entries, - 1 because we already took the diagonal
-                non_diagonal = tf.slice(l_entries, (0, 0, offset + 1), (0, -1, n))
+                non_diagonal = tf.slice(l_entries, (0, offset + 1), (-1, n))
 
                 # Fill up row with zeros
                 row = tf.pad(tf.concat(axis=1, values=(diagonal, non_diagonal)), ((0, 0), (i, 0)))
@@ -213,7 +224,9 @@ class NAFModel(Model):
             p_matrix = tf.matmul(l_matrix, tf.transpose(l_matrix, (0, 2, 1)))
 
             # Need to adjust dimensions to multiply with P.
-            action_diff = tf.expand_dims(self.actions - mu, -1)
+            # TODO see if this can be done simpler
+            actions = tf.reshape(self.actions, [-1, self.action_count])
+            action_diff = tf.expand_dims(actions - mu, -1)
 
             # A = -0.5 (a - mu)P(a - mu)
             advantage = -0.5 * tf.matmul(tf.transpose(action_diff, [0, 2, 1]),

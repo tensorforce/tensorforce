@@ -146,10 +146,10 @@ Coming soon/under construction:
 - Q-Prop: Sample-Efficient Policy Gradient with An Off-Policy Critic - `paper <https://arxiv.org/abs/1611.02247>`__
 
 
-9th April 2017:
+10th April 2017:
 
 - Optional LSTM usage in network configurations, layer types "lstm" and "flatten" to reshape between layers
-- Cleaner internal state management for policy gradient models
+- Cleaner internal state management for policy gradient models, including recurrent states
 - Log-level as config parameter, more informative logging for level INFO
 
 Road map and contributions

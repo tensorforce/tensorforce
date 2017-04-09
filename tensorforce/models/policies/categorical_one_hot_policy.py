@@ -24,7 +24,7 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
-from tensorforce.models.neural_networks.layers import linear
+from tensorforce.models.neural_networks.layers import linear, flatten
 from tensorforce.models.policies.categorical import Categorical
 from tensorforce.models.policies.stochastic_policy import StochasticPolicy
 
@@ -34,6 +34,8 @@ class CategoricalOneHotPolicy(StochasticPolicy):
     def __init__(self, network, session, state, random, action_count=1, scope='policy'):
         with tf.variable_scope(scope):
             action_layer = linear(layer_input=network.output, config={'num_outputs': action_count}, scope='outputs')
+            action_layer = tf.reshape(action_layer, [-1, action_count])
+
             distribution = tf.nn.softmax(action_layer)
             sample = tf.multinomial(distribution, 1)
 

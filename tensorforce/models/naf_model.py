@@ -117,17 +117,22 @@ class NAFModel(Model):
 
         feed_dict.update({target_internal_state: self.target_network.internal_state_inits[n] for n, target_internal_state in
                           enumerate(self.target_network.internal_state_inputs)})
+
+        print('feed dict)')
+        for e in feed_dict.items():
+            print(e)
+
+        print('fetches list)')
+        for e in fetches:
+            print(e)
+
         fetched = self.session.run(fetches, feed_dict)
 
         action = fetched[0][0] + self.exploration(episode, self.total_states)
 
-        # Update optional internal states, e.g. LSTM cells
-        print('before')
-        print(self.target_internal_states)
-
+        # Update optional internal states, e.g. LSTM cells)
         self.training_internal_states = fetched[1:len(self.training_internal_states)]
-        self.target_internal_states = fetched[1 + len(self.target_internal_states):]
-        print(self.target_internal_states)
+        self.target_internal_states = fetched[1 + len(self.training_internal_states):]
 
         self.total_states += 1
 
@@ -140,6 +145,7 @@ class NAFModel(Model):
         :param batch:=
         :return:
         """
+        print('updating')
         float_terminals = batch['terminals'].astype(float)
 
         q_targets = batch['rewards'] + (1. - float_terminals) * self.gamma * \
@@ -162,9 +168,9 @@ class NAFModel(Model):
             feed_dict[internal_state] = self.target_internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)
-
-        self.training_internal_states = fetched[2:len(self.training_internal_states)]
-        self.target_internal_states = fetched[2 + len(self.training_internal_states):]
+        print(len(fetched))
+        self.training_internal_states = fetched[4:len(self.training_internal_states)]
+        self.target_internal_states = fetched[4 + len(self.training_internal_states):]
 
     def create_outputs(self, last_hidden_layer, scope):
         """

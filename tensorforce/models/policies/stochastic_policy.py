@@ -50,6 +50,7 @@ class StochasticPolicy(object):
         fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
         sample = fetched[:len(self.policy_outputs)]
         self.internal_states = fetched[len(self.policy_outputs):]
+
         return sample
 
     def get_distribution(self):

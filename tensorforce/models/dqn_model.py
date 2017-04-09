@@ -66,8 +66,8 @@ class DQNModel(Model):
 
         # Input placeholders
         self.state_shape = tuple(self.config.state_shape)
-        self.state = tf.placeholder(tf.float32, (None, ) + self.state_shape, name="state")
-        self.next_states = tf.placeholder(tf.float32, (None, ) + self.state_shape,
+        self.state = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape, name="state")
+        self.next_states = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape,
                                           name="next_states")
         self.terminals = tf.placeholder(tf.float32, (None, self.batch_size), name='terminals')
         self.rewards = tf.placeholder(tf.float32, (None, self.batch_size), name='rewards')
@@ -75,8 +75,10 @@ class DQNModel(Model):
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
 
-        self.training_network = NeuralNetwork(define_network, [self.state], episode_length=self.episode_length, scope=self.scope + 'training')
-        self.target_network = NeuralNetwork(define_network, [self.next_states], episode_length=self.episode_length, scope=self.scope + 'target')
+        self.training_network = NeuralNetwork(define_network, [self.state], episode_length=self.episode_length,
+                                              scope=self.scope + 'training')
+        self.target_network = NeuralNetwork(define_network, [self.next_states], episode_length=self.episode_length,
+                                            scope=self.scope + 'target')
 
         self.training_internal_states = self.training_network.internal_state_inits
         self.target_internal_states = self.target_network.internal_state_inits
@@ -102,13 +104,31 @@ class DQNModel(Model):
         :param episode: Current episode
         :return: action number
         """
-
         epsilon = self.exploration(episode, self.total_states)
 
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
         else:
-            action = self.session.run(self.dqn_action, {self.state: [state]})[0]
+            input = np.zeros(shape=((self.batch_size,) + self.state_shape))
+            input[0] = state
+
+            fetches = [self.dqn_action]
+            fetches.extend(self.training_internal_states)
+            fetches.extend(self.target_internal_states)
+
+            feed_dict = {self.episode_length: [1], self.state: [input]}
+
+            feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in
+                              enumerate(self.training_network.internal_state_inputs)})
+            feed_dict.update({internal_state: self.target_network.internal_state_inits[n] for n, internal_state in
+                              enumerate(self.target_network.internal_state_inputs)})
+
+            fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
+            action = fetched[0]
+
+            # Update optional internal states, e.g. LSTM cells
+            self.training_internal_states = fetched[1:len(self.training_internal_states)]
+            self.target_internal_states = fetched[1 + len(self.training_internal_states):]
 
         self.total_states += 1
 
@@ -125,7 +145,7 @@ class DQNModel(Model):
         # Compute estimated future value
         float_terminals = batch['terminals'].astype(float)
         q_targets = batch['rewards'] + (1. - float_terminals) \
-                                     * self.gamma * self.get_target_values(batch['next_states'])
+                                       * self.gamma * self.get_target_values(batch['next_states'])
 
         feed_dict = {
             self.episode_length: [len(batch['rewards'])],
@@ -142,13 +162,13 @@ class DQNModel(Model):
             feed_dict[internal_state] = self.training_internal_states[n]
 
         for n, internal_state in enumerate(self.target_network.internal_state_inputs):
-                feed_dict[internal_state] = self.target_internal_states[n]
+            feed_dict[internal_state] = self.target_internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)
 
         # Update internal state list, e.g. or LSTM
         self.training_internal_states = fetched[2:len(self.training_internal_states)]
-        self.target_internal_states = fetched[2+len(self.training_internal_states):]
+        self.target_internal_states = fetched[2 + len(self.training_internal_states):]
 
     def get_variables(self):
         return self.training_network.get_variables()
@@ -211,7 +231,7 @@ class DQNModel(Model):
                 self.grads_and_vars = self.optimizer.compute_gradients(self.loss)
                 self.optimize_op = self.optimizer.apply_gradients(self.grads_and_vars)
 
-            # Update target network with update weight tau
+                # Update target network with update weight tau
                 with tf.name_scope("update_target"):
                     for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
                         update = v_target.assign_sub(self.tau * (v_target - v_source))

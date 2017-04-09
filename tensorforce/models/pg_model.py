@@ -55,10 +55,10 @@ class PGModel(Model):
 
         self.state_shape = tuple(self.config.state_shape)
 
-        self.state = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape, name="state")
-        self.actions = tf.placeholder(tf.float32, (None, self.batch_size, self.action_count), name='actions')
-        self.prev_action_means = tf.placeholder(tf.float32, (None, self.batch_size, self.action_count), name='prev_actions')
-        self.advantage = tf.placeholder(tf.float32, shape=(None, self.batch_size, 1), name='advantage')
+        self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
+        self.actions = tf.placeholder(tf.float32, (None, None, self.action_count), name='actions')
+        self.prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')
+        self.advantage = tf.placeholder(tf.float32, shape=(None, None, 1), name='advantage')
 
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers)
@@ -96,10 +96,8 @@ class PGModel(Model):
         :param episode:
         :return:
         """
-        pseudo_episode = np.zeros(shape=((self.batch_size,) + self.state_shape))
-        pseudo_episode[0] = state
 
-        return self.policy.sample(pseudo_episode)
+        return self.policy.sample(state)
 
     def update(self, batch):
         """

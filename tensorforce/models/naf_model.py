@@ -62,14 +62,14 @@ class NAFModel(Model):
             self.random = np.random.RandomState()
 
         self.state_shape = tuple(self.config.state_shape)
-        self.state = tf.placeholder(tf.float32, (None,) + self.state_shape, name="state")
-        self.next_states = tf.placeholder(tf.float32, (None,) + self.state_shape,
+        self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
+        self.next_states = tf.placeholder(tf.float32, (None, None) + self.state_shape,
                                           name="next_states")
-        self.actions = tf.placeholder(tf.float32, (None, self.action_count), name='actions')
-        self.terminals = tf.placeholder(tf.float32, (None, self.batch_size), name='terminals')
-        self.rewards = tf.placeholder(tf.float32, (None, self.batch_size), name='rewards')
+        self.actions = tf.placeholder(tf.float32, (None, None, self.action_count), name='actions')
+        self.terminals = tf.placeholder(tf.float32, (None, None), name='terminals')
+        self.rewards = tf.placeholder(tf.float32, (None, None), name='rewards')
 
-        self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
+        self.q_targets = tf.placeholder(tf.float32, (None, None), name='q_targets')
         self.target_network_update = []
         self.episode = 0
 
@@ -104,7 +104,21 @@ class NAFModel(Model):
         :param episode: Current episode
         :return: action
         """
-        action = self.session.run(self.mu, {self.state: [state]})[0] + self.exploration(episode, self.total_states)
+        fetches = [self.mu]
+        fetches.extend(self.training_internal_states)
+        fetches.extend(self.target_internal_states)
+
+        feed_dict = {self.episode_length: [1], self.state: [(state,)]}
+
+        feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in
+                          enumerate(self.training_network.internal_state_inputs)})
+        feed_dict.update({internal_state: self.target_network.internal_state_inits[n] for n, internal_state in
+                          enumerate(self.target_network.internal_state_inputs)})
+
+        fetched = self.session.run(fetches, feed_dict)
+
+        action = fetched[0] + self.exploration(episode, self.total_states)
+
         self.total_states += 1
 
         return action
@@ -124,8 +138,8 @@ class NAFModel(Model):
         feed_dict = {
             self.episode_length: [len(batch['rewards'])],
             self.q_targets: q_targets,
-            self.actions: batch['actions'],
-            self.state: batch['states']}
+            self.actions: [batch['actions']],
+            self.state: [batch['states']]}
 
         fetches = [self.optimize_op, self.loss, self.training_v, self.advantage, self.q]
         fetches.extend(self.training_network.internal_state_outputs)
@@ -166,11 +180,12 @@ class NAFModel(Model):
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
             lower_triangular_size = int(self.action_count * (self.action_count + 1) / 2)
+
             l_entries = linear(last_hidden_layer, {'num_outputs': lower_triangular_size,
                                                    'weights_regularizer': self.config.weights_regularizer,
                                                    'weights_regularizer_args': [self.config.weights_regularizer_args]},
                                scope + 'l')
-
+            print(l_entries.get_shape())
             # Iteratively construct matrix. Extra verbose comment here
             l_rows = []
             offset = 0
@@ -179,11 +194,12 @@ class NAFModel(Model):
                 # Diagonal elements are exponentiated, otherwise gradient often 0
                 # Slice out lower triangular entries from flat representation through moving offset
 
-                diagonal = tf.exp(tf.slice(l_entries, (0, offset), (-1, 1)))
-
+                diagonal = tf.exp(tf.slice(l_entries, (0, 0, offset), (0, -1, 1)))
+                print('diagonal shape')
+                print(diagonal.get_shape())
                 n = self.action_count - i - 1
                 # Slice out non-zero non-diagonal entries, - 1 because we already took the diagonal
-                non_diagonal = tf.slice(l_entries, (0, offset + 1), (-1, n))
+                non_diagonal = tf.slice(l_entries, (0, 0, offset + 1), (0, -1, n))
 
                 # Fill up row with zeros
                 row = tf.pad(tf.concat(axis=1, values=(diagonal, non_diagonal)), ((0, 0), (i, 0)))
@@ -240,7 +256,7 @@ class NAFModel(Model):
         :return:
         """
 
-        return self.session.run(self.target_v, {self.next_states: next_states})
+        return self.session.run(self.target_v, {self.next_states: [next_states]})
 
     def update_target_network(self):
         """

@@ -75,6 +75,26 @@ def flatten_layer(layer_input, scope=None, **kwargs):
     return flattened
 
 
+def conv2d_layer(layer_input, scope=None, **kwargs):
+    with tf.name_scope(scope or 'conv2d'):
+        conv2d = tf.map_fn(fn=(lambda t: tf_slim.conv2d(t, **kwargs)), elems=layer_input)
+    return conv2d
+
+
+def dense_layer(layer_input, scope=None, **kwargs):
+    with tf.name_scope(scope or 'dense'):
+        dense = tf.map_fn(fn=(lambda t: tf_slim.fully_connected(t, **kwargs)), elems=layer_input)
+
+    return dense
+
+
+def linear_layer(layer_input, scope=None, **kwargs):
+    with tf.name_scope(scope or 'linear'):
+        linear = tf.map_fn(fn=(lambda t: tf_slim.linear(t, **kwargs)), elems=layer_input)
+
+    return linear
+
+
 def lstm_layer(layer_input, episode_length, scope=None, **kwargs):  # lstm_size
     """
     Creates an LSTM layer.
@@ -98,13 +118,14 @@ def lstm_layer(layer_input, episode_length, scope=None, **kwargs):  # lstm_size
         lstm = tf.contrib.rnn.LSTMCell(num_units=lstm_size)
         outputs, internal_state = tf.nn.dynamic_rnn(cell=lstm, inputs=layer_input, sequence_length=episode_length, initial_state=initial_state)
         internal_state_output = tf.stack(values=(internal_state.c[-1, :], internal_state.h[-1, :]))
+
     return outputs, internal_state_input, internal_state_output, internal_state_init
 
 
 flatten = layer_wrapper(flatten_layer)
-dense = layer_wrapper(tf_slim.fully_connected)
-conv2d = layer_wrapper(tf_slim.conv2d)
-linear = layer_wrapper(tf_slim.linear)
+dense = layer_wrapper(dense_layer)
+conv2d = layer_wrapper(conv2d_layer)
+linear = layer_wrapper(linear_layer)
 lstm = layer_wrapper(lstm_layer, requires_episode_length=True)
 
 

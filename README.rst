@@ -148,7 +148,7 @@ Coming soon/under construction:
 
 9th April 2017:
 
-- Optional LSTM usage in network configurations
+- Optional LSTM usage in network configurations, layer types "lstm" and "flatten" to reshape between layers
 - Cleaner internal state management for policy gradient models
 - Log-level as config parameter, more informative logging for level INFO
 

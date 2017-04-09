@@ -87,7 +87,7 @@ class DistributedPGModel(object):
                 self.global_state = tf.placeholder(tf.float32, (None, None) + self.state_shape,
                                                    name="global_state")
 
-                self.global_network = NeuralNetwork(self.define_network, [self.global_state])
+                self.global_network = NeuralNetwork(self.define_network, [self.global_state], episode_length=self.episode_length)
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
@@ -147,7 +147,7 @@ class DistributedPGModel(object):
                                             name="state")
                 self.prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')
 
-                self.local_network = NeuralNetwork(self.define_network, [self.state])
+                self.local_network = NeuralNetwork(self.define_network, [self.state], episode_length=self.episode_length)
                 self.local_states = self.local_network.internal_state_inits
 
                 # TODO possibly problematic, check

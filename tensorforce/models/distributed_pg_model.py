@@ -25,7 +25,7 @@ import tensorflow as tf
 import numpy as np
 
 from tensorforce.config import create_config
-from tensorforce.models import LinearValueFunction
+from tensorforce.models.baselines import LinearValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.models.policies import CategoricalOneHotPolicy
 from tensorforce.models.policies import GaussianPolicy
@@ -79,23 +79,25 @@ class DistributedPGModel(object):
         self.optimizer = None
 
         self.worker_device = "/job:worker/task:{}/cpu:0".format(task_index)
+        self.state_shape = tuple(self.config.state_shape)
 
         with tf.device(tf.train.replica_device_setter(1, worker_device=self.worker_device, cluster=cluster_spec)):
             with tf.variable_scope("global"):
-                self.global_state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+                self.global_state = tf.placeholder(tf.float32, (None, None) + self.state_shape,
                                                    name="global_state")
 
                 self.global_network = NeuralNetwork(self.define_network, [self.global_state])
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
+                self.global_states = self.global_network.internal_state_inits
 
-                self.global_prev_action_means = tf.placeholder(tf.float32, [None, self.action_count], name='prev_actions')
+                self.global_prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')
 
                 if self.continuous:
                     self.global_policy = GaussianPolicy(self.global_network, self.session, self.global_state, self.random,
                                                  self.action_count, 'gaussian_policy')
-                    self.global_prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
+                    self.global_prev_action_log_stds = tf.placeholder(tf.float32, (None, None, self.action_count))
 
                     self.global_prev_dist = dict(policy_output=self.global_prev_action_means,
                                           policy_log_std=self.global_prev_action_log_stds)
@@ -140,18 +142,20 @@ class DistributedPGModel(object):
 
         with tf.device(self.worker_device):
             with tf.variable_scope("local"):
-                self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape),
+                self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape,
                                             name="state")
-                self.prev_action_means = tf.placeholder(tf.float32, [None, self.action_count], name='prev_actions')
+                self.prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')
 
                 self.local_network = NeuralNetwork(self.define_network, [self.state])
+                self.local_states = self.local_network.internal_state_inits
+
                 # TODO possibly problematic, check
                 self.local_step = self.global_step
 
                 if self.continuous:
                     self.policy = GaussianPolicy(self.local_network, self.session, self.state, self.random,
                                                  self.action_count, 'gaussian_policy')
-                    self.prev_action_log_stds = tf.placeholder(tf.float32, [None, self.action_count])
+                    self.prev_action_log_stds = tf.placeholder(tf.float32, (None, None, self.action_count))
 
                     self.prev_dist = dict(policy_output=self.prev_action_means,
                                           policy_log_std=self.prev_action_log_stds)
@@ -164,8 +168,8 @@ class DistributedPGModel(object):
                 # Probability distribution used in the current policy
                 self.baseline_value_function = LinearValueFunction()
 
-            self.actions = tf.placeholder(tf.float32, [None, self.action_count], name='actions')
-            self.advantage = tf.placeholder(tf.float32, shape=[None, 1], name='advantage')
+            self.actions = tf.placeholder(tf.float32, (None, None, self.action_count), name='actions')
+            self.advantage = tf.placeholder(tf.float32, shape=(None, None, 1), name='advantage')
 
             self.dist = self.policy.get_distribution()
             self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
@@ -173,15 +177,15 @@ class DistributedPGModel(object):
             # Concise: Get log likelihood of actions, weigh by advantages, compute gradient on that
             self.loss = -tf.reduce_mean(self.log_probabilities * self.advantage, name="loss_op")
 
-            self.gradients = tf.gradients(self.loss, self.local_network.get_variables())
+            self.gradients = tf.gradients(self.loss, self.local_network.variables)
 
-            grad_var_list = list(zip(self.gradients, self.global_network.get_variables()))
+            grad_var_list = list(zip(self.gradients, self.global_network.variables))
 
             global_step_inc = self.global_step.assign_add(tf.shape(self.state)[0])
 
             self.assign_global_to_local = tf.group(*[v1.assign(v2) for v1, v2 in
-                                                     zip(self.local_network.get_variables(),
-                                                         self.global_network.get_variables())])
+                                                     zip(self.local_network.variables,
+                                                         self.global_network.variables)])
 
             # TODO write summaries
             # self.summary_writer = tf.summary.FileWriter('log' + "_%d" % self.task_index)

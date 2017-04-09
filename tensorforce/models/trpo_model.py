@@ -50,6 +50,8 @@ class TRPOModel(PGModel):
         self.cg_optimizer = ConjugateGradientOptimizer(self.logger, self.config.cg_iterations)
 
         self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
+        self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
+
         self.create_training_operations()
         self.session.run(tf.global_variables_initializer())
 
@@ -67,8 +69,7 @@ class TRPOModel(PGModel):
             prob_ratio = tf.exp(current_log_prob - prev_log_prob)
             surrogate_loss = -tf.reduce_mean(prob_ratio * self.advantage)
             variables = tf.trainable_variables()
-            for v in variables:
-                print(v.name)
+
             batch_float = tf.cast(self.batch_size, tf.float32)
 
             mean_kl_divergence = self.dist.kl_divergence(self.prev_dist, self.policy.get_policy_variables())\

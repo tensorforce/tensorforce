@@ -91,6 +91,7 @@ class NeuralNetwork(object):
                     internal_state_inputs.append(layer[1])
                     internal_state_outputs.append(layer[2])
                     internal_state_inits.append(layer[3])
+
                     layer = layer[0]
 
             if internal_state_inputs:

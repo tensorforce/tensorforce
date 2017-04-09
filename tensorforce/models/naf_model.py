@@ -62,7 +62,6 @@ class NAFModel(Model):
             self.random = np.random.RandomState()
 
         self.state_shape = tuple(self.config.state_shape)
-        print(self.state_shape)
         self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
         self.next_states = tf.placeholder(tf.float32, (None, None) + self.state_shape,
                                           name="next_states")
@@ -95,6 +94,8 @@ class NAFModel(Model):
                                                                               'outputs_target')
         self.create_training_operations()
         self.saver = tf.train.Saver()
+        self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
+
         self.session.run(tf.global_variables_initializer())
 
     def get_action(self, state, episode=1):
@@ -109,21 +110,24 @@ class NAFModel(Model):
         fetches.extend(self.training_internal_states)
         fetches.extend(self.target_internal_states)
 
-        # Problematic if environments feed weird shapes. TODO better solution for state shape
         feed_dict = {self.episode_length: [1], self.state: [(state, )]}
 
-        feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in
+        feed_dict.update({training_internal_state: self.training_network.internal_state_inits[n] for n, training_internal_state in
                           enumerate(self.training_network.internal_state_inputs)})
-        feed_dict.update({internal_state: self.target_network.internal_state_inits[n] for n, internal_state in
-                          enumerate(self.target_network.internal_state_inputs)})
 
+        feed_dict.update({target_internal_state: self.target_network.internal_state_inits[n] for n, target_internal_state in
+                          enumerate(self.target_network.internal_state_inputs)})
         fetched = self.session.run(fetches, feed_dict)
 
         action = fetched[0][0] + self.exploration(episode, self.total_states)
 
         # Update optional internal states, e.g. LSTM cells
+        print('before')
+        print(self.target_internal_states)
+
         self.training_internal_states = fetched[1:len(self.training_internal_states)]
-        self.target_internal_states = fetched[1 + len(self.training_internal_states):]
+        self.target_internal_states = fetched[1 + len(self.target_internal_states):]
+        print(self.target_internal_states)
 
         self.total_states += 1
 
@@ -138,8 +142,8 @@ class NAFModel(Model):
         """
         float_terminals = batch['terminals'].astype(float)
 
-        q_targets = batch['rewards'] + (1. - float_terminals) * self.gamma * np.squeeze(
-            self.get_target_value_estimate(batch['next_states']))
+        q_targets = batch['rewards'] + (1. - float_terminals) * self.gamma * \
+                                       self.get_target_value_estimate(batch['next_states'])
 
         feed_dict = {
             self.episode_length: [len(batch['rewards'])],

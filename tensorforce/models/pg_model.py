@@ -86,7 +86,7 @@ class PGModel(Model):
         self.dist = self.policy.get_distribution()
 
         self.baseline_value_function = LinearValueFunction()
-        self.saver = tf.train.Saver()
+       # self.saver = tf.train.Saver()
 
     def get_action(self, state, episode=1):
         """

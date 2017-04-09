@@ -80,20 +80,7 @@ def conv2d_layer(layer_input, scope=None, **kwargs):
         conv2d = tf.map_fn(fn=(lambda t: tf_slim.conv2d(t, **kwargs)), elems=layer_input)
     return conv2d
 
-
-def dense_layer(layer_input, scope=None, **kwargs):
-    with tf.name_scope(scope or 'dense'):
-        dense = tf.map_fn(fn=(lambda t: tf_slim.fully_connected(t, **kwargs)), elems=layer_input)
-
-    return dense
-
-
-def linear_layer(layer_input, scope=None, **kwargs):
-    with tf.name_scope(scope or 'linear'):
-        linear = tf.map_fn(fn=(lambda t: tf_slim.linear(t, **kwargs)), elems=layer_input)
-
-    return linear
-
+#TODO fully custom layer implementations are necessary to control internal state and shapes better
 
 def lstm_layer(layer_input, episode_length, scope=None, **kwargs):  # lstm_size
     """
@@ -123,9 +110,9 @@ def lstm_layer(layer_input, episode_length, scope=None, **kwargs):  # lstm_size
 
 
 flatten = layer_wrapper(flatten_layer)
-dense = layer_wrapper(dense_layer)
+dense = layer_wrapper(tf_slim.fully_connected)
 conv2d = layer_wrapper(conv2d_layer)
-linear = layer_wrapper(linear_layer)
+linear = layer_wrapper(tf_slim.linear)
 lstm = layer_wrapper(lstm_layer, requires_episode_length=True)
 
 

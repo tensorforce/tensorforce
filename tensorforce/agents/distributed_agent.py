@@ -40,12 +40,14 @@ class DistributedAgent(object):
 
     def __init__(self, config, scope, task_index, cluster_spec):
         self.config = create_config(config, default=self.default_config)
-        self.current_episode = defaultdict(list)
-        self.current_episode['terminated'] = False
 
         self.continuous = self.config.continuous
         self.current_experience = Experience(self.continuous)
+
         self.model = DistributedPGModel(config, scope, task_index, cluster_spec)
+
+        self.current_episode = self.model.zero_episode()
+        self.current_episode['terminated'] = False
 
     def get_global_step(self):
         return self.model.get_global_step()
@@ -62,10 +64,11 @@ class DistributedAgent(object):
         self.model.update(deepcopy(batch))
 
         # Reset current episode
-        self.current_episode = defaultdict(list)
+        self.current_episode = self.model.zero_episode()
         self.current_episode['terminated'] = False
 
     def extend(self, experience):
+        self.current_episode['episode_length'] +=  experience.data['episode_length']
         self.current_episode['states'] += experience.data['states']
         self.current_episode['actions'] += experience.data['actions']
         self.current_episode['rewards'] += experience.data['rewards']
@@ -121,7 +124,7 @@ class Experience(object):
     def __init__(self, continuous):
         self.continuous = continuous
         self.data = defaultdict(list)
-
+        self.episode_step = 0
         self.last_action = None
         self.last_action_means = None
         self.last_action_log_std = None
@@ -143,15 +146,16 @@ class Experience(object):
         :return:
         """
 
-        self.data['states'].append(state)
-        self.data['actions'].append(self.last_action)
-        self.data['rewards'].append(reward)
-        self.data['action_means'].append(self.last_action_means)
+        self.data['episode_length'] += 1
+        self.data['terminated'] = terminal
+        self.data['states'][self.episode_step] = state
+        self.data['actions'][self.episode_step] = self.last_action
+        self.data['action_means'][self.episode_step] = self.last_action_means
+        self.data['rewards'][self.episode_step] = reward
 
         if self.continuous:
-            self.data['action_log_stds'].append(self.last_action_log_std)
+            self.data['action_log_stds'][self.episode_step] = self.last_action_log_std
 
-        if terminal:
-            self.data['terminated'] = True
+        self.episode_step += 1
 
 

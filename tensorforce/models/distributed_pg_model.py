@@ -23,6 +23,7 @@ from __future__ import division
 
 import tensorflow as tf
 import numpy as np
+import logging
 
 from tensorforce.config import create_config
 from tensorforce.models.baselines import LinearValueFunction
@@ -47,6 +48,8 @@ class DistributedPGModel(object):
         :param config: Configuration parameters
         :param scope: TensorFlow scope
         """
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
 
         self.session = None
         self.saver = None
@@ -55,7 +58,7 @@ class DistributedPGModel(object):
         self.task_index = task_index
         self.batch_size = self.config.batch_size
         self.action_count = self.config.actions
-        self.use_gae = self.config.use_gae
+        self.generalized_advantage_estimation = self.config.use_gae
         self.gae_lambda = self.config.gae_lambda
 
         self.gamma = self.config.gamma
@@ -210,18 +213,31 @@ class DistributedPGModel(object):
         :return:
         """
 
-        self.compute_gae_advantage(batch, self.gamma, self.gae_lambda)
+        for episode in batch:
+            episode['returns'] = discount(episode['rewards'], self.gamma)
+            episode['advantages'] = self.generalised_advantage_estimation(episode)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)
 
-        # Merge episode inputs into single arrays
-        _, _, actions, batch_advantage, states = self.merge_episodes(batch)
+        fetches = [self.loss, self.optimize_op, self.global_step]
+        fetches.extend(self.local_network.internal_state_outputs)
 
-        self.session.run([self.optimize_op, self.global_step],
-                         {self.state: states,
-                          self.actions: actions,
-                          self.advantage: batch_advantage})
+        # Merge episode inputs into single arrays
+        feed_dict = {
+            self.episode_length: [episode['episode_length'] for episode in batch],
+            self.state: [episode['states'] for episode in batch],
+            self.actions: [episode['actions'] for episode in batch],
+            self.advantage: [episode['advantages'] for episode in batch]
+        }
+        for n, internal_state in enumerate(self.local_network.internal_state_inputs):
+            feed_dict[internal_state] = self.local_states[n]
+
+        fetched = self.session.run(fetches, feed_dict)
+        loss = fetched[0]
+        self.local_states = fetched[3:]
+
+        self.logger.debug('Distributed model loss = ' + str(loss))
 
     def get_global_step(self):
         """
@@ -243,52 +259,45 @@ class DistributedPGModel(object):
     def save_model(self, path):
         self.saver.save(self.session, path)
 
-
-    # TODO remove this duplication, move to util or let distributed agent
-    # have a pg agent as a field
-    def merge_episodes(self, batch):
-        """
-        Merge episodes of a batch into single input variables.
-
-        :param batch:
-        :return:
-        """
-        if self.continuous:
-            action_log_stds = np.concatenate([path['action_log_stds'] for path in batch])
-            action_log_stds = np.expand_dims(action_log_stds, axis=1)
-        else:
-            action_log_stds = None
-
-        action_means = np.concatenate([path['action_means'] for path in batch])
-        actions = np.concatenate([path['actions'] for path in batch])
-        batch_advantage = np.concatenate([path["advantage"] for path in batch])
-
-        if self.normalize_advantage:
-            batch_advantage = zero_mean_unit_variance(batch_advantage)
-
-        batch_advantage = np.expand_dims(batch_advantage, axis=1)
-        states = np.concatenate([path['states'] for path in batch])
-
-        return action_log_stds, action_means, actions, batch_advantage, states
-
     # TODO duplicate code -> refactor from pg model
-    def compute_gae_advantage(self, batch, gamma, gae_lambda, use_gae=False):
+    def generalised_advantage_estimation(self, episode):
         """
-        Expects a batch containing at least one episode, sets advantages according to use_gae.
+         Expects an episode, returns advantages according to config.
+        """
+        baseline = self.baseline_value_function.predict(episode)
 
-        :param batch: Sequence of observations for at least one episode.
-        """
-        for episode in batch:
-            baseline = self.baseline_value_function.predict(episode)
+        if self.generalized_advantage_estimation:
             if episode['terminated']:
                 adjusted_baseline = np.append(baseline, [0])
             else:
                 adjusted_baseline = np.append(baseline, baseline[-1])
+            deltas = episode['rewards'] + self.gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
+            advantage = discount(deltas, self.gamma * self.gae_lambda)
+        else:
+            advantage = episode['returns'] - baseline
 
-            episode['returns'] = discount(episode['rewards'], gamma)
+        if self.normalize_advantage:
+            return zero_mean_unit_variance(advantage)
+        else:
+            return advantage
 
-            if use_gae:
-                deltas = episode['rewards'] + gamma * adjusted_baseline[1:] - adjusted_baseline[:-1]
-                episode['advantage'] = discount(deltas, gamma * gae_lambda)
-            else:
-                episode['advantage'] = episode['returns'] - baseline
+    # TODO remove this duplicate when refactoring
+    def zero_episode(self):
+        """
+        Creates a new episode dict.
+
+        :return: 
+        """
+        zero_episode = {
+            'episode_length': 0,
+            'terminated': False,
+            'states': np.zeros(shape=((self.batch_size,) + self.state_shape)),
+            'actions': np.zeros(shape=(self.batch_size, self.action_count)),
+            'action_means': np.zeros(shape=(self.batch_size, self.action_count)),
+            'rewards': np.zeros(shape=(self.batch_size, 1))
+        }
+
+        if self.continuous:
+            zero_episode['action_log_stds'] = np.zeros(shape=(self.batch_size, self.action_count))
+
+        return zero_episode

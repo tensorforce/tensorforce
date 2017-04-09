@@ -62,6 +62,7 @@ class NAFModel(Model):
             self.random = np.random.RandomState()
 
         self.state_shape = tuple(self.config.state_shape)
+        print(self.state_shape)
         self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
         self.next_states = tf.placeholder(tf.float32, (None, None) + self.state_shape,
                                           name="next_states")
@@ -107,9 +108,8 @@ class NAFModel(Model):
         fetches = [self.mu]
         fetches.extend(self.training_internal_states)
         fetches.extend(self.target_internal_states)
-        print('get action')
-        print(self.state.get_shape())
-        print(state.shape)
+
+        # Problematic if environments feed weird shapes. TODO better solution for state shape
         feed_dict = {self.episode_length: [1], self.state: [(state, )]}
 
         feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in

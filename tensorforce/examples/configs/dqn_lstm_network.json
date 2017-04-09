@@ -37,6 +37,9 @@
       "weights_regularizer": null
     },
     {
+      "type": "flatten"
+    },
+    {
       "type" : "lstm"
     },
     {

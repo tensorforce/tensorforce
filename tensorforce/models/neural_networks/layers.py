@@ -50,7 +50,8 @@ def layer_wrapper(layer_constructor, requires_episode_length=False, reshape=None
             make_function(kwargs, fk)
 
         # Force our own scope definitions
-        kwargs['scope'] = scope
+        if scope:
+            kwargs['scope'] = scope
 
         if reshape and callable(reshape):
             layer_input = reshape(layer_input)
@@ -64,7 +65,16 @@ def layer_wrapper(layer_constructor, requires_episode_length=False, reshape=None
     return layer_fn
 
 
-def lstm_layer(layer_input, episode_length, **kwargs):
+def flatten_layer(layer_input, scope=None, **kwargs):
+    with tf.name_scope(scope or 'lstm'):
+        size = 1
+        for dim in layer_input.get_shape().as_list()[2:]:
+            size *= dim
+        flattened = tf.reshape(tensor=layer_input, shape=(-1, layer_input.get_shape()[1].value, size))
+    return flattened
+
+
+def lstm_layer(layer_input, episode_length, scope=None, **kwargs):  # lstm_size
     """
     Creates an LSTM layer.
     
@@ -73,30 +83,32 @@ def lstm_layer(layer_input, episode_length, **kwargs):
     :param kwargs: 
     :return: 
     """
-    lstm_size = layer_input.get_shape()[2].value
-    internal_state_input = tf.placeholder(dtype=tf.float32, shape=(2, lstm_size))
-    internal_state_init = np.zeros(shape=(2, lstm_size))
+    with tf.name_scope(scope or 'lstm'):
+        lstm_size = layer_input.get_shape()[2].value
+        internal_state_input = tf.placeholder(dtype=tf.float32, shape=(2, lstm_size))
+        internal_state_init = np.zeros(shape=(2, lstm_size))
 
-    initial_c = tf.expand_dims(input=internal_state_input[0, :], axis=0)
-    initial_c = tf.concat(values=(initial_c, tf.zeros_like(tensor=layer_input[1:, 0, :])), axis=0)
-    initial_h = tf.expand_dims(input=internal_state_input[1, :], axis=0)
-    initial_h = tf.concat(values=(initial_h, tf.zeros_like(tensor=layer_input[1:, 0, :])), axis=0)
-    initial_state = tf.contrib.rnn.LSTMStateTuple(c=initial_c, h=initial_h)
+        initial_c = tf.expand_dims(input=internal_state_input[0, :], axis=0)
+        initial_c = tf.concat(values=(initial_c, tf.zeros_like(tensor=layer_input[1:, 0, :])), axis=0)
+        initial_h = tf.expand_dims(input=internal_state_input[1, :], axis=0)
+        initial_h = tf.concat(values=(initial_h, tf.zeros_like(tensor=layer_input[1:, 0, :])), axis=0)
+        initial_state = tf.contrib.rnn.LSTMStateTuple(c=initial_c, h=initial_h)
 
-    lstm = tf.contrib.rnn.LSTMCell(num_units=lstm_size)
-    outputs, internal_state = tf.nn.dynamic_rnn(cell=lstm, inputs=layer_input, sequence_length=episode_length, initial_state=initial_state)
-    internal_state_output = tf.stack(values=(internal_state.c[-1, :], internal_state.h[-1, :]))
-
+        lstm = tf.contrib.rnn.LSTMCell(num_units=lstm_size)
+        outputs, internal_state = tf.nn.dynamic_rnn(cell=lstm, inputs=layer_input, sequence_length=episode_length, initial_state=initial_state)
+        internal_state_output = tf.stack(values=(internal_state.c[-1, :], internal_state.h[-1, :]))
     return outputs, internal_state_input, internal_state_output, internal_state_init
 
 
+flatten = layer_wrapper(flatten_layer)
 dense = layer_wrapper(tf_slim.fully_connected)
 conv2d = layer_wrapper(tf_slim.conv2d)
-linear = layer_wrapper(tf_slim.linear, reshape=lambda input: tf.reshape(input, (-1, int(np.prod(input.get_shape()[1:])))))
+linear = layer_wrapper(tf_slim.linear)
 lstm = layer_wrapper(lstm_layer, requires_episode_length=True)
 
 
 layer_classes = {
+    'flatten': flatten,
     'dense': dense,
     'conv2d': conv2d,
     'linear': linear,

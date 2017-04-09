@@ -37,6 +37,9 @@
       "weights_regularizer": null
     },
     {
+      "type": "flatten"
+    },
+    {
       "type": "dense",
       "num_outputs": 512,
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",

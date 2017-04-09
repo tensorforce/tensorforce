@@ -70,7 +70,8 @@ def flatten_layer(layer_input, scope=None, **kwargs):
         size = 1
         for dim in layer_input.get_shape().as_list()[2:]:
             size *= dim
-        flattened = tf.reshape(tensor=layer_input, shape=(-1, layer_input.get_shape()[1].value, size))
+        flattened = tf.map_fn(fn=(lambda t: tf.reshape(tensor=t, shape=(-1, size))), elems=layer_input)
+        # flattened = tf.reshape(tensor=layer_input, shape=(-1, layer_input.get_shape()[1].value, size))
     return flattened
 
 

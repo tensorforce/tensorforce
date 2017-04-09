@@ -46,7 +46,7 @@ class DQNModel(Model):
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.gamma = self.config.gamma
-        self.batch_size = self.config.batch_size
+        # self.batch_size = self.config.batch_size
 
         self.double_dqn = self.config.double_dqn
 
@@ -66,11 +66,11 @@ class DQNModel(Model):
 
         # Input placeholders
         self.state_shape = tuple(self.config.state_shape)
-        self.state = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape, name="state")
-        self.next_states = tf.placeholder(tf.float32, (None, self.batch_size) + self.state_shape,
+        self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
+        self.next_states = tf.placeholder(tf.float32, (None, None) + self.state_shape,
                                           name="next_states")
-        self.terminals = tf.placeholder(tf.float32, (None, self.batch_size), name='terminals')
-        self.rewards = tf.placeholder(tf.float32, (None, self.batch_size), name='rewards')
+        self.terminals = tf.placeholder(tf.float32, (None, None), name='terminals')
+        self.rewards = tf.placeholder(tf.float32, (None, None), name='rewards')
 
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
@@ -109,14 +109,11 @@ class DQNModel(Model):
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
         else:
-            input = np.zeros(shape=((self.batch_size,) + self.state_shape))
-            input[0] = state
-
             fetches = [self.dqn_action]
             fetches.extend(self.training_internal_states)
             fetches.extend(self.target_internal_states)
 
-            feed_dict = {self.episode_length: [1], self.state: [input]}
+            feed_dict = {self.episode_length: [1], self.state: [(state,)]}
 
             feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in
                               enumerate(self.training_network.internal_state_inputs)})
@@ -124,7 +121,7 @@ class DQNModel(Model):
                               enumerate(self.target_network.internal_state_inputs)})
 
             fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
-            action = fetched[0]
+            action = fetched[0][0][0]
 
             # Update optional internal states, e.g. LSTM cells
             self.training_internal_states = fetched[1:len(self.training_internal_states)]
@@ -193,7 +190,7 @@ class DQNModel(Model):
         """
         with tf.name_scope(self.scope):
             with tf.name_scope("predict"):
-                self.dqn_action = tf.argmax(self.training_output, axis=1, name='dqn_action')
+                self.dqn_action = tf.argmax(self.training_output, axis=2, name='dqn_action')
 
             with tf.name_scope("targets"):
                 if self.double_dqn:
@@ -244,9 +241,9 @@ class DQNModel(Model):
         :return:
         """
         if self.double_dqn:
-            return self.session.run(self.target_values, {self.state: next_states, self.next_states: next_states})
+            return self.session.run(self.target_values, {self.state: [next_states], self.next_states: [next_states]})
         else:
-            return self.session.run(self.target_values, {self.next_states: next_states})
+            return self.session.run(self.target_values, {self.next_states: [next_states]})
 
     def update_target_network(self):
         """

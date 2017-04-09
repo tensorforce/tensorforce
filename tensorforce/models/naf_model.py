@@ -119,7 +119,7 @@ class NAFModel(Model):
 
         fetched = self.session.run(fetches, feed_dict)
 
-        action = fetched[0] + self.exploration(episode, self.total_states)
+        action = fetched[0][0] + self.exploration(episode, self.total_states)
 
         # Update optional internal states, e.g. LSTM cells
         self.training_internal_states = fetched[1:len(self.training_internal_states)]

@@ -83,7 +83,8 @@ class ThreadRunner(Thread):
         while True:
             # We pass the continuous flag to indicate whether we expect to store policy
             # log stds in the batch.
-            experience = Experience(self.agent.continuous)
+            # TODO refactor this creation
+            experience = Experience(self.agent.continuous, self.agent.model.zero_episode())
 
             for _ in xrange(self.local_steps):
                 if self.preprocessor:

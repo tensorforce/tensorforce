@@ -223,6 +223,8 @@ class DistributedPGModel(object):
         fetches = [self.loss, self.optimize_op, self.global_step]
         fetches.extend(self.local_network.internal_state_outputs)
 
+        print(len(batch))
+        print(batch[0]['episode_length'])
         # Merge episode inputs into single arrays
         feed_dict = {
             self.episode_length: [episode['episode_length'] for episode in batch],
@@ -281,7 +283,7 @@ class DistributedPGModel(object):
         else:
             return advantage
 
-    # TODO remove this duplicate when refactoring
+    # TODO remove this duplicate
     def zero_episode(self):
         """
         Creates a new episode dict.

@@ -42,12 +42,12 @@ class DistributedAgent(object):
         self.config = create_config(config, default=self.default_config)
 
         self.continuous = self.config.continuous
-        self.current_experience = Experience(self.continuous)
 
         self.model = DistributedPGModel(config, scope, task_index, cluster_spec)
 
         self.current_episode = self.model.zero_episode()
         self.current_episode['terminated'] = False
+        self.current_experience = Experience(self.continuous, self.model.zero_episode())
 
     def get_global_step(self):
         return self.model.get_global_step()
@@ -60,7 +60,7 @@ class DistributedAgent(object):
 
         # Just one episode, but model logic expects list of episodes in case batch
         # spans multiple episodes
-        batch = [get_path(self.continuous, self.current_episode)]
+        batch = [self.current_episode]
         self.model.update(deepcopy(batch))
 
         # Reset current episode
@@ -68,7 +68,7 @@ class DistributedAgent(object):
         self.current_episode['terminated'] = False
 
     def extend(self, experience):
-        self.current_episode['episode_length'] +=  experience.data['episode_length']
+        self.current_episode['episode_length'] += experience.data['episode_length']
         self.current_episode['states'] += experience.data['states']
         self.current_episode['actions'] += experience.data['actions']
         self.current_episode['rewards'] += experience.data['rewards']
@@ -121,9 +121,9 @@ class Experience(object):
     Helper object for queue management.
     """
 
-    def __init__(self, continuous):
+    def __init__(self, continuous, data):
         self.continuous = continuous
-        self.data = defaultdict(list)
+        self.data = data
         self.episode_step = 0
         self.last_action = None
         self.last_action_means = None
@@ -157,5 +157,3 @@ class Experience(object):
             self.data['action_log_stds'][self.episode_step] = self.last_action_log_std
 
         self.episode_step += 1
-
-

@@ -6,7 +6,7 @@
   "update_repeat": 1,
   "use_target_network": true,
   "target_network_update_rate": 0.0001,
-  "min_replay_size": 500,
+  "min_replay_size": 5e4,
   "alpha": 0.00025,
   "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
   "double_dqn": false,
@@ -16,7 +16,7 @@
   },
   "exploration": "epsilon_decay",
   "exploration_param": {
-    "epsilon": 0.1,
+    "epsilon": 1,
     "epsilon_final": 0.1,
     "epsilon_states": 1e6
   },

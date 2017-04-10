@@ -150,7 +150,7 @@ Coming soon/under construction:
 
 - Optional LSTM usage in network configurations, layer types "lstm", and type "flatten" to explicitly reshape between layers
 - Cleaner internal state management for policy gradient models, including recurrent states via a list of
-internal states managed by the models.
+  internal states managed by the models.
 - More consistent tensor shapes between models
 - Log-level as config parameter, more informative logging for level INFO
 

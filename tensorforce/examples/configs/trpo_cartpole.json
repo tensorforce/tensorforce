@@ -1,0 +1,13 @@
+{
+  "loglevel": "debug",
+  "batch_size": 200,
+  "use_gae": true,
+  "normalize_advantage" : false,
+  "gae_lambda": 0.97,
+  "cg_iterations" : 20,
+  "cg_damping" : 0.001,
+  "line_search_steps" : 20,
+  "max_kl_divergence": 0.001,
+  "gamma": 0.97,
+  "continuous": false
+}

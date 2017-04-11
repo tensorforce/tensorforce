@@ -111,7 +111,6 @@ class PGAgent(RLAgent):
         self.episode_step += 1
 
         if terminal:
-            # Transform into np arrays, append episode to batch, start new episode dict
             self.current_batch.append(self.current_episode)
             self.current_episode = self.model.zero_episode()
             self.episode_step = 0
@@ -120,10 +119,12 @@ class PGAgent(RLAgent):
             self.last_action_log_std = None
 
         if self.batch_step == self.batch_size:
-            self.current_batch.append(self.current_episode)
+
+            if not terminal:
+                self.current_batch.append(self.current_episode)
+                self.current_episode = self.model.zero_episode()
+                self.episode_step = 0
             self.model.update(self.current_batch)
-            self.current_episode = self.model.zero_episode()
-            self.episode_step = 0
             self.current_batch = []
             self.batch_step = 0
 

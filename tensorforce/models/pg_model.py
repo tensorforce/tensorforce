@@ -54,7 +54,6 @@ class PGModel(Model):
             self.random = np.random.RandomState()
 
         self.state_shape = tuple(self.config.state_shape)
-
         self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
         self.actions = tf.placeholder(tf.float32, (None, None, self.action_count), name='actions')
         self.prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')

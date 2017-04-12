@@ -89,7 +89,8 @@ from the examples folder:
 
 ::
 
-    python tensorforce/examples/openai_gym.py Pong-ram-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_agent.json -n tensorforce/examples/configs/trpo_network.json
+    python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_cartpole.json
+    -n tensorforce/examples/configs/trpo_network_example.json
     
 Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
 

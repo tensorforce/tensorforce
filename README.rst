@@ -13,7 +13,7 @@ providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
 TensorForce is built on top of TensorFlow.
 
-The main difference to existing libraries (such as rllab) is a strict
+The main difference to existing libraries is a strict
 separation of environments, agents and update logic that facilitates
 usage in non-simulation environments. Further, research code often relies on fixed network
 architectures that have been used to tackle particular benchmarks.
@@ -146,9 +146,10 @@ Coming soon/under construction:
 - Q-Prop: Sample-Efficient Policy Gradient with An Off-Policy Critic - `paper <https://arxiv.org/abs/1611.02247>`__
 
 
-10th April 2017:
+12th April 2017:
 
 - Optional LSTM usage in network configurations, layer types "lstm", and type "flatten" to explicitly reshape between layers
+  Support still experimental
 - Cleaner internal state management for policy gradient models, including recurrent states via a list of
   internal states managed by the models.
 - More consistent tensor shapes between models

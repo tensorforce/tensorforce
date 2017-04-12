@@ -32,29 +32,13 @@ they prove themselves stable, e.g. as of early 2017 hybrid A3C and TRPO
 variants provide the basis for a lot of research. We also offer TensorForce
 support through our Gitter channel.
 
-Acknowledgements
-----------------
-
-The goal of TensorForce is not just to re-implement existing algorithms, but
-to provide clear APIs and modularisations, and later provide serving,
-integration and deployment components. The credit for original open
-source implementations, which we have adopted and modified into our
-architecture, fully belongs to the original authors, which have all made
-their code available under MIT licenses.
-
-In particular, credit goes to John Schulman, Ilya Sutskever and Wojciech
-Zaremba for their various TRPO implementations, Rocky Duan for rllab,
-Taehoon Kim for his DQN and NAF implementations, and many others who
-have put in effort to make deep reinforcement learning more accessible
-through blog posts and tutorials.
-
 Features
 --------
 
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
 Universe and DeepMind lab. The following algorithms are available (all policy methods both continuous/discrete):
 
-1. A3C using distributed TF
+1. A3C using distributed TensorFlow
 2. Trust Region Policy Optimization (TRPO) with generalised
    advantage estimation (GAE)
 3. Normalised Advantage functions (NAFs)
@@ -73,7 +57,7 @@ For the most straight-forward install via pip, execute:
     pip install -e .
 
 To update TensorForce, just run ``git pull`` in the tensorforce
-directory. Please not that we did not include OpenAI Gym/Universe/DeepMind lab in the default
+directory. Please note that we did not include OpenAI Gym/Universe/DeepMind lab in the default
 install script because not everyone will want to use these. Please install them as required,
 usually via pip.
 
@@ -92,7 +76,8 @@ from the examples folder:
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_cartpole.json
     -n tensorforce/examples/configs/trpo_network_example.json
     
-Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__.
+Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__. We also wrote some tests which
+can be run from the main directory by executing :code:`nosetests`.
 
 Create and use agents
 ---------------------
@@ -149,8 +134,8 @@ Coming soon/under construction:
 
 12th April 2017:
 
-- Optional LSTM usage in network configurations, layer types "lstm", and type "flatten" to explicitly reshape between layers
-  Support still experimental
+- Optional LSTM usage in network configurations, layer types "lstm", and type "flatten" to explicitly reshape between layers,
+  support still experimental
 - Cleaner internal state management for policy gradient models, including recurrent states via a list of
   internal states managed by the models.
 - More consistent tensor shapes between models
@@ -187,3 +172,19 @@ questions or support, get in touch at contact@reinforce.io.
 
 You are also welcome to join our Gitter channel for help with using
 TensorForce, bugs or contributions: `https://gitter.im/reinforceio/TensorForce <https://gitter.im/reinforceio/TensorForce>`__
+
+Acknowledgements
+----------------
+
+The goal of TensorForce is not just to re-implement existing algorithms, but
+to provide clear APIs and modularisations, and later provide serving,
+integration and deployment components. The credit for original open
+source implementations, which we have adopted and modified into our
+architecture, fully belongs to the original authors, which have all made
+their code available under MIT licenses.
+
+In particular, credit goes to John Schulman, Ilya Sutskever and Wojciech
+Zaremba for their various TRPO implementations, Rocky Duan for rllab,
+Taehoon Kim for his DQN and NAF implementations, and many others who
+have put in effort to make deep reinforcement learning more accessible
+through blog posts and tutorials.

@@ -34,10 +34,9 @@ class CategoricalOneHotPolicy(StochasticPolicy):
     def __init__(self, network, session, state, random, action_count=1, scope='policy'):
         with tf.variable_scope(scope):
             action_layer = linear(layer_input=network.output, config={'num_outputs': action_count}, scope='outputs')
-            action_layer = tf.reshape(action_layer, [-1, action_count])
 
             distribution = tf.nn.softmax(action_layer)
-            sample = tf.multinomial(distribution, 1)
+            sample = tf.map_fn(lambda t: tf.multinomial(logits=t, num_samples=1), elems=distribution, dtype=tf.int64)
 
         super(CategoricalOneHotPolicy, self).__init__(network, [distribution, sample], session, state, random, action_count)
         self.dist = Categorical(random)

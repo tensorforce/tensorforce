@@ -1,7 +1,7 @@
 {
   "loglevel": "debug",
   "alpha": 0.01,
-  "batch_size": 1000,
+  "batch_size": 4000,
   "normalize_advantage" : false,
   "use_gae": false,
   "gae_lambda": 0.97,

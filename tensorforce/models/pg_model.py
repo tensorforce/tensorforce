@@ -57,7 +57,7 @@ class PGModel(Model):
         self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
         self.actions = tf.placeholder(tf.float32, (None, None, self.action_count), name='actions')
         self.prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')
-        self.advantage = tf.placeholder(tf.float32, shape=(None, None, 1), name='advantage')
+        self.advantage = tf.placeholder(tf.float32, shape=(None, None), name='advantage')
 
         if define_network is None:
             define_network = NeuralNetwork.layered_network(self.config.network_layers)
@@ -144,6 +144,6 @@ class PGModel(Model):
             advantage = episode['returns'] - baseline
 
         if self.normalize_advantage:
-            return zero_mean_unit_variance(advantage)
+            return np.squeeze(zero_mean_unit_variance(advantage))
         else:
-            return advantage
+            return np.squeeze(advantage)

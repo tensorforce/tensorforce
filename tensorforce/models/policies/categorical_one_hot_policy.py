@@ -51,7 +51,7 @@ class CategoricalOneHotPolicy(StochasticPolicy):
         if sample:
             # We currently use tf.multinomial for sampling, as np.random.multinomial has a precision of 1e-12 and raises
             # ValueErrors when sum(pvals) > 1.0. With tensorflow's precision of 1e-8, this might happen.
-            action = np.flatnonzero(output_sample)
+            action = np.squeeze(output_sample)
         else:
             action = int(np.argmax(output_dist))
 

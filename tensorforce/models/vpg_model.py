@@ -40,8 +40,10 @@ class VPGModel(PGModel):
         with tf.variable_scope("update"):
             self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
 
+            self.log_probabilities = tf.reshape(self.log_probabilities, [-1])
+
             # Concise: Get log likelihood of actions, weigh by advantages, compute gradient on that
-            self.loss = -tf.reduce_mean(self.log_probabilities * self.advantage, name="loss_op", axis=1)
+            self.loss = -tf.reduce_mean(self.log_probabilities * tf.reshape(self.advantage, [-1]), name="loss_op", axis=0)
 
             self.optimize_op = self.optimizer.minimize(self.loss)
 

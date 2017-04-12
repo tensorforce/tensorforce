@@ -64,10 +64,13 @@ class TRPOModel(PGModel):
 
         with tf.variable_scope("update"):
             current_log_prob = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
+            current_log_prob = tf.reshape(current_log_prob, [-1])
+
             prev_log_prob = self.dist.log_prob(self.prev_dist, self.actions)
+            prev_log_prob = tf.reshape(prev_log_prob, [-1])
 
             prob_ratio = tf.exp(current_log_prob - prev_log_prob)
-            surrogate_loss = -tf.reduce_mean(prob_ratio * self.advantage)
+            surrogate_loss = -tf.reduce_mean(prob_ratio * tf.reshape(self.advantage, [-1]))
             variables = tf.trainable_variables()
 
             batch_float = tf.cast(self.batch_size, tf.float32)
@@ -172,9 +175,9 @@ class TRPOModel(PGModel):
             fetched = self.session.run(self.losses, self.input_feed)
 
             # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
-            self.logger.info('Surrogate loss = ' + str(fetched[0]))
-            self.logger.info('KL-divergence after update = ' + str(fetched[1]))
-            self.logger.info('Entropy = ' + str(fetched[2]))
+            self.logger.debug('Surrogate loss = ' + str(fetched[0]))
+            self.logger.debug('KL-divergence after update = ' + str(fetched[1]))
+            self.logger.debug('Entropy = ' + str(fetched[2]))
 
             # Update internal state optionally
             self.internal_states = fetched[3:]

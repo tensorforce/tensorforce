@@ -48,7 +48,6 @@ class Model(object):
         self.config = create_config(config, default=self.default_config)
 
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
 
 
         # This is the scope used to prefix variable creation for distributed TensorFlow

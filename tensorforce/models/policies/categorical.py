@@ -27,7 +27,7 @@ class Categorical(Distribution):
         prob_b = dist_b['policy_output']
 
         # Need to ensure numerical stability
-        return tf.reduce_sum(prob_a * tf.log((prob_a + self.epsilon) / (prob_b + self.epsilon)))
+        return tf.reduce_sum(prob_a * tf.log((prob_a + self.epsilon) / (prob_b + self.epsilon)), axis=2)
 
     def entropy(self, dist):
         prob = dist['policy_output']
@@ -47,7 +47,7 @@ class Categorical(Distribution):
         prob = dist['policy_output']
 
         return tf.reduce_sum(tf.stop_gradient(prob)
-                             * tf.log(tf.stop_gradient(prob + self.epsilon) / (prob + self.epsilon)))
+                             * tf.log(tf.stop_gradient(prob + self.epsilon) / (prob + self.epsilon)), axis=2)
 
     def sample(self, dist):
         prob = dist['policy_output']

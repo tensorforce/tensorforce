@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 """
-Default implementation for using a replay replay_memory.
-"""
+Deep Q-learning from demonstration. This agent pre-trains from demonstration data.
+ 
+Original paper: 'Learning from Demonstrations for Real World Reinforcement Learning'
 
+https://arxiv.org/abs/1704.03732
+"""
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -26,9 +28,10 @@ from tensorforce.replay_memories import ReplayMemory
 from tensorforce.agents import RLAgent
 
 
-class MemoryAgent(RLAgent):
+#TODO Michael: should probably inherit from memory_agent
+class DQFDAgent(RLAgent):
 
-    name = 'MemoryAgent'
+    model = None
 
     default_config = {
         'batch_size': 32,
@@ -40,21 +43,27 @@ class MemoryAgent(RLAgent):
         'update_repeat': 1
     }
 
-    model = None
-
-    def __init__(self, config, scope='memory_agent'):
+    def __init__(self, config, scope='dqfd_agent'):
         """
-        Initialize a vanilla DQN agent as described in
-        http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html.
-
-        :param config: Configuration parameters for agent
-        :param scope: TensorFlow scope
+        
+        :param config: 
+        :param scope: 
         """
         self.config = create_config(config, default=self.default_config)
         self.model = None
 
-        self.memory = ReplayMemory(**self.config)
+        # This is the online memory
+        self.replay_memory = ReplayMemory(**self.config)
+
+        # This is the demonstration memory that we will fill with observations before starting
+        # the main training loop
+        self.demo_memory = ReplayMemory(**self.config)
+
         self.step_count = 0
+
+        # Called p in paper, controls
+        self.expert_sampling_ratio = self.config.expert_sampling_ratio
+
         self.update_repeat = self.config.update_repeat
         self.batch_size = self.config.batch_size
         self.update_steps = int(round(1 / self.config.update_rate))
@@ -68,67 +77,44 @@ class MemoryAgent(RLAgent):
         if self.__class__.model:
             self.model = self.__class__.model(self.config, scope)
 
-    def setup(self):
+    def add_demo_observation(self, state, action, reward, terminal):
         """
-        Prepares the agent to run
+        Adds observations to demo memory. 
 
-        :return:
         """
-        self.model.initialize()
+        self.demo_memory.add_experience(state, action, reward, terminal)
 
-    def update(self, batch):
+    def pretrain(self, steps=1):
         """
-        Explicitly calls update using the provided batch of experiences.
-
-        :param batch:
-        :return:
+        
+        :param steps: Number of pre-train gradient updates.
+        
         """
-        self.model.update(batch)
-
-    def get_action(self, *args, **kwargs):
-        """
-        Executes one reinforcement learning step.
-
-        :return: Which action to take
-        """
-        action = self.model.get_action(*args, **kwargs)
-
-        return action
 
     def add_observation(self, state, action, reward, terminal):
         """
-        Adds an observation for training purposes. Implicitly computes updates
-        according to the update frequency.
-
-        :param state: State observed
-        :param action: Action taken in state
-        :param reward: Reward observed
-        :param terminal: Indicates terminal state
+        Adds observations, updates via sampling from memories according to update rate.
+        In the DQFD case, we sample from the online replay memory and the demo memory with
+        the fractions controlled by a hyperparameter p called 'expert sampling ratio.
+        
+        :param state: 
+        :param action: 
+        :param reward: 
+        :param terminal: 
+        :return: 
         """
-        self.memory.add_experience(state, action, reward, terminal)
+        pass
 
-        self.step_count += 1
+    def get_action(self, *args, **kwargs):
+        """
+        Get action from model, as in DQN.
+        
+        :param state: 
+        """
 
-        if self.step_count >= self.min_replay_size and self.step_count % self.update_steps == 0:
-            for _ in xrange(self.update_repeat):
-                batch = self.memory.sample_batch(self.batch_size)
-                self.model.update(batch)
+        action = self.model.get_action(*args, **kwargs)
 
-        if self.step_count >= self.min_replay_size and self.use_target_network \
-                and self.step_count % self.target_update_steps == 0:
-            self.model.update_target_network()
-
-    def get_variables(self):
-        return self.model.get_variables()
-
-    def assign_variables(self, values):
-        self.model.assign_variables(values)
-
-    def get_gradients(self):
-        return self.model.get_gradients()
-
-    def apply_gradients(self, grads_and_vars):
-        self.model.apply_gradients(grads_and_vars)
+        return action
 
     def save_model(self, path):
         self.model.save_model(path)

@@ -1,0 +1,12 @@
+[2017-04-12 08:53:49,645] Making new env: Pong-ram-v0
+[2017-04-12 08:53:49,680] Starting distributed agent for OpenAI Gym 'Pong-ram-v0'
+[2017-04-12 08:53:49,680] Config:
+[2017-04-12 08:53:49,680] {'state_shape': (128,), 'action_shape': [], u'loglevel': u'debug', u'use_gae': False, u'continuous': False, 'actions': 6, u'gae_lambda': 0.97, u'normalize_advantage': False, u'batch_size': 4000, 'repeat_actions': 1, u'alpha': 0.01, u'network_layers': [{u'biases_initializer_kwargs': {}, u'weights_initializer_kwargs': {}, u'weights_regularizer': None, u'activation_fn': u'tensorflow.python.ops.nn.tanh', u'num_outputs': 32, u'biases_initializer': u'tensorflow.python.ops.init_ops.zeros_initializer', u'weights_initializer': u'tensorflow.contrib.layers.python.layers.initializers.xavier_initializer', u'type': u'dense'}, {u'biases_initializer_kwargs': {}, u'weights_initializer_kwargs': {}, u'weights_regularizer': None, u'activation_fn': u'tensorflow.python.ops.nn.tanh', u'num_outputs': 32, u'biases_initializer': u'tensorflow.python.ops.init_ops.zeros_initializer', u'weights_initializer': u'tensorflow.contrib.layers.python.layers.initializers.xavier_initializer', u'type': u'dense'}], u'gamma': 0.97}
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.1 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.2 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX2 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use FMA instructions, but these are available on your machine and could speed up CPU computations.
+I tensorflow/core/distributed_runtime/rpc/grpc_channel.cc:200] Initialize GrpcChannelCache for job ps -> {0 -> localhost:12222}
+I tensorflow/core/distributed_runtime/rpc/grpc_channel.cc:200] Initialize GrpcChannelCache for job worker -> {0 -> 127.0.0.1:12223}
+I tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc:221] Started server with target: grpc://localhost:12222

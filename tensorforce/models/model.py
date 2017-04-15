@@ -29,7 +29,7 @@ import logging
 import tensorflow as tf
 
 from tensorforce.config import create_config
-from tensorforce.util.config_util import get_function
+from tensorforce.util.config_util import get_function, log_levels
 from tensorforce.util.exploration_util import exploration_mode
 
 
@@ -48,7 +48,7 @@ class Model(object):
         self.config = create_config(config, default=self.default_config)
 
         self.logger = logging.getLogger(__name__)
-
+        self.logger.setLevel(log_levels[config.loglevel])
 
         # This is the scope used to prefix variable creation for distributed TensorFlow
         self.scope = scope

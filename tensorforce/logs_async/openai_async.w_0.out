@@ -1,0 +1,4041 @@
+[2017-04-12 08:53:49,601] Making new env: Pong-ram-v0
+[2017-04-12 08:53:49,643] Starting distributed agent for OpenAI Gym 'Pong-ram-v0'
+[2017-04-12 08:53:49,643] Config:
+[2017-04-12 08:53:49,643] {'state_shape': (128,), 'action_shape': [], u'loglevel': u'debug', u'use_gae': False, u'continuous': False, 'actions': 6, u'gae_lambda': 0.97, u'normalize_advantage': False, u'batch_size': 4000, 'repeat_actions': 1, u'alpha': 0.01, u'network_layers': [{u'biases_initializer_kwargs': {}, u'weights_initializer_kwargs': {}, u'weights_regularizer': None, u'activation_fn': u'tensorflow.python.ops.nn.tanh', u'num_outputs': 32, u'biases_initializer': u'tensorflow.python.ops.init_ops.zeros_initializer', u'weights_initializer': u'tensorflow.contrib.layers.python.layers.initializers.xavier_initializer', u'type': u'dense'}, {u'biases_initializer_kwargs': {}, u'weights_initializer_kwargs': {}, u'weights_regularizer': None, u'activation_fn': u'tensorflow.python.ops.nn.tanh', u'num_outputs': 32, u'biases_initializer': u'tensorflow.python.ops.init_ops.zeros_initializer', u'weights_initializer': u'tensorflow.contrib.layers.python.layers.initializers.xavier_initializer', u'type': u'dense'}], u'gamma': 0.97}
+[2017-04-12 08:53:49,643] Creating server
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.1 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.2 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX2 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use FMA instructions, but these are available on your machine and could speed up CPU computations.
+I tensorflow/core/distributed_runtime/rpc/grpc_channel.cc:200] Initialize GrpcChannelCache for job ps -> {0 -> 127.0.0.1:12222}
+I tensorflow/core/distributed_runtime/rpc/grpc_channel.cc:200] Initialize GrpcChannelCache for job worker -> {0 -> localhost:12223}
+I tensorflow/core/distributed_runtime/rpc/grpc_server_lib.cc:221] Started server with target: grpc://localhost:12223
+[2017-04-12 08:53:49,655] Created server
+[2017-04-12 08:53:50,200] Created agent
+[2017-04-12 08:53:50,510] Connecting to session..
+[2017-04-12 08:53:50,510] Server target = grpc://localhost:12223
+I tensorflow/core/distributed_runtime/master_session.cc:1012] Start master session 38a81fe047525c9f with config: 
+device_filters: "/job:ps"
+device_filters: "/job:worker/task:0/cpu:0"
+
+[2017-04-12 08:53:51,436] Established session, starting runner..
+INFO:tensorflow:global/global_step/sec: 0
+[2017-04-12 08:53:51,439] global/global_step/sec: 0
+[2017-04-12 08:53:51,440] Starting thread runner..
+[2017-04-12 08:53:51,440] Runner started
+[2017-04-12 08:53:51,441] Got global step count
+1
+40
+[2017-04-12 08:53:53,746] Distributed model loss = -0.0
+[2017-04-12 08:53:53,750] Global step count: 1
+1
+120
+[2017-04-12 08:53:56,030] Distributed model loss = -0.0462798
+[2017-04-12 08:53:56,031] Global step count: 2
+1
+120
+[2017-04-12 08:53:58,222] Distributed model loss = -1.01624
+[2017-04-12 08:53:58,223] Global step count: 3
+1
+100
+[2017-04-12 08:54:00,437] Distributed model loss = -0.613939
+[2017-04-12 08:54:00,441] Global step count: 4
+1
+100
+[2017-04-12 08:54:02,858] Distributed model loss = -0.630209
+[2017-04-12 08:54:02,861] Global step count: 5
+1
+120
+[2017-04-12 08:54:05,132] Distributed model loss = 2.21877
+[2017-04-12 08:54:05,133] Global step count: 6
+1
+120
+[2017-04-12 08:54:07,682] Distributed model loss = -1.11135
+[2017-04-12 08:54:07,683] Global step count: 7
+1
+100
+[2017-04-12 08:54:10,157] Distributed model loss = -0.208713
+[2017-04-12 08:54:10,159] Global step count: 8
+1
+120
+[2017-04-12 08:54:11,113] Episode 1 finished after 1022 steps. Episode reward = -21.0
+[2017-04-12 08:54:13,411] Distributed model loss = -1.14218
+[2017-04-12 08:54:13,412] Global step count: 9
+1
+82
+[2017-04-12 08:54:15,931] Distributed model loss = 0.952977
+[2017-04-12 08:54:15,932] Global step count: 10
+1
+100
+[2017-04-12 08:54:18,445] Distributed model loss = 0.735749
+[2017-04-12 08:54:18,447] Global step count: 11
+1
+100
+[2017-04-12 08:54:20,712] Distributed model loss = -0.353497
+[2017-04-12 08:54:20,713] Global step count: 12
+1
+100
+[2017-04-12 08:54:23,178] Distributed model loss = -0.445681
+[2017-04-12 08:54:23,182] Global step count: 13
+1
+120
+[2017-04-12 08:54:26,075] Distributed model loss = -1.3087
+[2017-04-12 08:54:26,076] Global step count: 14
+1
+100
+[2017-04-12 08:54:28,383] Distributed model loss = 0.145574
+[2017-04-12 08:54:28,386] Global step count: 15
+1
+120
+[2017-04-12 08:54:31,750] Distributed model loss = -1.13763
+[2017-04-12 08:54:31,751] Global step count: 16
+1
+100
+[2017-04-12 08:54:34,525] Distributed model loss = -0.796081
+[2017-04-12 08:54:34,526] Global step count: 17
+1
+120
+[2017-04-12 08:54:36,820] Distributed model loss = -0.837507
+[2017-04-12 08:54:36,822] Global step count: 18
+1
+120
+[2017-04-12 08:54:36,983] Episode 2 finished after 1013 steps. Episode reward = -21.0
+[2017-04-12 08:54:39,139] Distributed model loss = -0.566576
+[2017-04-12 08:54:39,143] Global step count: 19
+1
+33
+[2017-04-12 08:54:41,394] Distributed model loss = -0.0139556
+[2017-04-12 08:54:41,396] Global step count: 20
+1
+100
+[2017-04-12 08:54:43,707] Distributed model loss = 0.451132
+[2017-04-12 08:54:43,710] Global step count: 21
+1
+100
+[2017-04-12 08:54:46,042] Distributed model loss = -0.164286
+[2017-04-12 08:54:46,043] Global step count: 22
+1
+100
+[2017-04-12 08:54:48,289] Distributed model loss = -0.0386036
+[2017-04-12 08:54:48,292] Global step count: 23
+1
+120
+[2017-04-12 08:54:50,668] Distributed model loss = -1.01723
+[2017-04-12 08:54:50,670] Global step count: 24
+1
+120
+[2017-04-12 08:54:53,211] Distributed model loss = -1.96907
+[2017-04-12 08:54:53,213] Global step count: 25
+1
+100
+[2017-04-12 08:54:55,783] Distributed model loss = -0.44408
+[2017-04-12 08:54:55,785] Global step count: 26
+1
+100
+[2017-04-12 08:54:58,165] Distributed model loss = -0.740566
+[2017-04-12 08:54:58,168] Global step count: 27
+1
+120
+[2017-04-12 08:55:00,672] Distributed model loss = -0.90861
+[2017-04-12 08:55:00,674] Global step count: 28
+1
+100
+[2017-04-12 08:55:00,847] Episode 3 finished after 1033 steps. Episode reward = -21.0
+[2017-04-12 08:55:03,105] Distributed model loss = -0.45676
+[2017-04-12 08:55:03,112] Global step count: 29
+1
+73
+[2017-04-12 08:55:05,513] Distributed model loss = 1.16868
+[2017-04-12 08:55:05,519] Global step count: 30
+1
+100
+[2017-04-12 08:55:07,892] Distributed model loss = -1.29768
+[2017-04-12 08:55:07,893] Global step count: 31
+1
+100
+[2017-04-12 08:55:10,218] Distributed model loss = -1.41125
+[2017-04-12 08:55:10,221] Global step count: 32
+1
+120
+[2017-04-12 08:55:12,541] Distributed model loss = -0.662208
+[2017-04-12 08:55:12,542] Global step count: 33
+1
+100
+[2017-04-12 08:55:15,142] Distributed model loss = -0.576814
+[2017-04-12 08:55:15,145] Global step count: 34
+1
+120
+[2017-04-12 08:55:20,292] Distributed model loss = -1.40762
+[2017-04-12 08:55:20,296] Global step count: 35
+1
+120
+[2017-04-12 08:55:22,693] Distributed model loss = -1.15519
+[2017-04-12 08:55:22,694] Global step count: 36
+1
+100
+[2017-04-12 08:55:25,475] Distributed model loss = -0.463107
+[2017-04-12 08:55:25,477] Global step count: 37
+1
+100
+[2017-04-12 08:55:27,992] Distributed model loss = -0.489476
+[2017-04-12 08:55:27,995] Global step count: 38
+1
+100
+[2017-04-12 08:55:28,113] Episode 4 finished after 1019 steps. Episode reward = -21.0
+[2017-04-12 08:55:30,459] Distributed model loss = -0.593811
+[2017-04-12 08:55:30,464] Global step count: 39
+1
+59
+[2017-04-12 08:55:32,658] Distributed model loss = 0.797259
+[2017-04-12 08:55:32,659] Global step count: 40
+1
+120
+[2017-04-12 08:55:35,065] Distributed model loss = -0.00146993
+[2017-04-12 08:55:35,066] Global step count: 41
+1
+100
+[2017-04-12 08:55:37,258] Distributed model loss = -0.652886
+[2017-04-12 08:55:37,261] Global step count: 42
+1
+100
+[2017-04-12 08:55:39,882] Distributed model loss = -0.536471
+[2017-04-12 08:55:39,885] Global step count: 43
+1
+100
+[2017-04-12 08:55:42,180] Distributed model loss = -0.538796
+[2017-04-12 08:55:42,181] Global step count: 44
+1
+120
+[2017-04-12 08:55:44,539] Distributed model loss = 0.164928
+[2017-04-12 08:55:44,540] Global step count: 45
+1
+100
+[2017-04-12 08:55:46,805] Distributed model loss = -0.315045
+[2017-04-12 08:55:46,806] Global step count: 46
+1
+100
+[2017-04-12 08:55:49,433] Distributed model loss = -0.676247
+[2017-04-12 08:55:49,435] Global step count: 47
+1
+100
+INFO:tensorflow:global/global_step/sec: 0.399994
+[2017-04-12 08:55:51,440] global/global_step/sec: 0.399994
+[2017-04-12 08:55:51,929] Distributed model loss = -0.378471
+[2017-04-12 08:55:51,932] Global step count: 48
+1
+120
+[2017-04-12 08:55:52,059] Episode 5 finished after 1018 steps. Episode reward = -21.0
+[2017-04-12 08:55:54,287] Distributed model loss = -0.882104
+[2017-04-12 08:55:54,288] Global step count: 49
+1
+58
+[2017-04-12 08:55:56,599] Distributed model loss = 0.694619
+[2017-04-12 08:55:56,601] Global step count: 50
+1
+100
+[2017-04-12 08:55:58,806] Distributed model loss = -0.310925
+[2017-04-12 08:55:58,807] Global step count: 51
+1
+100
+[2017-04-12 08:56:01,158] Distributed model loss = -0.468096
+[2017-04-12 08:56:01,159] Global step count: 52
+1
+120
+[2017-04-12 08:56:03,791] Distributed model loss = -0.982196
+[2017-04-12 08:56:03,793] Global step count: 53
+1
+100
+[2017-04-12 08:56:06,507] Distributed model loss = -0.532853
+[2017-04-12 08:56:06,509] Global step count: 54
+1
+100
+[2017-04-12 08:56:08,723] Distributed model loss = -0.292008
+[2017-04-12 08:56:08,724] Global step count: 55
+1
+120
+[2017-04-12 08:56:11,376] Distributed model loss = -1.12401
+[2017-04-12 08:56:11,377] Global step count: 56
+1
+120
+[2017-04-12 08:56:13,684] Distributed model loss = -0.705413
+[2017-04-12 08:56:13,685] Global step count: 57
+1
+100
+[2017-04-12 08:56:15,904] Distributed model loss = -0.333363
+[2017-04-12 08:56:15,906] Global step count: 58
+1
+120
+[2017-04-12 08:56:15,995] Episode 6 finished after 1014 steps. Episode reward = -21.0
+[2017-04-12 08:56:18,126] Distributed model loss = -0.653836
+[2017-04-12 08:56:18,127] Global step count: 59
+1
+34
+[2017-04-12 08:56:20,345] Distributed model loss = -0.0871884
+[2017-04-12 08:56:20,347] Global step count: 60
+1
+120
+[2017-04-12 08:56:22,589] Distributed model loss = 0.532931
+[2017-04-12 08:56:22,590] Global step count: 61
+1
+120
+[2017-04-12 08:56:24,953] Distributed model loss = 0.236671
+[2017-04-12 08:56:24,954] Global step count: 62
+1
+120
+[2017-04-12 08:56:27,250] Distributed model loss = -0.968103
+[2017-04-12 08:56:27,251] Global step count: 63
+1
+100
+[2017-04-12 08:56:29,470] Distributed model loss = -0.463908
+[2017-04-12 08:56:29,471] Global step count: 64
+1
+100
+[2017-04-12 08:56:31,724] Distributed model loss = 0.666765
+[2017-04-12 08:56:31,727] Global step count: 65
+1
+120
+[2017-04-12 08:56:33,988] Distributed model loss = -1.05713
+[2017-04-12 08:56:33,990] Global step count: 66
+1
+100
+[2017-04-12 08:56:36,221] Distributed model loss = -0.543593
+[2017-04-12 08:56:36,223] Global step count: 67
+1
+120
+[2017-04-12 08:56:36,532] Episode 7 finished after 1018 steps. Episode reward = -21.0
+[2017-04-12 08:56:38,671] Distributed model loss = -0.846354
+[2017-04-12 08:56:38,672] Global step count: 68
+1
+118
+[2017-04-12 08:56:40,901] Distributed model loss = -0.860587
+[2017-04-12 08:56:40,903] Global step count: 69
+1
+120
+[2017-04-12 08:56:43,199] Distributed model loss = 8.41448
+[2017-04-12 08:56:43,200] Global step count: 70
+1
+120
+[2017-04-12 08:56:45,511] Distributed model loss = -0.900967
+[2017-04-12 08:56:45,512] Global step count: 71
+1
+100
+[2017-04-12 08:56:47,787] Distributed model loss = -0.747927
+[2017-04-12 08:56:47,788] Global step count: 72
+1
+100
+[2017-04-12 08:56:50,093] Distributed model loss = -0.370636
+[2017-04-12 08:56:50,096] Global step count: 73
+1
+120
+[2017-04-12 08:56:52,392] Distributed model loss = 0.122878
+[2017-04-12 08:56:52,394] Global step count: 74
+1
+120
+[2017-04-12 08:56:54,714] Distributed model loss = -1.02204
+[2017-04-12 08:56:54,715] Global step count: 75
+1
+120
+[2017-04-12 08:56:57,002] Distributed model loss = -0.930425
+[2017-04-12 08:56:57,003] Global step count: 76
+1
+100
+[2017-04-12 08:56:57,198] Episode 8 finished after 1015 steps. Episode reward = -21.0
+[2017-04-12 08:56:59,269] Distributed model loss = -0.430276
+[2017-04-12 08:56:59,271] Global step count: 77
+1
+100
+[2017-04-12 08:57:01,576] Distributed model loss = 0.589888
+[2017-04-12 08:57:01,577] Global step count: 78
+1
+15
+[2017-04-12 08:57:03,818] Distributed model loss = -0.0223127
+[2017-04-12 08:57:03,820] Global step count: 79
+1
+100
+[2017-04-12 08:57:06,064] Distributed model loss = 1.36055
+[2017-04-12 08:57:06,066] Global step count: 80
+1
+100
+[2017-04-12 08:57:08,289] Distributed model loss = -0.167889
+[2017-04-12 08:57:08,291] Global step count: 81
+1
+100
+[2017-04-12 08:57:10,516] Distributed model loss = -0.692846
+[2017-04-12 08:57:10,519] Global step count: 82
+1
+100
+[2017-04-12 08:57:12,929] Distributed model loss = -0.634927
+[2017-04-12 08:57:12,931] Global step count: 83
+1
+120
+[2017-04-12 08:57:15,377] Distributed model loss = -0.522522
+[2017-04-12 08:57:15,379] Global step count: 84
+1
+120
+[2017-04-12 08:57:18,150] Distributed model loss = -0.755153
+[2017-04-12 08:57:18,151] Global step count: 85
+1
+100
+[2017-04-12 08:57:20,439] Distributed model loss = -0.485113
+[2017-04-12 08:57:20,441] Global step count: 86
+1
+120
+[2017-04-12 08:57:22,830] Distributed model loss = -1.25529
+[2017-04-12 08:57:22,832] Global step count: 87
+1
+120
+[2017-04-12 08:57:22,972] Episode 9 finished after 1026 steps. Episode reward = -21.0
+[2017-04-12 08:57:25,228] Distributed model loss = -0.885219
+[2017-04-12 08:57:25,229] Global step count: 88
+1
+46
+[2017-04-12 08:57:27,491] Distributed model loss = -0.0122802
+[2017-04-12 08:57:27,493] Global step count: 89
+1
+120
+[2017-04-12 08:57:29,765] Distributed model loss = -1.90032
+[2017-04-12 08:57:29,767] Global step count: 90
+1
+120
+[2017-04-12 08:57:32,093] Distributed model loss = -3.82391
+[2017-04-12 08:57:32,095] Global step count: 91
+1
+120
+[2017-04-12 08:57:34,360] Distributed model loss = -1.0478
+[2017-04-12 08:57:34,361] Global step count: 92
+1
+100
+[2017-04-12 08:57:36,648] Distributed model loss = -0.333088
+[2017-04-12 08:57:36,649] Global step count: 93
+1
+120
+[2017-04-12 08:57:38,905] Distributed model loss = -2.24994
+[2017-04-12 08:57:38,906] Global step count: 94
+1
+100
+[2017-04-12 08:57:41,141] Distributed model loss = -0.482881
+[2017-04-12 08:57:41,142] Global step count: 95
+1
+100
+[2017-04-12 08:57:43,352] Distributed model loss = -0.50904
+[2017-04-12 08:57:43,353] Global step count: 96
+1
+120
+[2017-04-12 08:57:43,543] Episode 10 finished after 1000 steps. Episode reward = -21.0
+[2017-04-12 08:57:45,605] Distributed model loss = -1.17405
+[2017-04-12 08:57:45,606] Global step count: 97
+1
+100
+[2017-04-12 08:57:47,875] Distributed model loss = 0.0734956
+[2017-04-12 08:57:47,877] Global step count: 98
+1
+120
+[2017-04-12 08:57:50,294] Distributed model loss = -12.4625
+[2017-04-12 08:57:50,295] Global step count: 99
+1
+100
+INFO:tensorflow:global/global_step/sec: 0.433342
+[2017-04-12 08:57:51,438] global/global_step/sec: 0.433342
+[2017-04-12 08:57:52,578] Distributed model loss = -33.5522
+[2017-04-12 08:57:52,579] Global step count: 100
+1
+100
+[2017-04-12 08:57:55,093] Distributed model loss = -0.443699
+[2017-04-12 08:57:55,096] Global step count: 101
+1
+120
+[2017-04-12 08:57:57,329] Distributed model loss = -0.80119
+[2017-04-12 08:57:57,330] Global step count: 102
+1
+100
+[2017-04-12 08:57:59,763] Distributed model loss = -0.0793804
+[2017-04-12 08:57:59,767] Global step count: 103
+1
+120
+[2017-04-12 08:58:02,237] Distributed model loss = -1.67277
+[2017-04-12 08:58:02,238] Global step count: 104
+1
+120
+[2017-04-12 08:58:04,595] Distributed model loss = -0.808682
+[2017-04-12 08:58:04,597] Global step count: 105
+1
+100
+[2017-04-12 08:58:06,923] Distributed model loss = -0.751726
+[2017-04-12 08:58:06,924] Global step count: 106
+1
+100
+[2017-04-12 08:58:07,044] Episode 11 finished after 1033 steps. Episode reward = -21.0
+[2017-04-12 08:58:09,131] Distributed model loss = -0.580234
+[2017-04-12 08:58:09,134] Global step count: 107
+1
+53
+[2017-04-12 08:58:11,285] Distributed model loss = 0.352424
+[2017-04-12 08:58:11,287] Global step count: 108
+1
+120
+[2017-04-12 08:58:13,534] Distributed model loss = 6.34613
+[2017-04-12 08:58:13,536] Global step count: 109
+1
+100
+[2017-04-12 08:58:15,761] Distributed model loss = -0.722253
+[2017-04-12 08:58:15,764] Global step count: 110
+1
+120
+[2017-04-12 08:58:18,055] Distributed model loss = -0.741792
+[2017-04-12 08:58:18,056] Global step count: 111
+1
+100
+[2017-04-12 08:58:20,263] Distributed model loss = -0.837959
+[2017-04-12 08:58:20,264] Global step count: 112
+1
+120
+[2017-04-12 08:58:22,503] Distributed model loss = 1.14823
+[2017-04-12 08:58:22,504] Global step count: 113
+1
+100
+[2017-04-12 08:58:24,649] Distributed model loss = -0.509534
+[2017-04-12 08:58:24,652] Global step count: 114
+1
+100
+[2017-04-12 08:58:26,875] Distributed model loss = -0.532479
+[2017-04-12 08:58:26,878] Global step count: 115
+1
+100
+[2017-04-12 08:58:29,104] Distributed model loss = -0.592386
+[2017-04-12 08:58:29,105] Global step count: 116
+1
+100
+[2017-04-12 08:58:29,205] Episode 12 finished after 1015 steps. Episode reward = -21.0
+[2017-04-12 08:58:31,374] Distributed model loss = -0.686441
+[2017-04-12 08:58:31,377] Global step count: 117
+1
+55
+[2017-04-12 08:58:33,593] Distributed model loss = -0.0801955
+[2017-04-12 08:58:33,596] Global step count: 118
+1
+120
+[2017-04-12 08:58:35,757] Distributed model loss = -0.947323
+[2017-04-12 08:58:35,759] Global step count: 119
+1
+120
+[2017-04-12 08:58:37,929] Distributed model loss = 9.63832
+[2017-04-12 08:58:37,930] Global step count: 120
+1
+100
+[2017-04-12 08:58:40,200] Distributed model loss = -0.465031
+[2017-04-12 08:58:40,201] Global step count: 121
+1
+100
+[2017-04-12 08:58:42,595] Distributed model loss = -0.699186
+[2017-04-12 08:58:42,597] Global step count: 122
+1
+120
+[2017-04-12 08:58:44,923] Distributed model loss = 1.12661
+[2017-04-12 08:58:44,924] Global step count: 123
+1
+100
+[2017-04-12 08:58:47,202] Distributed model loss = -0.400368
+[2017-04-12 08:58:47,206] Global step count: 124
+1
+100
+[2017-04-12 08:58:49,442] Distributed model loss = -0.459806
+[2017-04-12 08:58:49,444] Global step count: 125
+1
+100
+[2017-04-12 08:58:51,791] Distributed model loss = -0.539831
+[2017-04-12 08:58:51,793] Global step count: 126
+1
+100
+[2017-04-12 08:58:51,883] Episode 13 finished after 1011 steps. Episode reward = -21.0
+[2017-04-12 08:58:54,180] Distributed model loss = -0.716261
+[2017-04-12 08:58:54,182] Global step count: 127
+1
+51
+[2017-04-12 08:58:56,543] Distributed model loss = 0.256091
+[2017-04-12 08:58:56,544] Global step count: 128
+1
+100
+[2017-04-12 08:58:58,776] Distributed model loss = -1.17363
+[2017-04-12 08:58:58,778] Global step count: 129
+1
+120
+[2017-04-12 08:59:01,046] Distributed model loss = -0.997212
+[2017-04-12 08:59:01,048] Global step count: 130
+1
+100
+[2017-04-12 08:59:03,269] Distributed model loss = -0.265795
+[2017-04-12 08:59:03,272] Global step count: 131
+1
+120
+[2017-04-12 08:59:05,547] Distributed model loss = -0.934209
+[2017-04-12 08:59:05,548] Global step count: 132
+1
+100
+[2017-04-12 08:59:07,782] Distributed model loss = 0.530595
+[2017-04-12 08:59:07,785] Global step count: 133
+1
+100
+[2017-04-12 08:59:10,019] Distributed model loss = -0.674197
+[2017-04-12 08:59:10,021] Global step count: 134
+1
+100
+[2017-04-12 08:59:12,298] Distributed model loss = -0.588952
+[2017-04-12 08:59:12,299] Global step count: 135
+1
+100
+[2017-04-12 08:59:26,114] Distributed model loss = -0.591485
+[2017-04-12 08:59:26,117] Global step count: 136
+1
+120
+[2017-04-12 08:59:26,218] Episode 14 finished after 1007 steps. Episode reward = -21.0
+[2017-04-12 08:59:29,259] Distributed model loss = -0.927649
+[2017-04-12 08:59:29,260] Global step count: 137
+1
+47
+[2017-04-12 08:59:31,769] Distributed model loss = 0.491291
+[2017-04-12 08:59:31,770] Global step count: 138
+1
+100
+[2017-04-12 08:59:34,035] Distributed model loss = 0.237182
+[2017-04-12 08:59:34,038] Global step count: 139
+1
+100
+[2017-04-12 08:59:36,300] Distributed model loss = -0.793075
+[2017-04-12 08:59:36,301] Global step count: 140
+1
+100
+[2017-04-12 08:59:38,570] Distributed model loss = -0.487326
+[2017-04-12 08:59:38,573] Global step count: 141
+1
+100
+[2017-04-12 08:59:40,776] Distributed model loss = -0.734567
+[2017-04-12 08:59:40,777] Global step count: 142
+1
+100
+[2017-04-12 08:59:43,105] Distributed model loss = -0.895157
+[2017-04-12 08:59:43,106] Global step count: 143
+1
+120
+[2017-04-12 08:59:45,505] Distributed model loss = -1.76479
+[2017-04-12 08:59:45,506] Global step count: 144
+1
+100
+[2017-04-12 08:59:47,760] Distributed model loss = -0.635178
+[2017-04-12 08:59:47,761] Global step count: 145
+1
+100
+[2017-04-12 08:59:50,048] Distributed model loss = 0.123466
+[2017-04-12 08:59:50,049] Global step count: 146
+1
+120
+[2017-04-12 08:59:50,188] Episode 15 finished after 1013 steps. Episode reward = -21.0
+INFO:tensorflow:global/global_step/sec: 0.391663
+[2017-04-12 08:59:51,439] global/global_step/sec: 0.391663
+[2017-04-12 08:59:52,308] Distributed model loss = -0.594227
+[2017-04-12 08:59:52,310] Global step count: 147
+1
+73
+[2017-04-12 08:59:54,593] Distributed model loss = -0.668774
+[2017-04-12 08:59:54,594] Global step count: 148
+1
+120
+[2017-04-12 08:59:56,791] Distributed model loss = -0.987352
+[2017-04-12 08:59:56,792] Global step count: 149
+1
+100
+[2017-04-12 08:59:59,085] Distributed model loss = 3.98705
+[2017-04-12 08:59:59,088] Global step count: 150
+1
+120
+[2017-04-12 09:00:01,334] Distributed model loss = -0.652451
+[2017-04-12 09:00:01,335] Global step count: 151
+1
+100
+[2017-04-12 09:00:03,604] Distributed model loss = -0.571447
+[2017-04-12 09:00:03,605] Global step count: 152
+1
+120
+[2017-04-12 09:00:05,924] Distributed model loss = -2.15371
+[2017-04-12 09:00:05,926] Global step count: 153
+1
+120
+[2017-04-12 09:00:08,136] Distributed model loss = -0.860189
+[2017-04-12 09:00:08,137] Global step count: 154
+1
+100
+[2017-04-12 09:00:10,374] Distributed model loss = -0.611124
+[2017-04-12 09:00:10,375] Global step count: 155
+1
+100
+[2017-04-12 09:00:12,635] Distributed model loss = -0.559302
+[2017-04-12 09:00:12,636] Global step count: 156
+1
+100
+[2017-04-12 09:00:12,717] Episode 16 finished after 1027 steps. Episode reward = -21.0
+[2017-04-12 09:00:14,913] Distributed model loss = -0.514957
+[2017-04-12 09:00:14,915] Global step count: 157
+1
+47
+[2017-04-12 09:00:17,234] Distributed model loss = -0.940408
+[2017-04-12 09:00:17,235] Global step count: 158
+1
+100
+[2017-04-12 09:00:19,453] Distributed model loss = 0.251817
+[2017-04-12 09:00:19,454] Global step count: 159
+1
+100
+[2017-04-12 09:00:21,748] Distributed model loss = -0.668975
+[2017-04-12 09:00:21,751] Global step count: 160
+1
+100
+[2017-04-12 09:00:24,018] Distributed model loss = -0.674351
+[2017-04-12 09:00:24,020] Global step count: 161
+1
+100
+[2017-04-12 09:00:26,226] Distributed model loss = -0.632104
+[2017-04-12 09:00:26,227] Global step count: 162
+1
+120
+[2017-04-12 09:00:28,509] Distributed model loss = -1.21577
+[2017-04-12 09:00:28,510] Global step count: 163
+1
+100
+[2017-04-12 09:00:30,754] Distributed model loss = -0.666048
+[2017-04-12 09:00:30,756] Global step count: 164
+1
+120
+[2017-04-12 09:00:33,015] Distributed model loss = -0.692185
+[2017-04-12 09:00:33,016] Global step count: 165
+1
+120
+[2017-04-12 09:00:35,283] Distributed model loss = -0.868279
+[2017-04-12 09:00:35,284] Global step count: 166
+1
+100
+[2017-04-12 09:00:35,408] Episode 17 finished after 1020 steps. Episode reward = -21.0
+[2017-04-12 09:00:37,545] Distributed model loss = -0.373381
+[2017-04-12 09:00:37,547] Global step count: 167
+1
+60
+[2017-04-12 09:00:39,831] Distributed model loss = 0.533135
+[2017-04-12 09:00:39,833] Global step count: 168
+1
+120
+[2017-04-12 09:00:42,113] Distributed model loss = 1.76997
+[2017-04-12 09:00:42,114] Global step count: 169
+1
+120
+[2017-04-12 09:00:44,527] Distributed model loss = -0.633758
+[2017-04-12 09:00:44,530] Global step count: 170
+1
+120
+[2017-04-12 09:00:46,869] Distributed model loss = -0.885419
+[2017-04-12 09:00:46,870] Global step count: 171
+1
+100
+[2017-04-12 09:00:49,349] Distributed model loss = -0.743711
+[2017-04-12 09:00:49,350] Global step count: 172
+1
+100
+[2017-04-12 09:00:51,766] Distributed model loss = 0.0975791
+[2017-04-12 09:00:51,767] Global step count: 173
+1
+100
+[2017-04-12 09:00:54,014] Distributed model loss = -0.714222
+[2017-04-12 09:00:54,017] Global step count: 174
+1
+100
+[2017-04-12 09:00:56,336] Distributed model loss = -0.591995
+[2017-04-12 09:00:56,337] Global step count: 175
+1
+100
+[2017-04-12 09:00:58,595] Distributed model loss = -0.471393
+[2017-04-12 09:00:58,597] Global step count: 176
+1
+100
+[2017-04-12 09:00:58,698] Episode 18 finished after 1017 steps. Episode reward = -21.0
+[2017-04-12 09:01:00,793] Distributed model loss = -0.62008
+[2017-04-12 09:01:00,796] Global step count: 177
+1
+57
+[2017-04-12 09:01:03,042] Distributed model loss = 0.704405
+[2017-04-12 09:01:03,044] Global step count: 178
+1
+100
+[2017-04-12 09:01:05,303] Distributed model loss = 0.703182
+[2017-04-12 09:01:05,306] Global step count: 179
+1
+100
+[2017-04-12 09:01:07,522] Distributed model loss = -0.372633
+[2017-04-12 09:01:07,525] Global step count: 180
+1
+100
+[2017-04-12 09:01:09,949] Distributed model loss = -0.492837
+[2017-04-12 09:01:09,952] Global step count: 181
+1
+100
+[2017-04-12 09:01:12,207] Distributed model loss = -0.823753
+[2017-04-12 09:01:12,208] Global step count: 182
+1
+120
+[2017-04-12 09:01:14,494] Distributed model loss = -0.522647
+[2017-04-12 09:01:14,496] Global step count: 183
+1
+120
+[2017-04-12 09:01:16,837] Distributed model loss = -0.710141
+[2017-04-12 09:01:16,839] Global step count: 184
+1
+100
+[2017-04-12 09:01:19,084] Distributed model loss = -0.374115
+[2017-04-12 09:01:19,085] Global step count: 185
+1
+120
+[2017-04-12 09:01:21,358] Distributed model loss = -1.00514
+[2017-04-12 09:01:21,360] Global step count: 186
+1
+100
+[2017-04-12 09:01:21,473] Episode 19 finished after 1026 steps. Episode reward = -21.0
+[2017-04-12 09:01:23,627] Distributed model loss = -0.38228
+[2017-04-12 09:01:23,630] Global step count: 187
+1
+66
+[2017-04-12 09:01:25,878] Distributed model loss = 1.95794
+[2017-04-12 09:01:25,881] Global step count: 188
+1
+120
+[2017-04-12 09:01:28,133] Distributed model loss = 0.300696
+[2017-04-12 09:01:28,134] Global step count: 189
+1
+100
+[2017-04-12 09:01:30,343] Distributed model loss = -0.648405
+[2017-04-12 09:01:30,346] Global step count: 190
+1
+100
+[2017-04-12 09:01:32,582] Distributed model loss = -0.634227
+[2017-04-12 09:01:32,583] Global step count: 191
+1
+100
+[2017-04-12 09:01:34,872] Distributed model loss = -0.547169
+[2017-04-12 09:01:34,875] Global step count: 192
+1
+100
+[2017-04-12 09:01:37,111] Distributed model loss = -0.255278
+[2017-04-12 09:01:37,114] Global step count: 193
+1
+100
+[2017-04-12 09:01:39,378] Distributed model loss = -0.0940023
+[2017-04-12 09:01:39,379] Global step count: 194
+1
+120
+[2017-04-12 09:01:41,570] Distributed model loss = -0.789863
+[2017-04-12 09:01:41,571] Global step count: 195
+1
+100
+[2017-04-12 09:01:43,757] Distributed model loss = -0.37635
+[2017-04-12 09:01:43,758] Global step count: 196
+1
+120
+[2017-04-12 09:01:43,872] Episode 20 finished after 1015 steps. Episode reward = -21.0
+[2017-04-12 09:01:45,974] Distributed model loss = 0.219507
+[2017-04-12 09:01:45,975] Global step count: 197
+1
+55
+[2017-04-12 09:01:48,208] Distributed model loss = 0.0716386
+[2017-04-12 09:01:48,210] Global step count: 198
+1
+120
+[2017-04-12 09:01:50,473] Distributed model loss = 0.573275
+[2017-04-12 09:01:50,474] Global step count: 199
+1
+100
+INFO:tensorflow:global/global_step/sec: 0.441658
+[2017-04-12 09:01:51,441] global/global_step/sec: 0.441658
+[2017-04-12 09:01:52,692] Distributed model loss = -0.867949
+[2017-04-12 09:01:52,693] Global step count: 200
+1
+100
+[2017-04-12 09:01:54,845] Distributed model loss = -0.510538
+[2017-04-12 09:01:54,849] Global step count: 201
+1
+120
+[2017-04-12 09:01:57,110] Distributed model loss = -0.851548
+[2017-04-12 09:01:57,111] Global step count: 202
+1
+100
+[2017-04-12 09:01:59,332] Distributed model loss = 0.427906
+[2017-04-12 09:01:59,333] Global step count: 203
+1
+100
+[2017-04-12 09:02:01,575] Distributed model loss = -0.78179
+[2017-04-12 09:02:01,579] Global step count: 204
+1
+120
+[2017-04-12 09:02:03,783] Distributed model loss = -0.602143
+[2017-04-12 09:02:03,784] Global step count: 205
+1
+120
+[2017-04-12 09:02:05,987] Distributed model loss = -0.986322
+[2017-04-12 09:02:05,988] Global step count: 206
+[2017-04-12 09:02:06,027] Episode 21 finished after 1008 steps. Episode reward = -21.0
+1
+120
+[2017-04-12 09:02:08,178] Distributed model loss = 0.902299
+[2017-04-12 09:02:08,181] Global step count: 207
+1
+8
+[2017-04-12 09:02:10,306] Distributed model loss = -0.0225703
+[2017-04-12 09:02:10,308] Global step count: 208
+1
+100
+[2017-04-12 09:02:12,479] Distributed model loss = 2.33271
+[2017-04-12 09:02:12,481] Global step count: 209
+1
+100
+[2017-04-12 09:02:14,747] Distributed model loss = -1.06853
+[2017-04-12 09:02:14,749] Global step count: 210
+1
+120
+[2017-04-12 09:02:16,984] Distributed model loss = -0.907155
+[2017-04-12 09:02:16,986] Global step count: 211
+1
+100
+[2017-04-12 09:02:19,193] Distributed model loss = -0.458077
+[2017-04-12 09:02:19,194] Global step count: 212
+1
+100
+[2017-04-12 09:02:21,383] Distributed model loss = -0.51015
+[2017-04-12 09:02:21,386] Global step count: 213
+1
+100
+[2017-04-12 09:02:23,573] Distributed model loss = -0.762047
+[2017-04-12 09:02:23,577] Global step count: 214
+1
+120
+[2017-04-12 09:02:25,767] Distributed model loss = -0.759198
+[2017-04-12 09:02:25,768] Global step count: 215
+1
+100
+[2017-04-12 09:02:27,966] Distributed model loss = -0.562866
+[2017-04-12 09:02:27,968] Global step count: 216
+1
+100
+[2017-04-12 09:02:28,107] Episode 22 finished after 1021 steps. Episode reward = -21.0
+[2017-04-12 09:02:30,235] Distributed model loss = -0.379372
+[2017-04-12 09:02:30,238] Global step count: 217
+1
+81
+[2017-04-12 09:02:32,485] Distributed model loss = -0.614933
+[2017-04-12 09:02:32,488] Global step count: 218
+1
+120
+[2017-04-12 09:02:34,712] Distributed model loss = 8.94699
+[2017-04-12 09:02:34,713] Global step count: 219
+1
+100
+[2017-04-12 09:02:36,883] Distributed model loss = -0.230188
+[2017-04-12 09:02:36,885] Global step count: 220
+1
+100
+[2017-04-12 09:02:39,115] Distributed model loss = -0.740254
+[2017-04-12 09:02:39,117] Global step count: 221
+1
+120
+[2017-04-12 09:02:41,425] Distributed model loss = -0.79293
+[2017-04-12 09:02:41,426] Global step count: 222
+1
+100
+[2017-04-12 09:02:43,650] Distributed model loss = 0.832758
+[2017-04-12 09:02:43,654] Global step count: 223
+1
+100
+[2017-04-12 09:02:45,883] Distributed model loss = -0.095044
+[2017-04-12 09:02:45,884] Global step count: 224
+1
+100
+[2017-04-12 09:02:48,095] Distributed model loss = -0.746571
+[2017-04-12 09:02:48,098] Global step count: 225
+1
+100
+[2017-04-12 09:02:50,362] Distributed model loss = -0.358161
+[2017-04-12 09:02:50,365] Global step count: 226
+1
+100
+[2017-04-12 09:02:50,494] Episode 23 finished after 1020 steps. Episode reward = -21.0
+[2017-04-12 09:02:52,631] Distributed model loss = -0.553627
+[2017-04-12 09:02:52,632] Global step count: 227
+1
+80
+[2017-04-12 09:02:54,928] Distributed model loss = 0.776163
+[2017-04-12 09:02:54,929] Global step count: 228
+1
+120
+[2017-04-12 09:02:57,146] Distributed model loss = -7.25966
+[2017-04-12 09:02:57,147] Global step count: 229
+1
+120
+[2017-04-12 09:02:59,368] Distributed model loss = -4.44043
+[2017-04-12 09:02:59,369] Global step count: 230
+1
+100
+[2017-04-12 09:03:01,579] Distributed model loss = -0.471382
+[2017-04-12 09:03:01,582] Global step count: 231
+1
+120
+[2017-04-12 09:03:03,746] Distributed model loss = -0.697737
+[2017-04-12 09:03:03,747] Global step count: 232
+1
+120
+[2017-04-12 09:03:06,004] Distributed model loss = 2.45891
+[2017-04-12 09:03:06,005] Global step count: 233
+1
+100
+[2017-04-12 09:03:08,267] Distributed model loss = -0.572414
+[2017-04-12 09:03:08,269] Global step count: 234
+1
+100
+[2017-04-12 09:03:10,463] Distributed model loss = -0.615318
+[2017-04-12 09:03:10,465] Global step count: 235
+1
+120
+[2017-04-12 09:03:10,649] Episode 24 finished after 1014 steps. Episode reward = -21.0
+[2017-04-12 09:03:12,658] Distributed model loss = -0.971969
+[2017-04-12 09:03:12,660] Global step count: 236
+1
+100
+[2017-04-12 09:03:14,904] Distributed model loss = -4.91563
+[2017-04-12 09:03:14,907] Global step count: 237
+1
+14
+[2017-04-12 09:03:17,073] Distributed model loss = -0.0524614
+[2017-04-12 09:03:17,076] Global step count: 238
+1
+100
+[2017-04-12 09:03:19,325] Distributed model loss = 1.463
+[2017-04-12 09:03:19,326] Global step count: 239
+1
+100
+[2017-04-12 09:03:21,518] Distributed model loss = -1.38392
+[2017-04-12 09:03:21,521] Global step count: 240
+1
+100
+[2017-04-12 09:03:23,694] Distributed model loss = -0.457869
+[2017-04-12 09:03:23,697] Global step count: 241
+1
+100
+[2017-04-12 09:03:25,879] Distributed model loss = -0.799719
+[2017-04-12 09:03:25,882] Global step count: 242
+1
+100
+[2017-04-12 09:03:28,095] Distributed model loss = -0.549525
+[2017-04-12 09:03:28,098] Global step count: 243
+1
+100
+[2017-04-12 09:03:30,335] Distributed model loss = -1.49786
+[2017-04-12 09:03:30,337] Global step count: 244
+1
+100
+[2017-04-12 09:03:32,512] Distributed model loss = -0.593987
+[2017-04-12 09:03:32,515] Global step count: 245
+1
+100
+[2017-04-12 09:03:34,725] Distributed model loss = -0.366952
+[2017-04-12 09:03:34,728] Global step count: 246
+1
+120
+[2017-04-12 09:03:34,904] Episode 25 finished after 1020 steps. Episode reward = -21.0
+[2017-04-12 09:03:36,899] Distributed model loss = -0.853237
+[2017-04-12 09:03:36,901] Global step count: 247
+1
+100
+[2017-04-12 09:03:39,122] Distributed model loss = 0.341945
+[2017-04-12 09:03:39,123] Global step count: 248
+1
+100
+[2017-04-12 09:03:41,359] Distributed model loss = -12.152
+[2017-04-12 09:03:41,362] Global step count: 249
+1
+120
+[2017-04-12 09:03:43,614] Distributed model loss = -13.1641
+[2017-04-12 09:03:43,616] Global step count: 250
+1
+100
+[2017-04-12 09:03:45,864] Distributed model loss = -0.560996
+[2017-04-12 09:03:45,867] Global step count: 251
+1
+100
+[2017-04-12 09:03:48,119] Distributed model loss = -0.475587
+[2017-04-12 09:03:48,123] Global step count: 252
+1
+120
+[2017-04-12 09:03:50,402] Distributed model loss = -0.852803
+[2017-04-12 09:03:50,404] Global step count: 253
+1
+120
+INFO:tensorflow:global/global_step/sec: 0.450003
+[2017-04-12 09:03:51,440] global/global_step/sec: 0.450003
+[2017-04-12 09:03:52,628] Distributed model loss = -0.915349
+[2017-04-12 09:03:52,629] Global step count: 254
+1
+100
+[2017-04-12 09:03:54,789] Distributed model loss = -0.772889
+[2017-04-12 09:03:54,792] Global step count: 255
+1
+100
+[2017-04-12 09:03:57,030] Distributed model loss = -0.467027
+[2017-04-12 09:03:57,033] Global step count: 256
+1
+120
+[2017-04-12 09:03:57,155] Episode 26 finished after 1043 steps. Episode reward = -21.0
+[2017-04-12 09:03:59,300] Distributed model loss = -0.771551
+[2017-04-12 09:03:59,302] Global step count: 257
+1
+63
+[2017-04-12 09:04:01,549] Distributed model loss = -0.213291
+[2017-04-12 09:04:01,550] Global step count: 258
+1
+120
+[2017-04-12 09:04:03,747] Distributed model loss = 1.02556
+[2017-04-12 09:04:03,749] Global step count: 259
+1
+100
+[2017-04-12 09:04:05,965] Distributed model loss = -1.31966
+[2017-04-12 09:04:05,968] Global step count: 260
+1
+100
+[2017-04-12 09:04:08,117] Distributed model loss = -0.659444
+[2017-04-12 09:04:08,118] Global step count: 261
+1
+120
+[2017-04-12 09:04:10,413] Distributed model loss = -0.903904
+[2017-04-12 09:04:10,415] Global step count: 262
+1
+100
+[2017-04-12 09:04:12,687] Distributed model loss = -1.27985
+[2017-04-12 09:04:12,690] Global step count: 263
+1
+120
+[2017-04-12 09:04:14,900] Distributed model loss = -1.1426
+[2017-04-12 09:04:14,901] Global step count: 264
+1
+120
+[2017-04-12 09:04:17,127] Distributed model loss = -0.685171
+[2017-04-12 09:04:17,129] Global step count: 265
+1
+100
+[2017-04-12 09:04:19,351] Distributed model loss = -0.788243
+[2017-04-12 09:04:19,353] Global step count: 266
+1
+100
+[2017-04-12 09:04:19,436] Episode 27 finished after 1029 steps. Episode reward = -21.0
+[2017-04-12 09:04:21,622] Distributed model loss = -0.951499
+[2017-04-12 09:04:21,623] Global step count: 267
+1
+49
+[2017-04-12 09:04:23,870] Distributed model loss = 0.130625
+[2017-04-12 09:04:23,872] Global step count: 268
+1
+120
+[2017-04-12 09:04:26,110] Distributed model loss = 0.624315
+[2017-04-12 09:04:26,112] Global step count: 269
+1
+100
+[2017-04-12 09:04:28,401] Distributed model loss = 7.31283
+[2017-04-12 09:04:28,404] Global step count: 270
+1
+100
+[2017-04-12 09:04:30,635] Distributed model loss = -0.601618
+[2017-04-12 09:04:30,638] Global step count: 271
+1
+100
+[2017-04-12 09:04:32,829] Distributed model loss = -0.400925
+[2017-04-12 09:04:32,831] Global step count: 272
+1
+120
+[2017-04-12 09:04:35,078] Distributed model loss = 0.233897
+[2017-04-12 09:04:35,079] Global step count: 273
+1
+100
+[2017-04-12 09:04:37,259] Distributed model loss = -0.624008
+[2017-04-12 09:04:37,262] Global step count: 274
+1
+100
+[2017-04-12 09:04:39,423] Distributed model loss = -0.585238
+[2017-04-12 09:04:39,427] Global step count: 275
+1
+100
+[2017-04-12 09:04:41,716] Distributed model loss = -0.623618
+[2017-04-12 09:04:41,717] Global step count: 276
+1
+100
+[2017-04-12 09:04:41,833] Episode 28 finished after 1016 steps. Episode reward = -21.0
+[2017-04-12 09:04:43,942] Distributed model loss = -0.526632
+[2017-04-12 09:04:43,944] Global step count: 277
+1
+76
+[2017-04-12 09:04:46,107] Distributed model loss = 0.475179
+[2017-04-12 09:04:46,108] Global step count: 278
+1
+120
+[2017-04-12 09:04:48,325] Distributed model loss = -9.27871
+[2017-04-12 09:04:48,327] Global step count: 279
+1
+100
+[2017-04-12 09:04:50,611] Distributed model loss = -1.20437
+[2017-04-12 09:04:50,612] Global step count: 280
+1
+100
+[2017-04-12 09:04:52,831] Distributed model loss = -0.503379
+[2017-04-12 09:04:52,832] Global step count: 281
+1
+100
+[2017-04-12 09:04:55,033] Distributed model loss = -0.367283
+[2017-04-12 09:04:55,034] Global step count: 282
+1
+120
+[2017-04-12 09:04:57,307] Distributed model loss = -0.451098
+[2017-04-12 09:04:57,308] Global step count: 283
+1
+100
+[2017-04-12 09:04:59,559] Distributed model loss = 0.507289
+[2017-04-12 09:04:59,563] Global step count: 284
+1
+100
+[2017-04-12 09:05:01,771] Distributed model loss = -0.704294
+[2017-04-12 09:05:01,774] Global step count: 285
+1
+100
+[2017-04-12 09:05:03,984] Distributed model loss = -0.582462
+[2017-04-12 09:05:03,986] Global step count: 286
+1
+100
+[2017-04-12 09:05:04,122] Episode 29 finished after 1015 steps. Episode reward = -21.0
+[2017-04-12 09:05:06,239] Distributed model loss = -0.519335
+[2017-04-12 09:05:06,240] Global step count: 287
+1
+75
+[2017-04-12 09:05:08,458] Distributed model loss = 0.142429
+[2017-04-12 09:05:08,460] Global step count: 288
+1
+100
+[2017-04-12 09:05:10,733] Distributed model loss = -2.82685
+[2017-04-12 09:05:10,734] Global step count: 289
+1
+120
+[2017-04-12 09:05:12,986] Distributed model loss = 1.17769
+[2017-04-12 09:05:12,987] Global step count: 290
+1
+120
+[2017-04-12 09:05:15,192] Distributed model loss = -1.01433
+[2017-04-12 09:05:15,193] Global step count: 291
+1
+120
+[2017-04-12 09:05:17,346] Distributed model loss = -0.898862
+[2017-04-12 09:05:17,347] Global step count: 292
+1
+100
+[2017-04-12 09:05:19,619] Distributed model loss = 0.603646
+[2017-04-12 09:05:19,620] Global step count: 293
+1
+120
+[2017-04-12 09:05:21,872] Distributed model loss = -0.969447
+[2017-04-12 09:05:21,874] Global step count: 294
+1
+100
+[2017-04-12 09:05:24,107] Distributed model loss = -0.646953
+[2017-04-12 09:05:24,110] Global step count: 295
+1
+120
+[2017-04-12 09:05:24,306] Episode 30 finished after 1020 steps. Episode reward = -21.0
+[2017-04-12 09:05:26,409] Distributed model loss = -1.17831
+[2017-04-12 09:05:26,410] Global step count: 296
+1
+100
+[2017-04-12 09:05:28,643] Distributed model loss = 0.359859
+[2017-04-12 09:05:28,646] Global step count: 297
+1
+20
+[2017-04-12 09:05:30,850] Distributed model loss = -0.0304756
+[2017-04-12 09:05:30,852] Global step count: 298
+1
+120
+[2017-04-12 09:05:33,044] Distributed model loss = 4.32615
+[2017-04-12 09:05:33,045] Global step count: 299
+1
+100
+[2017-04-12 09:05:35,293] Distributed model loss = -0.65775
+[2017-04-12 09:05:35,295] Global step count: 300
+1
+120
+[2017-04-12 09:05:37,458] Distributed model loss = -0.843951
+[2017-04-12 09:05:37,459] Global step count: 301
+1
+120
+[2017-04-12 09:05:39,673] Distributed model loss = -0.885117
+[2017-04-12 09:05:39,674] Global step count: 302
+1
+100
+[2017-04-12 09:05:41,832] Distributed model loss = 0.271239
+[2017-04-12 09:05:41,834] Global step count: 303
+1
+100
+[2017-04-12 09:05:44,037] Distributed model loss = -0.785924
+[2017-04-12 09:05:44,040] Global step count: 304
+1
+120
+[2017-04-12 09:05:46,251] Distributed model loss = -0.966568
+[2017-04-12 09:05:46,252] Global step count: 305
+1
+120
+[2017-04-12 09:05:46,443] Episode 31 finished after 1018 steps. Episode reward = -21.0
+[2017-04-12 09:05:48,478] Distributed model loss = -0.890855
+[2017-04-12 09:05:48,479] Global step count: 306
+1
+100
+[2017-04-12 09:05:50,794] Distributed model loss = -0.379082
+[2017-04-12 09:05:50,797] Global step count: 307
+1
+18
+INFO:tensorflow:global/global_step/sec: 0.450002
+[2017-04-12 09:05:51,440] global/global_step/sec: 0.450002
+[2017-04-12 09:05:52,961] Distributed model loss = -0.0517993
+[2017-04-12 09:05:52,963] Global step count: 308
+1
+120
+[2017-04-12 09:05:55,127] Distributed model loss = 1.39365
+[2017-04-12 09:05:55,128] Global step count: 309
+1
+100
+[2017-04-12 09:05:57,347] Distributed model loss = -0.681334
+[2017-04-12 09:05:57,350] Global step count: 310
+1
+100
+[2017-04-12 09:05:59,552] Distributed model loss = -0.601521
+[2017-04-12 09:05:59,555] Global step count: 311
+1
+120
+[2017-04-12 09:06:01,730] Distributed model loss = -0.812738
+[2017-04-12 09:06:01,732] Global step count: 312
+1
+100
+[2017-04-12 09:06:03,958] Distributed model loss = -0.0647017
+[2017-04-12 09:06:03,961] Global step count: 313
+1
+100
+[2017-04-12 09:06:06,128] Distributed model loss = -0.719331
+[2017-04-12 09:06:06,131] Global step count: 314
+1
+100
+[2017-04-12 09:06:08,354] Distributed model loss = -0.611743
+[2017-04-12 09:06:08,357] Global step count: 315
+1
+100
+[2017-04-12 09:06:10,604] Distributed model loss = -0.548044
+[2017-04-12 09:06:10,606] Global step count: 316
+1
+120
+[2017-04-12 09:06:10,729] Episode 32 finished after 1024 steps. Episode reward = -21.0
+[2017-04-12 09:06:12,868] Distributed model loss = -0.635741
+[2017-04-12 09:06:12,869] Global step count: 317
+1
+64
+[2017-04-12 09:06:15,029] Distributed model loss = 1.15507
+[2017-04-12 09:06:15,031] Global step count: 318
+1
+100
+[2017-04-12 09:06:17,317] Distributed model loss = -0.498789
+[2017-04-12 09:06:17,319] Global step count: 319
+1
+120
+[2017-04-12 09:06:19,587] Distributed model loss = 0.0320498
+[2017-04-12 09:06:19,589] Global step count: 320
+1
+120
+[2017-04-12 09:06:22,342] Distributed model loss = -0.790182
+[2017-04-12 09:06:22,354] Global step count: 321
+1
+120
+[2017-04-12 09:06:25,086] Distributed model loss = -0.765198
+[2017-04-12 09:06:25,087] Global step count: 322
+1
+120
+[2017-04-12 09:06:28,127] Distributed model loss = 0.316828
+[2017-04-12 09:06:28,129] Global step count: 323
+1
+120
+[2017-04-12 09:06:30,366] Distributed model loss = -0.77732
+[2017-04-12 09:06:30,368] Global step count: 324
+1
+100
+[2017-04-12 09:06:32,568] Distributed model loss = -0.564668
+[2017-04-12 09:06:32,569] Global step count: 325
+1
+100
+[2017-04-12 09:06:32,743] Episode 33 finished after 1019 steps. Episode reward = -21.0
+[2017-04-12 09:06:34,759] Distributed model loss = -0.680891
+[2017-04-12 09:06:34,760] Global step count: 326
+1
+100
+[2017-04-12 09:06:36,980] Distributed model loss = 0.139523
+[2017-04-12 09:06:36,984] Global step count: 327
+1
+19
+[2017-04-12 09:06:39,172] Distributed model loss = -0.110908
+[2017-04-12 09:06:39,173] Global step count: 328
+1
+120
+[2017-04-12 09:06:41,383] Distributed model loss = 1.42977
+[2017-04-12 09:06:41,384] Global step count: 329
+1
+100
+[2017-04-12 09:06:43,552] Distributed model loss = 0.202616
+[2017-04-12 09:06:43,553] Global step count: 330
+1
+100
+[2017-04-12 09:06:45,822] Distributed model loss = -0.46083
+[2017-04-12 09:06:45,825] Global step count: 331
+1
+100
+[2017-04-12 09:06:48,003] Distributed model loss = -0.500485
+[2017-04-12 09:06:48,006] Global step count: 332
+1
+100
+[2017-04-12 09:06:50,246] Distributed model loss = -0.314507
+[2017-04-12 09:06:50,249] Global step count: 333
+1
+120
+[2017-04-12 09:06:52,446] Distributed model loss = -0.967787
+[2017-04-12 09:06:52,448] Global step count: 334
+1
+100
+[2017-04-12 09:06:54,661] Distributed model loss = -0.563387
+[2017-04-12 09:06:54,663] Global step count: 335
+1
+100
+[2017-04-12 09:06:56,819] Distributed model loss = -0.629061
+[2017-04-12 09:06:56,820] Global step count: 336
+1
+100
+[2017-04-12 09:06:56,958] Episode 34 finished after 1023 steps. Episode reward = -21.0
+[2017-04-12 09:06:59,046] Distributed model loss = -0.480126
+[2017-04-12 09:06:59,049] Global step count: 337
+1
+83
+[2017-04-12 09:07:01,279] Distributed model loss = -0.33429
+[2017-04-12 09:07:01,282] Global step count: 338
+1
+100
+[2017-04-12 09:07:03,446] Distributed model loss = 5.09477
+[2017-04-12 09:07:03,447] Global step count: 339
+1
+100
+[2017-04-12 09:07:05,640] Distributed model loss = -1.2255
+[2017-04-12 09:07:05,641] Global step count: 340
+1
+100
+[2017-04-12 09:07:07,802] Distributed model loss = -0.455395
+[2017-04-12 09:07:07,803] Global step count: 341
+1
+100
+[2017-04-12 09:07:10,036] Distributed model loss = -0.973552
+[2017-04-12 09:07:10,039] Global step count: 342
+1
+100
+[2017-04-12 09:07:12,190] Distributed model loss = -0.216884
+[2017-04-12 09:07:12,193] Global step count: 343
+1
+100
+[2017-04-12 09:07:14,403] Distributed model loss = -0.697713
+[2017-04-12 09:07:14,405] Global step count: 344
+1
+100
+[2017-04-12 09:07:16,586] Distributed model loss = -0.489391
+[2017-04-12 09:07:16,589] Global step count: 345
+1
+100
+[2017-04-12 09:07:18,760] Distributed model loss = -0.65835
+[2017-04-12 09:07:18,763] Global step count: 346
+1
+100
+[2017-04-12 09:07:18,918] Episode 35 finished after 1009 steps. Episode reward = -21.0
+[2017-04-12 09:07:20,952] Distributed model loss = -0.550908
+[2017-04-12 09:07:20,953] Global step count: 347
+1
+109
+[2017-04-12 09:07:23,175] Distributed model loss = -0.531809
+[2017-04-12 09:07:23,177] Global step count: 348
+1
+120
+[2017-04-12 09:07:25,365] Distributed model loss = 7.34586
+[2017-04-12 09:07:25,366] Global step count: 349
+1
+100
+[2017-04-12 09:07:27,608] Distributed model loss = -2.19197
+[2017-04-12 09:07:27,609] Global step count: 350
+1
+100
+[2017-04-12 09:07:29,820] Distributed model loss = -0.657483
+[2017-04-12 09:07:29,821] Global step count: 351
+1
+100
+[2017-04-12 09:07:32,067] Distributed model loss = -0.606767
+[2017-04-12 09:07:32,068] Global step count: 352
+1
+100
+[2017-04-12 09:07:34,349] Distributed model loss = -0.496891
+[2017-04-12 09:07:34,352] Global step count: 353
+1
+120
+[2017-04-12 09:07:36,531] Distributed model loss = -1.19473
+[2017-04-12 09:07:36,532] Global step count: 354
+1
+100
+[2017-04-12 09:07:38,758] Distributed model loss = -0.540423
+[2017-04-12 09:07:38,761] Global step count: 355
+1
+120
+[2017-04-12 09:07:41,022] Distributed model loss = -0.939557
+[2017-04-12 09:07:41,023] Global step count: 356
+1
+120
+[2017-04-12 09:07:41,127] Episode 36 finished after 1029 steps. Episode reward = -21.0
+[2017-04-12 09:07:43,180] Distributed model loss = -0.665024
+[2017-04-12 09:07:43,181] Global step count: 357
+1
+49
+[2017-04-12 09:07:45,305] Distributed model loss = -0.197032
+[2017-04-12 09:07:45,307] Global step count: 358
+1
+100
+[2017-04-12 09:07:47,548] Distributed model loss = 0.295386
+[2017-04-12 09:07:47,551] Global step count: 359
+1
+100
+[2017-04-12 09:07:49,743] Distributed model loss = -0.604058
+[2017-04-12 09:07:49,745] Global step count: 360
+1
+120
+INFO:tensorflow:global/global_step/sec: 0.441664
+[2017-04-12 09:07:51,441] global/global_step/sec: 0.441664
+[2017-04-12 09:07:51,985] Distributed model loss = -0.950135
+[2017-04-12 09:07:51,987] Global step count: 361
+1
+100
+[2017-04-12 09:07:54,166] Distributed model loss = -0.432468
+[2017-04-12 09:07:54,169] Global step count: 362
+1
+100
+[2017-04-12 09:07:56,449] Distributed model loss = -0.105809
+[2017-04-12 09:07:56,451] Global step count: 363
+1
+120
+[2017-04-12 09:07:58,670] Distributed model loss = 1.72411
+[2017-04-12 09:07:58,671] Global step count: 364
+1
+120
+[2017-04-12 09:08:00,860] Distributed model loss = -0.833644
+[2017-04-12 09:08:00,861] Global step count: 365
+1
+100
+[2017-04-12 09:08:03,105] Distributed model loss = -0.56284
+[2017-04-12 09:08:03,108] Global step count: 366
+1
+100
+[2017-04-12 09:08:03,194] Episode 37 finished after 1017 steps. Episode reward = -21.0
+[2017-04-12 09:08:05,336] Distributed model loss = -0.213498
+[2017-04-12 09:08:05,339] Global step count: 367
+1
+57
+[2017-04-12 09:08:07,504] Distributed model loss = 0.378679
+[2017-04-12 09:08:07,506] Global step count: 368
+1
+100
+[2017-04-12 09:08:09,721] Distributed model loss = 0.327156
+[2017-04-12 09:08:09,724] Global step count: 369
+1
+100
+[2017-04-12 09:08:11,927] Distributed model loss = 2.19584
+[2017-04-12 09:08:11,928] Global step count: 370
+1
+100
+[2017-04-12 09:08:14,107] Distributed model loss = -0.695629
+[2017-04-12 09:08:14,110] Global step count: 371
+1
+100
+[2017-04-12 09:08:16,237] Distributed model loss = -0.669076
+[2017-04-12 09:08:16,240] Global step count: 372
+1
+100
+[2017-04-12 09:08:18,525] Distributed model loss = -0.823873
+[2017-04-12 09:08:18,528] Global step count: 373
+1
+100
+[2017-04-12 09:08:20,697] Distributed model loss = -4.23262
+[2017-04-12 09:08:20,699] Global step count: 374
+1
+100
+[2017-04-12 09:08:22,922] Distributed model loss = -0.47343
+[2017-04-12 09:08:22,923] Global step count: 375
+1
+100
+[2017-04-12 09:08:25,172] Distributed model loss = -0.584194
+[2017-04-12 09:08:25,173] Global step count: 376
+1
+120
+[2017-04-12 09:08:25,328] Episode 38 finished after 1009 steps. Episode reward = -21.0
+[2017-04-12 09:08:27,418] Distributed model loss = -0.93957
+[2017-04-12 09:08:27,419] Global step count: 377
+1
+89
+[2017-04-12 09:08:29,596] Distributed model loss = -0.378282
+[2017-04-12 09:08:29,597] Global step count: 378
+1
+120
+[2017-04-12 09:08:31,823] Distributed model loss = -6.247
+[2017-04-12 09:08:31,825] Global step count: 379
+1
+100
+[2017-04-12 09:08:34,076] Distributed model loss = -0.27442
+[2017-04-12 09:08:34,078] Global step count: 380
+1
+100
+[2017-04-12 09:08:36,223] Distributed model loss = -0.415008
+[2017-04-12 09:08:36,224] Global step count: 381
+1
+100
+[2017-04-12 09:08:38,389] Distributed model loss = -0.566023
+[2017-04-12 09:08:38,390] Global step count: 382
+1
+100
+[2017-04-12 09:08:40,554] Distributed model loss = -0.0444609
+[2017-04-12 09:08:40,555] Global step count: 383
+1
+100
+[2017-04-12 09:08:42,759] Distributed model loss = -0.78862
+[2017-04-12 09:08:42,760] Global step count: 384
+1
+120
+[2017-04-12 09:08:45,040] Distributed model loss = -0.718864
+[2017-04-12 09:08:45,042] Global step count: 385
+1
+100
+[2017-04-12 09:08:47,242] Distributed model loss = -0.527597
+[2017-04-12 09:08:47,243] Global step count: 386
+1
+120
+[2017-04-12 09:08:47,354] Episode 39 finished after 1013 steps. Episode reward = -21.0
+[2017-04-12 09:08:49,379] Distributed model loss = -0.809315
+[2017-04-12 09:08:49,380] Global step count: 387
+1
+53
+[2017-04-12 09:08:51,622] Distributed model loss = 0.5195
+[2017-04-12 09:08:51,624] Global step count: 388
+1
+120
+[2017-04-12 09:08:53,923] Distributed model loss = 0.724508
+[2017-04-12 09:08:53,924] Global step count: 389
+1
+100
+[2017-04-12 09:08:56,062] Distributed model loss = -21.7228
+[2017-04-12 09:08:56,063] Global step count: 390
+1
+120
+[2017-04-12 09:08:58,262] Distributed model loss = -1.04697
+[2017-04-12 09:08:58,263] Global step count: 391
+1
+120
+[2017-04-12 09:09:00,457] Distributed model loss = -0.865344
+[2017-04-12 09:09:00,458] Global step count: 392
+1
+100
+[2017-04-12 09:09:02,675] Distributed model loss = 0.389165
+[2017-04-12 09:09:02,678] Global step count: 393
+1
+100
+[2017-04-12 09:09:04,826] Distributed model loss = -0.835863
+[2017-04-12 09:09:04,828] Global step count: 394
+1
+100
+[2017-04-12 09:09:07,081] Distributed model loss = -0.64254
+[2017-04-12 09:09:07,083] Global step count: 395
+1
+100
+[2017-04-12 09:09:09,231] Distributed model loss = -0.521436
+[2017-04-12 09:09:09,232] Global step count: 396
+1
+120
+[2017-04-12 09:09:09,321] Episode 40 finished after 1014 steps. Episode reward = -21.0
+[2017-04-12 09:09:11,419] Distributed model loss = -0.256187
+[2017-04-12 09:09:11,421] Global step count: 397
+1
+34
+[2017-04-12 09:09:13,637] Distributed model loss = -0.167042
+[2017-04-12 09:09:13,640] Global step count: 398
+1
+120
+[2017-04-12 09:09:15,856] Distributed model loss = 0.381466
+[2017-04-12 09:09:15,857] Global step count: 399
+1
+100
+[2017-04-12 09:09:18,045] Distributed model loss = -0.253574
+[2017-04-12 09:09:18,048] Global step count: 400
+1
+100
+[2017-04-12 09:09:20,217] Distributed model loss = -0.621092
+[2017-04-12 09:09:20,220] Global step count: 401
+1
+100
+[2017-04-12 09:09:22,417] Distributed model loss = 0.5891
+[2017-04-12 09:09:22,418] Global step count: 402
+1
+120
+[2017-04-12 09:09:24,621] Distributed model loss = -2.20711
+[2017-04-12 09:09:24,622] Global step count: 403
+1
+120
+[2017-04-12 09:09:26,760] Distributed model loss = -1.219
+[2017-04-12 09:09:26,761] Global step count: 404
+1
+100
+[2017-04-12 09:09:28,949] Distributed model loss = -0.520386
+[2017-04-12 09:09:28,952] Global step count: 405
+1
+120
+[2017-04-12 09:09:31,135] Distributed model loss = -0.861876
+[2017-04-12 09:09:31,137] Global step count: 406
+1
+100
+[2017-04-12 09:09:31,221] Episode 41 finished after 1026 steps. Episode reward = -21.0
+[2017-04-12 09:09:33,355] Distributed model loss = -0.464985
+[2017-04-12 09:09:33,358] Global step count: 407
+1
+46
+[2017-04-12 09:09:35,631] Distributed model loss = 0.0887696
+[2017-04-12 09:09:35,634] Global step count: 408
+1
+100
+[2017-04-12 09:09:37,870] Distributed model loss = 0.446592
+[2017-04-12 09:09:37,874] Global step count: 409
+1
+100
+[2017-04-12 09:09:40,044] Distributed model loss = -0.648255
+[2017-04-12 09:09:40,045] Global step count: 410
+1
+100
+[2017-04-12 09:09:42,245] Distributed model loss = -0.71298
+[2017-04-12 09:09:42,248] Global step count: 411
+1
+100
+[2017-04-12 09:09:44,403] Distributed model loss = -0.627959
+[2017-04-12 09:09:44,404] Global step count: 412
+1
+120
+[2017-04-12 09:09:46,632] Distributed model loss = -0.774226
+[2017-04-12 09:09:46,634] Global step count: 413
+1
+100
+[2017-04-12 09:09:48,820] Distributed model loss = -0.599287
+[2017-04-12 09:09:48,821] Global step count: 414
+1
+120
+[2017-04-12 09:09:50,968] Distributed model loss = -1.03541
+[2017-04-12 09:09:50,970] Global step count: 415
+1
+120
+INFO:tensorflow:global/global_step/sec: 0.458345
+[2017-04-12 09:09:51,437] global/global_step/sec: 0.458345
+[2017-04-12 09:09:53,157] Distributed model loss = -0.840302
+[2017-04-12 09:09:53,159] Global step count: 416
+1
+100
+[2017-04-12 09:09:53,275] Episode 42 finished after 1037 steps. Episode reward = -21.0
+[2017-04-12 09:09:55,440] Distributed model loss = -0.414286
+[2017-04-12 09:09:55,441] Global step count: 417
+1
+77
+[2017-04-12 09:09:57,748] Distributed model loss = 0.487824
+[2017-04-12 09:09:57,750] Global step count: 418
+1
+120
+[2017-04-12 09:09:59,895] Distributed model loss = -0.571293
+[2017-04-12 09:09:59,897] Global step count: 419
+1
+100
+[2017-04-12 09:10:02,083] Distributed model loss = -0.340357
+[2017-04-12 09:10:02,085] Global step count: 420
+1
+120
+[2017-04-12 09:10:04,288] Distributed model loss = -0.888588
+[2017-04-12 09:10:04,289] Global step count: 421
+1
+120
+[2017-04-12 09:10:06,479] Distributed model loss = -1.2416
+[2017-04-12 09:10:06,480] Global step count: 422
+1
+100
+[2017-04-12 09:10:08,728] Distributed model loss = 0.588562
+[2017-04-12 09:10:08,731] Global step count: 423
+1
+100
+[2017-04-12 09:10:10,940] Distributed model loss = -0.5062
+[2017-04-12 09:10:10,941] Global step count: 424
+1
+100
+[2017-04-12 09:10:13,199] Distributed model loss = -0.492675
+[2017-04-12 09:10:13,200] Global step count: 425
+1
+100
+[2017-04-12 09:10:15,378] Distributed model loss = -0.566635
+[2017-04-12 09:10:15,379] Global step count: 426
+1
+120
+[2017-04-12 09:10:15,470] Episode 43 finished after 1019 steps. Episode reward = -21.0
+[2017-04-12 09:10:17,576] Distributed model loss = -0.574418
+[2017-04-12 09:10:17,577] Global step count: 427
+1
+39
+[2017-04-12 09:10:19,842] Distributed model loss = -0.00708482
+[2017-04-12 09:10:19,844] Global step count: 428
+1
+100
+[2017-04-12 09:10:22,027] Distributed model loss = 0.0720848
+[2017-04-12 09:10:22,031] Global step count: 429
+1
+100
+[2017-04-12 09:10:24,260] Distributed model loss = 1.84953
+[2017-04-12 09:10:24,263] Global step count: 430
+1
+120
+[2017-04-12 09:10:26,492] Distributed model loss = -0.650901
+[2017-04-12 09:10:26,493] Global step count: 431
+1
+100
+[2017-04-12 09:10:28,706] Distributed model loss = -0.393002
+[2017-04-12 09:10:28,709] Global step count: 432
+1
+100
+[2017-04-12 09:10:30,923] Distributed model loss = -2.47089
+[2017-04-12 09:10:30,926] Global step count: 433
+1
+100
+[2017-04-12 09:10:33,168] Distributed model loss = -0.696168
+[2017-04-12 09:10:33,169] Global step count: 434
+1
+100
+[2017-04-12 09:10:35,325] Distributed model loss = -0.558702
+[2017-04-12 09:10:35,326] Global step count: 435
+1
+100
+[2017-04-12 09:10:37,557] Distributed model loss = -0.476775
+[2017-04-12 09:10:37,560] Global step count: 436
+1
+100
+[2017-04-12 09:10:37,710] Episode 44 finished after 1028 steps. Episode reward = -21.0
+[2017-04-12 09:10:39,753] Distributed model loss = -0.559162
+[2017-04-12 09:10:39,756] Global step count: 437
+1
+100
+[2017-04-12 09:10:41,967] Distributed model loss = 2.28531
+[2017-04-12 09:10:41,969] Global step count: 438
+1
+8
+[2017-04-12 09:10:44,057] Distributed model loss = -0.0341123
+[2017-04-12 09:10:44,059] Global step count: 439
+1
+100
+[2017-04-12 09:10:46,307] Distributed model loss = 5.26275
+[2017-04-12 09:10:46,310] Global step count: 440
+1
+120
+[2017-04-12 09:10:48,569] Distributed model loss = -0.248696
+[2017-04-12 09:10:48,570] Global step count: 441
+1
+100
+[2017-04-12 09:10:50,720] Distributed model loss = -0.606425
+[2017-04-12 09:10:50,723] Global step count: 442
+1
+100
+[2017-04-12 09:10:52,946] Distributed model loss = -0.430157
+[2017-04-12 09:10:52,947] Global step count: 443
+1
+100
+[2017-04-12 09:10:55,137] Distributed model loss = -0.821209
+[2017-04-12 09:10:55,140] Global step count: 444
+1
+120
+[2017-04-12 09:10:57,370] Distributed model loss = -0.791375
+[2017-04-12 09:10:57,371] Global step count: 445
+1
+100
+[2017-04-12 09:10:59,543] Distributed model loss = -0.448492
+[2017-04-12 09:10:59,544] Global step count: 446
+1
+100
+[2017-04-12 09:11:01,757] Distributed model loss = -0.567512
+[2017-04-12 09:11:01,758] Global step count: 447
+1
+100
+[2017-04-12 09:11:01,896] Episode 45 finished after 1029 steps. Episode reward = -21.0
+[2017-04-12 09:11:03,977] Distributed model loss = -0.378902
+[2017-04-12 09:11:03,980] Global step count: 448
+1
+89
+[2017-04-12 09:11:06,189] Distributed model loss = 2.37255
+[2017-04-12 09:11:06,192] Global step count: 449
+1
+100
+[2017-04-12 09:11:08,397] Distributed model loss = 7.97191
+[2017-04-12 09:11:08,400] Global step count: 450
+1
+100
+[2017-04-12 09:11:10,581] Distributed model loss = -1.32671
+[2017-04-12 09:11:10,584] Global step count: 451
+1
+120
+[2017-04-12 09:11:12,788] Distributed model loss = -0.747951
+[2017-04-12 09:11:12,790] Global step count: 452
+1
+100
+[2017-04-12 09:11:15,003] Distributed model loss = -0.407639
+[2017-04-12 09:11:15,006] Global step count: 453
+1
+100
+[2017-04-12 09:11:17,210] Distributed model loss = -0.745548
+[2017-04-12 09:11:17,213] Global step count: 454
+1
+100
+[2017-04-12 09:11:19,326] Distributed model loss = -0.872362
+[2017-04-12 09:11:19,329] Global step count: 455
+1
+100
+[2017-04-12 09:11:21,512] Distributed model loss = -0.465805
+[2017-04-12 09:11:21,514] Global step count: 456
+1
+120
+[2017-04-12 09:11:23,764] Distributed model loss = -1.05348
+[2017-04-12 09:11:23,765] Global step count: 457
+1
+100
+[2017-04-12 09:11:23,880] Episode 46 finished after 1011 steps. Episode reward = -21.0
+[2017-04-12 09:11:25,941] Distributed model loss = -0.565998
+[2017-04-12 09:11:25,944] Global step count: 458
+1
+71
+[2017-04-12 09:11:28,184] Distributed model loss = 0.0770355
+[2017-04-12 09:11:28,188] Global step count: 459
+1
+120
+[2017-04-12 09:11:30,446] Distributed model loss = 0.494499
+[2017-04-12 09:11:30,447] Global step count: 460
+1
+100
+[2017-04-12 09:11:32,675] Distributed model loss = -0.944992
+[2017-04-12 09:11:32,677] Global step count: 461
+1
+100
+[2017-04-12 09:11:34,954] Distributed model loss = -0.640651
+[2017-04-12 09:11:34,957] Global step count: 462
+1
+120
+[2017-04-12 09:11:37,160] Distributed model loss = -0.771875
+[2017-04-12 09:11:37,161] Global step count: 463
+1
+120
+[2017-04-12 09:11:39,395] Distributed model loss = 0.532931
+[2017-04-12 09:11:39,396] Global step count: 464
+1
+100
+[2017-04-12 09:11:41,661] Distributed model loss = -0.375576
+[2017-04-12 09:11:41,662] Global step count: 465
+1
+100
+[2017-04-12 09:11:43,866] Distributed model loss = -0.523268
+[2017-04-12 09:11:43,868] Global step count: 466
+1
+100
+[2017-04-12 09:11:46,138] Distributed model loss = -0.721978
+[2017-04-12 09:11:46,139] Global step count: 467
+1
+100
+[2017-04-12 09:11:46,231] Episode 47 finished after 1010 steps. Episode reward = -21.0
+[2017-04-12 09:11:48,330] Distributed model loss = -0.604451
+[2017-04-12 09:11:48,333] Global step count: 468
+1
+50
+[2017-04-12 09:11:50,516] Distributed model loss = 0.0849551
+[2017-04-12 09:11:50,520] Global step count: 469
+1
+100
+INFO:tensorflow:global/global_step/sec: 0.449992
+[2017-04-12 09:11:51,439] global/global_step/sec: 0.449992
+[2017-04-12 09:11:52,721] Distributed model loss = -0.0909477
+[2017-04-12 09:11:52,724] Global step count: 470
+1
+120
+[2017-04-12 09:11:54,993] Distributed model loss = 0.156068
+[2017-04-12 09:11:54,994] Global step count: 471
+1
+100
+[2017-04-12 09:11:57,230] Distributed model loss = -0.479948
+[2017-04-12 09:11:57,231] Global step count: 472
+1
+100
+[2017-04-12 09:11:59,417] Distributed model loss = -0.603536
+[2017-04-12 09:11:59,420] Global step count: 473
+1
+120
+[2017-04-12 09:12:01,625] Distributed model loss = 0.305773
+[2017-04-12 09:12:01,626] Global step count: 474
+1
+100
+[2017-04-12 09:12:03,885] Distributed model loss = -0.499638
+[2017-04-12 09:12:03,887] Global step count: 475
+1
+120
+[2017-04-12 09:12:06,160] Distributed model loss = -1.09627
+[2017-04-12 09:12:06,161] Global step count: 476
+1
+100
+[2017-04-12 09:12:08,422] Distributed model loss = -0.241127
+[2017-04-12 09:12:08,424] Global step count: 477
+1
+100
+[2017-04-12 09:12:08,516] Episode 48 finished after 1014 steps. Episode reward = -21.0
+[2017-04-12 09:12:10,578] Distributed model loss = -0.581038
+[2017-04-12 09:12:10,580] Global step count: 478
+1
+54
+[2017-04-12 09:12:12,866] Distributed model loss = 0.530704
+[2017-04-12 09:12:12,868] Global step count: 479
+1
+120
+[2017-04-12 09:12:15,032] Distributed model loss = -0.884677
+[2017-04-12 09:12:15,033] Global step count: 480
+1
+100
+[2017-04-12 09:12:17,202] Distributed model loss = 2.56812
+[2017-04-12 09:12:17,205] Global step count: 481
+1
+120
+[2017-04-12 09:12:19,469] Distributed model loss = -0.558195
+[2017-04-12 09:12:19,470] Global step count: 482
+1
+100
+[2017-04-12 09:12:21,691] Distributed model loss = -0.48213
+[2017-04-12 09:12:21,692] Global step count: 483
+1
+100
+[2017-04-12 09:12:23,856] Distributed model loss = -0.103069
+[2017-04-12 09:12:23,857] Global step count: 484
+1
+100
+[2017-04-12 09:12:26,104] Distributed model loss = -0.737564
+[2017-04-12 09:12:26,107] Global step count: 485
+1
+100
+[2017-04-12 09:12:28,331] Distributed model loss = -0.591339
+[2017-04-12 09:12:28,332] Global step count: 486
+1
+100
+[2017-04-12 09:12:30,590] Distributed model loss = -0.517179
+[2017-04-12 09:12:30,593] Global step count: 487
+1
+100
+[2017-04-12 09:12:30,712] Episode 49 finished after 1013 steps. Episode reward = -21.0
+[2017-04-12 09:12:32,788] Distributed model loss = -0.807639
+[2017-04-12 09:12:32,789] Global step count: 488
+1
+73
+[2017-04-12 09:12:35,016] Distributed model loss = 0.740883
+[2017-04-12 09:12:35,018] Global step count: 489
+1
+100
+[2017-04-12 09:12:37,271] Distributed model loss = -0.0333739
+[2017-04-12 09:12:37,273] Global step count: 490
+1
+120
+[2017-04-12 09:12:39,470] Distributed model loss = -3.61342
+[2017-04-12 09:12:39,471] Global step count: 491
+1
+120
+[2017-04-12 09:12:41,736] Distributed model loss = -0.877642
+[2017-04-12 09:12:41,738] Global step count: 492
+1
+100
+[2017-04-12 09:12:43,934] Distributed model loss = -0.47806
+[2017-04-12 09:12:43,937] Global step count: 493
+1
+120
+[2017-04-12 09:12:46,207] Distributed model loss = -2.55894
+[2017-04-12 09:12:46,208] Global step count: 494
+1
+120
+[2017-04-12 09:12:48,477] Distributed model loss = -0.859626
+[2017-04-12 09:12:48,478] Global step count: 495
+1
+100
+[2017-04-12 09:12:50,683] Distributed model loss = -0.297515
+[2017-04-12 09:12:50,684] Global step count: 496
+1
+100
+[2017-04-12 09:12:52,878] Distributed model loss = -0.493394
+[2017-04-12 09:12:52,879] Global step count: 497
+1
+120
+[2017-04-12 09:12:52,947] Episode 50 finished after 1019 steps. Episode reward = -21.0
+[2017-04-12 09:12:55,068] Distributed model loss = -0.804421
+[2017-04-12 09:12:55,069] Global step count: 498
+1
+19
+[2017-04-12 09:12:57,211] Distributed model loss = -0.045625
+[2017-04-12 09:12:57,213] Global step count: 499
+1
+100
+[2017-04-12 09:12:59,411] Distributed model loss = 1.2217
+[2017-04-12 09:12:59,414] Global step count: 500
+1
+100
+[2017-04-12 09:13:01,637] Distributed model loss = -0.67344
+[2017-04-12 09:13:01,639] Global step count: 501
+1
+100
+[2017-04-12 09:13:03,780] Distributed model loss = -0.62264
+[2017-04-12 09:13:03,782] Global step count: 502
+1
+120
+[2017-04-12 09:13:06,067] Distributed model loss = -0.770549
+[2017-04-12 09:13:06,068] Global step count: 503
+1
+100
+[2017-04-12 09:13:08,264] Distributed model loss = -0.180903
+[2017-04-12 09:13:08,265] Global step count: 504
+1
+100
+[2017-04-12 09:13:10,486] Distributed model loss = -0.210424
+[2017-04-12 09:13:10,488] Global step count: 505
+1
+120
+[2017-04-12 09:13:12,704] Distributed model loss = -0.821844
+[2017-04-12 09:13:12,706] Global step count: 506
+1
+120
+[2017-04-12 09:13:14,961] Distributed model loss = -0.832903
+[2017-04-12 09:13:14,963] Global step count: 507
+1
+100
+[2017-04-12 09:13:15,051] Episode 51 finished after 1016 steps. Episode reward = -21.0
+[2017-04-12 09:13:17,196] Distributed model loss = -0.532136
+[2017-04-12 09:13:17,197] Global step count: 508
+1
+56
+[2017-04-12 09:13:19,448] Distributed model loss = 0.102397
+[2017-04-12 09:13:19,450] Global step count: 509
+1
+120
+[2017-04-12 09:13:21,750] Distributed model loss = -11.099
+[2017-04-12 09:13:21,751] Global step count: 510
+1
+120
+[2017-04-12 09:13:24,008] Distributed model loss = -0.48785
+[2017-04-12 09:13:24,009] Global step count: 511
+1
+100
+[2017-04-12 09:13:26,232] Distributed model loss = -0.549798
+[2017-04-12 09:13:26,235] Global step count: 512
+1
+100
+[2017-04-12 09:13:28,446] Distributed model loss = -0.509407
+[2017-04-12 09:13:28,448] Global step count: 513
+1
+100
+[2017-04-12 09:13:30,666] Distributed model loss = -0.0470669
+[2017-04-12 09:13:30,669] Global step count: 514
+1
+120
+[2017-04-12 09:13:32,907] Distributed model loss = -1.07929
+[2017-04-12 09:13:32,908] Global step count: 515
+1
+100
+[2017-04-12 09:13:35,184] Distributed model loss = -0.566968
+[2017-04-12 09:13:35,187] Global step count: 516
+1
+120
+[2017-04-12 09:13:37,460] Distributed model loss = -0.935898
+[2017-04-12 09:13:37,461] Global step count: 517
+1
+120
+[2017-04-12 09:13:37,525] Episode 52 finished after 1018 steps. Episode reward = -21.0
+[2017-04-12 09:13:39,668] Distributed model loss = -0.481743
+[2017-04-12 09:13:39,669] Global step count: 518
+1
+18
+[2017-04-12 09:13:41,898] Distributed model loss = -0.00662517
+[2017-04-12 09:13:41,902] Global step count: 519
+1
+100
+[2017-04-12 09:13:44,156] Distributed model loss = 1.38384
+[2017-04-12 09:13:44,159] Global step count: 520
+1
+100
+[2017-04-12 09:13:46,335] Distributed model loss = -0.207924
+[2017-04-12 09:13:46,338] Global step count: 521
+1
+100
+[2017-04-12 09:13:48,609] Distributed model loss = -0.616664
+[2017-04-12 09:13:48,612] Global step count: 522
+1
+120
+[2017-04-12 09:13:50,858] Distributed model loss = -0.975335
+[2017-04-12 09:13:50,860] Global step count: 523
+1
+100
+[2017-04-12 09:13:53,063] Distributed model loss = -0.570087
+[2017-04-12 09:13:53,064] Global step count: 524
+1
+120
+[2017-04-12 09:13:55,263] Distributed model loss = -1.20727
+[2017-04-12 09:13:55,264] Global step count: 525
+1
+100
+[2017-04-12 09:13:57,485] Distributed model loss = -0.691093
+[2017-04-12 09:13:57,486] Global step count: 526
+1
+100
+[2017-04-12 09:13:59,750] Distributed model loss = -0.132903
+[2017-04-12 09:13:59,753] Global step count: 527
+1
+100
+[2017-04-12 09:13:59,884] Episode 53 finished after 1026 steps. Episode reward = -21.0
+[2017-04-12 09:14:02,041] Distributed model loss = -0.517354
+[2017-04-12 09:14:02,042] Global step count: 528
+1
+86
+[2017-04-12 09:14:04,297] Distributed model loss = 0.604519
+[2017-04-12 09:14:04,298] Global step count: 529
+1
+100
+[2017-04-12 09:14:06,462] Distributed model loss = -0.574094
+[2017-04-12 09:14:06,465] Global step count: 530
+1
+100
+[2017-04-12 09:14:08,714] Distributed model loss = -1.20552
+[2017-04-12 09:14:08,715] Global step count: 531
+1
+100
+[2017-04-12 09:14:10,901] Distributed model loss = -0.494762
+[2017-04-12 09:14:10,904] Global step count: 532
+1
+100
+[2017-04-12 09:14:13,169] Distributed model loss = -0.493653
+[2017-04-12 09:14:13,172] Global step count: 533
+1
+100
+[2017-04-12 09:14:15,338] Distributed model loss = -0.737773
+[2017-04-12 09:14:15,339] Global step count: 534
+1
+120
+[2017-04-12 09:14:17,646] Distributed model loss = 2.19887
+[2017-04-12 09:14:17,647] Global step count: 535
+1
+100
+[2017-04-12 09:14:19,897] Distributed model loss = -0.736534
+[2017-04-12 09:14:19,900] Global step count: 536
+1
+100
+[2017-04-12 09:14:22,145] Distributed model loss = -0.141185
+[2017-04-12 09:14:22,147] Global step count: 537
+1
+120
+[2017-04-12 09:14:22,314] Episode 54 finished after 1038 steps. Episode reward = -21.0
+[2017-04-12 09:14:24,420] Distributed model loss = -0.90012
+[2017-04-12 09:14:24,421] Global step count: 538
+1
+98
+[2017-04-12 09:14:26,626] Distributed model loss = 0.743133
+[2017-04-12 09:14:26,627] Global step count: 539
+1
+100
+[2017-04-12 09:14:28,886] Distributed model loss = -4.89626
+[2017-04-12 09:14:28,887] Global step count: 540
+1
+120
+[2017-04-12 09:14:31,200] Distributed model loss = 40.7146
+[2017-04-12 09:14:31,202] Global step count: 541
+1
+100
+[2017-04-12 09:14:33,490] Distributed model loss = -0.549664
+[2017-04-12 09:14:33,493] Global step count: 542
+1
+120
+[2017-04-12 09:14:35,665] Distributed model loss = -1.19868
+[2017-04-12 09:14:35,666] Global step count: 543
+1
+100
+[2017-04-12 09:14:37,850] Distributed model loss = -0.380987
+[2017-04-12 09:14:37,851] Global step count: 544
+1
+120
+[2017-04-12 09:14:40,040] Distributed model loss = -0.984063
+[2017-04-12 09:14:40,041] Global step count: 545
+1
+120
+[2017-04-12 09:14:42,297] Distributed model loss = -0.7726
+[2017-04-12 09:14:42,298] Global step count: 546
+1
+100
+[2017-04-12 09:14:44,495] Distributed model loss = -0.676028
+[2017-04-12 09:14:44,496] Global step count: 547
+1
+100
+[2017-04-12 09:14:44,580] Episode 55 finished after 1021 steps. Episode reward = -21.0
+[2017-04-12 09:14:46,728] Distributed model loss = -0.249458
+[2017-04-12 09:14:46,731] Global step count: 548
+1
+41
+[2017-04-12 09:14:48,992] Distributed model loss = 0.0844935
+[2017-04-12 09:14:48,994] Global step count: 549
+1
+100
+[2017-04-12 09:14:51,229] Distributed model loss = 0.310986
+[2017-04-12 09:14:51,230] Global step count: 550
+1
+100
+[2017-04-12 09:14:53,419] Distributed model loss = -0.688176
+[2017-04-12 09:14:53,421] Global step count: 551
+1
+120
+[2017-04-12 09:14:55,637] Distributed model loss = -0.927474
+[2017-04-12 09:14:55,638] Global step count: 552
+1
+120
+[2017-04-12 09:14:57,898] Distributed model loss = -0.634897
+[2017-04-12 09:14:57,899] Global step count: 553
+1
+120
+[2017-04-12 09:15:00,102] Distributed model loss = 2.72384
+[2017-04-12 09:15:00,104] Global step count: 554
+1
+120
+[2017-04-12 09:15:02,363] Distributed model loss = -0.80859
+[2017-04-12 09:15:02,364] Global step count: 555
+1
+100
+[2017-04-12 09:15:04,568] Distributed model loss = -0.572298
+[2017-04-12 09:15:04,571] Global step count: 556
+1
+100
+[2017-04-12 09:15:06,772] Distributed model loss = -0.448539
+[2017-04-12 09:15:06,774] Global step count: 557
+1
+120
+[2017-04-12 09:15:06,843] Episode 56 finished after 1018 steps. Episode reward = -21.0
+[2017-04-12 09:15:08,967] Distributed model loss = -0.235266
+[2017-04-12 09:15:08,968] Global step count: 558
+1
+18
+[2017-04-12 09:15:11,117] Distributed model loss = -0.0308053
+[2017-04-12 09:15:11,119] Global step count: 559
+1
+100
+[2017-04-12 09:15:13,342] Distributed model loss = 0.635816
+[2017-04-12 09:15:13,345] Global step count: 560
+1
+100
+[2017-04-12 09:15:15,560] Distributed model loss = -0.669549
+[2017-04-12 09:15:15,564] Global step count: 561
+1
+100
+[2017-04-12 09:15:17,730] Distributed model loss = -0.515497
+[2017-04-12 09:15:17,731] Global step count: 562
+1
+100
+[2017-04-12 09:15:19,984] Distributed model loss = -0.579116
+[2017-04-12 09:15:19,985] Global step count: 563
+1
+100
+[2017-04-12 09:15:22,232] Distributed model loss = -0.442864
+[2017-04-12 09:15:22,234] Global step count: 564
+1
+120
+[2017-04-12 09:15:24,456] Distributed model loss = -0.844485
+[2017-04-12 09:15:24,458] Global step count: 565
+1
+100
+[2017-04-12 09:15:26,635] Distributed model loss = -0.597767
+[2017-04-12 09:15:26,637] Global step count: 566
+1
+100
+[2017-04-12 09:15:28,811] Distributed model loss = -0.654926
+[2017-04-12 09:15:28,814] Global step count: 567
+1
+100
+[2017-04-12 09:15:28,945] Episode 57 finished after 1005 steps. Episode reward = -21.0
+[2017-04-12 09:15:31,035] Distributed model loss = -0.362343
+[2017-04-12 09:15:31,038] Global step count: 568
+1
+85
+[2017-04-12 09:15:33,267] Distributed model loss = 0.774638
+[2017-04-12 09:15:33,269] Global step count: 569
+1
+100
+[2017-04-12 09:15:35,427] Distributed model loss = 0.328286
+[2017-04-12 09:15:35,428] Global step count: 570
+1
+100
+[2017-04-12 09:15:37,658] Distributed model loss = -0.236572
+[2017-04-12 09:15:37,661] Global step count: 571
+1
+100
+[2017-04-12 09:15:39,917] Distributed model loss = -0.519151
+[2017-04-12 09:15:39,920] Global step count: 572
+1
+100
+[2017-04-12 09:15:42,168] Distributed model loss = -0.873863
+[2017-04-12 09:15:42,170] Global step count: 573
+1
+100
+[2017-04-12 09:15:44,371] Distributed model loss = -0.755198
+[2017-04-12 09:15:44,372] Global step count: 574
+1
+120
+[2017-04-12 09:15:46,519] Distributed model loss = -5.48135
+[2017-04-12 09:15:46,520] Global step count: 575
+1
+100
+[2017-04-12 09:15:48,732] Distributed model loss = -0.501198
+[2017-04-12 09:15:48,733] Global step count: 576
+1
+120
+[2017-04-12 09:15:50,873] Distributed model loss = -0.888982
+[2017-04-12 09:15:50,874] Global step count: 577
+1
+100
+[2017-04-12 09:15:51,010] Episode 58 finished after 1025 steps. Episode reward = -21.0
+[2017-04-12 09:15:53,082] Distributed model loss = -0.495509
+[2017-04-12 09:15:53,083] Global step count: 578
+1
+85
+[2017-04-12 09:15:55,251] Distributed model loss = -1.14943
+[2017-04-12 09:15:55,254] Global step count: 579
+1
+100
+[2017-04-12 09:15:57,492] Distributed model loss = -0.272654
+[2017-04-12 09:15:57,495] Global step count: 580
+1
+100
+[2017-04-12 09:15:59,730] Distributed model loss = -0.371046
+[2017-04-12 09:15:59,733] Global step count: 581
+1
+100
+[2017-04-12 09:16:01,958] Distributed model loss = -0.633133
+[2017-04-12 09:16:01,959] Global step count: 582
+1
+100
+[2017-04-12 09:16:04,161] Distributed model loss = -0.536105
+[2017-04-12 09:16:04,164] Global step count: 583
+1
+100
+[2017-04-12 09:16:06,319] Distributed model loss = -0.705817
+[2017-04-12 09:16:06,321] Global step count: 584
+1
+100
+[2017-04-12 09:16:08,531] Distributed model loss = 1.58206
+[2017-04-12 09:16:08,533] Global step count: 585
+1
+120
+[2017-04-12 09:16:10,745] Distributed model loss = -0.839957
+[2017-04-12 09:16:10,746] Global step count: 586
+1
+120
+[2017-04-12 09:16:12,923] Distributed model loss = -0.380645
+[2017-04-12 09:16:12,924] Global step count: 587
+1
+100
+[2017-04-12 09:16:13,073] Episode 59 finished after 1030 steps. Episode reward = -21.0
+[2017-04-12 09:16:15,499] Distributed model loss = -0.625849
+[2017-04-12 09:16:15,503] Global step count: 588
+1
+90
+[2017-04-12 09:16:17,950] Distributed model loss = 1.17347
+[2017-04-12 09:16:17,951] Global step count: 589
+1
+100
+[2017-04-12 09:16:20,153] Distributed model loss = 1.23022
+[2017-04-12 09:16:20,154] Global step count: 590
+1
+120
+[2017-04-12 09:16:22,382] Distributed model loss = 8.51338
+[2017-04-12 09:16:22,383] Global step count: 591
+1
+120
+[2017-04-12 09:16:24,577] Distributed model loss = -0.694067
+[2017-04-12 09:16:24,579] Global step count: 592
+1
+100
+[2017-04-12 09:16:26,760] Distributed model loss = -0.35826
+[2017-04-12 09:16:26,763] Global step count: 593
+1
+100
+[2017-04-12 09:16:28,933] Distributed model loss = -0.0725072
+[2017-04-12 09:16:28,936] Global step count: 594
+1
+120
+[2017-04-12 09:16:31,102] Distributed model loss = -0.622062
+[2017-04-12 09:16:31,103] Global step count: 595
+1
+120
+[2017-04-12 09:16:33,350] Distributed model loss = -0.725939
+[2017-04-12 09:16:33,352] Global step count: 596
+1
+100
+[2017-04-12 09:16:35,588] Distributed model loss = -0.395647
+[2017-04-12 09:16:35,591] Global step count: 597
+1
+120
+[2017-04-12 09:16:35,669] Episode 60 finished after 1026 steps. Episode reward = -21.0
+[2017-04-12 09:16:37,844] Distributed model loss = -0.191776
+[2017-04-12 09:16:37,846] Global step count: 598
+1
+26
+[2017-04-12 09:16:40,079] Distributed model loss = 0.208425
+[2017-04-12 09:16:40,083] Global step count: 599
+1
+120
+[2017-04-12 09:16:42,302] Distributed model loss = 0.51761
+[2017-04-12 09:16:42,304] Global step count: 600
+1
+100
+[2017-04-12 09:16:44,563] Distributed model loss = -2.13966
+[2017-04-12 09:16:44,566] Global step count: 601
+1
+120
+[2017-04-12 09:16:46,821] Distributed model loss = -0.683949
+[2017-04-12 09:16:46,823] Global step count: 602
+1
+120
+[2017-04-12 09:16:49,067] Distributed model loss = -0.888141
+[2017-04-12 09:16:49,068] Global step count: 603
+1
+100
+[2017-04-12 09:16:51,295] Distributed model loss = -0.108651
+[2017-04-12 09:16:51,296] Global step count: 604
+1
+100
+[2017-04-12 09:16:53,550] Distributed model loss = -0.871414
+[2017-04-12 09:16:53,552] Global step count: 605
+1
+120
+[2017-04-12 09:16:55,710] Distributed model loss = -0.854725
+[2017-04-12 09:16:55,711] Global step count: 606
+1
+120
+[2017-04-12 09:16:55,892] Episode 61 finished after 1012 steps. Episode reward = -21.0
+[2017-04-12 09:16:57,942] Distributed model loss = -0.81078
+[2017-04-12 09:16:57,944] Global step count: 607
+1
+100
+[2017-04-12 09:17:00,174] Distributed model loss = -5.57974
+[2017-04-12 09:17:00,175] Global step count: 608
+1
+12
+[2017-04-12 09:17:02,295] Distributed model loss = -0.0316077
+[2017-04-12 09:17:02,297] Global step count: 609
+1
+100
+[2017-04-12 09:17:04,534] Distributed model loss = 1.51858
+[2017-04-12 09:17:04,535] Global step count: 610
+1
+100
+[2017-04-12 09:17:06,797] Distributed model loss = -0.0467382
+[2017-04-12 09:17:06,799] Global step count: 611
+1
+100
+[2017-04-12 09:17:08,955] Distributed model loss = -0.619946
+[2017-04-12 09:17:08,957] Global step count: 612
+1
+120
+[2017-04-12 09:17:11,202] Distributed model loss = -1.13164
+[2017-04-12 09:17:11,204] Global step count: 613
+1
+120
+[2017-04-12 09:17:13,398] Distributed model loss = 0.27419
+[2017-04-12 09:17:13,399] Global step count: 614
+1
+100
+[2017-04-12 09:17:15,577] Distributed model loss = -0.442857
+[2017-04-12 09:17:15,578] Global step count: 615
+1
+100
+[2017-04-12 09:17:17,737] Distributed model loss = -0.579155
+[2017-04-12 09:17:17,738] Global step count: 616
+1
+100
+[2017-04-12 09:17:19,958] Distributed model loss = -0.494552
+[2017-04-12 09:17:19,959] Global step count: 617
+1
+100
+[2017-04-12 09:17:20,103] Episode 62 finished after 1027 steps. Episode reward = -21.0
+[2017-04-12 09:17:22,236] Distributed model loss = -0.643935
+[2017-04-12 09:17:22,237] Global step count: 618
+1
+87
+[2017-04-12 09:17:24,477] Distributed model loss = 1.31027
+[2017-04-12 09:17:24,478] Global step count: 619
+1
+120
+[2017-04-12 09:17:26,695] Distributed model loss = 0.425867
+[2017-04-12 09:17:26,696] Global step count: 620
+1
+100
+[2017-04-12 09:17:28,935] Distributed model loss = -163.08
+[2017-04-12 09:17:28,936] Global step count: 621
+1
+120
+[2017-04-12 09:17:31,168] Distributed model loss = -0.627046
+[2017-04-12 09:17:31,169] Global step count: 622
+1
+100
+[2017-04-12 09:17:33,408] Distributed model loss = -0.513138
+[2017-04-12 09:17:33,411] Global step count: 623
+1
+100
+[2017-04-12 09:17:35,665] Distributed model loss = 0.00648918
+[2017-04-12 09:17:35,667] Global step count: 624
+1
+100
+[2017-04-12 09:17:37,881] Distributed model loss = -0.641263
+[2017-04-12 09:17:37,882] Global step count: 625
+1
+100
+[2017-04-12 09:17:40,093] Distributed model loss = -0.498985
+[2017-04-12 09:17:40,094] Global step count: 626
+1
+100
+[2017-04-12 09:17:42,372] Distributed model loss = -0.3694
+[2017-04-12 09:17:42,373] Global step count: 627
+1
+100
+[2017-04-12 09:17:42,496] Episode 63 finished after 1017 steps. Episode reward = -21.0
+[2017-04-12 09:17:44,596] Distributed model loss = -0.181321
+[2017-04-12 09:17:44,597] Global step count: 628
+1
+77
+[2017-04-12 09:17:46,761] Distributed model loss = 0.723939
+[2017-04-12 09:17:46,763] Global step count: 629
+1
+120
+[2017-04-12 09:17:48,987] Distributed model loss = -2.06226
+[2017-04-12 09:17:48,988] Global step count: 630
+1
+100
+[2017-04-12 09:17:51,232] Distributed model loss = -0.866661
+[2017-04-12 09:17:51,235] Global step count: 631
+1
+120
+[2017-04-12 09:17:53,484] Distributed model loss = -1.10578
+[2017-04-12 09:17:53,485] Global step count: 632
+1
+100
+[2017-04-12 09:17:55,680] Distributed model loss = -0.502662
+[2017-04-12 09:17:55,683] Global step count: 633
+1
+120
+[2017-04-12 09:17:57,891] Distributed model loss = -0.628362
+[2017-04-12 09:17:57,892] Global step count: 634
+1
+100
+[2017-04-12 09:18:00,081] Distributed model loss = -0.699075
+[2017-04-12 09:18:00,082] Global step count: 635
+1
+100
+[2017-04-12 09:18:02,297] Distributed model loss = -0.71229
+[2017-04-12 09:18:02,300] Global step count: 636
+1
+100
+[2017-04-12 09:18:04,486] Distributed model loss = -0.606658
+[2017-04-12 09:18:04,487] Global step count: 637
+1
+100
+[2017-04-12 09:18:04,608] Episode 64 finished after 1032 steps. Episode reward = -21.0
+[2017-04-12 09:18:06,716] Distributed model loss = -0.655213
+[2017-04-12 09:18:06,719] Global step count: 638
+1
+72
+[2017-04-12 09:18:08,972] Distributed model loss = 0.178291
+[2017-04-12 09:18:08,975] Global step count: 639
+1
+100
+[2017-04-12 09:18:11,162] Distributed model loss = -34.822
+[2017-04-12 09:18:11,163] Global step count: 640
+1
+100
+[2017-04-12 09:18:13,359] Distributed model loss = -1.95772
+[2017-04-12 09:18:13,360] Global step count: 641
+1
+120
+[2017-04-12 09:18:15,587] Distributed model loss = -0.576793
+[2017-04-12 09:18:15,588] Global step count: 642
+1
+100
+[2017-04-12 09:18:17,834] Distributed model loss = -0.498834
+[2017-04-12 09:18:17,837] Global step count: 643
+1
+120
+[2017-04-12 09:18:20,018] Distributed model loss = 0.197537
+[2017-04-12 09:18:20,020] Global step count: 644
+1
+100
+[2017-04-12 09:18:22,243] Distributed model loss = -0.437334
+[2017-04-12 09:18:22,246] Global step count: 645
+1
+100
+[2017-04-12 09:18:24,405] Distributed model loss = -0.651682
+[2017-04-12 09:18:24,408] Global step count: 646
+1
+100
+[2017-04-12 09:18:26,592] Distributed model loss = -0.469276
+[2017-04-12 09:18:26,595] Global step count: 647
+1
+100
+[2017-04-12 09:18:26,718] Episode 65 finished after 1017 steps. Episode reward = -21.0
+[2017-04-12 09:18:28,845] Distributed model loss = -0.503849
+[2017-04-12 09:18:28,846] Global step count: 648
+1
+77
+[2017-04-12 09:18:31,089] Distributed model loss = 0.817051
+[2017-04-12 09:18:31,090] Global step count: 649
+1
+120
+[2017-04-12 09:18:33,314] Distributed model loss = -2.19972
+[2017-04-12 09:18:33,315] Global step count: 650
+1
+120
+[2017-04-12 09:18:35,501] Distributed model loss = -4.14798
+[2017-04-12 09:18:35,503] Global step count: 651
+1
+100
+[2017-04-12 09:18:37,679] Distributed model loss = -0.414969
+[2017-04-12 09:18:37,680] Global step count: 652
+1
+100
+[2017-04-12 09:18:39,864] Distributed model loss = -0.510655
+[2017-04-12 09:18:39,867] Global step count: 653
+1
+100
+[2017-04-12 09:18:42,074] Distributed model loss = 0.0255555
+[2017-04-12 09:18:42,076] Global step count: 654
+1
+120
+[2017-04-12 09:18:44,262] Distributed model loss = -4.97665
+[2017-04-12 09:18:44,264] Global step count: 655
+1
+100
+[2017-04-12 09:18:46,564] Distributed model loss = -0.031056
+[2017-04-12 09:18:46,568] Global step count: 656
+1
+120
+[2017-04-12 09:18:48,839] Distributed model loss = -0.921388
+[2017-04-12 09:18:48,841] Global step count: 657
+1
+100
+[2017-04-12 09:18:48,907] Episode 66 finished after 1013 steps. Episode reward = -21.0
+[2017-04-12 09:18:51,040] Distributed model loss = -0.396165
+[2017-04-12 09:18:51,041] Global step count: 658
+1
+33
+[2017-04-12 09:18:53,248] Distributed model loss = -0.332897
+[2017-04-12 09:18:53,249] Global step count: 659
+1
+120
+[2017-04-12 09:18:55,453] Distributed model loss = 0.360707
+[2017-04-12 09:18:55,455] Global step count: 660
+1
+100
+[2017-04-12 09:18:57,621] Distributed model loss = -0.619226
+[2017-04-12 09:18:57,622] Global step count: 661
+1
+100
+[2017-04-12 09:18:59,927] Distributed model loss = -0.64554
+[2017-04-12 09:18:59,931] Global step count: 662
+1
+120
+[2017-04-12 09:19:02,151] Distributed model loss = -0.911211
+[2017-04-12 09:19:02,152] Global step count: 663
+1
+100
+[2017-04-12 09:19:04,420] Distributed model loss = -1.52227
+[2017-04-12 09:19:04,422] Global step count: 664
+1
+100
+[2017-04-12 09:19:06,667] Distributed model loss = -0.826657
+[2017-04-12 09:19:06,670] Global step count: 665
+1
+120
+[2017-04-12 09:19:08,840] Distributed model loss = -0.736642
+[2017-04-12 09:19:08,841] Global step count: 666
+1
+100
+[2017-04-12 09:19:11,008] Distributed model loss = -0.502123
+[2017-04-12 09:19:11,011] Global step count: 667
+1
+100
+[2017-04-12 09:19:11,110] Episode 67 finished after 1015 steps. Episode reward = -21.0
+[2017-04-12 09:19:13,207] Distributed model loss = -0.62767
+[2017-04-12 09:19:13,208] Global step count: 668
+1
+55
+[2017-04-12 09:19:15,443] Distributed model loss = 0.336334
+[2017-04-12 09:19:15,445] Global step count: 669
+1
+120
+[2017-04-12 09:19:17,750] Distributed model loss = 0.0692706
+[2017-04-12 09:19:17,751] Global step count: 670
+1
+100
+[2017-04-12 09:19:19,983] Distributed model loss = -0.505003
+[2017-04-12 09:19:19,986] Global step count: 671
+1
+100
+[2017-04-12 09:19:22,176] Distributed model loss = -0.762672
+[2017-04-12 09:19:22,179] Global step count: 672
+1
+100
+[2017-04-12 09:19:24,438] Distributed model loss = -0.687941
+[2017-04-12 09:19:24,439] Global step count: 673
+1
+100
+[2017-04-12 09:19:26,646] Distributed model loss = -0.10243
+[2017-04-12 09:19:26,648] Global step count: 674
+1
+120
+[2017-04-12 09:19:28,831] Distributed model loss = -0.873079
+[2017-04-12 09:19:28,832] Global step count: 675
+1
+100
+[2017-04-12 09:19:31,101] Distributed model loss = -0.542278
+[2017-04-12 09:19:31,104] Global step count: 676
+1
+100
+[2017-04-12 09:19:33,267] Distributed model loss = -0.751235
+[2017-04-12 09:19:33,268] Global step count: 677
+1
+100
+[2017-04-12 09:19:33,376] Episode 68 finished after 1003 steps. Episode reward = -21.0
+[2017-04-12 09:19:35,445] Distributed model loss = -0.272794
+[2017-04-12 09:19:35,446] Global step count: 678
+1
+63
+[2017-04-12 09:19:37,657] Distributed model loss = 0.0693914
+[2017-04-12 09:19:37,658] Global step count: 679
+1
+120
+[2017-04-12 09:19:39,890] Distributed model loss = -0.204862
+[2017-04-12 09:19:39,891] Global step count: 680
+1
+100
+[2017-04-12 09:19:42,114] Distributed model loss = 0.667274
+[2017-04-12 09:19:42,115] Global step count: 681
+1
+100
+[2017-04-12 09:19:44,405] Distributed model loss = -0.59564
+[2017-04-12 09:19:44,406] Global step count: 682
+1
+100
+[2017-04-12 09:19:46,660] Distributed model loss = -0.681543
+[2017-04-12 09:19:46,662] Global step count: 683
+1
+120
+[2017-04-12 09:19:48,925] Distributed model loss = 0.236872
+[2017-04-12 09:19:48,926] Global step count: 684
+1
+100
+[2017-04-12 09:19:51,219] Distributed model loss = -0.542269
+[2017-04-12 09:19:51,222] Global step count: 685
+1
+120
+[2017-04-12 09:19:53,483] Distributed model loss = -0.692153
+[2017-04-12 09:19:53,484] Global step count: 686
+1
+120
+[2017-04-12 09:19:55,687] Distributed model loss = -0.952309
+[2017-04-12 09:19:55,689] Global step count: 687
+[2017-04-12 09:19:55,714] Episode 69 finished after 1002 steps. Episode reward = -21.0
+1
+100
+[2017-04-12 09:19:57,925] Distributed model loss = 0.244957
+[2017-04-12 09:19:57,928] Global step count: 688
+1
+22
+[2017-04-12 09:20:00,074] Distributed model loss = -0.00131166
+[2017-04-12 09:20:00,076] Global step count: 689
+1
+100
+[2017-04-12 09:20:02,321] Distributed model loss = 0.645361
+[2017-04-12 09:20:02,324] Global step count: 690
+1
+100
+[2017-04-12 09:20:04,537] Distributed model loss = 0.0899027
+[2017-04-12 09:20:04,540] Global step count: 691
+1
+100
+[2017-04-12 09:20:06,783] Distributed model loss = -0.431751
+[2017-04-12 09:20:06,785] Global step count: 692
+1
+120
+[2017-04-12 09:20:09,000] Distributed model loss = -0.725596
+[2017-04-12 09:20:09,001] Global step count: 693
+1
+120
+[2017-04-12 09:20:11,213] Distributed model loss = 0.4978
+[2017-04-12 09:20:11,214] Global step count: 694
+1
+100
+[2017-04-12 09:20:13,381] Distributed model loss = -0.692806
+[2017-04-12 09:20:13,383] Global step count: 695
+1
+100
+[2017-04-12 09:20:15,748] Distributed model loss = -0.579267
+[2017-04-12 09:20:15,751] Global step count: 696
+1
+100
+[2017-04-12 09:20:18,025] Distributed model loss = -0.50417
+[2017-04-12 09:20:18,028] Global step count: 697
+1
+100
+[2017-04-12 09:20:18,150] Episode 70 finished after 1016 steps. Episode reward = -21.0
+[2017-04-12 09:20:20,232] Distributed model loss = -0.574789
+[2017-04-12 09:20:20,233] Global step count: 698
+1
+76
+[2017-04-12 09:20:22,492] Distributed model loss = 1.07979
+[2017-04-12 09:20:22,494] Global step count: 699
+1
+120
+[2017-04-12 09:20:24,736] Distributed model loss = 2.12528
+[2017-04-12 09:20:24,737] Global step count: 700
+1
+100
+[2017-04-12 09:20:26,930] Distributed model loss = -1.28872
+[2017-04-12 09:20:26,931] Global step count: 701
+1
+100
+[2017-04-12 09:20:29,137] Distributed model loss = -0.436565
+[2017-04-12 09:20:29,139] Global step count: 702
+1
+100
+[2017-04-12 09:20:31,314] Distributed model loss = -0.548791
+[2017-04-12 09:20:31,317] Global step count: 703
+1
+100
+[2017-04-12 09:20:33,543] Distributed model loss = -0.490065
+[2017-04-12 09:20:33,546] Global step count: 704
+1
+100
+[2017-04-12 09:20:35,822] Distributed model loss = -0.577415
+[2017-04-12 09:20:35,825] Global step count: 705
+1
+100
+[2017-04-12 09:20:38,086] Distributed model loss = -0.616386
+[2017-04-12 09:20:38,089] Global step count: 706
+1
+120
+[2017-04-12 09:20:40,305] Distributed model loss = -0.965621
+[2017-04-12 09:20:40,306] Global step count: 707
+1
+120
+[2017-04-12 09:20:40,444] Episode 71 finished after 1037 steps. Episode reward = -21.0
+[2017-04-12 09:20:42,524] Distributed model loss = -0.977446
+[2017-04-12 09:20:42,526] Global step count: 708
+1
+77
+[2017-04-12 09:20:45,014] Distributed model loss = -0.538071
+[2017-04-12 09:20:45,016] Global step count: 709
+1
+100
+[2017-04-12 09:20:47,316] Distributed model loss = -0.00815547
+[2017-04-12 09:20:47,318] Global step count: 710
+1
+100
+[2017-04-12 09:20:49,476] Distributed model loss = -0.506992
+[2017-04-12 09:20:49,478] Global step count: 711
+1
+100
+[2017-04-12 09:20:51,706] Distributed model loss = -0.457925
+[2017-04-12 09:20:51,709] Global step count: 712
+1
+100
+[2017-04-12 09:20:53,965] Distributed model loss = -0.693879
+[2017-04-12 09:20:53,968] Global step count: 713
+1
+100
+[2017-04-12 09:20:56,234] Distributed model loss = -0.421885
+[2017-04-12 09:20:56,235] Global step count: 714
+1
+120
+[2017-04-12 09:20:58,403] Distributed model loss = 1.79407
+[2017-04-12 09:20:58,405] Global step count: 715
+1
+120
+[2017-04-12 09:21:00,589] Distributed model loss = -1.00716
+[2017-04-12 09:21:00,591] Global step count: 716
+1
+100
+[2017-04-12 09:21:02,726] Distributed model loss = -0.496854
+[2017-04-12 09:21:02,729] Global step count: 717
+1
+100
+[2017-04-12 09:21:02,849] Episode 72 finished after 1015 steps. Episode reward = -21.0
+[2017-04-12 09:21:04,953] Distributed model loss = -0.466688
+[2017-04-12 09:21:04,954] Global step count: 718
+1
+75
+[2017-04-12 09:21:07,202] Distributed model loss = 0.881688
+[2017-04-12 09:21:07,203] Global step count: 719
+1
+100
+[2017-04-12 09:21:09,377] Distributed model loss = 3.42383
+[2017-04-12 09:21:09,378] Global step count: 720
+1
+100
+[2017-04-12 09:21:11,621] Distributed model loss = -0.233569
+[2017-04-12 09:21:11,622] Global step count: 721
+1
+100
+[2017-04-12 09:21:13,803] Distributed model loss = -0.572385
+[2017-04-12 09:21:13,804] Global step count: 722
+1
+100
+[2017-04-12 09:21:15,978] Distributed model loss = -0.572553
+[2017-04-12 09:21:15,980] Global step count: 723
+1
+100
+[2017-04-12 09:21:18,126] Distributed model loss = -0.761308
+[2017-04-12 09:21:18,128] Global step count: 724
+1
+100
+[2017-04-12 09:21:20,318] Distributed model loss = 1.20121
+[2017-04-12 09:21:20,321] Global step count: 725
+1
+100
+[2017-04-12 09:21:22,581] Distributed model loss = -0.555225
+[2017-04-12 09:21:22,582] Global step count: 726
+1
+100
+[2017-04-12 09:21:24,779] Distributed model loss = -0.448083
+[2017-04-12 09:21:24,780] Global step count: 727
+1
+100
+[2017-04-12 09:21:27,007] Distributed model loss = -0.602631
+[2017-04-12 09:21:27,008] Global step count: 728
+[2017-04-12 09:21:27,044] Episode 73 finished after 1027 steps. Episode reward = -21.0
+1
+100
+[2017-04-12 09:21:29,288] Distributed model loss = -0.0251366
+[2017-04-12 09:21:29,291] Global step count: 729
+1
+27
+[2017-04-12 09:21:31,401] Distributed model loss = -0.0757394
+[2017-04-12 09:21:31,405] Global step count: 730
+1
+100
+[2017-04-12 09:21:33,580] Distributed model loss = 0.32521
+[2017-04-12 09:21:33,582] Global step count: 731
+1
+100
+[2017-04-12 09:21:35,770] Distributed model loss = 1.31516
+[2017-04-12 09:21:35,773] Global step count: 732
+1
+120
+[2017-04-12 09:21:37,945] Distributed model loss = -0.617472
+[2017-04-12 09:21:37,946] Global step count: 733
+1
+120
+[2017-04-12 09:21:40,092] Distributed model loss = -1.31543
+[2017-04-12 09:21:40,093] Global step count: 734
+1
+100
+[2017-04-12 09:21:42,277] Distributed model loss = -0.568725
+[2017-04-12 09:21:42,279] Global step count: 735
+1
+120
+[2017-04-12 09:21:44,503] Distributed model loss = -1.28162
+[2017-04-12 09:21:44,504] Global step count: 736
+1
+100
+[2017-04-12 09:21:46,712] Distributed model loss = -0.280818
+[2017-04-12 09:21:46,713] Global step count: 737
+1
+100
+[2017-04-12 09:21:48,980] Distributed model loss = -0.617555
+[2017-04-12 09:21:48,983] Global step count: 738
+1
+100
+[2017-04-12 09:21:49,101] Episode 74 finished after 1031 steps. Episode reward = -21.0
+[2017-04-12 09:21:51,227] Distributed model loss = -0.324809
+[2017-04-12 09:21:51,228] Global step count: 739
+1
+71
+[2017-04-12 09:21:53,479] Distributed model loss = -0.625943
+[2017-04-12 09:21:53,481] Global step count: 740
+1
+100
+[2017-04-12 09:21:55,709] Distributed model loss = -0.51258
+[2017-04-12 09:21:55,710] Global step count: 741
+1
+100
+[2017-04-12 09:21:57,977] Distributed model loss = -1.53609
+[2017-04-12 09:21:57,979] Global step count: 742
+1
+100
+[2017-04-12 09:22:00,170] Distributed model loss = -0.624759
+[2017-04-12 09:22:00,171] Global step count: 743
+1
+120
+[2017-04-12 09:22:02,366] Distributed model loss = -0.920808
+[2017-04-12 09:22:02,367] Global step count: 744
+1
+100
+[2017-04-12 09:22:04,640] Distributed model loss = -0.421091
+[2017-04-12 09:22:04,643] Global step count: 745
+1
+100
+[2017-04-12 09:22:06,927] Distributed model loss = -0.5474
+[2017-04-12 09:22:06,930] Global step count: 746
+1
+120
+[2017-04-12 09:22:09,159] Distributed model loss = -0.931554
+[2017-04-12 09:22:09,160] Global step count: 747
+1
+120
+[2017-04-12 09:22:11,402] Distributed model loss = -0.557273
+[2017-04-12 09:22:11,403] Global step count: 748
+1
+100
+[2017-04-12 09:22:11,485] Episode 75 finished after 1008 steps. Episode reward = -21.0
+[2017-04-12 09:22:13,568] Distributed model loss = -0.596637
+[2017-04-12 09:22:13,570] Global step count: 749
+1
+48
+[2017-04-12 09:22:15,804] Distributed model loss = 0.126948
+[2017-04-12 09:22:15,806] Global step count: 750
+1
+100
+[2017-04-12 09:22:18,062] Distributed model loss = -1.31542
+[2017-04-12 09:22:18,065] Global step count: 751
+1
+120
+[2017-04-12 09:22:20,217] Distributed model loss = -5.71503
+[2017-04-12 09:22:20,219] Global step count: 752
+1
+120
+[2017-04-12 09:22:22,451] Distributed model loss = -0.729416
+[2017-04-12 09:22:22,453] Global step count: 753
+1
+100
+[2017-04-12 09:22:24,661] Distributed model loss = -0.71302
+[2017-04-12 09:22:24,662] Global step count: 754
+1
+100
+[2017-04-12 09:22:26,918] Distributed model loss = 0.54986
+[2017-04-12 09:22:26,920] Global step count: 755
+1
+100
+[2017-04-12 09:22:29,137] Distributed model loss = -0.750995
+[2017-04-12 09:22:29,138] Global step count: 756
+1
+100
+[2017-04-12 09:22:31,411] Distributed model loss = -0.580595
+[2017-04-12 09:22:31,414] Global step count: 757
+1
+100
+[2017-04-12 09:22:33,573] Distributed model loss = -0.494978
+[2017-04-12 09:22:33,576] Global step count: 758
+1
+100
+[2017-04-12 09:22:33,718] Episode 76 finished after 1030 steps. Episode reward = -21.0
+[2017-04-12 09:22:35,826] Distributed model loss = -0.580338
+[2017-04-12 09:22:35,829] Global step count: 759
+1
+90
+[2017-04-12 09:22:38,050] Distributed model loss = 1.53222
+[2017-04-12 09:22:38,051] Global step count: 760
+1
+100
+[2017-04-12 09:22:40,237] Distributed model loss = 0.752025
+[2017-04-12 09:22:40,238] Global step count: 761
+1
+120
+[2017-04-12 09:22:42,463] Distributed model loss = -1.36076
+[2017-04-12 09:22:42,464] Global step count: 762
+1
+100
+[2017-04-12 09:22:44,703] Distributed model loss = -0.603373
+[2017-04-12 09:22:44,705] Global step count: 763
+1
+120
+[2017-04-12 09:22:46,878] Distributed model loss = -0.980296
+[2017-04-12 09:22:46,880] Global step count: 764
+1
+120
+[2017-04-12 09:22:49,066] Distributed model loss = 0.793345
+[2017-04-12 09:22:49,068] Global step count: 765
+1
+100
+[2017-04-12 09:22:51,298] Distributed model loss = -0.428787
+[2017-04-12 09:22:51,299] Global step count: 766
+1
+100
+[2017-04-12 09:22:53,473] Distributed model loss = -0.558351
+[2017-04-12 09:22:53,476] Global step count: 767
+1
+100
+[2017-04-12 09:22:55,677] Distributed model loss = -0.444274
+[2017-04-12 09:22:55,679] Global step count: 768
+1
+100
+[2017-04-12 09:22:55,776] Episode 77 finished after 1016 steps. Episode reward = -21.0
+[2017-04-12 09:22:57,818] Distributed model loss = -0.630101
+[2017-04-12 09:22:57,821] Global step count: 769
+1
+56
+[2017-04-12 09:23:00,076] Distributed model loss = 0.773286
+[2017-04-12 09:23:00,077] Global step count: 770
+1
+100
+[2017-04-12 09:23:02,304] Distributed model loss = 0.280007
+[2017-04-12 09:23:02,306] Global step count: 771
+1
+100
+[2017-04-12 09:23:04,517] Distributed model loss = -0.576961
+[2017-04-12 09:23:04,520] Global step count: 772
+1
+100
+[2017-04-12 09:23:06,777] Distributed model loss = -0.46112
+[2017-04-12 09:23:06,780] Global step count: 773
+1
+100
+[2017-04-12 09:23:08,938] Distributed model loss = -0.780569
+[2017-04-12 09:23:08,941] Global step count: 774
+1
+120
+[2017-04-12 09:23:11,195] Distributed model loss = -0.374991
+[2017-04-12 09:23:11,196] Global step count: 775
+1
+100
+[2017-04-12 09:23:13,441] Distributed model loss = -0.581396
+[2017-04-12 09:23:13,442] Global step count: 776
+1
+120
+[2017-04-12 09:23:15,692] Distributed model loss = -0.678781
+[2017-04-12 09:23:15,693] Global step count: 777
+1
+100
+[2017-04-12 09:23:17,910] Distributed model loss = -0.544281
+[2017-04-12 09:23:17,911] Global step count: 778
+1
+100
+[2017-04-12 09:23:18,038] Episode 78 finished after 1018 steps. Episode reward = -21.0
+[2017-04-12 09:23:20,078] Distributed model loss = -0.44597
+[2017-04-12 09:23:20,081] Global step count: 779
+1
+78
+[2017-04-12 09:23:22,311] Distributed model loss = 1.0141
+[2017-04-12 09:23:22,315] Global step count: 780
+1
+120
+[2017-04-12 09:23:24,556] Distributed model loss = 2.19657
+[2017-04-12 09:23:24,559] Global step count: 781
+1
+100
+[2017-04-12 09:23:26,740] Distributed model loss = -0.561693
+[2017-04-12 09:23:26,743] Global step count: 782
+1
+100
+[2017-04-12 09:23:28,904] Distributed model loss = -0.574971
+[2017-04-12 09:23:28,905] Global step count: 783
+1
+120
+[2017-04-12 09:23:31,159] Distributed model loss = -0.891728
+[2017-04-12 09:23:31,161] Global step count: 784
+1
+100
+[2017-04-12 09:23:33,374] Distributed model loss = 0.35848
+[2017-04-12 09:23:33,378] Global step count: 785
+1
+120
+[2017-04-12 09:23:35,669] Distributed model loss = -0.842719
+[2017-04-12 09:23:35,670] Global step count: 786
+1
+100
+[2017-04-12 09:23:37,887] Distributed model loss = -0.679538
+[2017-04-12 09:23:37,888] Global step count: 787
+1
+100
+[2017-04-12 09:23:40,127] Distributed model loss = -0.605435
+[2017-04-12 09:23:40,130] Global step count: 788
+1
+120
+[2017-04-12 09:23:40,207] Episode 79 finished after 1004 steps. Episode reward = -21.0
+[2017-04-12 09:23:42,365] Distributed model loss = -0.215822
+[2017-04-12 09:23:42,366] Global step count: 789
+1
+24
+[2017-04-12 09:23:44,546] Distributed model loss = 0.111996
+[2017-04-12 09:23:44,548] Global step count: 790
+1
+120
+[2017-04-12 09:23:46,769] Distributed model loss = 0.534213
+[2017-04-12 09:23:46,770] Global step count: 791
+1
+120
+[2017-04-12 09:23:49,045] Distributed model loss = -0.230291
+[2017-04-12 09:23:49,048] Global step count: 792
+1
+100
+[2017-04-12 09:23:51,212] Distributed model loss = -0.330901
+[2017-04-12 09:23:51,215] Global step count: 793
+1
+100
+[2017-04-12 09:23:53,432] Distributed model loss = -0.637839
+[2017-04-12 09:23:53,435] Global step count: 794
+1
+100
+[2017-04-12 09:23:55,638] Distributed model loss = -1.209
+[2017-04-12 09:23:55,641] Global step count: 795
+1
+100
+[2017-04-12 09:23:57,834] Distributed model loss = -0.723118
+[2017-04-12 09:23:57,837] Global step count: 796
+1
+100
+[2017-04-12 09:23:59,984] Distributed model loss = -0.71852
+[2017-04-12 09:23:59,987] Global step count: 797
+1
+100
+[2017-04-12 09:24:02,224] Distributed model loss = -0.347018
+[2017-04-12 09:24:02,225] Global step count: 798
+1
+100
+[2017-04-12 09:24:02,345] Episode 80 finished after 1015 steps. Episode reward = -21.0
+[2017-04-12 09:24:04,436] Distributed model loss = -0.552683
+[2017-04-12 09:24:04,437] Global step count: 799
+1
+75
+[2017-04-12 09:24:06,607] Distributed model loss = 0.280869
+[2017-04-12 09:24:06,608] Global step count: 800
+1
+100
+[2017-04-12 09:24:08,773] Distributed model loss = -0.729096
+[2017-04-12 09:24:08,775] Global step count: 801
+1
+100
+[2017-04-12 09:24:11,069] Distributed model loss = -0.319489
+[2017-04-12 09:24:11,070] Global step count: 802
+1
+100
+[2017-04-12 09:24:13,212] Distributed model loss = -0.45203
+[2017-04-12 09:24:13,213] Global step count: 803
+1
+120
+[2017-04-12 09:24:15,435] Distributed model loss = -0.886184
+[2017-04-12 09:24:15,437] Global step count: 804
+1
+100
+[2017-04-12 09:24:17,623] Distributed model loss = -0.829134
+[2017-04-12 09:24:17,624] Global step count: 805
+1
+100
+[2017-04-12 09:24:19,769] Distributed model loss = -0.749088
+[2017-04-12 09:24:19,772] Global step count: 806
+1
+120
+[2017-04-12 09:24:22,006] Distributed model loss = -0.773228
+[2017-04-12 09:24:22,007] Global step count: 807
+1
+100
+[2017-04-12 09:24:24,201] Distributed model loss = -0.445869
+[2017-04-12 09:24:24,203] Global step count: 808
+1
+100
+[2017-04-12 09:24:24,325] Episode 81 finished after 1021 steps. Episode reward = -21.0
+[2017-04-12 09:24:26,450] Distributed model loss = -0.333667
+[2017-04-12 09:24:26,453] Global step count: 809
+1
+81
+[2017-04-12 09:24:28,689] Distributed model loss = 0.888724
+[2017-04-12 09:24:28,690] Global step count: 810
+1
+100
+[2017-04-12 09:24:30,908] Distributed model loss = 283.013
+[2017-04-12 09:24:30,909] Global step count: 811
+1
+100
+[2017-04-12 09:24:33,142] Distributed model loss = -0.317182
+[2017-04-12 09:24:33,146] Global step count: 812
+1
+120
+[2017-04-12 09:24:35,342] Distributed model loss = -0.736273
+[2017-04-12 09:24:35,344] Global step count: 813
+1
+100
+[2017-04-12 09:24:37,558] Distributed model loss = -0.410064
+[2017-04-12 09:24:37,559] Global step count: 814
+1
+100
+[2017-04-12 09:24:39,801] Distributed model loss = 0.0135317
+[2017-04-12 09:24:39,804] Global step count: 815
+1
+120
+[2017-04-12 09:24:41,968] Distributed model loss = -1.1652
+[2017-04-12 09:24:41,969] Global step count: 816
+1
+100
+[2017-04-12 09:24:44,172] Distributed model loss = -0.567743
+[2017-04-12 09:24:44,173] Global step count: 817
+1
+120
+[2017-04-12 09:24:46,339] Distributed model loss = 0.315454
+[2017-04-12 09:24:46,340] Global step count: 818
+1
+100
+[2017-04-12 09:24:46,448] Episode 82 finished after 1028 steps. Episode reward = -21.0
+[2017-04-12 09:24:48,567] Distributed model loss = -0.420806
+[2017-04-12 09:24:48,568] Global step count: 819
+1
+68
+[2017-04-12 09:24:50,763] Distributed model loss = -1.68445
+[2017-04-12 09:24:50,765] Global step count: 820
+1
+100
+[2017-04-12 09:24:53,010] Distributed model loss = -0.846464
+[2017-04-12 09:24:53,011] Global step count: 821
+1
+100
+[2017-04-12 09:24:55,262] Distributed model loss = -0.181875
+[2017-04-12 09:24:55,263] Global step count: 822
+1
+120
+[2017-04-12 09:24:57,498] Distributed model loss = -0.597768
+[2017-04-12 09:24:57,499] Global step count: 823
+1
+100
+[2017-04-12 09:24:59,664] Distributed model loss = -0.131662
+[2017-04-12 09:24:59,667] Global step count: 824
+1
+100
+[2017-04-12 09:25:01,887] Distributed model loss = -0.624856
+[2017-04-12 09:25:01,889] Global step count: 825
+1
+100
+[2017-04-12 09:25:04,117] Distributed model loss = -0.435666
+[2017-04-12 09:25:04,118] Global step count: 826
+1
+100
+[2017-04-12 09:25:06,327] Distributed model loss = -0.50596
+[2017-04-12 09:25:06,330] Global step count: 827
+1
+120
+[2017-04-12 09:25:08,536] Distributed model loss = -0.946813
+[2017-04-12 09:25:08,537] Global step count: 828
+1
+100
+[2017-04-12 09:25:08,670] Episode 83 finished after 1028 steps. Episode reward = -21.0
+[2017-04-12 09:25:10,738] Distributed model loss = -0.397816
+[2017-04-12 09:25:10,739] Global step count: 829
+1
+88
+[2017-04-12 09:25:12,929] Distributed model loss = 0.276888
+[2017-04-12 09:25:12,931] Global step count: 830
+1
+100
+[2017-04-12 09:25:15,086] Distributed model loss = 0.766764
+[2017-04-12 09:25:15,087] Global step count: 831
+1
+120
+[2017-04-12 09:25:17,304] Distributed model loss = -0.862588
+[2017-04-12 09:25:17,305] Global step count: 832
+1
+100
+[2017-04-12 09:25:19,524] Distributed model loss = -0.782835
+[2017-04-12 09:25:19,527] Global step count: 833
+1
+100
+[2017-04-12 09:25:21,769] Distributed model loss = -0.437948
+[2017-04-12 09:25:21,770] Global step count: 834
+1
+100
+[2017-04-12 09:25:24,035] Distributed model loss = -0.0572792
+[2017-04-12 09:25:24,038] Global step count: 835
+1
+100
+[2017-04-12 09:25:26,216] Distributed model loss = -0.502336
+[2017-04-12 09:25:26,219] Global step count: 836
+1
+100
+[2017-04-12 09:25:28,423] Distributed model loss = -0.623187
+[2017-04-12 09:25:28,426] Global step count: 837
+1
+100
+[2017-04-12 09:25:30,690] Distributed model loss = -0.596819
+[2017-04-12 09:25:30,691] Global step count: 838
+1
+120
+[2017-04-12 09:25:30,816] Episode 84 finished after 1007 steps. Episode reward = -21.0
+[2017-04-12 09:25:32,919] Distributed model loss = -0.780026
+[2017-04-12 09:25:32,920] Global step count: 839
+1
+67
+[2017-04-12 09:25:35,146] Distributed model loss = -2.2897
+[2017-04-12 09:25:35,147] Global step count: 840
+1
+120
+[2017-04-12 09:25:37,387] Distributed model loss = 0.685852
+[2017-04-12 09:25:37,389] Global step count: 841
+1
+100
+[2017-04-12 09:25:39,615] Distributed model loss = 0.134431
+[2017-04-12 09:25:39,618] Global step count: 842
+1
+120
+[2017-04-12 09:25:41,831] Distributed model loss = -0.792913
+[2017-04-12 09:25:41,832] Global step count: 843
+1
+100
+[2017-04-12 09:25:44,080] Distributed model loss = -0.569882
+[2017-04-12 09:25:44,083] Global step count: 844
+1
+100
+[2017-04-12 09:25:46,308] Distributed model loss = 0.337426
+[2017-04-12 09:25:46,311] Global step count: 845
+1
+100
+[2017-04-12 09:25:48,592] Distributed model loss = -0.600055
+[2017-04-12 09:25:48,595] Global step count: 846
+1
+100
+[2017-04-12 09:25:50,802] Distributed model loss = -0.620633
+[2017-04-12 09:25:50,805] Global step count: 847
+1
+100
+[2017-04-12 09:25:53,075] Distributed model loss = -0.568404
+[2017-04-12 09:25:53,076] Global step count: 848
+1
+120
+[2017-04-12 09:25:53,196] Episode 85 finished after 1021 steps. Episode reward = -21.0
+[2017-04-12 09:25:55,345] Distributed model loss = -0.74268
+[2017-04-12 09:25:55,347] Global step count: 849
+1
+61
+[2017-04-12 09:25:57,617] Distributed model loss = -0.0732958
+[2017-04-12 09:25:57,618] Global step count: 850
+1
+120
+[2017-04-12 09:25:59,876] Distributed model loss = 0.410365
+[2017-04-12 09:25:59,877] Global step count: 851
+1
+120
+[2017-04-12 09:26:02,108] Distributed model loss = -0.985813
+[2017-04-12 09:26:02,109] Global step count: 852
+1
+100
+[2017-04-12 09:26:04,379] Distributed model loss = -0.569197
+[2017-04-12 09:26:04,380] Global step count: 853
+1
+100
+[2017-04-12 09:26:06,671] Distributed model loss = -0.623137
+[2017-04-12 09:26:06,672] Global step count: 854
+1
+100
+[2017-04-12 09:26:08,911] Distributed model loss = -0.402851
+[2017-04-12 09:26:08,914] Global step count: 855
+1
+100
+[2017-04-12 09:26:11,185] Distributed model loss = -0.74993
+[2017-04-12 09:26:11,188] Global step count: 856
+1
+120
+[2017-04-12 09:26:13,467] Distributed model loss = -1.0964
+[2017-04-12 09:26:13,468] Global step count: 857
+1
+100
+[2017-04-12 09:26:15,761] Distributed model loss = -0.419069
+[2017-04-12 09:26:15,764] Global step count: 858
+1
+100
+[2017-04-12 09:26:15,869] Episode 86 finished after 1025 steps. Episode reward = -21.0
+[2017-04-12 09:26:18,029] Distributed model loss = -0.504996
+[2017-04-12 09:26:18,031] Global step count: 859
+1
+65
+[2017-04-12 09:26:20,271] Distributed model loss = 1.33683
+[2017-04-12 09:26:20,273] Global step count: 860
+1
+100
+[2017-04-12 09:26:22,465] Distributed model loss = 0.01961
+[2017-04-12 09:26:22,468] Global step count: 861
+1
+100
+[2017-04-12 09:26:24,706] Distributed model loss = -0.647171
+[2017-04-12 09:26:24,709] Global step count: 862
+1
+100
+[2017-04-12 09:26:26,879] Distributed model loss = -0.684454
+[2017-04-12 09:26:26,880] Global step count: 863
+1
+120
+[2017-04-12 09:26:29,114] Distributed model loss = -0.977688
+[2017-04-12 09:26:29,116] Global step count: 864
+1
+100
+[2017-04-12 09:26:31,362] Distributed model loss = -1.27833
+[2017-04-12 09:26:31,365] Global step count: 865
+1
+100
+[2017-04-12 09:26:33,556] Distributed model loss = -0.749241
+[2017-04-12 09:26:33,557] Global step count: 866
+1
+100
+[2017-04-12 09:26:35,798] Distributed model loss = -0.506473
+[2017-04-12 09:26:35,801] Global step count: 867
+1
+120
+[2017-04-12 09:26:38,035] Distributed model loss = -0.845943
+[2017-04-12 09:26:38,037] Global step count: 868
+1
+120
+[2017-04-12 09:26:38,169] Episode 87 finished after 1032 steps. Episode reward = -21.0
+[2017-04-12 09:26:40,292] Distributed model loss = -1.14645
+[2017-04-12 09:26:40,294] Global step count: 869
+1
+72
+[2017-04-12 09:26:42,514] Distributed model loss = -0.0910133
+[2017-04-12 09:26:42,516] Global step count: 870
+1
+120
+[2017-04-12 09:26:44,804] Distributed model loss = 1.90174
+[2017-04-12 09:26:44,805] Global step count: 871
+1
+100
+[2017-04-12 09:26:47,013] Distributed model loss = -0.398393
+[2017-04-12 09:26:47,016] Global step count: 872
+1
+120
+[2017-04-12 09:26:49,214] Distributed model loss = -0.858708
+[2017-04-12 09:26:49,215] Global step count: 873
+1
+100
+[2017-04-12 09:26:51,461] Distributed model loss = -0.362261
+[2017-04-12 09:26:51,463] Global step count: 874
+1
+120
+[2017-04-12 09:26:53,648] Distributed model loss = -2.71055
+[2017-04-12 09:26:53,650] Global step count: 875
+1
+100
+[2017-04-12 09:26:55,920] Distributed model loss = -0.650533
+[2017-04-12 09:26:55,923] Global step count: 876
+1
+100
+[2017-04-12 09:26:58,153] Distributed model loss = -0.530343
+[2017-04-12 09:26:58,156] Global step count: 877
+1
+100
+[2017-04-12 09:27:00,357] Distributed model loss = -0.440709
+[2017-04-12 09:27:00,358] Global step count: 878
+1
+100
+[2017-04-12 09:27:00,460] Episode 88 finished after 1020 steps. Episode reward = -21.0
+[2017-04-12 09:27:02,541] Distributed model loss = -0.570907
+[2017-04-12 09:27:02,544] Global step count: 879
+1
+60
+[2017-04-12 09:27:04,773] Distributed model loss = 0.622815
+[2017-04-12 09:27:04,774] Global step count: 880
+1
+100
+[2017-04-12 09:27:06,997] Distributed model loss = -0.127996
+[2017-04-12 09:27:07,000] Global step count: 881
+1
+100
+[2017-04-12 09:27:09,265] Distributed model loss = -0.631823
+[2017-04-12 09:27:09,268] Global step count: 882
+1
+120
+[2017-04-12 09:27:11,492] Distributed model loss = -1.00727
+[2017-04-12 09:27:11,493] Global step count: 883
+1
+100
+[2017-04-12 09:27:13,734] Distributed model loss = -0.31256
+[2017-04-12 09:27:13,738] Global step count: 884
+1
+100
+[2017-04-12 09:27:15,985] Distributed model loss = -0.140334
+[2017-04-12 09:27:15,988] Global step count: 885
+1
+100
+[2017-04-12 09:27:18,194] Distributed model loss = -0.971246
+[2017-04-12 09:27:18,195] Global step count: 886
+1
+100
+[2017-04-12 09:27:20,398] Distributed model loss = -0.461347
+[2017-04-12 09:27:20,401] Global step count: 887
+1
+100
+[2017-04-12 09:27:22,575] Distributed model loss = -0.685365
+[2017-04-12 09:27:22,578] Global step count: 888
+1
+100
+[2017-04-12 09:27:22,712] Episode 89 finished after 1020 steps. Episode reward = -21.0
+[2017-04-12 09:27:24,817] Distributed model loss = -0.562224
+[2017-04-12 09:27:24,820] Global step count: 889
+1
+100
+[2017-04-12 09:27:27,053] Distributed model loss = -2.12167
+[2017-04-12 09:27:27,055] Global step count: 890
+1
+100
+[2017-04-12 09:27:29,286] Distributed model loss = -3.69213
+[2017-04-12 09:27:29,289] Global step count: 891
+1
+100
+[2017-04-12 09:27:31,449] Distributed model loss = -0.606744
+[2017-04-12 09:27:31,450] Global step count: 892
+1
+100
+[2017-04-12 09:27:33,736] Distributed model loss = -0.725065
+[2017-04-12 09:27:33,737] Global step count: 893
+1
+100
+[2017-04-12 09:27:35,887] Distributed model loss = -0.613672
+[2017-04-12 09:27:35,888] Global step count: 894
+1
+100
+[2017-04-12 09:27:38,104] Distributed model loss = -0.700097
+[2017-04-12 09:27:38,107] Global step count: 895
+1
+100
+[2017-04-12 09:27:40,322] Distributed model loss = -0.845063
+[2017-04-12 09:27:40,325] Global step count: 896
+1
+100
+[2017-04-12 09:27:42,495] Distributed model loss = -0.641051
+[2017-04-12 09:27:42,496] Global step count: 897
+1
+100
+[2017-04-12 09:27:44,746] Distributed model loss = -0.58383
+[2017-04-12 09:27:44,747] Global step count: 898
+1
+120
+[2017-04-12 09:27:44,885] Episode 90 finished after 990 steps. Episode reward = -21.0
+[2017-04-12 09:27:47,020] Distributed model loss = -1.08152
+[2017-04-12 09:27:47,022] Global step count: 899
+1
+70
+[2017-04-12 09:27:49,215] Distributed model loss = 0.884186
+[2017-04-12 09:27:49,216] Global step count: 900
+1
+100
+[2017-04-12 09:27:51,472] Distributed model loss = -0.0987878
+[2017-04-12 09:27:51,475] Global step count: 901
+1
+100
+[2017-04-12 09:27:53,689] Distributed model loss = -0.0985855
+[2017-04-12 09:27:53,692] Global step count: 902
+1
+120
+[2017-04-12 09:27:55,939] Distributed model loss = -0.852722
+[2017-04-12 09:27:55,941] Global step count: 903
+1
+100
+[2017-04-12 09:27:58,218] Distributed model loss = -0.60246
+[2017-04-12 09:27:58,220] Global step count: 904
+1
+100
+[2017-04-12 09:28:00,499] Distributed model loss = -0.451327
+[2017-04-12 09:28:00,502] Global step count: 905
+1
+100
+[2017-04-12 09:28:02,757] Distributed model loss = -0.716821
+[2017-04-12 09:28:02,758] Global step count: 906
+1
+100
+[2017-04-12 09:28:04,958] Distributed model loss = -0.486942
+[2017-04-12 09:28:04,961] Global step count: 907
+1
+120
+[2017-04-12 09:28:07,223] Distributed model loss = -0.860698
+[2017-04-12 09:28:07,224] Global step count: 908
+1
+120
+[2017-04-12 09:28:07,363] Episode 91 finished after 1033 steps. Episode reward = -21.0
+[2017-04-12 09:28:09,463] Distributed model loss = -1.06662
+[2017-04-12 09:28:09,464] Global step count: 909
+1
+73
+[2017-04-12 09:28:11,688] Distributed model loss = -1.39864
+[2017-04-12 09:28:11,690] Global step count: 910
+1
+120
+[2017-04-12 09:28:13,933] Distributed model loss = -7.71766
+[2017-04-12 09:28:13,934] Global step count: 911
+1
+100
+[2017-04-12 09:28:16,158] Distributed model loss = 3.30088
+[2017-04-12 09:28:16,160] Global step count: 912
+1
+100
+[2017-04-12 09:28:18,394] Distributed model loss = -0.646705
+[2017-04-12 09:28:18,395] Global step count: 913
+1
+100
+[2017-04-12 09:28:20,622] Distributed model loss = -0.353821
+[2017-04-12 09:28:20,624] Global step count: 914
+1
+100
+[2017-04-12 09:28:22,884] Distributed model loss = -0.414045
+[2017-04-12 09:28:22,885] Global step count: 915
+1
+120
+[2017-04-12 09:28:25,122] Distributed model loss = -1.71836
+[2017-04-12 09:28:25,124] Global step count: 916
+1
+100
+[2017-04-12 09:28:27,367] Distributed model loss = -0.711549
+[2017-04-12 09:28:27,369] Global step count: 917
+1
+100
+[2017-04-12 09:28:29,651] Distributed model loss = -0.498954
+[2017-04-12 09:28:29,653] Global step count: 918
+1
+100
+[2017-04-12 09:28:29,770] Episode 92 finished after 1012 steps. Episode reward = -21.0
+[2017-04-12 09:28:31,866] Distributed model loss = -0.716964
+[2017-04-12 09:28:31,868] Global step count: 919
+1
+72
+[2017-04-12 09:28:34,049] Distributed model loss = 0.567745
+[2017-04-12 09:28:34,050] Global step count: 920
+1
+100
+[2017-04-12 09:28:36,314] Distributed model loss = 0.657976
+[2017-04-12 09:28:36,316] Global step count: 921
+1
+100
+[2017-04-12 09:28:38,606] Distributed model loss = -0.658697
+[2017-04-12 09:28:38,607] Global step count: 922
+1
+100
+[2017-04-12 09:28:40,863] Distributed model loss = -0.245791
+[2017-04-12 09:28:40,866] Global step count: 923
+1
+100
+[2017-04-12 09:28:43,104] Distributed model loss = -0.727728
+[2017-04-12 09:28:43,105] Global step count: 924
+1
+120
+[2017-04-12 09:28:45,355] Distributed model loss = -0.407534
+[2017-04-12 09:28:45,357] Global step count: 925
+1
+100
+[2017-04-12 09:28:47,611] Distributed model loss = -0.579961
+[2017-04-12 09:28:47,614] Global step count: 926
+1
+120
+[2017-04-12 09:28:49,899] Distributed model loss = -0.772452
+[2017-04-12 09:28:49,900] Global step count: 927
+1
+120
+[2017-04-12 09:28:52,197] Distributed model loss = -0.93585
+[2017-04-12 09:28:52,198] Global step count: 928
+1
+100
+[2017-04-12 09:28:52,296] Episode 93 finished after 1015 steps. Episode reward = -21.0
+[2017-04-12 09:28:54,467] Distributed model loss = -0.641552
+[2017-04-12 09:28:54,469] Global step count: 929
+1
+55
+[2017-04-12 09:28:56,654] Distributed model loss = -0.0156679
+[2017-04-12 09:28:56,656] Global step count: 930
+1
+120
+[2017-04-12 09:28:58,875] Distributed model loss = 0.318599
+[2017-04-12 09:28:58,877] Global step count: 931
+1
+100
+[2017-04-12 09:29:01,081] Distributed model loss = -23.2456
+[2017-04-12 09:29:01,085] Global step count: 932
+1
+120
+[2017-04-12 09:29:03,387] Distributed model loss = -0.817621
+[2017-04-12 09:29:03,388] Global step count: 933
+1
+100
+[2017-04-12 09:29:05,568] Distributed model loss = -0.629183
+[2017-04-12 09:29:05,571] Global step count: 934
+1
+120
+[2017-04-12 09:29:07,759] Distributed model loss = -2.21892
+[2017-04-12 09:29:07,760] Global step count: 935
+1
+100
+[2017-04-12 09:29:10,046] Distributed model loss = -0.466715
+[2017-04-12 09:29:10,047] Global step count: 936
+1
+100
+[2017-04-12 09:29:12,298] Distributed model loss = -0.57109
+[2017-04-12 09:29:12,299] Global step count: 937
+1
+100
+[2017-04-12 09:29:14,488] Distributed model loss = -0.655746
+[2017-04-12 09:29:14,489] Global step count: 938
+1
+100
+[2017-04-12 09:29:14,608] Episode 94 finished after 1031 steps. Episode reward = -21.0
+[2017-04-12 09:29:16,732] Distributed model loss = -0.619997
+[2017-04-12 09:29:16,736] Global step count: 939
+1
+71
+[2017-04-12 09:29:19,016] Distributed model loss = 0.740381
+[2017-04-12 09:29:19,019] Global step count: 940
+1
+120
+[2017-04-12 09:29:21,256] Distributed model loss = 1.64705
+[2017-04-12 09:29:21,258] Global step count: 941
+1
+120
+[2017-04-12 09:29:23,500] Distributed model loss = -0.606108
+[2017-04-12 09:29:23,501] Global step count: 942
+1
+100
+[2017-04-12 09:29:25,773] Distributed model loss = -0.513024
+[2017-04-12 09:29:25,774] Global step count: 943
+1
+100
+[2017-04-12 09:29:27,995] Distributed model loss = -0.36649
+[2017-04-12 09:29:27,998] Global step count: 944
+1
+100
+[2017-04-12 09:29:30,267] Distributed model loss = 0.0200258
+[2017-04-12 09:29:30,270] Global step count: 945
+1
+100
+[2017-04-12 09:29:32,523] Distributed model loss = -0.499412
+[2017-04-12 09:29:32,524] Global step count: 946
+1
+100
+[2017-04-12 09:29:34,730] Distributed model loss = -0.730039
+[2017-04-12 09:29:34,733] Global step count: 947
+1
+100
+[2017-04-12 09:29:36,929] Distributed model loss = -0.589516
+[2017-04-12 09:29:36,932] Global step count: 948
+1
+100
+[2017-04-12 09:29:37,069] Episode 95 finished after 1029 steps. Episode reward = -21.0
+[2017-04-12 09:29:39,239] Distributed model loss = -0.54889
+[2017-04-12 09:29:39,240] Global step count: 949
+1
+89
+[2017-04-12 09:29:41,478] Distributed model loss = 0.967906
+[2017-04-12 09:29:41,480] Global step count: 950
+1
+100
+[2017-04-12 09:29:43,746] Distributed model loss = 0.968008
+[2017-04-12 09:29:43,747] Global step count: 951
+1
+100
+[2017-04-12 09:29:45,950] Distributed model loss = -2.16889
+[2017-04-12 09:29:45,952] Global step count: 952
+1
+100
+[2017-04-12 09:29:48,223] Distributed model loss = -0.434856
+[2017-04-12 09:29:48,226] Global step count: 953
+1
+100
+[2017-04-12 09:29:50,397] Distributed model loss = -0.749704
+[2017-04-12 09:29:50,398] Global step count: 954
+1
+100
+[2017-04-12 09:29:52,705] Distributed model loss = -0.675744
+[2017-04-12 09:29:52,706] Global step count: 955
+1
+100
+[2017-04-12 09:29:54,925] Distributed model loss = 1.94395
+[2017-04-12 09:29:54,926] Global step count: 956
+1
+100
+[2017-04-12 09:29:57,132] Distributed model loss = -0.438931
+[2017-04-12 09:29:57,133] Global step count: 957
+1
+100
+[2017-04-12 09:29:59,336] Distributed model loss = -0.629335
+[2017-04-12 09:29:59,338] Global step count: 958
+1
+100
+[2017-04-12 09:29:59,505] Episode 96 finished after 1013 steps. Episode reward = -21.0
+[2017-04-12 09:30:01,545] Distributed model loss = -0.651477
+[2017-04-12 09:30:01,548] Global step count: 959
+1
+100
+[2017-04-12 09:30:03,874] Distributed model loss = 0.438889
+[2017-04-12 09:30:03,875] Global step count: 960
+1
+13
+[2017-04-12 09:30:05,946] Distributed model loss = -0.0509971
+[2017-04-12 09:30:05,948] Global step count: 961
+1
+100
+[2017-04-12 09:30:08,159] Distributed model loss = 4.09882
+[2017-04-12 09:30:08,162] Global step count: 962
+1
+100
+[2017-04-12 09:30:10,354] Distributed model loss = -0.0597905
+[2017-04-12 09:30:10,355] Global step count: 963
+1
+100
+[2017-04-12 09:30:12,605] Distributed model loss = -0.557833
+[2017-04-12 09:30:12,607] Global step count: 964
+1
+100
+[2017-04-12 09:30:14,914] Distributed model loss = -0.762807
+[2017-04-12 09:30:14,915] Global step count: 965
+1
+100
+[2017-04-12 09:30:17,097] Distributed model loss = -0.621619
+[2017-04-12 09:30:17,098] Global step count: 966
+1
+100
+[2017-04-12 09:30:19,321] Distributed model loss = 1.68474
+[2017-04-12 09:30:19,323] Global step count: 967
+1
+100
+Exception in thread Thread-2:
+Traceback (most recent call last):
+  File "/usr/local/Cellar/python/2.7.10_2/Frameworks/Python.framework/Versions/2.7/lib/python2.7/threading.py", line 810, in __bootstrap_inner
+    self.run()
+  File "/Users/Michael/PycharmProjects/TensorForce/tensorforce/execution/thread_runner.py", line 68, in run
+    self.experience_queue.put(next(executor), timeout=600.0)
+  File "/usr/local/Cellar/python/2.7.10_2/Frameworks/Python.framework/Versions/2.7/lib/python2.7/Queue.py", line 134, in put
+    raise Full
+Full
+
+[2017-04-12 09:41:23,465] Distributed model loss = -0.589544
+[2017-04-12 09:41:23,468] Global step count: 968
+1
+100
+[2017-04-12 09:41:25,692] Distributed model loss = -0.843863
+[2017-04-12 09:41:25,695] Global step count: 969
+INFO:tensorflow:Error reported to Coordinator: <class 'Queue.Empty'>, 
+[2017-04-12 09:54:53,009] Error reported to Coordinator: <class 'Queue.Empty'>, 
+Traceback (most recent call last):
+  File "/Users/Michael/PycharmProjects/TensorForce/tensorforce/examples/openai_gym_async.py", line 166, in <module>
+    main()
+  File "/Users/Michael/PycharmProjects/TensorForce/tensorforce/examples/openai_gym_async.py", line 162, in main
+    runner.run()
+  File "/Users/Michael/PycharmProjects/TensorForce/tensorforce/execution/distributed_runner.py", line 138, in run
+    runner.update()
+  File "/Users/Michael/PycharmProjects/TensorForce/tensorforce/execution/thread_runner.py", line 127, in update
+    experience = self.experience_queue.get(timeout=600.0)
+  File "/usr/local/Cellar/python/2.7.10_2/Frameworks/Python.framework/Versions/2.7/lib/python2.7/Queue.py", line 176, in get
+    raise Empty
+Queue.Empty

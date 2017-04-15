@@ -1,5 +1,5 @@
 {
-  "loglevel": "debug",
+  "loglevel": "info",
   "batch_size": 200,
   "use_gae": false,
   "normalize_advantage" : false,

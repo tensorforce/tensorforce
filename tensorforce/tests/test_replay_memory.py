@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Replay memory testing.
+Replay replay_memory testing.
 """
 
 from __future__ import absolute_import
@@ -29,7 +29,7 @@ from tensorforce.replay_memories import ReplayMemory
 
 def test_replay_memory():
     """
-    Testing replay memory.
+    Testing replay replay_memory.
     """
     capacity = np.random.randint(5, 8)
     batch_size = np.random.randint(capacity)

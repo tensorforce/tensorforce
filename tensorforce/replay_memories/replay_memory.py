@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Replay memory to store observations and sample
+Replay replay_memory to store observations and sample
 mini batches for training from.
 """
 
@@ -42,7 +42,7 @@ class ReplayMemory(object):
                  *args,
                  **kwargs):
         """
-        Initializes a replay memory.
+        Initializes a replay replay_memory.
 
         :param memory_capacity: Memory size
         :param state_shape: Shape of state tensor
@@ -83,7 +83,7 @@ class ReplayMemory(object):
 
     def add_experience(self, state, action, reward, terminal):
         """
-        Inserts an experience tuple to the memory.
+        Inserts an experience tuple to the replay_memory.
 
         :param state: State observed
         :param action: Action(s) taken

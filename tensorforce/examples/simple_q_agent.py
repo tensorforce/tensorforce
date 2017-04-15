@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Simple Q agent as an example on how to implement own agents and models.
+Simple Q agent as an example on how to implement new agents and models.
 """
 
 from __future__ import absolute_import
@@ -101,7 +101,7 @@ class SimpleQModel(Model):
         """
         Update model parameters
 
-        :param batch: memory batch
+        :param batch: replay_memory batch
         :return:
         """
         # Get Q values for next states

@@ -120,18 +120,12 @@ class DQFDAgent(RLAgent):
 
         if self.step_count >= self.min_replay_size and self.step_count % self.update_steps == 0:
             for _ in xrange(self.update_repeat):
-                # Sample batches according to expert sampling ratio, merge, update
+                # Sample batches according to expert sampling ratio
                 # In the paper, p is given as p = n_demo / (n_replay + n_demo)
                 demo_batch = self.demo_memory.sample_batch(self.demo_batch_size)
                 online_batch = self.demo_memory.sample_batch(self.batch_size)
 
-                demo_batch['states'].append(online_batch['states'])
-                demo_batch['actions'].append(online_batch['actions'])
-                demo_batch['rewards'].append(online_batch['rewards'])
-                demo_batch['next_states'].append(online_batch['next_states'])
-                demo_batch['terminals'].append(online_batch['terminals'])
-
-                self.model.update(demo_batch)
+                self.model.update(demo_batch, online_batch)
 
         if self.step_count >= self.min_replay_size and self.use_target_network \
                 and self.step_count % self.target_update_steps == 0:

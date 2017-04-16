@@ -21,6 +21,7 @@ from tensorforce.agents.naf_agent import NAFAgent
 from tensorforce.agents.pg_agent import PGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
 from tensorforce.agents.vpg_agent import VPGAgent
+from tensorforce.agents.dqfd_agent import DQFDAgent
 
 __all__ = ['RLAgent', 'RandomAgent', 'MemoryAgent', 'DQNAgent', 'NAFAgent',
-           'PGAgent', 'TRPOAgent', 'VPGAgent']
+           'PGAgent', 'TRPOAgent', 'VPGAgent', 'DQFDAgent']

@@ -70,11 +70,12 @@ class TRPOModel(PGModel):
             prev_log_prob = tf.reshape(prev_log_prob, [-1])
 
             prob_ratio = tf.exp(current_log_prob - prev_log_prob)
-            surrogate_loss = -tf.reduce_mean(prob_ratio * tf.reshape(self.advantage, [-1]))
+            surrogate_loss = -tf.reduce_mean(prob_ratio * tf.reshape(self.advantage, [-1]), axis=0)
             variables = tf.trainable_variables()
 
             batch_float = tf.cast(self.batch_size, tf.float32)
 
+            # reshape, extract dict
             mean_kl_divergence = self.dist.kl_divergence(self.prev_dist, self.policy.get_policy_variables())\
                                  / batch_float
             mean_entropy = self.dist.entropy(self.policy.get_policy_variables()) / batch_float

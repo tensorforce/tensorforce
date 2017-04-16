@@ -1,6 +1,7 @@
 {
   "loglevel": "debug",
   "expert_sampling_ratio": 0.01,
+  "supervised_weight": 1.0,
   "memory_capacity": 1e5,
   "batch_size": 32,
   "update_rate": 0.25,
@@ -10,7 +11,6 @@
   "min_replay_size": 5e4,
   "alpha": 0.00025,
   "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
-  "double_dqn": false,
   "optimizer_param": {
     "momentum": 0.95,
     "epsilon": 0.01

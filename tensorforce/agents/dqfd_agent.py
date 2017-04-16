@@ -23,14 +23,14 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 from six.moves import xrange
+
 from tensorforce.config import create_config
 from tensorforce.replay_memories import ReplayMemory
 from tensorforce.agents import RLAgent
 
 
-#TODO Michael: should probably inherit from memory_agent
+# TODO Michael: should probably inherit from memory_agent
 class DQFDAgent(RLAgent):
-
     model = None
 
     default_config = {
@@ -57,12 +57,17 @@ class DQFDAgent(RLAgent):
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
+        # TODO we might want different sizes for these memories -> add config param
         self.demo_memory = ReplayMemory(**self.config)
 
         self.step_count = 0
 
-        # Called p in paper, controls
+        # Called p in paper, controls ratio of expert vs online training samples
         self.expert_sampling_ratio = self.config.expert_sampling_ratio
+
+        # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
+        self.demo_batch_size = self.expert_sampling_ratio * self.batch_size / \
+                               (1.0 - self.expert_sampling_ratio)
 
         self.update_repeat = self.config.update_repeat
         self.batch_size = self.config.batch_size
@@ -87,9 +92,15 @@ class DQFDAgent(RLAgent):
     def pretrain(self, steps=1):
         """
         
-        :param steps: Number of pre-train gradient updates.
+        :param steps: Number of pre-train updates to perform.
         
         """
+        for _ in xrange(steps):
+            # Sample from demo memory
+            batch = self.demo_memory.sample_batch(self.batch_size)
+
+            # Update using both double Q-learning and supervised double_q_loss
+            self.model.pretrain_update(batch)
 
     def add_observation(self, state, action, reward, terminal):
         """
@@ -103,7 +114,28 @@ class DQFDAgent(RLAgent):
         :param terminal: 
         :return: 
         """
-        pass
+        self.replay_memory.add_experience(state, action, reward, terminal)
+
+        self.step_count += 1
+
+        if self.step_count >= self.min_replay_size and self.step_count % self.update_steps == 0:
+            for _ in xrange(self.update_repeat):
+                # Sample batches according to expert sampling ratio, merge, update
+                # In the paper, p is given as p = n_demo / (n_replay + n_demo)
+                demo_batch = self.demo_memory.sample_batch(self.demo_batch_size)
+                online_batch = self.demo_memory.sample_batch(self.batch_size)
+
+                demo_batch['states'].append(online_batch['states'])
+                demo_batch['actions'].append(online_batch['actions'])
+                demo_batch['rewards'].append(online_batch['rewards'])
+                demo_batch['next_states'].append(online_batch['next_states'])
+                demo_batch['terminals'].append(online_batch['terminals'])
+
+                self.model.update(demo_batch)
+
+        if self.step_count >= self.min_replay_size and self.use_target_network \
+                and self.step_count % self.target_update_steps == 0:
+            self.model.update_target_network()
 
     def get_action(self, *args, **kwargs):
         """

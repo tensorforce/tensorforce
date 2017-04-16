@@ -20,16 +20,11 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from collections import defaultdict
 import numpy as np
 from copy import deepcopy
 
 from tensorforce.config import create_config
 from tensorforce.models.distributed_pg_model import DistributedPGModel
-
-
-# TODO move get path to utility function
-from tensorforce.util.experiment_util import get_path
 
 
 class DistributedAgent(object):

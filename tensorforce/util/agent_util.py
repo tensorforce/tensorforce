@@ -63,5 +63,6 @@ agents = {
     'DQNAgent': DQNAgent,
     'NAFAgent': NAFAgent,
     'TRPOAgent': TRPOAgent,
-    'VPGAgent': VPGAgent
+    'VPGAgent': VPGAgent,
+    'DQFDAgent': DQFDAgent,
 }

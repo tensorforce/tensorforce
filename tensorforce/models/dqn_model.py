@@ -188,10 +188,9 @@ class DQNModel(Model):
 
     def create_training_operations(self):
         """
-        Create graph operations for compute_surrogate_loss computation and
+        Create graph operations for loss computation and
         target network updates.
 
-        :return:
         """
         with tf.name_scope(self.scope):
             with tf.name_scope("predict"):

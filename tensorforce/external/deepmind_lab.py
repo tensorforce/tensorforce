@@ -49,13 +49,13 @@ class DeepMindLabEnvironment(Environment):
         level = deepmind_lab.Lab(level_id, ())
         return level.action_spec()
 
-    def __init__(self, level_id, state_attributes=('RGB_INTERLACED',), num_steps=1, settings={'width': 320, 'height': 240, 'fps': 60, 'appendCommand': ''}):
+    def __init__(self, level_id, num_steps=1, state_attributes=('RGB_INTERLACED',), settings={'width': 320, 'height': 240, 'fps': 60, 'appendCommand': ''}):
         """
         Initialize DeepMind Lab environment.
 
         :param level_id: string with id/descriptor of the level, e.g. 'seekavoid_arena_01'
-        :param state_attributes: list of attributes which represent the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id)
         :param num_steps: number of frames the environment is advanced, executing the given action during every frame
+        :param state_attributes: list of attributes which represent the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id)
         :param settings: dict specifying additional settings as key-value string pairs. The following options are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
         """
         self.level_id = level_id
@@ -89,6 +89,18 @@ class DeepMindLabEnvironment(Environment):
         state = self.level.observations()
         terminal_state = self.level.is_running()
         return dict(state=state, reward=reward, terminal_state=terminal_state)
+
+    @property
+    def actions(self):
+        return len(self.level.action_spec())
+
+    @property
+    def action_shape(self):
+        return self.level.action_spec()
+
+    @property
+    def state_shape(self):
+        return self.level.state_spec()
 
     @property
     def num_steps(self):

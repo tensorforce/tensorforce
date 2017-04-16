@@ -40,6 +40,7 @@ class PGModel(Model):
 
         self.continuous = self.config.continuous
         self.batch_size = self.config.batch_size
+        self.max_episode_length = min(self.config.max_episode_length, self.batch_size)
         self.action_count = self.config.actions
 
         # advantage estimation
@@ -116,14 +117,14 @@ class PGModel(Model):
         zero_episode = {
             'episode_length': 0,
             'terminated': False,
-            'states': np.zeros(shape=((self.batch_size,) + self.state_shape)),
-            'actions': np.zeros(shape=(self.batch_size, self.action_count)),
-            'action_means': np.zeros(shape=(self.batch_size, self.action_count)),
-            'rewards': np.zeros(shape=(self.batch_size, 1))
+            'states': np.zeros(shape=((self.max_episode_length,) + self.state_shape)),
+            'actions': np.zeros(shape=(self.max_episode_length, self.action_count)),
+            'action_means': np.zeros(shape=(self.max_episode_length, self.action_count)),
+            'rewards': np.zeros(shape=(self.max_episode_length, 1))
         }
 
         if self.continuous:
-            zero_episode['action_log_stds'] = np.zeros(shape=(self.batch_size, self.action_count))
+            zero_episode['action_log_stds'] = np.zeros(shape=(self.max_episode_length, self.action_count))
 
         return zero_episode
 

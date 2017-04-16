@@ -27,7 +27,7 @@ import logging
 import numpy as np
 
 from tensorforce.config import Config
-from tensorforce.external.openai_gym import OpenAIGymEnvironment
+from tensorforce.external.deepmind_lab import DeepMindLabEnvironment
 from tensorforce.util.experiment_util import build_preprocessing_stack
 from tensorforce.util.agent_util import create_agent
 from tensorforce.util.config_util import log_levels
@@ -37,7 +37,7 @@ from tensorforce.execution import Runner
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('gym_id', help="ID of the gym environment")
+    parser.add_argument('level_id', help="DeepMind Lab level id")
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-config', help="Network configuration file")
@@ -53,8 +53,7 @@ def main():
 
     args = parser.parse_args()
 
-    env = OpenAIGymEnvironment(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
-    print(env.action_shape)
+    env = DeepMindLabEnvironment(args.level_id)
 
     config = Config({
         'repeat_actions': 1,

@@ -127,13 +127,14 @@ Update notes
 ------------
 
 Coming soon:
+
 - DeepMind lab runner example, test script exists but need to write bazel BUILD files
 - More example scripts and predefined configurations for typical environments
 - Q-Prop: Sample-Efficient Policy Gradient with An Off-Policy Critic: `paper <https://arxiv.org/abs/1611.02247>`__
 
 16th April 2017:
-- Work in progress on new model: Deep-Q learning from demonstration , DQFD model and agent added,
-  `paper <https://arxiv.org/abs/1704.03732>`__
+
+- Work in progress on new model: Deep-Q learning from demonstration, DQFD model and agent added: `paper <https://arxiv.org/abs/1704.03732>`__
 
 12th April 2017:
 

@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Default implementation for using a replay replay_memory.
+Default implementation for using a replay memory.
 """
 
 from __future__ import absolute_import

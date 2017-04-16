@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Replay replay_memory to store observations and sample
+Replay memory to store observations and sample
 mini batches for training from.
 """
 
@@ -42,7 +42,7 @@ class ReplayMemory(object):
                  *args,
                  **kwargs):
         """
-        Initializes a replay replay_memory.
+        Initializes a replay memory.
 
         :param memory_capacity: Memory size
         :param state_shape: Shape of state tensor

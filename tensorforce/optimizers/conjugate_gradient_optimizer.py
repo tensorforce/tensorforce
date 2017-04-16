@@ -22,7 +22,7 @@ used for large sparse systems.
 
 The key idea of cg ist that the next conjugate vector p_k can be computed
 just based on the previous search direction as a linear combination of the negative residual and previous
-search direction, instead of using a replay_memory intensive orthogonalization process such as Gram-Schmidt.
+search direction, instead of using a memory intensive orthogonalization process such as Gram-Schmidt.
 """
 
 from __future__ import absolute_import

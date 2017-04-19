@@ -23,16 +23,17 @@ class Categorical(Distribution):
         super(Categorical, self).__init__(random)
 
     def kl_divergence(self, dist_a, dist_b):
-        prob_a = dist_a['policy_output']
-        prob_b = dist_b['policy_output']
+        # Why do we reshape here? To go from per episode separate KL divergence to per batch KL divergence
+        prob_a = tf.reshape(dist_a['policy_output'], [-1])
+        prob_b = tf.reshape(dist_b['policy_output'], [-1])
 
         # Need to ensure numerical stability
-        return tf.reduce_sum(prob_a * tf.log((prob_a + self.epsilon) / (prob_b + self.epsilon)), axis=[2])
+        return tf.reduce_sum(prob_a * tf.log((prob_a + self.epsilon) / (prob_b + self.epsilon)), axis=[0])
 
     def entropy(self, dist):
-        prob = dist['policy_output']
+        prob = tf.reshape(dist['policy_output'], [-1])
 
-        return -tf.reduce_sum(prob * tf.log((prob + self.epsilon)))
+        return -tf.reduce_sum(prob * tf.log(prob + self.epsilon), axis=[0])
 
     def log_prob(self, dist, actions):
         prob = dist['policy_output']

@@ -54,7 +54,6 @@ def main():
     args = parser.parse_args()
 
     env = OpenAIGymEnvironment(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
-    print(env.action_shape)
 
     config = Config({
         'repeat_actions': 1,

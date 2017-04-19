@@ -36,25 +36,25 @@ class Gaussian(Distribution):
                       - 0.5 * tf.log(tf.constant(2 * np.pi)) - log_std
 
         # Sum logs
-        return tf.reduce_sum(probability)
+        return tf.reduce_sum(probability, axis=[2])
 
     def kl_divergence(self, dist_a, dist_b,):
-        mean_a = dist_a['policy_output']
-        log_std_a = dist_a['policy_log_std']
+        mean_a = tf.reshape(dist_a['policy_output'], [-1])
+        log_std_a = tf.reshape(dist_a['policy_log_std'], [-1])
 
-        mean_b = dist_b['policy_output']
-        log_std_b = dist_b['policy_log_std']
+        mean_b = tf.reshape(dist_b['policy_output'], [-1])
+        log_std_b = tf.reshape(dist_b['policy_log_std'], [-1])
 
         exp_std_a = tf.exp(2 * log_std_a)
         exp_std_b = tf.exp(2 * log_std_b)
 
         return tf.reduce_sum(log_std_b - log_std_a
-                             + (exp_std_a + tf.square(mean_a - mean_b)) / (2 * exp_std_b) - 0.5)
+                             + (exp_std_a + tf.square(mean_a - mean_b)) / (2 * exp_std_b) - 0.5, axis=[0])
 
     def entropy(self, dist):
-        log_std = dist['policy_log_std']
+        log_std = tf.reshape(dist['policy_log_std'], [-1])
 
-        return tf.reduce_sum(log_std + tf.constant(0.5 * np.log(2 * np.pi * np.e), tf.float32))
+        return tf.reduce_sum(log_std + tf.constant(0.5 * np.log(2 * np.pi * np.e), tf.float32), axis=[0])
 
     def fixed_kl(self, dist):
         """

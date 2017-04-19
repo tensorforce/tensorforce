@@ -73,7 +73,7 @@ class PGModel(Model):
         # requiring to set the concrete policy, at least currently
         if self.continuous:
             self.policy = GaussianPolicy(self.network, self.session, self.state, self.random, self.action_count, 'gaussian_policy')
-            self.prev_action_log_stds = tf.placeholder(tf.float32, (None, self.batch_size, self.action_count))
+            self.prev_action_log_stds = tf.placeholder(tf.float32, (None, None, self.action_count))
             self.prev_dist = dict(
                 policy_output=self.prev_action_means,
                 policy_log_std=self.prev_action_log_stds)
@@ -88,7 +88,7 @@ class PGModel(Model):
         size = 1
         for dims in self.state_shape:
             size *= dims
-        self.baseline_value_function = MLPValueFunction(self.session, state_size=size, layer_size=100)  # LinearValueFunction()
+        self.baseline_value_function = LinearValueFunction()
        # self.saver = tf.train.Saver()
 
     def get_action(self, state, episode=1):

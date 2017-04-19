@@ -34,8 +34,8 @@ class GaussianPolicy(StochasticPolicy):
         with tf.variable_scope(scope):
             action_means = linear(network.output, {'num_outputs': action_count}, 'action_mu')
             # Random init for log standard deviations
-            log_standard_devs_init = tf.Variable(0.01 * random.randn(1, action_count), dtype=tf.float32)
-            action_log_stds = tf.tile(log_standard_devs_init, tf.stack((tf.shape(action_means)[0], 1)))
+            log_standard_devs_init = tf.Variable(0.01 * random.randn(1, 1, action_count), dtype=tf.float32)
+            action_log_stds = tf.tile(log_standard_devs_init, (tf.shape(action_means)[0], tf.shape(action_means)[1], 1))
 
         super(GaussianPolicy, self).__init__(network, [action_means, action_log_stds], session, state, random, action_count)
         self.dist = Gaussian(random)

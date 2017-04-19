@@ -107,7 +107,6 @@ class DQNModel(Model):
 
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
-            self.logger.debug('Taking random action = ' + str(action))
         else:
             fetches = [self.dqn_action]
             fetches.extend(self.training_internal_states)

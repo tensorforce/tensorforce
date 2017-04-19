@@ -114,7 +114,7 @@ class TRPOModel(PGModel):
         # Set per episode return and advantage
         for episode in batch:
             episode['returns'] = discount(episode['rewards'], self.gamma)
-            episode['advantages'] = self.generalised_advantage_estimation(episode)
+            episode['advantages'] = self.advantage_estimation(episode)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)

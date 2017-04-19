@@ -38,6 +38,7 @@ class DQFDMOdel(Model):
         self.action_count = self.config.actions
         self.tau = self.config.tau
         self.gamma = self.config.gamma
+        self.supervised_weight = self.config.supervised_weight
 
         self.clip_value = None
         if self.config.clip_gradients:
@@ -84,7 +85,7 @@ class DQFDMOdel(Model):
         self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
         self.session.run(self.init_op)
 
-    def pretrain_update(self, batch):
+    def pretrain_update(self, demo_batch):
         """
         Computes the pre-training update.
         :param batch: 
@@ -93,8 +94,16 @@ class DQFDMOdel(Model):
         self.logger.debug('Computing pre-training update..')
         pass
 
-    def update(self, batch):
+    def update(self, online_batch, demo_batch=None):
+        """
+        Applies dqfd loss on online data and demo data.
+                
+        :param online_batch: 
+        :param demo_batch: 
+
+        """
         pass
+
 
     def get_action(self, state, episode=1):
         """
@@ -169,6 +178,7 @@ class DQFDMOdel(Model):
 
             # Self.actions gets fed the actual actions that have been taken
             self.actions = tf.placeholder(tf.int32, (None, None), name='actions')
+            self.expert_actions = tf.placeholder(tf.int32, (None, None), name='expert_actions')
 
             # One_hot tensor of the actions that have been taken
             actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
@@ -177,10 +187,21 @@ class DQFDMOdel(Model):
             q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, axis=2,
                                                    name='q_acted')
 
+            # Expert action Q values
+            expert_actions_one_hot = tf.one_hot(self.expert_actions, self.action_count, 1.0, 0.0, name='action_one_hot')
+            q_values_expert_actions = tf.reduce_sum(self.training_output * expert_actions_one_hot, axis=2,
+                                                   name='q_expert_acted')
+
             delta = self.q_targets - q_values_actions_taken
 
-            #TODO introduce other loss components
             self.double_q_loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
+
+            #TODO missing the large margin loss for the 0 here
+            self.supervised_loss = 0 - q_values_expert_actions
+
+            # Combining double q loss with supervised loss
+            self.combined_loss = self.double_q_loss + self.supervised_weight * self.supervised_loss
+
 
             self.grads_and_vars = self.optimizer.compute_gradients(self.double_q_loss)
             self.optimize_op = self.optimizer.apply_gradients(self.grads_and_vars)

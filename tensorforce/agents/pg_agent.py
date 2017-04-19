@@ -36,13 +36,14 @@ class PGAgent(RLAgent):
 
     model = None
 
-    def __init__(self, config, scope='pg_agent'):
+    def __init__(self, config, scope='pg_agent', network_builder=None):
         self.config = create_config(config, default=self.default_config)
         assert issubclass(self.__class__.model, PGModel)
-        self.model = self.__class__.model(self.config, scope)
+        self.model = self.__class__.model(self.config, scope, network_builder=network_builder)
         self.continuous = self.config.continuous
 
         self.batch_size = self.config.batch_size
+        self.max_episode_length = min(self.config.max_episode_length, self.batch_size)
         self.current_batch = []
         self.batch_step = 0
 
@@ -110,7 +111,7 @@ class PGAgent(RLAgent):
         self.batch_step += 1
         self.episode_step += 1
 
-        if terminal:
+        if terminal or self.episode_step == self.max_episode_length:
             self.current_batch.append(self.current_episode)
             self.current_episode = self.model.zero_episode()
             self.episode_step = 0

@@ -35,7 +35,7 @@ from tensorforce.util.math_util import discount, zero_mean_unit_variance
 
 class PGModel(Model):
 
-    def __init__(self, config, scope, define_network=None):
+    def __init__(self, config, scope, network_builder=None):
         super(PGModel, self).__init__(config, scope)
 
         self.continuous = self.config.continuous
@@ -60,13 +60,13 @@ class PGModel(Model):
         self.prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')
         self.advantage = tf.placeholder(tf.float32, shape=(None, None, 1), name='advantage')
 
-        if define_network is None:
-            define_network = NeuralNetwork.layered_network(self.config.network_layers)
+        if network_builder is None:
+            network_builder = NeuralNetwork.layered_network(self.config.network_layers)
         if self.config.tf_scope is None:
             scope = ''
         else:
             scope = self.config.tf_scope + '-'
-        self.network = NeuralNetwork(define_network, inputs=[self.state], episode_length=self.episode_length, scope=scope + 'value_function')
+        self.network = NeuralNetwork(network_builder, inputs=[self.state], episode_length=self.episode_length, scope=scope + 'value_function')
         self.internal_states = self.network.internal_state_inits
 
         # From an API perspective, continuous vs discrete might be easier than
@@ -85,7 +85,10 @@ class PGModel(Model):
         # Probability distribution used in the current policy
         self.dist = self.policy.get_distribution()
 
-        self.baseline_value_function = LinearValueFunction()
+        size = 1
+        for dims in self.state_shape:
+            size *= dims
+        self.baseline_value_function = MLPValueFunction(self.session, state_size=size, layer_size=100)  # LinearValueFunction()
        # self.saver = tf.train.Saver()
 
     def get_action(self, state, episode=1):
@@ -128,7 +131,7 @@ class PGModel(Model):
 
         return zero_episode
 
-    def generalised_advantage_estimation(self, episode):
+    def advantage_estimation(self, episode):
         """
          Expects an episode, returns advantages according to config.
         """

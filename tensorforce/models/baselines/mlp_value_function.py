@@ -34,7 +34,7 @@ class MLPValueFunction(ValueFunction):
         self.session = session
         self.mlp = None
         self.update_iterations = update_iterations
-        self.labels = tf.placeholder(tf.float32, shape=[None], name="labels")
+        self.labels = tf.placeholder(tf.float32, shape=(None, 1), name="labels")
         self.create_net(state_size=state_size, layer_size=layer_size)
 
     def predict(self, path):
@@ -53,15 +53,15 @@ class MLPValueFunction(ValueFunction):
         with tf.variable_scope("mlp_value_function"):
             self.input = tf.placeholder(tf.float32, shape=[None, self.get_features_size(state_size)], name="input")
 
-            define_network = NeuralNetwork.layered_network((
+            network_builder = NeuralNetwork.layered_network((
                 {'type': 'dense', 'num_outputs': layer_size},
                 {'type': 'dense', 'num_outputs': 1}))
-            network = NeuralNetwork(define_network=define_network, inputs=[self.input])
+            network = NeuralNetwork(network_builder=network_builder, inputs=[self.input])
 
             # hidden_1 = dense(layer_input=self.input, {'num_outputs': input_shape}, scope='hidden_1')
             # hidden_2 = dense(hidden_1, {'num_outputs': self.layer_size}, scope='hidden_2')
             # out = dense(hidden_2, {'num_outputs': 1}, scope='out')
-            self.mlp = tf.reshape(network.output, (-1,))
+            self.mlp = tf.reshape(network.output, (-1, 1))
 
             l2 = tf.nn.l2_loss(self.mlp - self.labels)
             self.update = tf.train.AdamOptimizer().minimize(l2)

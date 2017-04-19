@@ -40,8 +40,8 @@ from tensorforce.default_configs import TRPOModelConfig
 class TRPOModel(PGModel):
     default_config = TRPOModelConfig
 
-    def __init__(self, config, scope):
-        super(TRPOModel, self).__init__(config, scope)
+    def __init__(self, config, scope, network_builder=None):
+        super(TRPOModel, self).__init__(config, scope, network_builder=network_builder)
 
         # TRPO specific parameters
         self.cg_damping = self.config.cg_damping

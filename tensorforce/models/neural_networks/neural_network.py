@@ -33,7 +33,7 @@ tf_slim = tf.contrib.slim
 
 class NeuralNetwork(object):
 
-    def __init__(self, define_network, inputs, episode_length=None, scope='value_function'):
+    def __init__(self, network_builder, inputs, episode_length=None, scope='value_function'):
         """
         A neural network.
 
@@ -44,7 +44,7 @@ class NeuralNetwork(object):
         with tf.variable_scope(scope):
             self.inputs = inputs
             self.episode_length = episode_length
-            network = define_network(inputs, episode_length)
+            network = network_builder(inputs, episode_length)
 
             if isinstance(network, list) or isinstance(network, tuple):
                 assert len(network) == 4
@@ -72,7 +72,7 @@ class NeuralNetwork(object):
         if not layers:
             raise ConfigError("Invalid configuration, missing layer specification.")
 
-        def define_network(inputs, episode_length=None):
+        def network_builder(inputs, episode_length=None):
             assert len(inputs) == 1  # layered network only has one input
             layer = inputs[0]
             internal_state_inputs = []
@@ -99,4 +99,4 @@ class NeuralNetwork(object):
             else:
                 return layer
 
-        return define_network
+        return network_builder

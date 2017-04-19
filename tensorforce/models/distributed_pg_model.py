@@ -79,7 +79,7 @@ class DistributedPGModel(object):
         # This is the scope used to prefix variable creation for distributed TensorFlow
         self.batch_shape = [None]
         self.deterministic_mode = config.get('deterministic_mode', False)
-        self.alpha = config.get('alpha', 0.001)
+        self.learning_rate = config.get('learning_rate', 0.001)
         self.optimizer = None
 
         self.worker_device = "/job:worker/task:{}/cpu:0".format(task_index)
@@ -194,11 +194,11 @@ class DistributedPGModel(object):
             # TODO write summaries
             # self.summary_writer = tf.summary.FileWriter('log' + "_%d" % self.task_index)
             if not self.optimizer:
-                self.optimizer = tf.train.AdamOptimizer(self.alpha)
+                self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
 
             else:
                 optimizer_cls = get_function(self.optimizer)
-                self.optimizer = optimizer_cls(self.alpha, *self.optimizer_args, **self.optimizer_kwargs)
+                self.optimizer = optimizer_cls(self.learning_rate, *self.optimizer_args, **self.optimizer_kwargs)
 
             self.optimize_op = tf.group(self.optimizer.apply_gradients(grad_var_list),
                                      global_step_inc)

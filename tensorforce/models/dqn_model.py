@@ -88,7 +88,6 @@ class DQNModel(Model):
 
         # Create training operations
         self.create_training_operations()
-        self.optimizer = tf.train.RMSPropOptimizer(self.alpha, momentum=0.95, epsilon=0.01)
 
         self.init_op = tf.global_variables_initializer()
 

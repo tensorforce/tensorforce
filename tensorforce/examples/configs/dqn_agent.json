@@ -7,7 +7,7 @@
   "use_target_network": true,
   "target_network_update_rate": 0.0001,
   "min_replay_size": 5e4,
-  "alpha": 0.00025,
+  "learning_rate": 0.00025,
   "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
   "double_dqn": false,
   "optimizer_param": {

@@ -30,8 +30,8 @@ from tensorforce.util.math_util import discount
 class VPGModel(PGModel):
     default_config = VPGModelConfig
 
-    def __init__(self, config, scope):
-        super(VPGModel, self).__init__(config, scope)
+    def __init__(self, config, scope, network_builder=None):
+        super(VPGModel, self).__init__(config, scope, network_builder=network_builder)
 
         self.create_training_operations()
         self.session.run(tf.global_variables_initializer())
@@ -58,7 +58,7 @@ class VPGModel(PGModel):
         # Set per episode return and advantage
         for episode in batch:
             episode['returns'] = discount(episode['rewards'], self.gamma)
-            episode['advantages'] = self.generalised_advantage_estimation(episode)
+            episode['advantages'] = self.advantage_estimation(episode)
 
         # Update linear value function for baseline prediction
         self.baseline_value_function.fit(batch)

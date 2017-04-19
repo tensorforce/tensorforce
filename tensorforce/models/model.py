@@ -56,16 +56,16 @@ class Model(object):
         self.deterministic_mode = config.get('deterministic_mode', False)
         self.episode_length = tf.placeholder(tf.int32, (None,), name='episode_length')
 
-        self.alpha = config.get('alpha', 0.001)
+        self.learning_rate = config.get('learning_rate', 0.001)
 
         optimizer = config.get('optimizer')
         if not optimizer:
-            self.optimizer = tf.train.AdamOptimizer(self.alpha)
+            self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
         else:
             args = config.get('optimizer_args', [])
             kwargs = config.get('optimizer_kwargs', {})
             optimizer_cls = get_function(optimizer)
-            self.optimizer = optimizer_cls(self.alpha, *args, **kwargs)
+            self.optimizer = optimizer_cls(self.learning_rate, *args, **kwargs)
 
         exploration = config.get('exploration')
         if not exploration:

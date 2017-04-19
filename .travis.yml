@@ -1,7 +1,11 @@
+sudo: required
+dist: trusty
 language: python
 python:
   - "2.7"
   - "3.5"
 
-install: pip install .
+install:
+  - pip install tensorflow
+  - pip install .
 script: nosetests

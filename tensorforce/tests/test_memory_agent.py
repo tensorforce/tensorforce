@@ -21,6 +21,7 @@ from __future__ import print_function
 from __future__ import division
 
 from six.moves import xrange
+from tensorforce.config import Config
 
 import numpy as np
 
@@ -62,7 +63,8 @@ def test_memoryagent_update_frequency():
 
     memory_capacity = np.random.randint(int(5e3), int(1e4))
 
-    config = {
+    config = Config({
+        'loglevel': 'debug',
         'actions': np.random.randint(2, 10),
         'batch_size': np.random.randint(2, 32),
         'update_rate': 1.0 / update_steps,
@@ -73,7 +75,7 @@ def test_memoryagent_update_frequency():
         'memory_capacity': memory_capacity,
         'state_shape': state_shape,
         'action_shape': []
-    }
+    })
 
     agent = MemoryAgent(config, scope="memoryagent")
     model = TestModel(config)

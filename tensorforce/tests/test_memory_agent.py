@@ -30,9 +30,9 @@ from tensorforce.models import Model
 from tensorforce.config import create_config
 
 
-class TestModel(Model):
+class MemoryAgentTestModel(Model):
     def __init__(self, config):
-        super(TestModel, self).__init__(config, scope="testmodel")
+        super(MemoryAgentTestModel, self).__init__(config, scope="testmodel")
         self.config = create_config(config, default={})
 
         self.actions = self.config.actions
@@ -78,7 +78,7 @@ def test_memoryagent_update_frequency():
     })
 
     agent = MemoryAgent(config, scope="memoryagent")
-    model = TestModel(config)
+    model = MemoryAgentTestModel(config)
 
     # Set value function manually
     agent.model = model

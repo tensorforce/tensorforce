@@ -33,7 +33,7 @@ def test_preprocessing_grayscale():
     """
     pp = preprocessing.grayscale.Grayscale()
 
-    shape = list(np.random.randint(1, 20, size=2)) + [3]
+    shape = list(np.random.randint(1, 8, size=2)) + [3]
     state = np.random.randint(0, 255, size=shape)
 
     # verify expected shape
@@ -53,7 +53,7 @@ def test_preprocessing_concat():
 
     pp = preprocessing.concat.Concat(concat_length)
 
-    shape = list(np.random.randint(1, 20, size=3))
+    shape = list(np.random.randint(1, 8, size=3))
     state = np.random.randint(0, 255, size=shape)
 
     # verify expected shape
@@ -85,11 +85,11 @@ def test_preprocessing_imresize():
     """
     Testing imresize preprocessor. Verifies expected and calculated state shapes.
     """
-    dimensions = list(np.random.randint(10, 20, size=2))
+    dimensions = list(np.random.randint(4, 8, size=2))
 
     pp = preprocessing.imresize.Imresize(*dimensions)
 
-    shape = list(np.random.randint(1, 20, size=2))
+    shape = list(np.random.randint(1, 8, size=2))
     state = np.random.randint(0, 255, size=shape)
 
     # verify expected shape
@@ -109,7 +109,7 @@ def test_preprocessing_maximum():
 
     pp = preprocessing.maximum.Maximum(count)
 
-    shape = list(np.random.randint(1, 20, size=3))
+    shape = list(np.random.randint(1, 8, size=3))
     state = np.random.randint(0, 255, size=shape)
 
     # verify expected shape

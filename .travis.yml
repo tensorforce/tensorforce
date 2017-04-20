@@ -7,7 +7,13 @@ python:
 
 install:
   - pip install -U pip
-  - pip install -U pytest
+  - pip install pytest-xdist
   - pip install tensorflow
   - pip install .
-script: pytest
+script: pytest -s
+notifications:
+  email:
+    recipients:
+      - contact@reinforce.io
+    on_success: never
+    on_failure: always

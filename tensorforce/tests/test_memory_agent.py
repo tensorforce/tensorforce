@@ -58,10 +58,10 @@ def test_memoryagent_update_frequency():
     update_steps = np.random.randint(1, 10)
     target_update_steps = np.random.randint(20, 200)
 
-    state_shape = list(np.random.randint(2, 20, size=3))
-    min_replay_size = np.random.randint(int(1e3), int(2e3))
+    state_shape = list(np.random.randint(2, 8, size=3))
+    min_replay_size = np.random.randint(int(1e2), int(2e2))
 
-    memory_capacity = np.random.randint(int(5e3), int(1e4))
+    memory_capacity = np.random.randint(int(5e2), int(1e3))
 
     config = Config({
         'loglevel': 'debug',
@@ -90,7 +90,7 @@ def test_memoryagent_update_frequency():
     assert agent.min_replay_size == config['min_replay_size']
     assert agent.use_target_network == config['use_target_network']
 
-    max_steps = np.random.randint(int(1e4), int(2e4))
+    max_steps = np.random.randint(int(5e3), int(1e4))
 
     print("Testing MemoryAgent for {} steps.".format(max_steps))
     print("Memory capacity: {}".format(config['memory_capacity']))

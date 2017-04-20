@@ -52,7 +52,7 @@ class Maximum(Preprocessor):
         self._queue.append(state)
 
         # If queue is too short, fill with current state.
-        while len(self._queue) < self.config.concat_length:
+        while len(self._queue) < self.config.count:
             self._queue.append(state)
 
         return np.max(np.array(self._queue), axis=0)

@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-OpenAI gym execution
+Deepmind lab execution
 """
 
 from __future__ import absolute_import
@@ -127,8 +127,6 @@ def main():
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
 
-    if args.monitor:
-        env.gym.monitor.close()
     env.close()
 
 

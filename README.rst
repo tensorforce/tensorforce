@@ -11,7 +11,7 @@ Introduction
 TensorForce is an open source reinforcement learning library focused on
 providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
-TensorForce is built on top of TensorFlow.
+TensorForce is built on top of TensorFlow and compatible with Python 2.7 and >3.5.
 
 The main difference to existing libraries is a strict
 separation of environments, agents and update logic that facilitates
@@ -76,9 +76,31 @@ from the examples folder:
 
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_cartpole.json
     -n tensorforce/examples/configs/trpo_network_example.json
-    
+
 Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__. We also wrote some tests which
 can be run from the main directory by executing :code:`nosetests`.
+
+Use with DeepMind lab
+---------------------
+
+Since DeepMind lab is only available as source code, a manual install via bazel is required. Further, due to the way bazel handles external dependencies, cloning TensorForce into lab is the most convenient way to run it using the bazel BUILD file we provide. To use lab, first download and install it according to instructions https://github.com/deepmind/lab/blob/master/docs/build.md:
+
+::
+
+   git clone https://github.com/deepmind/lab.git
+
+Add to the lab main BUILD file:
+
+::
+
+   package(default_visibility = ["//visibility:public"])
+
+Clone TensorForce into the lab directory, then run the TensorForce bazel runner:
+
+::
+
+   bazel run //tensorforce:lab_runner
+
 
 Create and use agents
 ---------------------
@@ -128,9 +150,12 @@ Update notes
 
 Coming soon:
 
-- DeepMind lab runner example, test script exists but need to write bazel BUILD files
 - More example scripts and predefined configurations for typical environments
 - Q-Prop: Sample-Efficient Policy Gradient with An Off-Policy Critic: `paper <https://arxiv.org/abs/1611.02247>`__
+
+22nd April 2017:
+
+- Added bazel BUILD file and instructions to run TensorForce with DeepMind lab.
 
 16th April 2017:
 

@@ -38,7 +38,7 @@ from tensorforce.execution import Runner
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('level_id', default='tests/demo_map',help="DeepMind Lab level id")
+    parser.add_argument('level_id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-config', help="Network configuration file")
@@ -124,7 +124,7 @@ def main():
             logger.info("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
         return True
 
-    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
+    logger.info("Starting {agent} for Lab environment '{env}'".format(agent=agent, env=env))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
 

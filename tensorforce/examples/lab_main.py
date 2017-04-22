@@ -38,7 +38,7 @@ from tensorforce.execution import Runner
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('level_id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
+    parser.add_argument('-id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-config', help="Network configuration file")

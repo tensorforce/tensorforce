@@ -49,7 +49,7 @@ class DeepMindLabEnvironment(Environment):
         level = deepmind_lab.Lab(level_id, ())
         return level.action_spec()
 
-    def __init__(self, level_id, num_steps=1, state_attributes=('RGB_INTERLACED',), settings={'width': 320, 'height': 240, 'fps': 60, 'appendCommand': ''}):
+    def __init__(self, level_id, num_steps=1, state_attributes=['RGB_INTERLACED'], settings={'width': 320, 'height': 240, 'fps': 60, 'appendCommand': ''}):
         """
         Initialize DeepMind Lab environment.
 

@@ -18,6 +18,7 @@ Default configuration for TRPO Agent and TRPO Model.
 """
 
 TRPOAgentConfig = {
+    "loglevel": "debug",
     "batch_size": 1000,
 
 }
@@ -25,7 +26,6 @@ TRPOAgentConfig = {
 TRPOModelConfig = {
     "actions": None,
     "continuous": False,
-
     "gamma": 0.97,
     "use_gae": False,
     "gae_gamma": 0.97,

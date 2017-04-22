@@ -18,6 +18,7 @@ Default configuration for NAF Agent and VPG Model.
 """
 
 VPGAgentConfig = {
+    "loglevel": "debug",
     "batch_size": 100,
     "continuous": False,
 }

@@ -18,6 +18,7 @@ Default configuration for NAF Agent and NAF Model.
 """
 
 NAFAgentConfig = {
+    "loglevel": "debug",
     "memory_capacity": 1e5,
     "batch_size": 20,
 

@@ -18,6 +18,7 @@ Default configuration for DQN Agent and DQN Model.
 """
 
 DQNAgentConfig = {
+    "loglevel": "debug",
     "memory_capacity": 1e5,
     "batch_size": 32,
 

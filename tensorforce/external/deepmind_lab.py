@@ -28,7 +28,6 @@ from tensorforce.environments.environment import Environment
 
 
 class DeepMindLabEnvironment(Environment):
-
     @staticmethod
     def state_spec(level_id):
         """
@@ -49,7 +48,8 @@ class DeepMindLabEnvironment(Environment):
         level = deepmind_lab.Lab(level_id, ())
         return level.action_spec()
 
-    def __init__(self, level_id, num_steps=1, state_attributes=['RGB_INTERLACED'], settings={'width': 320, 'height': 240, 'fps': 60, 'appendCommand': ''}):
+    def __init__(self, level_id, num_steps=1, state_attributes=['RGB_INTERLACED'],
+                 settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}):
         """
         Initialize DeepMind Lab environment.
 
@@ -60,7 +60,7 @@ class DeepMindLabEnvironment(Environment):
         """
         self.level_id = level_id
         self.level = deepmind_lab.Lab(level=level_id, observations=state_attributes, config=settings)
-        self.num_steps = num_steps
+        self._num_steps = num_steps
 
     def reset(self):
         """
@@ -85,9 +85,10 @@ class DeepMindLabEnvironment(Environment):
         :param action: action to execute as numpy array, should have dtype np.intc and should adhere to the specification given in DeepMindLabEnvironment.action_spec(level_id)
         :return: dict containing the next state, the reward, and a boolean indicating if the next state is a terminal state
         """
-        reward = self.level.step(action=action, num_steps=self.num_steps)
+        reward = self.level.step(action=action, num_steps=self._num_steps)
         state = self.level.observations()
         terminal_state = self.level.is_running()
+
         return dict(state=state, reward=reward, terminal_state=terminal_state)
 
     @property
@@ -100,7 +101,7 @@ class DeepMindLabEnvironment(Environment):
 
     @property
     def state_shape(self):
-        return self.level.state_spec()
+        return self.level.observation_spec()
 
     @property
     def num_steps(self):

@@ -25,7 +25,7 @@ import os
 import argparse
 import logging
 import numpy as np
-
+import deepmind_lab
 from tensorforce.config import Config
 from tensorforce.external.deepmind_lab import DeepMindLabEnvironment
 from tensorforce.util.experiment_util import build_preprocessing_stack
@@ -37,7 +37,7 @@ from tensorforce.execution import Runner
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('level_id', help="DeepMind Lab level id")
+    parser.add_argument('level_id', default='',help="DeepMind Lab level id")
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-config', help="Network configuration file")

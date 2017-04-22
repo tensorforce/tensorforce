@@ -8,9 +8,9 @@ py_library(
 
 py_binary(
     name = "lab_runner",
-    srcs = ["tensorforce/examples/deepmind_lab.py"],
+    srcs = ["tensorforce/examples/lab_main.py"],
     data = ["//:deepmind_lab.so"],
-    main = "tensorforce/examples/deepmind_lab.py",
+    main = "tensorforce/examples/lab_main.py",
     deps = [":tensorforce"]
 )
 

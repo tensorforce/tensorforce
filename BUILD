@@ -1,7 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
 py_library(
-    name = "tforce",
+    name = "tensorforce",
     imports = [":tensorforce"],
     srcs = glob(["tensorforce/**/*.py"])
 )
@@ -11,7 +11,7 @@ py_binary(
     srcs = ["tensorforce/examples/deepmind_lab.py"],
     data = ["//:deepmind_lab.so"],
     main = "tensorforce/examples/deepmind_lab.py",
-    deps = [":tforce"]
+    deps = [":tensorforce"]
 )
 
 

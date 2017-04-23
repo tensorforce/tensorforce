@@ -27,6 +27,7 @@ import argparse
 import logging
 import numpy as np
 import deepmind_lab
+logger = logging.getLogger(__name__)
 
 from tensorforce.config import Config
 from tensorforce.external.deepmind_lab import DeepMindLabEnvironment
@@ -78,7 +79,6 @@ def main():
     if args.network_config:
         config.read_json(path + args.network_config)
 
-    logger = logging.getLogger(__name__)
     logger.setLevel(log_levels[config.loglevel])
 
     preprocessing_config = config.get('preprocessing')

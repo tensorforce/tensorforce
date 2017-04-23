@@ -3,8 +3,7 @@
 
 .. image:: https://badges.gitter.im/reinforceio/TensorForce.svg
    :alt: Join the chat at https://gitter.im/reinforceio/TensorForce
-   :target: https://gitter.im/reinforceio/TensorForce?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
-.. image:: https://travis-ci.org/reinforceio/tensorforce.svg?branch=master
+   :target: https://gitter.im/reinforceio/TensorForce?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge .. image:: https://travis-ci.org/reinforceio/tensorforce.svg?branch=master
 
 Introduction
 ------------

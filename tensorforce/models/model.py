@@ -48,7 +48,7 @@ class Model(object):
         self.config = create_config(config, default=self.default_config)
 
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(log_levels[config.loglevel])
+        self.logger.setLevel(log_levels[config.get('loglevel', 'info')])
 
         # This is the scope used to prefix variable creation for distributed TensorFlow
         self.scope = scope

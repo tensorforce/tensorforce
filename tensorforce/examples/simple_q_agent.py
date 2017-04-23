@@ -59,13 +59,14 @@ class SimpleQModel(Model):
 
         with tf.device(self.config.tf_device):
             # Create state placeholder
-            # self.batch_shape is [None] (set in Model.__init__)
-            self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+            self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
 
             # Create neural network
             output_layer = [{"type": "linear", "num_outputs": self.action_count}]
-            self.network = NeuralNetwork(self.config.network_layers + output_layer, self.state, scope=self.scope + "network")
-            self.network_out = self.network.get_output()
+
+            define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer)
+            self.network = NeuralNetwork(define_network, [self.state], scope=self.scope + 'network')
+            self.network_out = self.network.output
 
             # Create operations
             self.create_ops()
@@ -73,6 +74,8 @@ class SimpleQModel(Model):
 
             # Create optimizer
             self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.alpha)
+
+            self.session.run(self.init_op)
 
     def get_action(self, state, episode=1):
         """
@@ -166,7 +169,7 @@ class SimpleQAgent(MemoryAgent):
     """
     name = 'SimpleQAgent'
 
-    model_ref = SimpleQModel
+    model = SimpleQModel
 
     default_config = {
         "memory_capacity": 1000,  # hold the last 100 observations in the replay memory

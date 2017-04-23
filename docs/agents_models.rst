@@ -224,7 +224,7 @@ MemoryAgent ist straightforward:
         def __init__(self, config, scope):
             """
             Initialize model, build network and tensorflow ops
-            
+    
             :param config: Config object or dict
             :param scope: tensorflow scope name
             """
@@ -235,13 +235,14 @@ MemoryAgent ist straightforward:
     
             with tf.device(self.config.tf_device):
                 # Create state placeholder
-                # self.batch_shape is [None] (set in Model.__init__)
-                self.state = tf.placeholder(tf.float32, self.batch_shape + list(self.config.state_shape), name="state")
+                self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
     
                 # Create neural network
                 output_layer = [{"type": "linear", "num_outputs": self.action_count}]
-                self.network = NeuralNetwork(self.config.network_layers + output_layer, self.state, scope=self.scope + "network")
-                self.network_out = self.network.get_output()
+    
+                define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer)
+                self.network = NeuralNetwork(define_network, [self.state], scope=self.scope + 'network')
+                self.network_out = self.network.output
     
                 # Create operations
                 self.create_ops()
@@ -250,15 +251,17 @@ MemoryAgent ist straightforward:
                 # Create optimizer
                 self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.alpha)
     
+                self.session.run(self.init_op)
+    
         def get_action(self, state, episode=1):
             """
             Get action for a given state
-            
-            :param state: ndarray containing the state 
+    
+            :param state: ndarray containing the state
             :param episode: number of episode (for epsilon decay and alike)
             :return: action
             """
-            
+    
             # self.exploration is initialized in Model.__init__ and provides an API for different explorations methods,
             # such as epsilon greedy.
             epsilon = self.exploration(episode, self.total_states)  # returns a float
@@ -276,9 +279,9 @@ MemoryAgent ist straightforward:
         def update(self, batch):
             """
             Update model parameters
-            
-            :param batch: memory batch 
-            :return: 
+    
+            :param batch: replay_memory batch
+            :return:
             """
             # Get Q values for next states
             next_q = self.session.run(self.network_out, {
@@ -298,15 +301,15 @@ MemoryAgent ist straightforward:
         def initialize(self):
             """
             Initialize model variables
-            :return: 
+            :return:
             """
             self.session.run(self.init_op)
     
         def create_ops(self):
             """
             Create tensorflow ops
-            
-            :return: 
+    
+            :return:
             """
             with tf.name_scope(self.scope):
                 with tf.name_scope("predict"):

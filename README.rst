@@ -95,7 +95,9 @@ Add to the lab main BUILD file:
 
    package(default_visibility = ["//visibility:public"])
 
-Clone TensorForce into the lab directory, then run the TensorForce bazel runner:
+Clone TensorForce into the lab directory, then run the TensorForce bazel runner. Note that using any specific configuration file requires
+changing the Tensorforce BUILD file to tell bazel to include the new file in the build (just change the filenames in the data
+line).
 
 ::
 
@@ -153,7 +155,7 @@ Coming soon:
 - More example scripts and predefined configurations for typical environments
 - Q-Prop: Sample-Efficient Policy Gradient with An Off-Policy Critic: `paper <https://arxiv.org/abs/1611.02247>`__
 
-22nd April 2017:
+23nd April 2017:
 
 - Added bazel BUILD file and instructions to run TensorForce with DeepMind lab.
 

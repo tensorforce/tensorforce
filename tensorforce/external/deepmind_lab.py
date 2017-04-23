@@ -23,6 +23,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import numpy as np
 import deepmind_lab
 from tensorforce.environments.environment import Environment
 
@@ -58,6 +59,9 @@ class DeepMindLabEnvironment(Environment):
         :param state_attributes: list of attributes which represent the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id)
         :param settings: dict specifying additional settings as key-value string pairs. The following options are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
         """
+
+        #TODO use state attributes as a key to fetch the right state from the state list
+        # whenever state is accessed
         self.level_id = level_id
         self.level = deepmind_lab.Lab(level=level_id, observations=state_attributes, config=settings)
         self._num_steps = num_steps
@@ -69,7 +73,7 @@ class DeepMindLabEnvironment(Environment):
         :return: initial state
         """
         self.level.reset()  # optional: episode=-1, seed=None
-        return self.level.observations()
+        return self.level.observations()['RGB_INTERLACED']
 
     def close(self):
         """
@@ -85,8 +89,16 @@ class DeepMindLabEnvironment(Environment):
         :param action: action to execute as numpy array, should have dtype np.intc and should adhere to the specification given in DeepMindLabEnvironment.action_spec(level_id)
         :return: dict containing the next state, the reward, and a boolean indicating if the next state is a terminal state
         """
-        reward = self.level.step(action=action, num_steps=self._num_steps)
-        state = self.level.observations()
+
+        #TODO this is not sensible at all for learning and just here to test lab connectivity
+        #TODO this will be replaced by a more general action representation
+        # Lab uses named action dicts while gym/universe use simple ints/arrays, so we
+        # will add wrapper
+        action_mask = np.zeros(len(self.level.action_spec()), dtype=np.intc)
+        action_mask[action] = 1
+        reward = self.level.step(action=action_mask, num_steps=self._num_steps)
+
+        state = self.level.observations()['RGB_INTERLACED']
         terminal_state = self.level.is_running()
 
         return dict(state=state, reward=reward, terminal_state=terminal_state)
@@ -97,11 +109,15 @@ class DeepMindLabEnvironment(Environment):
 
     @property
     def action_shape(self):
-        return self.level.action_spec()
+        #TODO also just for demonstrating basic lab connectivity
+        return []
+#       return [len(self.level.action_spec())]
 
     @property
     def state_shape(self):
-        return self.level.observation_spec()
+        # TODO this is just for demonstration, we need a more general way of
+        # modelling states
+        return self.level.observation_spec()[0]['shape']
 
     @property
     def num_steps(self):

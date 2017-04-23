@@ -21,6 +21,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import sys
 import os
 import argparse
 import logging
@@ -44,15 +45,18 @@ def main():
                         default='/configs/dqn_agent.json')
     parser.add_argument('-n', '--network-config', help="Network configuration file",
                         default='/configs/dqn_network.json')
-    parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
-    parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
+    parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
+    parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this directory")
     parser.add_argument('-ms', '--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
     parser.add_argument('-mv', '--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
     parser.add_argument('-s', '--save', help="Save agent to this dir")
     parser.add_argument('-se', '--save-episodes', type=int, default=100, help="Save agent every x episodes")
     parser.add_argument('-l', '--load', help="Load agent from this dir")
-    parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
+    parser.add_argument('-D', '--debug', action='store_true', default=True, help="Show debug outputs")
+
+    # Redirect output to file
+    sys.stdout = open('lab_output.txt', 'w')
 
     args = parser.parse_args()
 
@@ -68,22 +72,21 @@ def main():
     # This is necessary to give bazel the correct path
     path = os.path.dirname(__file__)
 
-
     if args.agent_config:
-        config.read_json(args.agent_config)
+        config.read_json(path + args.agent_config)
 
     if args.network_config:
-        config.read_json(args.network_config)
+        config.read_json(path + args.network_config)
 
     logger = logging.getLogger(__name__)
     logger.setLevel(log_levels[config.loglevel])
 
     preprocessing_config = config.get('preprocessing')
-    if preprocessing_config:
-        stack = build_preprocessing_stack(preprocessing_config)
-        config.state_shape = stack.shape(config.state_shape)
-    else:
-        stack = None
+    # if preprocessing_config:
+    #     stack = build_preprocessing_stack(preprocessing_config)
+    #     config.state_shape = stack.shape(config.state_shape)
+    # else:
+    stack = None
 
     if args.debug:
         logger.info("-" * 16)

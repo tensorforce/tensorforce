@@ -83,7 +83,9 @@ can be run from the main directory by executing :code:`nosetests`.
 Use with DeepMind lab
 ---------------------
 
-Since DeepMind lab is only available as source code, a manual install via bazel is required. Further, due to the way bazel handles external dependencies, cloning TensorForce into lab is the most convenient way to run it using the bazel BUILD file we provide. To use lab, first download and install it according to instructions https://github.com/deepmind/lab/blob/master/docs/build.md:
+Since DeepMind lab is only available as source code, a manual install via bazel is required. Further, due to the way bazel handles external dependencies,
+cloning TensorForce into lab is the most convenient way to run it using the bazel BUILD file we provide. To use lab, first download and install it
+according to instructions https://github.com/deepmind/lab/blob/master/docs/build.md:
 
 ::
 
@@ -103,6 +105,10 @@ line).
 
    bazel run //tensorforce:lab_runner
 
+
+Please note that we have not implemented any lab specific algorithms yet, and these instructions just explain connectivity
+in case someone wants to get started there. Please check out the todos in environments/deepmind_lab.py to see what's necessary if you are interested in implementing
+algorithms, or get in touch.
 
 Create and use agents
 ---------------------
@@ -150,27 +156,16 @@ then create an agent and use it as seen below (see documentation for all optiona
 Update notes
 ------------
 
-Coming soon:
-
-- More example scripts and predefined configurations for typical environments
-- Q-Prop: Sample-Efficient Policy Gradient with An Off-Policy Critic: `paper <https://arxiv.org/abs/1611.02247>`__
-
 23nd April 2017:
 
-- Added bazel BUILD file and instructions to run TensorForce with DeepMind lab.
+- Added bazel BUILD file and instructions to run TensorForce with DeepMind lab. Note that we have not implemented
+  any lab specific algorithms yet, we are just providing the integration. We will overhaul the action/state representation
+  soon to be more general, as lab uses dicts with named actions while gym/universe use flat arrays.
 
 16th April 2017:
 
 - Work in progress on new model: Deep-Q learning from demonstration, DQFD model and agent added: `paper <https://arxiv.org/abs/1704.03732>`__
 
-12th April 2017:
-
-- Optional LSTM usage in network configurations, layer types "lstm", and type "flatten" to explicitly reshape between layers,
-  support still experimental
-- Cleaner internal state management for policy gradient models, including recurrent states via a list of
-  internal states managed by the models.
-- More consistent tensor shapes between models
-- Log-level as config parameter, more informative logging for level INFO
 
 Road map and contributions
 --------------------------
@@ -197,7 +192,7 @@ larger road-map of things we would like to have (in no particular order) looks a
 Support and contact
 -------------------
 
-TensorForce is maintained by reinforce.io, a new project focused on
+TensorForce is maintained by `reinforce.io <https://reinforce.io>`__, a new project focused on
 providing open source reinforcement learning infrastructure. For any
 questions or support, get in touch at contact@reinforce.io.
 

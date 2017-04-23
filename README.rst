@@ -1,16 +1,16 @@
 *TensorForce - modular deep reinforcement learning in TensorFlow*
 =================================================================================
 
-.. |gitter| image:: https://badges.gitter.im/reinforceio/TensorForce.svg
+.. |logo1| image:: https://badges.gitter.im/reinforceio/TensorForce.svg
            :scale: 100%
            :target: https://gitter.im/reinforceio/TensorForce?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
            :align: middle
-.. |travis| image:: https://travis-ci.org/reinforceio/tensorforce.svg?branch=master
+.. |logo2| image:: https://travis-ci.org/reinforceio/tensorforce.svg?branch=master
    :scale: 50%
    :align: top
 
 +---------+---------+
-| |gitter| | |travis| |
+| |logo1| | |logo2| |
 +---------+---------+
 
 

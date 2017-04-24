@@ -134,6 +134,7 @@ then create an agent and use it as seen below (see documentation for all optiona
 
    # Set basic problem parameters
    config.batch_size = 1000
+   config.max_episode_length = 200
    config.state_shape = [10]
    config.actions = 5
    config.continuous = False
@@ -149,16 +150,16 @@ then create an agent and use it as seen below (see documentation for all optiona
    client = MyClient('http://127.0.0.1', 8080)
 
    # Poll new state from client
-   input = client.get_state()
+   state = client.get_state()
 
    # Get prediction from agent
-   action = agent.get_action(input)
+   action = agent.get_action(state)
 
    # Do something with action
-   reward = client.execute(action)
+   result = client.execute(action)
 
    # Add experience, agent automatically updates model according to batch size
-   agent.add_observation(input, action, reward)
+   agent.add_observation(state, action, result['reward'], result['terminal_state'])
 
 
 

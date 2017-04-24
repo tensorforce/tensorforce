@@ -196,7 +196,8 @@ MemoryAgent ist straightforward:
             "memory_capacity": 1000,  # hold the last 100 observations in the replay memory
             "batch_size": 10,  # train model with batches of 10
             "update_rate": 0.5,  # update parameters every other step
-            "update_repeat": 1  # repeat update only one time
+            "update_repeat": 1,  # repeat update only one time
+            "min_replay_size": 0 # minimum size of replay memory before updating
         }
 
 ``model_ref`` points to the model class. A model should always inherit from ``tensorforce.models.Model``.

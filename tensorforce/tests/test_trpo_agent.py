@@ -29,6 +29,7 @@ class TestTRPOAgent(unittest.TestCase):
     def test_trpo_agent(self):
         config = {
             'batch_size': 8,
+            'max_kl_divergence': 0.01,
             'max_episode_length': 4,
             'continuous': False,
             'state_shape': (2,),

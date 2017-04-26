@@ -16,7 +16,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
-
+import tensorflow as tf
 import unittest
 
 from tensorforce.config import create_config
@@ -29,11 +29,15 @@ class TestTRPOAgent(unittest.TestCase):
     def test_trpo_agent(self):
         config = {
             'batch_size': 8,
+            "cg_iterations": 20,
+            "cg_damping": 0.001,
+            "line_search_steps": 20,
             'max_kl_divergence': 0.01,
             'max_episode_length': 4,
             'continuous': False,
             'state_shape': (2,),
             'actions': 2}
+        tf.reset_default_graph()
 
         config = create_config(config)
         network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 32}])

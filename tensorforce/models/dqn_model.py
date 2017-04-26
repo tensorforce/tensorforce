@@ -35,7 +35,7 @@ from tensorforce.default_configs import DQNModelConfig
 class DQNModel(Model):
     default_config = DQNModelConfig
 
-    def __init__(self, config, scope, define_network=None):
+    def __init__(self, config, scope, network_builder=None):
         """
         Training logic for DQN.
 
@@ -72,12 +72,12 @@ class DQNModel(Model):
         self.terminals = tf.placeholder(tf.float32, (None, None), name='terminals')
         self.rewards = tf.placeholder(tf.float32, (None, None), name='rewards')
 
-        if define_network is None:
-            define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
+        if network_builder is None:
+            network_builder = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
 
-        self.training_network = NeuralNetwork(define_network, [self.state], episode_length=self.episode_length,
+        self.training_network = NeuralNetwork(network_builder, [self.state], episode_length=self.episode_length,
                                               scope=self.scope + 'training')
-        self.target_network = NeuralNetwork(define_network, [self.next_states], episode_length=self.episode_length,
+        self.target_network = NeuralNetwork(network_builder, [self.next_states], episode_length=self.episode_length,
                                             scope=self.scope + 'target')
 
         self.training_internal_states = self.training_network.internal_state_inits

@@ -21,78 +21,81 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import numpy as np
-
 from six.moves import xrange
+import unittest
+
+import numpy as np
 
 from tensorforce.replay_memories import ReplayMemory
 
-def test_replay_memory():
-    """
-    Testing replay replay_memory.
-    """
-    capacity = np.random.randint(5, 8)
-    batch_size = np.random.randint(capacity)
 
-    state_shape = tuple(np.random.randint(1, 4, size=2))
-    action_shape = (4,)
+class TestReplayMemory(unittest.TestCase):
 
-    memory = ReplayMemory(capacity, state_shape, action_shape)
+    def test_replay_memory(self):
+        """
+        Testing replay replay_memory.
+        """
+        capacity = np.random.randint(5, 8)
+        batch_size = np.random.randint(capacity)
 
-    states = []
-    actions = []
-    rewards = []
-    terminals = []
+        state_shape = tuple(np.random.randint(1, 4, size=2))
+        action_shape = (4,)
 
-    def sample_observation():
-        while True:
-            state = np.random.randint(0, 255, size=state_shape)
-            if len(states) > 0:
-                if not np.all(np.any(np.array(states) - np.array(state), axis=1)):
-                    # avoid duplicate states
-                    continue
-            break
+        memory = ReplayMemory(capacity, state_shape, action_shape)
 
-        action = np.random.randint(4)
-        reward = np.random.choice(2, 1, p=[0.7, 0.3])
-        terminal = np.random.choice(2, 1, p=[0.9, 0.1])
+        states = []
+        actions = []
+        rewards = []
+        terminals = []
 
-        states.append(state)
-        actions.append(action)
-        rewards.append(reward)
-        terminals.append(terminal)
+        def sample_observation():
+            while True:
+                state = np.random.randint(0, 255, size=state_shape)
+                if len(states) > 0:
+                    if not np.all(np.any(np.array(states) - np.array(state), axis=1)):
+                        # avoid duplicate states
+                        continue
+                break
 
-        memory.add_experience(state, action, reward, terminal)
+            action = np.random.randint(4)
+            reward = np.random.choice(2, 1, p=[0.7, 0.3])
+            terminal = np.random.choice(2, 1, p=[0.9, 0.1])
 
-        return state, action, reward, terminal
+            states.append(state)
+            actions.append(action)
+            rewards.append(reward)
+            terminals.append(terminal)
 
-    for i in xrange(capacity):
+            memory.add_experience(state, action, reward, terminal)
+
+            return state, action, reward, terminal
+
+        for i in xrange(capacity):
+            state, action, reward, terminal = sample_observation()
+
+        self.assertFalse(np.any(np.array(memory.states) - np.array(states)))
+
         state, action, reward, terminal = sample_observation()
 
-    assert not np.any(np.array(memory.states) - np.array(states))
+        self.assertFalse(np.any(np.array(memory.states[0]) - np.array(state)))
 
-    state, action, reward, terminal = sample_observation()
+        for i in xrange(capacity-1):
+            state, action, reward, terminal = sample_observation()
 
-    assert not np.any(np.array(memory.states[0]) - np.array(state))
+        self.assertFalse(np.any(np.array(memory.states) - np.array(states[-capacity:])))
 
-    for i in xrange(capacity-1):
-        state, action, reward, terminal = sample_observation()
+        batch = memory.sample_batch(batch_size)
+        exp = zip(list(batch['states']), batch['actions'], batch['rewards'], batch['terminals'], batch['next_states'])
 
-    assert not np.any(np.array(memory.states) - np.array(states[-capacity:]))
+        # Warning: since we're testing a random batch, some of the following assertions could be True by coincidence
+        # In this test, states are unique, so we can just compare state tensors with each other
 
-    batch = memory.sample_batch(batch_size)
-    exp = zip(list(batch['states']), batch['actions'], batch['rewards'], batch['terminals'], batch['next_states'])
+        for i in xrange(100):
+            first_state = states[0]
+            last_state = states[-1]
+            for (state, action, reward, terminal, next_state) in exp:
+                # last state must not be in experiences, as it has no next state
+                self.assertTrue(np.all(np.any(state - last_state, axis=1)))
 
-    # Warning: since we're testing a random batch, some of the following assertions could be True by coincidence
-    # In this test, states are unique, so we can just compare state tensors with each other
-
-    for i in xrange(100):
-        first_state = states[0]
-        last_state = states[-1]
-        for (state, action, reward, terminal, next_state) in exp:
-            # last state must not be in experiences, as it has no next state
-            assert np.all(np.any(state - last_state, axis=1))
-
-            # first state must not be in next_states, as it has no previous state
-            assert np.all(np.any(next_state - first_state, axis=1))
-
+                # first state must not be in next_states, as it has no previous state
+                self.assertTrue(np.all(np.any(next_state - first_state, axis=1)))

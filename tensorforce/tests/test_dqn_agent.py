@@ -16,6 +16,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+import tensorflow as tf
 
 import unittest
 
@@ -34,6 +35,7 @@ class TestDQNAgent(unittest.TestCase):
             'state_shape': (2,),
             'actions': 2,
             'action_shape': ()}
+        tf.reset_default_graph()
 
         config = create_config(config)
         network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 32}, {'type': 'linear', 'num_outputs': 2}])

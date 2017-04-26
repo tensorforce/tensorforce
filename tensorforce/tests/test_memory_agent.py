@@ -19,6 +19,7 @@ Tests for the MemoryAgent and the ReplayMemory.
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+import tensorflow as tf
 
 from six.moves import xrange
 import unittest
@@ -80,6 +81,7 @@ class TestMemoryAgent(unittest.TestCase):
             'state_shape': state_shape,
             'action_shape': []
         })
+        tf.reset_default_graph()
 
         agent = MemoryAgent(config, scope="memoryagent")
         model = MemoryAgentTestModel(config)

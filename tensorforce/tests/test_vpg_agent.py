@@ -16,6 +16,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+import tensorflow as tf
 
 import unittest
 
@@ -33,6 +34,7 @@ class TestVPGAgent(unittest.TestCase):
             'continuous': False,
             'state_shape': (2,),
             'actions': 2}
+        tf.reset_default_graph()
 
         config = create_config(config)
         network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 32}])

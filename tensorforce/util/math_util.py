@@ -70,8 +70,6 @@ def get_flattened_gradient(loss, variables):
     :param variables: Variables to compute gradients on
     :return: Flattened gradient expressions
     """
-    for v in variables:
-        print(v.name)
     gradients = tf.gradients(loss, variables)
 
     return tf.concat(axis=0, values=[tf.reshape(grad, [get_number_of_elements(v)]) for (v, grad) in zip(variables, gradients)])

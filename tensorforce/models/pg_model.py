@@ -40,7 +40,12 @@ class PGModel(Model):
 
         self.continuous = self.config.continuous
         self.batch_size = self.config.batch_size
-        self.max_episode_length = min(self.config.max_episode_length, self.batch_size)
+
+        if self.config.max_episode_length is None:
+            self.max_episode_length = self.batch_size
+        else:
+            self.max_episode_length = min(self.config.max_episode_length, self.batch_size)
+
         self.action_count = self.config.actions
 
         # advantage estimation

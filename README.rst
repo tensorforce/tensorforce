@@ -86,8 +86,8 @@ from the examples folder:
     python tensorforce/examples/openai_gym.py CartPole-v0 -a TRPOAgent -c tensorforce/examples/configs/trpo_cartpole.json
     -n tensorforce/examples/configs/trpo_network_example.json
 
-Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__. We also wrote some tests which
-can be run from the main directory by executing :code:`nosetests`.
+Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__. We also have tests validating models
+on minimal environemnts which can be run from the main directory by executing :code:`pytest`.
 
 Use with DeepMind lab
 ---------------------

@@ -27,23 +27,35 @@ from tensorforce.agents import DQNAgent
 
 class TestDQNAgent(unittest.TestCase):
 
-    def test_trpo_agent(self):
+    def test_dqn_agent(self):
         config = {
-            'batch_size': 8,
-            'max_episode_length': 4,
-            'continuous': False,
+            'batch_size': 16,
             'state_shape': (2,),
             'actions': 2,
-            'action_shape': ()}
+            'action_shape': (),
+            'update_rate': 1,
+            'update_repeat': 4,
+            'min_replay_size': 50,
+            'memory_capacity': 50,
+            "exploration": "epsilon_decay",
+            "exploration_param": {
+                "epsilon": 1,
+                "epsilon_final": 0,
+                "epsilon_states": 50
+            },
+            'target_network_update_rate': 1.0 ,
+            'use_target_network': True,
+        }
+
         tf.reset_default_graph()
 
         config = create_config(config)
-        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 32}, {'type': 'linear', 'num_outputs': 2}])
+        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 16}, {'type': 'linear', 'num_outputs': 2}])
         agent = DQNAgent(config=config, network_builder=network_builder)
 
         state = (1, 0)
         rewards = [0.0] * 100
-        for n in range(1000):
+        for n in range(5000):
             action = agent.get_action(state=state)
             if action == 0:
                 state = (1, 0)
@@ -52,9 +64,11 @@ class TestDQNAgent(unittest.TestCase):
             else:
                 state = (0, 1)
                 reward = 1.0
-                terminal = True
+                terminal = False
             agent.add_observation(state=state, action=action, reward=reward, terminal=terminal)
             rewards[n % 100] = reward
+
             if sum(rewards) == 100.0:
                 return
-        # self.assertTrue(False)
+
+        assert(sum(rewards) == 100.0)

@@ -37,7 +37,7 @@ class TestVPGAgent(unittest.TestCase):
         tf.reset_default_graph()
 
         config = create_config(config)
-        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 32}])
+        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 16}])
 
         agent = VPGAgent(config=config, network_builder=network_builder)
 

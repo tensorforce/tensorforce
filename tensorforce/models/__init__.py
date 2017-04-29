@@ -20,4 +20,4 @@ from tensorforce.models.naf_model import NAFModel
 from tensorforce.models.trpo_model import TRPOModel
 
 
-__all__ = ['Model', 'DQNModel', 'PGModel', 'VPGModel', 'NAFModel', 'TRPOModel']
+__all__ = ['Model', 'DQNModel', 'PGModel', 'VPGModel', 'NAFModel', 'TRPOModel', 'DQFDModel']

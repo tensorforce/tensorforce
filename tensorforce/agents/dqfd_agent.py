@@ -25,15 +25,20 @@ from __future__ import division
 from six.moves import xrange
 
 from tensorforce.config import create_config
+from tensorforce.models.dqfd_model import DQFDModel
 from tensorforce.replay_memories import ReplayMemory
 from tensorforce.agents import RLAgent
 
 
-# TODO Michael: should probably inherit from memory_agent
 class DQFDAgent(RLAgent):
+
+    name = 'DQFDAgent'
     model = None
 
     default_config = {
+        "expert_sampling_ratio": 0.01,
+        "supervised_weight": 1.0,
+        "expert_margin": 0.8,
         'batch_size': 32,
         'update_rate': 0.25,
         'target_network_update_rate': 0.0001,
@@ -43,14 +48,13 @@ class DQFDAgent(RLAgent):
         'update_repeat': 1
     }
 
-    def __init__(self, config, scope='dqfd_agent'):
+    def __init__(self, config, scope='dqfd_agent', network_builder=None):
         """
         
         :param config: 
         :param scope: 
         """
         self.config = create_config(config, default=self.default_config)
-        self.model = None
 
         # This is the online memory
         self.replay_memory = ReplayMemory(**self.config)
@@ -65,12 +69,13 @@ class DQFDAgent(RLAgent):
         # Called p in paper, controls ratio of expert vs online training samples
         self.expert_sampling_ratio = self.config.expert_sampling_ratio
 
-        # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
-        self.demo_batch_size = self.expert_sampling_ratio * self.batch_size / \
-                               (1.0 - self.expert_sampling_ratio)
 
         self.update_repeat = self.config.update_repeat
         self.batch_size = self.config.batch_size
+
+        # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
+        self.demo_batch_size = self.expert_sampling_ratio * self.batch_size / \
+                               (1.0 - self.expert_sampling_ratio)
         self.update_steps = int(round(1 / self.config.update_rate))
         self.use_target_network = self.config.use_target_network
 
@@ -79,8 +84,7 @@ class DQFDAgent(RLAgent):
 
         self.min_replay_size = self.config.min_replay_size
 
-        if self.__class__.model:
-            self.model = self.__class__.model(self.config, scope)
+        self.model = DQFDModel(self.config, scope, network_builder=network_builder)
 
     def add_demo_observation(self, state, action, reward, terminal):
         """
@@ -89,7 +93,7 @@ class DQFDAgent(RLAgent):
         """
         self.demo_memory.add_experience(state, action, reward, terminal)
 
-    def pretrain(self, steps=1):
+    def pre_train(self, steps=1):
         """
         
         :param steps: Number of pre-train updates to perform.
@@ -100,7 +104,7 @@ class DQFDAgent(RLAgent):
             batch = self.demo_memory.sample_batch(self.batch_size)
 
             # Update using both double Q-learning and supervised double_q_loss
-            self.model.pretrain_update(batch)
+            self.model.pre_train_update(batch)
 
     def add_observation(self, state, action, reward, terminal):
         """
@@ -132,15 +136,7 @@ class DQFDAgent(RLAgent):
             self.model.update_target_network()
 
     def get_action(self, *args, **kwargs):
-        """
-        Get action from model, as in DQN.
-        
-        :param state: 
-        """
-
-        action = self.model.get_action(*args, **kwargs)
-
-        return action
+        return self.model.get_action(*args, **kwargs)
 
     def save_model(self, path):
         self.model.save_model(path)

@@ -53,7 +53,7 @@ Universe and DeepMind lab. The following algorithms are available (all policy me
 3. Normalised Advantage functions (NAFs)
 4. DQN/Double-DQN
 5. Vanilla Policy Gradients (VPG)
-6. In progress: Deep Q-learning from Demonstration (DQFD) - `paper <https://arxiv.org/abs/1704.03732>`__
+6. Deep Q-learning from Demonstration (DQFD) - `paper <https://arxiv.org/abs/1704.03732>`__
 
 Installation
 ------------
@@ -165,6 +165,11 @@ then create an agent and use it as seen below (see documentation for all optiona
 
 Update notes
 ------------
+
+30nd April 2017:
+
+- Prototype of Deep-Q learning from demonstration now available for testing
+- Added unit tests verifying models can solve minimal enviroments to help debugging major changes
 
 23nd April 2017:
 

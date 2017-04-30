@@ -49,6 +49,9 @@ class TestDQFDAgent(unittest.TestCase):
             },
             'target_network_update_rate': 1.0,
             'use_target_network': True,
+            "alpha": 0.00025,
+            "gamma": 0.99,
+            "tau": 1.0
         }
 
         tf.reset_default_graph()

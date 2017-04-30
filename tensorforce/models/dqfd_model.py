@@ -155,10 +155,11 @@ class DQFDModel(Model):
             self.episode_length: [len(online_batch['rewards'])],
             self.q_targets: q_targets,
             self.actions: [online_batch['actions']],
+
             self.state: [online_batch['states']]
         }
 
-        fetches = [self.optimize_dqfd, self.training_output]
+        fetches = [self.optimize_double_q, self.training_output]
 
         # Internal state management for recurrent dqn
         fetches.extend(self.training_network.internal_state_outputs)
@@ -268,14 +269,15 @@ class DQFDModel(Model):
             self.double_q_loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
 
             # Create the supervised margin loss
-            mask = tf.ones_like(expert_actions_one_hot)
+            mask = tf.ones_like(expert_actions_one_hot, dtype=tf.float32)
             # Zero for the action taken, one for all other actions, now multiply by expert margin
             inverted_one_hot = mask - expert_actions_one_hot
 
             # max_a([Q(s,a) + l(s,a_E,a)]
             expert_margin = self.training_output + tf.multiply(inverted_one_hot, self.expert_margin)
 
-            supervised_selector = tf.argmax(expert_margin, axis=2, name='expert_margin_selector')
+            supervised_selector = tf.reduce_max(expert_margin, axis=2, name='expert_margin_selector')
+
 
             # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
             self.supervised_loss = supervised_selector - q_values_expert_actions

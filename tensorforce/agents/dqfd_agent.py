@@ -33,7 +33,7 @@ from tensorforce.agents import RLAgent
 class DQFDAgent(RLAgent):
 
     name = 'DQFDAgent'
-    model = None
+    model = DQFDModel
 
     default_config = {
         "expert_sampling_ratio": 0.01,
@@ -74,8 +74,8 @@ class DQFDAgent(RLAgent):
         self.batch_size = self.config.batch_size
 
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
-        self.demo_batch_size = self.expert_sampling_ratio * self.batch_size / \
-                               (1.0 - self.expert_sampling_ratio)
+        self.demo_batch_size = int(self.expert_sampling_ratio * self.batch_size / \
+                               (1.0 - self.expert_sampling_ratio))
         self.update_steps = int(round(1 / self.config.update_rate))
         self.use_target_network = self.config.use_target_network
 
@@ -84,7 +84,8 @@ class DQFDAgent(RLAgent):
 
         self.min_replay_size = self.config.min_replay_size
 
-        self.model = DQFDModel(self.config, scope, network_builder=network_builder)
+        if self.__class__.model:
+            self.model = self.__class__.model(self.config, scope, network_builder=network_builder)
 
     def add_demo_observation(self, state, action, reward, terminal):
         """
@@ -127,7 +128,7 @@ class DQFDAgent(RLAgent):
                 # Sample batches according to expert sampling ratio
                 # In the paper, p is given as p = n_demo / (n_replay + n_demo)
                 demo_batch = self.demo_memory.sample_batch(self.demo_batch_size)
-                online_batch = self.demo_memory.sample_batch(self.batch_size)
+                online_batch = self.replay_memory.sample_batch(self.batch_size)
 
                 self.model.update(demo_batch, online_batch)
 

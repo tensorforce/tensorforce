@@ -28,5 +28,8 @@
     ["concat", 4, "append"],
     ["normalize"]
   ],
-  "repeat_actions": 1
+  "repeat_actions": 1,
+  "alpha": 0.00025,
+  "gamma": 0.99,
+  "tau": 1.0
 }

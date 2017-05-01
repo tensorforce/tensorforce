@@ -167,6 +167,7 @@ Update notes
 ------------
 
 1st May 2017:
+
 - Prototype of Deep-Q learning from demonstration now available - not fully tested pre-training yet
 - Added unit tests verifying models can solve minimal enviroments to help debugging major changes
 - Added explicit option to override line-search fail in TRPO, should be false for stable improvements

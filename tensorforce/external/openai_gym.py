@@ -31,10 +31,12 @@ class OpenAIGymEnvironment(Environment):
 
     def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0):
         """
-        Initialize open ai gym environment.
+        Initialize OpenAI gym environment.
 
-        :param gym_id: string with id/descriptor of the gym environment, e.g. 'CartPole-v0'
-        :param monitor:
+        :param gym_id: OpenAI Gym environment ID. See https://gym.openai.com/envs
+        :param monitor: Output directory. Setting this to None disables monitoring.
+        :param monitor_safe: Setting this to True prevents existing log files to be overwritten. Default False.
+        :param monitor_video: Save a video every monitor_video steps. Setting this to 0 disables recording of videos.
         """
         self.gym_id = gym_id
         self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv

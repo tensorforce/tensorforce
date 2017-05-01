@@ -32,12 +32,12 @@ class TestTRPOAgent(unittest.TestCase):
 
         config = {
             'batch_size': 8,
-            "force_update": False,
+            "override_line_search": False,
             "cg_iterations": 8,
             "use_gae": False,
             "normalize_advantage": False,
             "gae_lambda": 0.97,
-            "cg_damping": 0.00001,
+            "cg_damping": 0.001,
             "line_search_steps": 20,
             'max_kl_divergence': 0.001,
             'max_episode_length': 4,
@@ -51,8 +51,7 @@ class TestTRPOAgent(unittest.TestCase):
 
         config = create_config(config)
 
-        # Allow for 1 test run in 10 to fail
-        for i in xrange(10):
+        for i in xrange(3):
             tf.reset_default_graph()
 
             network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense',
@@ -64,7 +63,7 @@ class TestTRPOAgent(unittest.TestCase):
             state = (1, 0)
             rewards = [0.0] * 100
 
-            for n in xrange(5000):
+            for n in xrange(10000):
                 action = agent.get_action(state=state)
                 if action == 0:
                     state = (1, 0)
@@ -80,8 +79,7 @@ class TestTRPOAgent(unittest.TestCase):
                 if sum(rewards) == 100.0:
                     passed += 1
                     break
-
             print('sum = {:f}'.format(sum(rewards)))
 
         print('passed = {:d}'.format(passed))
-        self.assertTrue(passed >= 9)
+        self.assertTrue(passed == 3)

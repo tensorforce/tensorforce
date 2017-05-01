@@ -1,7 +1,7 @@
 {
   "loglevel": "info",
   "batch_size": 200,
-  "force_update": false,
+  "override_line_search": false,
   "use_gae": true,
   "normalize_advantage" : false,
   "gae_lambda": 0.97,

@@ -48,7 +48,7 @@ class TRPOModel(PGModel):
         self.max_kl_divergence = self.config.max_kl_divergence
         self.line_search_steps = self.config.line_search_steps
         self.cg_optimizer = ConjugateGradientOptimizer(self.logger, self.config.cg_iterations)
-        self.force_update = self.config.force_update
+        self.override_line_search = self.config.override_line_search
 
         self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
         self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
@@ -158,12 +158,15 @@ class TRPOModel(PGModel):
             improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
                                           negative_gradient_direction / lagrange_multiplier, self.line_search_steps)
 
-            # Use line search results, otherwise take full step
-            # N.B. some implementations don't use the line search
+            # Only update if improved according to line search
+            # if override_line_search is set to True, we always take the full step
+            # this can make the algorithm very unstable/cause divergence
+            # but potentially leads to faster solutions for some problems
+            # Should generally be set to False
             if improved:
                 self.logger.debug('Updating with line search result..')
                 self.flat_variable_helper.set(theta)
-            elif self.force_update:
+            elif self.override_line_search:
                 self.logger.debug('Updating with full step..')
                 self.flat_variable_helper.set(previous_theta + update_step)
 

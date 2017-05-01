@@ -51,6 +51,7 @@ class TestDQNAgent(unittest.TestCase):
         }
 
         tf.reset_default_graph()
+        tf.set_random_seed(10)
 
         config = create_config(config)
         network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 16}, {'type': 'linear', 'num_outputs': 2}])

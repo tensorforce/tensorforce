@@ -27,7 +27,9 @@ from tensorforce.agents import TRPOAgent
 class TestTRPOAgent(unittest.TestCase):
 
     def test_trpo_agent(self):
+
         config = {
+            'seed': 12,
             'batch_size': 8,
             "cg_iterations": 20,
             "cg_damping": 0.001,
@@ -36,7 +38,9 @@ class TestTRPOAgent(unittest.TestCase):
             'max_episode_length': 4,
             'continuous': False,
             'state_shape': (2,),
-            'actions': 2}
+            'actions': 2
+        }
+
         tf.reset_default_graph()
 
         config = create_config(config)

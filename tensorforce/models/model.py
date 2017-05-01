@@ -62,6 +62,7 @@ class Model(object):
 
         if self.config.seed is not None:
             self.random = global_seed(self.config.seed)
+            tf.set_random_seed(self.config.seed)
         else:
             self.random = np.random.RandomState()
 

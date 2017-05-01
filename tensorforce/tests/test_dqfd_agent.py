@@ -26,30 +26,29 @@ from tensorforce.agents import DQFDAgent
 
 
 class TestDQFDAgent(unittest.TestCase):
-
     def test_dqfd_agent(self):
 
         config = {
             "expert_sampling_ratio": 0.01,
             "supervised_weight": 1.0,
             "expert_margin": 0.8,
-            'batch_size': 16,
+            'batch_size': 8,
             'state_shape': (2,),
             'actions': 2,
             'action_shape': (),
             'update_rate': 1,
             'update_repeat': 4,
-            'min_replay_size': 50,
-            'memory_capacity': 50,
+            'min_replay_size': 20,
+            'memory_capacity': 20,
             "exploration": "epsilon_decay",
             "exploration_param": {
-                "epsilon": 1,
+                "epsilon": 0,
                 "epsilon_final": 0,
-                "epsilon_states": 50
+                "epsilon_states": 0
             },
             'target_network_update_rate': 1.0,
             'use_target_network': True,
-            "alpha": 0.00025,
+            "alpha": 0.000025,
             "gamma": 0.99,
             "tau": 1.0
         }
@@ -57,14 +56,21 @@ class TestDQFDAgent(unittest.TestCase):
         tf.reset_default_graph()
 
         config = create_config(config)
-        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 16}, {'type': 'linear', 'num_outputs': 2}])
+        network_builder = NeuralNetwork. \
+            layered_network(layers=[{'type': 'dense',
+                                     'num_outputs': 16,
+                                     'weights_regularizer': 'tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer',
+                                     'weights_regularizer_kwargs': {
+                                         'scale': 0.00001
+                                     }
+                                     }, {'type': 'linear', 'num_outputs': 2}])
         agent = DQFDAgent(config=config, network_builder=network_builder)
 
         state = (1, 0)
         rewards = [0.0] * 100
 
         # First: add to demo memory
-        for n in range(100):
+        for n in range(50):
             action = agent.get_action(state=state)
             if action == 0:
                 state = (1, 0)
@@ -77,7 +83,7 @@ class TestDQFDAgent(unittest.TestCase):
             agent.add_demo_observation(state=state, action=action, reward=reward, terminal=terminal)
 
         # Pre-train from demo data
-        agent.pre_train(1000)
+        agent.pre_train(1000000)
 
         # If pretraining worked, we should not need much more training
         for n in range(200):
@@ -92,6 +98,7 @@ class TestDQFDAgent(unittest.TestCase):
                 terminal = False
 
             agent.add_observation(state=state, action=action, reward=reward, terminal=terminal)
+            rewards[n % 100] = reward
 
             if sum(rewards) == 100.0:
                 return

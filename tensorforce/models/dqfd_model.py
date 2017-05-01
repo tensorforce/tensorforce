@@ -190,7 +190,6 @@ class DQFDModel(Model):
         if self.random.random_sample() < epsilon:
             action = self.random.randint(0, self.action_count)
         else:
-            # N.b. this is not necessary for original dqfd, but we want to allow recurrent q-networks too
             fetches = [self.dqn_action]
             fetches.extend(self.training_internal_states)
             fetches.extend(self.target_internal_states)
@@ -270,14 +269,14 @@ class DQFDModel(Model):
 
             # Create the supervised margin loss
             mask = tf.ones_like(expert_actions_one_hot, dtype=tf.float32)
+
             # Zero for the action taken, one for all other actions, now multiply by expert margin
             inverted_one_hot = mask - expert_actions_one_hot
 
-            # max_a([Q(s,a) + l(s,a_E,a)]
+            # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
             expert_margin = self.training_output + tf.multiply(inverted_one_hot, self.expert_margin)
 
             supervised_selector = tf.reduce_max(expert_margin, axis=2, name='expert_margin_selector')
-
 
             # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
             self.supervised_loss = supervised_selector - q_values_expert_actions

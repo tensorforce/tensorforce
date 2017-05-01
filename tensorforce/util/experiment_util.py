@@ -33,13 +33,12 @@ preprocessors = {
     'standardize': preprocessing.Standardize
 }
 
-
-def global_seed():
+def global_seed(seed=42):
     """
     Convenience function to control random seeding throughout the framework.
     :return: A numpy random number generator with a fixed seed.
     """
-    return np.random.RandomState(42)
+    return np.random.RandomState(seed)
 
 
 def get_path(continuous, episode):

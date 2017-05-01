@@ -54,11 +54,6 @@ class DQNModel(Model):
         if self.config.clip_gradients:
             self.clip_value = self.config.clip_value
 
-        if self.config.deterministic_mode:
-            self.random = global_seed()
-        else:
-            self.random = np.random.RandomState()
-
         self.target_network_update = []
 
         # output layer

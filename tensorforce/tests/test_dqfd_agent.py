@@ -48,7 +48,7 @@ class TestDQFDAgent(unittest.TestCase):
             },
             'target_network_update_rate': 1.0,
             'use_target_network': True,
-            "alpha": 0.000025,
+            "alpha": 0.00005,
             "gamma": 0.99,
             "tau": 1.0
         }
@@ -83,7 +83,7 @@ class TestDQFDAgent(unittest.TestCase):
             agent.add_demo_observation(state=state, action=action, reward=reward, terminal=terminal)
 
         # Pre-train from demo data
-        agent.pre_train(1000000)
+        agent.pre_train(200000)
 
         # If pretraining worked, we should not need much more training
         for n in range(200):

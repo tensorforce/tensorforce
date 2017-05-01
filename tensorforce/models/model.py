@@ -26,10 +26,12 @@ from __future__ import print_function
 from __future__ import division
 
 import logging
+import numpy as np
 import tensorflow as tf
 
 from tensorforce.config import create_config
 from tensorforce.util.config_util import get_function, log_levels
+from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.exploration_util import exploration_mode
 
 
@@ -57,6 +59,11 @@ class Model(object):
         self.episode_length = tf.placeholder(tf.int32, (None,), name='episode_length')
 
         self.learning_rate = config.get('learning_rate', 0.001)
+
+        if self.config.seed is not None:
+            self.random = global_seed(self.config.seed)
+        else:
+            self.random = np.random.RandomState()
 
         optimizer = config.get('optimizer')
         if not optimizer:

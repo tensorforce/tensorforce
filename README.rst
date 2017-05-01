@@ -166,9 +166,9 @@ then create an agent and use it as seen below (see documentation for all optiona
 Update notes
 ------------
 
-30nd April 2017:
+1st May 2017:
 
-- Prototype of Deep-Q learning from demonstration now available for testing
+- Prototype of Deep-Q learning from demonstration now available - not fully tested pre-training yet
 - Added unit tests verifying models can solve minimal enviroments to help debugging major changes
 
 23nd April 2017:

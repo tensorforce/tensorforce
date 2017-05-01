@@ -24,11 +24,11 @@ from tensorforce.config import create_config
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.agents import DQNAgent
 
-
 class TestDQNAgent(unittest.TestCase):
 
     def test_dqn_agent(self):
         config = {
+            'seed': 10,
             'batch_size': 16,
             'state_shape': (2,),
             'actions': 2,
@@ -45,6 +45,9 @@ class TestDQNAgent(unittest.TestCase):
             },
             'target_network_update_rate': 1.0 ,
             'use_target_network': True,
+            "alpha": 0.0005,
+            "gamma": 0.99,
+            "tau": 1.0
         }
 
         tf.reset_default_graph()
@@ -55,7 +58,7 @@ class TestDQNAgent(unittest.TestCase):
 
         state = (1, 0)
         rewards = [0.0] * 100
-        for n in range(5000):
+        for n in range(10000):
             action = agent.get_action(state=state)
             if action == 0:
                 state = (1, 0)

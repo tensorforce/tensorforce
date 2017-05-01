@@ -29,7 +29,6 @@ from tensorforce.models.baselines import LinearValueFunction, MLPValueFunction
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.models.policies import CategoricalOneHotPolicy
 from tensorforce.models.policies import GaussianPolicy
-from tensorforce.util.experiment_util import global_seed
 from tensorforce.util.math_util import discount, zero_mean_unit_variance
 
 
@@ -54,11 +53,6 @@ class PGModel(Model):
         self.gae_lambda = self.config.gae_lambda
         self.normalize_advantage = self.config.normalize_advantage
 
-        if self.config.deterministic_mode:
-            self.random = global_seed()
-        else:
-            self.random = np.random.RandomState()
-
         self.state_shape = tuple(self.config.state_shape)
         self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
         self.actions = tf.placeholder(tf.float32, (None, None, self.action_count), name='actions')
@@ -71,6 +65,7 @@ class PGModel(Model):
             scope = ''
         else:
             scope = self.config.tf_scope + '-'
+
         self.network = NeuralNetwork(network_builder, inputs=[self.state], episode_length=self.episode_length, scope=scope + 'value_function')
         self.internal_states = self.network.internal_state_inits
 

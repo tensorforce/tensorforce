@@ -56,11 +56,6 @@ class NAFModel(Model):
         self.gamma = self.config.gamma
         self.batch_size = self.config.batch_size
 
-        if self.config.deterministic_mode:
-            self.random = global_seed()
-        else:
-            self.random = np.random.RandomState()
-
         self.state_shape = tuple(self.config.state_shape)
         self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
         self.next_states = tf.placeholder(tf.float32, (None, None) + self.state_shape,

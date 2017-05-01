@@ -1,5 +1,6 @@
 {
   "loglevel": "info",
+  "force_update": false,
   "batch_size": 5000,
   "use_gae": false,
   "normalize_advantage" : false,

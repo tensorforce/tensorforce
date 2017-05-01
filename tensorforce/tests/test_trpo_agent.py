@@ -32,29 +32,39 @@ class TestTRPOAgent(unittest.TestCase):
 
         config = {
             'batch_size': 8,
-            "cg_iterations": 20,
-            "cg_damping": 0.01,
+            "force_update": False,
+            "cg_iterations": 8,
+            "use_gae": False,
+            "normalize_advantage": False,
+            "gae_lambda": 0.97,
+            "cg_damping": 0.00001,
             "line_search_steps": 20,
-            'max_kl_divergence': 0.01,
+            'max_kl_divergence': 0.001,
             'max_episode_length': 4,
             'continuous': False,
             'state_shape': (2,),
-            'actions': 2
+            'actions': 2,
+            'gamma': 0.99
         }
 
-        tf.reset_default_graph()
+        passed = 0
 
         config = create_config(config)
-        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 16}])
-        agent = TRPOAgent(config=config, network_builder=network_builder)
 
-        passed = 0
         # Allow for 1 test run in 10 to fail
         for i in xrange(10):
+            tf.reset_default_graph()
+
+            network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense',
+                                                                     'num_outputs': 8,
+                                                                     'activation_fn': "tensorflow.python.ops.nn.tanh",
+                                                                     }])
+            agent = TRPOAgent(config=config, network_builder=network_builder)
+
             state = (1, 0)
             rewards = [0.0] * 100
 
-            for n in xrange(10000):
+            for n in xrange(5000):
                 action = agent.get_action(state=state)
                 if action == 0:
                     state = (1, 0)
@@ -70,6 +80,8 @@ class TestTRPOAgent(unittest.TestCase):
                 if sum(rewards) == 100.0:
                     passed += 1
                     break
+
+            print('sum = {:f}'.format(sum(rewards)))
 
         print('passed = {:d}'.format(passed))
         self.assertTrue(passed >= 9)

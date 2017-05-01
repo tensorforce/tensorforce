@@ -48,6 +48,7 @@ class TRPOModel(PGModel):
         self.max_kl_divergence = self.config.max_kl_divergence
         self.line_search_steps = self.config.line_search_steps
         self.cg_optimizer = ConjugateGradientOptimizer(self.logger, self.config.cg_iterations)
+        self.force_update = self.config.force_update
 
         self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
         self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
@@ -162,7 +163,7 @@ class TRPOModel(PGModel):
             if improved:
                 self.logger.debug('Updating with line search result..')
                 self.flat_variable_helper.set(theta)
-            else:
+            elif self.force_update:
                 self.logger.debug('Updating with full step..')
                 self.flat_variable_helper.set(previous_theta + update_step)
 

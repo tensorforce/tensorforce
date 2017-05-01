@@ -1,7 +1,7 @@
 {
   "loglevel": "info",
-  "seed": 42,
   "batch_size": 200,
+  "force_update": false,
   "use_gae": true,
   "normalize_advantage" : false,
   "gae_lambda": 0.97,

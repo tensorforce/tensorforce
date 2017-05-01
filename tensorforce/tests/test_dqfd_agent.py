@@ -86,7 +86,7 @@ class TestDQFDAgent(unittest.TestCase):
             agent.add_demo_observation(state=state, action=action, reward=reward, terminal=terminal)
 
         # Pre-train from demo data
-        agent.pre_train(250000)
+        agent.pre_train(10000)
 
         # If pretraining worked, we should not need much more training
         for n in xrange(500):

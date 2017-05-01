@@ -56,7 +56,7 @@ class TestTRPOAgent(unittest.TestCase):
         state = (1, 0)
         rewards = [0.0] * 100
 
-        for n in xrange(25000):
+        for n in xrange(100000):
             action = agent.get_action(state=state)
             if action == 0:
                 state = (1, 0)
@@ -71,5 +71,6 @@ class TestTRPOAgent(unittest.TestCase):
 
             if sum(rewards) == 100.0:
                 return
+        print('sum = {:f}'.format(sum(rewards)))
 
         self.assertTrue(False)

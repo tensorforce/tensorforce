@@ -39,7 +39,7 @@ class TestTRPOAgent(unittest.TestCase):
             "gae_lambda": 0.97,
             "cg_damping": 0.001,
             "line_search_steps": 20,
-            'max_kl_divergence': 0.001,
+            'max_kl_divergence': 0.01,
             'max_episode_length': 4,
             'continuous': False,
             'state_shape': (2,),
@@ -63,7 +63,7 @@ class TestTRPOAgent(unittest.TestCase):
             state = (1, 0)
             rewards = [0.0] * 100
 
-            for n in xrange(10000):
+            for n in xrange(20000):
                 action = agent.get_action(state=state)
                 if action == 0:
                     state = (1, 0)

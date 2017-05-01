@@ -31,12 +31,11 @@ class TestTRPOAgent(unittest.TestCase):
     def test_trpo_agent(self):
 
         config = {
-            'seed': 13,
-            'batch_size': 20,
+            'batch_size': 8,
             "cg_iterations": 20,
-            "cg_damping": 0.001,
+            "cg_damping": 0.01,
             "line_search_steps": 20,
-            'max_kl_divergence': 0.001,
+            'max_kl_divergence': 0.01,
             'max_episode_length': 4,
             'continuous': False,
             'state_shape': (2,),
@@ -46,7 +45,7 @@ class TestTRPOAgent(unittest.TestCase):
         tf.reset_default_graph()
 
         config = create_config(config)
-        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 10}])
+        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 16}])
         agent = TRPOAgent(config=config, network_builder=network_builder)
 
         passed = 0
@@ -69,7 +68,7 @@ class TestTRPOAgent(unittest.TestCase):
                 rewards[n % 100] = reward
 
                 if sum(rewards) == 100.0:
-                    passed +=1
+                    passed += 1
                     break
 
         print('passed = {:d}'.format(passed))

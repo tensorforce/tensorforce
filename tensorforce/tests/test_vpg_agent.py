@@ -28,12 +28,16 @@ from tensorforce.agents import VPGAgent
 class TestVPGAgent(unittest.TestCase):
 
     def test_vpg_agent(self):
+
         config = {
+            'seed': 12,
             'batch_size': 8,
             'max_episode_length': 4,
             'continuous': False,
             'state_shape': (2,),
-            'actions': 2}
+            'actions': 2
+        }
+
         tf.reset_default_graph()
 
         config = create_config(config)
@@ -57,4 +61,5 @@ class TestVPGAgent(unittest.TestCase):
             rewards[n % 100] = reward
             if sum(rewards) == 100.0:
                 return
+
         self.assertTrue(False)

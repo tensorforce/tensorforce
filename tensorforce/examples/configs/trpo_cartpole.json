@@ -1,5 +1,6 @@
 {
   "loglevel": "info",
+  "seed": 42,
   "batch_size": 200,
   "use_gae": true,
   "normalize_advantage" : false,

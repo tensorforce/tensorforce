@@ -19,6 +19,8 @@ from __future__ import division
 import tensorflow as tf
 import unittest
 
+from six.moves import xrange
+
 from tensorforce.config import create_config
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.agents import TRPOAgent
@@ -30,11 +32,11 @@ class TestTRPOAgent(unittest.TestCase):
 
         config = {
             'seed': 13,
-            'batch_size': 8,
+            'batch_size': 20,
             "cg_iterations": 20,
             "cg_damping": 0.001,
             "line_search_steps": 20,
-            'max_kl_divergence': 0.01,
+            'max_kl_divergence': 0.001,
             'max_episode_length': 4,
             'continuous': False,
             'state_shape': (2,),
@@ -47,20 +49,28 @@ class TestTRPOAgent(unittest.TestCase):
         network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 10}])
         agent = TRPOAgent(config=config, network_builder=network_builder)
 
-        state = (1, 0)
-        rewards = [0.0] * 100
-        for n in range(10000):
-            action = agent.get_action(state=state)
-            if action == 0:
-                state = (1, 0)
-                reward = 0.0
-                terminal = False
-            else:
-                state = (0, 1)
-                reward = 1.0
-                terminal = True
-            agent.add_observation(state=state, action=action, reward=reward, terminal=terminal)
-            rewards[n % 100] = reward
-            if sum(rewards) == 100.0:
-                return
-        self.assertTrue(False)
+        passed = 0
+        # Allow for 1 test run in 10 to fail
+        for i in xrange(10):
+            state = (1, 0)
+            rewards = [0.0] * 100
+
+            for n in xrange(10000):
+                action = agent.get_action(state=state)
+                if action == 0:
+                    state = (1, 0)
+                    reward = 0.0
+                    terminal = False
+                else:
+                    state = (0, 1)
+                    reward = 1.0
+                    terminal = True
+                agent.add_observation(state=state, action=action, reward=reward, terminal=terminal)
+                rewards[n % 100] = reward
+
+                if sum(rewards) == 100.0:
+                    passed +=1
+                    break
+
+        print('passed = {:d}'.format(passed))
+        self.assertTrue(passed >= 9)

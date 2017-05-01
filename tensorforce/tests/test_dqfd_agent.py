@@ -18,6 +18,8 @@ from __future__ import print_function
 from __future__ import division
 import tensorflow as tf
 
+from six.moves import xrange
+
 import unittest
 
 from tensorforce.config import create_config
@@ -71,7 +73,7 @@ class TestDQFDAgent(unittest.TestCase):
         rewards = [0.0] * 100
 
         # First: add to demo memory
-        for n in range(50):
+        for n in xrange(50):
             action = agent.get_action(state=state)
             if action == 0:
                 state = (1, 0)
@@ -87,7 +89,7 @@ class TestDQFDAgent(unittest.TestCase):
         agent.pre_train(250000)
 
         # If pretraining worked, we should not need much more training
-        for n in range(500):
+        for n in xrange(500):
             action = agent.get_action(state=state)
             if action == 0:
                 state = (1, 0)

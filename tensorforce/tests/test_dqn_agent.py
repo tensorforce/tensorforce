@@ -19,6 +19,7 @@ from __future__ import division
 import tensorflow as tf
 
 import unittest
+from six.moves import xrange
 
 from tensorforce.config import create_config
 from tensorforce.models.neural_networks import NeuralNetwork
@@ -59,7 +60,7 @@ class TestDQNAgent(unittest.TestCase):
 
         state = (1, 0)
         rewards = [0.0] * 100
-        for n in range(10000):
+        for n in xrange(10000):
             action = agent.get_action(state=state)
             if action == 0:
                 state = (1, 0)

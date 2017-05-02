@@ -33,6 +33,6 @@ setup(name='tensorforce',
           'six',
           'scipy',
           'pillow',
-          'nose'
+          'pytest'
       ],
       zip_safe=False)

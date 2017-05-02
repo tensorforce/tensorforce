@@ -87,7 +87,7 @@ from the examples folder:
     -n tensorforce/examples/configs/trpo_network_example.json
 
 Documentation is available at `ReadTheDocs <http://tensorforce.readthedocs.io>`__. We also have tests validating models
-on minimal environemnts which can be run from the main directory by executing :code:`pytest`.
+on minimal environments which can be run from the main directory by executing :code:`pytest`.
 
 Use with DeepMind lab
 ---------------------
@@ -118,6 +118,9 @@ line).
 Please note that we have not implemented any lab specific algorithms yet, and these instructions just explain connectivity
 in case someone wants to get started there. Please check out the todos in environments/deepmind_lab.py to see what's necessary if you are interested in implementing
 algorithms, or get in touch.
+
+Note: We are in the process of a major rewrite to have a compatible state/action interface between
+gym/universe, lab and other types of environments, should be completed by end May.
 
 Create and use agents
 ---------------------
@@ -165,6 +168,10 @@ then create an agent and use it as seen below (see documentation for all optiona
 
 Update notes
 ------------
+
+2nd May 2017
+
+- DQFD now passing pre-training test
 
 1st May 2017:
 

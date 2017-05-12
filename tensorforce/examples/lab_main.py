@@ -79,7 +79,7 @@ def main():
     if args.network_config:
         config.read_json(path + args.network_config)
 
-    logger.setLevel(log_levels[config.loglevel])
+    logger.setLevel(log_levels[config.get('loglevel', 'info')])
 
     preprocessing_config = config.get('preprocessing')
     # if preprocessing_config:

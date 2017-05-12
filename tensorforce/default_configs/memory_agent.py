@@ -13,19 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 
+"""
+Default configuration for the Memory Agent class.
+"""
 
-from tensorforce.default_configs.memory_agent import MemoryAgentConfig
-from tensorforce.default_configs.dqn import DQNAgentConfig, DQNModelConfig
-from tensorforce.default_configs.dqfd import DQFDAgentConfig
-from tensorforce.default_configs.naf import NAFAgentConfig, NAFModelConfig
-from tensorforce.default_configs.vpg import VPGAgentConfig, VPGModelConfig
-from tensorforce.default_configs.trpo import TRPOAgentConfig, TRPOModelConfig
-
-__all__ = [
-    'MemoryAgentConfig',
-    'DQNAgentConfig', 'DQNModelConfig',
-    'DQFDAgentConfig',
-    'NAFAgentConfig', 'NAFModelConfig',
-    'VPGAgentConfig', 'VPGModelConfig',
-    'TRPOAgentConfig', 'TRPOModelConfig'
-]
+MemoryAgentConfig = {
+    'batch_size': 32,
+    'update_rate': 0.25,
+    'target_network_update_rate': 0.0001,
+    'min_replay_size': 5e4,
+    'deterministic_mode': False,
+    'use_target_network': False,
+    'update_repeat': 1
+}

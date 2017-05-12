@@ -40,7 +40,7 @@ class Exploration(object):
 class OrnsteinUhlenbeckProcess(Exploration):
     def __init__(self, model, sigma=0.3, mu=0, theta=0.15):
         super(OrnsteinUhlenbeckProcess, self).__init__(model)
-        self.action_count = self.model.action_count
+        self.action_count = self.model.config.actions
         self.mu = mu
         self.theta = theta
         self.sigma = sigma

@@ -36,8 +36,8 @@ NAFModelConfig = {
     "weights_regularizer": "tensorflow.contrib.slim.l2_regularizer",
     "weights_regularizer_args": [0.001],
 
-    "exploration_mode": "ornstein_uhlenbeck",
-    "exploration_param": {
+    "exploration": "ornstein_uhlenbeck",
+    "exploration_kwargs": {
         "sigma": 0.2,
         "mu": 0,
         "theta": 0.15

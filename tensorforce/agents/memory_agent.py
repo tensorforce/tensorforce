@@ -25,20 +25,14 @@ from tensorforce.config import create_config
 from tensorforce.replay_memories import ReplayMemory
 from tensorforce.agents import RLAgent
 
+from tensorforce.default_configs import MemoryAgentConfig
+
 
 class MemoryAgent(RLAgent):
 
     name = 'MemoryAgent'
 
-    default_config = {
-        'batch_size': 32,
-        'update_rate': 0.25,
-        'target_network_update_rate': 0.0001,
-        'min_replay_size': 5e4,
-        'deterministic_mode': False,
-        'use_target_network': False,
-        'update_repeat': 1
-    }
+    default_config = MemoryAgentConfig
 
     model = None
 

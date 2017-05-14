@@ -43,7 +43,7 @@ from tensorforce.default_configs import NAFModelConfig
 class NAFModel(Model):
     default_config = NAFModelConfig
 
-    def __init__(self, config, scope, define_network=None):
+    def __init__(self, config, scope, network_builder=None):
         """
         Training logic for NAFs.
 
@@ -71,12 +71,12 @@ class NAFModel(Model):
         # Get hidden layers from network generator, then add NAF outputs, same for target network
         scope = '' if self.config.tf_scope is None else self.config.tf_scope + '-'
 
-        if define_network is None:
-            define_network = NeuralNetwork.layered_network(self.config.network_layers)
+        if network_builder is None:
+            network_builder = NeuralNetwork.layered_network(self.config.network_layers)
 
-        self.training_network = NeuralNetwork(define_network, [self.state], episode_length=self.episode_length,
+        self.training_network = NeuralNetwork(network_builder, [self.state], episode_length=self.episode_length,
                                               scope=scope + 'training')
-        self.target_network = NeuralNetwork(define_network, [self.next_states], episode_length=self.episode_length,
+        self.target_network = NeuralNetwork(network_builder, [self.next_states], episode_length=self.episode_length,
                                             scope=scope + 'target')
 
         self.training_internal_states = self.training_network.internal_state_inits
@@ -112,14 +112,6 @@ class NAFModel(Model):
 
         feed_dict.update({target_internal_state: self.target_network.internal_state_inits[n] for n, target_internal_state in
                           enumerate(self.target_network.internal_state_inputs)})
-
-        print('feed dict)')
-        for e in feed_dict.items():
-            print(e)
-
-        print('fetches list)')
-        for e in fetches:
-            print(e)
 
         fetched = self.session.run(fetches, feed_dict)
 

@@ -28,6 +28,7 @@ from tensorforce.config import create_config
 from tensorforce.models.dqfd_model import DQFDModel
 from tensorforce.replay_memories import ReplayMemory
 from tensorforce.agents import RLAgent
+from tensorforce.default_configs import DQFDAgentConfig
 
 
 class DQFDAgent(RLAgent):
@@ -35,18 +36,7 @@ class DQFDAgent(RLAgent):
     name = 'DQFDAgent'
     model = DQFDModel
 
-    default_config = {
-        "expert_sampling_ratio": 0.01,
-        "supervised_weight": 1.0,
-        "expert_margin": 0.8,
-        'batch_size': 32,
-        'update_rate': 0.25,
-        'target_network_update_rate': 0.0001,
-        'min_replay_size': 5e4,
-        'deterministic_mode': False,
-        'use_target_network': False,
-        'update_repeat': 1
-    }
+    default_config = DQFDAgentConfig
 
     def __init__(self, config, scope='dqfd_agent', network_builder=None):
         """

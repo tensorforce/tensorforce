@@ -116,7 +116,6 @@ class DQNModel(Model):
         fetches.extend(self.target_internal_states)
 
         feed_dict = {self.state: [(state,)]}
-
         feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in enumerate(self.training_network.internal_state_inputs)})
         feed_dict.update({internal_state: self.target_network.internal_state_inits[n] for n, internal_state in enumerate(self.target_network.internal_state_inputs)})
 

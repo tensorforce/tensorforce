@@ -13,26 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-TensorForce exceptions
-"""
-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+from tensorforce.core.value_functions.value_function import ValueFunction
+from tensorforce.core.value_functions.linear import LinearValueFunction
+from tensorforce.core.value_functions.mlp import MLPValueFunction
 
 
-class TensorForceError(Exception):
-    pass
+value_functions = dict(
+    linear=LinearValueFunction,
+    mlp=MLPValueFunction
+)
 
 
-class TensorForceValueError(TensorForceError):
-    pass
-
-
-class ArgumentMustBePositiveError(TensorForceValueError):
-    pass
-
-
-class ConfigError(TensorForceValueError):
-    pass
+__all__ = ['ValueFunction', 'LinearValueFunction', 'MLPValueFunction', 'value_functions']

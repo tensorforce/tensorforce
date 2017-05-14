@@ -13,19 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.core.explorations.exploration import Exploration
+from tensorforce.core.explorations.constant import Constant
+from tensorforce.core.explorations.linear_decay import LinearDecay
+from tensorforce.core.explorations.epsilon_decay import EpsilonDecay
+from tensorforce.core.explorations.ornstein_uhlenbeck_process import OrnsteinUhlenbeckProcess
 
 
-class NAFAgent(MemoryAgent):
+explorations = dict(
+    constant=Constant,
+    linear_decay=LinearDecay,
+    epsilon_decay=EpsilonDecay,
+    ornstein_uhlenbeck=OrnsteinUhlenbeckProcess
+)
 
-    name = 'NAFAgent'
-    model = NAFModel
+
+__all__ = ['Exploration', 'Constant', 'LinearDecay', 'EpsilonDecay', 'OrnsteinUhlenbeckProcess', 'explorations']

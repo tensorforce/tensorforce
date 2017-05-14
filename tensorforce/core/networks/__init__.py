@@ -13,19 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.core.networks.network import NeuralNetwork
+from tensorforce.core.networks.layers import layers, layered_network_builder
+from tensorforce.core.networks.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 
 
-class NAFAgent(MemoryAgent):
-
-    name = 'NAFAgent'
-    model = NAFModel
+__all__ = ['NeuralNetwork', 'layers', 'layered_network_builder', 'ConjugateGradientOptimizer']

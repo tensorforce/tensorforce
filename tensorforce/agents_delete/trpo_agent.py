@@ -14,18 +14,22 @@
 # ==============================================================================
 
 """
-Agent using Normalized Advantage Functions
+Trust Region Policy Optimization (TRPO) agent.
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.agents import PGAgent
+from tensorforce.models import TRPOModel
+
+from tensorforce.default_configs import TRPOAgentConfig
 
 
-class NAFAgent(MemoryAgent):
+class TRPOAgent(PGAgent):
+    name = 'TRPOAgent'
 
-    name = 'NAFAgent'
-    model = NAFModel
+    model = TRPOModel
+
+    default_config = TRPOAgentConfig

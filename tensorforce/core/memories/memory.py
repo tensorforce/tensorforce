@@ -13,19 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
 
+class Memory(object):
 
-class NAFAgent(MemoryAgent):
+    def add_experience(self, state, action, reward, terminal, internal):
+        raise NotImplementedError
 
-    name = 'NAFAgent'
-    model = NAFModel
+    def get_batch(self, batch_size):
+        raise NotImplementedError

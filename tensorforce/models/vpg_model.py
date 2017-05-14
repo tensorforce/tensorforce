@@ -22,30 +22,27 @@ from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce.models.pg_model import PGModel
-from tensorforce.default_configs import VPGModelConfig
-from tensorforce.util.math_util import discount
+from tensorforce.core import PolicyGradientModel
 
 
-class VPGModel(PGModel):
-    default_config = VPGModelConfig
+class VPGModel(PolicyGradientModel):
 
-    def __init__(self, config, scope, network_builder=None):
-        super(VPGModel, self).__init__(config, scope, network_builder=network_builder)
+    allows_discrete_actions = True
+    allows_continuous_actions = True
+    default_config = dict()
 
-        self.create_training_operations()
-        self.session.run(tf.global_variables_initializer())
+    def __init__(self, config, network_builder):
+        config.default(VPGModel.default_config)
+        super(VPGModel, self).__init__(config, network_builder)
 
-    def create_training_operations(self):
-        with tf.variable_scope("update"):
-            self.log_probabilities = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
+    def create_tf_operations(self, config):
+        super(VPGModel, self).create_tf_operations(config)
 
-            self.log_probabilities = tf.reshape(self.log_probabilities, [-1])
-
-            # Concise: Get log likelihood of actions, weigh by advantages, compute gradient on that
-            self.loss = -tf.reduce_mean(self.log_probabilities * tf.reshape(self.advantage, [-1]), name="loss_op", axis=0)
-
-            self.optimize_op = self.optimizer.minimize(self.loss)
+        with tf.variable_scope('update'):
+            for name, action in self.action.items():
+                log_prob = self.distribution[name].log_probability(action=action)
+                loss = -tf.reduce_mean(input_tensor=tf.multiply(x=log_prob, y=self.reward), axis=0)
+                tf.losses.add_loss(loss)
 
     def update(self, batch):
         """
@@ -54,31 +51,16 @@ class VPGModel(PGModel):
         :param batch:
         :return:
         """
+        super(VPGModel, self).update(batch)
 
-        # Set per episode return and advantage
-        for episode in batch:
-            episode['returns'] = discount(episode['rewards'], self.gamma)
-            episode['advantages'] = self.advantage_estimation(episode)
+        fetches = [self.optimize, self.loss]
 
-        # Update linear value function for baseline prediction
-        self.baseline_value_function.fit(batch)
+        feed_dict = {self.state[name]: batch['states'][name] for name in self.state}
+        feed_dict.update({self.action[name]: batch['actions'][name] for name in self.action})
+        feed_dict[self.reward] = batch['advantages']
+        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.network.internal_inputs)})
 
-        fetches = [self.optimize_op, self.log_probabilities, self.loss]
-        fetches.extend(self.network.internal_state_outputs)
+        _, loss = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
-        feed_dict = {
-            self.episode_length: [episode['episode_length'] for episode in batch],
-            self.state: [episode['states'] for episode in batch],
-            self.actions: [episode['actions'] for episode in batch],
-            self.advantage: [episode['advantages'] for episode in batch]
-        }
-
-        for n, internal_state in enumerate(self.network.internal_state_inputs):
-            feed_dict[internal_state] = self.internal_states[n]
-
-        fetched = self.session.run(fetches, feed_dict)
-
-        loss = fetched[2]
-        self.internal_states = fetched[3:]
-
-        self.logger.debug('Vanilla policy gradient loss = ' + str(loss))
+        if self.logger:
+            self.logger.debug('VPG loss = ' + str(loss))

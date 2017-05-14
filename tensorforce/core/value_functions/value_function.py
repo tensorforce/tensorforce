@@ -13,6 +13,25 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.exceptions.tensorforce_exceptions import TensorForceError, TensorForceValueError, ConfigError, ArgumentMustBePositiveError
+"""
+Generic baseline value function for policy gradient methods.
+"""
 
-__all__ = ['TensorForceError', 'TensorForceValueError', 'ConfigError', 'ArgumentMustBePositiveError']
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+
+class ValueFunction(object):
+
+    def __init__(self, session):
+        self.session = session
+
+    def create_tf_operations(self):
+        raise NotImplementedError
+
+    def predict(self, states):
+        raise NotImplementedError
+
+    def update(self, states, returns):
+        raise NotImplementedError

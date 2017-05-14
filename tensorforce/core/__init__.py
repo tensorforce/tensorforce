@@ -13,19 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.core.agent import Agent
+from tensorforce.core.batch_agent import BatchAgent
+from tensorforce.core.memory_agent import MemoryAgent
+from tensorforce.core.model import Model
+from tensorforce.core.pg_model import PolicyGradientModel
 
 
-class NAFAgent(MemoryAgent):
-
-    name = 'NAFAgent'
-    model = NAFModel
+__all__ = ['Agent', 'BatchAgent', 'MemoryAgent', 'Model', 'PolicyGradientModel']

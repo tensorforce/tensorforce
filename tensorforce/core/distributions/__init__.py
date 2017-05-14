@@ -13,19 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.core.distributions.distribution import Distribution
+from tensorforce.core.distributions.categorical import Categorical
+from tensorforce.core.distributions.gaussian import Gaussian
 
 
-class NAFAgent(MemoryAgent):
+distributions = dict(
+    categorical=Categorical,
+    gaussian=Gaussian
+)
 
-    name = 'NAFAgent'
-    model = NAFModel
+
+__all__ = ['Distribution', 'Categorical', 'Gaussian', distributions]

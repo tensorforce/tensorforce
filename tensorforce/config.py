@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Configuration class that extends dict and reads configuration files 
-(currently only json)
-"""
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -26,7 +22,11 @@ import os
 import json
 
 
-class Config(dict):
+class Configuration(dict):
+    """
+    Configuration class that extends dict and reads configuration files (currently only json)
+    """
+
     def __getattr__(self, item):
         return self.get(item)
 
@@ -34,9 +34,14 @@ class Config(dict):
         self[item] = value
 
     def __add__(self, other):
-        result = Config(self.items())
+        result = Configuration(self.items())
         result.update(other)
         return result
+
+    def default(self, default):
+        for key in default:
+            if key not in self:
+                self[key] = default[key]
 
     def read_json(self, filename):
         """
@@ -49,24 +54,3 @@ class Config(dict):
         # don't catch, we let open() and json.loads() raise their own exceptions
         with open(path, 'r') as f:
             self.update(json.loads(f.read()))
-
-
-def create_config(values, default=None):
-    """
-    Create Config object from dict. Use default dict for default values.
-
-    :param values: dict containing actual values
-    :param default: dict containing default values or string pointing to default file
-    :return: Config object
-    """
-    if default:
-        if isinstance(default, dict):
-            default_data = default
-        else:
-            raise ValueError("Invalid default config data.")
-        config = Config(default)
-        if values:
-            config.update(values)
-    else:
-        config = Config(values)
-    return config

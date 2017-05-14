@@ -12,20 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-"""
-Agent using Normalized Advantage Functions
-"""
-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.models.model import Model
+from tensorforce.models.dqn_model import DQNModel
+from tensorforce.models.pg_model import PGModel
+from tensorforce.models.vpg_model import VPGModel
+from tensorforce.models.naf_model import NAFModel
+from tensorforce.models.trpo_model import TRPOModel
 
 
-class NAFAgent(MemoryAgent):
-
-    name = 'NAFAgent'
-    model = NAFModel
+__all__ = ['Model', 'DQNModel', 'PGModel', 'VPGModel', 'NAFModel', 'TRPOModel', 'DQFDModel']

@@ -13,19 +13,23 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
+from random import randrange
+import numpy as np
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.core.explorations import Exploration
 
 
-class NAFAgent(MemoryAgent):
+class OrnsteinUhlenbeckProcess(Exploration):
 
-    name = 'NAFAgent'
-    model = NAFModel
+    def __init__(self, num_timesteps, sigma=0.3, mu=0, theta=0.15):
+        self.num_timesteps = num_timesteps
+        self.mu = mu
+        self.theta = theta
+        self.sigma = sigma
+        self.timestep = np.ones(self.num_timesteps) * self.mu
+
+    def __call__(self, episodes=0, timesteps=0):
+        timestep = self.timestep
+        dx = self.theta * (self.mu - timestep) + self.sigma * randrange(len(timestep))
+        self.timestep = timestep + dx
+        return self.timestep

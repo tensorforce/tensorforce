@@ -13,19 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.core.memories.memory import Memory
+from tensorforce.core.memories.replay_memory import ReplayMemory
 
 
-class NAFAgent(MemoryAgent):
+memories = dict(
+    replace=ReplayMemory
+)
 
-    name = 'NAFAgent'
-    model = NAFModel
+__all__ = ['Memory', 'ReplayMemory', 'memories']

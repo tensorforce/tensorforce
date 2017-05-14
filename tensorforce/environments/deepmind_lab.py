@@ -28,7 +28,8 @@ import deepmind_lab
 from tensorforce.environments.environment import Environment
 
 
-class DeepMindLabEnvironment(Environment):
+class DeepMindLab(Environment):
+
     @staticmethod
     def state_spec(level_id):
         """

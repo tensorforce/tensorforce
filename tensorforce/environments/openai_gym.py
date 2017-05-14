@@ -27,7 +27,7 @@ from gym.spaces.discrete import Discrete
 from tensorforce.environments import Environment
 
 
-class OpenAIGymEnvironment(Environment):
+class OpenAIGym(Environment):
 
     def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0):
         """
@@ -76,12 +76,8 @@ class OpenAIGymEnvironment(Environment):
         :return: dict containing the next state, the reward, and a boolean indicating
             if the next state is a terminal state, as well as additional information provided by the gym
         """
-        state, reward, terminal_state, info = self.gym.step(action)
-
-        return dict(state=state,
-                    reward=reward,
-                    terminal_state=terminal_state,
-                    info=info)
+        state, reward, terminal, info = self.gym.step(action)
+        return state, reward, terminal
 
     @property
     def actions(self):

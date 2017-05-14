@@ -24,8 +24,6 @@ from __future__ import division
 
 from six.moves import xrange
 
-from tensorforce.util.experiment_util import repeat_action
-
 
 class Runner(object):
 
@@ -42,31 +40,47 @@ class Runner(object):
         self.save_model_path = path
         self.save_model_episodes = num_episodes
 
-    def run(self, episodes, max_timesteps, episode_finished=None):
+    def run(self, episodes=-1, max_timesteps=-1, episode_finished=None, before_execution=None):
         self.episode_rewards = []  # save all episode rewards for statistics
+        self.episode_lengths = []
 
-        for self.episode in xrange(episodes):
+        self.episode = 1
+        while True:
             state = self.environment.reset()
+            self.agent.reset()
             episode_reward = 0
 
-            for self.timestep in xrange(max_timesteps):
+            self.timestep = 1
+            while True:
                 if self.preprocessor:
                     processed_state = self.preprocessor.process(state)
                 else:
                     processed_state = state
 
-                action = self.agent.get_action(processed_state, self.episode)
-                result = repeat_action(self.environment, action, self.repeat_actions)
+                action = self.agent.act(state=processed_state)
 
-                episode_reward += result['reward']
-                self.agent.add_observation(processed_state, action, result['reward'], result['terminal_state'])
+                if before_execution:
+                    action = before_execution(self, action)
 
-                state = result['state']
+                if self.repeat_actions > 1:
+                    reward = 0
+                    for repeat in xrange(self.repeat_actions):
+                        state, step_reward, terminal = self.environment.execute(action=action)
+                        reward += step_reward
+                        if terminal:
+                            break
+                else:
+                    state, reward, terminal = self.environment.execute(action=action)
 
-                if result['terminal_state']:
+                episode_reward += reward
+                self.agent.observe(state=processed_state, action=action, reward=reward, terminal=terminal)
+
+                if terminal or self.timestep == max_timesteps:
                     break
+                self.timestep += 1
 
             self.episode_rewards.append(episode_reward)
+            self.episode_lengths.append(self.timestep)
 
             if self.save_model_path and self.save_model_episodes > 0 and self.episode % self.save_model_episodes == 0:
                 print("Saving agent after episode {}".format(self.episode))
@@ -74,3 +88,6 @@ class Runner(object):
 
             if episode_finished and not episode_finished(self):
                 return
+            if self.episode == episodes:
+                return
+            self.episode += 1

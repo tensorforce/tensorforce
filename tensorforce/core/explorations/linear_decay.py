@@ -13,19 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
+from random import random
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.core.explorations import Exploration
 
 
-class NAFAgent(MemoryAgent):
+class LinearDecay(Exploration):
+    """
+    Linear decay based on episode number.
+    """
 
-    name = 'NAFAgent'
-    model = NAFModel
+    def __call__(self, episodes=0, timesteps=0):
+        return random() / (episodes + 1)

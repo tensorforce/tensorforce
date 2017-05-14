@@ -28,7 +28,7 @@ from gym.spaces.discrete import Discrete
 from tensorforce.environments.environment import Environment
 
 
-class OpenAIUniverseEnvironment(Environment):
+class OpenAIUniverse(Environment):
     def __init__(self, env_id):
         """
         Initialize open ai universe environment.

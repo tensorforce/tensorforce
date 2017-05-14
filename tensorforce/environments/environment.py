@@ -13,9 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Base environment class
-"""
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -23,9 +20,18 @@ from __future__ import division
 
 
 class Environment(object):
+    """
+    Base environment class
+    """
 
     def __str__(self):
-        return 'Environment'
+        raise NotImplementedError
+
+    def close(self):
+        """
+        Close environment. No other method calls possible afterwards.
+        """
+        raise NotImplementedError
 
     def reset(self):
         """
@@ -35,13 +41,7 @@ class Environment(object):
         """
         raise NotImplementedError
 
-    def close(self):
-        """
-        Close environment. No other method calls possible afterwards.
-        """
-        raise NotImplementedError
-
-    def execute_action(self, action):
+    def execute(self, action):
         """
         Executes action, observes next state and reward.
 
@@ -49,4 +49,12 @@ class Environment(object):
 
         :return: dict containing at least next_state, reward, and terminal_state
         """
+        raise NotImplementedError
+
+    @property
+    def states(self):
+        raise NotImplementedError
+
+    @property
+    def actions(self):
         raise NotImplementedError

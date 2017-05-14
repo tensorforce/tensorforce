@@ -31,70 +31,63 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
-from tensorforce.core import PolicyGradientModel
-from tensorforce.core.networks import ConjugateGradientOptimizer
+from tensorforce.models.pg_model import PGModel
+from tensorforce.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
+from tensorforce.util.math_util import *
+from tensorforce.default_configs import TRPOModelConfig
 
 
-class TRPOModel(PolicyGradientModel):
+class TRPOModel(PGModel):
+    default_config = TRPOModelConfig
 
-    default_config = {
-        'optimizer': None,
-        'cg_damping': 0.001,
-        'line_search_steps': 20,
-        'max_kl_divergence': 0.001,
-        'cg_iterations': 20
-    }
+    def __init__(self, config, scope, network_builder=None):
+        super(TRPOModel, self).__init__(config, scope, network_builder=network_builder)
 
-    def __init__(self, config, network_builder):
-        config.default(TRPOModel.default_config)
-        super(TRPOModel, self).__init__(config, network_builder)
+        # TRPO specific parameters
+        self.cg_damping = self.config.cg_damping
+        self.max_kl_divergence = self.config.max_kl_divergence
+        self.line_search_steps = self.config.line_search_steps
+        self.cg_optimizer = ConjugateGradientOptimizer(self.logger, self.config.cg_iterations)
+        self.override_line_search = self.config.override_line_search
 
-        self.cg_damping = config.cg_damping
-        self.max_kl_divergence = config.max_kl_divergence
-        self.line_search_steps = config.line_search_steps
-        self.cg_optimizer = ConjugateGradientOptimizer(self.logger, config.cg_iterations)
-        self.continuous = config.continuous
+        self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
+        self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
 
-    def create_tf_operations(self, config):
+        self.create_training_operations()
+        self.session.run(tf.global_variables_initializer())
+
+    def create_training_operations(self):
         """
         Creates TRPO training operations, i.e. the natural gradient update step
         based on the KL divergence constraint between new and old policy.
         :return:
         """
-        super(TRPOModel, self).create_tf_operations(config)
 
-        with tf.variable_scope('update'):
-            self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
-            if config.continuous:
-                self.prev_action_log_std = tf.placeholder(tf.float32, (None, None, config.actions))
-                prev_dist = dict(policy_output=self.prev_action_mean, policy_log_std=self.prev_action_log_std)
-            else:
-                prev_dist = dict(policy_output=self.prev_action_mean)
+        with tf.variable_scope("update"):
+            current_log_prob = self.dist.log_prob(self.policy.get_policy_variables(), self.actions)
+            current_log_prob = tf.reshape(current_log_prob, [-1])
 
-            current_log_prob = self.policy.get_distribution().log_prob(self.policy.get_policy_variables(), self.action)
-            current_log_prob = tf.reshape(current_log_prob, (-1,))
-
-            prev_log_prob = self.policy.get_distribution().log_prob(prev_dist, self.action)
-            prev_log_prob = tf.reshape(prev_log_prob, (-1,))
+            prev_log_prob = self.dist.log_prob(self.prev_dist, self.actions)
+            prev_log_prob = tf.reshape(prev_log_prob, [-1])
 
             prob_ratio = tf.exp(current_log_prob - prev_log_prob)
-            surrogate_loss = -tf.reduce_mean(prob_ratio * tf.reshape(self.advantage, (-1,)), axis=0)
+            surrogate_loss = -tf.reduce_mean(prob_ratio * tf.reshape(self.advantage, [-1]), axis=0)
             variables = tf.trainable_variables()
 
-            batch_float = tf.cast(config.batch_size, tf.float32)
+            batch_float = tf.cast(self.batch_size, tf.float32)
 
             # reshape, extract dict
-            mean_kl_divergence = self.policy.get_distribution().kl_divergence(prev_dist, self.policy.get_policy_variables())\
+            mean_kl_divergence = self.dist.kl_divergence(self.prev_dist, self.policy.get_policy_variables())\
                                  / batch_float
-            mean_entropy = self.policy.get_distribution().entropy(self.policy.get_policy_variables()) / batch_float
+            mean_entropy = self.dist.entropy(self.policy.get_policy_variables()) / batch_float
 
             self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
 
             # Get symbolic gradient expressions
             self.policy_gradient = get_flattened_gradient(self.losses, variables)
-            fixed_kl_divergence = self.policy.get_distribution().fixed_kl(self.policy.get_policy_variables()) / batch_float
+            fixed_kl_divergence = self.dist.fixed_kl(self.policy.get_policy_variables()) / batch_float
 
-            variable_shapes = map((lambda t: t.get_shape().as_list()), variables)
+            variable_shapes = map(get_shape, variables)
             offset = 0
             tangents = []
             for shape in variable_shapes:
@@ -117,18 +110,26 @@ class TRPOModel(PolicyGradientModel):
         :param batch:
         :return:
         """
-        super(TRPOModel, self).update(batch)
+        self.input_feed = None
+
+        # Set per episode return and advantage
+        for episode in batch:
+            episode['returns'] = discount(episode['rewards'], self.gamma)
+            episode['advantages'] = self.advantage_estimation(episode)
+
+        # Update linear value function for baseline prediction
+        self.baseline_value_function.fit(batch)
 
         self.input_feed = {
             self.episode_length: [episode['episode_length'] for episode in batch],
             self.state: [episode['states'] for episode in batch],
-            self.action: [episode['actions'] for episode in batch],
+            self.actions: [episode['actions'] for episode in batch],
             self.advantage: [episode['advantages'] for episode in batch],
-            self.prev_action_mean: [episode['action_means'] for episode in batch]
+            self.prev_action_means: [episode['action_means'] for episode in batch]
         }
 
         if self.continuous:
-            self.input_feed[self.prev_action_log_std] = [episode['action_log_stds']
+            self.input_feed[self.prev_action_log_stds] = [episode['action_log_stds']
                                                           for episode in batch]
 
         previous_theta = self.flat_variable_helper.get()
@@ -157,12 +158,15 @@ class TRPOModel(PolicyGradientModel):
             improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
                                           negative_gradient_direction / lagrange_multiplier, self.line_search_steps)
 
-            # Use line search results, otherwise take full step
-            # N.B. some implementations don't use the line search
+            # Only update if improved according to line search
+            # if override_line_search is set to True, we always take the full step
+            # this can make the algorithm very unstable/cause divergence
+            # but potentially leads to faster solutions for some problems
+            # Should generally be set to False
             if improved:
                 self.logger.debug('Updating with line search result..')
                 self.flat_variable_helper.set(theta)
-            else:
+            elif self.override_line_search:
                 self.logger.debug('Updating with full step..')
                 self.flat_variable_helper.set(previous_theta + update_step)
 

@@ -13,19 +13,32 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions
-"""
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.core import MemoryAgent
-from tensorforce.models import NAFModel
 
+class Distribution(object):
 
-class NAFAgent(MemoryAgent):
+    epsilon = 1e-6
 
-    name = 'NAFAgent'
-    model = NAFModel
+    @classmethod
+    def kl_divergence(cls, distr_a, distr_b):
+        """
+        Get KL divergence between distributions a and b.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def entropy(cls, distribution):
+        """
+        Get current entropy, mainly used for debugging purposes.
+        """
+        raise NotImplementedError
+
+    def create_tf_operations(self, x, sample=True):
+        raise NotImplementedError
+
+    def log_probability(self, action):
+        raise NotImplementedError

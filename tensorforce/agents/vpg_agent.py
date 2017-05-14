@@ -14,21 +14,18 @@
 # ==============================================================================
 
 """
-Vanilla policy gradient agent with GAE.
+Vanilla policy gradient agent.
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.agents import PGAgent
-from tensorforce.models.vpg_model import VPGModel
+from tensorforce.core import BatchAgent
+from tensorforce.models import VPGModel
 
-from tensorforce.default_configs import VPGAgentConfig
 
-class VPGAgent(PGAgent):
+class VPGAgent(BatchAgent):
+
     name = 'VPGAgent'
-
     model = VPGModel
-
-    default_config = VPGAgentConfig

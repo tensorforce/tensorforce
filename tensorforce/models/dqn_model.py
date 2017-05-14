@@ -116,7 +116,7 @@ class DQNModel(Model):
 
             fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
             # First element of output list is action
-            action = fetched[0][0]
+            action = fetched[0][0][0]
 
             # Update optional internal states, e.g. LSTM cells
             self.training_internal_states = fetched[1:len(self.training_internal_states)]

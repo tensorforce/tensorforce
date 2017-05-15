@@ -70,7 +70,7 @@ class ConjugateGradientOptimizer(object):
             residual_dot_residual = new_residual_dot_residual
 
             if residual_dot_residual < self.stop_residual:
-                self.logger.debug('Approximate cg solution found after ' + str(i) + ' iterations')
+                self.logger.debug('Approximate cg solution found after {:d} iterations'.format(i+1))
                 break
 
         return x

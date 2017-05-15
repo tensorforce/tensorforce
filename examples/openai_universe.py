@@ -27,9 +27,8 @@ from six.moves import xrange
 import numpy as np
 
 from tensorforce.config import Config
-from tensorforce.external.openai_universe import OpenAIUniverseEnvironment
-from tensorforce.util.agent_util import create_agent, get_default_config
-from tensorforce.util.wrapper_util import create_wrapper
+from tensorforce.environments.openai_universe import OpenAIUniverse
+from tensorforce.util import create_agent, get_default_config, build_preprocessing_stack
 
 
 def main():
@@ -55,7 +54,7 @@ def main():
 
     max_timesteps = args.max_timesteps
 
-    environment = OpenAIUniverseEnvironment(env_id)
+    environment = OpenAIUniverse(env_id)
 
     config = Config({
         'actions': environment.actions,
@@ -69,10 +68,13 @@ def main():
     if args.network_config:
         config.read_json(args.network_config)
 
-    state_wrapper = None
-    if config.state_wrapper:
-        state_wrapper = create_wrapper(config.state_wrapper, config.state_wrapper_param)
-        config.state_shape = state_wrapper.state_shape(config.state_shape)
+
+    preprocessing_config = config.get('preprocessing')
+    if preprocessing_config:
+        stack = build_preprocessing_stack(preprocessing_config)
+        config.state_shape = stack.shape(config.state_shape)
+    else:
+        stack = None
 
     agent = create_agent(args.agent, config)
 
@@ -89,8 +91,8 @@ def main():
         episode_reward = 0
         repeat_action_count = 0
         for j in xrange(max_timesteps):
-            if state_wrapper:
-                full_state = state_wrapper.get_full_state(state)
+            if stack:
+                full_state = stack.process(state)
             else:
                 full_state = state
             if repeat_action_count <= 0:

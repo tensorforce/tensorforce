@@ -54,3 +54,23 @@ class Configuration(dict):
         # don't catch, we let open() and json.loads() raise their own exceptions
         with open(path, 'r') as f:
             self.update(json.loads(f.read()))
+
+
+def create_config(values, default=None):
+    """
+    Create Config object from dict. Use default dict for default values.
+    :param values: dict containing actual values
+    :param default: dict containing default values or string pointing to default file
+    :return: Config object
+    """
+    if default:
+        if isinstance(default, dict):
+            default_data = default
+        else:
+            raise ValueError("Invalid default config data.")
+        config = Configuration(default)
+        if values:
+            config.update(values)
+    else:
+        config = Configuration(values)
+    return config

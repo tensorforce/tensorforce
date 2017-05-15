@@ -14,8 +14,24 @@
 # ==============================================================================
 
 import importlib
+import logging
 import numpy as np
 import tensorflow as tf
+
+from tensorforce.config import Configuration
+from tensorforce.exception import *
+from tensorforce.agents import *
+from tensorforce import preprocessing
+
+
+log_levels = {
+    "info": logging.INFO,
+    "debug": logging.DEBUG,
+    "critical": logging.CRITICAL,
+    "warning": logging.WARNING,
+    "fatal": logging.FATAL
+}
+
 
 
 def prod(xs):
@@ -101,3 +117,112 @@ def function(f):
 
 #         data[fk] = func(*args, **kwargs)
 #         return True
+
+
+
+
+def repeat_action(environment, action, repeat_action=1):
+    """
+    Repeat action `repeat_action_count` times. Cumulate reward and return last state.
+
+    :param environment: Environment object
+    :param action: Action to be executed
+    :param repeat_action: How often to repeat the action
+    :return: result dict
+    """
+    if repeat_action <= 0:
+        raise ValueError('repeat_action lower or equal zero')
+
+    reward = 0.
+    terminal_state = False
+    for count in xrange(repeat_action):
+        result = environment.execute_action(action)
+
+        state = result['state']
+        reward += result['reward']
+        terminal_state = terminal_state or result['terminal_state']
+        info = result.get('info', None)
+
+    return dict(state=state,
+                reward=reward,
+                terminal_state=terminal_state,
+                info=info)
+
+
+
+
+
+
+
+
+preprocessors = {
+    'concat': preprocessing.Concat,
+    'grayscale': preprocessing.Grayscale,
+    'imresize': preprocessing.Imresize,
+    'maximum': preprocessing.Maximum,
+    'normalize': preprocessing.Normalize,
+    'standardize': preprocessing.Standardize
+}
+
+
+def build_preprocessing_stack(config):
+    stack = preprocessing.Stack()
+
+    for preprocessor_conf in config:
+        preprocessor_name = preprocessor_conf[0]
+
+        preprocessor_params = []
+        if len(preprocessor_conf) > 1:
+            preprocessor_params = preprocessor_conf[1:]
+
+        preprocessor_class = preprocessors.get(preprocessor_name, None)
+        if not preprocessor_class:
+            raise ConfigError("No such preprocessor: {}".format(preprocessor_name))
+
+        preprocessor = preprocessor_class(*preprocessor_params)
+        stack += preprocessor
+
+    return stack
+
+
+
+def create_agent(agent_type, config, scope='prefixed_scope'):
+    """
+    Create agent instance by providing type as a string parameter.
+
+    :param agent_type: String parameter containing agent type
+    :param config: Dict containing configuration
+    :param scope: Scope prefix used for distributed tensorflow scope separation
+    :return: Agent instance
+    """
+    agent_class = agents.get(agent_type)
+
+    if not agent_class:
+        raise TensorForceError("No such agent: {}".format(agent_type))
+
+    return agent_class(config, scope)
+
+
+def get_default_config(agent_type):
+    """
+    Get default configuration from agent by providing type as a string parameter.
+
+    :param agent_type: String parameter containing agent type
+    :return: Default configuration dict
+    """
+    agent_class = agents.get(agent_type)
+
+    if not agent_class:
+        raise TensorForceError("No such agent: {}".format(agent_type))
+
+    return Configuration(agent_class.default_config), Config(agent_class.model_ref.default_config)
+
+
+agents = {
+    'RandomAgent': RandomAgent,
+    'DQNAgent': DQNAgent,
+    'NAFAgent': NAFAgent,
+    'TRPOAgent': TRPOAgent,
+    'VPGAgent': VPGAgent,
+    'DQFDAgent': DQFDAgent,
+}

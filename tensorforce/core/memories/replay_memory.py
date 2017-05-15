@@ -50,14 +50,17 @@ class ReplayMemory(Memory):
         self.index = 0
 
     def add_experience(self, state, action, reward, terminal, internal):
+
         for name, state in state.items():
             self.states[name][self.index] = state
         for name, action in action.items():
             self.actions[name][self.index] = action
         self.rewards[self.index] = reward
         self.terminals[self.index] = terminal
+
         if self.internal is None and internal is not None:
             self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal in internal]
+
         for n in range(len(self.internals)):
             self.internals[n][self.index] = internal[n]
 
@@ -66,6 +69,17 @@ class ReplayMemory(Memory):
         self.index = (self.index + 1) % self.capacity
 
     def get_batch(self, batch_size):
+        """
+        Samples a batch of the specified size by selecting a random start/end point and returning
+        the contained sequence (as opposed to sampling each state separately).
+        
+        Args:
+            batch_size: Length of the sampled sequence.
+
+        Returns: A dict containing states, rewards, terminals and internal states
+
+        """
+
         end = (self.index - randrange(self.size - batch_size)) % self.capacity
         start = (end - batch_size) % self.capacity
         if start < end:

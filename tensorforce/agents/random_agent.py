@@ -32,6 +32,8 @@ class RandomAgent(Agent):
     def __init__(self, config, network_builder):
         super(RandomAgent, self).__init__(config, network_builder)
 
+        self.random = np.random.seed(config.seed)
+
     def act(self, state, episode=1):
         """
         Get random action from action space

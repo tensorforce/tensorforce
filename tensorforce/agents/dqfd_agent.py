@@ -26,9 +26,14 @@ from six.moves import xrange
 
 from tensorforce.config import create_config
 from tensorforce.core import Agent
+from tensorforce.core.memories import ReplayMemory
+from tensorforce.default_configs_delete.dqfd import DQFDAgentConfig
+from tensorforce.models import DQFDModel
 
 
 class DQFDAgent(Agent):
+
+
 
     name = 'DQFDAgent'
     model = DQFDModel
@@ -41,6 +46,7 @@ class DQFDAgent(Agent):
         :param config: 
         :param scope: 
         """
+        super(DQFDAgent, self).__init__(config, network_builder)
         self.config = create_config(config, default=self.default_config)
 
         # This is the online memory
@@ -94,7 +100,7 @@ class DQFDAgent(Agent):
             # Update using both double Q-learning and supervised double_q_loss
             self.model.pre_train_update(batch)
 
-    def add_observation(self, state, action, reward, terminal):
+    def observe(self, state, action, reward, terminal):
         """
         Adds observations, updates via sampling from memories according to update rate.
         In the DQFD case, we sample from the online replay memory and the demo memory with
@@ -106,7 +112,7 @@ class DQFDAgent(Agent):
         :param terminal: 
         :return: 
         """
-        self.replay_memory.add_experience(state, action, reward, terminal)
+        self.replay_memory.add_experience(state, action, reward, terminal, None)
 
         self.step_count += 1
 
@@ -114,8 +120,8 @@ class DQFDAgent(Agent):
             for _ in xrange(self.update_repeat):
                 # Sample batches according to expert sampling ratio
                 # In the paper, p is given as p = n_demo / (n_replay + n_demo)
-                demo_batch = self.demo_memory.sample_batch(self.demo_batch_size)
-                online_batch = self.replay_memory.sample_batch(self.batch_size)
+                demo_batch = self.demo_memory.get_batch(self.demo_batch_size)
+                online_batch = self.replay_memory.get_batch(self.batch_size)
 
                 self.model.update(demo_batch, online_batch)
 

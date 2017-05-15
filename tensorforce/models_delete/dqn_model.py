@@ -25,9 +25,8 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 
-from tensorforce.models import Model
-from tensorforce.models.neural_networks import NeuralNetwork
-from tensorforce.util.experiment_util import global_seed
+from tensorforce.core.model import Model
+from tensorforce.core.networks import NeuralNetwork, layered_network_builder
 
 from tensorforce.default_configs import DQNModelConfig
 
@@ -68,7 +67,7 @@ class DQNModel(Model):
         self.rewards = tf.placeholder(tf.float32, (None, None), name='rewards')
 
         if network_builder is None:
-            network_builder = NeuralNetwork.layered_network(self.config.network_layers + output_layer_config)
+            network_builder = layered_network_builder(self.config.network_layers + output_layer_config)
 
         self.training_network = NeuralNetwork(network_builder, [self.state], episode_length=self.episode_length,
                                               scope=self.scope + 'training')

@@ -25,7 +25,9 @@ import tensorflow as tf
 import numpy as np
 
 from tensorforce.models.baselines.value_function import ValueFunction
-from tensorforce.models.neural_networks import NeuralNetwork
+from tensorforce.core.networks import NeuralNetwork
+
+from tensorforce.core.networks import layered_network_builder
 
 
 class MLPValueFunction(ValueFunction):
@@ -53,9 +55,9 @@ class MLPValueFunction(ValueFunction):
         with tf.variable_scope("mlp_value_function"):
             self.input = tf.placeholder(tf.float32, shape=[None, self.get_features_size(state_size)], name="input")
 
-            network_builder = NeuralNetwork.layered_network((
+            network_builder = layered_network_builder([
                 {'type': 'dense', 'num_outputs': layer_size},
-                {'type': 'dense', 'num_outputs': 1}))
+                {'type': 'dense', 'num_outputs': 1}])
             network = NeuralNetwork(network_builder=network_builder, inputs=[self.input])
 
             # hidden_1 = dense(layer_input=self.input, {'num_outputs': input_shape}, scope='hidden_1')

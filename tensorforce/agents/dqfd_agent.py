@@ -25,13 +25,10 @@ from __future__ import division
 from six.moves import xrange
 
 from tensorforce.config import create_config
-from tensorforce.models.dqfd_model import DQFDModel
-from tensorforce.replay_memories import ReplayMemory
-from tensorforce.agents import RLAgent
-from tensorforce.default_configs import DQFDAgentConfig
+from tensorforce.core import Agent
 
 
-class DQFDAgent(RLAgent):
+class DQFDAgent(Agent):
 
     name = 'DQFDAgent'
     model = DQFDModel

@@ -19,15 +19,19 @@ from __future__ import division
 import tensorflow as tf
 
 import unittest
-from six.moves import xrange
+from tensorforce.rl_agents.memory_agent import create_config
 
-from tensorforce.config import create_config
-from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.agents import DQNAgent
+from tensorforce.core.networks import layered_network_builder
+from tensorforce.environments.minimal_test import MinimalTest
+from tensorforce.execution import Runner
+
 
 class TestDQNAgent(unittest.TestCase):
 
     def test_dqn_agent(self):
+        environment = MinimalTest(continuous=False)
+
         config = {
             'seed': 10,
             'batch_size': 16,
@@ -55,25 +59,13 @@ class TestDQNAgent(unittest.TestCase):
         tf.set_random_seed(10)
 
         config = create_config(config)
-        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense', 'num_outputs': 16}, {'type': 'linear', 'num_outputs': 2}])
+        network_builder = layered_network_builder([{'type': 'dense', 'num_outputs': 16}, {'type': 'linear', 'num_outputs': 2}])
         agent = DQNAgent(config=config, network_builder=network_builder)
 
-        state = (1, 0)
-        rewards = [0.0] * 100
-        for n in xrange(10000):
-            action = agent.get_action(state=state)
-            if action == 0:
-                state = (1, 0)
-                reward = 0.0
-                terminal = False
-            else:
-                state = (0, 1)
-                reward = 1.0
-                terminal = False
-            agent.add_observation(state=state, action=action, reward=reward, terminal=terminal)
-            rewards[n % 100] = reward
+        runner = Runner(agent=agent, environment=environment)
 
-            if sum(rewards) == 100.0:
-                return
+        def episode_finished(r):
+            return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        assert(sum(rewards) == 100.0)
+        runner.run(episodes=10000, episode_finished=episode_finished)
+        self.assertTrue(runner.episode < 10000)

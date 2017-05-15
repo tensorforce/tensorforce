@@ -17,6 +17,8 @@ from tensorforce.models.vpg_model import VPGModel
 from tensorforce.models.dqn_model import DQNModel
 from tensorforce.models.naf_model import NAFModel
 from tensorforce.models.trpo_model import TRPOModel
+from tensorforce.models.dqfd_model import DQFDModel
+from tensorforce.models.distributed_pg_model import DistributedPGModel
 
 
-__all__ = ['VPGModel', 'DQNModel', 'NAFModel', 'TRPOModel']
+__all__ = ['VPGModel', 'DQNModel', 'NAFModel', 'TRPOModel', 'DQFDModel', 'DistributedPGModel']

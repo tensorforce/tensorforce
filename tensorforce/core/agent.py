@@ -84,9 +84,11 @@ class Agent(object):
 
     def act(self, state):
         self.timesteps += 1
+
         if self.unique_state:
             state = dict(state=state)
         action, self.internals = self.model.get_action(state=state)
+
         for name, exploration in self.exploration.items():
             if exploration is None:
                 continue

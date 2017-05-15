@@ -28,8 +28,6 @@ from tensorforce.models import Model
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.util.experiment_util import global_seed
 
-
-# UNDER CONSTRUCTION
 class DQFDModel(Model):
 
     def __init__(self, config, scope, network_builder=None):

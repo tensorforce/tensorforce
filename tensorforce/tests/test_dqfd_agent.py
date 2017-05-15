@@ -25,10 +25,14 @@ import unittest
 from tensorforce.config import create_config
 from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.agents import DQFDAgent
+from tensorforce.core.networks import layered_network_builder
+from tensorforce.environments.minimal_test import MinimalTest
+from tensorforce.execution import Runner
 
 
 class TestDQFDAgent(unittest.TestCase):
     def test_dqfd_agent(self):
+        environment = MinimalTest(continuous=False)
 
         config = {
             "expert_sampling_ratio": 0.01,
@@ -58,14 +62,14 @@ class TestDQFDAgent(unittest.TestCase):
         tf.reset_default_graph()
 
         config = create_config(config)
-        network_builder = NeuralNetwork. \
-            layered_network(layers=[{'type': 'dense',
-                                     'num_outputs': 16,
-                                     'weights_regularizer': 'tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer',
-                                     'weights_regularizer_kwargs': {
-                                         'scale': 0.01
-                                     }
-                                     }, {'type': 'linear', 'num_outputs': 2}])
+        network_builder = layered_network_builder([{'type': 'dense',
+                                                    'num_outputs': 16,
+                                                    'weights_regularizer': 'tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer',
+                                                    'weights_regularizer_kwargs': {
+                                                        'scale': 0.01
+                                                    }},
+                                                   {'type': 'linear', 'num_outputs': 2}])
+
         agent = DQFDAgent(config=config, network_builder=network_builder)
 
         state = (1, 0)
@@ -88,25 +92,13 @@ class TestDQFDAgent(unittest.TestCase):
         agent.pre_train(10000)
 
         # If pretraining worked, we should not need much more training
-        for n in xrange(1000):
-            action = agent.get_action(state=state)
-            if action == 0:
-                state = (1, 0)
-                reward = 0.0
-                terminal = False
-            else:
-                state = (0, 1)
-                reward = 1.0
-                terminal = False
+        runner = Runner(agent=agent, environment=environment)
 
-            agent.add_observation(state=state, action=action, reward=reward, terminal=terminal)
-            rewards[n % 100] = reward
+        def episode_finished(r):
+            return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            if sum(rewards) == 100.0:
-                print('Passed after steps = {:d}'.format(n))
-
-                return
-            print('sum = {:f}'.format(sum(rewards)))
+        runner.run(episodes=10000, episode_finished=episode_finished)
+        self.assertTrue(runner.episode < 10000)
 
             # We don't assert here because there is some randomness in the test and while
             # we can find a deterministic setting with a working random seed, that same

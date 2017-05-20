@@ -29,29 +29,28 @@ from tensorforce.environments.environment import Environment
 
 
 class DeepMindLab(Environment):
+    #
+    # @staticmethod
+    # def state_spec(level_id):
+    #     """
+    #     Returns a list of dicts with keys 'dtype', 'shape' and 'name', specifying the available observations this DeepMind Lab environment supports.
+    #
+    #     :param level_id: string with id/descriptor of the level
+    #     """
+    #     level = deepmind_lab.Lab(level_id, ())
+    #     return level.observation_spec()
+    #
+    # @staticmethod
+    # def action_spec(level_id):
+    #     """
+    #     Returns a list of dicts with keys 'min', 'max' and 'name', specifying the shape of the actions expected by this DeepMind Lab environment.
+    #
+    #     :param level_id: string with id/descriptor of the level
+    #     """
+    #     level = deepmind_lab.Lab(level_id, ())
+    #     return level.action_spec()
 
-    @staticmethod
-    def state_spec(level_id):
-        """
-        Returns a list of dicts with keys 'dtype', 'shape' and 'name', specifying the available observations this DeepMind Lab environment supports.
-
-        :param level_id: string with id/descriptor of the level
-        """
-        level = deepmind_lab.Lab(level_id, ())
-        return level.observation_spec()
-
-    @staticmethod
-    def action_spec(level_id):
-        """
-        Returns a list of dicts with keys 'min', 'max' and 'name', specifying the shape of the actions expected by this DeepMind Lab environment.
-
-        :param level_id: string with id/descriptor of the level
-        """
-        level = deepmind_lab.Lab(level_id, ())
-        return level.action_spec()
-
-    def __init__(self, level_id, num_steps=1, state_attributes=['RGB_INTERLACED'],
-                 settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}):
+    def __init__(self, level_id, repeat_action=1, state_attributes=['RGB_INTERLACED'], settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}):
         """
         Initialize DeepMind Lab environment.
 
@@ -60,12 +59,19 @@ class DeepMindLab(Environment):
         :param state_attributes: list of attributes which represent the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id)
         :param settings: dict specifying additional settings as key-value string pairs. The following options are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
         """
-
-        #TODO use state attributes as a key to fetch the right state from the state list
-        # whenever state is accessed
         self.level_id = level_id
         self.level = deepmind_lab.Lab(level=level_id, observations=state_attributes, config=settings)
-        self._num_steps = num_steps
+        self.repeat_action = repeat_action
+
+    def __str__(self):
+        return 'DeepMindLab({})'.format(self.level_id)
+
+    def close(self):
+        """
+        Closes the environment and releases the underlying Quake III Arena instance. No other method calls possible afterwards.
+        """
+        self.level.close()
+        self.level = None
 
     def reset(self):
         """
@@ -76,49 +82,39 @@ class DeepMindLab(Environment):
         self.level.reset()  # optional: episode=-1, seed=None
         return self.level.observations()['RGB_INTERLACED']
 
-    def close(self):
-        """
-        Closes the environment and releases the underlying Quake III Arena instance. No other method calls possible afterwards.
-        """
-        self.level.close()
-        self.level = None
-
-    def execute_action(self, action):
+    def execute(self, action):
         """
         Pass action to universe environment, return reward, next step, terminal state and additional info.
 
         :param action: action to execute as numpy array, should have dtype np.intc and should adhere to the specification given in DeepMindLabEnvironment.action_spec(level_id)
         :return: dict containing the next state, the reward, and a boolean indicating if the next state is a terminal state
         """
+        actions = list()
+        for action_spec in self.level.action_spec():
+            if action_spec['min'] == -1 and action_spec['max'] == 1:
+                actions.append(action[action_spec['name']] - 1)
+            else:
+                actions.append(action[action_spec['name']])  # clip?
+        action = numpy.array(actions, dtype=np.intc)
 
-        #TODO this is not sensible at all for learning and just here to test lab connectivity
-        #TODO this will be replaced by a more general action representation
-        # Lab uses named action dicts while gym/universe use simple ints/arrays, so we
-        # will add wrapper
-        action_mask = np.zeros(len(self.level.action_spec()), dtype=np.intc)
-        action_mask[action] = 1
-        reward = self.level.step(action=action_mask, num_steps=self._num_steps)
-
+        reward = self.level.step(action=action, num_steps=self.repeat_action)
         state = self.level.observations()['RGB_INTERLACED']
-        terminal_state = self.level.is_running()
+        terminal = not self.level.is_running()
+        return state, reward, terminal
 
-        return dict(state=state, reward=reward, terminal_state=terminal_state)
+    @property
+    def states(self):
+        return {state['name']: dict(shape=state['shape'], type=state['dtype']) for state in self.level.observation_spec()}
 
     @property
     def actions(self):
-        return len(self.level.action_spec())
-
-    @property
-    def action_shape(self):
-        #TODO also just for demonstrating basic lab connectivity
-        return []
-#       return [len(self.level.action_spec())]
-
-    @property
-    def state_shape(self):
-        # TODO this is just for demonstration, we need a more general way of
-        # modelling states
-        return self.level.observation_spec()[0]['shape']
+        actions = dict()
+        for action in self.level.action_spec():
+            if action['min'] == -1 and action['max'] == 1:
+                actions[action['name']] = dict(continuous=False, num_actions=3)
+            else:
+                actions[action['name']] = dict(continuous=True, min_value=action['min'], max_value=action['max'])
+        return actions
 
     @property
     def num_steps(self):

@@ -25,6 +25,8 @@ from __future__ import division
 import gym
 import universe
 from gym.spaces.discrete import Discrete
+
+from tensorforce import TensorForceError
 from tensorforce.environments.environment import Environment
 
 
@@ -38,13 +40,8 @@ class OpenAIUniverse(Environment):
         self.env_id = env_id
         self.env = gym.make(env_id)
 
-    def reset(self):
-        """
-        Pass reset function to universe environment.
-
-        :return: ndarray containing initial state
-        """
-        return self.env.reset()
+    def __str__(self):
+        return 'OpenAI-Universe({})'.format(self.env_id)
 
     def close(self):
         """
@@ -52,35 +49,31 @@ class OpenAIUniverse(Environment):
         """
         self.env = None
 
-    def execute_action(self, action):
+    def reset(self):
+        """
+        Pass reset function to universe environment.
+        """
+        return self.env.reset()
+
+    def execute(self, action):
         """
         Pass action to universe environment, return reward, next step, terminal state and additional info.
-
-        :param action: Action to execute
-        :return: dict containing next_state, reward, and a boolean indicating
-            if next state is a terminal state, as well as additional information provided by the universe environment
         """
-        state, reward, terminal_state, info = self.env.step(action)
+        state, reward, terminal, _ = self.env.step(action)
+        return state, reward, terminal
 
-        return dict(state=state,
-                    reward=reward,
-                    terminal_state=terminal_state,
-                    info=info)
+    @property
+    def states(self):
+        if isinstance(self.env.observation_space, Discrete):
+            return dict(shape=(), type='float')
+        else:
+            return dict(shape=tuple(self.env.observation_space.shape), type='float')
 
     @property
     def actions(self):
         if isinstance(self.env.action_space, Discrete):
-            return self.env.action_space.n
+            return dict(continuous=False, num_actions=self.env.action_space.n)
+        elif len(self.env.action_space.shape) == 1:
+            return {'action' + str(n): dict(continuous=True) for n in range(len(self.env.action_space.shape[0]))}
         else:
-            return self.env.action_space.shape[0]
-
-    @property
-    def action_shape(self):
-        if isinstance(self.env.action_space, Discrete):
-            return []
-        else:
-            return (self.env.action_space.shape[0],)
-
-    @property
-    def state_shape(self):
-        return self.env.observation_space.shape
+            raise TensorForceError()

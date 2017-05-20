@@ -24,6 +24,8 @@ from __future__ import division
 import gym
 from gym.wrappers import Monitor
 from gym.spaces.discrete import Discrete
+
+from tensorforce import TensorForceError
 from tensorforce.environments import Environment
 
 
@@ -49,18 +51,7 @@ class OpenAIGym(Environment):
             self.gym = Monitor(self.gym, monitor, force=not monitor_safe, video_callable=video_callable)
 
     def __str__(self):
-        return self.gym_id
-
-    def monitor(self, path):
-        self.gym = Monitor(self.gym, path)
-
-    def reset(self):
-        """
-        Pass reset function to gym.
-
-        :return: ndarray containing initial state
-        """
-        return self.gym.reset()
+        return 'OpenAIGym({})'.format(self.gym_id)
 
     def close(self):
         """
@@ -68,34 +59,34 @@ class OpenAIGym(Environment):
         """
         self.gym = None
 
-    def execute_action(self, action):
+    def reset(self):
+        """
+        Pass reset function to gym.
+        """
+        return self.gym.reset()
+
+    def execute(self, action):
         """
         Pass action to gym, return reward, next step, terminal state and additional info.
-
-        :param action: Action to execute
-        :return: dict containing the next state, the reward, and a boolean indicating
-            if the next state is a terminal state, as well as additional information provided by the gym
         """
-        state, reward, terminal, info = self.gym.step(action)
+        state, reward, terminal, _ = self.gym.step(action)
         return state, reward, terminal
+
+    @property
+    def states(self):
+        if isinstance(self.gym.observation_space, Discrete):
+            return dict(shape=(), type='float')
+        else:
+            return dict(shape=tuple(self.gym.observation_space.shape), type='float')
 
     @property
     def actions(self):
         if isinstance(self.gym.action_space, Discrete):
-            return self.gym.action_space.n
+            return dict(continuous=False, num_actions=self.gym.action_space.n)
+        elif len(self.gym.action_space.shape) == 1:
+            return {'action' + str(n): dict(continuous=True) for n in range(len(self.gym.action_space.shape[0]))}
         else:
-            return self.gym.action_space.shape[0]
+            raise TensorForceError()
 
-    @property
-    def action_shape(self):
-        if isinstance(self.gym.action_space, Discrete):
-            return []
-        else:
-            return self.gym.action_space.shape
-
-    @property
-    def state_shape(self):
-        if isinstance(self.gym.observation_space, Discrete):
-            return []
-        else:
-            return self.gym.observation_space.shape
+    def monitor(self, path):
+        self.gym = Monitor(self.gym, path)

@@ -26,10 +26,10 @@ class OrnsteinUhlenbeckProcess(Exploration):
         self.mu = mu
         self.theta = theta
         self.sigma = sigma
-        self.timestep = np.ones(self.num_timesteps) * self.mu
+        self.timesteps = np.ones(self.num_timesteps) * self.mu
 
-    def __call__(self, episodes=0, timesteps=0):
-        timestep = self.timestep
-        dx = self.theta * (self.mu - timestep) + self.sigma * randrange(len(timestep))
-        self.timestep = timestep + dx
-        return self.timestep
+    def __call__(self, episode=0, timestep=0):
+        timesteps = self.timesteps
+        dx = self.theta * (self.mu - timesteps) + self.sigma * randrange(len(timesteps))
+        self.timesteps = timesteps + dx
+        return self.timesteps

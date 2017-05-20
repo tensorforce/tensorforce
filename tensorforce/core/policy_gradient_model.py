@@ -49,13 +49,14 @@ class PolicyGradientModel(Model):
 
         # distribution
         self.distribution = dict()
-        for name, action in config.actions.items():
-            distribution = action.get('distribution')
-            if distribution is None:
-                distribution = 'gaussian' if action['continuous'] else 'categorical'
-            elif distribution not in distributions:
+        for name, action in config.actions:
+            if 'distribution' in action:
+                distribution = action.distribution
+            else:
+                distribution = 'gaussian' if action.continuous else 'categorical'
+            if distribution not in distributions:
                 raise TensorForceError()
-            if action['continuous']:
+            if action.continuous:
                 self.distribution[name] = distributions[distribution]()
             else:
                 self.distribution[name] = distributions[distribution](num_actions=action['num_actions'])
@@ -84,32 +85,18 @@ class PolicyGradientModel(Model):
 
         with tf.variable_scope('value_function'):
             self.network = NeuralNetwork(self.network, inputs=self.state)
+            self.internal_inputs.extend(self.network.internal_inputs)
+            self.internal_outputs.extend(self.network.internal_outputs)
+            self.internal_inits.extend(self.network.internal_inits)
 
         with tf.variable_scope('distribution'):
-            for distribution in self.distribution.values():
+            for action, distribution in self.distribution.items():
                 distribution.create_tf_operations(x=self.network.output, sample=config.sample_actions)
+                self.action_taken[action] = distribution.value
 
         if self.baseline:
             with tf.variable_scope('baseline'):
                 self.baseline.create_tf_operations(config)
-
-    def reset(self):
-        super(PolicyGradientModel, self).reset()
-        self.internals = self.network.internal_inits
-
-    def get_action(self, state, episode=1):
-        fetches = {action: distribution.value for action, distribution in self.distribution.items()}
-        fetches.update({n: internal for n, internal in enumerate(self.network.internal_outputs)})
-
-        feed_dict = {self.state[name]: (state[name],) for name in self.state}
-        feed_dict.update({internal: (self.internals[n],) for n, internal in enumerate(self.network.internal_inputs)})
-        internals = self.internals
-
-        fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
-
-        self.internals = [fetched[n][0] for n in range(len(self.network.internal_outputs))]
-
-        return {action: fetched.pop(action)[0] for action in self.action}, internals
 
     def update(self, batch):
         """Generic policy gradient update on a batch of experiences. Each model needs to update its specific
@@ -123,10 +110,10 @@ class PolicyGradientModel(Model):
         """
         batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'], discount=self.discount)
         # assert utils.discount(batch['rewards'], batch['terminals'], self.discount) == discount
-        batch['advantages'] = self.advantage_estimation(batch)
-
+        batch['rewards'] = self.advantage_estimation(batch)
         if self.baseline:
             self.baseline.update(states=batch['states'], returns=batch['returns'])
+        super(PolicyGradientModel, self).update(batch)
 
     def advantage_estimation(self, batch):
         """Expects a batch, returns advantages according to config.

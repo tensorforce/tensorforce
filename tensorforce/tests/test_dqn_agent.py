@@ -19,8 +19,8 @@ from __future__ import division
 import tensorflow as tf
 
 import unittest
-from tensorforce.rl_agents.memory_agent import create_config
 
+from tensorforce import Configuration
 from tensorforce.agents import DQNAgent
 from tensorforce.core.networks import layered_network_builder
 from tensorforce.environments.minimal_test import MinimalTest
@@ -29,43 +29,33 @@ from tensorforce.execution import Runner
 
 class TestDQNAgent(unittest.TestCase):
 
-    def test_dqn_agent(self):
+    def test_discrete(self):
         environment = MinimalTest(continuous=False)
-
-        config = {
-            'seed': 10,
-            'batch_size': 16,
-            'state_shape': (2,),
-            'actions': 2,
-            'action_shape': (),
-            'update_rate': 1,
-            'update_repeat': 4,
-            'min_replay_size': 50,
-            'memory_capacity': 50,
-            "exploration": "epsilon_decay",
-            "exploration_param": {
-                "epsilon": 1,
-                "epsilon_final": 0,
-                "epsilon_states": 50
-            },
-            'target_network_update_rate': 1.0 ,
-            'use_target_network': True,
-            "alpha": 0.0005,
-            "gamma": 0.99,
-            "tau": 1.0
-        }
-
-        tf.reset_default_graph()
-        tf.set_random_seed(10)
-
-        config = create_config(config)
-        network_builder = layered_network_builder([{'type': 'dense', 'num_outputs': 16}, {'type': 'linear', 'num_outputs': 2}])
+        config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            states=environment.states,
+            actions=environment.actions
+            # explorations=dict(
+            #     name='epsilon_decay',
+            #     args=(),
+            #     kwargs=dict(
+            #         epsilon=1,
+            #         epsilon_final=0,
+            #         epsilon_timesteps=50
+            #     )
+            # )
+        )
+        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
         agent = DQNAgent(config=config, network_builder=network_builder)
-
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):
             return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        runner.run(episodes=10000, episode_finished=episode_finished)
-        self.assertTrue(runner.episode < 10000)
+        runner.run(episodes=1000, episode_finished=episode_finished)
+        self.assertTrue(runner.episode < 1000)

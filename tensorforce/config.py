@@ -21,61 +21,61 @@ from __future__ import division
 import os
 import json
 
+from tensorforce import TensorForceError
 
-class Configuration(dict):
+
+class Configuration(object):
     """Configuration class that extends dict and reads configuration files (currently only json)
     """
 
-    def __getattr__(self, item):
-        return self.get(item)
+    def __init__(self, **kwargs):
+        self.config = dict(**kwargs)
 
-    def __setattr__(self, item, value):
-        self[item] = value
+    @staticmethod
+    def from_json(filename):
+        path = os.path.join(os.getcwd(), filename)
+        with open(path, 'r') as fp:
+            config = json.load(fp=fp)
+        return Configuration(**config)
 
-    def __add__(self, other):
-        result = Configuration(self.items())
-        result.update(other)
-        return result
+    def __str__(self):
+        return '{' + ', '.join('{}={}'.format(key, value) for key, value in self.config.items()) + '}'
+
+    def __iter__(self):
+        return iter(self.config.items())
+
+    def __contains__(self, name):
+        return name in self.config
+
+    def __getattr__(self, name):
+        if name not in self.config:
+            raise TensorForceError('Value is not defined.')
+        return self.config[name]
+
+    def __setattr__(self, name, value):
+        if name == 'config':
+            value = {k: Configuration(**v) if isinstance(v, dict) else v for k, v in value.items()}
+            super(Configuration, self).__setattr__(name, value)
+            return
+        if name not in self.config:
+            raise TensorForceError('Value is not defined.')
+        elif isinstance(value, dict):
+            self.config[name] = Configuration(**value)
+        else:
+            self.config[name] = value
+
+    def keys(self):
+        return self.config.keys()
+
+    def __getitem__(self, name):
+        return self.config[name]
+
+    # def __add__(self, other):
+    #     result = Configuration(self.items())
+    #     result.update(other)
+    #     return result
 
     def default(self, default):
-        for key in default:
-            if key not in self:
-                self[key] = default[key]
-
-    def read_json(self, filename):
-        """Read configuration from filename.
-
-        Args:
-            filename: filename/path for configuration file. currently only json is supported.
-
-        Returns: void
-
-        """
-        path = os.path.join(os.getcwd(), filename)
-
-        # don't catch, we let open() and json.loads() raise their own exceptions
-        with open(path, 'r') as f:
-            self.update(json.loads(f.read()))
-
-
-def create_config(values, default=None):
-    """Create ``Configuration object`` from dict. Use ``default`` dict for default values.
-
-    Args:
-        values: dict containing actual values.
-        default: dict containing default values.
-
-    Returns: ``Configuration`` object.
-
-    """
-    if default:
-        if isinstance(default, dict):
-            default_data = default
-        else:
-            raise ValueError("Invalid default config data.")
-        config = Configuration(default)
-        if values:
-            config.update(values)
-    else:
-        config = Configuration(values)
-    return config
+        for key, value in default.items():
+            if key not in self.config:
+                self.config[key] = value

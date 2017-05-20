@@ -32,7 +32,7 @@ class BatchAgent(Agent):
         config.default(BatchAgent.default_config)
         super(BatchAgent, self).__init__(config, network_builder)
         self.batch_size = config.batch_size
-        self.reset_batch()
+        self.batch = None
 
     def observe(self, state, action, reward, terminal):
         """
@@ -54,16 +54,17 @@ class BatchAgent(Agent):
         if self.unique_action:
             action = dict(action=action)
 
+        if self.batch is None:
+            self.reset_batch()
+
         for name in self.batch['states']:
             self.batch['states'][name].append(state[name])
         for name in self.batch['actions']:
             self.batch['actions'][name].append(action[name])
         self.batch['rewards'].append(reward)
         self.batch['terminals'].append(terminal)
-        if not self.batch['internals']:
-            self.batch['internals'] = [[] for _ in range(len(self.internals))]
-        for n in range(len(self.internals)):
-            self.batch['internals'][n].append(self.internals[n])
+        for n, internal in enumerate(self.internals):
+            self.batch['internals'][n].append(internal)
 
         self.batch_count += 1
         if self.batch_count == self.batch_size:
@@ -72,10 +73,10 @@ class BatchAgent(Agent):
 
     def reset_batch(self):
         self.batch = dict(
-            states={name: [] for name in self.model.state},
-            actions={name: [] for name in self.model.action},
+            states={state: [] for state, _ in self.states_config},
+            actions={action: [] for action, _ in self.actions_config},
             rewards=[],
             terminals=[],
-            internals=None
+            internals={n: [] for n in range(len(self.internals))}
         )
         self.batch_count = 0

@@ -16,7 +16,6 @@
 
 from tensorforce.exception import TensorForceError
 from tensorforce.config import Configuration
-import tensorforce.util as util
 
 
-__all__ = ['TensorForceError', 'Configuration', 'util']
+__all__ = ['TensorForceError', 'Configuration']

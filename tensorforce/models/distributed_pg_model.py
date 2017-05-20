@@ -25,14 +25,11 @@ import tensorflow as tf
 import numpy as np
 import logging
 
-from tensorforce.config import create_config
+from tensorforce import util
 from tensorforce.core.value_functions import LinearValueFunction
 from tensorforce.core.networks import NeuralNetwork
-from tensorforce.models.policies import CategoricalOneHotPolicy
-from tensorforce.models.policies import GaussianPolicy
-from tensorforce.util.config_util import get_function
+from tensorforce.core.distributions import Categorical, Gaussian
 
-from tensorforce.util.math_util import zero_mean_unit_variance, discount
 
 
 class DistributedPGModel(object):

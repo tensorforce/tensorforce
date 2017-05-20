@@ -28,7 +28,7 @@ from __future__ import division
 
 from random import random, randrange
 
-from tensorforce.util import module
+from tensorforce import TensorForceError, util
 from tensorforce.core.explorations import explorations
 
 
@@ -54,49 +54,49 @@ class Agent(object):
         else:
             self.unique_action = False
 
-        self.state_config = config.states
-        self.action_config = config.actions
+        self.states_config = config.states
+        self.actions_config = config.actions
 
         self.model = self.__class__.model(config, network_builder)
 
         # exploration
         self.exploration = dict()
-        for name, action in self.action_config.items():
-            exploration = action.get('exploration', None)
-            args = action.get('exploration_args', ())
-            kwargs = action.get('exploration_kwargs', {})
-            if exploration is None:
+        for name, action in config.actions:
+            if 'exploration' not in action:
                 self.exploration[name] = None
-            elif exploration in explorations:
-                self.exploration[name] = explorations[exploration](*args, **kwargs)
-            else:
-                self.exploration[name] = module(exploration)(*args, **kwargs)
+                continue
+            exploration = action.exploration
+            args = action.exploration_args
+            kwargs = action.exploration_kwargs
+            self.exploration[name] = util.function(exploration, explorations)(*args, **kwargs)
 
-        self.episodes = 0
-        self.timesteps = 0
+        self.episode = 0
+        self.timestep = 0
 
     def __str__(self):
         return str(self.__class__.name)
 
     def reset(self):
-        self.episodes += 1
-        self.model.reset()
+        self.episode += 1
+        self.internals = self.next_internals = self.model.reset()
 
     def act(self, state):
-        self.timesteps += 1
+        self.timestep += 1
+        self.internals = self.next_internals
 
         if self.unique_state:
             state = dict(state=state)
-        action, self.internals = self.model.get_action(state=state)
+
+        action, self.next_internals = self.model.get_action(state=state, internals=self.internals)
 
         for name, exploration in self.exploration.items():
             if exploration is None:
                 continue
-            if name in self.discrete_actions:
-                if random() < exploration(episodes=self.episodes, timesteps=self.timesteps):
-                    action[name] = randrange(high=self.action_config[name]['num_actions'])
+            if self.actions_config[name].continuous:
+                action[name] += exploration(episode=self.episode, timestep=self.timestep)
             else:
-                action[name] += exploration(episodes=self.episodes, timesteps=self.timesteps)
+                if random() < exploration(episode=self.episode, timestep=self.timestep):
+                    action[name] = randrange(self.actions_config[name].num_actions)
         if self.unique_action:
             return action['action']
         else:

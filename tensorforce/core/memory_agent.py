@@ -27,7 +27,7 @@ class MemoryAgent(Agent):
 
     default_config = dict(
         batch_size=32,
-        capacity=100000,
+        memory_capacity=1000000,
         update_frequency=4,
         first_update=10000,
         repeat_update=1
@@ -38,21 +38,20 @@ class MemoryAgent(Agent):
         super(MemoryAgent, self).__init__(config, network_builder)
 
         self.batch_size = config.batch_size
-        self.memory = ReplayMemory(capacity=config.capacity, states=config.states, actions=config.actions)
-        self.update_frequency = int(round(1 / config.update_rate))
+        self.memory = ReplayMemory(capacity=config.memory_capacity, states_config=config.states, actions_config=config.actions)
+        self.update_frequency = config.update_frequency
         self.first_update = config.first_update
         self.repeat_update = config.repeat_update
-        self.timesteps = 0
 
     def observe(self, state, action, reward, terminal):
         if self.unique_state:
             state = dict(state=state)
         if self.unique_action:
             action = dict(action=action)
-        self.memory.add_experience(state=state, action=action, reward=reward, terminal=terminal, internal=self.internal)
-        self.timesteps += 1
 
-        if self.timesteps >= self.first_update and self.timesteps % self.update_frequency == 0:
+        self.memory.add_experience(state=state, action=action, reward=reward, terminal=terminal, internal=self.internals)
+
+        if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
             for _ in xrange(self.repeat_update):
                 batch = self.memory.get_batch(batch_size=self.batch_size)
                 self.model.update(batch=batch)

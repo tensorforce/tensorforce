@@ -29,6 +29,7 @@ import logging
 import tensorflow as tf
 
 from tensorforce import TensorForceError, util
+from tensorforce.core.optimizers import optimizers
 
 
 log_levels = {
@@ -55,8 +56,7 @@ class Model(object):
         optimizer_args=None,
         optimizer_kwargs=None,
         device=None,
-        logging=None,
-        tf_saver=None,
+        tf_saver=False,
         tf_summary=None
     )
 
@@ -71,8 +71,6 @@ class Model(object):
         assert self.__class__.allows_discrete_actions is not None and self.__class__.allows_continuous_actions is not None
         config.default(Model.default_config)
 
-        self.num_actions = config.actions
-        self.continuous = config.continuous
         self.discount = config.discount
 
         # TF, initialization, loss, optimization
@@ -89,18 +87,11 @@ class Model(object):
             self.saver = tf.train.Saver()
         else:
             self.saver = None
-        if config.tf_summary:
+        if config.tf_summary is not None:
             self.writer = tf.summary.FileWriter(config.tf_summary, graph=tf.get_default_graph())
         else:
             self.writer = None
         self.session.run(tf.global_variables_initializer())
-
-        # Logger
-        if config.logging:
-            self.logger = logging.getLogger(__name__)
-            self.logger.setLevel(log_levels[config.logging])
-        else:
-            self.logger = None
 
     def create_tf_operations(self, config):
         """
@@ -112,21 +103,26 @@ class Model(object):
         Returns:
 
         """
+        self.action_taken = dict()
+        self.internal_inputs = list()
+        self.internal_outputs = list()
+        self.internal_inits = list()
+
         # Placeholders
         with tf.variable_scope('placeholders'):
 
             # States
             self.state = dict()
-            for name, state in config.states.items():
-                self.state[name] = tf.placeholder(dtype=util.tf_dtype(state['type']), shape=(None,) + tuple(state['shape']), name=name)
+            for name, state in config.states:
+                self.state[name] = tf.placeholder(dtype=util.tf_dtype(state.type), shape=(None,) + tuple(state.shape), name=name)
 
             # Actions
             self.action = dict()
             self.discrete_actions = []
             self.continuous_actions = []
 
-            for name, action in config.actions.items():
-                if action['continuous']:
+            for name, action in config.actions:
+                if action.continuous:
                     if not self.__class__.allows_continuous_actions:
                         raise TensorForceError()
                     self.action[name] = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name=name)
@@ -135,31 +131,49 @@ class Model(object):
                         raise TensorForceError()
                     self.action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,), name=name)
 
-            # Reward
             self.reward = tf.placeholder(dtype=tf.float32, shape=(None,), name='reward')
+            self.terminal = tf.placeholder(dtype=tf.bool, shape=(None,), name='terminal')
 
         # Optimizer
-        if config.optimizer:
+        if config.optimizer is not None:
             learning_rate = config.learning_rate
             with tf.variable_scope('optimization'):
-                if config.optimizer == 'adam':
-                    self.optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-                else:
-                    optimizer = util.module(config.optimizer)
-                    args = config.optimizer_args or ()
-                    kwargs = config.optimizer_kwargs or {}
-                    self.optimizer = optimizer(learning_rate, *args, **kwargs)
+                optimizer = util.function(config.optimizer, optimizers)
+                args = config.optimizer_args or ()
+                kwargs = config.optimizer_kwargs or {}
+                self.optimizer = optimizer(learning_rate, *args, **kwargs)
         else:
             self.optimizer = None
 
     def reset(self):
-        self.internals = None
+        return list(self.internal_inits)
 
-    def get_action(self, state):
-        raise NotImplementedError
+    def get_action(self, state, internals):
+        fetches = {action: action_taken for action, action_taken in self.action_taken.items()}
+        fetches.update({n: internal for n, internal in enumerate(self.internal_outputs)})
+
+        feed_dict = {state_input: (state[name],) for name, state_input in self.state.items()}
+        feed_dict.update({internal: (internals[n],) for n, internal in enumerate(self.internal_inputs)})
+
+        fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
+
+        action = {name: fetched[name][0] for name in self.action}
+        internals = [fetched[n][0] for n in range(len(self.internal_outputs))]
+        return action, internals
 
     def update(self, batch):
-        raise NotImplementedError
+        fetches = [self.optimize, self.loss]
+
+        feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
+        feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
+        feed_dict[self.reward] = batch['rewards']
+        feed_dict[self.terminal] = batch['terminals']
+        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+
+        _, loss = self.session.run(fetches=fetches, feed_dict=feed_dict)
+
+        # if self.logger:
+        #     self.logger.debug('loss = ' + str(loss))
 
     def load_model(self, path):
         self.saver.restore(self.session, path)

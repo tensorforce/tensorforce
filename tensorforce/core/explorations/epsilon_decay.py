@@ -27,9 +27,9 @@ class EpsilonDecay(Exploration):
         self.epsilon = epsilon
         self.epsilon_timesteps = epsilon_timesteps
 
-    def __call__(self, episodes=0, timesteps=0):
-        if timesteps > self.epsilon_timesteps:
+    def __call__(self, episode=0, timestep=0):
+        if timestep > self.epsilon_timesteps:
             self.epsilon = self.epsilon_final
         else:
-            self.epsilon += ((self.epsilon_final - self.epsilon) / self.epsilon_timesteps) * timesteps
+            self.epsilon += ((self.epsilon_final - self.epsilon) / self.epsilon_timesteps) * timestep
         return self.epsilon

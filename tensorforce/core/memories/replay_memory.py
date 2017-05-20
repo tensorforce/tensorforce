@@ -31,18 +31,16 @@ from tensorforce.core.memories import Memory
 
 class ReplayMemory(Memory):
 
-    def __init__(self, capacity, states, actions):
+    def __init__(self, capacity, states_config, actions_config):
         self.states = dict()
-        for state in states:
-            name = state.get('name', 'state')
-            self.states[name] = np.zeros((self.capacity,) + tuple(state['shape']), dtype=util.np_dtype(state.get('type')))
+        for name, state in states_config:
+            self.states[name] = np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type))
         self.actions = dict()
-        for action in actions:
-            name = action.get('name', 'action')
-            dtype = util.np_dtype('float' if action['type'] == 'continuous' else 'int')
-            self.actions[name] = np.zeros((self.capacity,), dtype=dtype)
-        self.rewards = np.zeros((self.capacity,), dtype=util.np_dtype('float'))
-        self.terminals = np.zeros((self.capacity,), dtype=util.np_dtype('bool'))
+        for name, action in actions_config:
+            dtype = util.np_dtype('float' if action.continuous else 'int')
+            self.actions[name] = np.zeros((capacity,), dtype=dtype)
+        self.rewards = np.zeros((capacity,), dtype=util.np_dtype('float'))
+        self.terminals = np.zeros((capacity,), dtype=util.np_dtype('bool'))
         self.internals = None
 
         self.capacity = capacity
@@ -50,6 +48,8 @@ class ReplayMemory(Memory):
         self.index = 0
 
     def add_experience(self, state, action, reward, terminal, internal):
+        if self.internals is None and internal is not None:
+            self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal in internal]
 
         for name, state in state.items():
             self.states[name][self.index] = state
@@ -57,12 +57,8 @@ class ReplayMemory(Memory):
             self.actions[name][self.index] = action
         self.rewards[self.index] = reward
         self.terminals[self.index] = terminal
-
-        if self.internal is None and internal is not None:
-            self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal in internal]
-
-        for n in range(len(self.internals)):
-            self.internals[n][self.index] = internal[n]
+        for n, internal in enumerate(internal):
+            self.internals[n][self.index] = internal
 
         if self.size < self.capacity:
             self.size += 1
@@ -79,7 +75,6 @@ class ReplayMemory(Memory):
         Returns: A dict containing states, rewards, terminals and internal states
 
         """
-
         end = (self.index - randrange(self.size - batch_size)) % self.capacity
         start = (end - batch_size) % self.capacity
         if start < end:
@@ -87,14 +82,10 @@ class ReplayMemory(Memory):
         else:
             indices = list(xrange(start, self.capacity)) + list(xrange(0, end))
 
-        batch = dict()
-        for state in self.states:
-            batch['states'][state] = self.states[state].take(indices)
-        for action in self.actions:
-            batch['actions'][action] = self.actions[action].take(indices)
-        batch['rewards'] = self.rewards.take(indices)
-        batch['terminals'] = self.rewards.take(indices)
-        for n in range(len(self.internals)):
-            batch['internals'].append(self.internals.take(indices))
-
-        return batch
+        return dict(
+            states={name: state.take(indices, axis=0) for name, state in self.states.items()},
+            actions={name: action.take(indices) for name, action in self.actions.items()},
+            rewards=self.rewards.take(indices),
+            terminals=self.terminals.take(indices),
+            internals=[internal.take(indices, axis=0) for internal in self.internals]
+        )

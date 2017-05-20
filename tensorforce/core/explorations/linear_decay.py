@@ -23,5 +23,5 @@ class LinearDecay(Exploration):
     Linear decay based on episode number.
     """
 
-    def __call__(self, episodes=0, timesteps=0):
-        return random() / (episodes + 1)
+    def __call__(self, episode=0, timestep=0):
+        return random() / (episode + 1)

@@ -43,24 +43,3 @@ class VPGModel(PolicyGradientModel):
                 log_prob = self.distribution[name].log_probability(action=action)
                 loss = -tf.reduce_mean(input_tensor=tf.multiply(x=log_prob, y=self.reward), axis=0)
                 tf.losses.add_loss(loss)
-
-    def update(self, batch):
-        """
-        Compute update for one batch of experiences using general advantage estimation
-        and the vanilla policy gradient.
-        :param batch:
-        :return:
-        """
-        super(VPGModel, self).update(batch)
-
-        fetches = [self.optimize, self.loss]
-
-        feed_dict = {self.state[name]: batch['states'][name] for name in self.state}
-        feed_dict.update({self.action[name]: batch['actions'][name] for name in self.action})
-        feed_dict[self.reward] = batch['advantages']
-        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.network.internal_inputs)})
-
-        _, loss = self.session.run(fetches=fetches, feed_dict=feed_dict)
-
-        if self.logger:
-            self.logger.debug('VPG loss = ' + str(loss))

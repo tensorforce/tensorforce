@@ -16,5 +16,5 @@
 
 class Exploration(object):
 
-    def __call__(self, episodes=0, timesteps=0):
+    def __call__(self, episode=0, timestep=0):
         raise NotImplementedError

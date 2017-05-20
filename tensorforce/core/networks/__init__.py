@@ -14,9 +14,7 @@
 # ==============================================================================
 
 
-from tensorforce.core.networks.network import NeuralNetwork
 from tensorforce.core.networks.layers import layers, layered_network_builder
-from tensorforce.core.networks.conjugate_gradient_optimizer import ConjugateGradientOptimizer
+from tensorforce.core.networks.network import NeuralNetwork
 
-
-__all__ = ['NeuralNetwork', 'layers', 'layered_network_builder', 'ConjugateGradientOptimizer']
+__all__ = ['NeuralNetwork', 'layers', 'layered_network_builder']

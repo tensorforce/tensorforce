@@ -36,9 +36,10 @@ class MemoryAgent(Agent):
     def __init__(self, config, network_builder):
         config.default(MemoryAgent.default_config)
         super(MemoryAgent, self).__init__(config, network_builder)
+
         self.batch_size = config.batch_size
-        self.memory = ReplayMemory(self, capacity=config.capacity, states=config.states, actions=config.actions)
-        self.update_frequency = int(round(1 / self.config.update_rate))
+        self.memory = ReplayMemory(capacity=config.capacity, states=config.states, actions=config.actions)
+        self.update_frequency = int(round(1 / config.update_rate))
         self.first_update = config.first_update
         self.repeat_update = config.repeat_update
         self.timesteps = 0
@@ -52,6 +53,6 @@ class MemoryAgent(Agent):
         self.timesteps += 1
 
         if self.timesteps >= self.first_update and self.timesteps % self.update_frequency == 0:
-            for _ in xrange(self.update_repeat):
+            for _ in xrange(self.repeat_update):
                 batch = self.memory.get_batch(batch_size=self.batch_size)
                 self.model.update(batch=batch)

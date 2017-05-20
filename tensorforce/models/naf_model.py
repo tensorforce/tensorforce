@@ -65,13 +65,13 @@ class NAFModel(Model):
         # Get hidden layers from network generator, then add NAF outputs, same for target network
         with tf.variable_scope('training'):
             self.training_network = NeuralNetwork(self.network, inputs=[self.state], episode_length=self.episode_length)
-            self.training_internal_states = self.training_network.internal_state_inits
+            self.training_internal_states = self.training_network.internal_inits
             self.training_v, self.mu, self.advantage, self.q, self.training_output_vars = self.create_outputs(
             self.training_network.output, 'outputs_training', config)
 
         with tf.variable_scope('target'):
             self.target_network = NeuralNetwork(self.network, inputs=[self.next_state], episode_length=self.episode_length)
-            self.target_internal_states = self.target_network.internal_state_inits
+            self.target_internal_states = self.target_network.internal_inits
             self.target_v, _, _, _, self.target_output_vars = self.create_outputs(self.target_network.output, 'outputs_target', config)
 
         # NAF update logic
@@ -223,13 +223,13 @@ class NAFModel(Model):
             self.state: [batch['states']]}
 
         fetches = [self.optimize_op, self.loss, self.training_v, self.advantage, self.q]
-        fetches.extend(self.training_network.internal_state_outputs)
-        fetches.extend(self.target_network.internal_state_outputs)
+        fetches.extend(self.training_network.internal_outputs)
+        fetches.extend(self.target_network.internal_outputs)
 
-        for n, internal_state in enumerate(self.training_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.training_network.internal_inputs):
             feed_dict[internal_state] = self.training_internal_states[n]
 
-        for n, internal_state in enumerate(self.target_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.target_network.internal_inputs):
             feed_dict[internal_state] = self.target_internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)

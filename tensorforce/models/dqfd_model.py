@@ -24,60 +24,26 @@ from __future__ import print_function
 import tensorflow as tf
 
 from tensorforce.core.model import Model
-from tensorforce.core.networks import NeuralNetwork, layered_network_builder
+from tensorforce.core.networks import NeuralNetwork, layers
 
 
 class DQFDModel(Model):
 
-    def __init__(self, config, scope, network_builder=None):
-        super(DQFDModel, self).__init__(config, scope)
+    default_config = {
+        'update_target_weight': 1.0,
+        'double_dqn': False
+    }
+    allows_discrete_actions = True
+    allows_continuous_actions = False
 
-        self.action_count = self.config.actions
-        self.tau = self.config.tau
-        self.gamma = self.config.gamma
-        self.supervised_weight = self.config.supervised_weight
-        # l = 0.8 in paper
-        self.expert_margin = self.config.expert_margin
+    def __init__(self, config, network_builder):
+        super(DQFDModel, self).__init__(config)
+        self.network = network_builder
+        config.default(DQFDModel.default_config)
 
-        self.clip_value = None
-        if self.config.clip_gradients:
-            self.clip_value = self.config.clip_value
-
-        self.target_network_update = []
-
-        # Output layer
-        output_layer_config = [{"type": "linear", "num_outputs": self.config.actions, "trainable": True}]
-
-        # Input placeholders
-        self.state_shape = tuple(self.config.state_shape)
-        self.state = tf.placeholder(tf.float32, (None, None) + self.state_shape, name="state")
-        self.next_states = tf.placeholder(tf.float32, (None, None) + self.state_shape,
-                                          name="next_states")
-        self.terminals = tf.placeholder(tf.float32, (None, None), name='terminals')
-        self.rewards = tf.placeholder(tf.float32, (None, None), name='rewards')
-
-        if network_builder is None:
-            network_builder = layered_network_builder(self.config.network_layers + output_layer_config)
-
-        self.training_network = NeuralNetwork(network_builder, [self.state], episode_length=self.episode_length,
-                                              scope=self.scope + 'training')
-        self.target_network = NeuralNetwork(network_builder, [self.next_states], episode_length=self.episode_length,
-                                            scope=self.scope + 'target')
-
-        self.training_internal_states = self.training_network.internal_state_inits
-        self.target_internal_states = self.target_network.internal_state_inits
-
-        self.training_output = self.training_network.output
-        self.target_output = self.target_network.output
-
-        # Create training operations
-        self.create_training_operations()
-
-        self.init_op = tf.global_variables_initializer()
-
-        self.saver = tf.train.Saver()
-        self.writer = tf.summary.FileWriter('logs', graph=tf.get_default_graph())
-        self.session.run(self.init_op)
+        self.double_dqn = config.double_dqn
+        self.supervised_weight = config.supervised_weight
+        self.expert_margin = config.expert_margin
 
     def pre_train_update(self, batch):
         """
@@ -94,7 +60,7 @@ class DQFDModel(Model):
         y = self.get_target_values(batch['next_states'])
 
         q_targets = batch['rewards'] + (1. - float_terminals) \
-                                       * self.gamma * y
+                                       * self.discount * y
 
         feed_dict = {
             self.episode_length: [len(batch['rewards'])],
@@ -107,13 +73,13 @@ class DQFDModel(Model):
         fetches = [self.optimize_dqfd, self.training_output]
 
         # Internal state management for recurrent dqn
-        fetches.extend(self.training_network.internal_state_outputs)
-        fetches.extend(self.target_network.internal_state_outputs)
+        fetches.extend(self.training_network.internal_outputs)
+        fetches.extend(self.target_network.internal_outputs)
 
-        for n, internal_state in enumerate(self.training_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.training_network.internal_inputs):
             feed_dict[internal_state] = self.training_internal_states[n]
 
-        for n, internal_state in enumerate(self.target_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.target_network.internal_inputs):
             feed_dict[internal_state] = self.target_internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)
@@ -141,7 +107,7 @@ class DQFDModel(Model):
         y = self.get_target_values(online_batch['next_states'])
 
         q_targets = online_batch['rewards'] + (1. - float_terminals) \
-                                       * self.gamma * y
+                                       * self.discount * y
 
         feed_dict = {
             self.episode_length: [len(online_batch['rewards'])],
@@ -154,13 +120,13 @@ class DQFDModel(Model):
         fetches = [self.optimize_double_q, self.training_output]
 
         # Internal state management for recurrent dqn
-        fetches.extend(self.training_network.internal_state_outputs)
-        fetches.extend(self.target_network.internal_state_outputs)
+        fetches.extend(self.training_network.internal_outputs)
+        fetches.extend(self.target_network.internal_outputs)
 
-        for n, internal_state in enumerate(self.training_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.training_network.internal_inputs):
             feed_dict[internal_state] = self.training_internal_states[n]
 
-        for n, internal_state in enumerate(self.target_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.target_network.internal_inputs):
             feed_dict[internal_state] = self.target_internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)
@@ -171,39 +137,26 @@ class DQFDModel(Model):
 
     def get_action(self, state, episode=1):
         """
-          Returns the predicted action for a given state.
+        Returns the predicted action for a given state.
 
-          :param state: State tensor
-          :param episode: Current episode
-          :return: action number
-          """
-        epsilon = self.exploration(episode, self.total_states)
+        :param state: State tensor
+        :param episode: Current episode
+        :return: action number
+        """
+        fetches = [self.dqn_action]
+        fetches.extend(self.training_internal_states)
+        fetches.extend(self.target_internal_states)
 
-        if self.random.random_sample() < epsilon:
-            action = self.random.randint(0, self.action_count)
-        else:
-            fetches = [self.dqn_action]
-            fetches.extend(self.training_internal_states)
-            fetches.extend(self.target_internal_states)
+        feed_dict = {self.state: [(state,)]}
+        feed_dict.update({internal_state: self.training_network.internal_inits[n] for n, internal_state in enumerate(self.training_network.internal_state_inputs)})
+        feed_dict.update({internal_state: self.target_network.internal_inits[n] for n, internal_state in enumerate(self.target_network.internal_state_inputs)})
 
-            feed_dict = {self.episode_length: [1], self.state: [(state,)]}
+        fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
-            feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in
-                              enumerate(self.training_network.internal_state_inputs)})
-            feed_dict.update({internal_state: self.target_network.internal_state_inits[n] for n, internal_state in
-                              enumerate(self.target_network.internal_state_inputs)})
+        self.training_internal_states = fetched[1:len(self.training_internal_states)]
+        self.target_internal_states = fetched[1 + len(self.training_internal_states):]
 
-            fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
-            # First element of output list is action
-            action = fetched[0][0]
-
-            # Update optional internal states, e.g. LSTM cells
-            self.training_internal_states = fetched[1:1 + len(self.training_internal_states)]
-            self.target_internal_states = fetched[1 + len(self.training_internal_states):]
-
-        self.total_states += 1
-
-        return action
+        return fetched[0]
 
     def get_target_values(self, next_states):
         """
@@ -221,12 +174,30 @@ class DQFDModel(Model):
         """
         self.session.run(self.target_network_update)
 
-    def create_training_operations(self):
+    def create_tf_operations(self, config):
         """
         Create training graph. For DQFD, we build the double-dqn training graph and
         modify the double_q_loss function according to eq. 5
         
         """
+        super(DQFDModel, self).create_tf_operations(config)
+
+        # placeholders
+        with tf.variable_scope('placeholders'):
+            self.q_targets = tf.placeholder(tf.float32, (None,), name='q_targets')
+
+        # training network
+        with tf.variable_scope('training'):
+            self.training_network = NeuralNetwork(self.network, inputs={name: state[:-1] for name, state in self.state.items()}, episode_length=self.episode_length)
+            self.training_internal_states = self.training_network.internal_inits
+            self.training_output = layers['linear'](x=self.training_network.output, size=self.num_actions)
+
+        # target network
+        with tf.variable_scope('target'):
+            self.target_network = NeuralNetwork(self.network, inputs={name: state[1:] for name, state in self.state.items()}, episode_length=self.episode_length)
+            self.target_internal_states = self.target_network.internal_inits
+            self.target_output = layers['linear'](x=self.target_network.output, size=self.num_actions)
+
         with tf.name_scope("predict"):
             self.dqn_action = tf.argmax(self.training_output, axis=2, name='dqn_action')
 
@@ -284,8 +255,9 @@ class DQFDModel(Model):
             self.optimize_dqfd = self.optimizer.apply_gradients(self.dqfd_grads_and_vars)
 
             # Update target network with update weight tau
+            self.target_network_update = []
             with tf.name_scope("update_target"):
                 for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
-                    update = v_target.assign_sub(self.tau * (v_target - v_source))
+                    update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
                     self.target_network_update.append(update)
 

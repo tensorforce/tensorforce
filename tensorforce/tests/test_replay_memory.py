@@ -26,7 +26,7 @@ import unittest
 
 import numpy as np
 
-from tensorforce.replay_memories import ReplayMemory
+from tensorforce.core.memories import ReplayMemory
 
 
 class TestReplayMemory(unittest.TestCase):

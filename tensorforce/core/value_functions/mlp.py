@@ -24,7 +24,7 @@ from __future__ import division
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.networks import NeuralNetwork
+from tensorforce.core.networks import NeuralNetwork, layered_network_builder
 from tensorforce.core.value_functions import ValueFunction
 
 
@@ -42,20 +42,34 @@ class MLPValueFunction(ValueFunction):
         with tf.variable_scope('mlp_value_function'):
             self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(config.states[0]['shape'])))
             self.returns = tf.placeholder(dtype=tf.float32, shape=(None, 1))
-            network_builder = NeuralNetwork.layered_network(layers=(
+
+            network_builder = layered_network_builder((
                 {'type': 'dense', 'num_outputs': self.num_hidden},
                 {'type': 'dense', 'num_outputs': 1}))
+
             network = NeuralNetwork(network_builder=network_builder, inputs=[self.state])
+
             self.prediction = network.output
             loss = tf.nn.l2_loss(self.prediction - self.returns)
+
             optimizer = tf.train.AdamOptimizer(learning_rate=config.learning_rate)
             self.optimize = optimizer.minimize(loss)
 
     def predict(self, states):
+        """Predicts return of state(s), V(s)
+        
+        Args:
+            states: 
+
+        Returns: 
+
+        """
+
         states = next(iter(states.values()))
         return self.session.run(self.prediction, {self.state: states})[0]
 
     def update(self, states, returns):
         states = next(iter(states.values()))
+
         for _ in range(self.repeat_update):
             self.session.run(self.optimize, {self.state: states, self.returns: returns})

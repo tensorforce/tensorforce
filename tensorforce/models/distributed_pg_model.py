@@ -26,13 +26,12 @@ import numpy as np
 import logging
 
 from tensorforce.config import create_config
-from tensorforce.models.baselines import LinearValueFunction
-from tensorforce.models.neural_networks import NeuralNetwork
+from tensorforce.core.value_functions import LinearValueFunction
+from tensorforce.core.networks import NeuralNetwork
 from tensorforce.models.policies import CategoricalOneHotPolicy
 from tensorforce.models.policies import GaussianPolicy
 from tensorforce.util.config_util import get_function
-from tensorforce.util.experiment_util import global_seed
-from tensorforce.util.exploration_util import exploration_mode
+
 from tensorforce.util.math_util import zero_mean_unit_variance, discount
 
 
@@ -45,7 +44,7 @@ class DistributedPGModel(object):
         A distributed agent must synchronise local and global parameters under different
         scopes.
 
-        :param config: Configuration parameters
+        :param confi=g: Configuration parameters
         :param scope: TensorFlow scope
         """
         self.logger = logging.getLogger(__name__)
@@ -65,11 +64,6 @@ class DistributedPGModel(object):
         self.continuous = self.config.continuous
         self.normalize_advantage = self.config.normalise_advantage
         self.episode_length = tf.placeholder(tf.int32, (None,), name='episode_length')
-
-        if self.config.deterministic_mode:
-            self.random = global_seed()
-        else:
-            self.random = np.random.RandomState()
 
         if define_network is None:
             self.define_network = NeuralNetwork.layered_network(self.config.network_layers)
@@ -94,7 +88,7 @@ class DistributedPGModel(object):
                 self.global_step = tf.get_variable("global_step", [], tf.int32,
                                                    initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                    trainable=False)
-                self.global_states = self.global_network.internal_state_inits
+                self.global_states = self.global_network.internal_inits
 
                 self.global_prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')
 
@@ -151,7 +145,7 @@ class DistributedPGModel(object):
                 self.prev_action_means = tf.placeholder(tf.float32, (None, None, self.action_count), name='prev_actions')
 
                 self.local_network = NeuralNetwork(self.define_network, [self.state], episode_length=self.episode_length)
-                self.local_states = self.local_network.internal_state_inits
+                self.local_states = self.local_network.internal_inits
 
                 # TODO possibly problematic, check
                 self.local_step = self.global_step
@@ -221,7 +215,7 @@ class DistributedPGModel(object):
         self.baseline_value_function.fit(batch)
 
         fetches = [self.loss, self.optimize_op, self.global_step]
-        fetches.extend(self.local_network.internal_state_outputs)
+        fetches.extend(self.local_network.internal_outputs)
 
         print(len(batch))
         print(batch[0]['episode_length'])
@@ -232,7 +226,7 @@ class DistributedPGModel(object):
             self.actions: [episode['actions'] for episode in batch],
             self.advantage: [episode['advantages'] for episode in batch]
         }
-        for n, internal_state in enumerate(self.local_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.local_network.internal_inputs):
             feed_dict[internal_state] = self.local_states[n]
 
         fetched = self.session.run(fetches, feed_dict)

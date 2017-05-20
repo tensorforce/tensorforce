@@ -112,11 +112,14 @@ class PolicyGradientModel(Model):
         return {action: fetched.pop(action)[0] for action in self.action}, internals
 
     def update(self, batch):
-        """
-        Update needs to be implemented by specific PG algorithm.
+        """Generic policy gradient update on a batch of experiences. Each model needs to update its specific
+        logic.
+        
+        Args:
+            batch: 
 
-        :param batch: Batch of experiences
-        :return:
+        Returns:
+
         """
         batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'], discount=self.discount)
         # assert utils.discount(batch['rewards'], batch['terminals'], self.discount) == discount
@@ -126,8 +129,13 @@ class PolicyGradientModel(Model):
             self.baseline.update(states=batch['states'], returns=batch['returns'])
 
     def advantage_estimation(self, batch):
-        """
-        Expects a batch, returns advantages according to config.
+        """Expects a batch, returns advantages according to config.
+
+        Args:
+            batch: 
+
+        Returns:
+
         """
         if not self.baseline:
             return batch['returns']

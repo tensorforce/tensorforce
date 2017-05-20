@@ -107,7 +107,7 @@ class PolicyGradientModel(Model):
 
         fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
-        self.internals = [fetched[n] for n in range(len(self.network.internal_outputs))]
+        self.internals = [fetched[n][0] for n in range(len(self.network.internal_outputs))]
 
         return {action: fetched.pop(action)[0] for action in self.action}, internals
 

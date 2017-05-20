@@ -29,11 +29,10 @@ import logging
 
 from six.moves import xrange, shlex_quote
 
-from tensorforce.config import Config, create_config
+from tensorforce.config import Configuration, create_config
 from tensorforce.execution.distributed_runner import DistributedRunner
-from tensorforce.external.openai_gym import OpenAIGymEnvironment
-from tensorforce.util.config_util import log_levels
-from tensorforce.util.experiment_util import build_preprocessing_stack
+from tensorforce.environments.openai_gym import OpenAIGym
+from tensorforce.util import log_levels, build_preprocessing_stack
 
 
 def main():
@@ -127,9 +126,9 @@ def main():
 
         return 0
 
-    env = OpenAIGymEnvironment(args.gym_id)
+    env = OpenAIGym(args.gym_id)
 
-    config = Config({
+    config = Configuration({
         'repeat_actions': 1,
         'actions': env.actions,
         'action_shape': env.action_shape,

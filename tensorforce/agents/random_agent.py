@@ -23,24 +23,18 @@ from __future__ import division
 
 import numpy as np
 
-from tensorforce.agents import RLAgent
-from tensorforce.util.experiment_util import global_seed
+from tensorforce.core import Agent
 
 
-class RandomAgent(RLAgent):
+class RandomAgent(Agent):
     name = 'RandomAgent'
 
-    def __init__(self, config, scope):
-        super(RandomAgent, self).__init__()
+    def __init__(self, config, network_builder):
+        super(RandomAgent, self).__init__(config, network_builder)
 
-        if config.deterministic_mode:
-            self.random = global_seed()
-        else:
-            self.random = np.random.RandomState()
+        self.random = np.random.seed(config.seed)
 
-        self.actions = config.actions
-
-    def get_action(self, state, episode=1):
+    def act(self, state, episode=1):
         """
         Get random action from action space
 
@@ -50,11 +44,5 @@ class RandomAgent(RLAgent):
         """
         return self.random.randint(0, self.actions)
 
-    def add_observation(self, *args, **kwargs):
-        pass
-
-    def load_model(self, *args, **kwargs):
-        pass
-
-    def save_model(self, *args, **kwargs):
+    def observe(self, state, action, reward, terminal):
         pass

@@ -19,15 +19,16 @@ from __future__ import division
 import tensorflow as tf
 import unittest
 
-from six.moves import xrange
-
-from tensorforce.config import create_config
-from tensorforce.models.neural_networks import NeuralNetwork
 from tensorforce.agents import TRPOAgent
+from tensorforce.config import create_config
+from tensorforce.core.networks import layered_network_builder
+from tensorforce.environments.minimal_test import MinimalTest
+from tensorforce.execution import Runner
 
 
 class TestTRPOAgent(unittest.TestCase):
-    def test_trpo_agent(self):
+    def test_discrete(self):
+        environment = MinimalTest(continuous=False)
 
         config = {
             'batch_size': 16,
@@ -49,37 +50,19 @@ class TestTRPOAgent(unittest.TestCase):
         config = create_config(config)
         tf.reset_default_graph()
 
-        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense',
+        network_builder = layered_network_builder([{'type': 'dense',
                                                                  'num_outputs': 8}])
         agent = TRPOAgent(config=config, network_builder=network_builder)
+        runner = Runner(agent=agent, environment=environment)
 
-        state = (1, 0)
-        rewards = [0.0] * 100
+        def episode_finished(r):
+            return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        for n in xrange(10000):
-            action = agent.get_action(state=state)
-            if action == 0:
-                state = (1, 0)
-                reward = 0.0
-                terminal = False
-            else:
-                state = (0, 1)
-                reward = 1.0
-                terminal = True
-            agent.add_observation(state=state, action=action, reward=reward, terminal=terminal)
-            rewards[n % 100] = reward
-
-            if sum(rewards) == 100.0:
-                print('Steps until passed = {:d}'.format(n))
-
-                return
-        print('sum = {:f}'.format(sum(rewards)))
-        #TODO investigate 3.5/3.6 slowness
-
-        # self.assertTrue(False)
-
+        runner.run(episodes=10000, episode_finished=episode_finished)
+        self.assertTrue(runner.episode < 10000)
 
     def test_trpo_agent_continuous(self):
+        environment = MinimalTest(continuous=True)
 
         config = {
             'batch_size': 16,
@@ -94,38 +77,20 @@ class TestTRPOAgent(unittest.TestCase):
             'max_episode_length': 4,
             'continuous': True,
             'state_shape': (2,),
-            'actions': 1,
+            'actions': 2,
             'gamma': 0.99
         }
 
         config = create_config(config)
         tf.reset_default_graph()
 
-        network_builder = NeuralNetwork.layered_network(layers=[{'type': 'dense',
-                                                                 'num_outputs': 8}])
+        network_builder = layered_network_builder([{'type': 'dense',
+                                                    'num_outputs': 8}])
         agent = TRPOAgent(config=config, network_builder=network_builder)
+        runner = Runner(agent=agent, environment=environment)
 
-        state = (1, 0)
-        rewards = [0.0] * 100
+        def episode_finished(r):
+            return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        for n in xrange(50000):
-            action = agent.get_action(state=state)
-            if action >= -1.0 and action <= 1.0:
-                state = (1, 0)
-                reward = 0.0
-                terminal = False
-            else:
-                state = (0, 1)
-                reward = 1.0
-                terminal = True
-            agent.add_observation(state=state, action=action, reward=reward, terminal=terminal)
-            rewards[n % 100] = reward
-
-            if sum(rewards) == 100.0:
-                print('Steps until passed = {:d}'.format(n))
-
-                return
-        print('sum = {:f}'.format(sum(rewards)))
-        #TODO investigate 3.5/3.6 slowness
-
-        # self.assertTrue(False)
+        runner.run(episodes=10000, episode_finished=episode_finished)
+        self.assertTrue(runner.episode < 10000)

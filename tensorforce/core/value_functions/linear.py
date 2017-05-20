@@ -62,4 +62,5 @@ class LinearValueFunction(ValueFunction):
         states = next(iter(states.values()))
         states = states.reshape(states.shape[0], -1)
         al = np.arange(states.shape[0]).reshape(-1, 1) / 100.0
+
         return np.concatenate([states, states ** 2, al, al ** 2, np.ones((states.shape[0], 1))], axis=1)

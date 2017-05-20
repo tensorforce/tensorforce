@@ -44,6 +44,7 @@ class Model(object):
 
     allows_discrete_actions = None
     allows_continuous_actions = None
+
     default_config = dict(
         discount=0.97,
         exploration=None,
@@ -61,8 +62,12 @@ class Model(object):
 
     def __init__(self, config):
         """
-        :param config: Configuration parameters
+        Creates a base reinforcement learning model with the specified configuration.
+        
+        Args:
+            config: 
         """
+
         assert self.__class__.allows_discrete_actions is not None and self.__class__.allows_continuous_actions is not None
         config.default(Model.default_config)
 
@@ -70,14 +75,16 @@ class Model(object):
         self.continuous = config.continuous
         self.discount = config.discount
 
-        # tf, initialization, loss, optimization
+        # TF, initialization, loss, optimization
         tf.reset_default_graph()
         self.session = tf.Session()
+
         with tf.device(config.device):
             self.create_tf_operations(config)
             if self.optimizer:
                 self.loss = tf.losses.get_total_loss()
                 self.optimize = self.optimizer.minimize(self.loss)
+
         if config.tf_saver:
             self.saver = tf.train.Saver()
         else:
@@ -88,7 +95,7 @@ class Model(object):
             self.writer = None
         self.session.run(tf.global_variables_initializer())
 
-        # logger
+        # Logger
         if config.logging:
             self.logger = logging.getLogger(__name__)
             self.logger.setLevel(log_levels[config.logging])
@@ -96,18 +103,28 @@ class Model(object):
             self.logger = None
 
     def create_tf_operations(self, config):
-        # placeholders
+        """
+        Creates generic TensorFlow operations and placeholders required for models.
+        
+        Args:
+            config: Model configuration which must contain entries for states and actions.
+
+        Returns:
+
+        """
+        # Placeholders
         with tf.variable_scope('placeholders'):
 
-            # states
+            # States
             self.state = dict()
             for name, state in config.states.items():
                 self.state[name] = tf.placeholder(dtype=util.tf_dtype(state['type']), shape=(None,) + tuple(state['shape']), name=name)
 
-            # actions
+            # Actions
             self.action = dict()
             self.discrete_actions = []
             self.continuous_actions = []
+
             for name, action in config.actions.items():
                 if action['continuous']:
                     if not self.__class__.allows_continuous_actions:
@@ -118,10 +135,10 @@ class Model(object):
                         raise TensorForceError()
                     self.action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,), name=name)
 
-            # reward
+            # Reward
             self.reward = tf.placeholder(dtype=tf.float32, shape=(None,), name='reward')
 
-        # optimizer
+        # Optimizer
         if config.optimizer:
             learning_rate = config.learning_rate
             with tf.variable_scope('optimization'):

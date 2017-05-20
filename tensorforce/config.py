@@ -23,8 +23,7 @@ import json
 
 
 class Configuration(dict):
-    """
-    Configuration class that extends dict and reads configuration files (currently only json)
+    """Configuration class that extends dict and reads configuration files (currently only json)
     """
 
     def __getattr__(self, item):
@@ -44,13 +43,39 @@ class Configuration(dict):
                 self[key] = default[key]
 
     def read_json(self, filename):
-        """
-        Read configuration from json file
+        """Read configuration from filename.
 
-        :param filename: path of configuration file
+        Args:
+            filename: filename/path for configuration file. currently only json is supported.
+
+        Returns: void
+
         """
         path = os.path.join(os.getcwd(), filename)
 
         # don't catch, we let open() and json.loads() raise their own exceptions
         with open(path, 'r') as f:
             self.update(json.loads(f.read()))
+
+
+def create_config(values, default=None):
+    """Create ``Configuration object`` from dict. Use ``default`` dict for default values.
+
+    Args:
+        values: dict containing actual values.
+        default: dict containing default values.
+
+    Returns: ``Configuration`` object.
+
+    """
+    if default:
+        if isinstance(default, dict):
+            default_data = default
+        else:
+            raise ValueError("Invalid default config data.")
+        config = Configuration(default)
+        if values:
+            config.update(values)
+    else:
+        config = Configuration(values)
+    return config

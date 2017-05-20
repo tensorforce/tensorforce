@@ -29,11 +29,9 @@ import numpy as np
 import deepmind_lab
 logger = logging.getLogger(__name__)
 
-from tensorforce.config import Config
-from tensorforce.external.deepmind_lab import DeepMindLabEnvironment
-from tensorforce.util.experiment_util import build_preprocessing_stack
-from tensorforce.util.agent_util import create_agent
-from tensorforce.util.config_util import log_levels
+from tensorforce.config import Configuration
+from tensorforce.environments.deepmind_lab import DeepMindLab
+from tensorforce.util import build_preprocessing_stack, create_agent, log_levels
 from tensorforce.execution import Runner
 
 
@@ -61,9 +59,9 @@ def main():
 
     args = parser.parse_args()
 
-    env = DeepMindLabEnvironment(args.level_id)
+    env = DeepMindLab(args.level_id)
 
-    config = Config({
+    config = Configuration({
         'repeat_actions': 1,
         'actions': env.actions,
         'action_shape': env.action_shape,

@@ -58,13 +58,13 @@ class DQNModel(Model):
         # training network
         with tf.variable_scope('training'):
             self.training_network = NeuralNetwork(self.network, inputs={name: state[:-1] for name, state in self.state.items()}, episode_length=self.episode_length)
-            self.training_internal_states = self.training_network.internal_state_inits
+            self.training_internal_states = self.training_network.internal_inits
             self.training_output = layers['linear'](x=self.training_network.output, size=self.num_actions)
 
         # target network
         with tf.variable_scope('target'):
             self.target_network = NeuralNetwork(self.network, inputs={name: state[1:] for name, state in self.state.items()}, episode_length=self.episode_length)
-            self.target_internal_states = self.target_network.internal_state_inits
+            self.target_internal_states = self.target_network.internal_inits
             self.target_output = layers['linear'](x=self.target_network.output, size=self.num_actions)
 
         with tf.name_scope('predict'):
@@ -116,8 +116,8 @@ class DQNModel(Model):
         fetches.extend(self.target_internal_states)
 
         feed_dict = {self.state: [(state,)]}
-        feed_dict.update({internal_state: self.training_network.internal_state_inits[n] for n, internal_state in enumerate(self.training_network.internal_state_inputs)})
-        feed_dict.update({internal_state: self.target_network.internal_state_inits[n] for n, internal_state in enumerate(self.target_network.internal_state_inputs)})
+        feed_dict.update({internal_state: self.training_network.internal_inits[n] for n, internal_state in enumerate(self.training_network.internal_state_inputs)})
+        feed_dict.update({internal_state: self.target_network.internal_inits[n] for n, internal_state in enumerate(self.target_network.internal_state_inputs)})
 
         fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
@@ -151,13 +151,13 @@ class DQNModel(Model):
         }
 
         fetches = [self.optimize, self.training_output]
-        fetches.extend(self.training_network.internal_state_outputs)
-        fetches.extend(self.target_network.internal_state_outputs)
+        fetches.extend(self.training_network.internal_outputs)
+        fetches.extend(self.target_network.internal_outputs)
 
-        for n, internal_state in enumerate(self.training_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.training_network.internal_inputs):
             feed_dict[internal_state] = self.training_internal_states[n]
 
-        for n, internal_state in enumerate(self.target_network.internal_state_inputs):
+        for n, internal_state in enumerate(self.target_network.internal_inputs):
             feed_dict[internal_state] = self.target_internal_states[n]
 
         fetched = self.session.run(fetches, feed_dict)

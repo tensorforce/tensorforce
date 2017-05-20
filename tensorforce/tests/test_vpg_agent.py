@@ -52,7 +52,8 @@ class TestVPGAgent(unittest.TestCase):
             batch_size=8,
             learning_rate=0.001,
             states=environment.states,
-            actions=environment.actions
+            actions=environment.actions,
+            continuous=True
         )
         network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
         agent = VPGAgent(config=config, network_builder=network_builder)

@@ -28,7 +28,7 @@ from __future__ import division
 
 from random import random, randrange
 
-from tensorforce import util
+from tensorforce.util import module
 from tensorforce.core.explorations import explorations
 
 
@@ -70,7 +70,7 @@ class Agent(object):
             elif exploration in explorations:
                 self.exploration[name] = explorations[exploration](*args, **kwargs)
             else:
-                self.exploration[name] = util.module(exploration)(*args, **kwargs)
+                self.exploration[name] = module(exploration)(*args, **kwargs)
 
         self.episodes = 0
         self.timesteps = 0
@@ -84,9 +84,11 @@ class Agent(object):
 
     def act(self, state):
         self.timesteps += 1
+
         if self.unique_state:
             state = dict(state=state)
         action, self.internals = self.model.get_action(state=state)
+
         for name, exploration in self.exploration.items():
             if exploration is None:
                 continue

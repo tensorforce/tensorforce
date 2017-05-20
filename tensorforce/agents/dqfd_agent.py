@@ -25,29 +25,30 @@ from __future__ import division
 from six.moves import xrange
 
 from tensorforce.config import create_config
-from tensorforce.models.dqfd_model import DQFDModel
-from tensorforce.replay_memories import ReplayMemory
-from tensorforce.agents import RLAgent
-from tensorforce.default_configs import DQFDAgentConfig
+from tensorforce.core import Agent
+from tensorforce.core.memories import ReplayMemory
+from tensorforce.default_configs_delete.dqfd import DQFDAgentConfig
+from tensorforce.models import DQFDModel
 
 
-class DQFDAgent(RLAgent):
+class DQFDAgent(Agent):
 
     name = 'DQFDAgent'
     model = DQFDModel
 
     default_config = DQFDAgentConfig
 
-    def __init__(self, config, scope='dqfd_agent', network_builder=None):
+    def __init__(self, config, network_builder=None):
         """
         
         :param config: 
         :param scope: 
         """
+        super(DQFDAgent, self).__init__(config, network_builder)
         self.config = create_config(config, default=self.default_config)
 
         # This is the online memory
-        self.replay_memory = ReplayMemory(**self.config)
+        self.replay_memory = ReplayMemory(capacity=config.capacity, states=config.states, actions=config.actions)
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
@@ -58,7 +59,6 @@ class DQFDAgent(RLAgent):
 
         # Called p in paper, controls ratio of expert vs online training samples
         self.expert_sampling_ratio = self.config.expert_sampling_ratio
-
 
         self.update_repeat = self.config.update_repeat
         self.batch_size = self.config.batch_size
@@ -75,7 +75,7 @@ class DQFDAgent(RLAgent):
         self.min_replay_size = self.config.min_replay_size
 
         if self.__class__.model:
-            self.model = self.__class__.model(self.config, scope, network_builder=network_builder)
+            self.model = self.__class__.model(self.config, network_builder=network_builder)
 
     def add_demo_observation(self, state, action, reward, terminal):
         """
@@ -85,31 +85,36 @@ class DQFDAgent(RLAgent):
         self.demo_memory.add_experience(state, action, reward, terminal)
 
     def pre_train(self, steps=1):
-        """
+        """Computes pretrain updates.
         
-        :param steps: Number of pre-train updates to perform.
-        
+        Args:
+            steps: Number of updates to execute.
+
+        Returns:
+
         """
         for _ in xrange(steps):
             # Sample from demo memory
-            batch = self.demo_memory.sample_batch(self.batch_size)
+            batch = self.demo_memory.get_batch(self.batch_size)
 
             # Update using both double Q-learning and supervised double_q_loss
             self.model.pre_train_update(batch)
 
-    def add_observation(self, state, action, reward, terminal):
-        """
-        Adds observations, updates via sampling from memories according to update rate.
-        In the DQFD case, we sample from the online replay memory and the demo memory with
-        the fractions controlled by a hyperparameter p called 'expert sampling ratio.
+    def observe(self, state, action, reward, terminal):
+        """Adds observations, updates via sampling from memories according to update rate.
+        DQFD samples from the online replay memory and the demo memory with
+        the fractions controlled by a hyper parameter p called 'expert sampling ratio.
         
-        :param state: 
-        :param action: 
-        :param reward: 
-        :param terminal: 
-        :return: 
+        Args:
+            state: 
+            action: 
+            reward: 
+            terminal: 
+
+        Returns:
+
         """
-        self.replay_memory.add_experience(state, action, reward, terminal)
+        self.replay_memory.add_experience(state, action, reward, terminal, None)
 
         self.step_count += 1
 
@@ -117,8 +122,8 @@ class DQFDAgent(RLAgent):
             for _ in xrange(self.update_repeat):
                 # Sample batches according to expert sampling ratio
                 # In the paper, p is given as p = n_demo / (n_replay + n_demo)
-                demo_batch = self.demo_memory.sample_batch(self.demo_batch_size)
-                online_batch = self.replay_memory.sample_batch(self.batch_size)
+                demo_batch = self.demo_memory.get_batch(self.demo_batch_size)
+                online_batch = self.replay_memory.get_batch(self.batch_size)
 
                 self.model.update(demo_batch, online_batch)
 

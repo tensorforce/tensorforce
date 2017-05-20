@@ -33,6 +33,7 @@ import tensorflow as tf
 
 from tensorforce.core import PolicyGradientModel
 from tensorforce.core.networks import ConjugateGradientOptimizer
+from tensorforce.util import line_search, get_flattened_gradient, FlatVarHelper
 
 
 class TRPOModel(PolicyGradientModel):

@@ -26,11 +26,9 @@ import argparse
 import logging
 import numpy as np
 
-from tensorforce.config import Config
-from tensorforce.external.openai_gym import OpenAIGymEnvironment
-from tensorforce.util.experiment_util import build_preprocessing_stack
-from tensorforce.util.agent_util import create_agent
-from tensorforce.util.config_util import log_levels
+from tensorforce.config import Configuration
+from tensorforce.environments.openai_gym import OpenAIGym
+from tensorforce.util import build_preprocessing_stack, create_agent, log_levels
 from tensorforce.execution import Runner
 
 
@@ -53,9 +51,9 @@ def main():
 
     args = parser.parse_args()
 
-    env = OpenAIGymEnvironment(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
+    env = OpenAIGym(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
 
-    config = Config({
+    config = Configuration({
         'repeat_actions': 1,
         'actions': env.actions,
         'action_shape': env.action_shape,

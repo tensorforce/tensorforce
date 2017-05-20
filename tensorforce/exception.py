@@ -24,3 +24,10 @@ class TensorForceError(Exception):
     TensorForce error
     """
     pass
+
+
+class ConfigError(TensorForceError):
+    """
+    TensorForce error
+    """
+    pass

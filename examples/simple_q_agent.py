@@ -25,12 +25,11 @@ import numpy as np
 import tensorflow as tf
 import logging
 
-from tensorforce.agents import MemoryAgent
-from tensorforce.models import Model
-from tensorforce.models.neural_networks import NeuralNetwork
+from tensorforce.core import MemoryAgent, Model
+from tensorforce.core.networks import NeuralNetwork
 
-from tensorforce.config import Config
-from tensorforce.external.openai_gym import OpenAIGymEnvironment
+from tensorforce.config import Configuration
+from tensorforce.environments.openai_gym import OpenAIGym
 from tensorforce.execution import Runner
 
 
@@ -188,9 +187,9 @@ def main():
     max_episodes = 10000
     max_timesteps = 1000
 
-    env = OpenAIGymEnvironment(gym_id, monitor=False, monitor_video=False)
+    env = OpenAIGym(gym_id, monitor=False, monitor_video=False)
 
-    config = Config({
+    config = Configuration({
         'repeat_actions': 1,
         'actions': env.actions,
         'action_shape': env.action_shape,

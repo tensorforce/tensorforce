@@ -169,6 +169,22 @@ then create an agent and use it as seen below (see documentation for all optiona
 Update notes
 ------------
 
+28th May 2017
+
+BREAKING CHANGES: We completely restructured the project to reduce redundant code, improve execution time, allow
+for multiple states and actions per step (by wrapping them in dicts), and much more. Following this rewrite, the  high level
+API should be stable going forward. Major changes are listed below:
+
+- RlAgent (now Agent) API change: add_observation() to observe(), get_action to act()
+- States and actions are now wrapped in dicts to support multiple state inputs and multiple actions per time step
+  In particular, this allows to have a generic interface between gym, universe, lab and other potential environments
+- External environments (tensorforce/external) have to implement the 'states' and 'actions' properties to define
+  environment shapes.
+- Models now all create their TensorFlow operations by calling the same function (create_tf_operations()). This will allow
+  us to do useful things like wrapping these calls with TensorFlow device mappings.
+- Minimal test environments are also implemented under external/environments for consistency
+- Examples moved into separate directory
+
 2nd May 2017
 
 - DQFD now passing pre-training test
@@ -178,16 +194,6 @@ Update notes
 - Prototype of Deep-Q learning from demonstration now available - not fully tested pre-training yet
 - Added unit tests verifying models can solve minimal enviroments to help debugging major changes
 - Added explicit option to override line-search fail in TRPO, should be false for stable improvements
-
-23nd April 2017:
-
-- Added bazel BUILD file and instructions to run TensorForce with DeepMind lab. Note that we have not implemented
-  any lab specific algorithms yet, we are just providing the integration. We will overhaul the action/state representation
-  soon to be more general, as lab uses dicts with named actions while gym/universe use flat arrays.
-
-16th April 2017:
-
-- Work in progress on new model: Deep-Q learning from demonstration, DQFD model and agent added: `paper <https://arxiv.org/abs/1704.03732>`__
 
 
 Road map and contributions

@@ -36,10 +36,10 @@ class TestDQFDAgent(unittest.TestCase):
 
         config = Configuration(
             batch_size=8,
-            memory_capacity=800,
-            first_update=80,
+            memory_capacity=20,
+            first_update=20,
             repeat_update=4,
-            target_update_frequency=20,
+            target_update_frequency=1,
             states=environment.states,
             actions=environment.actions,
             learning_rate=0.00004,
@@ -49,7 +49,14 @@ class TestDQFDAgent(unittest.TestCase):
         )
 
         tf.reset_default_graph()
-        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
+
+        # DQFD uses l2-reg
+        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32,
+                                                                  'weights_regularizer': 'tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer',
+                                                                  'weights_regularizer_kwargs': {
+                                                                      'scale': 0.001
+                                                                  }
+                                                                  }])
 
         agent = DQFDAgent(config=config, network_builder=network_builder)
 
@@ -76,6 +83,6 @@ class TestDQFDAgent(unittest.TestCase):
         def episode_finished(r):
             return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        runner.run(episodes=10000, episode_finished=episode_finished)
-        self.assertTrue(runner.episode < 10000)
+        runner.run(episodes=500, episode_finished=episode_finished)
+        self.assertTrue(runner.episode < 500)
 

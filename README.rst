@@ -171,8 +171,7 @@ Update notes
 28th May 2017
 
 BREAKING CHANGES: We completely restructured the project to reduce redundant code, significantly improve execution time, allow
-for multiple states and actions per step (by wrapping them in dicts), and much more.
- Following this rewrite, the  high level API should be stable going forward. Major changes are listed below:
+for multiple states and actions per step (by wrapping them in dicts), and much more. Following this rewrite, the  high level API should be stable going forward. Major changes are listed below:
 
 - RlAgent (now Agent) API change: add_observation() to observe(), get_action to act()
 - Code reorganised to contain a folder "core" which contains common RL abstractions.

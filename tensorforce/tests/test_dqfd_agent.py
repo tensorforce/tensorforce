@@ -36,13 +36,13 @@ class TestDQFDAgent(unittest.TestCase):
 
         config = Configuration(
             batch_size=8,
-            learning_rate=0.001,
             memory_capacity=800,
             first_update=80,
             repeat_update=4,
             target_update_frequency=20,
             states=environment.states,
             actions=environment.actions,
+            learning_rate=0.00004,
             expert_sampling_ratio=0.01,
             supervised_weight=0.5,
             expert_margin=1

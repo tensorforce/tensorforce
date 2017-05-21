@@ -23,7 +23,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorforce import TensorForceError, util
 from tensorforce.core.model import Model
 from tensorforce.core.networks import NeuralNetwork, layers
 
@@ -32,38 +31,27 @@ class DQFDModel(Model):
 
     default_config = {
         'update_target_weight': 1.0,
-        'double_dqn': False
+        'clip_gradients': 0.0,
+        "supervised_weight": 1.0,
+        "expert_margin": 0.8
     }
+
     allows_discrete_actions = True
     allows_continuous_actions = False
 
     def __init__(self, config, network_builder):
-        super(DQFDModel, self).__init__(config)
         self.network = network_builder
         config.default(DQFDModel.default_config)
-
-        self.double_dqn = config.double_dqn
-        self.supervised_weight = config.supervised_weight
-        self.expert_margin = config.expert_margin
-
-        # Replicate the action structure for expert actions
-        self.expert_action = dict()
-        for name, action in config.actions:
-            if action.continuous:
-                if not self.__class__.allows_continuous_actions:
-                    raise TensorForceError()
-                self.expert_action[name] = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name=name)
-            else:
-                if not self.__class__.allows_discrete_actions:
-                    raise TensorForceError()
-                self.expert_action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,), name=name)
+        super(DQFDModel, self).__init__(config)
 
     def pre_train_update(self, batch=None):
-        """
-        Computes the pre-training update.
-        
-        :param batch: Demo batch data
-        :return: 
+        """Computes the pre-training update.
+
+        Args:
+            batch: A batch of demo data.
+
+        Returns:
+
         """
 
         fetches = self.dqfd_opt
@@ -76,23 +64,6 @@ class DQFDModel(Model):
         feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
         self.session.run(fetches=fetches, feed_dict=feed_dict)
-
-    def get_action(self, state, episode=1):
-
-        fetches = [self.dqn_action]
-        fetches.extend(self.training_internal_states)
-        fetches.extend(self.target_internal_states)
-
-        feed_dict = {self.state: [(state,)]}
-        feed_dict.update({internal_state: self.training_network.internal_inits[n] for n, internal_state in enumerate(self.training_network.internal_state_inputs)})
-        feed_dict.update({internal_state: self.target_network.internal_inits[n] for n, internal_state in enumerate(self.target_network.internal_state_inputs)})
-
-        fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
-
-        self.training_internal_states = fetched[1:len(self.training_internal_states)]
-        self.target_internal_states = fetched[1 + len(self.training_internal_states):]
-
-        return fetched[0]
 
     def update_target_network(self):
         """
@@ -112,6 +83,7 @@ class DQFDModel(Model):
 
         """
         super(DQFDModel, self).create_tf_operations(config)
+
         num_actions = {name: action.num_actions for name, action in config.actions}
 
         # placeholders
@@ -120,9 +92,10 @@ class DQFDModel(Model):
 
         # Training network
         with tf.variable_scope('training'):
-            self.training_network = NeuralNetwork(self.network, inputs={name: state[:-1] for name, state in self.state.items()}, episode_length=self.episode_length)
-            self.training_internal_states = self.training_network.internal_inits
-            self.training_output = layers['linear'](x=self.training_network.output, size=num_actions)
+            self.training_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+            self.internal_inputs.extend(self.training_network.internal_inputs)
+            self.internal_outputs.extend(self.training_network.internal_outputs)
+            self.internal_inits.extend(self.training_network.internal_inits)
 
             training_output = dict()
 
@@ -136,15 +109,13 @@ class DQFDModel(Model):
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
+
             target_value = dict()
 
             for action in self.action:
                 target_output = layers['linear'](x=self.target_network.output, size=num_actions[action])
                 selector = tf.one_hot(self.action_taken[action], num_actions[action])
                 target_value[action] = tf.reduce_sum(tf.multiply(target_output, selector), axis=1)
-
-        with tf.name_scope("predict"):
-            self.dqn_action = tf.argmax(self.training_output, axis=2, name='dqn_action')
 
         with tf.name_scope("update"):
             self.dqfd_opt = []
@@ -178,7 +149,7 @@ class DQFDModel(Model):
                 inverted_one_hot = mask - action_one_hot
 
                 # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
-                expert_margin = self.training_output + tf.multiply(inverted_one_hot, self.expert_margin)
+                expert_margin = training_output[action][:-1] + tf.multiply(inverted_one_hot, config.expert_margin)
 
                 supervised_selector = tf.reduce_max(expert_margin, axis=1, name='expert_margin_selector')
 
@@ -186,7 +157,7 @@ class DQFDModel(Model):
                 supervised_loss = supervised_selector - q_value
 
                 # Combining double q loss with supervised loss
-                dqfd_loss = double_q_loss + self.supervised_weight * supervised_loss
+                dqfd_loss = double_q_loss + config.supervised_weight * supervised_loss
 
                 # This decomposition is not necessary, we just want to be able to export gradients
                 dqfd_grads_and_vars = self.optimizer.compute_gradients(dqfd_loss)
@@ -195,6 +166,7 @@ class DQFDModel(Model):
 
         # Update target network according to update weight
         self.target_network_update = []
+
         with tf.name_scope("update_target"):
             for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
                 update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))

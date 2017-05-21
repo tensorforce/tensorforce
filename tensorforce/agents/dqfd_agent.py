@@ -36,8 +36,6 @@ class DQFDAgent(Agent):
 
     default_config = {
         "expert_sampling_ratio": 0.01,
-        "supervised_weight": 1.0,
-        "expert_margin": 0.8,
         'batch_size': 32,
         'update_rate': 0.25,
         'target_network_update_rate': 0.0001,
@@ -57,12 +55,12 @@ class DQFDAgent(Agent):
         super(DQFDAgent, self).__init__(config, network_builder)
 
         # This is the online memory
-        self.replay_memory = ReplayMemory(capacity=config.capacity, states=config.states, actions=config.actions)
+        self.replay_memory = ReplayMemory(capacity=config.memory_capacity, states_config=config.states, actions_config=config.actions)
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
         # TODO we might want different sizes for these memories -> add config param
-        self.demo_memory = ReplayMemory(capacity=config.capacity, states=config.states, actions=config.actions)
+        self.demo_memory = ReplayMemory(capacity=config.memory_capacity, states_config=config.states, actions_config=config.actions)
         self.step_count = 0
 
         # Called p in paper, controls ratio of expert vs online training samples
@@ -86,11 +84,23 @@ class DQFDAgent(Agent):
             self.model = self.__class__.model(config, network_builder=network_builder)
 
     def add_demo_observation(self, state, action, reward, terminal):
-        """
-        Adds observations to demo memory. 
+        """Adds observations to demo memory. 
+
+        Args:
+            state: 
+            action: 
+            reward: 
+            terminal: 
+
+        Returns:
 
         """
-        self.demo_memory.add_experience(state, action, reward, terminal, None)
+        if self.unique_state:
+            state = dict(state=state)
+        if self.unique_action:
+            action = dict(action=action)
+
+        self.demo_memory.add_experience(state, action, reward, terminal, internal=self.internals)
 
     def pre_train(self, steps=1):
         """Computes pretrain updates.
@@ -122,7 +132,12 @@ class DQFDAgent(Agent):
         Returns:
 
         """
-        self.replay_memory.add_experience(state, action, reward, terminal, None)
+        if self.unique_state:
+            state = dict(state=state)
+        if self.unique_action:
+            action = dict(action=action)
+
+        self.replay_memory.add_experience(state, action, reward, terminal, internal=self.internals)
 
         self.step_count += 1
 
@@ -139,9 +154,6 @@ class DQFDAgent(Agent):
         if self.step_count >= self.min_replay_size and self.use_target_network \
                 and self.step_count % self.target_update_steps == 0:
             self.model.update_target_network()
-
-    def get_action(self, *args, **kwargs):
-        return self.model.get_action(*args, **kwargs)
 
     def save_model(self, path):
         self.model.save_model(path)

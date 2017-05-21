@@ -53,25 +53,24 @@ class TestDQFDAgent(unittest.TestCase):
 
         agent = DQFDAgent(config=config, network_builder=network_builder)
 
-        state = (1, 0)
+        # First: generate some data to add to demo memory
+        state = environment.reset()
+        agent.reset()
 
-        # First: add to demo memory
         for n in xrange(50):
-            action = agent.get_action(state=state)
-            if action == 0:
-                state = (1, 0)
-                reward = 0.0
-                terminal = False
-            else:
-                state = (0, 1)
-                reward = 1.0
-                terminal = False
-            agent.add_demo_observation(state=state, action=action, reward=reward, terminal=terminal)
+            action = agent.act(state=state)
+            state, step_reward, terminal = environment.execute(action=action)
+
+            agent.add_demo_observation(state=state, action=action, reward=step_reward, terminal=terminal)
+
+            if terminal:
+                state = environment.reset()
+                agent.reset()
 
         # Pre-train from demo data
         agent.pre_train(10000)
 
-        # If pretraining worked, we should not need much more training
+        # If pre-training works, we should not need much more training
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):
@@ -80,7 +79,3 @@ class TestDQFDAgent(unittest.TestCase):
         runner.run(episodes=10000, episode_finished=episode_finished)
         self.assertTrue(runner.episode < 10000)
 
-        # We don't assert here because there is some randomness in the test and while
-        # we can find a deterministic setting with a working random seed, that same
-        # random seed will not work on travis
-        # assert (sum(rewards) == 100.0)

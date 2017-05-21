@@ -22,8 +22,7 @@ from six.moves import xrange
 
 import unittest
 
-from tensorforce.config import create_config
-from tensorforce.models.neural_networks import NeuralNetwork
+from tensorforce import Configuration
 from tensorforce.agents import DQFDAgent
 from tensorforce.core.networks import layered_network_builder
 from tensorforce.environments.minimal_test import MinimalTest
@@ -31,49 +30,30 @@ from tensorforce.execution import Runner
 
 
 class TestDQFDAgent(unittest.TestCase):
+
     def test_dqfd_agent(self):
         environment = MinimalTest(continuous=False)
 
-        config = {
-            "expert_sampling_ratio": 0.01,
-            "supervised_weight": 0.5,
-            "expert_margin": 1,
-            'batch_size': 8,
-            'state_shape': (2,),
-            'actions': 2,
-            'action_shape': (),
-            'update_rate': 1,
-            'update_repeat': 4,
-            'min_replay_size': 20,
-            'memory_capacity': 20,
-            "exploration": "epsilon_decay",
-            "exploration_param": {
-                "epsilon": 0,
-                "epsilon_final": 0,
-                "epsilon_states": 0
-            },
-            'target_network_update_rate': 1.0,
-            'use_target_network': True,
-            "alpha": 0.00004,
-            "gamma": 1,
-            "tau": 1.0
-        }
+        config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            states=environment.states,
+            actions=environment.actions,
+            expert_sampling_ratio=0.01,
+            supervised_weight=0.5,
+            expert_margin=1
+        )
 
         tf.reset_default_graph()
-
-        config = create_config(config)
-        network_builder = layered_network_builder([{'type': 'dense',
-                                                    'num_outputs': 16,
-                                                    'weights_regularizer': 'tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer',
-                                                    'weights_regularizer_kwargs': {
-                                                        'scale': 0.01
-                                                    }},
-                                                   {'type': 'linear', 'num_outputs': 2}])
+        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
 
         agent = DQFDAgent(config=config, network_builder=network_builder)
 
         state = (1, 0)
-        rewards = [0.0] * 100
 
         # First: add to demo memory
         for n in xrange(50):
@@ -100,7 +80,7 @@ class TestDQFDAgent(unittest.TestCase):
         runner.run(episodes=10000, episode_finished=episode_finished)
         self.assertTrue(runner.episode < 10000)
 
-            # We don't assert here because there is some randomness in the test and while
-            # we can find a deterministic setting with a working random seed, that same
-            # random seed will not work on travis
-            # assert (sum(rewards) == 100.0)
+        # We don't assert here because there is some randomness in the test and while
+        # we can find a deterministic setting with a working random seed, that same
+        # random seed will not work on travis
+        # assert (sum(rewards) == 100.0)

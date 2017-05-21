@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
+from tensorforce import TensorForceError, util
 from tensorforce.core.model import Model
 from tensorforce.core.networks import NeuralNetwork, layers
 
@@ -45,7 +46,19 @@ class DQFDModel(Model):
         self.supervised_weight = config.supervised_weight
         self.expert_margin = config.expert_margin
 
-    def pre_train_update(self, batch):
+        # Replicate the action structure for expert actions
+        self.expert_action = dict()
+        for name, action in config.actions:
+            if action.continuous:
+                if not self.__class__.allows_continuous_actions:
+                    raise TensorForceError()
+                self.expert_action[name] = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name=name)
+            else:
+                if not self.__class__.allows_discrete_actions:
+                    raise TensorForceError()
+                self.expert_action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,), name=name)
+
+    def pre_train_update(self, batch=None):
         """
         Computes the pre-training update.
         
@@ -53,96 +66,19 @@ class DQFDModel(Model):
         :return: 
         """
 
-        self.logger.debug('Computing pre-training update..')
+        fetches = self.dqfd_opt
 
-        # Compute estimated future value
-        float_terminals = batch['terminals'].astype(float)
-        y = self.get_target_values(batch['next_states'])
+        feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
+        feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
 
-        q_targets = batch['rewards'] + (1. - float_terminals) \
-                                       * self.discount * y
+        feed_dict[self.reward] = batch['rewards']
+        feed_dict[self.terminal] = batch['terminals']
+        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
-        feed_dict = {
-            self.episode_length: [len(batch['rewards'])],
-            self.q_targets: q_targets,
-            self.actions: [batch['actions']],
-            self.expert_actions: [batch['actions']],  # Separate placeholders -> separate loss components
-            self.state: [batch['states']]
-        }
-
-        fetches = [self.optimize_dqfd, self.training_output]
-
-        # Internal state management for recurrent dqn
-        fetches.extend(self.training_network.internal_outputs)
-        fetches.extend(self.target_network.internal_outputs)
-
-        for n, internal_state in enumerate(self.training_network.internal_inputs):
-            feed_dict[internal_state] = self.training_internal_states[n]
-
-        for n, internal_state in enumerate(self.target_network.internal_inputs):
-            feed_dict[internal_state] = self.target_internal_states[n]
-
-        fetched = self.session.run(fetches, feed_dict)
-
-        # Update internal state list, e.g. or LSTM
-        self.training_internal_states = fetched[2:len(self.training_internal_states)]
-        self.target_internal_states = fetched[2 + len(self.training_internal_states):]
-
-    def update(self, online_batch, demo_batch=None):
-        """
-        Updates by applying the dqfd loss on the demo data and the double-Q
-        loss on the online data.
-                
-        :param online_batch: 
-        :param demo_batch: 
-
-        """
-        # Delegate demo batch update to pretraining method
-        self.pre_train_update(demo_batch)
-
-        self.logger.debug('Computing online update..')
-
-        # Compute estimated future value
-        float_terminals = online_batch['terminals'].astype(float)
-        y = self.get_target_values(online_batch['next_states'])
-
-        q_targets = online_batch['rewards'] + (1. - float_terminals) \
-                                       * self.discount * y
-
-        feed_dict = {
-            self.episode_length: [len(online_batch['rewards'])],
-            self.q_targets: q_targets,
-            self.actions: [online_batch['actions']],
-
-            self.state: [online_batch['states']]
-        }
-
-        fetches = [self.optimize_double_q, self.training_output]
-
-        # Internal state management for recurrent dqn
-        fetches.extend(self.training_network.internal_outputs)
-        fetches.extend(self.target_network.internal_outputs)
-
-        for n, internal_state in enumerate(self.training_network.internal_inputs):
-            feed_dict[internal_state] = self.training_internal_states[n]
-
-        for n, internal_state in enumerate(self.target_network.internal_inputs):
-            feed_dict[internal_state] = self.target_internal_states[n]
-
-        fetched = self.session.run(fetches, feed_dict)
-
-        # Update internal state list, e.g. or LSTM
-        self.training_internal_states = fetched[2:len(self.training_internal_states)]
-        self.target_internal_states = fetched[2 + len(self.training_internal_states):]
+        self.session.run(fetches=fetches, feed_dict=feed_dict)
 
     def get_action(self, state, episode=1):
-        """
-        Returns the predicted action for a given state.
 
-        :param state: State tensor
-        :param episode: Current episode
-        :return: action number
-        """
         fetches = [self.dqn_action]
         fetches.extend(self.training_internal_states)
         fetches.extend(self.target_internal_states)
@@ -158,15 +94,6 @@ class DQFDModel(Model):
 
         return fetched[0]
 
-    def get_target_values(self, next_states):
-        """
-        Estimate of next state Q values using double q estimate.
-        
-        :param next_states:
-        """
-
-        return self.session.run(self.target_values, {self.state: [next_states], self.next_states: [next_states]})
-
     def update_target_network(self):
         """
         Updates target network.
@@ -175,89 +102,101 @@ class DQFDModel(Model):
         self.session.run(self.target_network_update)
 
     def create_tf_operations(self, config):
-        """
-        Create training graph. For DQFD, we build the double-dqn training graph and
+        """Create training graph. For DQFD, we build the double-dqn training graph and
         modify the double_q_loss function according to eq. 5
         
+        Args:
+            config: Config dict.
+
+        Returns:
+
         """
         super(DQFDModel, self).create_tf_operations(config)
+        num_actions = {name: action.num_actions for name, action in config.actions}
 
         # placeholders
         with tf.variable_scope('placeholders'):
             self.q_targets = tf.placeholder(tf.float32, (None,), name='q_targets')
 
-        # training network
+        # Training network
         with tf.variable_scope('training'):
             self.training_network = NeuralNetwork(self.network, inputs={name: state[:-1] for name, state in self.state.items()}, episode_length=self.episode_length)
             self.training_internal_states = self.training_network.internal_inits
-            self.training_output = layers['linear'](x=self.training_network.output, size=self.num_actions)
+            self.training_output = layers['linear'](x=self.training_network.output, size=num_actions)
 
-        # target network
+            training_output = dict()
+
+            for action in self.action:
+                training_output[action] = layers['linear'](x=self.training_network.output, size=num_actions[action])
+                self.action_taken[action] = tf.argmax(training_output[action], axis=1)
+
+        # Target network
         with tf.variable_scope('target'):
-            self.target_network = NeuralNetwork(self.network, inputs={name: state[1:] for name, state in self.state.items()}, episode_length=self.episode_length)
-            self.target_internal_states = self.target_network.internal_inits
-            self.target_output = layers['linear'](x=self.target_network.output, size=self.num_actions)
+            self.target_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+            self.internal_inputs.extend(self.target_network.internal_inputs)
+            self.internal_outputs.extend(self.target_network.internal_outputs)
+            self.internal_inits.extend(self.target_network.internal_inits)
+            target_value = dict()
+
+            for action in self.action:
+                target_output = layers['linear'](x=self.target_network.output, size=num_actions[action])
+                selector = tf.one_hot(self.action_taken[action], num_actions[action])
+                target_value[action] = tf.reduce_sum(tf.multiply(target_output, selector), axis=1)
 
         with tf.name_scope("predict"):
             self.dqn_action = tf.argmax(self.training_output, axis=2, name='dqn_action')
 
-        with tf.name_scope("targets"):
-            selector = tf.one_hot(self.dqn_action, self.action_count, name='selector')
-            self.target_values = tf.reduce_sum(tf.multiply(self.target_output, selector), axis=2,
-                                               name='target_values')
-
         with tf.name_scope("update"):
-            # Self.q_targets gets fed the actual observed rewards and expected future rewards
-            self.q_targets = tf.placeholder(tf.float32, (None, None), name='q_targets')
+            self.dqfd_opt = []
 
-            # Self.actions gets fed the actual actions that have been taken
-            self.actions = tf.placeholder(tf.int32, (None, None), name='actions')
-            self.expert_actions = tf.placeholder(tf.int32, (None, None), name='expert_actions')
+            for action in self.action:
+                # Self.q_targets gets fed the actual observed rewards and expected future rewards
+                # One_hot tensor of the actions that have been taken
+                action_one_hot = tf.one_hot(self.action[action][:-1], num_actions[action])
 
-            # One_hot tensor of the actions that have been taken
-            actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
+                # Training output, so we get the expected rewards given the actual states and actions
+                q_value = tf.reduce_sum(training_output[action][:-1] * action_one_hot, axis=1)
 
-            # Training output, so we get the expected rewards given the actual states and actions
-            q_values_actions_taken = tf.reduce_sum(self.training_output * actions_one_hot, axis=2,
-                                                   name='q_acted')
+                # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
+                q_target = self.reward[:-1] + (1.0 - tf.cast(self.terminal[:-1], tf.float32)) * self.discount * target_value[action][1:]
+                delta = q_target - q_value
 
-            # Expert action Q values
-            expert_actions_one_hot = tf.one_hot(self.expert_actions, self.action_count, 1.0, 0.0, name='action_one_hot')
-            q_values_expert_actions = tf.reduce_sum(self.training_output * expert_actions_one_hot, axis=2,
-                                                   name='q_expert_acted')
+                # If gradient clipping is used, calculate the huber loss
+                if config.clip_gradients >= 0.0:
+                    huber_loss = tf.where(tf.abs(delta) < config.clip_gradients, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
+                    double_q_loss = tf.reduce_mean(huber_loss)
+                else:
+                    double_q_loss = tf.reduce_mean(tf.square(delta))
 
-            delta = self.q_targets - q_values_actions_taken
+                # Use the existing loss structure from the model here, then compute dqfd loss separately
+                tf.losses.add_loss(double_q_loss)
 
-            self.double_q_loss = tf.reduce_mean(tf.square(delta), name='compute_surrogate_loss')
+                # Create the supervised margin loss
+                mask = tf.ones_like(action_one_hot, dtype=tf.float32)
 
-            # Create the supervised margin loss
-            mask = tf.ones_like(expert_actions_one_hot, dtype=tf.float32)
+                # Zero for the action taken, one for all other actions, now multiply by expert margin
+                inverted_one_hot = mask - action_one_hot
 
-            # Zero for the action taken, one for all other actions, now multiply by expert margin
-            inverted_one_hot = mask - expert_actions_one_hot
+                # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
+                expert_margin = self.training_output + tf.multiply(inverted_one_hot, self.expert_margin)
 
-            # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
-            expert_margin = self.training_output + tf.multiply(inverted_one_hot, self.expert_margin)
+                supervised_selector = tf.reduce_max(expert_margin, axis=1, name='expert_margin_selector')
 
-            supervised_selector = tf.reduce_max(expert_margin, axis=2, name='expert_margin_selector')
+                # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
+                supervised_loss = supervised_selector - q_value
 
-            # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
-            self.supervised_loss = supervised_selector - q_values_expert_actions
+                # Combining double q loss with supervised loss
+                dqfd_loss = double_q_loss + self.supervised_weight * supervised_loss
 
-            # Combining double q loss with supervised loss
-            self.dqfd_loss = self.double_q_loss + self.supervised_weight * self.supervised_loss
+                # This decomposition is not necessary, we just want to be able to export gradients
+                dqfd_grads_and_vars = self.optimizer.compute_gradients(dqfd_loss)
 
-            # This decomposition is not necessary, we just want to be able to export gradients
-            self.double_q_grads_and_vars = self.optimizer.compute_gradients(self.double_q_loss)
-            self.dqfd_grads_and_vars = self.optimizer.compute_gradients(self.dqfd_loss)
+                self.dqfd_opt.append(self.optimizer.apply_gradients(dqfd_grads_and_vars))
 
-            self.optimize_double_q = self.optimizer.apply_gradients(self.double_q_grads_and_vars)
-            self.optimize_dqfd = self.optimizer.apply_gradients(self.dqfd_grads_and_vars)
-
-            # Update target network with update weight tau
-            self.target_network_update = []
-            with tf.name_scope("update_target"):
-                for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
-                    update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
-                    self.target_network_update.append(update)
+        # Update target network according to update weight
+        self.target_network_update = []
+        with tf.name_scope("update_target"):
+            for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
+                update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
+                self.target_network_update.append(update)
 

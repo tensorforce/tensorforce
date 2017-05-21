@@ -20,7 +20,9 @@ Introduction
 TensorForce is an open source reinforcement learning library focused on
 providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
-TensorForce is built on top of TensorFlow and compatible with Python 2.7 and >3.5.
+TensorForce is built on top of TensorFlow and compatible with Python 2.7 and >3.5 and
+supports multiple state inputs and multi-dimensional actions to be compatible with Gym, Universe,
+and DeepMind lab.
 
 The main difference to existing libraries is a strict
 separation of environments, agents and update logic that facilitates
@@ -116,11 +118,8 @@ line).
 
 
 Please note that we have not implemented any lab specific algorithms yet, and these instructions just explain connectivity
-in case someone wants to get started there. Please check out the todos in environments/deepmind_lab.py to see what's necessary if you are interested in implementing
-algorithms, or get in touch.
+in case someone wants to get started there.
 
-Note: We are in the process of a major rewrite to have a compatible state/action interface between
-gym/universe, lab and other types of environments, should be completed by end May.
 
 Create and use agents
 ---------------------
@@ -171,11 +170,12 @@ Update notes
 
 28th May 2017
 
-BREAKING CHANGES: We completely restructured the project to reduce redundant code, improve execution time, allow
-for multiple states and actions per step (by wrapping them in dicts), and much more. Following this rewrite, the  high level
-API should be stable going forward. Major changes are listed below:
+BREAKING CHANGES: We completely restructured the project to reduce redundant code, significantly improve execution time, allow
+for multiple states and actions per step (by wrapping them in dicts), and much more.
+ Following this rewrite, the  high level API should be stable going forward. Major changes are listed below:
 
 - RlAgent (now Agent) API change: add_observation() to observe(), get_action to act()
+- Code reorganised to contain a folder "core" which contains common RL abstractions.
 - States and actions are now wrapped in dicts to support multiple state inputs and multiple actions per time step
   In particular, this allows to have a generic interface between gym, universe, lab and other potential environments
 - External environments (tensorforce/external) have to implement the 'states' and 'actions' properties to define
@@ -184,16 +184,6 @@ API should be stable going forward. Major changes are listed below:
   us to do useful things like wrapping these calls with TensorFlow device mappings.
 - Minimal test environments are also implemented under external/environments for consistency
 - Examples moved into separate directory
-
-2nd May 2017
-
-- DQFD now passing pre-training test
-
-1st May 2017:
-
-- Prototype of Deep-Q learning from demonstration now available - not fully tested pre-training yet
-- Added unit tests verifying models can solve minimal enviroments to help debugging major changes
-- Added explicit option to override line-search fail in TRPO, should be false for stable improvements
 
 
 Road map and contributions

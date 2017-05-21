@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Generic baseline value function for policy gradient methods.
+Generic baseline value function.
 """
 
 from __future__ import absolute_import

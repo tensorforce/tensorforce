@@ -39,10 +39,11 @@ class DQNModel(Model):
     allows_continuous_actions = False
 
     def __init__(self, config, network_builder):
-        """
-        Training logic for DQN.
+        """Training logic for DQN.
 
-        :param config: Configuration dict
+        Args:
+            config: 
+            network_builder: 
         """
         config.default(DQNModel.default_config)
         self.network = network_builder
@@ -54,24 +55,27 @@ class DQNModel(Model):
 
         num_actions = {name: action.num_actions for name, action in config.actions}
 
-        # training network
+        # Training network
         with tf.variable_scope('training'):
             self.training_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
             training_output = dict()
+
             for action in self.action:
                 training_output[action] = layers['linear'](x=self.training_network.output, size=num_actions[action])
                 self.action_taken[action] = tf.argmax(training_output[action], axis=1)
 
-        # target network
+        # Target network
         with tf.variable_scope('target'):
             self.target_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
             target_value = dict()
+
             for action in self.action:
                 target_output = layers['linear'](x=self.target_network.output, size=num_actions[action])
                 if config.double_dqn:
@@ -86,6 +90,7 @@ class DQNModel(Model):
                 action_one_hot = tf.one_hot(self.action[action][:-1], num_actions[action])
                 # Training output, so we get the expected rewards given the actual states and actions
                 q_value = tf.reduce_sum(training_output[action][:-1] * action_one_hot, axis=1)
+
                 # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
                 q_target = self.reward[:-1] + (1.0 - tf.cast(self.terminal[:-1], tf.float32)) * self.discount * target_value[action][1:]
                 delta = q_target - q_value

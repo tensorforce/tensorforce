@@ -24,10 +24,8 @@ from __future__ import print_function
 from __future__ import division
 from six.moves import xrange
 
-from tensorforce.config import create_config
 from tensorforce.core import Agent
 from tensorforce.core.memories import ReplayMemory
-from tensorforce.default_configs_delete.dqfd import DQFDAgentConfig
 from tensorforce.models import DQFDModel
 
 
@@ -36,7 +34,18 @@ class DQFDAgent(Agent):
     name = 'DQFDAgent'
     model = DQFDModel
 
-    default_config = DQFDAgentConfig
+    default_config = {
+        "expert_sampling_ratio": 0.01,
+        "supervised_weight": 1.0,
+        "expert_margin": 0.8,
+        'batch_size': 32,
+        'update_rate': 0.25,
+        'target_network_update_rate': 0.0001,
+        'min_replay_size': 5e4,
+        'deterministic_mode': False,
+        'use_target_network': False,
+        'update_repeat': 1
+    }
 
     def __init__(self, config, network_builder=None):
         """
@@ -44,8 +53,8 @@ class DQFDAgent(Agent):
         :param config: 
         :param scope: 
         """
+        config.default(DQFDAgent.default_config)
         super(DQFDAgent, self).__init__(config, network_builder)
-        self.config = create_config(config, default=self.default_config)
 
         # This is the online memory
         self.replay_memory = ReplayMemory(capacity=config.capacity, states=config.states, actions=config.actions)
@@ -53,36 +62,35 @@ class DQFDAgent(Agent):
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
         # TODO we might want different sizes for these memories -> add config param
-        self.demo_memory = ReplayMemory(**self.config)
-
+        self.demo_memory = ReplayMemory(capacity=config.capacity, states=config.states, actions=config.actions)
         self.step_count = 0
 
         # Called p in paper, controls ratio of expert vs online training samples
-        self.expert_sampling_ratio = self.config.expert_sampling_ratio
+        self.expert_sampling_ratio = config.expert_sampling_ratio
 
-        self.update_repeat = self.config.update_repeat
-        self.batch_size = self.config.batch_size
+        self.update_repeat = config.update_repeat
+        self.batch_size = config.batch_size
 
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
         self.demo_batch_size = int(self.expert_sampling_ratio * self.batch_size / \
                                (1.0 - self.expert_sampling_ratio))
-        self.update_steps = int(round(1 / self.config.update_rate))
-        self.use_target_network = self.config.use_target_network
+        self.update_steps = int(round(1 / config.update_rate))
+        self.use_target_network = config.use_target_network
 
         if self.use_target_network:
-            self.target_update_steps = int(round(1 / self.config.target_network_update_rate))
+            self.target_update_steps = int(round(1 / config.target_network_update_rate))
 
-        self.min_replay_size = self.config.min_replay_size
+        self.min_replay_size = config.min_replay_size
 
         if self.__class__.model:
-            self.model = self.__class__.model(self.config, network_builder=network_builder)
+            self.model = self.__class__.model(config, network_builder=network_builder)
 
     def add_demo_observation(self, state, action, reward, terminal):
         """
         Adds observations to demo memory. 
 
         """
-        self.demo_memory.add_experience(state, action, reward, terminal)
+        self.demo_memory.add_experience(state, action, reward, terminal, None)
 
     def pre_train(self, steps=1):
         """Computes pretrain updates.
@@ -125,7 +133,8 @@ class DQFDAgent(Agent):
                 demo_batch = self.demo_memory.get_batch(self.demo_batch_size)
                 online_batch = self.replay_memory.get_batch(self.batch_size)
 
-                self.model.update(demo_batch, online_batch)
+                self.model.pre_train_update(batch=demo_batch)
+                self.model.update(batch=online_batch)
 
         if self.step_count >= self.min_replay_size and self.use_target_network \
                 and self.step_count % self.target_update_steps == 0:

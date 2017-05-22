@@ -103,8 +103,7 @@ class ThreadRunner(Thread):
 
                 if result['terminal_state'] or current_episode_step >= self.max_episode_steps:
                     self.logger.info('Episode {} finished after {} steps. Episode reward = {}'.format(
-                        current_episode, current_episode_step, current_episode_rewards
-                    ))
+                        current_episode, current_episode_step, current_episode_rewards))
 
                     self.episode_rewards.append(current_episode_rewards)
                     state = self.environment.reset()

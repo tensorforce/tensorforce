@@ -45,12 +45,15 @@ class ConjugateGradientOptimizer(object):
         self.stop_residual = stop_residual
 
     def solve(self, f_Ax, b):
-        """
-        Conjugate gradient solver.
+        """Conjugate gradient solver.
 
-        :param f_Ax: Ax of Ax=b
-        :param b: b in Ax = b
-        :return:
+        
+        Args:
+            f_Ax: Ax of Ax=b
+            b: b in Ax = b
+
+        Returns: Approximate solution to linear system.
+
         """
         b = np.nan_to_num(b)
         cg_vector_p = b.copy()

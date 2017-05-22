@@ -103,12 +103,14 @@ class TRPOModel(PGModel):
             self.fisher_vector_product = get_flattened_gradient(gradient_vector_product, variables)
 
     def update(self, batch):
-        """
-        Compute update for one batch of experiences using general advantage estimation
+        """Compute update for one batch of experiences using general advantage estimation
         and the constrained optimisation based on the fixed kl-divergence constraint.
 
-        :param batch:
-        :return:
+        Args:
+            batch: 
+
+        Returns:
+
         """
         self.input_feed = None
 
@@ -142,7 +144,7 @@ class TRPOModel(PGModel):
         else:
             # The details of the approximations used here to solve the constrained
             # optimisation can be found in Appendix C of the TRPO paper
-            # Note that no subsampling is used, which would improve computational performance
+            # Note that no sub-sampling is used, which would improve computational performance
             search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
 
             # Search direction has now been approximated as cg-solution s= A^-1g where A is
@@ -188,6 +190,13 @@ class TRPOModel(PGModel):
             self.internal_states = fetched[3:]
 
     def compute_fvp(self, p):
+        """Compute fisher vector product.
+        Args:
+            p: 
+
+        Returns:
+
+        """
         self.input_feed[self.flat_tangent] = p
 
         return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping

@@ -18,6 +18,6 @@ from tensorforce.agents.dqn_agent import DQNAgent
 from tensorforce.agents.naf_agent import NAFAgent
 from tensorforce.agents.vpg_agent import VPGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
+from tensorforce.agents.dqfd_agent import DQFDAgent
 
-
-__all__ = ['DQNAgent', 'NAFAgent', 'VPGAgent', 'TRPOAgent']
+__all__ = ['DQNAgent', 'NAFAgent', 'VPGAgent', 'TRPOAgent','DQFDAgent']

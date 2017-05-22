@@ -28,7 +28,7 @@ from __future__ import division
 
 from random import random, randrange
 
-from tensorforce import TensorForceError, util
+from tensorforce import util
 from tensorforce.core.explorations import explorations
 
 

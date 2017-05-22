@@ -14,20 +14,13 @@
 # ==============================================================================
 
 import importlib
-import logging
 import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorForceError
 
 
-log_levels = {
-    "info": logging.INFO,
-    "debug": logging.DEBUG,
-    "critical": logging.CRITICAL,
-    "warning": logging.WARNING,
-    "fatal": logging.FATAL
-}
+epsilon = 1e-6
 
 
 def prod(xs):
@@ -35,6 +28,10 @@ def prod(xs):
     for x in xs:
         p *= x
     return p
+
+
+def shape(x, unknown=-1):
+    return tuple(unknown if dims is None else dims for dims in x.get_shape().as_list())
 
 
 def cumulative_discount(rewards, terminals, discount):

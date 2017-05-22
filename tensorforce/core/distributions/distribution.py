@@ -21,24 +21,20 @@ from __future__ import division
 
 class Distribution(object):
 
-    epsilon = 1e-6
+    def __init__(self, distribution=None):
+        self.distribution = None if distribution is None else tuple(distribution)
 
-    @classmethod
-    def kl_divergence(cls, distr_a, distr_b):
-        """
-        Get KL divergence between distributions a and b.
-        """
-        raise NotImplementedError
-
-    @classmethod
-    def entropy(cls, distribution):
-        """
-        Get current entropy, mainly used for debugging purposes.
-        """
-        raise NotImplementedError
+    def __iter__(self):
+        return iter(self.distribution)
 
     def create_tf_operations(self, x, sample=True):
         raise NotImplementedError
 
     def log_probability(self, action):
+        raise NotImplementedError
+
+    def entropy(self):
+        raise NotImplementedError
+
+    def kl_divergence(self, other):
         raise NotImplementedError

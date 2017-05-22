@@ -98,12 +98,12 @@ class DQNModel(Model):
                     loss = tf.reduce_mean(tf.square(delta))
                 tf.losses.add_loss(loss)
 
-            # Update target network
-            self.target_network_update = []
-            with tf.name_scope("update_target"):
-                for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
-                    update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
-                    self.target_network_update.append(update)
+        # Update target network
+        self.target_network_update = []
+        with tf.name_scope("update_target"):
+            for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
+                update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
+                self.target_network_update.append(update)
 
     def update_target(self):
         """

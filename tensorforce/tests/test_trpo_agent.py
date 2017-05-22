@@ -16,81 +16,58 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
-import tensorflow as tf
+
 import unittest
 
+from tensorforce import Configuration
 from tensorforce.agents import TRPOAgent
-from tensorforce.config import create_config
 from tensorforce.core.networks import layered_network_builder
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
 
 
 class TestTRPOAgent(unittest.TestCase):
+
     def test_discrete(self):
         environment = MinimalTest(continuous=False)
-
-        config = {
-            'batch_size': 16,
-            "override_line_search": False,
-            "cg_iterations": 20,
-            "use_gae": False,
-            "normalize_advantage": False,
-            "gae_lambda": 0.97,
-            "cg_damping": 0.001,
-            "line_search_steps": 20,
-            'max_kl_divergence': 0.05,
-            'max_episode_length': 4,
-            'continuous': False,
-            'state_shape': (2,),
-            'actions': 2,
-            'gamma': 0.99
-        }
-
-        config = create_config(config)
-        tf.reset_default_graph()
-
-        network_builder = layered_network_builder([{'type': 'dense',
-                                                                 'num_outputs': 8}])
+        config = Configuration(
+            batch_size=8,
+            learning_rate=0.0001,
+            cg_iterations=20,
+            cg_damping=0.001,
+            line_search_steps=20,
+            max_kl_divergence=0.05,
+            states=environment.states,
+            actions=environment.actions
+        )
+        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
         agent = TRPOAgent(config=config, network_builder=network_builder)
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):
             return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        runner.run(episodes=10000, episode_finished=episode_finished)
-        self.assertTrue(runner.episode < 10000)
+        runner.run(episodes=1000, episode_finished=episode_finished)
+        self.assertTrue(runner.episode < 1000)
 
-    def test_trpo_agent_continuous(self):
+    def test_continuous(self):
         environment = MinimalTest(continuous=True)
-
-        config = {
-            'batch_size': 16,
-            "override_line_search": False,
-            "cg_iterations": 20,
-            "use_gae": False,
-            "normalize_advantage": False,
-            "gae_lambda": 0.97,
-            "cg_damping": 0.001,
-            "line_search_steps": 20,
-            'max_kl_divergence': 0.05,
-            'max_episode_length': 4,
-            'continuous': True,
-            'state_shape': (2,),
-            'actions': 2,
-            'gamma': 0.99
-        }
-
-        config = create_config(config)
-        tf.reset_default_graph()
-
-        network_builder = layered_network_builder([{'type': 'dense',
-                                                    'num_outputs': 8}])
+        config = Configuration(
+            batch_size=8,
+            cg_iterations=20,
+            cg_damping=0.001,
+            line_search_steps=20,
+            max_kl_divergence=0.05,
+            states=environment.states,
+            actions=environment.actions,
+            continuous=True
+        )
+        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
         agent = TRPOAgent(config=config, network_builder=network_builder)
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):
             return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        runner.run(episodes=10000, episode_finished=episode_finished)
-        self.assertTrue(runner.episode < 10000)
+        runner.run(episodes=1000, episode_finished=episode_finished)
+        self.assertTrue(runner.episode < 1000)

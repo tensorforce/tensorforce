@@ -33,9 +33,12 @@ from six.moves import xrange
 
 import numpy as np
 
+from tensorforce import util
+
 
 # TODO This should ultimately be refactored to do a full constrainted optimization as in rllab
 class ConjugateGradientOptimizer(object):
+
     def __init__(self, logger=None, cg_iterations=10, stop_residual=1e-10):
         self.logger = logger
         self.iterations = cg_iterations
@@ -49,7 +52,7 @@ class ConjugateGradientOptimizer(object):
         :param b: b in Ax = b
         :return:
         """
-
+        b = np.nan_to_num(b)
         cg_vector_p = b.copy()
         residual = b.copy()
         x = np.zeros_like(b)
@@ -57,12 +60,15 @@ class ConjugateGradientOptimizer(object):
 
         for i in xrange(self.iterations):
             z = f_Ax(cg_vector_p)
-            v = residual_dot_residual / cg_vector_p.dot(z)
+            cg_vector_p_dot_z = cg_vector_p.dot(z)
+            if abs(cg_vector_p_dot_z) < util.epsilon:
+                cg_vector_p_dot_z = util.epsilon
+            v = residual_dot_residual / cg_vector_p_dot_z
             x += v * cg_vector_p
 
             residual -= v * z
             new_residual_dot_residual = residual.dot(residual)
-            alpha = new_residual_dot_residual / residual_dot_residual
+            alpha = new_residual_dot_residual / (residual_dot_residual + util.epsilon)
 
             # Construct new search direction as linear combination of residual and previous
             # search vector.
@@ -70,7 +76,7 @@ class ConjugateGradientOptimizer(object):
             residual_dot_residual = new_residual_dot_residual
 
             if residual_dot_residual < self.stop_residual:
-                self.logger.debug('Approximate cg solution found after {:d} iterations'.format(i+1))
+                self.logger.debug('Approximate cg solution found after {:d} iterations'.format(i + 1))
                 break
 
-        return x
+        return np.nan_to_num(x)

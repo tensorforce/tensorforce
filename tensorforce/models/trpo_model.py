@@ -31,19 +31,24 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core import PolicyGradientModel
 from tensorforce.core.optimizers import ConjugateGradientOptimizer
 
 
 class TRPOModel(PolicyGradientModel):
 
-    default_config = {
-        'optimizer': None,
-        'cg_damping': 0.001,
-        'line_search_steps': 20,
-        'max_kl_divergence': 0.001,
-        'cg_iterations': 20
-    }
+    allows_discrete_actions = True
+    allows_continuous_actions = True
+
+    default_config = dict(
+        optimizer=None,
+        learning_rate=None,
+        cg_damping=0.001,
+        line_search_steps=20,
+        max_kl_divergence=0.001,
+        cg_iterations=20
+    )
 
     def __init__(self, config, network_builder):
         config.default(TRPOModel.default_config)
@@ -52,8 +57,6 @@ class TRPOModel(PolicyGradientModel):
         self.cg_damping = config.cg_damping
         self.max_kl_divergence = config.max_kl_divergence
         self.line_search_steps = config.line_search_steps
-        self.cg_optimizer = ConjugateGradientOptimizer(self.logger, config.cg_iterations)
-        self.continuous = config.continuous
 
     def create_tf_operations(self, config):
         """
@@ -64,50 +67,58 @@ class TRPOModel(PolicyGradientModel):
         super(TRPOModel, self).create_tf_operations(config)
 
         with tf.variable_scope('update'):
-            self.flat_tangent = tf.placeholder(tf.float32, shape=[None])
-            if config.continuous:
-                self.prev_action_log_std = tf.placeholder(tf.float32, (None, None, config.actions))
-                prev_dist = dict(policy_output=self.prev_action_mean, policy_log_std=self.prev_action_log_std)
-            else:
-                prev_dist = dict(policy_output=self.prev_action_mean)
+            losses = list()
+            for name, action in config.actions:
+                distribution = self.distribution[name]
+                previous_distribution = tuple(tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
+                self.internal_inputs.extend(previous_distribution)
+                self.internal_outputs.extend(distribution)
+                if sum(1 for _ in distribution) == 2:
+                    for n, x in enumerate(distribution):
+                        if n == 0:
+                            self.internal_inits.append(np.zeros(shape=util.shape(x)[1:]))
+                        else:
+                            self.internal_inits.append(np.ones(shape=util.shape(x)[1:]))
+                else:
+                    self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
+                previous_distribution = self.distribution[name].__class__(distribution=previous_distribution)
 
-            current_log_prob = self.policy.get_distribution().log_prob(self.policy.get_policy_variables(), self.action)
-            current_log_prob = tf.reshape(current_log_prob, (-1,))
+                log_prob = distribution.log_probability(action=self.action[name])
+                previous_log_prob = previous_distribution.log_probability(action=self.action[name])
+                prob_ratio = tf.minimum(tf.exp(log_prob - previous_log_prob), 1000)
 
-            prev_log_prob = self.policy.get_distribution().log_prob(prev_dist, self.action)
-            prev_log_prob = tf.reshape(prev_log_prob, (-1,))
+                surrogate_loss = -tf.reduce_mean(prob_ratio * self.reward)
+                kl_divergence = distribution.kl_divergence(previous_distribution)
+                entropy = distribution.entropy()
+                losses.append((surrogate_loss, kl_divergence, entropy))
 
-            prob_ratio = tf.exp(current_log_prob - prev_log_prob)
-            surrogate_loss = -tf.reduce_mean(prob_ratio * tf.reshape(self.advantage, (-1,)), axis=0)
-            variables = tf.trainable_variables()
-
-            batch_float = tf.cast(config.batch_size, tf.float32)
-
-            # reshape, extract dict
-            mean_kl_divergence = self.policy.get_distribution().kl_divergence(prev_dist, self.policy.get_policy_variables())\
-                                 / batch_float
-            mean_entropy = self.policy.get_distribution().entropy(self.policy.get_policy_variables()) / batch_float
-
-            self.losses = [surrogate_loss, mean_kl_divergence, mean_entropy]
+            self.losses = [tf.reduce_mean(loss) for loss in zip(*losses)]
 
             # Get symbolic gradient expressions
-            self.policy_gradient = get_flattened_gradient(self.losses, variables)
-            fixed_kl_divergence = self.policy.get_distribution().fixed_kl(self.policy.get_policy_variables()) / batch_float
+            variables = list(tf.trainable_variables())
+            gradients = tf.gradients(self.losses, variables)
+            self.policy_gradient = tf.concat(values=[tf.reshape(grad, (-1,)) for grad in gradients], axis=0)  # util.prod(util.shape(v))
 
-            variable_shapes = map((lambda t: t.get_shape().as_list()), variables)
+            fixed_distribution = distribution.__class__([tf.stop_gradient(x) for x in distribution])
+            fixed_kl_divergence = fixed_distribution.kl_divergence(distribution)
+
+            self.tangent = tf.placeholder(tf.float32, shape=(None,))
             offset = 0
             tangents = []
-            for shape in variable_shapes:
-                size = np.prod(shape)
-                param = tf.reshape(self.flat_tangent[offset:(offset + size)], shape)
-                tangents.append(param)
+            for variable in variables:
+                shape = util.shape(variable)
+                size = util.prod(shape)
+                tangents.append(tf.reshape(self.tangent[offset:offset + size], shape))
                 offset += size
 
             gradients = tf.gradients(fixed_kl_divergence, variables)
             gradient_vector_product = [tf.reduce_sum(g * t) for (g, t) in zip(gradients, tangents)]
 
             self.flat_variable_helper = FlatVarHelper(self.session, variables)
-            self.fisher_vector_product = get_flattened_gradient(gradient_vector_product, variables)
+            gradients = tf.gradients(gradient_vector_product, variables)
+            self.fisher_vector_product = tf.concat(values=[tf.reshape(grad, (-1,)) for grad in gradients], axis=0)
+
+            self.cg_optimizer = ConjugateGradientOptimizer(self.logger, config.cg_iterations)
 
     def update(self, batch):
         """
@@ -117,101 +128,82 @@ class TRPOModel(PolicyGradientModel):
         :param batch:
         :return:
         """
-        super(TRPOModel, self).update(batch)
+        self.feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
+        self.feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
+        self.feed_dict[self.reward] = batch['rewards']
+        self.feed_dict[self.terminal] = batch['terminals']
+        self.feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
-        self.input_feed = {
-            self.episode_length: [episode['episode_length'] for episode in batch],
-            self.state: [episode['states'] for episode in batch],
-            self.action: [episode['actions'] for episode in batch],
-            self.advantage: [episode['advantages'] for episode in batch],
-            self.prev_action_mean: [episode['action_means'] for episode in batch]
-        }
+        gradient = self.session.run(self.policy_gradient, self.feed_dict)
 
-        if self.continuous:
-            self.input_feed[self.prev_action_log_std] = [episode['action_log_stds']
-                                                          for episode in batch]
-
-        previous_theta = self.flat_variable_helper.get()
-
-        gradient = self.session.run(self.policy_gradient, self.input_feed)
-        zero = np.zeros_like(gradient)
-
-        if np.allclose(gradient, zero):
+        if np.allclose(gradient, np.zeros_like(gradient)):
             self.logger.debug('Gradient zero, skipping update')
+            return
+
+        # The details of the approximations used here to solve the constrained
+        # optimisation can be found in Appendix C of the TRPO paper
+        # Note that no subsampling is used, which would improve computational performance
+        search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
+
+        # Search direction has now been approximated as cg-solution s= A^-1g where A is
+        # Fisher matrix, which is a local approximation of the
+        # KL divergence constraint
+        shs = 0.5 * search_direction.dot(self.compute_fvp(search_direction))
+        lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
+        update_step = search_direction / (lagrange_multiplier + util.epsilon)
+        negative_gradient_direction = -gradient.dot(search_direction)
+
+        # Improve update step through simple backtracking line search
+        # N.b. some implementations skip the line search
+        previous_theta = self.flat_variable_helper.get()
+        improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step, negative_gradient_direction / (lagrange_multiplier + util.epsilon), self.line_search_steps)
+
+        # Use line search results, otherwise take full step
+        # N.B. some implementations don't use the line search
+        if improved:
+            self.logger.debug('Updating with line search result..')
+            self.flat_variable_helper.set(theta)
         else:
-            # The details of the approximations used here to solve the constrained
-            # optimisation can be found in Appendix C of the TRPO paper
-            # Note that no subsampling is used, which would improve computational performance
-            search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
+            self.logger.debug('Updating with full step..')
+            self.flat_variable_helper.set(previous_theta + update_step)
 
-            # Search direction has now been approximated as cg-solution s= A^-1g where A is
-            # Fisher matrix, which is a local approximation of the
-            # KL divergence constraint
-            shs = 0.5 * search_direction.dot(self.compute_fvp(search_direction))
-            lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
-            update_step = search_direction / lagrange_multiplier
-            negative_gradient_direction = -gradient.dot(search_direction)
+        # Get loss values for progress monitoring
+        surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.feed_dict)
 
-            # Improve update step through simple backtracking line search
-            # N.b. some implementations skip the line search
-            improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
-                                          negative_gradient_direction / lagrange_multiplier, self.line_search_steps)
-
-            # Use line search results, otherwise take full step
-            # N.B. some implementations don't use the line search
-            if improved:
-                self.logger.debug('Updating with line search result..')
-                self.flat_variable_helper.set(theta)
-            else:
-                self.logger.debug('Updating with full step..')
-                self.flat_variable_helper.set(previous_theta + update_step)
-
-            # Get loss values for progress monitoring
-            # Optionally manage internal LSTM state or other relevant state
-
-            for n, internal_state in enumerate(self.network.internal_state_inputs):
-                self.input_feed[internal_state] = self.internal_states[n]
-
-            self.losses.extend(self.network.internal_state_outputs)
-            fetched = self.session.run(self.losses, self.input_feed)
-
-            # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
-            self.logger.debug('Surrogate loss = ' + str(fetched[0]))
-            self.logger.debug('KL-divergence after update = ' + str(fetched[1]))
-            self.logger.debug('Entropy = ' + str(fetched[2]))
-
-            # Update internal state optionally
-            self.internal_states = fetched[3:]
+        # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
+        self.logger.debug('Surrogate loss = ' + str(surrogate_loss))
+        self.logger.debug('KL-divergence after update = ' + str(kl_divergence))
+        self.logger.debug('Entropy = ' + str(entropy))
 
     def compute_fvp(self, p):
-        self.input_feed[self.flat_tangent] = p
+        self.feed_dict[self.tangent] = p
 
-        return self.session.run(self.fisher_vector_product, self.input_feed) + p * self.cg_damping
+        return self.session.run(self.fisher_vector_product, self.feed_dict) + p * self.cg_damping
 
     def compute_surrogate_loss(self, theta):
         self.flat_variable_helper.set(theta)
 
         # Losses[0] = surrogate_loss
-        return self.session.run(self.losses[0], self.input_feed)
-
+        return self.session.run(self.losses[0], self.feed_dict)
 
 
 class FlatVarHelper(object):
+
     def __init__(self, session, variables):
         self.session = session
-        shapes = map(get_shape, variables)
-        total_size = sum(np.prod(shape) for shape in shapes)
+        shapes = [util.shape(variable) for variable in variables]
+        total_size = sum(util.prod(shape) for shape in shapes)
         self.theta = tf.placeholder(tf.float32, [total_size])
         start = 0
         assigns = []
 
         for (shape, variable) in zip(shapes, variables):
-            size = np.prod(shape)
+            size = util.prod(shape)
             assigns.append(tf.assign(variable, tf.reshape(self.theta[start:start + size], shape)))
             start += size
 
         self.set_op = tf.group(*assigns)
-        self.get_op = tf.concat(axis=0, values=[tf.reshape(variable, [get_number_of_elements(variable)]) for variable in variables])
+        self.get_op = tf.concat(axis=0, values=[tf.reshape(variable, (-1,)) for variable in variables])
 
     def set(self, theta):
         """
@@ -254,23 +246,9 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=1
         actual_improve = function_value - new_function_value
         expected_improve = expected_improve_rate * step_fraction
 
-        improve_ratio = actual_improve / expected_improve
+        improve_ratio = actual_improve / (expected_improve + util.epsilon)
 
         if improve_ratio > accept_ratio and actual_improve > 0:
             return True, updated_x
 
     return False, initial_x
-
-
-
-def get_flattened_gradient(loss, variables):
-    """
-    Flat representation of gradients.
-
-    :param loss: Loss expression
-    :param variables: Variables to compute gradients on
-    :return: Flattened gradient expressions
-    """
-    gradients = tf.gradients(loss, variables)
-
-    return tf.concat(axis=0, values=[tf.reshape(grad, [get_number_of_elements(v)]) for (v, grad) in zip(variables, gradients)])

@@ -57,7 +57,8 @@ class Model(object):
         optimizer_kwargs=None,
         device=None,
         tf_saver=False,
-        tf_summary=None
+        tf_summary=None,
+        log_level='info'
     )
 
     def __init__(self, config):
@@ -71,9 +72,13 @@ class Model(object):
         assert self.__class__.allows_discrete_actions is not None and self.__class__.allows_continuous_actions is not None
         config.default(Model.default_config)
 
+        # TODO: change/remove
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(log_levels[config.log_level])
+
         self.discount = config.discount
 
-        # TF, initialization, loss, optimization
+        # TODO: TF, initialization, loss, optimization (better!)
         tf.reset_default_graph()
         self.session = tf.Session()
 
@@ -109,7 +114,7 @@ class Model(object):
         self.internal_inits = list()
 
         # Placeholders
-        with tf.variable_scope('placeholders'):
+        with tf.variable_scope('placeholder'):
 
             # States
             self.state = dict()

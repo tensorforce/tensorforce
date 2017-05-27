@@ -26,9 +26,11 @@ import argparse
 import logging
 import numpy as np
 
-from tensorforce.config import Configuration
+from tensorforce import Configuration, TensorForceError
 from tensorforce.environments.openai_gym import OpenAIGym
-from tensorforce.util import build_preprocessing_stack, create_agent, log_levels
+from tensorforce.preprocessing import build_preprocessing_stack
+from tensorforce.agents import create_agent
+from tensorforce.core.model import log_levels
 from tensorforce.execution import Runner
 
 
@@ -53,24 +55,29 @@ def main():
 
     env = OpenAIGym(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
 
-    config = Configuration({
-        'repeat_actions': 1,
-        'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape,
-        'max_episode_length': args.max_timesteps
-    })
+    default = dict(
+        repeat_actions=1,
+        actions=env.actions,
+        states=env.states,
+        max_episode_length=args.max_timesteps
+    )
 
     if args.agent_config:
-        config.read_json(args.agent_config)
+        config = Configuration.from_json(args.agent_config)
+    else:
+        config = Configuration()
+
+    config.default(default)
 
     if args.network_config:
-        config.read_json(args.network_config)
+        network_config = Configuration.from_json(args.network_config)
+    else:
+        raise TensorForceError("Error: No network configuration provided.")
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[config.get('loglevel', 'info')])
+    logger.setLevel(log_levels[config['loglevel']])
 
-    preprocessing_config = config.get('preprocessing')
+    preprocessing_config = config['preprocessing']
     if preprocessing_config:
         stack = build_preprocessing_stack(preprocessing_config)
         config.state_shape = stack.shape(config.state_shape)
@@ -82,7 +89,7 @@ def main():
         logger.info("File configuration:")
         logger.info(config)
 
-    agent = create_agent(args.agent, config)
+    agent = create_agent(args.agent, config, network_config)
 
     if args.load:
         load_dir = os.path.dirname(args.load)

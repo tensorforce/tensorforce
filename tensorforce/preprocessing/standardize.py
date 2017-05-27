@@ -23,8 +23,7 @@ from __future__ import division
 
 import numpy as np
 
-from tensorforce.preprocessing import Preprocessor
-from tensorforce.util.math_util import zero_mean_unit_variance
+from tensorforce.preprocessing.preprocessor import Preprocessor
 
 
 class Standardize(Preprocessor):
@@ -41,4 +40,8 @@ class Standardize(Preprocessor):
         :param state: state input
         :return: new_state
         """
-        return zero_mean_unit_variance(state.astype(np.float32))
+        data = state.astype(np.float32)
+        data -= data.mean()
+        data /= (data.std() + 1e-8)
+
+        return data

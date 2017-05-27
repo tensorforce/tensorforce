@@ -21,7 +21,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.config import create_config
+from tensorforce import Configuration
+
 
 class Preprocessor(object):
 
@@ -39,7 +40,7 @@ class Preprocessor(object):
         :param args: optional *args
         :param kwargs: optional **kwargs
         """
-        self.config = create_config([], default=self.default_config)
+        self.config = Configuration()
 
         for i, arg in enumerate(args):
             if i >= len(self.config_args):
@@ -66,3 +67,6 @@ class Preprocessor(object):
         :return: new shape array
         """
         return original_shape
+
+
+

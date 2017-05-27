@@ -18,8 +18,7 @@ Implements trust region policy optimization with general advantage estimation (T
 introduced by Schulman et al.
 
 Based on https://github.com/joschu/modular_rl/blob/master/modular_rl/trpo.py and
-https://github.com/ilyasu123/trpo, with a hopefully slightly more readable
-modularisation and some modifications.
+https://github.com/ilyasu123/trpo
 
 The core training update code is under MIT license, for more information see LICENSE-EXT.
 """

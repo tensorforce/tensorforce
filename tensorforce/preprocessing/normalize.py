@@ -23,8 +23,7 @@ from __future__ import division
 
 import numpy as np
 
-from tensorforce.preprocessing import Preprocessor
-from tensorforce.util.math_util import unity_based_normalization
+from tensorforce.preprocessing.preprocessor import Preprocessor
 
 
 class Normalize(Preprocessor):
@@ -41,4 +40,8 @@ class Normalize(Preprocessor):
         :param state: state input
         :return: new_state
         """
-        return unity_based_normalization(state.astype(np.float32))
+        data = state.astype(np.float32)
+        data -= data.min()
+        data /= (data.max() - data.min())
+
+        return data

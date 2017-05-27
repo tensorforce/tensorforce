@@ -25,7 +25,7 @@ from collections import deque
 
 import numpy as np
 
-from tensorforce.preprocessing import Preprocessor
+from tensorforce.preprocessing.preprocessor import Preprocessor
 
 
 class Concat(Preprocessor):

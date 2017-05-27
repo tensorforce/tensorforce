@@ -82,7 +82,7 @@ def linear_layer(x, size):
 
 
 def dense_layer(x, size):
-    with tf.variable_scope('linear'):
+    with tf.variable_scope('dense'):
         weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
         x = tf.matmul(a=x, b=weights)
         x = tf.nn.relu(features=x)

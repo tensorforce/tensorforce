@@ -43,8 +43,9 @@ class TestVPGAgent(unittest.TestCase):
         def episode_finished(r):
             return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        runner.run(episodes=10000, episode_finished=episode_finished)
-        self.assertTrue(runner.episode < 10000)
+        runner.run(episodes=5000, episode_finished=episode_finished)
+        print('VPG Agent (discrete): ' + str(runner.episode))
+        self.assertTrue(runner.episode < 5000)
 
     def test_continuous(self):
         environment = MinimalTest(continuous=True)
@@ -62,5 +63,6 @@ class TestVPGAgent(unittest.TestCase):
         def episode_finished(r):
             return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-        runner.run(episodes=10000, episode_finished=episode_finished)
-        self.assertTrue(runner.episode < 10000)
+        runner.run(episodes=5000, episode_finished=episode_finished)
+        print('VPG Agent (continuous): ' + str(runner.episode))
+        self.assertTrue(runner.episode < 5000)

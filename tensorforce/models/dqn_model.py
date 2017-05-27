@@ -30,11 +30,11 @@ from tensorforce.core.networks import NeuralNetwork, layers
 
 class DQNModel(Model):
 
-    default_config = {
-        'update_target_weight': 1.0,
-        'double_dqn': False,
-        'clip_gradients': 0.0
-    }
+    default_config = dict(
+        update_target_weight=1.0,
+        double_dqn=False,
+        clip_gradients=0.0
+    )
     allows_discrete_actions = True
     allows_continuous_actions = False
 
@@ -57,7 +57,7 @@ class DQNModel(Model):
 
         # Training network
         with tf.variable_scope('training'):
-            self.training_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+            self.training_network = NeuralNetwork(self.network, inputs=self.state)
 
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
@@ -70,7 +70,7 @@ class DQNModel(Model):
 
         # Target network
         with tf.variable_scope('target'):
-            self.target_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+            self.target_network = NeuralNetwork(self.network, inputs=self.state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
@@ -104,8 +104,8 @@ class DQNModel(Model):
                 tf.losses.add_loss(loss)
 
         # Update target network
-        self.target_network_update = []
         with tf.name_scope("update_target"):
+            self.target_network_update = list()
             for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
                 update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
                 self.target_network_update.append(update)

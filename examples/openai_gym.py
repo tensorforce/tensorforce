@@ -18,19 +18,20 @@ OpenAI gym execution
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
-import os
 import argparse
 import logging
+import os
+
 import numpy as np
 
 from tensorforce import Configuration, TensorForceError
-from tensorforce.environments.openai_gym import OpenAIGym
-from tensorforce.preprocessing import build_preprocessing_stack
 from tensorforce.agents import create_agent
 from tensorforce.core.model import log_levels
+from tensorforce.core.preprocessing import build_preprocessing_stack
+from tensorforce.environments.openai_gym import OpenAIGym
 from tensorforce.execution import Runner
 
 

@@ -29,7 +29,7 @@ class Configuration(object):
     """
 
     def __init__(self, **kwargs):
-        self.config = dict(**kwargs)
+        self._config = dict(**kwargs)
 
     @staticmethod
     def from_json(filename):
@@ -39,36 +39,39 @@ class Configuration(object):
         return Configuration(**config)
 
     def __str__(self):
-        return '{' + ', '.join('{}={}'.format(key, value) for key, value in self.config.items()) + '}'
+        return '{' + ', '.join('{}={}'.format(key, value) for key, value in self._config.items()) + '}'
 
     def __iter__(self):
-        return iter(self.config.items())
+        return iter(self._config.items())
 
     def __contains__(self, name):
-        return name in self.config
+        return name in self._config
 
     def __getattr__(self, name):
-        if name not in self.config:
-            raise TensorForceError('Value is not defined.')
-        return self.config[name]
+        if name not in self._config:
+            raise TensorForceError('Value for `{}` is not defined.'.format(name))
+        return self._config[name]
 
     def __setattr__(self, name, value):
-        if name == 'config':
+        if name == '_config':
             value = {k: Configuration(**v) if isinstance(v, dict) else v for k, v in value.items()}
             super(Configuration, self).__setattr__(name, value)
             return
-        if name not in self.config:
+        if name not in self._config:
             raise TensorForceError('Value is not defined.')
         elif isinstance(value, dict):
-            self.config[name] = Configuration(**value)
+            self._config[name] = Configuration(**value)
         else:
-            self.config[name] = value
+            self._config[name] = value
 
     def keys(self):
-        return self.config.keys()
+        return self._config.keys()
+
+    def update(self, update_dict):
+        return self._config.update(update_dict)
 
     def __getitem__(self, name):
-        return self.config[name]
+        return self._config[name]
 
     # def __add__(self, other):
     #     result = Configuration(self.items())
@@ -77,5 +80,5 @@ class Configuration(object):
 
     def default(self, default):
         for key, value in default.items():
-            if key not in self.config:
-                self.config[key] = value
+            if key not in self._config:
+                self._config[key] = value

@@ -14,33 +14,34 @@
 # ==============================================================================
 
 """
-Comment
+Standardize data (z-transformation)
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
-from tensorforce.preprocessing.preprocessor import Preprocessor
+import numpy as np
+
+from tensorforce.core.preprocessing.preprocessor import Preprocessor
 
 
-class Grayscale(Preprocessor):
+class Standardize(Preprocessor):
 
     default_config = {
-        'weights': [0.299, 0.587, 0.114]
     }
 
     config_args = [
-        'weights'
     ]
 
     def process(self, state):
         """
-        Turn 3D color state into grayscale, thereby removing the last dimension.
+        Standardize the data.
         :param state: state input
         :return: new_state
         """
-        return (self.config.weights * state).sum(-1)
+        data = state.astype(np.float32)
+        data -= data.mean()
+        data /= (data.std() + 1e-8)
 
-    def shape(self, original_shape):
-        return list(original_shape[:-1])
+        return data

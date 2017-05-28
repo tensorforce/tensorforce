@@ -18,35 +18,41 @@ Preprocessor testing.
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
-from six.moves import xrange
 import unittest
 
 import numpy as np
-
-from tensorforce import preprocessing
+from six.moves import xrange
+import tensorforce.core.preprocessing
 
 
 class TestPreprocessing(unittest.TestCase):
+
+    def _test_preprocessing_shape(self, pp, shape, expected_shape, state=None):
+        if state is None:
+            state = np.random.randint(0, 255, size=shape)
+
+        # verify expected shape
+        processed_shape = pp.shape(shape)
+        self.assertEqual(tuple(processed_shape), expected_shape)
+
+        # verify calculated shape
+        processed_state = pp.process(state)
+        self.assertEqual(processed_state.shape, tuple(processed_shape))
+
+        return processed_state, processed_shape
 
     def test_preprocessing_grayscale(self):
         """
         Testing grayscale preprocessor. Verifies expected and calculated state shapes.
         """
-        pp = preprocessing.grayscale.Grayscale()
+        pp = tensorforce.core.preprocessing.grayscale.Grayscale()
 
         shape = list(np.random.randint(1, 8, size=2)) + [3]
-        state = np.random.randint(0, 255, size=shape)
 
-        # verify expected shape
-        processed_shape = pp.shape(shape)
-        self.assertEqual(tuple(processed_shape), tuple(shape[0:2]))
-
-        # verify calculated shape
-        processed_state = pp.process(state)
-        self.assertEqual(processed_state.shape, tuple(processed_shape))
+        processed_state, processed_shape = self._test_preprocessing_shape(pp, shape, tuple(shape[0:2]))
 
     def test_preprocessing_concat(self):
         """
@@ -54,18 +60,12 @@ class TestPreprocessing(unittest.TestCase):
         """
         concat_length = np.random.randint(1, 10)
 
-        pp = preprocessing.concat.Concat(concat_length)
+        pp = tensorforce.core.preprocessing.concat.Concat(concat_length)
 
         shape = list(np.random.randint(1, 8, size=3))
         state = np.random.randint(0, 255, size=shape)
 
-        # verify expected shape
-        processed_shape = pp.shape(shape)
-        self.assertEqual(tuple(processed_shape), tuple([concat_length] + shape))
-
-        # verify calculated shape
-        processed_state = pp.process(state)
-        self.assertEqual(processed_state.shape, tuple(processed_shape))
+        processed_state, processed_shape = self._test_preprocessing_shape(pp, shape, tuple([concat_length] + shape), state)
 
         # verify calculated content
         states = [state]
@@ -89,18 +89,11 @@ class TestPreprocessing(unittest.TestCase):
         """
         dimensions = list(np.random.randint(4, 8, size=2))
 
-        pp = preprocessing.imresize.Imresize(*dimensions)
+        pp = tensorforce.core.preprocessing.imresize.Imresize(*dimensions)
 
         shape = list(np.random.randint(1, 8, size=2))
-        state = np.random.randint(0, 255, size=shape)
 
-        # verify expected shape
-        processed_shape = pp.shape(shape)
-        self.assertEqual(tuple(processed_shape), tuple(dimensions))
-
-        # verify calculated shape
-        processed_state = pp.process(state)
-        self.assertEqual(processed_state.shape, tuple(processed_shape))
+        processed_state, processed_shape = self._test_preprocessing_shape(pp, shape, tuple(dimensions))
 
     def test_preprocessing_maximum(self):
         """
@@ -108,18 +101,12 @@ class TestPreprocessing(unittest.TestCase):
         """
         count = np.random.randint(1, 10)
 
-        pp = preprocessing.maximum.Maximum(count)
+        pp = tensorforce.core.preprocessing.maximum.Maximum(count)
 
         shape = list(np.random.randint(1, 8, size=3))
         state = np.random.randint(0, 255, size=shape)
 
-        # verify expected shape
-        processed_shape = pp.shape(shape)
-        self.assertEqual(tuple(processed_shape), tuple(shape))
-
-        # verify calculated shape
-        processed_state = pp.process(state)
-        self.assertEqual(processed_state.shape, tuple(processed_shape))
+        processed_state, processed_shape = self._test_preprocessing_shape(pp, shape, tuple(shape), state)
 
         # verify calculated content
         states = [state]
@@ -138,3 +125,40 @@ class TestPreprocessing(unittest.TestCase):
             processed_state = pp.process(new_state)
 
         self.assertFalse((max_state.reshape(shape) - processed_state).any())
+
+    def test_preprocessing_multistack(self):
+        concat_length = np.random.randint(1, 10)
+
+        pp_config = {
+            'state1': [
+                ['maximum', 2]
+            ],
+            'state2': [
+                ['concat', concat_length],
+                ['normalize']
+            ]
+        }
+
+        shape = list(np.random.randint(1, 8, size=2)) + [3]
+
+        expected = dict(
+            state1=tuple(shape),
+            state2=tuple([concat_length] + shape)
+        )
+
+        stack = tensorforce.core.preprocessing.build_preprocessing_stack(pp_config)
+
+        self.assertTrue(isinstance(stack, tensorforce.core.preprocessing.MultiStack))
+
+        input_states = dict()
+        for state_name, state_config in pp_config.items():
+            state = np.random.randint(0, 255, size=shape)
+
+            input_states.update({state_name: state})
+
+        processed_states = stack.process(input_states)
+
+        for state_name, state in processed_states.items():
+            self.assertEqual(expected[state_name], state.shape)
+
+

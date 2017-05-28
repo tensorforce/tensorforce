@@ -14,34 +14,33 @@
 # ==============================================================================
 
 """
-Normalize data by rescaling.
+Comment
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
-import numpy as np
-
-from tensorforce.preprocessing.preprocessor import Preprocessor
+from tensorforce.core.preprocessing.preprocessor import Preprocessor
 
 
-class Normalize(Preprocessor):
+class Grayscale(Preprocessor):
 
     default_config = {
+        'weights': [0.299, 0.587, 0.114]
     }
 
     config_args = [
+        'weights'
     ]
 
     def process(self, state):
         """
-        Standardize the data.
+        Turn 3D color state into grayscale, thereby removing the last dimension.
         :param state: state input
         :return: new_state
         """
-        data = state.astype(np.float32)
-        data -= data.min()
-        data /= (data.max() - data.min())
+        return (self.config.weights * state).sum(-1)
 
-        return data
+    def shape(self, original_shape):
+        return list(original_shape[:-1])

@@ -14,45 +14,34 @@
 # ==============================================================================
 
 """
-Preprocessing stack class
+Normalize data by rescaling.
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
+
+import numpy as np
+
+from tensorforce.core.preprocessing.preprocessor import Preprocessor
 
 
-class Stack(object):
-    def __init__(self):
-        self._stack = list()
+class Normalize(Preprocessor):
 
-    def __iadd__(self, other):
-        self._stack.append(other)
-        return self
+    default_config = {
+    }
 
-    append = __iadd__
+    config_args = [
+    ]
 
     def process(self, state):
         """
-        Process state.
-
-        :param state: state array
-        :return: new state array
+        Standardize the data.
+        :param state: state input
+        :return: new_state
         """
-        for processor in self._stack:
-            state = processor.process(state)
+        data = state.astype(np.float32)
+        data -= data.min()
+        data /= (data.max() - data.min())
 
-        return state
-
-    def shape(self, original_shape):
-        """
-        Return output shape of stack
-
-        :param original_shape: original shape array
-        :return: new shape array
-        """
-        shape = original_shape
-        for processor in self._stack:
-            shape = processor.shape(shape)
-
-        return shape
+        return data

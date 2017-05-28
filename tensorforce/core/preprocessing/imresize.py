@@ -14,34 +14,39 @@
 # ==============================================================================
 
 """
-Standardize data (z-transformation)
+Comment
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
 import numpy as np
+from scipy.misc import imresize
 
-from tensorforce.preprocessing.preprocessor import Preprocessor
+from tensorforce.core.preprocessing.preprocessor import Preprocessor
 
 
-class Standardize(Preprocessor):
+class Imresize(Preprocessor):
 
     default_config = {
+        'dimension_x': 84,
+        'dimension_y': 84
     }
 
     config_args = [
+        'dimension_x',
+        'dimension_y'
     ]
 
     def process(self, state):
         """
-        Standardize the data.
+        Resize image.
+
         :param state: state input
         :return: new_state
         """
-        data = state.astype(np.float32)
-        data -= data.mean()
-        data /= (data.std() + 1e-8)
+        return imresize(state.astype(np.uint8), [self.config.dimension_x, self.config.dimension_y])
 
-        return data
+    def shape(self, original_shape):
+        return original_shape[:-2] + [self.config.dimension_x, self.config.dimension_y]

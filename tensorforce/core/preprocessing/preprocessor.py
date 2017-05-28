@@ -48,6 +48,7 @@ class Preprocessor(object):
             self.config.update({self.config_args[i]: arg})
 
         self.config.update(kwargs)
+        self.config.default(self.default_config)
 
 
     def process(self, state):

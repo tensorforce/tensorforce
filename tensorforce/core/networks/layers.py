@@ -74,30 +74,38 @@ def flatten_layer(x):
     return x
 
 
-def linear_layer(x, size):
+def linear_layer(x, size, l2_regularization=0.0):
     with tf.variable_scope('linear'):
         weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
+        if l2_regularization > 0.0:
+            tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
+
         x = tf.matmul(a=x, b=weights)
     return x
 
 
-def dense_layer(x, size):
+def dense_layer(x, size, l2_regularization=0.0):
     with tf.variable_scope('dense'):
         weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
+        if l2_regularization > 0.0:
+            tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
         x = tf.matmul(a=x, b=weights)
         x = tf.nn.relu(features=x)
     return x
 
 
-def conv2d_layer(x, size, window=3, stride=1):
+def conv2d_layer(x, size, l2_regularization=0.0, window=3, stride=1):
     with tf.variable_scope('conv2d'):
         filters = tf.Variable(initial_value=tf.random_normal(shape=(window, window, x.get_shape()[2].value, size), stddev=sqrt(2.0 / size))),
+        if l2_regularization > 0.0:
+            tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
+
         x = tf.nn.conv2d(input=x, filter=filters, strides=(1, stride, stride, 1), padding='SAME')
         x = tf.nn.relu(features=x)
     return x
 
 
-def lstm_layer(x, size=None):
+def lstm_layer(x, l2_regularization=0.0, size=None):
     """
     Creates an LSTM layer.
     """

@@ -66,7 +66,8 @@ class Model(object):
 
     def __init__(self, config):
         """
-        Creates a base reinforcement learning model with the specified configuration.
+        Creates a base reinforcement learning model with the specified configuration. Manages the creation
+        of TensorFlow operations and provides a generic update method.
         
         Args:
             config: 
@@ -189,6 +190,15 @@ class Model(object):
         return action, internals
 
     def update(self, batch):
+        """Generic batch update operation for Q-learning and policy gradient algorithms.
+         Takes a batch of experiences,
+         
+        Args:
+            batch: Batch of experiences. 
+
+        Returns:
+
+        """
         fetches = [self.optimize, self.loss]
 
         feed_dict = {state: batch['states'][name] for name, state in self.state.items()}

@@ -10,5 +10,6 @@
   "line_search_steps" : 20,
   "max_kl_divergence": 0.01,
   "gamma": 0.97,
-  "continuous": false
+  "continuous": false,
+  "preprocessing": null
 }

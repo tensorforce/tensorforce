@@ -2,7 +2,7 @@
   "network_layers": [
     {
       "type": "dense",
-      "num_outputs": 10,
+      "size": 10,
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",

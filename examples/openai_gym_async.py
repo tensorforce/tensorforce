@@ -30,10 +30,11 @@ import logging
 from six.moves import xrange, shlex_quote
 
 from tensorforce import TensorForceError
-from tensorforce.config import Configuration, create_config
+from tensorforce.config import Configuration
 from tensorforce.execution.distributed_runner import DistributedRunner
 from tensorforce.environments.openai_gym import OpenAIGym
-from tensorforce.util import log_levels, build_preprocessing_stack
+from tensorforce.core.model import log_levels
+from tensorforce.core.preprocessing import build_preprocessing_stack
 
 
 def main():

@@ -28,7 +28,6 @@ from six.moves import xrange
 import six.moves.queue as queue
 
 from tensorforce.agents.distributed_agent import Experience
-from tensorforce.util.experiment_util import repeat_action
 
 
 class ThreadRunner(Thread):
@@ -94,14 +93,21 @@ class ThreadRunner(Thread):
 
                 current_episode_step += 1
                 action = self.agent.get_action(processed_state, current_episode, experience=experience)
-                result = repeat_action(self.environment, action, self.repeat_actions)
+                if self.repeat_actions > 1:
+                    reward = 0
+                    for repeat in xrange(self.repeat_actions):
+                        state, step_reward, terminal = self.environment.execute(action=action)
+                        reward += step_reward
+                        if terminal:
+                            break
+                else:
+                    state, reward, terminal = self.environment.execute(action=action)
 
-                experience.add_observation(processed_state, action, result['reward'], result['terminal_state'])
+                experience.add_observation(processed_state, action, reward, terminal)
 
-                current_episode_rewards += result['reward']
-                state = result['state']
+                current_episode_rewards += reward
 
-                if result['terminal_state'] or current_episode_step >= self.max_episode_steps:
+                if terminal or current_episode_step >= self.max_episode_steps:
                     self.logger.info('Episode {} finished after {} steps. Episode reward = {}'.format(
                         current_episode, current_episode_step, current_episode_rewards))
 

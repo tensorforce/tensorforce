@@ -24,9 +24,12 @@ import tensorflow as tf
 
 import logging
 
+from tensorforce import TensorForceError
+from tensorforce.agents import create_agent
 from tensorforce.agents.distributed_agent import DistributedAgent
 from tensorforce.execution.thread_runner import ThreadRunner
 
+supported = {'DQNAgent', 'VPGAgent', 'NAFAgent'}
 
 class DistributedRunner(object):
 
@@ -87,18 +90,27 @@ class DistributedRunner(object):
             server.join()
         else:
             # Worker creates runner for execution
-            scope = 'worker_' + str(self.task_index)
-            self.logger.debug('Creating server')
             server = tf.train.Server(cluster, job_name='worker', task_index=self.task_index,
                                      config=tf.ConfigProto(intra_op_parallelism_threads=1,
                                                            inter_op_parallelism_threads=2,
                                                            log_device_placement=True))
-            self.logger.debug('Created server')
-            worker_agent = DistributedAgent(self.agent_config, self.network_config, scope, self.task_index, cluster)
+
+            # TODO execution config should be managed separately eventually
+            execution_config = dict(
+                task_index=self.task_index,
+                cluster_spec=self.cluster_spec
+            )
+            self.agent_config.default(execution_config)
+
+            if self.agent_type in supported:
+                worker_agent = create_agent(self.agent_type, self.agent_config, self.network_config)
+            else:
+                raise TensorForceError('Agent type not supported for distributed runner.')
             self.logger.debug('Created agent')
 
             variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
             init_op = tf.variables_initializer(variables_to_save)
+
             local_init_op = tf.variables_initializer(
                 tf.local_variables() + [v for v in tf.global_variables() if v.name.startswith("local")])
             init_all_op = tf.global_variables_initializer()

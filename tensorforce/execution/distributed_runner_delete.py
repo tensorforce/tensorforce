@@ -129,16 +129,17 @@ class DistributedRunner(object):
 
             with supervisor.managed_session(server.target, config=config) as session, session.as_default():
                 self.logger.info('Established session, starting runner..')
-                session.run(worker_agent.model.update_local)
+                session.run(worker_agent.model.assign_global_to_local)
 
                 runner.start_thread(session)
                 self.logger.debug("Runner started")
-                global_step = session.run(worker_agent.model.global_step)
-                self.logger.debug("Got global step")
+                global_step_count = worker_agent.get_global_step()
+                self.logger.debug("Got global step count")
 
-                while not supervisor.should_stop() and global_step < self.global_steps:
+                while not supervisor.should_stop() and global_step_count < self.global_steps:
                     runner.update()
-                    self.logger.debug("Global step: {}".format(global_step))
+                    global_step_count = worker_agent.get_global_step()
+                    self.logger.debug("Global step count: {}".format(global_step_count))
 
             self.logger.info('Stopping supervisor')
             supervisor.stop()

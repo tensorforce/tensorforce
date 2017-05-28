@@ -29,7 +29,6 @@ from __future__ import print_function
 
 from six.moves import xrange
 import tensorflow as tf
-from tensorflow.contrib.framework import get_variables
 
 from tensorforce.models import Model
 from tensorforce.models.neural_networks import NeuralNetwork
@@ -232,7 +231,7 @@ class NAFModel(Model):
                 q_value = v + advantage
 
         # Get all variables under this scope for target network update
-        return v, mu, advantage, q_value, get_variables(scope)
+        return v, mu, advantage, q_value, tf.contrig.framework.get_variables(scope)
 
     def create_training_operations(self):
         """

@@ -113,13 +113,6 @@ def lstm_layer(x, size=None):
     return x, (internal_input,), (internal_output,), (internal_init,)
 
 
-flatten = layer_wrapper(flatten_layer)
-dense = layer_wrapper(tf_slim.fully_connected)
-conv2d = layer_wrapper(conv2d_layer)
-linear = layer_wrapper(tf_slim.linear)
-lstm = layer_wrapper(lstm_layer, requires_episode_length=True)
-
-
 layers = {
     'flatten': flatten_layer,
     'dense': dense_layer,

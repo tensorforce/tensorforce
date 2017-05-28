@@ -71,7 +71,7 @@ def main():
     config.default(default)
 
     if args.network_config:
-        network_config = Configuration.from_json(args.network_config)
+        network_config = Configuration.from_json(args.network_config).network_layers
     else:
         raise TensorForceError("Error: No network configuration provided.")
 
@@ -81,7 +81,7 @@ def main():
     preprocessing_config = config['preprocessing']
     if preprocessing_config:
         stack = build_preprocessing_stack(preprocessing_config)
-        config.state_shape = stack.shape(config.state_shape)
+        config.states['shape'] = stack.shape(config.states['shape'])
     else:
         stack = None
 

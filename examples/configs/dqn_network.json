@@ -2,7 +2,7 @@
   "network_layers": [
     {
       "type": "conv2d",
-      "num_outputs": 32,
+      "size": 32,
       "kernel_size": 8,
       "stride": 4,
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
@@ -14,7 +14,7 @@
     },
     {
       "type": "conv2d",
-      "num_outputs": 64,
+      "size": 64,
       "kernel_size": 4,
       "stride": 2,
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
@@ -26,7 +26,7 @@
     },
     {
       "type": "conv2d",
-      "num_outputs": 64,
+      "size": 64,
       "kernel_size": 3,
       "stride": 1,
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
@@ -41,7 +41,7 @@
     },
     {
       "type": "dense",
-      "num_outputs": 512,
+      "size": 512,
       "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
       "weights_initializer_kwargs": { },
       "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",

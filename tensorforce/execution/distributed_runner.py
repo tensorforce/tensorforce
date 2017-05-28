@@ -29,7 +29,7 @@ from tensorforce.execution.thread_runner import ThreadRunner
 
 
 class DistributedRunner(object):
-    def __init__(self, agent_type, agent_config, n_agents, n_param_servers, environment,
+    def __init__(self, agent_type, agent_config, network_config, n_agents, n_param_servers, environment,
                  global_steps, max_episode_steps, preprocessor=None, repeat_actions=1,
                  local_steps=20, task_index=0, is_ps=False):
 
@@ -37,6 +37,7 @@ class DistributedRunner(object):
         self.task_index = task_index
         self.agent_type = agent_type
         self.agent_config = agent_config
+        self.network_config = network_config
         self.n_agents = n_agents
         self.n_param_servers = n_param_servers
         self.environment = environment
@@ -92,7 +93,7 @@ class DistributedRunner(object):
                                                            inter_op_parallelism_threads=2,
                                                            log_device_placement=True))
             self.logger.debug('Created server')
-            worker_agent = DistributedAgent(self.agent_config, scope, self.task_index, cluster)
+            worker_agent = DistributedAgent(self.agent_config, self.network_config, scope, self.task_index, cluster)
             self.logger.debug('Created agent')
 
             variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]

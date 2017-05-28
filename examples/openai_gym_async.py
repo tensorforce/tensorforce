@@ -29,6 +29,7 @@ import logging
 
 from six.moves import xrange, shlex_quote
 
+from tensorforce import TensorForceError
 from tensorforce.config import Configuration, create_config
 from tensorforce.execution.distributed_runner import DistributedRunner
 from tensorforce.environments.openai_gym import OpenAIGym
@@ -59,8 +60,6 @@ def main():
     parser.add_argument('-K', '--kill', action='store_true', default=False, help="Kill runners")
 
     args = parser.parse_args()
-
-
 
     session_name = 'openai_async'
     shell = '/bin/bash'
@@ -116,7 +115,6 @@ def main():
                 cmds.append('tmux new-window -t {} -n {} -d {}'.format(session_name, name, shell))
             cmds.append(wrap_cmd(session_name, name, build_cmd(i, 0)))
 
-
         # add one PS call
         # cmds.append('tmux new-window -t {} -n ps -d {}'.format(session_name, shell))
 
@@ -128,17 +126,24 @@ def main():
 
     env = OpenAIGym(args.gym_id)
 
-    config = Configuration({
-        'repeat_actions': 1,
-        'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape
-    })
+    default = dict(
+        repeat_actions=1,
+        actions=env.actions,
+        states=env.states,
+        max_episode_length=args.max_timesteps
+    )
 
     if args.agent_config:
-        config.read_json(args.agent_config)
+        config = Configuration.from_json(args.agent_config)
+    else:
+        config = Configuration()
+
+    config.default(default)
+
     if args.network_config:
-        config.read_json(args.network_config)
+        network_config = Configuration.from_json(args.network_config)
+    else:
+        raise TensorForceError("Error: No network configuration provided.")
 
     logger = logging.getLogger(__name__)
     logger.setLevel(log_levels[config.get('loglevel', 'info')])
@@ -154,10 +159,19 @@ def main():
     logger.info("Config:")
     logger.info(config)
 
-    runner = DistributedRunner(agent_type=args.agent, agent_config=config, n_agents=args.num_workers, n_param_servers=1,
-                               environment=env, global_steps=args.global_steps, max_episode_steps=args.max_timesteps,
-                               preprocessor=stack, repeat_actions=args.repeat_actions, local_steps=args.local_steps,
-                               task_index=args.task_index, is_ps=(args.is_ps == 1))
+    runner = DistributedRunner(agent_type=args.agent,
+                               agent_config=config,
+                               network_config=network_config,
+                               n_agents=args.num_workers,
+                               n_param_servers=1,
+                               environment=env,
+                               global_steps=args.global_steps,
+                               max_episode_steps=args.max_timesteps,
+                               preprocessor=stack,
+                               repeat_actions=args.repeat_actions,
+                               local_steps=args.local_steps,
+                               task_index=args.task_index,
+                               is_ps=(args.is_ps == 1))
     runner.run()
 
 

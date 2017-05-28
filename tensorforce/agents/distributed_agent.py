@@ -23,7 +23,6 @@ from __future__ import division
 import numpy as np
 from copy import deepcopy
 
-from tensorforce.config import create_config
 from tensorforce.models.distributed_pg_model import DistributedPGModel
 
 
@@ -33,12 +32,12 @@ class DistributedAgent(object):
 
     model = None
 
-    def __init__(self, config, scope, task_index, cluster_spec):
+    def __init__(self, config, network_config, scope, task_index, cluster_spec):
         self.config = create_config(config, default=self.default_config)
 
         self.continuous = self.config.continuous
 
-        self.model = DistributedPGModel(config, scope, task_index, cluster_spec)
+        self.model = DistributedPGModel(config, network_config, scope, task_index, cluster_spec)
 
         self.current_episode = self.model.zero_episode()
         self.current_episode['terminated'] = False

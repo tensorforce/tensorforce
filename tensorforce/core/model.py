@@ -28,7 +28,7 @@ from __future__ import division
 import logging
 import tensorflow as tf
 
-from tensorforce import TensorForceError, Configuration, util
+from tensorforce import TensorForceError, util
 from tensorforce.core.optimizers import optimizers
 
 
@@ -61,7 +61,7 @@ class Model(object):
         log_level='info'
     )
 
-    def __init__(self, config, distributed=False, global_model=False, session=None):
+    def __init__(self, config):
         """
         Creates a base reinforcement learning model with the specified configuration.
         
@@ -77,28 +77,29 @@ class Model(object):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_levels[config.log_level])
 
-        if distributed:
-            assert session is not None
-            self.session = session
+        if config.distributed:
+            assert config.session is not None
+            self.session = config.session
         else:
-            assert not global_model and session is None
+            assert not config.global_model and config.session is None
             # TODO: TF, initialization, loss, optimization (better!)
             tf.reset_default_graph()
             self.session = tf.Session()
 
-        if distributed and not global_model:
-            global_config = Configuration(None)  # !!!
-            global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=None)  # !!!
-            self.global_model = self.__class__(global_config, True, True, session)
+        if config.distributed and not config.global_model:
+            global_config = config.copy()
+            global_config.global_model = True
+            global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=None)
+            self.global_model = self.__class__(global_config, True, True, config.session)
             self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=0, trainable=False)
 
         with tf.device(config.device) as scope:
             self.create_tf_operations(config)
             self.variables = tf.contrib.framework.get_variables(scope)
-            assert self.optimizer or (not distributed or global_model)
+            assert self.optimizer or (not config.distributed or config.global_model)
             if self.optimizer:
                 self.loss = tf.losses.get_total_loss()
-                if distributed and not global_model:
+                if config.distributed and not config.global_model:
                     local_gradients = tf.gradients(self.loss, self.variables)
                     global_gradients = list(zip(local_gradients, self.global_model.variables))
                     global_step = self.global_step.assign_add(tf.shape(self.state)[0])
@@ -116,7 +117,7 @@ class Model(object):
         else:
             self.writer = None
 
-        if not distributed:
+        if not config.distributed:
             self.session.run(tf.global_variables_initializer())
 
     def create_tf_operations(self, config):

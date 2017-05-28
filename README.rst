@@ -24,6 +24,9 @@ TensorForce is built on top of TensorFlow and compatible with Python 2.7 and >3.
 supports multiple state inputs and multi-dimensional actions to be compatible with Gym, Universe,
 and DeepMind lab.
 
+Please do read the latest update notes at the bottom of this document to get an idea of
+how the project is evolving.
+
 The main difference to existing libraries is a strict
 separation of environments, agents and update logic that facilitates
 usage in non-simulation environments. Further, research code often relies on fixed network
@@ -128,40 +131,33 @@ then create an agent and use it as seen below (see documentation for all optiona
 
 ::
 
-   from tensorforce.config import Configuration
-   from tensorforce.util.agent_util import create_agent
+   from tensorforce import Configuration
+   from tensorforce.agents import TRPOAgent
 
-   config = Configuration()
+   config = Configuration(
+        batch_size=100,
+        state=dict(shape=(10,)),
+        actions=dict(continuous=False, num_actions=2)
+    )
 
-   # Set basic problem parameters
-   config.batch_size = 1000
-   config.max_episode_length = 200
-   config.state_shape = [10]
-   config.actions = 5
-   config.continuous = False
+    # Create a Trust Region Policy Optimization agent
+    network_builder = layered_network_builder(
+    layers_config=[{"type": "dense", "size": 50},
+                   {"type": "dense", "size": 50}])
+    agent = TRPOAgent(config=config, network_builder=network_builder)
 
-   # Define 2 fully connected layers
-   config.network_layers = [{"type": "dense", "size": 50},
-                            {"type": "dense", "size": 50}]
+    # Get new data from somewhere, e.g. a client to a web app
+    client = MyClient('http://127.0.0.1', 8080)
 
-   # Create a Trust Region Policy Optimization agent
-   agent = create_agent('TRPOAgent', config)
+    # Poll new state from client
+    input = client.get_state()
 
-   # Get new data from somewhere, e.g. a client to a web app
-   client = MyClient('http://127.0.0.1', 8080)
+    # Get prediction from agent, execute
+    action = agent.act(input)
+    reward = client.execute(action)
 
-   # Poll new state from client
-   state = client.get_state()
-
-   # Get prediction from agent
-   action = agent.get_action(state)
-
-   # Do something with action
-   result = client.execute(action)
-
-   # Add experience, agent automatically updates model according to batch size
-   agent.add_observation(state, action, result['reward'], result['terminal_state'])
-
+    # Add experience, agent automatically updates model according to batch size
+    agent.observe(state=input, action=action, reward=reward, terminal=False)
 
 
 Update notes
@@ -170,7 +166,8 @@ Update notes
 28th May 2017
 
 BREAKING CHANGES: We completely restructured the project to reduce redundant code, significantly improve execution time, allow
-for multiple states and actions per step (by wrapping them in dicts), and much more. Following this rewrite, the  high level API should be stable going forward.
+for multiple states and actions per step (by wrapping them in dicts), and much more. We are aware not everything is working
+smoothly yet so please bear with us (or help by filing an issue). Following this rewrite, the  high level API should be stable going forward.
 The most significant changes are listed below:
 
 - RlAgent (now Agent) API change: add_observation() to observe(), get_action to act()
@@ -189,7 +186,7 @@ The most significant changes are listed below:
 - The distributed_pg_model will be deprecated. We want a general parallel/distributed functionality that
   works for as many models as possible, such as PAAC. We have started adding this functionality in to the main model
   but this is still work in progress.
-- We will soon post a blog post detailing the overall architecture and explaining some of your design
+- We will soon publish a blog post detailing the overall architecture and explaining some of our design
   choices
 
 

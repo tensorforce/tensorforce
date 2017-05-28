@@ -38,8 +38,8 @@ class TestReplayMemory(unittest.TestCase):
         capacity = np.random.randint(5, 8)
         batch_size = np.random.randint(capacity)
 
-        state_shape = tuple(np.random.randint(1, 4, size=2))
-        action_shape = (4,)
+        state_shape = dict(shape=(np.random.randint(1, 4),), type='float')
+        action_shape = dict(continuous=False, num_actions=4)
 
         memory = ReplayMemory(capacity, state_shape, action_shape)
 

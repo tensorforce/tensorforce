@@ -81,10 +81,10 @@ class TestDQFDAgent(unittest.TestCase):
             return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
         # This is more than in dqn test because much smaller learning rate in pretraining
-        runner.run(episodes=2000, episode_finished=episode_finished)
+        runner.run(episodes=5000, episode_finished=episode_finished)
 
         #  This test only seems to pass about around 9/10 times because
         #  pretraining success seems to depend on weight initialisation
         # Potentially comment out if travis fails because of this
-        self.assertTrue(runner.episode < 2000)
+        self.assertTrue(runner.episode < 5000)
 

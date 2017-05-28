@@ -68,25 +68,45 @@ class Model(object):
         Args:
             config: 
         """
-
         assert self.__class__.allows_discrete_actions is not None and self.__class__.allows_continuous_actions is not None
         config.default(Model.default_config)
+
+        self.discount = config.discount
 
         # TODO: change/remove
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_levels[config.log_level])
 
-        self.discount = config.discount
+        if config.distributed:
+            assert config.session is not None
+            self.session = config.session
+        else:
+            assert not config.global_model and config.session is None
+            # TODO: TF, initialization, loss, optimization (better!)
+            tf.reset_default_graph()
+            self.session = tf.Session()
 
-        # TODO: TF, initialization, loss, optimization (better!)
-        tf.reset_default_graph()
-        self.session = tf.Session()
+        if config.distributed and not config.global_model:
+            global_config = config.copy()
+            global_config.global_model = True
+            global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=None)
+            self.global_model = self.__class__(global_config, True, True, config.session)
+            self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=0, trainable=False)
 
-        with tf.device(config.device):
+        with tf.device(config.device) as scope:
             self.create_tf_operations(config)
+            self.variables = tf.contrib.framework.get_variables(scope)
+            assert self.optimizer or (not config.distributed or config.global_model)
             if self.optimizer:
                 self.loss = tf.losses.get_total_loss()
-                self.optimize = self.optimizer.minimize(self.loss)
+                if config.distributed and not config.global_model:
+                    local_gradients = tf.gradients(self.loss, self.variables)
+                    global_gradients = list(zip(local_gradients, self.global_model.variables))
+                    global_step = self.global_step.assign_add(tf.shape(self.state)[0])
+                    self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
+                    self.optimize = tf.group(self.optimizer.apply_gradients(global_gradients), global_step)
+                else:
+                    self.optimize = self.optimizer.minimize(self.loss)
 
         if config.tf_saver:
             self.saver = tf.train.Saver()
@@ -96,7 +116,9 @@ class Model(object):
             self.writer = tf.summary.FileWriter(config.tf_summary, graph=tf.get_default_graph())
         else:
             self.writer = None
-        self.session.run(tf.global_variables_initializer())
+
+        if not config.distributed:
+            self.session.run(tf.global_variables_initializer())
 
     def create_tf_operations(self, config):
         """
@@ -115,17 +137,14 @@ class Model(object):
 
         # Placeholders
         with tf.variable_scope('placeholder'):
-
             # States
             self.state = dict()
             for name, state in config.states:
                 self.state[name] = tf.placeholder(dtype=util.tf_dtype(state.type), shape=(None,) + tuple(state.shape), name=name)
-
             # Actions
             self.action = dict()
             self.discrete_actions = []
             self.continuous_actions = []
-
             for name, action in config.actions:
                 if action.continuous:
                     if not self.__class__.allows_continuous_actions:
@@ -135,7 +154,7 @@ class Model(object):
                     if not self.__class__.allows_discrete_actions:
                         raise TensorForceError()
                     self.action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,), name=name)
-
+            # Reward & terminal
             self.reward = tf.placeholder(dtype=tf.float32, shape=(None,), name='reward')
             self.terminal = tf.placeholder(dtype=tf.bool, shape=(None,), name='terminal')
 

@@ -78,6 +78,9 @@ class Configuration(object):
     #     result.update(other)
     #     return result
 
+    def copy(self):
+        return Configuration(**self.config)
+
     def default(self, default):
         for key, value in default.items():
             if key not in self._config:

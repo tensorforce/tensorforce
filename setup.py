@@ -20,7 +20,7 @@ from __future__ import division
 from setuptools import setup
 
 setup(name='tensorforce',
-      version='0.1',
+      version='0.2',
       description='Reinforcement learning for TensorFlow',
       url='http://github.com/reinforceio/tensorforce',
       author='reinforce.io',

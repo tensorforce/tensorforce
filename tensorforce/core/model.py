@@ -58,7 +58,10 @@ class Model(object):
         device=None,
         tf_saver=False,
         tf_summary=None,
-        log_level='info'
+        log_level='info',
+        distributed=False,
+        global_model=False,
+        session=None
     )
 
     def __init__(self, config):

@@ -117,7 +117,7 @@ line).
    bazel run //tensorforce:lab_runner
 
 
-Please note that we have not implemented any lab specific algorithms yet, and these instructions just explain connectivity
+Please note that we have not tried to reproduce any lab results yet, and these instructions just explain connectivity
 in case someone wants to get started there.
 
 
@@ -183,6 +183,11 @@ for multiple states and actions per step (by wrapping them in dicts), and much m
   us to do useful things like wrapping these calls with TensorFlow device mappings.
 - Minimal test environments are also implemented under external/environments for consistency
 - Examples moved into separate directory
+- N.b. we have not been able to test DeepMind lab yet
+- The distributed_pg_model will be deprecated. We want a general parallel/distributed functionality that
+  works for as many models as possible, such as PAAC.
+- We will soon post a blog post detailing this architecture and explaining our design choices
+
 
 
 Road map and contributions
@@ -197,14 +202,14 @@ features, algorithms and infrastructure that we want to add over time and
 we will prioritise this depending on our own research, community requests and contributions. The
 larger road-map of things we would like to have (in no particular order) looks as follows:
 
-1. More generic distributed/multi-threaded API
+1. More generic distributed/multi-threaded API (e.g. PAAC)
 2. Hybrid A3C/policy gradient algorithms - not clear yet which
    combination method will work best, but a number of papers showcasing
    different approaches have been accepted to ICLR 2017.
 3. A multi/sub-task API. An important topic in current research is to decompose larger tasks into
    a hierarchy of subtasks/auxiliary goals. Implementing new approaches in an easily configurable way for end-users
    will not be trivial and it might us take some time to get to it.
-4. Transfer learning architectures (e.g. progressive neural networks, pathnet, ..).
+4. Experimental Transfer learning architectures (e.g. progressive neural networks, pathnet, ..).
 5. RL serving components. TensorFlow serving can serve trained models but is not suitable to manage RL lifecycles.
 
 Support and contact
@@ -222,9 +227,9 @@ Acknowledgements
 
 The goal of TensorForce is not just to re-implement existing algorithms, but
 to provide clear APIs and modularisations, and later provide serving,
-integration and deployment components. The credit for original open
-source implementations, which we have adopted and modified into our
-architecture, fully belongs to the original authors, which have all made
+integration and deployment components. Credit for some of the open
+source implementations we have adopted and modified into our
+architecture fully belongs to the original authors, which have all made
 their code available under MIT licenses.
 
 In particular, credit goes to John Schulman, Ilya Sutskever and Wojciech

@@ -85,11 +85,6 @@ def main():
     else:
         stack = None
 
-    if args.debug:
-        logger.info("-" * 16)
-        logger.info("File configuration:")
-        logger.info(config)
-
     agent = create_agent(args.agent, config, network_config)
 
     if args.load:
@@ -100,11 +95,9 @@ def main():
 
     if args.debug:
         logger.info("-" * 16)
-        logger.info("Agent configuration:")
-        logger.info(agent.config)
-        if agent.model:
-            logger.info("Model configuration:")
-            logger.info(agent.model.config)
+        logger.info("Configuration:")
+        logger.info(config)
+
 
     runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
 
@@ -119,10 +112,11 @@ def main():
 
     report_episodes = args.episodes // 1000
     if args.debug:
-        report_episodes = 10
+        report_episodes = 1
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
+            print("report now")
             logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))

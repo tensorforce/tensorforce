@@ -171,22 +171,27 @@ Update notes
 28th May 2017
 
 BREAKING CHANGES: We completely restructured the project to reduce redundant code, significantly improve execution time, allow
-for multiple states and actions per step (by wrapping them in dicts), and much more. Following this rewrite, the  high level API should be stable going forward. Major changes are listed below:
+for multiple states and actions per step (by wrapping them in dicts), and much more. Following this rewrite, the  high level API should be stable going forward.
+The most significant changes are listed below:
 
 - RlAgent (now Agent) API change: add_observation() to observe(), get_action to act()
 - Code reorganised to contain a folder "core" which contains common RL abstractions.
-- States and actions are now wrapped in dicts to support multiple state inputs and multiple actions per time step
-  In particular, this allows to have a generic interface between gym, universe, lab and other potential environments
+- States and actions are now conceptualised as dictionaries to support multiple state inputs and multiple actions of different shape
+  per time step. In particular, this allows us to have a generic interface between gym, universe, lab and other potential environments
 - External environments (tensorforce/external) have to implement the 'states' and 'actions' properties to define
   environment shapes.
 - Models now all create their TensorFlow operations by calling the same function (create_tf_operations()). This will allow
   us to do useful things like wrapping these calls with TensorFlow device mappings.
-- Minimal test environments are also implemented under external/environments for consistency
+- Minimal test environments are also implemented under external/environments for consistency. Please note
+  that these tests are only meant to ensure the act and update mechanisms run in principle to help us make changes,
+  they cannot replace running full environments
 - Examples moved into separate directory
 - N.b. we have not been able to test DeepMind lab yet
 - The distributed_pg_model will be deprecated. We want a general parallel/distributed functionality that
-  works for as many models as possible, such as PAAC.
-- We will soon post a blog post detailing this architecture and explaining our design choices
+  works for as many models as possible, such as PAAC. We have started adding this functionality in to the main model
+  but this is still work in progress.
+- We will soon post a blog post detailing the overall architecture and explaining some of your design
+  choices
 
 
 

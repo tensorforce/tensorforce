@@ -51,11 +51,9 @@ class TestDQFDAgent(unittest.TestCase):
         tf.reset_default_graph()
 
         # DQFD uses l2-reg
-        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32,
-                                                                  'weights_regularizer': 'tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer',
-                                                                  'weights_regularizer_kwargs': {
-                                                                      'scale': 0.001
-                                                                  }
+        network_builder = layered_network_builder(layers_config=[{'type': 'dense',
+                                                                  'size': 32,
+                                                                  'l2_regularization': 0.001
                                                                   }])
 
         agent = DQFDAgent(config=config, network_builder=network_builder)

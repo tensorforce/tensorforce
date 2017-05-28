@@ -87,6 +87,7 @@ def linear_layer(x, size, l2_regularization=0.0):
 def dense_layer(x, size, l2_regularization=0.0):
     with tf.variable_scope('dense'):
         weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
+
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
         x = tf.matmul(a=x, b=weights)
@@ -151,7 +152,7 @@ def layered_network_builder(layers_config):
             layer_type = layer_config['type']
             type_counter[layer_type] += 1
             layer_name = "{type}{num}".format(type=layer_type, num=type_counter[layer_type])
-            layer = layers[layer_type](x=layer, size=layer_config['size'])
+            layer = layers[layer_type](x=layer, **{key: value for key, value in layer_config.items() if key != 'type'})
 
             if isinstance(layer, list) or isinstance(layer, tuple):
                 assert len(layer) == 4

@@ -128,10 +128,10 @@ then create an agent and use it as seen below (see documentation for all optiona
 
 ::
 
-   from tensorforce.config import Config
+   from tensorforce.config import Configuration
    from tensorforce.util.agent_util import create_agent
 
-   config = Config()
+   config = Configuration()
 
    # Set basic problem parameters
    config.batch_size = 1000
@@ -141,8 +141,8 @@ then create an agent and use it as seen below (see documentation for all optiona
    config.continuous = False
 
    # Define 2 fully connected layers
-   config.network_layers = [{"type": "dense", "num_outputs": 50},
-                            {"type": "dense", "num_outputs": 50}]
+   config.network_layers = [{"type": "dense", "size": 50},
+                            {"type": "dense", "size": 50}]
 
    # Create a Trust Region Policy Optimization agent
    agent = create_agent('TRPOAgent', config)

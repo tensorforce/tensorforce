@@ -12,10 +12,10 @@ Ready-to-use agents and models
 
 We implemented some of the most common RL algorithms and try to keep these up-to-date. Here we provide an overview over all implemented agents and models.
 
-RLAgent / General parameters
+Agent / General parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``RLAgent`` is the base class for all reinforcement learning agents.
+``Agent`` is the base class for all reinforcement learning agents.
 Every agent inherits from this class.
 
 
@@ -68,7 +68,7 @@ Standard DQN agent (`Minh et al., 2015 <http://www.nature.com/nature/journal/v51
 Parameters:
 """""""""""
 
-Uses all `general parameters <#RLAgent>`__ and all parameters from the
+Uses all `general parameters <#Agent>`__ and all parameters from the
 `MemoryAgent <#MemoryAgent>`__. Additional parameters:
 
 .. code:: python
@@ -91,7 +91,7 @@ Agent using Normalized Advantage Functions (NAF; `Gu et al., 2016 <https://arxiv
 Parameters:
 """""""""""
 
-Uses all `general parameters <#RLAgent>`__ and all parameters from the
+Uses all `general parameters <#Agent>`__ and all parameters from the
 `MemoryAgent <#MemoryAgent>`__. Additional parameters:
 
 .. code:: python
@@ -108,13 +108,13 @@ PGAgent
 
 Policy Gradient base agent and model. The agent collects experiences until conditions for an update are satisfied and then passes these to an updater. In particular,
 the PGAgent internally manages the batching process so users do not have to.
-`PGAgent` inherits from `RLAgent`.
+`PGAgent` inherits from `Agent`.
 
 
 Parameters:
 """""""""""
 
-Uses all `general parameters <#RLAgent>`__. Additional parameters:
+Uses all `general parameters <#Agent>`__. Additional parameters:
 
 .. code:: python
 
@@ -142,7 +142,7 @@ Vanilla Policy Gradient agent and model. `VPGAgent` inherits from `PGAgent`.
 Parameters:
 """""""""""
 
-Uses all `general parameters <#RLAgent>`__ and all parameters from the
+Uses all `general parameters <#Agent>`__ and all parameters from the
 `PGAgent <#PGAgent>`__.
 
 TRPOAgent
@@ -154,7 +154,7 @@ Trust Region Policy Optimization (`Schulman et al., 2015 <https://arxiv.org/abs/
 Parameters:
 """""""""""
 
-Uses all `general parameters <#RLAgent>`__ and all parameters from the
+Uses all `general parameters <#Agent>`__ and all parameters from the
 `PGAgent <#PGAgent>`__. Additional parameters:
 
 .. code:: python
@@ -172,7 +172,7 @@ Building your own agent
 -----------------------
 
 If you want to build your own agent, it should always inherit from
-``RLAgent``. If your agent uses a replay memory, it should probably
+``Agent``. If your agent uses a replay memory, it should probably
 inherit from ``MemoryAgent``.
 
 Reinforcement learning agents often differ

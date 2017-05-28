@@ -99,7 +99,8 @@ def dense_layer(x, size, l2_regularization=0.0):
 
 def conv2d_layer(x, size, l2_regularization=0.0, window=3, stride=1):
     with tf.variable_scope('conv2d'):
-        filters = tf.Variable(initial_value=tf.random_normal(shape=(window, window, x.get_shape()[2].value, size), stddev=sqrt(2.0 / size))),
+        filters = tf.Variable(initial_value=tf.random_normal(shape=(window, window, x.get_shape()[3].value, size), stddev=sqrt(2.0 / size)))
+
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
 

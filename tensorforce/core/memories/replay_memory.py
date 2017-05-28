@@ -32,6 +32,7 @@ from tensorforce.core.memories import Memory
 class ReplayMemory(Memory):
 
     def __init__(self, capacity, states_config, actions_config):
+        capacity = int(capacity)
         self.states = dict()
         for name, state in states_config:
             self.states[name] = np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type))

@@ -77,20 +77,22 @@ def flatten_layer(x):
 def linear_layer(x, size, l2_regularization=0.0):
     with tf.variable_scope('linear'):
         weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
+        biases = tf.Variable(initial_value=tf.zeros(shape=(size,)))
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
 
-        x = tf.matmul(a=x, b=weights)
+        x = tf.matmul(a=x, b=weights) + biases
     return x
 
 
 def dense_layer(x, size, l2_regularization=0.0):
     with tf.variable_scope('dense'):
         weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
+        biases = tf.Variable(initial_value=tf.zeros(shape=(size,)))
 
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
-        x = tf.matmul(a=x, b=weights)
+        x = tf.matmul(a=x, b=weights) + biases
         x = tf.nn.relu(features=x)
     return x
 

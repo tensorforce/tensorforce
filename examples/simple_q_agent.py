@@ -26,57 +26,46 @@ import tensorflow as tf
 import logging
 
 from tensorforce.core import MemoryAgent, Model
-from tensorforce.core.networks import NeuralNetwork
+from tensorforce.core.networks import NeuralNetwork, layers
 
 from tensorforce.config import Configuration
 from tensorforce.environments.openai_gym import OpenAIGym
 from tensorforce.execution import Runner
+
+from tensorforce.agents import create_agent
 
 
 class SimpleQModel(Model):
     # Default config values
     default_config = {
         "alpha": 0.01,
-        "gamma": 0.99,
-        "network_layers": [{
-            "type": "linear",
-            "num_outputs": 16
-        }]
+        "gamma": 0.99
     }
 
-    def __init__(self, config, scope):
+    allows_continuous_actions = False
+    allows_discrete_actions = True
+
+    def __init__(self, config, network_builder):
         """
         Initialize model, build network and tensorflow ops
 
         :param config: Config object or dict
         :param scope: tensorflow scope name
         """
-        super(SimpleQModel, self).__init__(config, scope)
-        self.action_count = self.config.actions
+        config.default(SimpleQModel.default_config)
+        self.action_count = config.actions['action'].num_actions
+        self.gamma = config.gamma
 
         self.random = np.random.RandomState()
 
-        with tf.device(self.config.tf_device):
-            # Create state placeholder
-            self.state = tf.placeholder(tf.float32, [None] + list(self.config.state_shape), name="state")
+        self.network_builder = network_builder
 
-            # Create neural network
-            output_layer = [{"type": "linear", "num_outputs": self.action_count}]
+        # Create optimizer
+        self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=config.alpha)
 
-            define_network = NeuralNetwork.layered_network(self.config.network_layers + output_layer)
-            self.network = NeuralNetwork(define_network, [self.state], scope=self.scope + 'network')
-            self.network_out = self.network.output
+        super(SimpleQModel, self).__init__(config)
 
-            # Create operations
-            self.create_ops()
-            self.init_op = tf.global_variables_initializer()
-
-            # Create optimizer
-            self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.alpha)
-
-            self.session.run(self.init_op)
-
-    def get_action(self, state, episode=1):
+    def get_action(self, state, internals=None):
         """
         Get action for a given state
 
@@ -84,82 +73,66 @@ class SimpleQModel(Model):
         :param episode: number of episode (for epsilon decay and alike)
         :return: action
         """
-
-        # self.exploration is initialized in Model.__init__ and provides an API for different explorations methods,
-        # such as epsilon greedy.
-        epsilon = self.exploration(episode, self.total_states)  # returns a float
-
-        if self.random.random_sample() < epsilon:
-            action = self.random.randint(0, self.action_count)
-        else:
-            action = self.session.run(self.q_action, {
-                self.state: [state]
-            })[0]
-
-        self.total_states += 1
-        return action
+        action = self.session.run(self.q_action, {
+            self.state['state']: [state['state']]
+        })
+        return dict(action=action[0]), internals
 
     def update(self, batch):
         """
-        Update model parameters
+
 
         :param batch: replay_memory batch
         :return:
         """
-        # Get Q values for next states
-        next_q = self.session.run(self.network_out, {
-            self.state: batch['next_states']
+        self.session.run(self.optimize, {
+            self.state['state']: batch['states']['state'],
+            self.action['action']: batch['actions']['action'],
+            self.reward: batch['rewards'],
+            self.terminal: batch['terminals']
         })
 
-        # Bellmann equation Q = r + y * Q'
-        q_targets = batch['rewards'] + (1. - batch['terminals'].astype(float)) \
-                                       * self.config.gamma * np.max(next_q, axis=1)
 
-        self.session.run(self.optimize_op, {
-            self.state: batch['states'],
-            self.actions: batch['actions'],
-            self.q_targets: q_targets
-        })
-
-    def initialize(self):
-        """
-        Initialize model variables
-        :return:
-        """
-        self.session.run(self.init_op)
-
-    def create_ops(self):
+    def create_tf_operations(self, config):
         """
         Create tensorflow ops
 
         :return:
         """
-        with tf.name_scope(self.scope):
+        super(SimpleQModel, self).create_tf_operations(config)
+
+        with tf.name_scope("simpleq"):
+
+            self.network = NeuralNetwork(self.network_builder, inputs=self.state)
+            self.network_output = layers['linear'](x=self.network.output, size=self.action_count)
+
             with tf.name_scope("predict"):
-                self.q_action = tf.argmax(self.network_out, axis=1)
+                self.q_action = tf.argmax(self.network_output, axis=1)
 
             with tf.name_scope("update"):
-                # These are the target Q values, i.e. the actual rewards plus the expected values of the next states
-                # (Bellman equation).
-                self.q_targets = tf.placeholder(tf.float32, [None], name='q_targets')
-
-                # Actions that have been taken.
-                self.actions = tf.placeholder(tf.int32, [None], name='actions')
-
                 # We need the Q values of the current states to calculate the difference ("loss") between the
                 # expected values and the new values (q targets). Therefore we do a forward-pass
                 # and reduce the results to the actions that have been taken.
 
                 # One_hot tensor of the actions that have been taken.
-                actions_one_hot = tf.one_hot(self.actions, self.action_count, 1.0, 0.0, name='action_one_hot')
+                actions_one_hot = tf.one_hot(self.action['action'][:-1], self.action_count, 1.0, 0.0, name='action_one_hot')
 
                 # Training output, reduced to the actions that have been taken.
-                q_values_actions_taken = tf.reduce_sum(self.network_out * actions_one_hot, axis=1,
+                q_values_actions_taken = tf.reduce_sum(self.network_output[:-1] * actions_one_hot, axis=1,
                                                        name='q_acted')
 
+                # Expected values for the next states
+                q_output = tf.reduce_max(self.network_output[1:], axis=1, name='q_expected')
+
+                # Bellmann equation Q = r + y * Q'
+                q_targets = self.reward[:-1] + (1. - tf.cast(self.terminal[:-1], tf.float32)) \
+                                               * self.gamma * q_output
+
                 # The loss is the difference between the q_targets and the expected q values.
-                self.loss = tf.reduce_sum(tf.square(self.q_targets - q_values_actions_taken))
-                self.optimize_op = self.optimizer.minimize(self.loss)
+                self.loss = tf.reduce_sum(tf.square(q_targets - q_values_actions_taken))
+                # self.optimize_op = self.optimizer.minimize(self.loss)
+
+                tf.losses.add_loss(self.loss)
 
 
 class SimpleQAgent(MemoryAgent):
@@ -173,7 +146,7 @@ class SimpleQAgent(MemoryAgent):
     default_config = {
         "memory_capacity": 1000,  # hold the last 100 observations in the replay memory
         "batch_size": 10,  # train model with batches of 10
-        "update_rate": 0.5,  # update parameters every other step
+        "update_frequency": 2,  # update parameters every other step
         "update_repeat": 1,  # repeat update only one time
         "min_replay_size": 0 # minimum size of replay memory before updating
     }
@@ -189,16 +162,15 @@ def main():
 
     env = OpenAIGym(gym_id, monitor=False, monitor_video=False)
 
-    config = Configuration({
+    config = Configuration(**{
         'repeat_actions': 1,
         'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape,
+        'states': env.states,
         'exploration': 'constant',
         'exploration_args': [0.1]
     })
 
-    agent = SimpleQAgent(config, "simpleq")
+    agent = create_agent(SimpleQAgent, config, [{"type": "linear", "size": 16}])
 
     runner = Runner(agent, env)
 

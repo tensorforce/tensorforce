@@ -1,5 +1,5 @@
 *TensorForce - modular deep reinforcement learning in TensorFlow*
-=================================================================================
+=================================================================
 
 .. |logo1| image:: https://badges.gitter.im/reinforceio/TensorForce.svg
            :scale: 100%
@@ -131,33 +131,36 @@ then create an agent and use it as seen below (see documentation for all optiona
 
 ::
 
-   from tensorforce import Configuration
-   from tensorforce.agents import TRPOAgent
+  from tensorforce import Configuration
+  from tensorforce.agents import TRPOAgent
+  from tensorforce.core.networks import layered_network_builder
 
-   config = Configuration(
-        batch_size=100,
-        state=dict(shape=(10,)),
-        actions=dict(continuous=False, num_actions=2)
-    )
+  config = Configuration(
+    batch_size=100,
+    state=dict(shape=(10,)),
+    actions=dict(continuous=False, num_actions=2)
+  )
 
-    # Create a Trust Region Policy Optimization agent
-    network_builder = layered_network_builder(
-    layers_config=[{"type": "dense", "size": 50},
-                   {"type": "dense", "size": 50}])
-    agent = TRPOAgent(config=config, network_builder=network_builder)
+  # Create a Trust Region Policy Optimization agent
+  network_config = [
+    dict(type='dense', size=50),
+    dict(type='dense', size=50)
+  ]
+  network_builder = layered_network_builder(layers_config=network_config)
+  agent = TRPOAgent(config=config, network_builder=network_builder)
 
-    # Get new data from somewhere, e.g. a client to a web app
-    client = MyClient('http://127.0.0.1', 8080)
+  # Get new data from somewhere, e.g. a client to a web app
+  client = MyClient('http://127.0.0.1', 8080)
 
-    # Poll new state from client
-    input = client.get_state()
+  # Poll new state from client
+  input = client.get_state()
 
-    # Get prediction from agent, execute
-    action = agent.act(input)
-    reward = client.execute(action)
+  # Get prediction from agent, execute
+  action = agent.act(input)
+  reward = client.execute(action)
 
-    # Add experience, agent automatically updates model according to batch size
-    agent.observe(state=input, action=action, reward=reward, terminal=False)
+  # Add experience, agent automatically updates model according to batch size
+  agent.observe(state=input, action=action, reward=reward, terminal=False)
 
 
 Update notes

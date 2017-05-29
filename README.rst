@@ -163,11 +163,11 @@ then create an agent and use it as seen below (see documentation for all optiona
 Update notes
 ------------
 
-28th May 2017
+29th May 2017
 
-BREAKING CHANGES: We completely restructured the project to reduce redundant code, significantly improve execution time, allow
+BREAKING CHANGES 0.2: We completely restructured the project to reduce redundant code, significantly improve execution time, allow
 for multiple states and actions per step (by wrapping them in dicts), and much more. We are aware not everything is working
-smoothly yet so please bear with us (or help by filing an issue). Following this rewrite, the  high level API should be stable going forward.
+smoothly yet so please bear with us (or help by filing an issue). 0.1 still works. Following this rewrite, the  high level API should be stable going forward.
 The most significant changes are listed below:
 
 - RlAgent (now Agent) API change: add_observation() to observe(), get_action to act()
@@ -183,7 +183,7 @@ The most significant changes are listed below:
   they cannot replace running full environments
 - Examples moved into separate directory
 - N.b. we have not been able to test DeepMind lab yet
-- The distributed_pg_model will be deprecated. We want a general parallel/distributed functionality that
+- The distributed_pg_model/distributed_agent have been deprecated. We want a general parallel/distributed functionality that
   works for as many models as possible, such as PAAC. We have started adding this functionality in to the main model
   but this is still work in progress.
 - We will soon publish a blog post detailing the overall architecture and explaining some of our design

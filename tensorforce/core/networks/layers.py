@@ -34,15 +34,21 @@ from tensorforce import util
 
 tf_slim = tf.contrib.slim
 
+# TODO configurable initialisation
 
 def layer_wrapper(layer_constructor, requires_episode_length=False, reshape=None):
 
     def layer(x, config, episode_length=None, scope=None):
         """
-        Initialize layer of any kind.
-        :param input: input layer
-        :param config: layer configuration
-        :param scope: tensorflow scope
+        Initialises layer ased on layer config. 
+        Args:
+            x: 
+            config: 
+            episode_length: 
+            scope: 
+
+        Returns:
+
         """
         kwargs = copy.copy(config)
 

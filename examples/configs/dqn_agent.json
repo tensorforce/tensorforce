@@ -6,7 +6,7 @@
   "update_repeat": 1,
   "use_target_network": true,
   "target_update_frequency": 10000,
-  "min_replay_size": 5e4,
+  "first_update": 5e4,
   "learning_rate": 0.00025,
   "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
   "double_dqn": false,

@@ -34,7 +34,7 @@ from tensorforce import util
 
 tf_slim = tf.contrib.slim
 
-# TODO add bias reg, configurable initialisation
+# TODO configurable initialisation
 
 def layer_wrapper(layer_constructor, requires_episode_length=False, reshape=None):
 

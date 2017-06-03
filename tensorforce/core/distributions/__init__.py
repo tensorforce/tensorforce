@@ -25,4 +25,4 @@ distributions = dict(
 )
 
 
-__all__ = ['Distribution', 'Categorical', 'Gaussian', distributions]
+__all__ = ['Distribution', 'Categorical', 'Gaussian', 'distributions']

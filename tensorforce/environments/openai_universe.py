@@ -25,6 +25,7 @@ from __future__ import division
 import gym
 import universe
 from gym.spaces.discrete import Discrete
+from universe.spaces import VNCActionSpace, VNCObservationSpace
 
 from tensorforce import TensorForceError
 from tensorforce.environments.environment import Environment
@@ -62,8 +63,15 @@ class OpenAIUniverse(Environment):
         state, reward, terminal, _ = self.env.step(action)
         return state, reward, terminal
 
+    def configure(self, *args, **kwargs):
+        self.env.configure(*args, **kwargs)
+
+    def render(self, *args, **kwargs):
+        self.env.render(*args, **kwargs)
+
     @property
     def states(self):
+        print(self.env.observation_space)
         if isinstance(self.env.observation_space, Discrete):
             return dict(shape=(), type='float')
         else:
@@ -71,7 +79,13 @@ class OpenAIUniverse(Environment):
 
     @property
     def actions(self):
-        if isinstance(self.env.action_space, Discrete):
+        if isinstance(self.env.action_space, VNCActionSpace):
+            return dict(
+                key=dict(continuous=False, num_actions=len(self.env.action_space.keys)),
+                button=dict(continuous=False, num_actions=len(self.env.action_space.buttonmasks)),
+                position=dict(continuous=False, shape=self.env.action_space.screen_shape)
+            )
+        elif isinstance(self.env.action_space, Discrete):
             return dict(continuous=False, num_actions=self.env.action_space.n)
         elif len(self.env.action_space.shape) == 1:
             return {'action' + str(n): dict(continuous=True) for n in range(len(self.env.action_space.shape[0]))}

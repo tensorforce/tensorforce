@@ -67,20 +67,7 @@ def main():
 
     env = OpenAIUniverse(args.gym_id)
     env.configure(remotes=1)
-    print("#"* 80)
-    print("OH YEAH")
-    observation_n = env.reset()
-    print(observation_n)
 
-    while True:
-        # your agent generates action_n at 60 frames per second
-        action_n = [[('KeyEvent', 'ArrowUp', True)] for ob in observation_n]
-        observation_n, reward_n, done_n = env.execute(action_n)
-        print(observation_n)
-
-
-
-    return
     default = dict(
         repeat_actions=1,
         actions=env.actions,

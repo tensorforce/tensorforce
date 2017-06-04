@@ -116,8 +116,7 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            print("report now")
-            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
+            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode, ts=r.timestep))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
             logger.info("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))

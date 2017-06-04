@@ -15,6 +15,7 @@
     "sigma": 0.2,
     "mu": 0,
     "theta": 0.15
-  }
+  },
+  "preprocessing": null
 
 }

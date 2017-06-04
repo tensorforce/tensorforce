@@ -65,7 +65,6 @@ class Configuration(object):
             self._config[name] = value
 
     __setitem__ = __setattr__
-    __getitem__ = __getattr__
 
     def keys(self):
         return self._config.keys()

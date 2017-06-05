@@ -2,11 +2,11 @@
   "network_layers": [
     {
       "type": "dense",
-      "size": 64
+      "size": 32
     },
     {
       "type": "dense",
-      "size": 64
+      "size": 32
     }
   ]
 }

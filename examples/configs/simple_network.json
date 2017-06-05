@@ -1,8 +1,0 @@
-{
-  "network_layers": [
-    {
-      "type": "linear",
-      "size": 32
-    }
-  ]
-}

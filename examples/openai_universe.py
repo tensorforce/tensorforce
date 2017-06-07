@@ -66,7 +66,6 @@ def main():
     args = parser.parse_args()
 
     env = OpenAIUniverse(args.gym_id)
-    env.configure(remotes=1)
 
     default = dict(
         repeat_actions=1,
@@ -90,12 +89,12 @@ def main():
     logger = logging.getLogger(__name__)
     logger.setLevel(log_levels[config['loglevel']])
 
-    preprocessing_config = config['preprocessing']
-    if preprocessing_config:
-        stack = build_preprocessing_stack(preprocessing_config)
-        config.states['shape'] = stack.shape(config.states['shape'])
-    else:
-        stack = None
+    # preprocessing_config = config['preprocessing']
+    # if preprocessing_config:
+    #     stack = build_preprocessing_stack(preprocessing_config)
+    #     config.states['shape'] = stack.shape(config.states['shape'])
+    # else:
+    stack = None
 
     agent = create_agent(args.agent, config, network_config)
 

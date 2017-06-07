@@ -58,9 +58,9 @@ def np_dtype(dtype):
 
 
 def tf_dtype(dtype):
-    if dtype == 'float':
+    if dtype == 'float' or dtype == float:
         return tf.float32
-    elif dtype == 'int':
+    elif dtype == 'int' or dtype == int:
         return tf.int32
     else:
         raise TensorForceError()

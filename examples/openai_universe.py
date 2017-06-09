@@ -66,6 +66,7 @@ def main():
     args = parser.parse_args()
 
     env = OpenAIUniverse(args.gym_id)
+    env.configure(remotes=1)
 
     default = dict(
         repeat_actions=1,
@@ -84,7 +85,10 @@ def main():
     if args.network_config:
         network_config = Configuration.from_json(args.network_config).network_layers
     else:
-        raise TensorForceError("Error: No network configuration provided.")
+        if config.network_layers:
+            network_config = config.network_layers
+        else:
+            raise TensorForceError("Error: No network configuration provided.")
 
     logger = logging.getLogger(__name__)
     logger.setLevel(log_levels[config['loglevel']])
@@ -108,7 +112,6 @@ def main():
         logger.info("-" * 16)
         logger.info("Configuration:")
         logger.info(config)
-
 
     runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
 

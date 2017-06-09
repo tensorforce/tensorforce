@@ -1,0 +1,53 @@
+{
+  "loglevel": "debug",
+  "memory_capacity": 1e2,
+  "batch_size": 32,
+  "update_rate": 0.25,
+  "update_repeat": 1,
+  "use_target_network": true,
+  "target_update_frequency": 100,
+  "first_update": 5e4,
+  "learning_rate": 0.00025,
+  "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
+  "double_dqn": false,
+  "optimizer_param": {
+    "momentum": 0.95,
+    "epsilon": 0.01
+  },
+  "exploration": "epsilon_decay",
+  "exploration_param": {
+    "epsilon": 1,
+    "epsilon_final": 0.1,
+    "epsilon_states": 1e6
+  },
+  "preprocessing": [
+    ["grayscale"],
+    ["imresize", 84, 84],
+    ["concat", 4, "append"],
+    ["normalize"]
+  ],
+  "repeat_actions": 1,
+  
+  "network_layers": [
+    {
+      "type": "conv2d",
+      "size": 16,
+      "window": 8,
+      "stride": 4
+    },
+    {
+      "type": "conv2d",
+      "size": 8,
+      "window": 4,
+      "stride": 2
+    },
+    {
+      "type": "flatten"
+    },
+    {
+      "type": "dense",
+      "size": 16
+    }
+  ]
+  
+}

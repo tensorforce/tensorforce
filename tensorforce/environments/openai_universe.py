@@ -97,8 +97,8 @@ class OpenAIUniverse(Environment):
         if isinstance(self.env.observation_space, VNCObservationSpace):
             reg = universe.runtime_spec('flashgames').server_registry
             return dict(
-                vision=dict(type=int, shape=(reg[self.env_id]["width"], reg[self.env_id]["height"])),
-                text=dict(type=int, shape=(1,))
+                vision=dict(type=float, shape=(reg[self.env_id]["width"], reg[self.env_id]["height"], 3))
+                #text=dict(type=int, shape=(1,))
             )
         elif isinstance(self.env.observation_space, Discrete):
             return dict(shape=(), type='float')
@@ -111,7 +111,7 @@ class OpenAIUniverse(Environment):
             return dict(
                 key=dict(continuous=False, num_actions=len(self.env.action_space.keys)),
                 button=dict(continuous=False, num_actions=len(self.env.action_space.buttonmasks)),
-                position=dict(continuous=False, num_actions=self.env.action_space.screen_shape[0] * self.env.action_space.screen_shape[1], shape=self.env.action_space.screen_shape)
+                position=dict(continuous=False, num_actions=self.env.action_space.screen_shape[0] * self.env.action_space.screen_shape[1])
             )
         elif isinstance(self.env.action_space, Discrete):
             return dict(continuous=False, num_actions=self.env.action_space.n)

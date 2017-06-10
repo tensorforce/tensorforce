@@ -95,7 +95,7 @@ class DQNModel(Model):
                 delta = q_target - q_value
 
                 # If gradient clipping is used, calculate the huber loss
-                if config.clip_gradients >= 0.0:
+                if config.clip_gradients > 0.0:
                     huber_loss = tf.where(tf.abs(delta) < config.clip_gradients, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
                     loss = tf.reduce_mean(huber_loss)
                 else:

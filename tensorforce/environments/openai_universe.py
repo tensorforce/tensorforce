@@ -54,36 +54,53 @@ class OpenAIUniverse(Environment):
         """
         Pass reset function to universe environment.
         """
-        return self.env.reset()
+        state = self.env.reset()
+        if state == [None]:
+            state, r, t = self._wait_state(state, None, None)
+        return state
 
     def execute(self, action):
         """
         Pass action to universe environment, return reward, next step, terminal state and additional info.
         """
+        state, reward, terminal = self._execute(action)
+        return self._wait_state(state, reward, terminal)
+
+    def _execute(self, action):
         pass_actions = []
         for action_name, value in action.items():
             if action_name == 'key':
-                key_name = self._int_to_key(value)
-                pass_actions.append(universe.spaces.KeyEvent.by_name(key_name, down=True))
+                key_event = self._int_to_key(value)
+                pass_actions.append(key_event)
             elif action_name == 'button':
-                btn_name = self._int_to_btn(value)
+                btn_event = self._int_to_btn(value)
                 x, y = action.get('position', (0, 0))
-                pass_actions.append(universe.spaces.PointerEvent(x, y, btn_name))
+                pass_actions.append(universe.spaces.PointerEvent(x, y, btn_event))
 
-        state, reward, terminal, _ = self.env.step(pass_actions)
-        return state, reward, terminal
+        state, reward, terminal, _ = self.env.step([pass_actions])
+        print("Got new state")
+        print("-"*32)
+        print(state)
+        return state[0], reward, terminal
 
-    def _key_to_int(self, key_name):
-        pass
+    def _key_to_int(self, key_event):
+        return self.env.action_space.keys.index(key_event)
 
     def _int_to_key(self, key_value):
-        pass
+        return self.env.action_space.keys[key_value]
 
-    def _btn_to_int(self, key_name):
-        pass
+    def _btn_to_int(self, btn_event):
+        self.env.action_space.buttonmasks.index(btn_event)
 
-    def _int_to_btn(self, key_value):
-        pass
+    def _int_to_btn(self, btn_value):
+        self.env.action_space.buttonmasks[btn_value]
+
+    def _wait_state(self, state, reward, terminal):
+        """Wait until there is a state
+        """
+        while state == [None] or not state:
+             state, reward, terminal = self._execute(dict(key=0))
+        return state, reward, terminal
 
     def configure(self, *args, **kwargs):
         self.env.configure(*args, **kwargs)
@@ -95,9 +112,8 @@ class OpenAIUniverse(Environment):
     def states(self):
         print(self.env.observation_space)
         if isinstance(self.env.observation_space, VNCObservationSpace):
-            reg = universe.runtime_spec('flashgames').server_registry
             return dict(
-                vision=dict(type=float, shape=(reg[self.env_id]["width"], reg[self.env_id]["height"], 3))
+                vision=dict(type=float, shape=(self.env.action_space.screen_shape[1], self.env.action_space.screen_shape[0], 3))
                 #text=dict(type=int, shape=(1,))
             )
         elif isinstance(self.env.observation_space, Discrete):

@@ -34,10 +34,10 @@ class TestVPGAgent(unittest.TestCase):
             batch_size=8,
             learning_rate=0.001,
             states=environment.states,
-            actions=environment.actions
+            actions=environment.actions,
+            network=layered_network_builder([dict(type='dense', size=32)])
         )
-        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
-        agent = VPGAgent(config=config, network_builder=network_builder)
+        agent = VPGAgent(config=config)
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):
@@ -54,10 +54,9 @@ class TestVPGAgent(unittest.TestCase):
             learning_rate=0.001,
             states=environment.states,
             actions=environment.actions,
-            continuous=True
+            network=layered_network_builder([dict(type='dense', size=32)])
         )
-        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
-        agent = VPGAgent(config=config, network_builder=network_builder)
+        agent = VPGAgent(config=config)
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):

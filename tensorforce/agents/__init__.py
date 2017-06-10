@@ -19,35 +19,14 @@ from tensorforce.agents.vpg_agent import VPGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
 from tensorforce.agents.dqfd_agent import DQFDAgent
 
-from tensorforce.core.networks import layered_network_builder
 
 agents = dict(
-  DQNAgent=DQNAgent,
-  NAFAgent=NAFAgent,
-  VPGAgent=VPGAgent,
-  TRPOAgent=TRPOAgent,
-  DQFDAgent=DQFDAgent)
+    DQNAgent=DQNAgent,
+    NAFAgent=NAFAgent,
+    VPGAgent=VPGAgent,
+    TRPOAgent=TRPOAgent,
+    DQFDAgent=DQFDAgent
+)
 
 
-def create_agent(agent_type='DQNAgent', config=None, network_config=None):
-    """Convenience function to create an agent without needing to call a network builder.
-
-    Args:
-        agent: string containing agent type or callable object
-        config: configuration object to pass to agent
-        network_config: network configuration object to pass to agent
-
-    Returns: agent instance
-
-    """
-    network_builder = layered_network_builder(network_config)
-
-    if callable(agent_type):
-        # It's possible to pass callable objects
-        return agent_type(config=config, network_builder=network_builder)
-
-    return agents[agent_type](config=config, network_builder=network_builder)
-
-
-
-__all__ = ['create_agent', 'DQNAgent', 'NAFAgent', 'VPGAgent', 'TRPOAgent','DQFDAgent']
+__all__ = ['DQNAgent', 'NAFAgent', 'VPGAgent', 'TRPOAgent', 'DQFDAgent', 'agents']

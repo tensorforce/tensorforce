@@ -1,33 +1,31 @@
-{
-  "network_layers": [
+[
     {
-      "type": "conv2d",
-      "size": 32,
-      "window": 8,
-      "stride": 4,
-      "l2_regularization": 0.00001
+        "type": "conv2d",
+        "size": 32,
+        "window": 8,
+        "stride": 4,
+        "l2_regularization": 0.00001
     },
     {
-      "type": "conv2d",
-      "size": 64,
-      "window": 4,
-      "stride": 2,
-      "l2_regularization": 0.00001
+        "type": "conv2d",
+        "size": 64,
+        "window": 4,
+        "stride": 2,
+        "l2_regularization": 0.00001
     },
     {
-      "type": "conv2d",
-      "size": 64,
-      "window": 3,
-      "stride": 1,
-      "l2_regularization": 0.00001
+        "type": "conv2d",
+        "size": 64,
+        "window": 3,
+        "stride": 1,
+        "l2_regularization": 0.00001
     },
     {
-      "type": "flatten"
+        "type": "flatten"
     },
     {
-      "type": "dense",
-      "size": 512,
-      "l2_regularization": 0.00001
+        "type": "dense",
+        "size": 512,
+        "l2_regularization": 0.00001
     }
-  ]
-}
+]

@@ -45,9 +45,9 @@ class Preprocessor(object):
         for i, arg in enumerate(args):
             if i >= len(self.config_args):
                 break
-            self.config.update({self.config_args[i]: arg})
+            self.config.default({self.config_args[i]: arg})
 
-        self.config.update(kwargs)
+        self.config.default(kwargs)
         self.config.default(self.default_config)
 
 

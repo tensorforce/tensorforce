@@ -43,9 +43,8 @@ class PolicyGradientModel(Model):
         normalize_advantage=False
     )
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         config.default(PolicyGradientModel.default_config)
-        self.network = network_builder
 
         # distribution
         self.distribution = dict()
@@ -84,7 +83,7 @@ class PolicyGradientModel(Model):
         super(PolicyGradientModel, self).create_tf_operations(config)
 
         with tf.variable_scope('value_function'):
-            self.network = NeuralNetwork(self.network, inputs=self.state)
+            self.network = NeuralNetwork(config.network, inputs=self.state)
             self.internal_inputs.extend(self.network.internal_inputs)
             self.internal_outputs.extend(self.network.internal_outputs)
             self.internal_inits.extend(self.network.internal_inits)

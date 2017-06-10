@@ -45,14 +45,14 @@ class DQFDAgent(Agent):
         'update_repeat': 1
     }
 
-    def __init__(self, config, network_builder=None):
+    def __init__(self, config):
         """
         
         :param config: 
         :param scope: 
         """
         config.default(DQFDAgent.default_config)
-        super(DQFDAgent, self).__init__(config, network_builder)
+        super(DQFDAgent, self).__init__(config)
 
         # This is the online memory
         self.replay_memory = ReplayMemory(capacity=config.memory_capacity, states_config=config.states, actions_config=config.actions)
@@ -79,9 +79,6 @@ class DQFDAgent(Agent):
             self.target_update_steps = int(round(1 / config.target_network_update_rate))
 
         self.min_replay_size = config.min_replay_size
-
-        if self.__class__.model:
-            self.model = self.__class__.model(config, network_builder=network_builder)
 
     def add_demo_observation(self, state, action, reward, terminal):
         """Adds observations to demo memory. 

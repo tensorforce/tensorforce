@@ -64,24 +64,14 @@ class Configuration(object):
         else:
             self._config[name] = value
 
-    __setitem__ = __setattr__
-
     def keys(self):
         return self._config.keys()
-
-    def update(self, update_dict):
-        return self._config.update(update_dict)
 
     def __getitem__(self, name):
         return self._config[name]
 
-    # def __add__(self, other):
-    #     result = Configuration(self.items())
-    #     result.update(other)
-    #     return result
-
     def copy(self):
-        return Configuration(**self.config)
+        return Configuration(**self._config)
 
     def default(self, default):
         for key, value in default.items():

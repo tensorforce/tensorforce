@@ -69,7 +69,7 @@ class OpenAIGym(Environment):
         """
         Pass action to gym, return reward, next step, terminal state and additional info.
         """
-        state, reward, terminal, _ = self.gym.step([action]) # some gym environments expect a list (f.i. Pendulum-v0)
+        state, reward, terminal, _ = self.gym.step([action])  # some gym environments expect a list (f.i. Pendulum-v0)
         return state, reward, terminal
 
     @property

@@ -38,19 +38,10 @@ class TestDQNAgent(unittest.TestCase):
             repeat_update=4,
             target_update_frequency=20,
             states=environment.states,
-            actions=environment.actions
-            # explorations=dict(
-            #     name='epsilon_decay',
-            #     args=(),
-            #     kwargs=dict(
-            #         epsilon=1,
-            #         epsilon_final=0,
-            #         epsilon_timesteps=50
-            #     )
-            # )
+            actions=environment.actions,
+            network=layered_network_builder([dict(type='dense', size=32)])
         )
-        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 32}])
-        agent = DQNAgent(config=config, network_builder=network_builder)
+        agent = DQNAgent(config=config)
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):

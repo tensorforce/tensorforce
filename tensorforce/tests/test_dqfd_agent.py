@@ -16,7 +16,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
-import tensorflow as tf
 
 from six.moves import xrange
 
@@ -40,23 +39,16 @@ class TestDQFDAgent(unittest.TestCase):
             first_update=20,
             repeat_update=4,
             target_update_frequency=1,
-            states=environment.states,
-            actions=environment.actions,
             discount=1,
             learning_rate=0.0001,
             expert_sampling_ratio=0.01,
             supervised_weight=0.4,
-            expert_margin=1
+            expert_margin=1,
+            states=environment.states,
+            actions=environment.actions,
+            network=layered_network_builder(layers_config=[dict(type='dense', size=32, l2_regularization=0.01)])
         )
-        tf.reset_default_graph()
-
-        # DQFD uses l2-reg
-        network_builder = layered_network_builder(layers_config=[{'type': 'dense',
-                                                                  'size': 32,
-                                                                  'l2_regularization': 0.01
-                                                                  }])
-
-        agent = DQFDAgent(config=config, network_builder=network_builder)
+        agent = DQFDAgent(config=config)
 
         # First: generate some data to add to demo memory
         state = environment.reset()

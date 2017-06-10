@@ -43,14 +43,13 @@ class NAFModel(Model):
     allows_discrete_actions = False
     allows_continuous_actions = True
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         """
         Training logic for NAFs.
 
         :param config: Configuration parameters
         """
         config.default(NAFModel.default_config)
-        self.network = network_builder
         super(NAFModel, self).__init__(config)
 
     def create_tf_operations(self, config):
@@ -58,7 +57,7 @@ class NAFModel(Model):
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
         with tf.variable_scope('training'):
-            self.training_network = NeuralNetwork(self.network, inputs=self.state)
+            self.training_network = NeuralNetwork(config.network, inputs=self.state)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -117,7 +116,7 @@ class NAFModel(Model):
             training_output_vars = get_variables('training_outputs')
 
         with tf.variable_scope('target'):
-            self.target_network = NeuralNetwork(self.network, inputs=self.state)
+            self.target_network = NeuralNetwork(config.network, inputs=self.state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)

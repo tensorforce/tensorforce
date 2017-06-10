@@ -1,12 +1,10 @@
-{
-  "network_layers": [
+[
     {
-      "type": "dense",
-      "size": 100
+        "type": "dense",
+        "size": 100
     },
     {
-      "type": "dense",
-      "size": 100
+        "type": "dense",
+        "size": 100
     }
-  ]
-}
+]

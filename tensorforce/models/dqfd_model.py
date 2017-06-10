@@ -39,8 +39,7 @@ class DQFDModel(Model):
     allows_discrete_actions = True
     allows_continuous_actions = False
 
-    def __init__(self, config, network_builder):
-        self.network = network_builder
+    def __init__(self, config):
         config.default(DQFDModel.default_config)
         super(DQFDModel, self).__init__(config)
 
@@ -92,7 +91,7 @@ class DQFDModel(Model):
 
         # Training network
         with tf.variable_scope('training'):
-            self.training_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+            self.training_network = NeuralNetwork(config.network, inputs={name: state for name, state in self.state.items()})
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -105,7 +104,7 @@ class DQFDModel(Model):
 
         # Target network
         with tf.variable_scope('target'):
-            self.target_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+            self.target_network = NeuralNetwork(config.network, inputs={name: state for name, state in self.state.items()})
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)

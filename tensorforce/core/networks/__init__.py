@@ -14,7 +14,7 @@
 # ==============================================================================
 
 
-from tensorforce.core.networks.layers import layers, layered_network_builder
+from tensorforce.core.networks.layers import layers, layered_network_builder, from_json
 from tensorforce.core.networks.network import NeuralNetwork
 
-__all__ = ['NeuralNetwork', 'layers', 'layered_network_builder']
+__all__ = ['NeuralNetwork', 'layers', 'layered_network_builder', 'from_json']

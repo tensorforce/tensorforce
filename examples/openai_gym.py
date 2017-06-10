@@ -25,14 +25,13 @@ import argparse
 import logging
 import os
 
-import numpy as np
-
 from tensorforce import Configuration, TensorForceError
-from tensorforce.agents import create_agent
-from tensorforce.core.model import log_levels
-from tensorforce.core.preprocessing import build_preprocessing_stack
+from tensorforce.core.networks import from_json
+from tensorforce.agents import agents
 from tensorforce.environments.openai_gym import OpenAIGym
 from tensorforce.execution import Runner
+from tensorforce.core.model import log_levels
+from tensorforce.core.preprocessing import build_preprocessing_stack
 
 
 def main():
@@ -60,13 +59,9 @@ def main():
         agent_config = Configuration.from_json(args.agent_config)
     else:
         raise TensorForceError("No agent configuration provided.")
-    agent_config['states'] = environment.states
-    agent_config['actions'] = environment.actions
-
-    if args.network_config:
-        network_config = Configuration.from_json(args.network_config).network_layers
-    else:
+    if not args.network_config:
         raise TensorForceError("No network configuration provided.")
+    agent_config.default(dict(states=environment.states, actions=environment.actions, network=from_json(args.network_config)))
 
     logger = logging.getLogger(__name__)
     logger.setLevel(log_levels[agent_config['loglevel']])
@@ -78,7 +73,7 @@ def main():
     else:
         preprocessor = None
 
-    agent = create_agent(args.agent, agent_config, network_config)
+    agent = agents[args.agent](config=agent_config)
 
     if args.load:
         load_dir = os.path.dirname(args.load)
@@ -91,8 +86,6 @@ def main():
         logger.info("Configuration:")
         logger.info(agent_config)
 
-    runner = Runner(agent=agent, environment=environment, preprocessor=preprocessor, repeat_actions=args.repeat_actions)
-
     if args.save:
         save_dir = os.path.dirname(args.save)
         if not os.path.isdir(save_dir):
@@ -100,7 +93,15 @@ def main():
                 os.mkdir(save_dir, 0o755)
             except OSError:
                 raise OSError("Cannot save agent to dir {} ()".format(save_dir))
-        runner.save_model(args.save, args.save_episodes)
+
+    runner = Runner(
+        agent=agent,
+        environment=environment,
+        repeat_actions=1,
+        preprocessor=preprocessor,
+        save_path=args.save,
+        save_episodes=args.save_episodes
+    )
 
     report_episodes = args.episodes // 1000
     if args.debug:
@@ -110,8 +111,8 @@ def main():
         if r.episode % report_episodes == 0:
             logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode, ts=r.timestep))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
-            logger.info("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
-            logger.info("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
+            logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
+            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
         return True
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))

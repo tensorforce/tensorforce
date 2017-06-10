@@ -45,7 +45,7 @@ class SimpleQModel(Model):
     allows_continuous_actions = False
     allows_discrete_actions = True
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         """
         Initialize model, build network and tensorflow ops
 
@@ -57,8 +57,6 @@ class SimpleQModel(Model):
         self.gamma = config.gamma
 
         self.random = np.random.RandomState()
-
-        self.network_builder = network_builder
 
         # Create optimizer
         self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=config.alpha)
@@ -103,7 +101,7 @@ class SimpleQModel(Model):
 
         with tf.name_scope("simpleq"):
 
-            self.network = NeuralNetwork(self.network_builder, inputs=self.state)
+            self.network = NeuralNetwork(config.network, inputs=self.state)
             self.network_output = layers['linear'](x=self.network.output, size=self.action_count)
 
             with tf.name_scope("predict"):
@@ -162,15 +160,16 @@ def main():
 
     env = OpenAIGym(gym_id, monitor=False, monitor_video=False)
 
-    config = Configuration(**{
-        'repeat_actions': 1,
-        'actions': env.actions,
-        'states': env.states,
-        'exploration': 'constant',
-        'exploration_args': [0.1]
-    })
+    config = Configuration(
+        repeat_actions=1,
+        actions=env.actions,
+        states=env.states,
+        exploration='constant',
+        exploration_args=[0.1],
+        network=[{"type": "linear", "size": 16}]
+    )
 
-    agent = create_agent(SimpleQAgent, config, [{"type": "linear", "size": 16}])
+    agent = create_agent(SimpleQAgent, config)
 
     runner = Runner(agent, env)
 

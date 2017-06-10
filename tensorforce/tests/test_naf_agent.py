@@ -18,22 +18,21 @@ class TestNAFAgent(unittest.TestCase):
         config = Configuration(
             batch_size=8,
             learning_rate=0.001,
+            exploration="OrnsteinUhlenbeckProcess",
+            exploration_kwargs=dict(
+                sigma=0.1,
+                mu=0,
+                theta=0.1
+            ),
             memory_capacity=800,
             first_update=80,
             repeat_update=4,
             target_update_frequency=20,
             states=environment.states,
             actions=environment.actions,
-            exploration="OrnsteinUhlenbeckProcess",
-            exploration_kwargs=dict(
-                sigma=0.1,
-                mu=0,
-                theta=0.1
-            )
+            network=layered_network_builder([dict(type='dense', size=16), dict(type='dense', size=16)])
         )
-        network_builder = layered_network_builder(layers_config=[{'type': 'dense', 'size': 16},
-                                                                 {'type': 'dense', 'size': 16}])
-        agent = NAFAgent(config=config, network_builder=network_builder)
+        agent = NAFAgent(config=config)
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):

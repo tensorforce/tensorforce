@@ -38,7 +38,7 @@ class Agent(object):
     model = None
     default_config = dict()
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         assert self.__class__.name is not None and self.__class__.model is not None
         config.default(Agent.default_config)
 
@@ -61,7 +61,7 @@ class Agent(object):
         self.states_config = config.states
         self.actions_config = config.actions
 
-        self.model = self.__class__.model(config, network_builder)
+        self.model = self.__class__.model(config)
 
         # exploration
         self.exploration = dict()

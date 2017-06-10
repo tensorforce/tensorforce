@@ -125,50 +125,43 @@ def main():
 
         return 0
 
-    env = OpenAIGym(args.gym_id)
-
-    default = dict(
-        repeat_actions=1,
-        actions=env.actions,
-        states=env.states,
-        max_episode_length=args.max_timesteps
-    )
+    environment = OpenAIGym(args.gym_id)
 
     if args.agent_config:
-        config = Configuration.from_json(args.agent_config)
+        agent_config = Configuration.from_json(args.agent_config)
     else:
-        config = Configuration()
-
-    config.default(default)
+        raise TensorForceError("No agent configuration provided.")
+    agent_config['states'] = environment.states
+    agent_config['actions'] = environment.actions
 
     if args.network_config:
-        network_config = Configuration.from_json(args.network_config)
+        network_config = Configuration.from_json(args.network_config).network_layers
     else:
-        raise TensorForceError("Error: No network configuration provided.")
+        raise TensorForceError("No network configuration provided.")
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[config.get('loglevel', 'info')])
-    preprocessing_config = config.get('preprocessing')
+    logger.setLevel(log_levels[agent_config.get('loglevel', 'info')])
+    preprocessing_config = agent_config.get('preprocessing')
 
     if preprocessing_config:
-        stack = build_preprocessing_stack(preprocessing_config)
-        config.state_shape = stack.shape(config.state_shape)
+        preprocessor = build_preprocessing_stack(preprocessing_config)
+        agent_config.states['shape'] = preprocessor.shape(agent_config.states['shape'])
     else:
-        stack = None
+        preprocessor = None
 
     logger.info("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
     logger.info("Config:")
-    logger.info(config)
+    logger.info(agent_config)
 
     runner = DistributedRunner(agent_type=args.agent,
                                agent_config=config,
                                network_config=network_config,
                                n_agents=args.num_workers,
                                n_param_servers=1,
-                               environment=env,
+                               environment=environment,
                                global_steps=args.global_steps,
                                max_episode_steps=args.max_timesteps,
-                               preprocessor=stack,
+                               preprocessor=preprocessor,
                                repeat_actions=args.repeat_actions,
                                local_steps=args.local_steps,
                                task_index=args.task_index,

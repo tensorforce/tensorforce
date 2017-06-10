@@ -39,7 +39,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="ID of the gym environment")
-    parser.add_argument('-a', '--agent', default='DQNAgent')
+    parser.add_argument('-a', '--agent', help='Agent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-config', help="Network configuration file")
     parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
@@ -54,38 +54,31 @@ def main():
 
     args = parser.parse_args()
 
-    env = OpenAIGym(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
-
-    default = dict(
-        repeat_actions=1,
-        actions=env.actions,
-        states=env.states,
-        max_episode_length=args.max_timesteps
-    )
+    environment = OpenAIGym(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
 
     if args.agent_config:
-        config = Configuration.from_json(args.agent_config)
+        agent_config = Configuration.from_json(args.agent_config)
     else:
-        config = Configuration()
-
-    config.default(default)
+        raise TensorForceError("No agent configuration provided.")
+    agent_config['states'] = environment.states
+    agent_config['actions'] = environment.actions
 
     if args.network_config:
         network_config = Configuration.from_json(args.network_config).network_layers
     else:
-        raise TensorForceError("Error: No network configuration provided.")
+        raise TensorForceError("No network configuration provided.")
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[config['loglevel']])
+    logger.setLevel(log_levels[agent_config['loglevel']])
 
-    preprocessing_config = config['preprocessing']
+    preprocessing_config = agent_config['preprocessing']
     if preprocessing_config:
-        stack = build_preprocessing_stack(preprocessing_config)
-        config.states['shape'] = stack.shape(config.states['shape'])
+        preprocessor = build_preprocessing_stack(preprocessing_config)
+        agent_config.states['shape'] = preprocessor.shape(agent_config.states['shape'])
     else:
-        stack = None
+        preprocessor = None
 
-    agent = create_agent(args.agent, config, network_config)
+    agent = create_agent(args.agent, agent_config, network_config)
 
     if args.load:
         load_dir = os.path.dirname(args.load)
@@ -96,10 +89,9 @@ def main():
     if args.debug:
         logger.info("-" * 16)
         logger.info("Configuration:")
-        logger.info(config)
+        logger.info(agent_config)
 
-
-    runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
+    runner = Runner(agent=agent, environment=environment, preprocessor=preprocessor, repeat_actions=args.repeat_actions)
 
     if args.save:
         save_dir = os.path.dirname(args.save)
@@ -123,13 +115,13 @@ def main():
             logger.info("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
         return True
 
-    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
+    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
 
     if args.monitor:
-        env.gym.monitor.close()
-    env.close()
+        environment.gym.monitor.close()
+    environment.close()
 
 
 if __name__ == '__main__':

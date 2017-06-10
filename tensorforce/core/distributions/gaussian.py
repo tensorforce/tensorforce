@@ -57,6 +57,7 @@ class Gaussian(Distribution):
     def entropy(self):
         log_std_dev = tf.log(self.std_dev + util.epsilon)
         entropy = tf.reduce_mean(log_std_dev + tf.constant(0.5 * np.log(2 * np.pi * np.e), tf.float32), axis=0)
+
         return entropy
 
     def kl_divergence(self, other):

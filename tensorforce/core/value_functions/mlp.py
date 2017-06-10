@@ -44,8 +44,8 @@ class MLPValueFunction(ValueFunction):
             self.returns = tf.placeholder(dtype=tf.float32, shape=(None, 1))
 
             network_builder = layered_network_builder((
-                {'type': 'dense', 'num_outputs': self.num_hidden},
-                {'type': 'dense', 'num_outputs': 1}))
+                {'type': 'dense', 'size': self.num_hidden},
+                {'type': 'dense', 'size': 1}))
 
             network = NeuralNetwork(network_builder=network_builder, inputs=[self.state])
 

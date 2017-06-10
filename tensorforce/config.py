@@ -64,6 +64,8 @@ class Configuration(object):
         else:
             self._config[name] = value
 
+    __setitem__ = __setattr__
+
     def keys(self):
         return self._config.keys()
 
@@ -84,4 +86,6 @@ class Configuration(object):
     def default(self, default):
         for key, value in default.items():
             if key not in self._config:
+                if isinstance(value, dict):
+                    value = Configuration(**value)
                 self._config[key] = value

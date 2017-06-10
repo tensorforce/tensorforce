@@ -156,6 +156,7 @@ class Model(object):
             self.action = dict()
             self.discrete_actions = []
             self.continuous_actions = []
+
             for name, action in config.actions:
                 if action.continuous:
                     if not self.__class__.allows_continuous_actions:

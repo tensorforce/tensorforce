@@ -172,6 +172,8 @@ Update notes
   things more convenient to use.
 - Fixed bug in NAF where target value (V) was connected to training output. Also added gradient clipping to NAF because we
   observed occasional numerical instability in testing.
+- For the same reason, we have altered the tests to always run multiple times and allow for an occasional failure on travis so
+  our builds don't get broken by a random initialisation leading to an under/overflow.
 - Updated OpenAI Universe integration to work with our state/action interface, see an example in examples/openai_universe.py
 
 

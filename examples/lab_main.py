@@ -27,11 +27,17 @@ import argparse
 import logging
 import numpy as np
 import deepmind_lab
+
+from tensorforce import TensorForceError
+from tensorforce.agents import agents
+from tensorforce.core.model import log_levels
+from tensorforce.core.networks import from_json
+from tensorforce.core.preprocessing import build_preprocessing_stack
+
 logger = logging.getLogger(__name__)
 
 from tensorforce.config import Configuration
 from tensorforce.environments.deepmind_lab import DeepMindLab
-from tensorforce.util import build_preprocessing_stack, create_agent, log_levels
 from tensorforce.execution import Runner
 
 
@@ -59,39 +65,30 @@ def main():
 
     args = parser.parse_args()
 
-    env = DeepMindLab(args.level_id)
+    environment = DeepMindLab(args.level_id)
 
-    config = Configuration({
-        'repeat_actions': 1,
-        'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape,
-        'max_episode_length': args.max_timesteps
-    })
+    if args.agent_config:
+        agent_config = Configuration.from_json(args.agent_config)
+    else:
+        raise TensorForceError("No agent configuration provided.")
+    if not args.network_config:
+        raise TensorForceError("No network configuration provided.")
+    agent_config.default(dict(states=environment.states, actions=environment.actions, network=from_json(args.network_config)))
+
     # This is necessary to give bazel the correct path
     path = os.path.dirname(__file__)
 
-    if args.network_config:
-        config.read_json(path + args.network_config)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_levels[agent_config['loglevel']])
 
-    if args.agent_config:
-        config.read_json(path + args.agent_config)
+    preprocessing_config = agent_config['preprocessing']
+    if preprocessing_config:
+        preprocessor = build_preprocessing_stack(preprocessing_config)
+        agent_config.states['shape'] = preprocessor.shape(agent_config.states['shape'])
+    else:
+        preprocessor = None
 
-    logger.setLevel(log_levels[config.get('loglevel', 'info')])
-
-    preprocessing_config = config.get('preprocessing')
-    # if preprocessing_config:
-    #     stack = build_preprocessing_stack(preprocessing_config)
-    #     config.state_shape = stack.shape(config.state_shape)
-    # else:
-    stack = None
-
-    if args.debug:
-        logger.info("-" * 16)
-        logger.info("File configuration:")
-        logger.info(config)
-
-    agent = create_agent(args.agent, config)
+    agent = agents[args.agent](config=agent_config)
 
     if args.load:
         load_dir = os.path.dirname(args.load)
@@ -107,8 +104,14 @@ def main():
             logger.info("Model configuration:")
             logger.info(agent.model.config)
 
-    runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
-
+    runner = Runner(
+        agent=agent,
+        environment=environment,
+        repeat_actions=1,
+        preprocessor=preprocessor,
+        save_path=args.save,
+        save_episodes=args.save_episodes
+    )
     if args.save:
         save_dir = os.path.dirname(args.save)
         if not os.path.isdir(save_dir):
@@ -130,11 +133,11 @@ def main():
             logger.info("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
         return True
 
-    logger.info("Starting {agent} for Lab environment '{env}'".format(agent=agent, env=env))
+    logger.info("Starting {agent} for Lab environment '{env}'".format(agent=agent, env=environment))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
 
-    env.close()
+    environment.close()
 
 
 if __name__ == '__main__':

@@ -175,6 +175,8 @@ Update notes
 - For the same reason, we have altered the tests to always run multiple times and allow for an occasional failure on travis so
   our builds don't get broken by a random initialisation leading to an under/overflow.
 - Updated OpenAI Universe integration to work with our state/action interface, see an example in examples/openai_universe.py
+- Added convenience method to create Network directly from json without needing to create a network builder, see examples for
+  usage
 
 
 29th May 2017

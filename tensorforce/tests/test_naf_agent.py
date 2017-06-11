@@ -17,12 +17,11 @@ class TestNAFAgent(unittest.TestCase):
     def test_naf_agent(self):
 
         passed = 0
-
         for _ in xrange(10):
             environment = MinimalTest(continuous=True)
             config = Configuration(
                 batch_size=8,
-                learning_rate=0.002,
+                learning_rate=0.0025,
                 # exploration="OrnsteinUhlenbeckProcess",
                 # exploration_kwargs=dict(
                 #     sigma=0.1,
@@ -37,7 +36,7 @@ class TestNAFAgent(unittest.TestCase):
                 states=environment.states,
                 actions=environment.actions,
                 clip_gradients=5.0,
-                network=layered_network_builder([dict(type='dense', size=32)])
+                network=layered_network_builder([dict(type='dense', size=32), dict(type='dense', size=32)])
             )
             agent = NAFAgent(config=config)
             runner = Runner(agent=agent, environment=environment)
@@ -45,9 +44,9 @@ class TestNAFAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            runner.run(episodes=5000, episode_finished=episode_finished)
+            runner.run(episodes=10000, episode_finished=episode_finished)
             # print('NAF Agent: ' + str(runner.episode))
-            if runner.episode < 5000:
+            if runner.episode < 10000:
                 passed += 1
                 print('passed')
             else:

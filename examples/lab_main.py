@@ -112,6 +112,18 @@ def main():
         save_path=args.save,
         save_episodes=args.save_episodes
     )
+
+    if args.load:
+        load_dir = os.path.dirname(args.load)
+        if not os.path.isdir(load_dir):
+            raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
+        agent.load_model(args.load)
+
+    if args.debug:
+        logger.info("-" * 16)
+        logger.info("Configuration:")
+        logger.info(agent_config)
+
     if args.save:
         save_dir = os.path.dirname(args.save)
         if not os.path.isdir(save_dir):
@@ -119,11 +131,8 @@ def main():
                 os.mkdir(save_dir, 0o755)
             except OSError:
                 raise OSError("Cannot save agent to dir {} ()".format(save_dir))
-        runner.save_model(args.save, args.save_episodes)
 
     report_episodes = args.episodes // 1000
-    if args.debug:
-        report_episodes = 10
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:

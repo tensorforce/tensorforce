@@ -30,6 +30,7 @@ from tensorforce import TensorForceError
 
 class Runner(object):
 
+    # These agents can be used in an A3C fashion
     async_supported = ['DQNAgent', 'VPGAgent', 'NAFAgent']
 
     def __init__(self, agent, environment, repeat_actions=1, preprocessor=None, cluster_spec=None, task_index=None, save_path=None, save_episodes=None):
@@ -45,6 +46,18 @@ class Runner(object):
         self.save_episodes = save_episodes
 
     def run(self, episodes=-1, max_timesteps=-1, episode_finished=None, before_execution=None):
+        """
+        Runs an environments for the specified number of episodes and time steps per episode.
+        
+        Args:
+            episodes: Number of episodes to execute
+            max_timesteps: Max timesteps in a given episode
+            episode_finished: Optional termination condition, e.g. a particular mean reward threshold
+            before_execution: Optional filter function to apply to action before execution
+
+        Returns:
+
+        """
         if self.cluster_spec is not None:
             assert self.task_index is not None
             # Redirect process output

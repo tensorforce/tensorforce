@@ -76,14 +76,16 @@ class Model(object):
         config.default(Model.default_config)
 
         self.discount = config.discount
+        self.distributed = config.distributed
 
         # TODO: change/remove
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_levels[config.log_level])
 
         if config.distributed:
-            assert config.session is not None
-            self.session = config.session
+            # assert config.session is not None
+            # self.session = config.session
+            pass
         else:
             assert not config.global_model and config.session is None
             tf.reset_default_graph()
@@ -92,14 +94,13 @@ class Model(object):
         if config.distributed and not config.global_model:
             # Global and local model for asynchronous updates
             global_config = config.copy()
+            global_config.optimizer = None
             global_config.global_model = True
-            worker_device = "/job:worker/task:{}/cpu:0".format(config.task_index)
+            global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=config.cluster_spec)
 
-            global_config.device = tf.train.replica_device_setter(1,
-                                                                  worker_device=worker_device,
-                                                                  cluster=config.cluster_spec)
             self.global_model = self.__class__(global_config)
-            self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=0, trainable=False)
+            self.global_step = tf.get_variable(name='global_step', dtype=tf.int32, initializer=0, trainable=False)
+            self.global_episode = tf.get_variable(name='global_episode', dtype=tf.int32, initializer=0, trainable=False)
 
         with tf.device(config.device) as scope:
             self.create_tf_operations(config)
@@ -109,13 +110,12 @@ class Model(object):
                 self.loss = tf.losses.get_total_loss()
 
                 if config.distributed and not config.global_model:
+                    self.increment_global_episode = self.global_episode.assign_add(1)
                     # Add operations for local/global sync
                     local_gradients = tf.gradients(self.loss, self.variables)
                     global_gradients = list(zip(local_gradients, self.global_model.variables))
-                    global_step = self.global_step.assign_add(tf.shape(self.state)[0])
-
                     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
-                    self.optimize = tf.group(self.optimizer.apply_gradients(global_gradients), global_step)
+                    self.optimize = tf.group(self.optimizer.apply_gradients(global_gradients), self.update_local, self.global_step.assign_add(tf.shape(self.reward)[0]))
                 else:
                     self.optimize = self.optimizer.minimize(self.loss)
 
@@ -159,6 +159,7 @@ class Model(object):
             self.action = dict()
             self.discrete_actions = []
             self.continuous_actions = []
+
             for name, action in config.actions:
                 if action.continuous:
                     if not self.__class__.allows_continuous_actions:
@@ -217,7 +218,11 @@ class Model(object):
         feed_dict[self.terminal] = batch['terminals']
         feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
-        _, loss = self.session.run(fetches=fetches, feed_dict=feed_dict)
+        if self.distributed:
+            fetches.extend(self.increment_global_episode for terminal in batch['terminals'] if terminal)
+            loss = self.session.run(fetches=fetches, feed_dict=feed_dict)[1]
+        else:
+            _, loss = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
         # if self.logger:
         #     self.logger.debug('loss = ' + str(loss))

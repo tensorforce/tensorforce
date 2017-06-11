@@ -31,9 +31,9 @@ class VPGModel(PolicyGradientModel):
     allows_continuous_actions = True
     default_config = dict()
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         config.default(VPGModel.default_config)
-        super(VPGModel, self).__init__(config, network_builder)
+        super(VPGModel, self).__init__(config)
 
     def create_tf_operations(self, config):
         super(VPGModel, self).create_tf_operations(config)

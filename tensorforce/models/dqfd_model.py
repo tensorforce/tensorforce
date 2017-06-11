@@ -39,8 +39,7 @@ class DQFDModel(Model):
     allows_discrete_actions = True
     allows_continuous_actions = False
 
-    def __init__(self, config, network_builder):
-        self.network = network_builder
+    def __init__(self, config):
         config.default(DQFDModel.default_config)
         super(DQFDModel, self).__init__(config)
 
@@ -92,7 +91,7 @@ class DQFDModel(Model):
 
         # Training network
         with tf.variable_scope('training'):
-            self.training_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+            self.training_network = NeuralNetwork(config.network, inputs={name: state for name, state in self.state.items()})
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -105,7 +104,7 @@ class DQFDModel(Model):
 
         # Target network
         with tf.variable_scope('target'):
-            self.target_network = NeuralNetwork(self.network, inputs={name: state for name, state in self.state.items()})
+            self.target_network = NeuralNetwork(config.network, inputs={name: state for name, state in self.state.items()})
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
@@ -133,7 +132,7 @@ class DQFDModel(Model):
                 delta = q_target - q_value
 
                 # If gradient clipping is used, calculate the huber loss
-                if config.clip_gradients >= 0.0:
+                if config.clip_gradients > 0.0:
                     huber_loss = tf.where(tf.abs(delta) < config.clip_gradients, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
                     double_q_loss = tf.reduce_mean(huber_loss)
                 else:
@@ -157,7 +156,7 @@ class DQFDModel(Model):
                 supervised_loss = supervised_selector - q_value
 
                 # Combining double q loss with supervised loss
-                dqfd_loss = double_q_loss + config.supervised_weight * supervised_loss
+                dqfd_loss = double_q_loss + tf.multiply(tf.reduce_mean(supervised_loss), config.supervised_weight)
 
                 # This decomposition is not necessary, we just want to be able to export gradients
                 dqfd_grads_and_vars = self.optimizer.compute_gradients(dqfd_loss)

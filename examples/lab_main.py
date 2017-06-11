@@ -71,11 +71,11 @@ def main():
     # This is necessary to give bazel the correct path
     path = os.path.dirname(__file__)
 
-    if args.agent_config:
-        config.read_json(path + args.agent_config)
-
     if args.network_config:
         config.read_json(path + args.network_config)
+
+    if args.agent_config:
+        config.read_json(path + args.agent_config)
 
     logger.setLevel(log_levels[config.get('loglevel', 'info')])
 

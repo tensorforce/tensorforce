@@ -49,9 +49,9 @@ class TRPOModel(PolicyGradientModel):
         cg_iterations=20
     )
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         config.default(TRPOModel.default_config)
-        super(TRPOModel, self).__init__(config, network_builder)
+        super(TRPOModel, self).__init__(config)
 
         self.cg_damping = config.cg_damping
         self.max_kl_divergence = config.max_kl_divergence

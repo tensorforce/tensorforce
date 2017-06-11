@@ -1,8 +1,6 @@
-{
-  "network_layers": [
+[
     {
-      "type": "dense",
-      "size": 10
+        "type": "dense",
+        "size": 10
     }
-  ]
-}
+]

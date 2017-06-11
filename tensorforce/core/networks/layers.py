@@ -24,10 +24,11 @@ from __future__ import print_function
 from __future__ import division
 
 from collections import Counter
-from math import sqrt
 import copy
-
+import json
+from math import sqrt
 import numpy as np
+import os
 import tensorflow as tf
 
 from tensorforce import util
@@ -158,7 +159,6 @@ def layered_network_builder(layers_config):
         for layer_config in layers_config:
             layer_type = layer_config['type']
             type_counter[layer_type] += 1
-            layer_name = "{type}{num}".format(type=layer_type, num=type_counter[layer_type])
             layer = layers[layer_type](x=layer, **{key: value for key, value in layer_config.items() if key != 'type'})
 
             if isinstance(layer, list) or isinstance(layer, tuple):
@@ -174,3 +174,10 @@ def layered_network_builder(layers_config):
             return layer
 
     return network_builder
+
+
+def from_json(filename):
+    path = os.path.join(os.getcwd(), filename)
+    with open(path, 'r') as fp:
+        config = json.load(fp=fp)
+    return layered_network_builder(config)

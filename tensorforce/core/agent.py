@@ -38,26 +38,30 @@ class Agent(object):
     model = None
     default_config = dict()
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         assert self.__class__.name is not None and self.__class__.model is not None
         config.default(Agent.default_config)
 
-        # if only one state/action
+        # only one state
         if 'type' in config.states:
             config.states = dict(state=config.states)
             self.unique_state = True
         else:
+            config.states = config.states
             self.unique_state = False
+
+        # only one action
         if 'continuous' in config.actions:
             config.actions = dict(action=config.actions)
             self.unique_action = True
         else:
+            config.actions = config.actions
             self.unique_action = False
 
         self.states_config = config.states
         self.actions_config = config.actions
 
-        self.model = self.__class__.model(config, network_builder)
+        self.model = self.__class__.model(config)
 
         # exploration
         self.exploration = dict()

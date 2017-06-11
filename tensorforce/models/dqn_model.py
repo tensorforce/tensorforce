@@ -38,7 +38,7 @@ class DQNModel(Model):
     allows_discrete_actions = True
     allows_continuous_actions = False
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         """Training logic for DQN.
 
         Args:
@@ -46,7 +46,6 @@ class DQNModel(Model):
             network_builder: 
         """
         config.default(DQNModel.default_config)
-        self.network = network_builder
         super(DQNModel, self).__init__(config)
         self.double_dqn = config.double_dqn
 
@@ -57,7 +56,7 @@ class DQNModel(Model):
 
         # Training network
         with tf.variable_scope('training'):
-            self.training_network = NeuralNetwork(self.network, inputs=self.state)
+            self.training_network = NeuralNetwork(config.network, inputs=self.state)
 
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
@@ -70,7 +69,7 @@ class DQNModel(Model):
 
         # Target network
         with tf.variable_scope('target'):
-            self.target_network = NeuralNetwork(self.network, inputs=self.state)
+            self.target_network = NeuralNetwork(config.network, inputs=self.state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
@@ -96,7 +95,7 @@ class DQNModel(Model):
                 delta = q_target - q_value
 
                 # If gradient clipping is used, calculate the huber loss
-                if config.clip_gradients >= 0.0:
+                if config.clip_gradients > 0.0:
                     huber_loss = tf.where(tf.abs(delta) < config.clip_gradients, 0.5 * tf.square(delta), tf.abs(delta) - 0.5)
                     loss = tf.reduce_mean(huber_loss)
                 else:

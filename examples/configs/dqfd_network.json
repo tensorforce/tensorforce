@@ -1,67 +1,31 @@
-{
-  "network_layers": [
+[
     {
-      "type": "conv2d",
-      "num_outputs": 32,
-      "kernel_size": 8,
-      "stride": 4,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.relu",
-      "weights_regularizer": "tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer",
-      "weights_regularizer_kwargs": {
-        "scale": 0.00001
-      }
+        "type": "conv2d",
+        "size": 32,
+        "window": 8,
+        "stride": 4,
+        "l2_regularization": 0.00001
     },
     {
-      "type": "conv2d",
-      "num_outputs": 64,
-      "kernel_size": 4,
-      "stride": 2,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.relu",
-      "weights_regularizer": "tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer",
-      "weights_regularizer_kwargs": {
-        "scale": 0.00001
-      }
+        "type": "conv2d",
+        "size": 64,
+        "window": 4,
+        "stride": 2,
+        "l2_regularization": 0.00001
     },
     {
-      "type": "conv2d",
-      "num_outputs": 64,
-      "kernel_size": 3,
-      "stride": 1,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.relu",
-      "weights_regularizer": "tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer",
-      "weights_regularizer_kwargs": {
-        "scale": 0.00001
-      }
+        "type": "conv2d",
+        "size": 64,
+        "window": 3,
+        "stride": 1,
+        "l2_regularization": 0.00001
     },
     {
-      "type": "flatten"
+        "type": "flatten"
     },
     {
-      "type": "dense",
-      "num_outputs": 512,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.relu",
-      "weights_regularizer": "tensorflow.contrib.layers.python.layers.regularizers.l2_regularizer",
-      "weights_regularizer_kwargs": {
-        "scale": 0.00001
-      },
-      "normalizer_fn": "tensorflow.contrib.layers.python.layers.batch_norm",
-      "normalizer_params": null
+        "type": "dense",
+        "size": 512,
+        "l2_regularization": 0.00001
     }
-  ]
-}
+]

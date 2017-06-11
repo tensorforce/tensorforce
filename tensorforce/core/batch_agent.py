@@ -28,9 +28,9 @@ class BatchAgent(Agent):
 
     default_config = dict()
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         config.default(BatchAgent.default_config)
-        super(BatchAgent, self).__init__(config, network_builder)
+        super(BatchAgent, self).__init__(config)
         self.batch_size = config.batch_size
         self.batch = None
 

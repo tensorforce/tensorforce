@@ -6,5 +6,6 @@
   "use_gae": false,
   "gae_lambda": 0.97,
   "gamma": 0.97,
-  "continuous": false
+  "continuous": false,
+  "preprocessing": null
 }

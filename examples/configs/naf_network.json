@@ -1,30 +1,10 @@
-{
-  "network_layers": [
+[
     {
-      "type": "dense",
-      "num_outputs": 100,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.tanh",
-      "weights_regularizer": "tensorflow.contrib.slim.l2_regularizer",
-      "weights_regularizer_args": [0.001],
-      "normalizer_fn": "tensorflow.contrib.layers.python.layers.batch_norm",
-      "normalizer_params": null
+        "type": "dense",
+        "size": 100
     },
     {
-      "type": "dense",
-      "num_outputs": 100,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.tanh",
-      "weights_regularizer": "tensorflow.contrib.slim.l2_regularizer",
-      "weights_regularizer_args": [0.001],
-      "normalizer_fn": "tensorflow.contrib.layers.python.layers.batch_norm",
-      "normalizer_params": null
+        "type": "dense",
+        "size": 100
     }
-  ]
-}
+]

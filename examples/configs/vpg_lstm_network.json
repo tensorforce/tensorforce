@@ -1,27 +1,13 @@
-{
-  "network_layers": [
+[
     {
-      "type": "dense",
-      "num_outputs": 32,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.tanh",
-      "weights_regularizer": null
+        "type": "dense",
+        "size": 32
     },
     {
-      "type": "dense",
-      "num_outputs": 32,
-      "weights_initializer": "tensorflow.contrib.layers.python.layers.initializers.xavier_initializer",
-      "weights_initializer_kwargs": { },
-      "biases_initializer": "tensorflow.python.ops.init_ops.zeros_initializer",
-      "biases_initializer_kwargs": { },
-      "activation_fn": "tensorflow.python.ops.nn.tanh",
-      "weights_regularizer": null
+        "type": "dense",
+        "size": 32
     },
     {
-      "type": "lstm"
+        "type": "lstm"
     }
-  ]
-}
+]

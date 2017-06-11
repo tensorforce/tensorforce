@@ -26,13 +26,14 @@ import sys
 import inspect
 import argparse
 import logging
-
 from six.moves import xrange, shlex_quote
+import tensorflow as tf
 
-from tensorforce import TensorForceError
-from tensorforce.config import Configuration
-from tensorforce.execution.distributed_runner import DistributedRunner
+from tensorforce import Configuration, TensorForceError
+from tensorforce.core.networks import from_json
+from tensorforce.agents import agents
 from tensorforce.environments.openai_gym import OpenAIGym
+from tensorforce.execution import Runner
 from tensorforce.core.model import log_levels
 from tensorforce.core.preprocessing import build_preprocessing_stack
 
@@ -41,24 +42,19 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="ID of the gym environment")
-    # Currently does not do anything since we don't have the distributed API for all models yet
-    parser.add_argument('-a', '--agent', default='DQNAgent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file",
-                        default='examples/configs/dqn_agent.json')
-    parser.add_argument('-n', '--network-config', help="Network configuration file",
-                        default='examples/configs/dqn_network.json')
-    parser.add_argument('-e', '--global-steps', type=int, default=1000000, help="Total number of steps")
+    parser.add_argument('-a', '--agent', help='Agent')
+    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-config', help="Network configuration file")
+    parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
-    parser.add_argument('-l', '--local-steps', type=int, default=20, help="Maximum number of local steps before update")
     parser.add_argument('-w', '--num-workers', type=int, default=1, help="Number of worker agents")
-    parser.add_argument('-r', '--repeat-actions', type=int, default=1, help="???")
     parser.add_argument('-m', '--monitor', help="Save results to this file")
     parser.add_argument('-M', '--mode', choices=['tmux', 'child'], default='tmux', help="Starter mode")
     parser.add_argument('-L', '--logdir', default='logs_async', help="Log directory")
-    parser.add_argument('-C', '--is-child', action='store_true', default=False)
+    parser.add_argument('-C', '--is-child', action='store_true')
     parser.add_argument('-i', '--task-index', type=int, default=0, help="Task index")
-    parser.add_argument('-p', '--is-ps', type=int, default=0, help="Is param server")
     parser.add_argument('-K', '--kill', action='store_true', default=False, help="Kill runners")
+    parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
     args = parser.parse_args()
 
@@ -87,18 +83,20 @@ def main():
                     cmd, args.logdir, session, name, args.logdir
                 )
 
-        def build_cmd(index, parameter_server):
-            cmd_args = ['CUDA_VISIBLE_DEVICES=',
-                        sys.executable, target_script,
-                        args.gym_id,
-                        '--is-child',
-                        '--agent-config', os.path.join(os.getcwd(), args.agent_config),
-                        '--network-config', os.path.join(os.getcwd(), args.network_config),
-                        '--num-workers', args.num_workers,
-                        '--task-index', index,
-                        '--is-ps', parameter_server
-                        ]
-
+        def build_cmd(index):
+            cmd_args = [
+                'CUDA_VISIBLE_DEVICES=',
+                sys.executable, target_script,
+                args.gym_id,
+                '--is-child',
+                '--agent', args.agent,
+                '--agent-config', os.path.join(os.getcwd(), args.agent_config),
+                '--network-config', os.path.join(os.getcwd(), args.network_config),
+                '--num-workers', args.num_workers,
+                '--task-index', index
+            ]
+            if args.debug:
+                cmd_args.append('--debug')
             return cmd_args
 
         if args.mode == 'tmux':
@@ -108,13 +106,13 @@ def main():
                     'rm -f {}/kill.sh'.format(args.logdir),
                     'echo "#/bin/bash" > {}/kill.sh'.format(args.logdir),
                     'chmod +x {}/kill.sh'.format(args.logdir)]
-        cmds.append(wrap_cmd(session_name, 'ps', build_cmd(0, 1)))
+        cmds.append(wrap_cmd(session_name, 'ps', build_cmd(-1)))
 
         for i in xrange(args.num_workers):
             name = 'w_{}'.format(i)
             if args.mode == 'tmux':
                 cmds.append('tmux new-window -t {} -n {} -d {}'.format(session_name, name, shell))
-            cmds.append(wrap_cmd(session_name, name, build_cmd(i, 0)))
+            cmds.append(wrap_cmd(session_name, name, build_cmd(i)))
 
         # add one PS call
         # cmds.append('tmux new-window -t {} -n ps -d {}'.format(session_name, shell))
@@ -125,55 +123,65 @@ def main():
 
         return 0
 
-    env = OpenAIGym(args.gym_id)
+    ps_hosts = ['127.0.0.1:{}'.format(12222)]
+    worker_hosts = []
+    port = 12223
+    for _ in range(args.num_workers):
+        worker_hosts.append('127.0.0.1:{}'.format(port))
+        port += 1
+    cluster = {'ps': ps_hosts, 'worker': worker_hosts}
+    cluster_spec = tf.train.ClusterSpec(cluster)
 
-    default = dict(
-        repeat_actions=1,
-        actions=env.actions,
-        states=env.states,
-        max_episode_length=args.max_timesteps
-    )
+    environment = OpenAIGym(args.gym_id)
 
     if args.agent_config:
-        config = Configuration.from_json(args.agent_config)
+        agent_config = Configuration.from_json(args.agent_config)
     else:
-        config = Configuration()
+        raise TensorForceError("No agent configuration provided.")
+    if not args.network_config:
+        raise TensorForceError("No network configuration provided.")
+    agent_config.default(dict(states=environment.states, actions=environment.actions, network=from_json(args.network_config)))
 
-    config.default(default)
-
-    if args.network_config:
-        network_config = Configuration.from_json(args.network_config)
-    else:
-        raise TensorForceError("Error: No network configuration provided.")
+    agent_config.default(dict(distributed=True, cluster_spec=cluster_spec, global_model=(args.task_index == -1), device=('/job:ps' if args.task_index == -1 else '/job:worker/task:{}/cpu:0'.format(args.task_index))))
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[config.get('loglevel', 'info')])
-    preprocessing_config = config.get('preprocessing')
+    logger.setLevel(log_levels[agent_config.loglevel])
 
+    preprocessing_config = agent_config.preprocessing
     if preprocessing_config:
-        stack = build_preprocessing_stack(preprocessing_config)
-        config.state_shape = stack.shape(config.state_shape)
+        preprocessor = build_preprocessing_stack(preprocessing_config)
+        agent_config.states['shape'] = preprocessor.shape(agent_config.states['shape'])
     else:
-        stack = None
+        preprocessor = None
+
+    agent = agents[args.agent](config=agent_config)
 
     logger.info("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
     logger.info("Config:")
-    logger.info(config)
+    logger.info(agent_config)
 
-    runner = DistributedRunner(agent_type=args.agent,
-                               agent_config=config,
-                               network_config=network_config,
-                               n_agents=args.num_workers,
-                               n_param_servers=1,
-                               environment=env,
-                               global_steps=args.global_steps,
-                               max_episode_steps=args.max_timesteps,
-                               preprocessor=stack,
-                               repeat_actions=args.repeat_actions,
-                               local_steps=args.local_steps,
-                               task_index=args.task_index,
-                               is_ps=(args.is_ps == 1))
-    runner.run()
+    runner = Runner(
+        agent=agent,
+        environment=environment,
+        repeat_actions=1,
+        preprocessor=preprocessor,
+        cluster_spec=cluster_spec,
+        task_index=args.task_index
+    )
+
+    report_episodes = args.episodes // 1000
+    if args.debug:
+        report_episodes = 1
+
+    def episode_finished(r):
+        if r.episode % report_episodes == 0:
+            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode, ts=r.timestep))
+            logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
+            logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
+            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
+        return True
+
+    runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
 
 
 if __name__ == '__main__':

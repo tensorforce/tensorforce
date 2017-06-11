@@ -33,9 +33,9 @@ class MemoryAgent(Agent):
         repeat_update=1
     )
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         config.default(MemoryAgent.default_config)
-        super(MemoryAgent, self).__init__(config, network_builder)
+        super(MemoryAgent, self).__init__(config)
 
         self.batch_size = config.batch_size
         self.memory = ReplayMemory(capacity=config.memory_capacity, states_config=config.states, actions_config=config.actions)

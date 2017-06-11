@@ -69,7 +69,7 @@ class OpenAIGym(Environment):
         """
         Pass action to gym, return reward, next step, terminal state and additional info.
         """
-        state, reward, terminal, _ = self.gym.step(action)
+        state, reward, terminal, _ = self.gym.step([action])  # some gym environments expect a list (f.i. Pendulum-v0)
         return state, reward, terminal
 
     @property
@@ -84,7 +84,9 @@ class OpenAIGym(Environment):
         if isinstance(self.gym.action_space, Discrete):
             return dict(continuous=False, num_actions=self.gym.action_space.n)
         elif len(self.gym.action_space.shape) == 1:
-            return {'action' + str(n): dict(continuous=True) for n in range(len(self.gym.action_space.shape[0]))}
+            return dict(continuous=True)
+        elif len(self.gym.action_space.shape) > 1:
+            return {'action' + str(n): dict(continuous=True) for n in range(len(self.gym.action_space.shape))}
         else:
             raise TensorForceError()
 

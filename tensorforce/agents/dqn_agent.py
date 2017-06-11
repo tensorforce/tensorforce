@@ -35,9 +35,9 @@ class DQNAgent(MemoryAgent):
         target_update_frequency=10000
     )
 
-    def __init__(self, config, network_builder):
+    def __init__(self, config):
         config.default(MemoryAgent.default_config)
-        super(DQNAgent, self).__init__(config, network_builder)
+        super(DQNAgent, self).__init__(config)
         self.target_update_frequency = config.target_update_frequency
 
     def observe(self, state, action, reward, terminal):

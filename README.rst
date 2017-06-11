@@ -172,6 +172,7 @@ Update notes
   things more convenient to use.
 - Fixed bug in NAF where target value (V) was connected to training output. Also added gradient clipping to NAF because we
   observed occasional numerical instability in testing.
+- Updated OpenAI Universe integration to work with our state/action interface
 
 
 29th May 2017

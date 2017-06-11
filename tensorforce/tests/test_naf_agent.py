@@ -36,7 +36,7 @@ class TestNAFAgent(unittest.TestCase):
                 target_update_frequency=20,
                 states=environment.states,
                 actions=environment.actions,
-                clip_gradients=10.0,
+                clip_gradients=5.0,
                 network=layered_network_builder([dict(type='dense', size=32), dict(type='dense', size=32)])
             )
             agent = NAFAgent(config=config)

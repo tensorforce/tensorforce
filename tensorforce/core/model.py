@@ -146,11 +146,14 @@ class Model(object):
         self.internal_outputs = list()
         self.internal_inits = list()
 
+        config.states = config.states # hack to turn config.states and its subdicts into Configuration objects
+        config.actions = config.actions  # TODO: find a better way to convert into Configuration objects
+
         # Placeholders
         with tf.variable_scope('placeholder'):
             # States
             self.state = dict()
-            for name, state in config.states:
+            for name, state in config.states.items():
                 self.state[name] = tf.placeholder(dtype=util.tf_dtype(state.type), shape=(None,) + tuple(state.shape), name=name)
             # Actions
             self.action = dict()

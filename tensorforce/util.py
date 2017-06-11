@@ -47,20 +47,20 @@ def cumulative_discount(rewards, terminals, discount):
 
 
 def np_dtype(dtype):
-    if dtype == 'float':
+    if dtype == 'float' or dtype == float:
         return np.float32
-    elif dtype == 'int':
+    elif dtype == 'int' or dtype == int:
         return np.int32
-    elif dtype == 'bool':
+    elif dtype == 'bool' or dtype == bool:
         return np.bool_
     else:
         raise TensorForceError()
 
 
 def tf_dtype(dtype):
-    if dtype == 'float':
+    if dtype == 'float' or dtype == float:
         return tf.float32
-    elif dtype == 'int':
+    elif dtype == 'int' or dtype == int:
         return tf.int32
     else:
         raise TensorForceError()

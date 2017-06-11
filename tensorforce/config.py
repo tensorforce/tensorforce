@@ -44,6 +44,9 @@ class Configuration(object):
     def __iter__(self):
         return iter(self._config.items())
 
+    def items(self):
+        return self._config.items()
+
     def __contains__(self, name):
         return name in self._config
 

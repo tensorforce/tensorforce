@@ -52,10 +52,10 @@ class TestTRPOAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            runner.run(episodes=5000, episode_finished=episode_finished)
+            runner.run(episodes=10000, episode_finished=episode_finished)
             print('TRPO Agent (discrete): ' + str(runner.episode))
 
-            if runner.episode < 5000:
+            if runner.episode < 10000:
                 passed += 1
                 print('passed')
             else:
@@ -85,10 +85,10 @@ class TestTRPOAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            runner.run(episodes=5000, episode_finished=episode_finished)
+            runner.run(episodes=10000, episode_finished=episode_finished)
             print('TRPO Agent (continuous): ' + str(runner.episode))
 
-            if runner.episode < 5000:
+            if runner.episode < 10000:
                 passed += 1
                 print('passed')
             else:

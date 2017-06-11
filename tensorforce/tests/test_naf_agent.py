@@ -18,7 +18,7 @@ class TestNAFAgent(unittest.TestCase):
 
         passed = 0
 
-        for _ in xrange(5):
+        for _ in xrange(10):
             environment = MinimalTest(continuous=True)
             config = Configuration(
                 batch_size=8,
@@ -54,4 +54,4 @@ class TestNAFAgent(unittest.TestCase):
                 print('failed')
 
         print('NAF Agent passed = {}'.format(passed))
-        self.assertTrue(passed >= 4)
+        self.assertTrue(passed >= 8)

@@ -33,7 +33,7 @@ class TestDQFDAgent(unittest.TestCase):
     def test_dqfd_agent(self):
         passed = 0
 
-        for _ in xrange(10):
+        for _ in xrange(5):
             environment = MinimalTest(continuous=False)
 
             config = Configuration(
@@ -79,7 +79,7 @@ class TestDQFDAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            # This is more than in dqn test because much smaller learning rate in pretraining
+            # Fewer than in DQN test
             runner.run(episodes=1000, episode_finished=episode_finished)
             if runner.episode < 1000:
                 passed += 1
@@ -87,6 +87,6 @@ class TestDQFDAgent(unittest.TestCase):
             else:
                 print('failed')
 
-        print(passed)
-        self.assertTrue(passed > 8)
+        print('DQFD Agent passed = {}'.format(passed))
+        self.assertTrue(passed >= 4)
 

@@ -52,7 +52,7 @@ Features
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
 Universe and DeepMind lab. The following algorithms are available (all policy methods both continuous/discrete):
 
-1. A3C using distributed TensorFlow
+1. A3C using distributed TensorFlow - now as part of our generic Model usable with different agents
 2. Trust Region Policy Optimization (TRPO) with generalised
    advantage estimation (GAE)
 3. Normalised Advantage functions (NAFs)
@@ -139,15 +139,11 @@ then create an agent and use it as seen below (see documentation for all optiona
     batch_size=100,
     state=dict(shape=(10,)),
     actions=dict(continuous=False, num_actions=2)
+    network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
   )
 
   # Create a Trust Region Policy Optimization agent
-  network_config = [
-    dict(type='dense', size=50),
-    dict(type='dense', size=50)
-  ]
-  network_builder = layered_network_builder(layers_config=network_config)
-  agent = TRPOAgent(config=config, network_builder=network_builder)
+  agent = TRPOAgent(config=config)
 
   # Get new data from somewhere, e.g. a client to a web app
   client = MyClient('http://127.0.0.1', 8080)
@@ -165,6 +161,18 @@ then create an agent and use it as seen below (see documentation for all optiona
 
 Update notes
 ------------
+
+11th June 2017
+
+- Fixed bug in DQFD test where demo data was not always the correct action. Also fixed small bug in DQFD loss
+  (mean over supervised loss)
+- Network entry added to configuration so no separate network builder has to be passed to the agent constructor (see example)
+- The async mode using distributed tensorflow has been merged into the main model class. See the openai_gym_async.py example.
+  In particular, this means multiple agents are now available in async mode. N.b. we are still working on making async/distributed
+  things more convenient to use.
+- Fixed bug in NAF where target value (V) was connected to training output. Also added gradient clipping to NAF because we
+  observed occasional numerical instability in testing.
+
 
 29th May 2017
 

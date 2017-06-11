@@ -14,30 +14,43 @@ from tensorforce.execution import Runner
 class TestNAFAgent(unittest.TestCase):
 
     def test_naf_agent(self):
-        environment = MinimalTest(continuous=True)
-        config = Configuration(
-            batch_size=8,
-            learning_rate=0.001,
-            exploration="OrnsteinUhlenbeckProcess",
-            exploration_kwargs=dict(
-                sigma=0.1,
-                mu=0,
-                theta=0.1
-            ),
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20,
-            states=environment.states,
-            actions=environment.actions,
-            network=layered_network_builder([dict(type='dense', size=16), dict(type='dense', size=16)])
-        )
-        agent = NAFAgent(config=config)
-        runner = Runner(agent=agent, environment=environment)
 
-        def episode_finished(r):
-            return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+        passed = 0
 
-        runner.run(episodes=5000, episode_finished=episode_finished)
-        print('NAF Agent: ' + str(runner.episode))
-        self.assertTrue(runner.episode < 5000)
+        for _ in xrange(5):
+            environment = MinimalTest(continuous=True)
+            config = Configuration(
+                batch_size=8,
+                learning_rate=0.0025,
+                # exploration="OrnsteinUhlenbeckProcess",
+                # exploration_kwargs=dict(
+                #     sigma=0.1,
+                #     mu=0,
+                #     theta=0.1
+                # ),
+                discount=0.99,
+                memory_capacity=800,
+                first_update=80,
+                repeat_update=4,
+                target_update_frequency=20,
+                states=environment.states,
+                actions=environment.actions,
+                clip_gradients=10.0,
+                network=layered_network_builder([dict(type='dense', size=32), dict(type='dense', size=32)])
+            )
+            agent = NAFAgent(config=config)
+            runner = Runner(agent=agent, environment=environment)
+
+            def episode_finished(r):
+                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+
+            runner.run(episodes=10000, episode_finished=episode_finished)
+            # print('NAF Agent: ' + str(runner.episode))
+            if runner.episode < 10000:
+                passed += 1
+                print('passed')
+            else:
+                print('failed')
+
+        print('NAF Agent passed = {}'.format(passed))
+        self.assertTrue(passed >= 4)

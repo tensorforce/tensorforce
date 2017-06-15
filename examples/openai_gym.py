@@ -69,7 +69,7 @@ def main():
     preprocessing_config = agent_config['preprocessing']
     if preprocessing_config:
         preprocessor = build_preprocessing_stack(preprocessing_config)
-        agent_config.states['shape'] = preprocessor.shape(agent_config.states['shape'])
+        agent_config.states.shape = preprocessor.shape(agent_config.states.shape)
     else:
         preprocessor = None
 

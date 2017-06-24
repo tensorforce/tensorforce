@@ -23,101 +23,93 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from collections import Counter
-import copy
 import json
 from math import sqrt
-import numpy as np
 import os
+
+import numpy as np
 import tensorflow as tf
 
-from tensorforce import util
-
-tf_slim = tf.contrib.slim
-
-# TODO configurable initialisation
-
-def layer_wrapper(layer_constructor, requires_episode_length=False, reshape=None):
-
-    def layer(x, config, episode_length=None, scope=None):
-        """
-        Initialises layer ased on layer config. 
-        Args:
-            x: 
-            config: 
-            episode_length: 
-            scope: 
-
-        Returns:
-
-        """
-        kwargs = copy.copy(config)
-
-        # Remove `type` from kwargs array.
-        kwargs.pop("type", None)
-
-        # for fk in ["weights_initializer", "weights_regularizer", "biases_initializer", "activation_fn", "normalizer_fn"]:
-        #     util.make_function(kwargs, fk)
-
-        # Force our own scope definitions
-        if scope:
-            kwargs['scope'] = scope
-
-        if reshape and callable(reshape):
-            x = reshape(x)
-
-        if requires_episode_length:
-            assert episode_length is not None
-            return layer_constructor(x, episode_length, **kwargs)
-        else:
-            return layer_constructor(x, **kwargs)
-
-    return layer
+from tensorforce import TensorForceError, util
 
 
-def flatten_layer(x):
+def flatten(x):
     with tf.variable_scope('flatten'):
         x = tf.reshape(tensor=x, shape=(-1, util.prod(x.get_shape().as_list()[1:])))
     return x
 
 
-def linear_layer(x, size, l2_regularization=0.0):
+def nonlinearity(x, name='relu'):
+    with tf.variable_scope('nonlinearity'):
+        if name == 'elu':
+            x = tf.nn.elu(features=x)
+        elif name == 'relu':
+            x = tf.nn.relu(features=x)
+        elif name == 'selu':
+            # https://arxiv.org/pdf/1706.02515.pdf
+            alpha = 1.6732632423543772848170429916717
+            scale = 1.0507009873554804934193349852946
+            negative = alpha * tf.nn.elu(features=x)
+            x = scale * tf.where(condition=(x >= 0.0), x=x, y=negative)
+        elif name == 'sigmoid':
+            x = tf.sigmoid(x=x)
+        elif name == 'softmax':
+            x = tf.nn.softmax(logits=x)
+        elif name == 'tanh':
+            x = tf.nn.tanh(x=x)
+        else:
+            raise TensorForceError('Invalid nonlinearity.')
+    return x
+
+
+def linear(x, size, bias=True, l2_regularization=0.0):
+    if util.rank(x) != 2:
+        raise TensorForceError('Invalid input rank for linear layer.')
     with tf.variable_scope('linear'):
         weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
-        bias = tf.Variable(initial_value=tf.zeros(shape=(size,)))
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
-            tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
-        x = tf.nn.bias_add(value=tf.matmul(a=x, b=weights), bias=bias)
+        x = tf.matmul(a=x, b=weights)
+        if bias:
+            bias = tf.Variable(initial_value=tf.zeros(shape=(size,)))
+            if l2_regularization > 0.0:
+                tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
+            x = tf.nn.bias_add(value=x, bias=bias)
     return x
 
 
-def dense_layer(x, size, l2_regularization=0.0):
+def dense(x, size, bias=True, activation='relu', l2_regularization=0.0):
+    if util.rank(x) != 2:
+        raise TensorForceError('Invalid input rank for dense layer.')
     with tf.variable_scope('dense'):
-        weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
-        bias = tf.Variable(initial_value=tf.zeros(shape=(size,)))
-        if l2_regularization > 0.0:
-            tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
-            tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
-        x = tf.nn.bias_add(value=tf.matmul(a=x, b=weights), bias=bias)
-        x = tf.nn.relu(features=x)
+        x = linear(x=x, size=size, bias=bias, l2_regularization=l2_regularization)
+        x = nonlinearity(x=x, name=activation)
     return x
 
 
-def conv2d_layer(x, size, window=3, stride=1, l2_regularization=0.0):
+def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regularization=0.0):
+    if util.rank(x) != 4:
+        raise TensorForceError('Invalid input rank for conv2d layer.')
     with tf.variable_scope('conv2d'):
         filters = tf.Variable(initial_value=tf.random_normal(shape=(window, window, x.get_shape()[3].value, size), stddev=sqrt(2.0 / size)))
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
         x = tf.nn.conv2d(input=x, filter=filters, strides=(1, stride, stride, 1), padding='SAME')
-        x = tf.nn.relu(features=x)
+        if bias:
+            bias = tf.Variable(initial_value=tf.zeros(shape=(size,)))
+            if l2_regularization > 0.0:
+                tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
+            x = tf.nn.bias_add(value=x, bias=bias)
+        x = nonlinearity(x=x, name=activation)
     return x
 
 
-def lstm_layer(x, size=None, l2_regularization=0.0):
+def lstm(x, size=None):
     """
     Creates an LSTM layer.
     """
+    if util.rank(x) != 2:
+        raise TensorForceError('Invalid input rank for lstm layer.')
     if not size:
         size = x.get_shape()[1].value
     with tf.variable_scope('lstm'):
@@ -131,11 +123,12 @@ def lstm_layer(x, size=None, l2_regularization=0.0):
 
 
 layers = {
-    'flatten': flatten_layer,
-    'dense': dense_layer,
-    'conv2d': conv2d_layer,
-    'linear': linear_layer,
-    'lstm': lstm_layer
+    'flatten': flatten,
+    'nonlinearity': nonlinearity,
+    'linear': linear,
+    'dense': dense,
+    'conv2d': conv2d,
+    'lstm': lstm
 }
 
 
@@ -148,18 +141,16 @@ def layered_network_builder(layers_config):
     """
 
     def network_builder(inputs):
-        if len(inputs) != 1:  # layered network only has one input
-            raise Exception()
+        if len(inputs) != 1:
+            raise TensorForceError('Layered network must have only one input.')
         layer = next(iter(inputs.values()))
         internal_inputs = []
         internal_outputs = []
         internal_inits = []
 
-        type_counter = Counter()
         for layer_config in layers_config:
             layer_type = layer_config['type']
-            type_counter[layer_type] += 1
-            layer = layers[layer_type](x=layer, **{key: value for key, value in layer_config.items() if key != 'type'})
+            layer = layers[layer_type](x=layer, **{k: v for k, v in layer_config.items() if k != 'type'})
 
             if isinstance(layer, list) or isinstance(layer, tuple):
                 assert len(layer) == 4

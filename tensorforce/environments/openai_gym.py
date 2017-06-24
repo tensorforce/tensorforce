@@ -25,8 +25,6 @@ import gym
 from gym.wrappers import Monitor
 from gym.spaces.discrete import Discrete
 
-import numpy as np
-
 from tensorforce import TensorForceError
 from tensorforce.environments import Environment
 
@@ -49,7 +47,7 @@ class OpenAIGym(Environment):
             if monitor_video == 0:
                 video_callable = False
             else:
-                video_callable = lambda x: x % monitor_video == 0
+                video_callable = (lambda x: x % monitor_video == 0)
             self.gym = Monitor(self.gym, monitor, force=not monitor_safe, video_callable=video_callable)
 
     def __str__(self):
@@ -72,7 +70,7 @@ class OpenAIGym(Environment):
         Pass action to gym, return reward, next step, terminal state and additional info.
         """
         if isinstance(self.gym.action_space, gym.spaces.Box):
-            action = [action] # some gym environments expect a list (f.i. Pendulum-v0)
+            action = [action]  # some gym environments expect a list (f.i. Pendulum-v0)
         state, reward, terminal, _ = self.gym.step(action)
         return state, reward, terminal
 

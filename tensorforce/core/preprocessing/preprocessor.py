@@ -26,48 +26,23 @@ from tensorforce import Configuration
 
 class Preprocessor(object):
 
-    # dict containing default configuration
-    default_config = {}
-
-    # list specifying order of *args to be parsed
-    config_args = []
-
-    def __init__(self, *args, **kwargs):
-        """
-        Initialize configuration using the default config. Then update the config first using *args (order is
-        defined in self.config_args) and then using **kwargs)
-
-        :param args: optional *args
-        :param kwargs: optional **kwargs
-        """
-        self.config = Configuration()
-
-        for i, arg in enumerate(args):
-            if i >= len(self.config_args):
-                break
-            self.config.default({self.config_args[i]: arg})
-
-        self.config.default(kwargs)
-        self.config.default(self.default_config)
-
-
     def process(self, state):
         """
         Process state.
 
-        :param state: ndarray
-        :return: new_state
+        :param state: state
+        :return: processed state
         """
         return state
 
-    def shape(self, original_shape):
+    def processed_shape(self, shape):
         """
-        Return shape of processed state given original shape
+        Shape of preprocessed state given original shape.
 
-        :param original_shape: original shape array
-        :return: new shape array
+        :param shape: original state shape
+        :return: processed state shape
         """
-        return original_shape
+        return shape
 
-
-
+    def reset(self):
+        pass

@@ -29,28 +29,23 @@ from tensorforce import util
 from tensorforce.core.memories import Memory
 
 
-class ReplayMemory(Memory):
+class Replay(Memory):
 
     def __init__(self, capacity, states_config, actions_config):
-        capacity = int(capacity)
-        self.states = dict()
-        for name, state in states_config:
-            self.states[name] = np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type))
-        self.actions = dict()
-        for name, action in actions_config:
-            dtype = util.np_dtype('float' if action.continuous else 'int')
-            self.actions[name] = np.zeros((capacity,), dtype=dtype)
+        self.capacity = capacity
+
+        self.states = {name: np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in states_config}
+        self.actions = {name: np.zeros((capacity,), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in actions_config}
         self.rewards = np.zeros((capacity,), dtype=util.np_dtype('float'))
         self.terminals = np.zeros((capacity,), dtype=util.np_dtype('bool'))
         self.internals = None
 
-        self.capacity = capacity
         self.size = 0
         self.index = 0
 
     def add_experience(self, state, action, reward, terminal, internal):
         if self.internals is None and internal is not None:
-            self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal in internal]
+            self.internals = [np.zeros((self.capacity,) + i.shape, i.dtype) for i in internal]
 
         for name, state in state.items():
             self.states[name][self.index] = state
@@ -90,3 +85,6 @@ class ReplayMemory(Memory):
             terminals=self.terminals.take(indices),
             internals=[internal.take(indices, axis=0) for internal in self.internals]
         )
+
+    def update_batch(self, loss_per_instance):
+        pass

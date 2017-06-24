@@ -33,13 +33,12 @@ class Runner(object):
     # These agents can be used in an A3C fashion
     async_supported = ['DQNAgent', 'VPGAgent', 'NAFAgent']
 
-    def __init__(self, agent, environment, repeat_actions=1, preprocessor=None, cluster_spec=None, task_index=None, save_path=None, save_episodes=None):
+    def __init__(self, agent, environment, repeat_actions=1, cluster_spec=None, task_index=None, save_path=None, save_episodes=None):
         if cluster_spec is not None and str(agent) not in Runner.async_supported:
             raise TensorForceError('Agent type not supported for distributed runner.')
         self.agent = agent
         self.environment = environment
         self.repeat_actions = repeat_actions
-        self.preprocessor = preprocessor
         self.cluster_spec = cluster_spec
         self.task_index = task_index
         self.save_path = save_path
@@ -130,14 +129,9 @@ class Runner(object):
             self.agent.reset()
             episode_reward = 0
 
-            self.timestep = 1
+            self.timestep = 0
             while True:
-                if self.preprocessor:
-                    processed_state = self.preprocessor.process(state)
-                else:
-                    processed_state = state
-
-                action = self.agent.act(state=processed_state)
+                state, action = self.agent.act(state=state)
 
                 if before_execution:
                     action = before_execution(self, action)
@@ -145,19 +139,21 @@ class Runner(object):
                 if self.repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(self.repeat_actions):
-                        state, step_reward, terminal = self.environment.execute(action=action)
+                        next_state, step_reward, terminal = self.environment.execute(action=action)
                         reward += step_reward
                         if terminal:
                             break
                 else:
-                    state, reward, terminal = self.environment.execute(action=action)
+                    next_state, reward, terminal = self.environment.execute(action=action)
 
+                self.agent.observe(state=state, action=action, reward=reward, terminal=terminal)
+
+                state = next_state
+                self.timestep += 1
                 episode_reward += reward
-                self.agent.observe(state=processed_state, action=action, reward=reward, terminal=terminal)
 
                 if terminal or self.timestep == max_timesteps:
                     break
-                self.timestep += 1
 
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(self.timestep)

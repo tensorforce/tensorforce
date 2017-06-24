@@ -15,11 +15,13 @@
 
 
 from tensorforce.core.memories.memory import Memory
-from tensorforce.core.memories.replay_memory import ReplayMemory
+from tensorforce.core.memories.replay import Replay
+from tensorforce.core.memories.prioritized_replay import PrioritizedReplay
 
 
 memories = dict(
-    replace=ReplayMemory
+    replay=Replay,
+    prioritized_replay=PrioritizedReplay
 )
 
-__all__ = ['Memory', 'ReplayMemory', 'memories']
+__all__ = ['memories', 'Memory', 'Replay', 'PrioritizedReplay']

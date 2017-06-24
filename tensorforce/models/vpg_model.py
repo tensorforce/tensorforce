@@ -41,5 +41,6 @@ class VPGModel(PolicyGradientModel):
         with tf.variable_scope('update'):
             for name, action in self.action.items():
                 log_prob = self.distribution[name].log_probability(action=action)
-                loss = -tf.reduce_mean(input_tensor=tf.multiply(x=log_prob, y=self.reward), axis=0)
+                self.loss_per_instance = tf.multiply(x=log_prob, y=self.reward)
+                loss = -tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
                 tf.losses.add_loss(loss)

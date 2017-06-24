@@ -26,20 +26,41 @@ import numpy as np
 from tensorforce.core.preprocessing import Preprocessor
 
 
-class Grayscale(Preprocessor):
+class Sequence(Preprocessor):
 
-    def __init__(self, weights=(0.299, 0.587, 0.114)):
-        super(Grayscale, self).__init__()
-        self.weights = weights
+    default_config = {
+        'concat_length': 1,
+        'dimension_position': 'prepend'
+    }
+
+    config_args = [
+        'concat_length',
+        'dimension_position'
+    ]
+
+    def __init__(self, length=2):
+        super(Sequence, self).__init__()
+        self.length = length
+        self.index = -1
 
     def process(self, state):
         """
-        Turn 3D color state into grayscale, thereby removing the last dimension.
+        Return sequence state which ends with given state.
+
         :param state: state
-        :return: grayscale state
+        :return: sequence state
         """
-        state = (self.weights * state).sum(-1)
-        return np.reshape(state, tuple(state.shape) + (1,))
+        if self.index == -1:
+            self.previous_states = [state for _ in range(self.length)]
+            self.index = 1
+        else:
+            self.previous_states[self.index % self.length] = state
+            self.index += 1
+        sequence = [self.previous_states[n % self.length] for n in range(self.index, self.index + self.length)]
+        return np.concatenate(sequence, -1)
 
     def processed_shape(self, shape):
-        return tuple(shape[:-1]) + (1,)
+        return shape[:-1] + (shape[-1] * self.length,)
+
+    def reset(self):
+        self.index = -1

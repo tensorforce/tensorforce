@@ -30,6 +30,10 @@ def prod(xs):
     return p
 
 
+def rank(x):
+    return x.get_shape().ndims
+
+
 def shape(x, unknown=-1):
     return tuple(unknown if dims is None else dims for dims in x.get_shape().as_list())
 

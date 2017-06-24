@@ -55,23 +55,20 @@ class Configuration(object):
             raise TensorForceError('Value for `{}` is not defined.'.format(name))
         return self._config[name]
 
+    def __getitem__(self, name):
+        return self.__getattr__(name)
+
     def __setattr__(self, name, value):
         if name == '_config':
-            value = {k: Configuration(**v) if isinstance(v, dict) else v for k, v in value.items()}
+            value = {k: make_config_value(v) for k, v in value.items()}
             super(Configuration, self).__setattr__(name, value)
-            return
-        if name not in self._config:
+        elif name not in self._config:
             raise TensorForceError('Value is not defined.')
-        elif isinstance(value, dict):
-            self._config[name] = Configuration(**value)
         else:
-            self._config[name] = value
+            self._config[name] = make_config_value(value)
 
     def keys(self):
         return self._config.keys()
-
-    def __getitem__(self, name):
-        return self._config[name]
 
     def copy(self):
         return Configuration(**self._config)
@@ -82,3 +79,12 @@ class Configuration(object):
                 if isinstance(value, dict):
                     value = Configuration(**value)
                 self._config[key] = value
+
+
+def make_config_value(value):
+    if isinstance(value, dict):
+        return Configuration(**value)
+    elif isinstance(value, list):
+        return [make_config_value(v) for v in value]
+    else:
+        return value

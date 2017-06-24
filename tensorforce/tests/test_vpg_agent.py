@@ -52,9 +52,6 @@ class TestVPGAgent(unittest.TestCase):
 
             if runner.episode < 10000:
                 passed += 1
-                print('passed')
-            else:
-                print('failed')
 
         print('VPG discrete agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
@@ -81,9 +78,6 @@ class TestVPGAgent(unittest.TestCase):
             print('VPG Agent (continuous): ' + str(runner.episode))
             if runner.episode < 5000:
                 passed += 1
-                print('passed')
-            else:
-                print('failed')
 
         print('VPG continuous agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)

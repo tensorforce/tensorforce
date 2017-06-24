@@ -30,8 +30,6 @@ from tensorforce.core.networks import from_json
 from tensorforce.agents import agents
 from tensorforce.environments.openai_gym import OpenAIGym
 from tensorforce.execution import Runner
-from tensorforce.core.model import log_levels
-from tensorforce.core.preprocessing import build_preprocessing_stack
 
 
 def main():
@@ -53,26 +51,22 @@ def main():
 
     args = parser.parse_args()
 
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)  # configurable!!!
+
     environment = OpenAIGym(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
 
     if args.agent_config:
         agent_config = Configuration.from_json(args.agent_config)
     else:
-        raise TensorForceError("No agent configuration provided.")
-    if not args.network_config:
-        raise TensorForceError("No network configuration provided.")
-    agent_config.default(dict(states=environment.states, actions=environment.actions, network=from_json(args.network_config)))
-
-    logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[agent_config['loglevel']])
-
-    preprocessing_config = agent_config['preprocessing']
-    if preprocessing_config:
-        preprocessor = build_preprocessing_stack(preprocessing_config)
-        agent_config.states.shape = preprocessor.shape(agent_config.states.shape)
+        agent_config = Configuration()
+        logger.info("No agent configuration provided.")
+    if args.network_config:
+        network = from_json(args.network_config)
     else:
-        preprocessor = None
-
+        network = None
+        logger.info("No network configuration provided.")
+    agent_config.default(dict(states=environment.states, actions=environment.actions, network=network))
     agent = agents[args.agent](config=agent_config)
 
     if args.load:
@@ -98,7 +92,6 @@ def main():
         agent=agent,
         environment=environment,
         repeat_actions=1,
-        preprocessor=preprocessor,
         save_path=args.save,
         save_episodes=args.save_episodes
     )

@@ -79,12 +79,11 @@ def main():
     path = os.path.dirname(__file__)
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[agent_config['loglevel']])
+    logger.setLevel(log_levels[agent_config.loglevel])
 
-    preprocessing_config = agent_config['preprocessing']
-    if preprocessing_config:
-        preprocessor = build_preprocessing_stack(preprocessing_config)
-        agent_config.states['shape'] = preprocessor.shape(agent_config.states['shape'])
+    if 'preprocessing' in agent_config:
+        preprocessor = build_preprocessing_stack(agent_config.preprocessing)
+        agent_config.states.shape = preprocessor.shape(agent_config.states.shape)
     else:
         preprocessor = None
 

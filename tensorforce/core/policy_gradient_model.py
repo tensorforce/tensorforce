@@ -58,7 +58,7 @@ class PolicyGradientModel(Model):
             if action.continuous:
                 self.distribution[name] = distributions[distribution]()
             else:
-                self.distribution[name] = distributions[distribution](num_actions=action['num_actions'])
+                self.distribution[name] = distributions[distribution](num_actions=action.num_actions)
 
         # baseline
         baseline = config.baseline

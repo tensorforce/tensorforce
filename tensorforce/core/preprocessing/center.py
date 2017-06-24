@@ -14,45 +14,26 @@
 # ==============================================================================
 
 """
-Comment
+Normalize data by rescaling.
 """
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import deque
-
 import numpy as np
 
-from tensorforce.core.preprocessing.preprocessor import Preprocessor
+from tensorforce import util
+from tensorforce.core.preprocessing import Preprocessor
 
 
-class Maximum(Preprocessor):
-
-    default_config = {
-        'count': 2
-    }
-
-    config_args = [
-        'count'
-    ]
-
-    def __init__(self, config, *args, **kwargs):
-        super(Maximum, self).__init__(config, *args, **kwargs)
-
-        self._queue = deque(maxlen=self.config.count)
+class Center(Preprocessor):
 
     def process(self, state):
         """
-        Returns maximum of states over the last self.config.count states
-        :param state: state input
-        :return: new_state
+        Standardize state.
+        :param state: state
+        :return: centered state
         """
-        self._queue.append(state)
-
-        # If queue is too short, fill with current state.
-        while len(self._queue) < self.config.count:
-            self._queue.append(state)
-
-        return np.max(np.array(self._queue), axis=0)
+        state = state.astype(np.float32)
+        return (state - state.min()) / (state.max() - state.min() + util.epsilon)

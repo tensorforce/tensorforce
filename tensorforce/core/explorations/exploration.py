@@ -13,8 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce import util
+import tensorforce.core.explorations
+
 
 class Exploration(object):
 
     def __call__(self, episode=0, timestep=0):
         raise NotImplementedError
+
+    @staticmethod
+    def from_config(config):
+        exploration = config.type
+        args = config.args if 'args' in config else ()
+        kwargs = config.kwargs if 'kwargs' in config else {}
+        return util.function(exploration, tensorforce.core.explorations.explorations)(*args, **kwargs)

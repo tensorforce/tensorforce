@@ -22,14 +22,14 @@ class EpsilonDecay(Exploration):
     an initial random epsilon and a final random epsilon.
     """
 
-    def __init__(self, epsilon=0.1, epsilon_final=0.1, epsilon_timesteps=10000):
-        self.epsilon_final = epsilon_final
+    def __init__(self, epsilon=1.0, epsilon_final=0.1, epsilon_timesteps=10000):
         self.epsilon = epsilon
+        self.epsilon_final = epsilon_final
         self.epsilon_timesteps = epsilon_timesteps
 
     def __call__(self, episode=0, timestep=0):
         if timestep > self.epsilon_timesteps:
             self.epsilon = self.epsilon_final
         else:
-            self.epsilon += ((self.epsilon_final - self.epsilon) / self.epsilon_timesteps) * timestep
+            self.epsilon -= ((self.epsilon - self.epsilon_final) / self.epsilon_timesteps) * timestep
         return self.epsilon

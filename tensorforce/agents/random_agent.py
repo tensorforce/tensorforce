@@ -21,28 +21,44 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import numpy as np
+from random import gauss, random, randrange
 
 from tensorforce.core import Agent
 
 
 class RandomAgent(Agent):
+
     name = 'RandomAgent'
+    model = (lambda config: None)
 
-    def __init__(self, config, network_builder):
-        super(RandomAgent, self).__init__(config, network_builder)
+    def __init__(self, config):
+        super(RandomAgent, self).__init__(config)
 
-        self.random = np.random.seed(config.seed)
+    def reset(self):
+        self.episode += 1
 
-    def act(self, state, episode=1):
+    def act(self, state):
         """
         Get random action from action space
 
         :param state: current state (disregarded)
-        :param episode: episode number
         :return: random action
         """
-        return self.random.randint(0, self.actions)
+        self.timestep += 1
+        actions = dict()
+        for name, action in self.actions_config.items():
+            if action.continuous:
+                action = random()
+                if 'min_value' in action:
+                    action = action.min_value + random() * (action.max_value - action.min_value)
+                else:
+                    action = gauss(mu=0.0, sigma=1.0)
+            else:
+                action = randrange(action.num_actions)
+            if self.unique_action:
+                return action
+            actions[name] = action
+        return actions
 
     def observe(self, state, action, reward, terminal):
         pass

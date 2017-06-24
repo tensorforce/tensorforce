@@ -13,14 +13,24 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorflow.python.training.adadelta import AdadeltaOptimizer
+from tensorflow.python.training.adagrad import AdagradOptimizer
 from tensorflow.python.training.adam import AdamOptimizer
+from tensorflow.python.training.gradient_descent import GradientDescentOptimizer
+from tensorflow.python.training.momentum import MomentumOptimizer
+from tensorflow.python.training.rmsprop import RMSPropOptimizer
 from tensorforce.core.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 
 
 optimizers = dict(
+    adadelta=AdadeltaOptimizer,
+    adagrad=AdagradOptimizer,
     adam=AdamOptimizer,
+    gradient_descent=GradientDescentOptimizer,
+    momentum=MomentumOptimizer,
+    rmsprop=RMSPropOptimizer,
     conjugate_gradient=ConjugateGradientOptimizer
 )
 
 
-__all__ = ['optimizers', 'AdamOptimizer', 'ConjugateGradientOptimizer']
+__all__ = ['optimizers', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer', 'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'ConjugateGradientOptimizer']

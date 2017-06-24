@@ -83,9 +83,6 @@ class TestDQFDAgent(unittest.TestCase):
             runner.run(episodes=1000, episode_finished=episode_finished)
             if runner.episode < 1000:
                 passed += 1
-                print('passed')
-            else:
-                print('failed')
 
         print('DQFD Agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)

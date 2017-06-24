@@ -86,7 +86,8 @@ class TRPOModel(PolicyGradientModel):
                 previous_log_prob = previous_distribution.log_probability(action=self.action[name])
                 prob_ratio = tf.minimum(tf.exp(log_prob - previous_log_prob), 1000)
 
-                surrogate_loss = -tf.reduce_mean(prob_ratio * self.reward)
+                self.loss_per_instance = tf.multiply(x=prob_ratio, y=self.reward)
+                surrogate_loss = -tf.reduce_mean(self.loss_per_instance, axis=0)
                 kl_divergence = distribution.kl_divergence(previous_distribution)
                 entropy = distribution.entropy()
                 losses.append((surrogate_loss, kl_divergence, entropy))

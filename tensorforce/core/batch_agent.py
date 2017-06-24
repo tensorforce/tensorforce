@@ -56,14 +56,13 @@ class BatchAgent(Agent):
 
         if self.batch is None:
             self.reset_batch()
-
         for name in self.batch['states']:
             self.batch['states'][name].append(state[name])
         for name in self.batch['actions']:
             self.batch['actions'][name].append(action[name])
         self.batch['rewards'].append(reward)
         self.batch['terminals'].append(terminal)
-        for n, internal in enumerate(self.internals):
+        for n, internal in enumerate(self.internal):
             self.batch['internals'][n].append(internal)
 
         self.batch_count += 1
@@ -77,6 +76,6 @@ class BatchAgent(Agent):
             actions={action: [] for action, _ in self.actions_config},
             rewards=[],
             terminals=[],
-            internals={n: [] for n in range(len(self.internals))}
+            internals={n: [] for n in range(len(self.internal))}
         )
         self.batch_count = 0

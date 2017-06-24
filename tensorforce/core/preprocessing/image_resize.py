@@ -22,31 +22,25 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from scipy.misc import imresize
+import scipy
 
-from tensorforce.core.preprocessing.preprocessor import Preprocessor
+from tensorforce.core.preprocessing import Preprocessor
 
 
-class Imresize(Preprocessor):
+class ImageResize(Preprocessor):
 
-    default_config = {
-        'dimension_x': 84,
-        'dimension_y': 84
-    }
-
-    config_args = [
-        'dimension_x',
-        'dimension_y'
-    ]
+    def __init__(self, width, height):
+        super(ImageResize, self).__init__()
+        self.size = (width, height)
 
     def process(self, state):
         """
-        Resize image.
+        Resize state.
 
-        :param state: state input
-        :return: new_state
+        :param state: state
+        :return: resized state
         """
-        return imresize(state.astype(np.uint8), [self.config.dimension_x, self.config.dimension_y])
+        return scipy.misc.imresize(arr=state.astype(np.uint8), size=self.size)
 
-    def shape(self, original_shape):
-        return original_shape[:-2] + [self.config.dimension_x, self.config.dimension_y]
+    def processed_shape(self, shape):
+        return self.size + (shape[-1],)

@@ -25,3 +25,6 @@ class Memory(object):
 
     def get_batch(self, batch_size):
         raise NotImplementedError
+
+    def update_batch(self, loss_per_instance):
+        raise NotImplementedError

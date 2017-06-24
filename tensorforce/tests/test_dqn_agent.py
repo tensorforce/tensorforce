@@ -56,9 +56,6 @@ class TestDQNAgent(unittest.TestCase):
             print('DQN Agent: ' + str(runner.episode))
             if runner.episode < 5000:
                 passed += 1
-                print('passed')
-            else:
-                print('failed')
 
         print('DQN Agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)

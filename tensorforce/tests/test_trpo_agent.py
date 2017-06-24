@@ -57,9 +57,6 @@ class TestTRPOAgent(unittest.TestCase):
 
             if runner.episode < 10000:
                 passed += 1
-                print('passed')
-            else:
-                print('failed')
 
         print('TRPO discrete agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
@@ -90,9 +87,6 @@ class TestTRPOAgent(unittest.TestCase):
 
             if runner.episode < 10000:
                 passed += 1
-                print('passed')
-            else:
-                print('failed')
 
         print('TRPO continuous agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)

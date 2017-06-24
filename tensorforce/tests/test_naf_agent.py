@@ -48,9 +48,6 @@ class TestNAFAgent(unittest.TestCase):
             # print('NAF Agent: ' + str(runner.episode))
             if runner.episode < 10000:
                 passed += 1
-                print('passed')
-            else:
-                print('failed')
 
         print('NAF Agent passed = {}'.format(passed))
         self.assertTrue(passed >= 8)

@@ -14,24 +14,21 @@
 # ==============================================================================
 
 from tensorforce.core.preprocessing.preprocessor import Preprocessor
-
-from tensorforce.core.preprocessing.concat import Concat
-from tensorforce.core.preprocessing.imresize import Imresize
-from tensorforce.core.preprocessing.maximum import Maximum
+from tensorforce.core.preprocessing.sequence import Sequence
 from tensorforce.core.preprocessing.normalize import Normalize
-from tensorforce.core.preprocessing.standardize import Standardize
-
+from tensorforce.core.preprocessing.center import Center
 from tensorforce.core.preprocessing.grayscale import Grayscale
+from tensorforce.core.preprocessing.image_resize import ImageResize
+from tensorforce.core.preprocessing.preprocessing import Preprocessing
+
 
 preprocessors = dict(
-    concat=Concat,
-    grayscale=Grayscale,
-    imresize=Imresize,
-    maximum=Maximum,
+    sequence=Sequence,
     normalize=Normalize,
-    standardize=Standardize
+    center=Center,
+    grayscale=Grayscale,
+    image_resize=ImageResize
 )
 
-from tensorforce.core.preprocessing.stack import Stack, MultiStack, build_preprocessing_stack
 
-__all__ = ["preprocessors", "Stack", "MultiStack", "build_preprocessing_stack", "Concat", "Grayscale", "Imresize", "Maximum", "Normalize", "Standardize"]
+__all__ = ['Preprocessor', 'Sequence', 'Normalize', 'Center', 'Grayscale', 'ImageResize', 'Preprocessing', 'preprocessors']

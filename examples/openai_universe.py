@@ -95,13 +95,8 @@ def main():
         print(config)
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[config['loglevel']])
+    logger.setLevel(log_levels[config.loglevel])
 
-    # preprocessing_config = config['preprocessing']
-    # if preprocessing_config:
-    #     stack = build_preprocessing_stack(preprocessing_config)
-    #     config.states['shape'] = stack.shape(config.states['shape'])
-    # else:
     stack = None
 
     agent = create_agent(args.agent, config, network_config)

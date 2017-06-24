@@ -24,8 +24,9 @@ from __future__ import print_function
 from __future__ import division
 from six.moves import xrange
 
+from tensorforce import util
 from tensorforce.core import Agent
-from tensorforce.core.memories import ReplayMemory
+from tensorforce.core.memories import memories
 from tensorforce.models import DQFDModel
 
 
@@ -33,17 +34,20 @@ class DQFDAgent(Agent):
 
     name = 'DQFDAgent'
     model = DQFDModel
-
-    default_config = {
-        "expert_sampling_ratio": 0.01,
-        'batch_size': 32,
-        'update_rate': 0.25,
-        'target_network_update_rate': 0.0001,
-        'min_replay_size': 5e4,
-        'deterministic_mode': False,
-        'use_target_network': False,
-        'update_repeat': 1
-    }
+    default_config = dict(
+        expert_sampling_ratio=0.01,
+        batch_size=32,
+        memory_capacity=1000000,
+        memory='replay',
+        memory_args=None,
+        memory_kwargs=None,
+        update_rate=0.25,
+        target_network_update_rate=0.0001,
+        min_replay_size=5e4,
+        deterministic_mode=False,
+        use_target_network=False,
+        update_repeat=1
+    )
 
     def __init__(self, config):
         """
@@ -54,13 +58,17 @@ class DQFDAgent(Agent):
         config.default(DQFDAgent.default_config)
         super(DQFDAgent, self).__init__(config)
 
+        memory = util.function(config.memory, memories)
+        args = config.optimizer_args or ()
+        kwargs = config.optimizer_kwargs or {}
+
         # This is the online memory
-        self.replay_memory = ReplayMemory(capacity=config.memory_capacity, states_config=config.states, actions_config=config.actions)
+        self.replay_memory = memory(config.memory_capacity, config.states, config.actions, *args, **kwargs)
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
         # TODO we might want different sizes for these memories -> add config param
-        self.demo_memory = ReplayMemory(capacity=config.memory_capacity, states_config=config.states, actions_config=config.actions)
+        self.demo_memory = memory(config.memory_capacity, config.states, config.actions, *args, **kwargs)
         self.step_count = 0
 
         # Called p in paper, controls ratio of expert vs online training samples

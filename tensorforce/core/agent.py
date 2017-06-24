@@ -28,51 +28,66 @@ from __future__ import division
 
 from random import random, randrange
 
-from tensorforce import util
-from tensorforce.core.explorations import explorations
+from tensorforce.core.preprocessing import Preprocessing
+from tensorforce.core.explorations import Exploration
 
 
 class Agent(object):
 
     name = None
     model = None
-    default_config = dict()
+    default_config = dict(
+        preprocessing=None,
+        exploration=None
+    )
 
     def __init__(self, config):
         assert self.__class__.name is not None and self.__class__.model is not None
         config.default(Agent.default_config)
 
-        # only one state
+        # states config and preprocessing
+        self.preprocessing = dict()
         if 'type' in config.states:
+            # only one state
             config.states = dict(state=config.states)
             self.unique_state = True
+            if config.preprocessing is not None:
+                config.preprocessing = dict(state=config.preprocessing)
         else:
-            config.states = config.states
             self.unique_state = False
+        for name, state in config.states:
+            if config.preprocessing is None or name not in config.preprocessing:
+                self.preprocessing[name] = None
+            else:
+                preprocessing = Preprocessing.from_config(config=config.preprocessing[name])
+                self.preprocessing[name] = preprocessing
+                state.shape = preprocessing.processed_shape(shape=state.shape)
 
-        # only one action
+        # actions config and exploration
+        self.continuous_actions = list()
+        self.exploration = dict()
         if 'continuous' in config.actions:
+            # only one action
+            if config.actions.continuous:
+                self.continuous_actions.append('action')
             config.actions = dict(action=config.actions)
+            if config.exploration is not None:
+                config.exploration = dict(action=config.exploration)
             self.unique_action = True
         else:
-            config.actions = config.actions
             self.unique_action = False
+        for name, action in config.actions:
+            if action.continuous:
+                self.continuous_actions.append(name)
+            if config.exploration is None or name not in config.exploration:
+                self.exploration[name] = None
+            else:
+                self.exploration[name] = Exploration.from_config(config=config.exploration[name])
 
         self.states_config = config.states
         self.actions_config = config.actions
 
         self.model = self.__class__.model(config)
-
-        # exploration
-        self.exploration = dict()
-        for name, action in config.actions:
-            if 'exploration' not in action:
-                self.exploration[name] = None
-                continue
-            exploration = action.exploration
-            args = action.exploration_args
-            kwargs = action.exploration_kwargs
-            self.exploration[name] = util.function(exploration, explorations)(*args, **kwargs)
 
         self.episode = 0
         self.timestep = 0
@@ -82,29 +97,39 @@ class Agent(object):
 
     def reset(self):
         self.episode += 1
-        self.internals = self.next_internals = self.model.reset()
+        self.internal = self.next_internal = self.model.reset()
+        for preprocessing in self.preprocessing.values():
+            preprocessing.reset()
 
     def act(self, state):
         self.timestep += 1
-        self.internals = self.next_internals
+        self.internal = self.next_internal
 
         if self.unique_state:
             state = dict(state=state)
 
-        action, self.next_internals = self.model.get_action(state=state, internals=self.internals)
+        # preprocessing
+        for name, preprocessing in self.preprocessing.items():
+            if preprocessing is not None:
+                state[name] = preprocessing.process(state=state[name])
 
+        # model action
+        action, self.next_internal = self.model.get_action(state=state, internal=self.internal)
+
+        # exploration
         for name, exploration in self.exploration.items():
-            if exploration is None:
-                continue
-            if self.actions_config[name].continuous:
-                action[name] += exploration(episode=self.episode, timestep=self.timestep)
-            else:
-                if random() < exploration(episode=self.episode, timestep=self.timestep):
-                    action[name] = randrange(self.actions_config[name].num_actions)
+            if exploration is not None:
+                if name in self.continuous_actions:
+                    action[name] += exploration(episode=self.episode, timestep=self.timestep)
+                else:
+                    if random() < exploration(episode=self.episode, timestep=self.timestep):
+                        action[name] = randrange(self.actions_config[name].num_actions)
+
+        if self.unique_state:
+            state = state['state']
         if self.unique_action:
-            return action['action']
-        else:
-            return action
+            action = action['action']
+        return state, action
 
     def observe(self, state, action, reward, terminal):
         raise NotImplementedError

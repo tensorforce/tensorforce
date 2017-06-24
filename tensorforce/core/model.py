@@ -48,9 +48,6 @@ class Model(object):
 
     default_config = dict(
         discount=0.97,
-        exploration=None,
-        exploration_args=None,
-        exploration_kwargs=None,
         learning_rate=0.0001,
         optimizer='adam',
         optimizer_args=None,
@@ -187,18 +184,18 @@ class Model(object):
     def reset(self):
         return list(self.internal_inits)
 
-    def get_action(self, state, internals):
+    def get_action(self, state, internal):
         fetches = {action: action_taken for action, action_taken in self.action_taken.items()}
-        fetches.update({n: internal for n, internal in enumerate(self.internal_outputs)})
+        fetches.update({n: internal_output for n, internal_output in enumerate(self.internal_outputs)})
 
         feed_dict = {state_input: (state[name],) for name, state_input in self.state.items()}
-        feed_dict.update({internal: (internals[n],) for n, internal in enumerate(self.internal_inputs)})
+        feed_dict.update({internal_input: (internal[n],) for n, internal_input in enumerate(self.internal_inputs)})
 
         fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
         action = {name: fetched[name][0] for name in self.action}
-        internals = [fetched[n][0] for n in range(len(self.internal_outputs))]
-        return action, internals
+        internal = [fetched[n][0] for n in range(len(self.internal_outputs))]
+        return action, internal
 
     def update(self, batch):
         """Generic batch update operation for Q-learning and policy gradient algorithms.
@@ -210,22 +207,20 @@ class Model(object):
         Returns:
 
         """
-        fetches = [self.optimize, self.loss]
+        fetches = [self.optimize, self.loss, self.loss_per_instance]
 
         feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
         feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
         feed_dict[self.reward] = batch['rewards']
         feed_dict[self.terminal] = batch['terminals']
-        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+        feed_dict.update({internal_input: batch['internals'][n] for n, internal_input in enumerate(self.internal_inputs)})
 
         if self.distributed:
             fetches.extend(self.increment_global_episode for terminal in batch['terminals'] if terminal)
-            loss = self.session.run(fetches=fetches, feed_dict=feed_dict)[1]
+            loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:3]
         else:
-            _, loss = self.session.run(fetches=fetches, feed_dict=feed_dict)
-
-        # if self.logger:
-        #     self.logger.debug('loss = ' + str(loss))
+            loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:]
+        return loss, loss_per_instance
 
     def load_model(self, path):
         self.saver.restore(self.session, path)

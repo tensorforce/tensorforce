@@ -1,6 +1,6 @@
 {
   "loglevel": "debug",
-  "memory_capacity": 1e4,
+  "memory_capacity": 10000,
   "batch_size": 32,
   "update_rate": 0.25,
   "update_repeat": 1,
@@ -10,21 +10,38 @@
   "learning_rate": 0.00025,
   "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
   "double_dqn": false,
-  "optimizer_param": {
+  "optimizer_kwargs": {
     "momentum": 0.95,
     "epsilon": 0.01
   },
-  "exploration": "epsilon_decay",
-  "exploration_param": {
-    "epsilon": 1,
-    "epsilon_final": 0.1,
-    "epsilon_states": 1e6
+  "exploration": {
+    "type": "epsilon_decay",
+    "kwargs": {
+      "epsilon": 1.0,
+      "epsilon_final": 0.1,
+      "epsilon_timesteps": 1e6
+    }
   },
   "preprocessing": [
-    ["grayscale"],
-    ["imresize", 84, 84],
-    ["concat", 4, "append"],
-    ["normalize"]
+    {
+      "type": "image_resize",
+      "kwargs": {
+        "width": 84,
+        "height": 84
+      }
+    },
+    {
+      "type": "grayscale"
+    },
+    {
+      "type": "center"
+    },
+    {
+      "type": "sequence",
+      "kwargs": {
+        "length": 4
+      }
+    }
   ],
   "repeat_actions": 1
 }

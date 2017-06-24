@@ -1,9 +1,0 @@
-{
-  "batch_size": 1000,
-  "discount": 0.97,
-  "learning_rate": 0.001,
-  "optimizer": "evolutionary",
-  "generalized_advantage_estimation": false,
-  "normalize_advantage" : false,
-  "loglevel": "debug"
-}

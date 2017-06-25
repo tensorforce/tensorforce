@@ -21,144 +21,64 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from random import randint
 import unittest
 
 import numpy as np
-from six.moves import xrange
-import tensorforce.core.preprocessing
+
+from tensorforce.core.preprocessing import Sequence, Normalize, Center, Grayscale, ImageResize
 
 
 class TestPreprocessing(unittest.TestCase):
 
-    def _test_preprocessing_shape(self, pp, shape, expected_shape, state=None):
-        if state is None:
-            state = np.random.randint(0, 255, size=shape)
+    def test_preprocessing_sequence(self):
+        length = 3
+        sequence = Sequence(length=length)
+        shape = (randint(1, 1), randint(1, 1), 3)
+        state1 = np.random.randint(0, 256, shape)
+        state2 = np.random.randint(0, 256, shape)
+        state3 = np.random.randint(0, 256, shape)
+        state4 = np.random.randint(0, 256, shape)
+        processed_state1 = sequence.process(state1)
+        processed_state2 = sequence.process(state2)
+        processed_state3 = sequence.process(state3)
+        processed_state4 = sequence.process(state4)
+        self.assertEqual(sequence.processed_shape(shape), (shape[0], shape[1], shape[2] * length))
+        self.assertEqual(processed_state1.shape, sequence.processed_shape(shape))
+        self.assertEqual(processed_state2.shape, sequence.processed_shape(shape))
+        self.assertEqual(processed_state3.shape, sequence.processed_shape(shape))
+        self.assertEqual(processed_state4.shape, sequence.processed_shape(shape))
+        self.assertTrue(np.all(processed_state1 == np.concatenate((state1, state1, state1), -1)))
+        self.assertTrue(np.all(processed_state2 == np.concatenate((state1, state1, state2), -1)))
+        self.assertTrue(np.all(processed_state3 == np.concatenate((state1, state2, state3), -1)))
+        self.assertTrue(np.all(processed_state4 == np.concatenate((state2, state3, state4), -1)))
 
-        # verify expected shape
-        processed_shape = pp.shape(shape)
-        self.assertEqual(tuple(processed_shape), expected_shape)
+    def test_preprocessing_normalize(self):
+        normalize = Normalize()
+        shape = (randint(1, 64), randint(1, 64), 3)
+        state = np.random.randint(0, 256, shape)
+        self.assertEqual(normalize.processed_shape(shape), shape)
+        self.assertEqual(normalize.process(state).shape, normalize.processed_shape(shape))
 
-        # verify calculated shape
-        processed_state = pp.process(state)
-        self.assertEqual(processed_state.shape, tuple(processed_shape))
-
-        return processed_state, processed_shape
+    def test_preprocessing_center(self):
+        center = Center()
+        shape = (randint(1, 64), randint(1, 64), 3)
+        state = np.random.randint(0, 256, shape)
+        self.assertEqual(center.processed_shape(shape), shape)
+        self.assertEqual(center.process(state).shape, center.processed_shape(shape))
 
     def test_preprocessing_grayscale(self):
-        """
-        Testing grayscale preprocessor. Verifies expected and calculated state shapes.
-        """
-        pp = tensorforce.core.preprocessing.grayscale.Grayscale()
+        grayscale = Grayscale()
+        shape = (randint(1, 64), randint(1, 64), 3)
+        state = np.random.randint(0, 256, shape)
+        self.assertEqual(grayscale.processed_shape(shape), (shape[0], shape[1], 1))
+        self.assertEqual(grayscale.process(state).shape, grayscale.processed_shape(shape))
 
-        shape = list(np.random.randint(1, 8, size=2)) + [3]
-
-        processed_state, processed_shape = self._test_preprocessing_shape(pp, shape, tuple(shape[0:2]))
-
-    def test_preprocessing_concat(self):
-        """
-        Testing concat preprocessor. Verifies expected and calculated state shapes.
-        """
-        concat_length = np.random.randint(1, 10)
-
-        pp = tensorforce.core.preprocessing.concat.Concat(concat_length)
-
-        shape = list(np.random.randint(1, 8, size=3))
-        state = np.random.randint(0, 255, size=shape)
-
-        processed_state, processed_shape = self._test_preprocessing_shape(pp, shape, tuple([concat_length] + shape), state)
-
-        # verify calculated content
-        states = [state]
-        for i in xrange(concat_length-1):
-            new_state = np.random.randint(0, 255, size=shape)
-            states.append(new_state)
-            processed_state = pp.process(new_state)
-
-        self.assertFalse((np.array(states) - processed_state).any())
-
-        # add another state
-        new_state = np.random.randint(0, 255, size=shape)
-        states.append(new_state)
-        processed_state = pp.process(new_state)
-
-        self.assertFalse((np.array(states[1:]) - processed_state).any())
-
-    def test_preprocessing_imresize(self):
-        """
-        Testing imresize preprocessor. Verifies expected and calculated state shapes.
-        """
-        dimensions = list(np.random.randint(4, 8, size=2))
-
-        pp = tensorforce.core.preprocessing.imresize.Imresize(*dimensions)
-
-        shape = list(np.random.randint(1, 8, size=2))
-
-        processed_state, processed_shape = self._test_preprocessing_shape(pp, shape, tuple(dimensions))
-
-    def test_preprocessing_maximum(self):
-        """
-        Testing maximum preprocessor. Verifies expected and calculated state shapes.
-        """
-        count = np.random.randint(1, 10)
-
-        pp = tensorforce.core.preprocessing.maximum.Maximum(count)
-
-        shape = list(np.random.randint(1, 8, size=3))
-        state = np.random.randint(0, 255, size=shape)
-
-        processed_state, processed_shape = self._test_preprocessing_shape(pp, shape, tuple(shape), state)
-
-        # verify calculated content
-        states = [state]
-        max_state = state.reshape(-1)
-        for i in xrange(count - 1):
-            new_state = np.random.randint(0, 255, size=shape)
-
-            new_state_reshaped = new_state.reshape(-1)
-
-            # find maximum values manually
-            for j, val in enumerate(new_state_reshaped):
-                if max_state[j] < val:
-                    max_state[j] = val
-
-            states.append(new_state)
-            processed_state = pp.process(new_state)
-
-        self.assertFalse((max_state.reshape(shape) - processed_state).any())
-
-    def test_preprocessing_multistack(self):
-        concat_length = np.random.randint(1, 10)
-
-        pp_config = {
-            'state1': [
-                ['maximum', 2]
-            ],
-            'state2': [
-                ['concat', concat_length],
-                ['normalize']
-            ]
-        }
-
-        shape = list(np.random.randint(1, 8, size=2)) + [3]
-
-        expected = dict(
-            state1=tuple(shape),
-            state2=tuple([concat_length] + shape)
-        )
-
-        stack = tensorforce.core.preprocessing.build_preprocessing_stack(pp_config)
-
-        self.assertTrue(isinstance(stack, tensorforce.core.preprocessing.MultiStack))
-
-        input_states = dict()
-        for state_name, state_config in pp_config.items():
-            state = np.random.randint(0, 255, size=shape)
-
-            input_states.update({state_name: state})
-
-        processed_states = stack.process(input_states)
-
-        for state_name, state in processed_states.items():
-            self.assertEqual(expected[state_name], state.shape)
-
-
+    def test_preprocessing_image_resize(self):
+        width = randint(1, 64)
+        height = randint(1, 64)
+        image_resize = ImageResize(width=width, height=height)
+        shape = (randint(1, 64), randint(1, 64), 3)
+        state = np.random.randint(0, 256, shape)
+        self.assertEqual(image_resize.processed_shape(shape), (width, height, 3))
+        self.assertEqual(image_resize.process(state).shape, image_resize.processed_shape(shape))

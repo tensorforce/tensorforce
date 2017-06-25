@@ -13,22 +13,25 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.agents.agent import Agent
+from tensorforce.agents.batch_agent import BatchAgent
+from tensorforce.agents.memory_agent import MemoryAgent
 from tensorforce.agents.random_agent import RandomAgent
-from tensorforce.agents.dqn_agent import DQNAgent
-from tensorforce.agents.naf_agent import NAFAgent
 from tensorforce.agents.vpg_agent import VPGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
+from tensorforce.agents.dqn_agent import DQNAgent
+from tensorforce.agents.naf_agent import NAFAgent
 from tensorforce.agents.dqfd_agent import DQFDAgent
 
 
 agents = dict(
     RandomAgent=RandomAgent,
-    DQNAgent=DQNAgent,
-    NAFAgent=NAFAgent,
     VPGAgent=VPGAgent,
     TRPOAgent=TRPOAgent,
+    DQNAgent=DQNAgent,
+    NAFAgent=NAFAgent,
     DQFDAgent=DQFDAgent
 )
 
 
-__all__ = ['RandomAgent', 'DQNAgent', 'NAFAgent', 'VPGAgent', 'TRPOAgent', 'DQFDAgent', 'agents']
+__all__ = ['Agent', 'BatchAgent', 'MemoryAgent', 'RandomAgent', 'VPGAgent', 'TRPOAgent', 'DQNAgent', 'NAFAgent', 'DQFDAgent', 'agents']

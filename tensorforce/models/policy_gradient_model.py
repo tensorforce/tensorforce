@@ -25,7 +25,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorForceError, util
-from tensorforce.core import Model
+from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork
 from tensorforce.core.value_functions import value_functions
 from tensorforce.core.distributions import distributions
@@ -67,7 +67,7 @@ class PolicyGradientModel(Model):
         if config.baseline is None:
             self.baseline = None
         elif config.baseline in value_functions:
-            self.baseline = value_functions[baseline](self.session, *args, **kwargs)
+            self.baseline = value_functions[baseline](*args, **kwargs)
         else:
             raise Exception()
 

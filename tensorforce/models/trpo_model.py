@@ -31,7 +31,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import PolicyGradientModel
+from tensorforce.models import PolicyGradientModel
 from tensorforce.core.optimizers import ConjugateGradientOptimizer
 
 

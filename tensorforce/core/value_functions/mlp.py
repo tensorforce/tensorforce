@@ -30,24 +30,26 @@ from tensorforce.core.value_functions import ValueFunction
 
 class MLPValueFunction(ValueFunction):
 
-    def __init__(self, session, num_hidden, repeat_update=100):
-        super(MLPValueFunction, self).__init__(session)
-        self.num_hidden = num_hidden
+    def __init__(self, size, repeat_update=100):
+        self.size = size
         self.repeat_update = repeat_update
 
     def create_tf_operations(self, config):
         if len(config.states) > 1:
             raise Exception()
 
+        self.session = config.session
+
         with tf.variable_scope('mlp_value_function'):
-            self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(config.states[0]['shape'])))
-            self.returns = tf.placeholder(dtype=tf.float32, shape=(None, 1))
+            self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(next(iter(config.states))[1].shape)))
+            self.returns = tf.placeholder(dtype=tf.float32, shape=(None,))
 
             network_builder = layered_network_builder((
-                {'type': 'dense', 'size': self.num_hidden},
-                {'type': 'dense', 'size': 1}))
+                {'type': 'dense', 'size': self.size},
+                {'type': 'dense', 'size': 1})
+            )
 
-            network = NeuralNetwork(network_builder=network_builder, inputs=[self.state])
+            network = NeuralNetwork(network_builder=network_builder, inputs=dict(state=self.state))
 
             self.prediction = network.output
             loss = tf.nn.l2_loss(self.prediction - self.returns)
@@ -56,20 +58,10 @@ class MLPValueFunction(ValueFunction):
             self.optimize = optimizer.minimize(loss)
 
     def predict(self, states):
-        """Predicts return of state(s), V(s)
-        
-        Args:
-            states: 
-
-        Returns: 
-
-        """
-
         states = next(iter(states.values()))
         return self.session.run(self.prediction, {self.state: states})[0]
 
     def update(self, states, returns):
         states = next(iter(states.values()))
-
         for _ in range(self.repeat_update):
             self.session.run(self.optimize, {self.state: states, self.returns: returns})

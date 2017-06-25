@@ -22,13 +22,14 @@ from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce.core import PolicyGradientModel
+from tensorforce.models import PolicyGradientModel
 
 
 class VPGModel(PolicyGradientModel):
 
     allows_discrete_actions = True
     allows_continuous_actions = True
+
     default_config = dict()
 
     def __init__(self, config):

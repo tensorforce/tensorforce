@@ -23,11 +23,14 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorforce.core.model import Model
+from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork, layers
 
 
 class DQFDModel(Model):
+
+    allows_discrete_actions = True
+    allows_continuous_actions = False
 
     default_config = dict(
         update_target_weight=1.0,
@@ -35,9 +38,6 @@ class DQFDModel(Model):
         supervised_weight=1.0,
         expert_margin=0.8
     )
-
-    allows_discrete_actions = True
-    allows_continuous_actions = False
 
     def __init__(self, config):
         config.default(DQFDModel.default_config)

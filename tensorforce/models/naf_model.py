@@ -27,22 +27,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 from six.moves import xrange
-from tensorflow.contrib.framework import get_variables
 
-from tensorforce.core import Model
+import tensorflow as tf
+
+from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork, layers
 
 
 class NAFModel(Model):
 
+    allows_discrete_actions = False
+    allows_continuous_actions = True
+
     default_config = dict(
         update_target_weight=1.0,
         clip_gradients=0.0
     )
-    allows_discrete_actions = False
-    allows_continuous_actions = True
 
     def __init__(self, config):
         """
@@ -119,7 +120,7 @@ class NAFModel(Model):
             # State-value function
             value = layers['linear'](x=self.training_network.output, size=1)
             q_value = tf.squeeze(value + advantage, 1)
-            training_output_vars = get_variables('training_outputs')
+            training_output_vars = tf.contrib.framework.get_variables('training_outputs')
 
         with tf.variable_scope('target'):
             self.target_network = NeuralNetwork(config.network, inputs=self.state)
@@ -135,7 +136,7 @@ class NAFModel(Model):
                 # Naf directly outputs V(s)
                 target_value[action] = target_value_output
 
-            target_output_vars = get_variables('target_outputs')
+            target_output_vars = tf.contrib.framework.get_variables('target_outputs')
 
         with tf.name_scope("update"):
             for action in self.action:

@@ -21,12 +21,14 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.core import Agent
+from tensorforce.agents import Agent
 
 
 class BatchAgent(Agent):
 
-    default_config = dict()
+    default_config = dict(
+        batch_size=1
+    )
 
     def __init__(self, config):
         config.default(BatchAgent.default_config)

@@ -23,7 +23,7 @@ from __future__ import division
 
 from random import gauss, random, randrange
 
-from tensorforce.core import Agent
+from tensorforce.agents import Agent
 
 
 class RandomAgent(Agent):

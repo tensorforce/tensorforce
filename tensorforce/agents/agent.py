@@ -56,9 +56,7 @@ class Agent(object):
         else:
             self.unique_state = False
         for name, state in config.states:
-            if config.preprocessing is None or name not in config.preprocessing:
-                self.preprocessing[name] = None
-            else:
+            if config.preprocessing is not None and name in config.preprocessing:
                 preprocessing = Preprocessing.from_config(config=config.preprocessing[name])
                 self.preprocessing[name] = preprocessing
                 state.shape = preprocessing.processed_shape(shape=state.shape)
@@ -79,9 +77,7 @@ class Agent(object):
         for name, action in config.actions:
             if action.continuous:
                 self.continuous_actions.append(name)
-            if config.exploration is None or name not in config.exploration:
-                self.exploration[name] = None
-            else:
+            if config.exploration is not None and name in config.exploration:
                 self.exploration[name] = Exploration.from_config(config=config.exploration[name])
 
         self.states_config = config.states
@@ -110,20 +106,18 @@ class Agent(object):
 
         # preprocessing
         for name, preprocessing in self.preprocessing.items():
-            if preprocessing is not None:
-                state[name] = preprocessing.process(state=state[name])
+            state[name] = preprocessing.process(state=state[name])
 
         # model action
         action, self.next_internal = self.model.get_action(state=state, internal=self.internal)
 
         # exploration
         for name, exploration in self.exploration.items():
-            if exploration is not None:
-                if name in self.continuous_actions:
-                    action[name] += exploration(episode=self.episode, timestep=self.timestep)
-                else:
-                    if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        action[name] = randrange(self.actions_config[name].num_actions)
+            if name in self.continuous_actions:
+                action[name] += exploration(episode=self.episode, timestep=self.timestep)
+            else:
+                if random() < exploration(episode=self.episode, timestep=self.timestep):
+                    action[name] = randrange(self.actions_config[name].num_actions)
 
         if self.unique_state:
             state = state['state']

@@ -24,9 +24,6 @@ from __future__ import division
 
 class ValueFunction(object):
 
-    def __init__(self, session):
-        self.session = session
-
     def create_tf_operations(self, config):
         raise NotImplementedError
 

@@ -20,14 +20,14 @@ from __future__ import division
 from six.moves import xrange
 
 from tensorforce import util
-from tensorforce.core import Agent
+from tensorforce.agents import Agent
 from tensorforce.core.memories import memories
 
 
 class MemoryAgent(Agent):
 
     default_config = dict(
-        batch_size=32,
+        batch_size=1,
         memory_capacity=1000000,
         memory='replay',
         memory_args=None,

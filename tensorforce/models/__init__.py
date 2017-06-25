@@ -13,11 +13,22 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.models.model import Model
+from tensorforce.models.policy_gradient_model import PolicyGradientModel
 from tensorforce.models.vpg_model import VPGModel
+from tensorforce.models.trpo_model import TRPOModel
 from tensorforce.models.dqn_model import DQNModel
 from tensorforce.models.naf_model import NAFModel
-from tensorforce.models.trpo_model import TRPOModel
 from tensorforce.models.dqfd_model import DQFDModel
 
 
-__all__ = ['VPGModel', 'DQNModel', 'NAFModel', 'TRPOModel', 'DQFDModel']
+models = dict(
+    VPGModel=VPGModel,
+    TRPOModel=TRPOModel,
+    DQNModel=DQNModel,
+    NAFModel=NAFModel,
+    DQFDModel=DQFDModel
+)
+
+
+__all__ = ['Model', 'PolicyGradientModel', 'VPGModel', 'TRPOModel', 'DQNModel', 'NAFModel', 'DQFDModel', 'models']

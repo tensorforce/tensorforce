@@ -1,5 +1,25 @@
 {
-  "preprocessing": null,
+  "preprocessing": [
+    {
+      "type": "image_resize",
+      "kwargs": {
+        "width": 84,
+        "height": 84
+      }
+    },
+    {
+      "type": "grayscale"
+    },
+    {
+      "type": "center"
+    },
+    {
+      "type": "sequence",
+      "kwargs": {
+        "length": 4
+      }
+    }
+  ],
   "exploration": {
     "type": "epsilon_decay",
     "kwargs": {

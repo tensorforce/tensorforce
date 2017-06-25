@@ -12,13 +12,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-
-from tensorforce.core.agent import Agent
-from tensorforce.core.batch_agent import BatchAgent
-from tensorforce.core.memory_agent import MemoryAgent
-from tensorforce.core.model import Model
-from tensorforce.core.policy_gradient_model import PolicyGradientModel
-
-
-__all__ = ['Agent', 'BatchAgent', 'MemoryAgent', 'Model', 'PolicyGradientModel']

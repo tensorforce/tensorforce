@@ -86,7 +86,7 @@ class Model(object):
         else:
             assert not config.global_model and config.session is None
             tf.reset_default_graph()
-            self.session = tf.Session()
+            self.session = config.session = tf.Session()
 
         if config.distributed and not config.global_model:
             # Global and local model for asynchronous updates

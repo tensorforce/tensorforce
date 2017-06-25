@@ -24,19 +24,20 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorforce.core import Model
+from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork, layers
 
 
 class DQNModel(Model):
+
+    allows_discrete_actions = True
+    allows_continuous_actions = False
 
     default_config = dict(
         update_target_weight=1.0,
         double_dqn=False,
         clip_gradients=0.0
     )
-    allows_discrete_actions = True
-    allows_continuous_actions = False
 
     def __init__(self, config):
         """Training logic for DQN.

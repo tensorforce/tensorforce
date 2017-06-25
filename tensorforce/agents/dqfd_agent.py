@@ -25,7 +25,7 @@ from __future__ import division
 from six.moves import xrange
 
 from tensorforce import util
-from tensorforce.core import Agent
+from tensorforce.agents import Agent
 from tensorforce.core.memories import memories
 from tensorforce.models import DQFDModel
 
@@ -105,7 +105,7 @@ class DQFDAgent(Agent):
         if self.unique_action:
             action = dict(action=action)
 
-        self.demo_memory.add_experience(state, action, reward, terminal, internal=self.internals)
+        self.demo_memory.add_experience(state, action, reward, terminal, internal=self.internal)
 
     def pre_train(self, steps=1):
         """Computes pretrain updates.
@@ -142,7 +142,7 @@ class DQFDAgent(Agent):
         if self.unique_action:
             action = dict(action=action)
 
-        self.replay_memory.add_experience(state, action, reward, terminal, internal=self.internals)
+        self.replay_memory.add_experience(state, action, reward, terminal, internal=self.internal)
 
         self.step_count += 1
 

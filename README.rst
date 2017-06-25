@@ -162,6 +162,13 @@ then create an agent and use it as seen below (see documentation for all optiona
 Update notes
 ------------
 
+25h June 2017
+
+- Added prioritised experience replay
+- Added RandomAgent for discrete/continuous random baselines
+- Moved pre-processing from runner to agent, analogue to exploration
+
+
 11th June 2017
 
 - Fixed bug in DQFD test where demo data was not always the correct action. Also fixed small bug in DQFD loss
@@ -204,30 +211,6 @@ The most significant changes are listed below:
   but this is still work in progress.
 - We will soon publish a blog post detailing the overall architecture and explaining some of our design
   choices
-
-
-
-Road map and contributions
---------------------------
-
-TensorForce is still in alpha and hence continuously being updated.
-Contributions are always welcome! We will use github issues to track
-development. We ask that contributions integrate within the general code
-style and architecture. For larger features it might be sensible to join
-our Gitter chat or drop us an email to coordinate development. There is a very long list of
-features, algorithms and infrastructure that we want to add over time and
-we will prioritise this depending on our own research, community requests and contributions. The
-larger road-map of things we would like to have (in no particular order) looks as follows:
-
-1. More generic distributed/multi-threaded API (e.g. PAAC)
-2. Hybrid A3C/policy gradient algorithms - not clear yet which
-   combination method will work best, but a number of papers showcasing
-   different approaches have been accepted to ICLR 2017.
-3. A multi/sub-task API. An important topic in current research is to decompose larger tasks into
-   a hierarchy of subtasks/auxiliary goals. Implementing new approaches in an easily configurable way for end-users
-   will not be trivial and it might us take some time to get to it.
-4. Experimental Transfer learning architectures (e.g. progressive neural networks, pathnet, ..).
-5. RL serving components. TensorFlow serving can serve trained models but is not suitable to manage RL lifecycles.
 
 Support and contact
 -------------------

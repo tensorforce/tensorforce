@@ -1,8 +1,10 @@
 package(default_visibility = ["//visibility:public"])
 
-env_args = [
+tensorforce_args = [
   "--agent-config examples/configs/dqn_network.json",
-  "--network-config examples/configs/dqn_network.json"
+  "--network-config examples/configs/dqn_network.json",
+  "--episodes 1000",
+  "--max-timesteps 1000"
 ]
 
 py_library(
@@ -16,6 +18,7 @@ py_library(
 py_binary(
     name = "lab_runner",
     srcs = ["examples/lab_main.py"],
+    args = tensorforce_args,
     data = ["//:deepmind_lab.so"],
     main = "examples/lab_main.py",
     deps = [":tensorforce"]

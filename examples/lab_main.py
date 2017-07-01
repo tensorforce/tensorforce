@@ -43,12 +43,13 @@ from tensorforce.execution import Runner
 def main():
     parser = argparse.ArgumentParser()
 
+    # N.b. if ran from within lab, the working directory is something like lab/bazel-out/../../tensorforce
+    # Hence, relative paths will not work and any file paths need to be passed as absolute paths
+    # Please check the lab BUILD file to add more flags
     parser.add_argument('-id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
     parser.add_argument('-a', '--agent', default='DQNAgent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file",
-                        default='examples/configs/dqn_agent.json')
-    parser.add_argument('-n', '--network-config', help="Network configuration file",
-                        default='examples/configs/dqn_network.json')
+    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-config', help="Network configuration file")
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this directory")

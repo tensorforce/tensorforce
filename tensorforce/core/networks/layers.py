@@ -167,8 +167,23 @@ def layered_network_builder(layers_config):
     return network_builder
 
 
-def from_json(filename):
-    path = os.path.join(os.getcwd(), filename)
+def from_json(filename, absolute_path=False):
+    """
+    Creates a network builder based on a JSON specification.
+    Args:
+        filename: Path to JSON
+        absolute_path: Indicates whether path is absolute. If set to false, path is assumed to be relative to
+        current working directory.
+        
+    Returns: A layered network builder matching the JSON.
+
+    """
+    if absolute_path:
+        path = filename
+    else:
+        path = os.path.join(os.getcwd(), filename)
+
     with open(path, 'r') as fp:
         config = json.load(fp=fp)
+
     return layered_network_builder(config)

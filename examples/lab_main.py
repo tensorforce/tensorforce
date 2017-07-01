@@ -59,9 +59,6 @@ def main():
     parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('-D', '--debug', action='store_true', default=True, help="Show debug outputs")
 
-    # This is necessary to give bazel the correct path
-    path = os.path.dirname(__file__)
-
     # Redirect output to file
     sys.stdout = open('lab_output.txt', 'w')
 
@@ -69,14 +66,16 @@ def main():
 
     environment = DeepMindLab(args.level_id)
 
+    path = os.path.dirname(__file__)
     if args.agent_config:
-        agent_config = Configuration.from_json(path + args.agent_config)
+        # Use absolute path
+        agent_config = Configuration.from_json(os.path.join(path, args.agent_config), True)
     else:
         raise TensorForceError("No agent configuration provided.")
     if not args.network_config:
         raise TensorForceError("No network configuration provided.")
     agent_config.default(dict(states=environment.states, actions=environment.actions,
-                              network=from_json(path + args.network_config)))
+                              network=from_json(os.path.join(path, args.network_config), True)))
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)  # configurable!!!

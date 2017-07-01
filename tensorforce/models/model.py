@@ -160,11 +160,11 @@ class Model(object):
             for name, action in config.actions:
                 if action.continuous:
                     if not self.__class__.allows_continuous_actions:
-                        raise TensorForceError()
+                        raise TensorForceError("Error: Model {} does not support continuous actions.")
                     self.action[name] = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name=name)
                 else:
                     if not self.__class__.allows_discrete_actions:
-                        raise TensorForceError()
+                        raise TensorForceError("Error: Model does not support discrete actions.")
                     self.action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,), name=name)
             # Reward & terminal
             self.reward = tf.placeholder(dtype=tf.float32, shape=(None,), name='reward')

@@ -10,6 +10,8 @@ tensorforce_args = [
 py_library(
     name = "tensorforce",
     imports = [":tensorforce"],
+    data = ["//tensorforce:examples/configs/dqn_agent.json",
+    "//tensorforce:examples/configs/dqn_network.json"],
     srcs = glob(["tensorforce/**/*.py"])
 )
 

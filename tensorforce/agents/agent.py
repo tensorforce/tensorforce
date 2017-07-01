@@ -13,14 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Basic Reinforcement learning agent. An agent encapsulates execution logic
-of a particular reinforcement learning algorithm and defines the external interface
-to the environment.
-
-The agent hence acts an intermediate layer between environment
-and backend execution (value function or policy updates).
-"""
+"""Agent base class."""
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -33,6 +26,60 @@ from tensorforce.core.explorations import Exploration
 
 
 class Agent(object):
+    """
+    Basic Reinforcement learning agent. An agent encapsulates execution logic
+    of a particular reinforcement learning algorithm and defines the external interface
+    to the environment.
+
+    The agent hence acts an intermediate layer between environment
+    and backend execution (value function or policy updates).
+
+    Each agent requires the following ``Configuration`` parameters:
+
+        - `states`: dict containing one or more state definitions.
+        - `actions`: dict containing one or more action definitions.
+        - `preprocessing`: dict or list containing state preprocessing configuration.
+        - `exploration`: dict containing action exploration configuration.
+
+    Examples:
+
+        One state, one action, two preprecessors, epsilon exploration.
+
+        .. code:: python
+
+            agent = Agent(Configuration(dict(
+                states=dict(shape=(10,), type='float'),
+                actions=dict(continuous=False, num_actions=6),
+                preprocessing=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
+                exploration=...
+            )))
+
+
+
+        Two states, two actions:
+
+        .. code:: python
+
+            agent = Agent(Configuration(dict(
+                states=dict(
+                    state1=dict(shape=(10,), type='float'),
+                    state2=dict(shape=(40,20), type='int')
+                ),
+                actions=dict(
+                    action1=dict(continuous=True),
+                    action2=dict(continuous=False, num_actions=6)
+                ),
+                preprocessing=dict(
+                    state1=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
+                    state2=None
+                ),
+                exploration=dict(
+                    action1=...,
+                    action2=...
+                )
+            )))
+
+    """
 
     name = None
     model = None
@@ -42,6 +89,13 @@ class Agent(object):
     )
 
     def __init__(self, config):
+        """Initializes the reinforcement learning agent.
+
+        Args:
+            config (Configuration): configuration object containing at least `states`, `actions`, `preprocessing` and
+                'exploration`.
+
+        """
         assert self.__class__.name is not None and self.__class__.model is not None
         config.default(Agent.default_config)
 
@@ -92,12 +146,31 @@ class Agent(object):
         return str(self.__class__.name)
 
     def reset(self):
+        """Reset agent after episode. Increments internal episode count, internal states and preprocessors.
+
+        Returns:
+            void
+
+        """
         self.episode += 1
         self.internal = self.next_internal = self.model.reset()
         for preprocessing in self.preprocessing.values():
             preprocessing.reset()
 
     def act(self, state):
+        """Return action(s) for given state(s). First, the states are preprocessed using the given preprocessing
+        configuration. Then, the states are passed to the model to calculate the desired action(s) to execute.
+
+        After obtaining the actions, exploration might be added by the agent, depending on the exploration
+        configuration.
+
+        Args:
+            state: One state (usually a value tuple) or dict of states if multiple states are expected.
+
+        Returns:
+            Scalar value of the action or dict of multiple actions the agent wants to execute.
+
+        """
         self.timestep += 1
         self.internal = self.next_internal
 
@@ -126,6 +199,18 @@ class Agent(object):
         return state, action
 
     def observe(self, state, action, reward, terminal):
+        """Observe experience from the environment to learn from.
+
+        Args:
+            state: state (value tuple) or dict of states that have been observed.
+            action: action (scalar) or dict of actions that have been executed.
+            reward: scalar reward that resulted from executing the action.
+            terminal: boolean indicating if the episode terminated after the observation.
+
+        Returns:
+            void
+
+        """
         raise NotImplementedError
 
     def load_model(self, path):

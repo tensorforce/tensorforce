@@ -34,6 +34,18 @@ class Runner(object):
     async_supported = ['DQNAgent', 'VPGAgent', 'NAFAgent']
 
     def __init__(self, agent, environment, repeat_actions=1, cluster_spec=None, task_index=None, save_path=None, save_episodes=None):
+        """
+        Initialize a Runner object.
+
+        Args:
+            agent: `Agent` object containing the reinforcement learning agent
+            environment: `../../environments/Environment` object containing
+            repeat_actions:
+            cluster_spec:
+            task_index:
+            save_path:
+            save_episodes:
+        """
         if cluster_spec is not None and str(agent) not in Runner.async_supported:
             raise TensorForceError('Agent type not supported for distributed runner.')
         self.agent = agent

@@ -46,9 +46,9 @@ def main():
     parser.add_argument('-id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file",
-                        default='/configs/dqn_agent.json')
+                        default='examples/configs/dqn_agent.json')
     parser.add_argument('-n', '--network-config', help="Network configuration file",
-                        default='/configs/dqn_network.json')
+                        default='examples/configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this directory")

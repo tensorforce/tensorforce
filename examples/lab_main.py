@@ -30,10 +30,9 @@ import deepmind_lab
 
 from tensorforce import TensorForceError
 from tensorforce.agents import agents
-from tensorforce.core.model import log_levels
 from tensorforce.core.networks import from_json
-from tensorforce.core.preprocessing import build_preprocessing_stack
 
+# This was necessary for bazel, test if can be removed
 logger = logging.getLogger(__name__)
 
 from tensorforce.config import Configuration
@@ -79,13 +78,7 @@ def main():
     path = os.path.dirname(__file__)
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[agent_config.loglevel])
-
-    if 'preprocessing' in agent_config:
-        preprocessor = build_preprocessing_stack(agent_config.preprocessing)
-        agent_config.states.shape = preprocessor.shape(agent_config.states.shape)
-    else:
-        preprocessor = None
+    logger.setLevel(logging.INFO)  # configurable!!!
 
     agent = agents[args.agent](config=agent_config)
 
@@ -107,11 +100,9 @@ def main():
         agent=agent,
         environment=environment,
         repeat_actions=1,
-        preprocessor=preprocessor,
         save_path=args.save,
         save_episodes=args.save_episodes
     )
-
     if args.load:
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):

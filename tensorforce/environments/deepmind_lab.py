@@ -95,7 +95,7 @@ class DeepMindLab(Environment):
                 actions.append(action[action_spec['name']] - 1)
             else:
                 actions.append(action[action_spec['name']])  # clip?
-        action = numpy.array(actions, dtype=np.intc)
+        action = np.array(actions, dtype=np.intc)
 
         reward = self.level.step(action=action, num_steps=self.repeat_action)
         state = self.level.observations()['RGB_INTERLACED']

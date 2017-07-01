@@ -76,9 +76,6 @@ directory. Please note that we did not include OpenAI Gym/Universe/DeepMind lab 
 install script because not everyone will want to use these. Please install them as required,
 usually via pip.
 
-
-Docker coming soon.
-
 Examples and documentation
 --------------------------
 
@@ -162,7 +159,7 @@ then create an agent and use it as seen below (see documentation for all optiona
 Update notes
 ------------
 
-25h June 2017
+25th June 2017
 
 - Added prioritised experience replay
 - Added RandomAgent for discrete/continuous random baselines

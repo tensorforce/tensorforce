@@ -3,7 +3,7 @@ package(default_visibility = ["//visibility:public"])
 tensorforce_args = [
   "--agent VPGAgent",
   "--agent-config /configs/vpg_agent.json",
-  "--network-config /configs/vpg_network.json",
+  "--network-config /configs/vpg_network_visual.json",
   "--episodes 1000",
   "--max-timesteps 1000"
 ]
@@ -12,7 +12,7 @@ py_library(
     name = "tensorforce",
     imports = [":tensorforce"],
     data = ["//tensorforce:examples/configs/vpg_agent.json",
-    "//tensorforce:examples/configs/vpg_network.json"],
+    "//tensorforce:examples/configs/vpg_network_visual.json"],
     srcs = glob(["tensorforce/**/*.py"])
 )
 

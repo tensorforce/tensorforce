@@ -1,6 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
 tensorforce_args = [
+  "--agent VPGAgent",
   "--agent-config /configs/vpg_agent.json",
   "--network-config /configs/vpg_network.json",
   "--episodes 1000",

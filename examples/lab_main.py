@@ -46,7 +46,7 @@ def main():
     # N.b. if ran from within lab, the working directory is something like lab/bazel-out/../../tensorforce
     # Hence, relative paths will not work without first fetching the path of this run file
     parser.add_argument('-id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
-    parser.add_argument('-a', '--agent', default='DQNAgent')
+    parser.add_argument('-a', '--agent', default='VPGAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-config', help="Network configuration file")
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")

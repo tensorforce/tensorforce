@@ -1,8 +1,8 @@
 package(default_visibility = ["//visibility:public"])
 
 tensorforce_args = [
-  "--agent-config configs/dqn_network.json",
-  "--network-config configs/dqn_network.json",
+  "--agent-config /configs/dqn_network.json",
+  "--network-config /configs/dqn_network.json",
   "--episodes 1000",
   "--max-timesteps 1000"
 ]

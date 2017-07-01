@@ -1,4 +1,4 @@
-*TensorForce - modular deep reinforcement learning in TensorFlow*
+*TensorForce - A reinforcement learning API for TensorFlow*
 =================================================================
 
 .. |logo1| image:: https://badges.gitter.im/reinforceio/TensorForce.svg
@@ -42,9 +42,7 @@ TensorForce is actively being maintained and developed both to
 continuously improve the existing code as well as to reflect new
 developments as they arise (see road map for more). The aim is not to
 include every new trick but to adopt methods as
-they prove themselves stable, e.g. as of early 2017 hybrid A3C and TRPO
-variants provide the basis for a lot of research. We also offer TensorForce
-support through our Gitter channel.
+they prove themselves stable.
 
 Features
 --------
@@ -107,9 +105,8 @@ Add to the lab main BUILD file:
 
    package(default_visibility = ["//visibility:public"])
 
-Clone TensorForce into the lab directory, then run the TensorForce bazel runner. Note that using any specific configuration file requires
-changing the Tensorforce BUILD file to tell bazel to include the new file in the build (just change the filenames in the data
-line).
+Clone TensorForce into the lab directory, then run the TensorForce bazel runner. Note that using any specific configuration file
+currently requires changing the Tensorforce BUILD file to adjust environment parameters.
 
 ::
 
@@ -213,7 +210,7 @@ Support and contact
 -------------------
 
 TensorForce is maintained by `reinforce.io <https://reinforce.io>`__, a new project focused on
-providing open source reinforcement learning infrastructure. For any
+providing reinforcement learning software infrastructure. For any
 questions or support, get in touch at contact@reinforce.io.
 
 You are also welcome to join our Gitter channel for help with using

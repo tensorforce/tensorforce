@@ -48,8 +48,10 @@ def main():
     # Please check the lab BUILD file to add more flags
     parser.add_argument('-id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
     parser.add_argument('-a', '--agent', default='DQNAgent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-config', help="Network configuration file")
+    parser.add_argument('-c', '--agent-config', help="Agent configuration file",
+                        default='configs/dqn_config.json')
+    parser.add_argument('-n', '--network-config', help="Network configuration file",
+                        default='configs/dqn_network.json')
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this directory")
@@ -60,6 +62,9 @@ def main():
     parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('-D', '--debug', action='store_true', default=True, help="Show debug outputs")
 
+    # This is necessary to give bazel the correct path
+    path = os.path.dirname(__file__)
+
     # Redirect output to file
     sys.stdout = open('lab_output.txt', 'w')
 
@@ -68,15 +73,13 @@ def main():
     environment = DeepMindLab(args.level_id)
 
     if args.agent_config:
-        agent_config = Configuration.from_json(args.agent_config)
+        agent_config = Configuration.from_json(path + args.agent_config)
     else:
         raise TensorForceError("No agent configuration provided.")
     if not args.network_config:
         raise TensorForceError("No network configuration provided.")
-    agent_config.default(dict(states=environment.states, actions=environment.actions, network=from_json(args.network_config)))
-
-    # This is necessary to give bazel the correct path
-    path = os.path.dirname(__file__)
+    agent_config.default(dict(states=environment.states, actions=environment.actions,
+                              network=from_json(path + args.network_config)))
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)  # configurable!!!

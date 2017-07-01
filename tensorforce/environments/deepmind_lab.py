@@ -104,7 +104,17 @@ class DeepMindLab(Environment):
 
     @property
     def states(self):
-        return {state['name']: dict(shape=state['shape'], type=state['dtype']) for state in self.level.observation_spec()}
+        states = dict()
+
+        for state in self.level.observation_spec():
+            state_type = state['dtype']
+
+            if state_type == np.uint8:
+                state_type = np.int32
+
+            states[state['name']] = dict(shape=state['shape'], type=state_type)
+
+        return states
 
     @property
     def actions(self):

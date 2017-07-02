@@ -156,6 +156,12 @@ then create an agent and use it as seen below (see documentation for all optiona
 Update notes
 ------------
 
+2nd July 2017
+
+- Fixed lab integration: updated bazel BUILD file with command line options
+- Adjusted environment integration to correctly select state and action interfaces
+- Changed default agent to VPG since lab mixes continuous and discrete actions
+
 25th June 2017
 
 - Added prioritised experience replay

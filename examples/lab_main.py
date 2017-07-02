@@ -90,11 +90,8 @@ def main():
 
     if args.debug:
         logger.info("-" * 16)
-        logger.info("Agent configuration:")
-        logger.info(agent.config)
-        if agent.model:
-            logger.info("Model configuration:")
-            logger.info(agent.model.config)
+        logger.info("Configuration:")
+        logger.info(agent_config)
 
     runner = Runner(
         agent=agent,

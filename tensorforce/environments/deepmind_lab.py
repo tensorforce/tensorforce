@@ -111,10 +111,10 @@ class DeepMindLab(Environment):
             state_type = state['dtype']
 
             if state_type == np.uint8:
-                state_type = np.int32
+                state_type = np.float32
 
             if state['name'] == self.state_attribute:
-                states[state['name']] = dict(shape=state['shape'], type=state_type)
+                return dict(shape=state['shape'], type=state_type)
 
         return states
 

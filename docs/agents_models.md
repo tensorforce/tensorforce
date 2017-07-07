@@ -105,6 +105,14 @@ samples batches to update the value function.
         :members:
 ```
 
+State preprocessing
+-------------------
+
+The agent handles state preprocessing. A preprocessor takes the raw state input
+from the environment and modifies it (for instance, image resize, state 
+concatenation, etc.). You can find information about our ready-to-use
+preprocessors [here](preprocessing.md).
+
 
 Building your own agent
 -----------------------
@@ -278,10 +286,4 @@ class SimpleQModel(Model):
                 self.optimize_op = self.optimizer.minimize(self.loss)
 ```
 
-
-
-A preprocessor takes the raw state input from the environment and
-modifies it (for instance, image resize, state concatenation, etc.). You
-can find information about our ready-to-use preprocessors
-[here](preprocessing.md).
 

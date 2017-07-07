@@ -29,7 +29,7 @@ preprocessors in the stack and returns the result.
 ### Using one preprocessor
 
 ```python
-from tensorforce.preprocessing import Maximum
+from tensorforce.core.preprocessing import Maximum
 
 pp_max = Maximum(2)  # initialize preprocessor (return maximum of last 2 states)
 

@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Agent using Normalized Advantage Functions
+Agent using Normalized Advantage Functions.
 """
 
 from __future__ import absolute_import
@@ -26,6 +26,51 @@ from tensorforce.models import NAFModel
 
 
 class NAFAgent(MemoryAgent):
+    """
+    Normalized Advantage Functions (NAF) agent ([Gu et al., 2016](https://arxiv.org/pdf/1603.00748.pdf)), a.k.a.
+    DQN for continuous actions.
+
+    ## Configuration
+
+    Each agent requires the following configuration parameters:
+
+    * `states`: dict containing one or more state definitions.
+    * `actions`: dict containing one or more action definitions.
+    * `preprocessing`: dict or list containing state preprocessing configuration.
+    * `exploration`: dict containing action exploration configuration.
+
+    The `MemoryAgent` class additionally requires the following parameters:
+
+    * `batch_size`: integer of the batch size.
+    * `memory_capacity`: integer of maximum experiences to store.
+    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
+    * `memory_args`: list of arguments to pass to replay memory constructor.
+    * `memory_kwargs`: list of keyword arguments to pass to replay memory constructor.
+    * `update_frequency`: integer indicating the number of steps between model updates.
+    * `first_update`: integer indicating the number of steps to pass before the first update.
+    * `repeat_update`: integer indicating how often to repeat the model update.
+
+    Each model requires the following configuration parameters:
+
+    * `discount`: float of discount factor (gamma).
+    * `learning_rate`: float of learning rate (alpha).
+    * `optimizer`: string of optimizer to use (e.g. 'adam').
+    * `optimizer_args`: list of arguments for optimizer.
+    * `optimizer_kwargs`: dict of keyword arguments for optimizer.
+    * `device`: string of tensorflow device name.
+    * `tf_saver`: boolean whether to save model parameters.
+    * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
+    * `log_level`: string containing logleve (e.g. 'info').
+    * `distributed`: boolean indicating whether to use distributed tensorflow.
+    * `global_model`: global model.
+    * `session`: session to use.
+
+    The NAF agent expects the following additional configuration parameters:
+
+    * `update_target_weight`: float of update target weight (tau parameter)
+    * `clip_gradients`: float of maximum values for gradients before clipping
+
+    """
 
     name = 'NAFAgent'
     model = NAFModel

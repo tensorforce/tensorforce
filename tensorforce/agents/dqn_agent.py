@@ -72,11 +72,10 @@ class DQNAgent(MemoryAgent):
 
     The DQN agent expects the following additional configuration parameters:
 
-    * `target_update_frequency`: int of states between each update
+    * `target_update_frequency`: int of states between updates of the target network
     * `update_target_weight`: float of update target weight (tau parameter)
     * `double_dqn`: boolean indicating whether to use double-dqn
     * `clip_gradients`: float of maximum values for gradients before clipping
-
 
     """
 

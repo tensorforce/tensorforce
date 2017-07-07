@@ -25,6 +25,21 @@ from tensorforce.agents import Agent
 
 
 class BatchAgent(Agent):
+    """
+    The `BatchAgent` class implements a batch memory, which is cleared after every update.
+
+    Each agent requires the following ``Configuration`` parameters:
+
+    * `states`: dict containing one or more state definitions.
+    * `actions`: dict containing one or more action definitions.
+    * `preprocessing`: dict or list containing state preprocessing configuration.
+    * `exploration`: dict containing action exploration configuration.
+
+    The `BatchAgent` class additionally requires the following parameters:
+
+    * `batch_size`: integer of the batch size.
+
+    """
 
     default_config = dict(
         batch_size=1

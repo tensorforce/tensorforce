@@ -45,6 +45,7 @@ class MemoryAgent(Agent):
     * `update_frequency`: integer indicating the number of steps between model updates.
     * `first_update`: integer indicating the number of steps to pass before the first update.
     * `repeat_update`: integer indicating how often to repeat the model update.
+
     """
 
     default_config = dict(

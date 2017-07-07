@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 """
 Deep Q-learning from demonstration. This agent pre-trains from demonstration data.
  
@@ -31,6 +32,56 @@ from tensorforce.models import DQFDModel
 
 
 class DQFDAgent(Agent):
+    """
+    Deep Q-learning from demonstration (DQFD) agent ([Hester et al., 2017](https://arxiv.org/abs/1704.03732)).
+    This agent uses DQN to pre-train from demonstration data.
+
+    ## Configuration
+
+    Each agent requires the following configuration parameters:
+
+    * `states`: dict containing one or more state definitions.
+    * `actions`: dict containing one or more action definitions.
+    * `preprocessing`: dict or list containing state preprocessing configuration.
+    * `exploration`: dict containing action exploration configuration.
+
+    Each model requires the following configuration parameters:
+
+    * `discount`: float of discount factor (gamma).
+    * `learning_rate`: float of learning rate (alpha).
+    * `optimizer`: string of optimizer to use (e.g. 'adam').
+    * `optimizer_args`: list of arguments for optimizer.
+    * `optimizer_kwargs`: dict of keyword arguments for optimizer.
+    * `device`: string of tensorflow device name.
+    * `tf_saver`: boolean whether to save model parameters.
+    * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
+    * `log_level`: string containing logleve (e.g. 'info').
+    * `distributed`: boolean indicating whether to use distributed tensorflow.
+    * `global_model`: global model.
+    * `session`: session to use.
+
+
+    The `DQFDAgent` class additionally requires the following parameters:
+
+
+    * `batch_size`: integer of the batch size.
+    * `memory_capacity`: integer of maximum experiences to store.
+    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
+    * `memory_args`: list of arguments to pass to replay memory constructor.
+    * `memory_kwargs`: list of keyword arguments to pass to replay memory constructor.
+    * `min_replay_size`: integer of minimum replay size before the first update.
+    * `update_rate`: float of the update rate (e.g. 0.25 = every 4 steps).
+    * `target_network_update_rate`: float of target network update rate (e.g. 0.01 = every 100 steps).
+    * `use_target_network`: boolean indicating whether to use a target network.
+    * `update_repeat`: integer of how many times to repeat an update.
+    * `expert_sampling_ratio`: float
+    * `update_target_weight`: float
+    * `supervised_weight`: float
+    * `expert_margin`: float
+    * `clip_gradients`: float of maximum values for gradients before clipping.
+
+
+    """
 
     name = 'DQFDAgent'
     model = DQFDModel

@@ -143,26 +143,27 @@ def layered_network_builder(layers_config):
     def network_builder(inputs):
         if len(inputs) != 1:
             raise TensorForceError('Layered network must have only one input.')
-        layer = next(iter(inputs.values()))
+        x = next(iter(inputs.values()))
         internal_inputs = []
         internal_outputs = []
         internal_inits = []
 
         for layer_config in layers_config:
             layer_type = layer_config['type']
-            layer = layers[layer_type](x=layer, **{k: v for k, v in layer_config.items() if k != 'type'})
+            layer = util.function(layer_type, predefined=layers)
+            x = layer(x=x, **{k: v for k, v in layer_config.items() if k != 'type'})
 
-            if isinstance(layer, list) or isinstance(layer, tuple):
-                assert len(layer) == 4
-                internal_inputs.extend(layer[1])
-                internal_outputs.extend(layer[2])
-                internal_inits.extend(layer[3])
-                layer = layer[0]
+            if isinstance(x, list) or isinstance(x, tuple):
+                assert len(x) == 4
+                internal_inputs.extend(x[1])
+                internal_outputs.extend(x[2])
+                internal_inits.extend(x[3])
+                x = x[0]
 
         if internal_inputs:
-            return layer, internal_inputs, internal_outputs, internal_inits
+            return x, internal_inputs, internal_outputs, internal_inits
         else:
-            return layer
+            return x
 
     return network_builder
 

@@ -78,6 +78,6 @@ class BatchAgent(Agent):
             actions={action: [] for action, _ in self.actions_config},
             rewards=[],
             terminals=[],
-            internals={n: [] for n in range(len(self.internal))}
+            internals=[[] for _ in range(len(self.internal))]
         )
         self.batch_count = 0

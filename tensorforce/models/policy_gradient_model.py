@@ -61,15 +61,13 @@ class PolicyGradientModel(Model):
                 self.distribution[name] = distributions[distribution](num_actions=action.num_actions)
 
         # baseline
-        baseline = config.baseline
-        args = config.baseline_args or ()
-        kwargs = config.baseline_kwargs or {}
         if config.baseline is None:
             self.baseline = None
-        elif config.baseline in value_functions:
-            self.baseline = value_functions[baseline](*args, **kwargs)
         else:
-            raise Exception()
+            baseline = util.function(f=config.baseline, predefined=value_functions)
+            args = config.baseline_args or ()
+            kwargs = config.baseline_kwargs or {}
+            self.baseline = baseline(*args, **kwargs)
 
         super(PolicyGradientModel, self).__init__(config)
 
@@ -96,6 +94,11 @@ class PolicyGradientModel(Model):
         if self.baseline:
             with tf.variable_scope('baseline'):
                 self.baseline.create_tf_operations(config)
+
+    def set_session(self, session):
+        super(PolicyGradientModel, self).set_session(session)
+        if self.baseline is not None:
+            self.baseline.session = session
 
     def update(self, batch):
         """Generic policy gradient update on a batch of experiences. Each model needs to update its specific
@@ -130,14 +133,9 @@ class PolicyGradientModel(Model):
         if self.generalized_advantage_estimation:
             deltas = np.array(self.discount * estimates[n + 1] - estimates[n] if n < len(estimates) - 1 or terminal else 0.0 for n, terminal in enumerate(batch['terminals']))
             deltas += batch['rewards']
-            # if terminals[-1]:
-            #     adjusted_estimate = np.append(estimate, [0])
-            # else:
-            #     adjusted_estimate = np.append(estimate, estimate[-1])
-            # deltas = batch['rewards'] + self.discount * adjusted_estimate[1:] - adjusted_estimate[:-1]
             advantage = util.cumulative_discount(rewards=deltas, terminals=batch['terminals'], discount=(self.discount * self.gae_lambda))
         else:
-            advantage = batch['returns'] - estimates
+            advantage = np.array(batch['returns']) - estimates
 
         if self.normalize_advantage:
             advantage -= advantage.mean()

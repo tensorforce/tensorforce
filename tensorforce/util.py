@@ -58,16 +58,16 @@ def np_dtype(dtype):
     elif dtype == 'bool' or dtype == bool:
         return np.bool_
     else:
-        raise TensorForceError()
+        raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
 
 
 def tf_dtype(dtype):
-    if dtype == 'float' or dtype == float:
+    if dtype == 'float' or dtype == float or dtype == np.float32:
         return tf.float32
-    elif dtype == 'int' or dtype == int:
+    elif dtype == 'int' or dtype == int or dtype == np.int32:
         return tf.int32
     else:
-        raise TensorForceError()
+        raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
 
 
 def function(f, predefined=None):

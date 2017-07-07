@@ -50,18 +50,19 @@ class DeepMindLab(Environment):
     #     level = deepmind_lab.Lab(level_id, ())
     #     return level.action_spec()
 
-    def __init__(self, level_id, repeat_action=1, state_attributes=['RGB_INTERLACED'], settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}):
+    def __init__(self, level_id, repeat_action=1, state_attribute='RGB_INTERLACED', settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}):
         """
         Initialize DeepMind Lab environment.
 
         :param level_id: string with id/descriptor of the level, e.g. 'seekavoid_arena_01'
         :param num_steps: number of frames the environment is advanced, executing the given action during every frame
-        :param state_attributes: list of attributes which represent the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id)
+        :param state_attribute: Attributes which represents the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id)
         :param settings: dict specifying additional settings as key-value string pairs. The following options are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
         """
         self.level_id = level_id
-        self.level = deepmind_lab.Lab(level=level_id, observations=state_attributes, config=settings)
+        self.level = deepmind_lab.Lab(level=level_id, observations=[state_attribute], config=settings)
         self.repeat_action = repeat_action
+        self.state_attribute = state_attribute
 
     def __str__(self):
         return 'DeepMindLab({})'.format(self.level_id)
@@ -80,7 +81,7 @@ class DeepMindLab(Environment):
         :return: initial state
         """
         self.level.reset()  # optional: episode=-1, seed=None
-        return self.level.observations()['RGB_INTERLACED']
+        return self.level.observations()[self.state_attribute]
 
     def execute(self, action):
         """
@@ -95,7 +96,7 @@ class DeepMindLab(Environment):
                 actions.append(action[action_spec['name']] - 1)
             else:
                 actions.append(action[action_spec['name']])  # clip?
-        action = numpy.array(actions, dtype=np.intc)
+        action = np.array(actions, dtype=np.intc)
 
         reward = self.level.step(action=action, num_steps=self.repeat_action)
         state = self.level.observations()['RGB_INTERLACED']
@@ -104,7 +105,18 @@ class DeepMindLab(Environment):
 
     @property
     def states(self):
-        return {state['name']: dict(shape=state['shape'], type=state['dtype']) for state in self.level.observation_spec()}
+        states = dict()
+
+        for state in self.level.observation_spec():
+            state_type = state['dtype']
+
+            if state_type == np.uint8:
+                state_type = np.float32
+
+            if state['name'] == self.state_attribute:
+                return dict(shape=state['shape'], type=state_type)
+
+        return states
 
     @property
     def actions(self):

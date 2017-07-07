@@ -98,37 +98,23 @@ class Runner(object):
                 )
             )
 
-            variables_to_save = [v for v in tf.global_variables() if not v.name.startswith('local')]
-            init_op = tf.variables_initializer(variables_to_save)
-            local_init_op = tf.variables_initializer(tf.local_variables() + [v for v in tf.global_variables() if v.name.startswith('local')])
-            init_all_op = tf.global_variables_initializer()
-
-            def init_fn(sess):
-                sess.run(init_all_op)
-
             config = tf.ConfigProto(device_filters=['/job:ps', '/job:worker/task:{}/cpu:0'.format(self.task_index)])
 
+            init_op = tf.global_variables_initializer()
             supervisor = tf.train.Supervisor(
                 is_chief=(self.task_index == 0),
                 logdir='/tmp/train_logs',
-                global_step=self.agent.model.global_step,
-                init_op=init_op,
-                local_init_op=local_init_op,
-                init_fn=init_fn,
-                ready_op=tf.report_uninitialized_variables(variables_to_save),
+                global_step=self.agent.model.global_timestep,
+                init_op=tf.variables_initializer(self.agent.model.global_variables),
+                local_init_op=tf.variables_initializer(self.agent.model.variables),
+                init_fn=(lambda session: session.run(init_op)),
                 saver=self.agent.model.saver)
             # summary_op=tf.summary.merge_all(),
             # summary_writer=worker_agent.model.summary_writer)
 
-            # # Connecting to parameter server
-            # self.logger.debug('Connecting to session..')
-            # self.logger.info('Server target = ' + str(server.target))
-
-            # with supervisor.managed_session(server.target, config=config) as session, session.as_default():
-            # self.logger.info('Established session, starting runner..')
             managed_session = supervisor.managed_session(server.target, config=config)
             session = managed_session.__enter__()
-            self.agent.model.session = session
+            self.agent.model.set_session(session)
             # session.run(self.agent.model.update_local)
 
         # save episode reward and length for statistics

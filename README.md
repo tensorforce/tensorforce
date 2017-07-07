@@ -34,10 +34,8 @@ service architectures.
 TensorForce is actively being maintained and developed both to
 continuously improve the existing code as well as to reflect new
 developments as they arise (see road map for more). The aim is not to
-include every new trick but to adopt methods as they prove themselves
-stable, e.g. as of early 2017 hybrid A3C and TRPO variants provide the
-basis for a lot of research. We also offer TensorForce support through
-our Gitter channel.
+include every new trick but to adopt methods as
+they prove themselves stable.
 
 Features
 --------
@@ -70,8 +68,6 @@ Please note that we did not include OpenAI Gym/Universe/DeepMind lab in
 the default install script because not everyone will want to use these.
 Please install them as required, usually via pip.
 
-Docker coming soon.
-
 Examples and documentation
 --------------------------
 
@@ -102,10 +98,8 @@ Add to the lab main BUILD file:
 
     package(default_visibility = ["//visibility:public"])
 
-Clone TensorForce into the lab directory, then run the TensorForce bazel
-runner. Note that using any specific configuration file requires
-changing the Tensorforce BUILD file to tell bazel to include the new
-file in the build (just change the filenames in the data line).
+Clone TensorForce into the lab directory, then run the TensorForce bazel runner. Note that using any specific configuration file
+currently requires changing the Tensorforce BUILD file to adjust environment parameters.
 
     bazel run //tensorforce:lab_runner
 
@@ -149,6 +143,13 @@ use it as seen below (see documentation for all optional parameters):
 
 Update notes
 ------------
+
+2nd July 2017
+
+- Fixed lab integration: updated bazel BUILD file with command line options
+- Adjusted environment integration to correctly select state and action interfaces
+- Changed default agent to VPG since lab mixes continuous and discrete actions
+
 
 25h June 2017
 
@@ -223,7 +224,7 @@ Support and contact
 -------------------
 
 TensorForce is maintained by [reinforce.io](https://reinforce.io), a new
-project focused on providing open source reinforcement learning
+project focused on providing reinforcement learning software
 infrastructure. For any questions or support, get in touch at
 <contact@reinforce.io>.
 

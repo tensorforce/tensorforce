@@ -32,8 +32,13 @@ class Configuration(object):
         self._config = dict(**kwargs)
 
     @staticmethod
-    def from_json(filename):
-        path = os.path.join(os.getcwd(), filename)
+    def from_json(filename, absolute_path=False):
+
+        if absolute_path:
+            path = filename
+        else:
+            path = os.path.join(os.getcwd(), filename)
+
         with open(path, 'r') as fp:
             config = json.load(fp=fp)
         return Configuration(**config)

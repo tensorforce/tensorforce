@@ -30,10 +30,9 @@ import deepmind_lab
 
 from tensorforce import TensorForceError
 from tensorforce.agents import agents
-from tensorforce.core.model import log_levels
 from tensorforce.core.networks import from_json
-from tensorforce.core.preprocessing import build_preprocessing_stack
 
+# This was necessary for bazel, test if can be removed
 logger = logging.getLogger(__name__)
 
 from tensorforce.config import Configuration
@@ -44,12 +43,12 @@ from tensorforce.execution import Runner
 def main():
     parser = argparse.ArgumentParser()
 
+    # N.b. if ran from within lab, the working directory is something like lab/bazel-out/../../tensorforce
+    # Hence, relative paths will not work without first fetching the path of this run file
     parser.add_argument('-id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
-    parser.add_argument('-a', '--agent', default='DQNAgent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file",
-                        default='/configs/dqn_agent.json')
-    parser.add_argument('-n', '--network-config', help="Network configuration file",
-                        default='/configs/dqn_network.json')
+    parser.add_argument('-a', '--agent', default='VPGAgent')
+    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-config', help="Network configuration file")
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this directory")
@@ -67,25 +66,19 @@ def main():
 
     environment = DeepMindLab(args.level_id)
 
+    path = os.path.dirname(__file__)
     if args.agent_config:
-        agent_config = Configuration.from_json(args.agent_config)
+        # Use absolute path
+        agent_config = Configuration.from_json(path + args.agent_config, True)
     else:
         raise TensorForceError("No agent configuration provided.")
     if not args.network_config:
         raise TensorForceError("No network configuration provided.")
-    agent_config.default(dict(states=environment.states, actions=environment.actions, network=from_json(args.network_config)))
-
-    # This is necessary to give bazel the correct path
-    path = os.path.dirname(__file__)
+    agent_config.default(dict(states=environment.states, actions=environment.actions,
+                              network=from_json(path + args.network_config, True)))
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[agent_config.loglevel])
-
-    if 'preprocessing' in agent_config:
-        preprocessor = build_preprocessing_stack(agent_config.preprocessing)
-        agent_config.states.shape = preprocessor.shape(agent_config.states.shape)
-    else:
-        preprocessor = None
+    logger.setLevel(logging.INFO)  # configurable!!!
 
     agent = agents[args.agent](config=agent_config)
 
@@ -97,21 +90,16 @@ def main():
 
     if args.debug:
         logger.info("-" * 16)
-        logger.info("Agent configuration:")
-        logger.info(agent.config)
-        if agent.model:
-            logger.info("Model configuration:")
-            logger.info(agent.model.config)
+        logger.info("Configuration:")
+        logger.info(agent_config)
 
     runner = Runner(
         agent=agent,
         environment=environment,
         repeat_actions=1,
-        preprocessor=preprocessor,
         save_path=args.save,
         save_episodes=args.save_episodes
     )
-
     if args.load:
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):

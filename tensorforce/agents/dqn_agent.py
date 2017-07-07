@@ -35,6 +35,38 @@ class DQNAgent(MemoryAgent):
     from the value function with one output neuron per available action. DQN uses a replay memory for experience
     playback.
 
+    ## Configuration
+
+    Each agent requires the following configuration parameters:
+
+    * `states`: dict containing one or more state definitions.
+    * `actions`: dict containing one or more action definitions.
+    * `preprocessing`: dict or list containing state preprocessing configuration.
+    * `exploration`: dict containing action exploration configuration.
+
+    Each model requires the following configuration parameters:
+
+    * `discount`: float of discount factor (gamma).
+    * `learning_rate`: float of learning rate (alpha).
+    * `optimizer`: string of optimizer to use (e.g. 'adam').
+    * `optimizer_args`: list of arguments for optimizer.
+    * `optimizer_kwargs`: dict of keyword arguments for optimizer.
+    * `device`: string of tensorflow device name.
+    * `tf_saver`: boolean whether to save model parameters.
+    * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
+    * `log_level`: string containing logleve (e.g. 'info').
+    * `distributed`: boolean indicating whether to use distributed tensorflow.
+    * `global_model`: global model.
+    * `session`: session to use.
+
+    The DQN agent expects the following additional configuration parameters:
+
+    * `target_update_frequency`: int of states between each update
+    * `update_target_weight`: float of update target weight (tau parameter)
+    * `double_dqn`: boolean indicating whether to use double-dqn
+    * `clip_gradients`: float of maximum values for gradients before clipping
+
+
     """
 
     name = 'DQNAgent'

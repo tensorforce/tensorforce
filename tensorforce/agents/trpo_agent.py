@@ -55,13 +55,6 @@ class TRPOAgent(BatchAgent):
 
     The TRPO agent expects the following additional configuration parameters:
 
-        optimizer=None,
-        learning_rate=None,
-        cg_damping=0.001,
-        line_search_steps=20,
-        max_kl_divergence=0.001,
-        cg_iterations=20
-
     * `learning_rate`: float of learning rate (alpha).
     * `optimizer`: string of optimizer to use (e.g. 'adam').
     * `cg_damping`: float of the damping factor for the conjugate gradient method.

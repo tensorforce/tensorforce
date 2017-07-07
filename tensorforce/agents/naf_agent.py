@@ -67,8 +67,8 @@ class NAFAgent(MemoryAgent):
 
     The NAF agent expects the following additional configuration parameters:
 
-    * `update_target_weight`: float of update target weight (tau parameter)
-    * `clip_gradients`: float of maximum values for gradients before clipping
+    * `update_target_weight`: float of update target weight (tau parameter).
+    * `clip_gradients`: float of maximum values for gradients before clipping.
 
     """
 

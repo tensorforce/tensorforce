@@ -36,7 +36,7 @@ class DQFDAgent(Agent):
     Deep Q-learning from demonstration (DQFD) agent ([Hester et al., 2017](https://arxiv.org/abs/1704.03732)).
     This agent uses DQN to pre-train from demonstration data.
 
-    ## Configuration
+    Configuration:
 
     Each agent requires the following configuration parameters:
 

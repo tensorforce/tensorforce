@@ -29,7 +29,7 @@ class TRPOAgent(BatchAgent):
     """
     Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
 
-    ## Configuration
+    Configuration:
 
     Each agent requires the following ``Configuration`` parameters:
 

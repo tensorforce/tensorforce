@@ -30,7 +30,7 @@ class NAFAgent(MemoryAgent):
     Normalized Advantage Functions (NAF) agent ([Gu et al., 2016](https://arxiv.org/pdf/1603.00748.pdf)), a.k.a.
     DQN for continuous actions.
 
-    ## Configuration
+    Configuration:
 
     Each agent requires the following configuration parameters:
 

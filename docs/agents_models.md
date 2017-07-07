@@ -40,6 +40,27 @@ samples batches to update the value function.
         :members:
 ```
 
+
+### MemoryAgent
+
+
+```eval_rst
+    .. autoclass:: tensorforce.agents.MemoryAgent
+        :show-inheritance:
+        :members:
+```
+
+
+### BatchAgent
+
+
+```eval_rst
+    .. autoclass:: tensorforce.agents.MemoryAgent
+        :show-inheritance:
+        :members:
+```
+
+
 ### Deep-Q-Networks (DQN)
 
 ```eval_rst
@@ -48,112 +69,50 @@ samples batches to update the value function.
         :members:
 ```
 
+
+### Normalized Advantage Functions
+
+
 ```eval_rst
-    .. autoclass:: tensorforce.models.DQNModel
+    .. autoclass:: tensorforce.agents.NAFAgent
         :show-inheritance:
         :members:
 ```
 
-#### Parameters:
+### Deep-Q-learning from demonostration (DQFD)
 
-Uses all [general parameters](#Agent) and all parameters from the
-[MemoryAgent](#MemoryAgent). Additional parameters:
-
-```python
-# Parameters for DQNModel
-config += {
-    "alpha": float,  # learning rate
-    "gamma": float,  # discount factor
-    "tau": float,  # indicates how fast the target network should be updated
-    "double_dqn": bool,  # use double dqn network (or not)
-    "clip_gradients": bool,  # clip gradients
-    "clip_value": float,  # clip values exceeding [-clip_value; clip_value]
-}
+```eval_rst
+    .. autoclass:: tensorforce.agents.DQFDAgent
+        :show-inheritance:
+        :members:
 ```
 
-### NAFAgent
+### Vanilla Policy Gradient
 
-Agent using Normalized Advantage Functions (NAF; [Gu et al.,
-2016](https://arxiv.org/abs/1603.00748)) for continuous actions. Uses a
-replay memory (inherits from `MemoryAgent`).
 
-#### Parameters:
-
-Uses all [general parameters](#Agent) and all parameters from the
-[MemoryAgent](#MemoryAgent). Additional parameters:
-
-```python
-# Parameters for NAFModel
-config += {
-    "alpha": float,  # learning rate
-    "gamma": float,  # discount factor
-    "tau": float,  # indicates how fast the target network should be updated
-}
+```eval_rst
+    .. autoclass:: tensorforce.agents.VPGAgent
+        :show-inheritance:
+        :members:
 ```
 
-### PGAgent
+### Trust Region Policy Optimization (TRPO)
 
-Policy Gradient base agent and model. The agent collects experiences
-until conditions for an update are satisfied and then passes these to an
-updater. In particular, the PGAgent internally manages the batching
-process so users do not have to. PGAgent inherits from Agent.
 
-#### Parameters:
-
-Uses all [general parameters](#Agent). Additional parameters:
-
-```python
-# Parameters for PGAgent
-config += {
-    "batch_size": int,  # batch size for updates
-}
-
-# Parameters for PGModel
-config += {
-    "alpha": float,  # learning rate
-    "gamma": float,  # discount factor
-    "use_gae": boolean,  # use general advantage estimation
-    "gae_gamma": float,  # discount factor used in gae computation
-    "normalize_advantage": boolean  # Normalize advantage
-}
+```eval_rst
+    .. autoclass:: tensorforce.agents.TRPOAgent
+        :show-inheritance:
+        :members:
 ```
 
-### VPGAgent
-
-Vanilla Policy Gradient agent and model. VPGAgent inherits from PGAgent.
-
-#### Parameters:
-
-Uses all [general parameters](#Agent) and all parameters from the
-[PGAgent](#PGAgent).
-
-### TRPOAgent
-
-Trust Region Policy Optimization ([Schulman et al.,
-2015](https://arxiv.org/abs/1502.05477)) agent and model. TRPO inherits
-from PGAgent.
-
-#### Parameters:
-
-Uses all [general parameters](#Agent) and all parameters from the
-[PGAgent](#PGAgent). Additional parameters:
-
-```python
-# Parameters for TRPOModel
-config += {
-    "cg_iterations": int,  # conjugate gradient interations
-    "cg_damping": float,  # damping factor for the Fisher matrix
-    "line_search_steps": int,  # line search steps
-    "max_kl_divergence": float,  # maximum kl divergence
-}
-```
 
 Building your own agent
 -----------------------
 
 If you want to build your own agent, it should always inherit from
 `Agent`. If your agent uses a replay memory, it should probably inherit
-from `MemoryAgent`.
+from `MemoryAgent`, if it uses a batch replay that is emptied after each update,
+it should probably inherit from `BatchAgent`.
 
 Reinforcement learning agents often differ only by their respective
 value function. Extending the MemoryAgent ist straightforward:

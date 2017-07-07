@@ -35,7 +35,7 @@ class DQNAgent(MemoryAgent):
     from the value function with one output neuron per available action. DQN uses a replay memory for experience
     playback.
 
-    ## Configuration
+    Configuration:
 
     Each agent requires the following configuration parameters:
 

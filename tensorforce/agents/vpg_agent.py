@@ -42,7 +42,7 @@ class VPGAgent(BatchAgent):
 
     * `batch_size`: integer of the batch size.
 
-    A Polcy Gradient Model expects the following additional configuration parameters:
+    A Policy Gradient Model expects the following additional configuration parameters:
 
     * `sample_actions`: boolean of whether to sample actions
     * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp')

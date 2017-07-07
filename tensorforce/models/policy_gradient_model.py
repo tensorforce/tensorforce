@@ -36,7 +36,7 @@ class PolicyGradientModel(Model):
     Policy Gradient Model base class.
 
 
-    A Polcy Gradient Model expects the following additional configuration parameters:
+    A Policy Gradient Model expects the following additional configuration parameters:
 
     * `sample_actions`: boolean of whether to sample actions
     * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp')

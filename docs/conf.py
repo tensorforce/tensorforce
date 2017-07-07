@@ -20,6 +20,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import pypandoc
 from recommonmark.transform import AutoStructify
 
 # -- General configuration ------------------------------------------------
@@ -165,6 +166,17 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+def process_docstring(app, what, name, obj, options, lines):
+    """Enable markdown syntax in docstrings"""
+    
+    markdown = "\n".join(lines)
+    
+    rest = pypandoc.convert_text(markdown, 'rst', format='md', extra_args=['--wrap=preserve'])
+    
+    rest.replace("\r\n", "\n")
+    del lines[:]
+    lines.extend(rest.split("\n"))
+
 def setup(app):
     app.add_config_value('recommonmark_config', {
         'url_resolver': lambda url: github_doc_root + url,
@@ -173,4 +185,5 @@ def setup(app):
         'enable_auto_doc_ref': True,
     }, True)
     app.add_transform(AutoStructify)
+    app.connect('autodoc-process-docstring', process_docstring)
 

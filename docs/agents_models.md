@@ -40,12 +40,19 @@ samples batches to update the value function.
         :members:
 ```
 
-### DQNAgent
+### Deep-Q-Networks (DQN)
 
-Standard DQN agent ([Minh et al.,
-2015](http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html))
-and DDQN ([van Hasselt et al., 2015](https://arxiv.org/abs/1509.06461))
-agent. Uses a replay memory (inherits from `MemoryAgent`).
+```eval_rst
+    .. autoclass:: tensorforce.agents.DQNAgent
+        :show-inheritance:
+        :members:
+```
+
+```eval_rst
+    .. autoclass:: tensorforce.models.DQNModel
+        :show-inheritance:
+        :members:
+```
 
 #### Parameters:
 

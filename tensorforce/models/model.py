@@ -42,7 +42,25 @@ log_levels = {
 
 
 class Model(object):
+    """
+    Base model class.
 
+    Each model requires the following configuration parameters:
+
+    * `discount`: float of discount factor (gamma).
+    * `learning_rate`: float of learning rate (alpha).
+    * `optimizer`: string of optimizer to use (e.g. 'adam').
+    * `optimizer_args`: list of arguments for optimizer.
+    * `optimizer_kwargs`: dict of keyword arguments for optimizer.
+    * `device`: string of tensorflow device name.
+    * `tf_saver`: boolean whether to save model parameters.
+    * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
+    * `log_level`: string containing logleve (e.g. 'info').
+    * `distributed`: boolean indicating whether to use distributed tensorflow.
+    * `global_model`: global model.
+    * `session`: session to use.
+
+    """
     allows_discrete_actions = None
     allows_continuous_actions = None
 

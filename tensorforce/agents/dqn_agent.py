@@ -14,9 +14,7 @@
 # ==============================================================================
 
 """
-Standard DQN. The piece de resistance of deep reinforcement learning.
-Chooses from one of a number of discrete actions by taking the maximum Q-value
-from the value function with one output neuron per available action.
+Standard DQN agent.
 """
 
 from __future__ import absolute_import
@@ -28,6 +26,16 @@ from tensorforce.models import DQNModel
 
 
 class DQNAgent(MemoryAgent):
+    """
+    Deep-Q-Network agent (DQN). The piece de resistance of deep reinforcement learning as described by
+    [Minh et al. (2015)](http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html)). Includes
+    an option for double-DQN (DDQN; [van Hasselt et al., 2015](https://arxiv.org/abs/1509.06461)))
+
+    DQN chooses from one of a number of discrete actions by taking the maximum Q-value
+    from the value function with one output neuron per available action. DQN uses a replay memory for experience
+    playback.
+
+    """
 
     name = 'DQNAgent'
     model = DQNModel

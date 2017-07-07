@@ -34,51 +34,53 @@ class Agent(object):
     The agent hence acts an intermediate layer between environment
     and backend execution (value function or policy updates).
 
-    Each agent requires the following ``Configuration`` parameters:
+    Each agent requires the following configuration parameters:
 
-        - `states`: dict containing one or more state definitions.
-        - `actions`: dict containing one or more action definitions.
-        - `preprocessing`: dict or list containing state preprocessing configuration.
-        - `exploration`: dict containing action exploration configuration.
+    * `states`: dict containing one or more state definitions.
+    * `actions`: dict containing one or more action definitions.
+    * `preprocessing`: dict or list containing state preprocessing configuration.
+    * `exploration`: dict containing action exploration configuration.
+
+    The configuration is passed to the [Model](#Model) and should thus include its configuration parameters, too.
 
     Examples:
 
         One state, one action, two preprecessors, epsilon exploration.
 
-        .. code:: python
-
-            agent = Agent(Configuration(dict(
-                states=dict(shape=(10,), type='float'),
-                actions=dict(continuous=False, num_actions=6),
-                preprocessing=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
-                exploration=...
-            )))
-
-
+        ```python
+        agent = Agent(Configuration(dict(
+            states=dict(shape=(10,), type='float'),
+            actions=dict(continuous=False, num_actions=6),
+            preprocessing=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
+            exploration=...,
+            # ... model configuration parameters
+        )))
+        ```
 
         Two states, two actions:
 
-        .. code:: python
+        ```python
 
-            agent = Agent(Configuration(dict(
-                states=dict(
-                    state1=dict(shape=(10,), type='float'),
-                    state2=dict(shape=(40,20), type='int')
-                ),
-                actions=dict(
-                    action1=dict(continuous=True),
-                    action2=dict(continuous=False, num_actions=6)
-                ),
-                preprocessing=dict(
-                    state1=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
-                    state2=None
-                ),
-                exploration=dict(
-                    action1=...,
-                    action2=...
-                )
-            )))
-
+        agent = Agent(Configuration(dict(
+            states=dict(
+                state1=dict(shape=(10,), type='float'),
+                state2=dict(shape=(40,20), type='int')
+            ),
+            actions=dict(
+                action1=dict(continuous=True),
+                action2=dict(continuous=False, num_actions=6)
+            ),
+            preprocessing=dict(
+                state1=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
+                state2=None
+            ),
+            exploration=dict(
+                action1=...,
+                action2=...
+            ),
+            # ... model configuration parameters
+        )))
+        ```
     """
 
     name = None

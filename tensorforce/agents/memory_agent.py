@@ -30,21 +30,21 @@ class MemoryAgent(Agent):
 
     Each agent requires the following ``Configuration`` parameters:
 
-        - `states`: dict containing one or more state definitions.
-        - `actions`: dict containing one or more action definitions.
-        - `preprocessing`: dict or list containing state preprocessing configuration.
-        - `exploration`: dict containing action exploration configuration.
+    * `states`: dict containing one or more state definitions.
+    * `actions`: dict containing one or more action definitions.
+    * `preprocessing`: dict or list containing state preprocessing configuration.
+    * `exploration`: dict containing action exploration configuration.
 
     The `MemoryAgent` class additionally requires the following parameters:
 
-        - `batch_size`: integer of the batch size.
-        - `memory_capacity`: integer of maximum experiences to store.
-        - `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-        - `memory_args`: list of arguments to pass to replay memory constructor.
-        - `memory_kwargs`: list of keyword arguments to pass to replay memory constructor.
-        - `update_frequency`: integer indicating the number of steps between model updates.
-        - `first_update`: integer indicating the number of steps to pass before the first update.
-        - `repeat_update`: integer indicating how often to repeat the model update.
+    * `batch_size`: integer of the batch size.
+    * `memory_capacity`: integer of maximum experiences to store.
+    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
+    * `memory_args`: list of arguments to pass to replay memory constructor.
+    * `memory_kwargs`: list of keyword arguments to pass to replay memory constructor.
+    * `update_frequency`: integer indicating the number of steps between model updates.
+    * `first_update`: integer indicating the number of steps to pass before the first update.
+    * `repeat_update`: integer indicating how often to repeat the model update.
     """
 
     default_config = dict(

@@ -143,47 +143,33 @@ def layered_network_builder(layers_config):
     def network_builder(inputs):
         if len(inputs) != 1:
             raise TensorForceError('Layered network must have only one input.')
-        layer = next(iter(inputs.values()))
+        x = next(iter(inputs.values()))
         internal_inputs = []
         internal_outputs = []
         internal_inits = []
 
         for layer_config in layers_config:
             layer_type = layer_config['type']
-            layer = layers[layer_type](x=layer, **{k: v for k, v in layer_config.items() if k != 'type'})
+            layer = util.function(layer_type, predefined=layers)
+            x = layer(x=x, **{k: v for k, v in layer_config.items() if k != 'type'})
 
-            if isinstance(layer, list) or isinstance(layer, tuple):
-                assert len(layer) == 4
-                internal_inputs.extend(layer[1])
-                internal_outputs.extend(layer[2])
-                internal_inits.extend(layer[3])
-                layer = layer[0]
+            if isinstance(x, list) or isinstance(x, tuple):
+                assert len(x) == 4
+                internal_inputs.extend(x[1])
+                internal_outputs.extend(x[2])
+                internal_inits.extend(x[3])
+                x = x[0]
 
         if internal_inputs:
-            return layer, internal_inputs, internal_outputs, internal_inits
+            return x, internal_inputs, internal_outputs, internal_inits
         else:
-            return layer
+            return x
 
     return network_builder
 
 
-def from_json(filename, absolute_path=False):
-    """
-    Creates a network builder based on a JSON specification.
-    Args:
-        filename: Path to JSON
-        absolute_path: Indicates whether path is absolute. If set to false, path is assumed to be relative to
-        current working directory.
-        
-    Returns: A layered network builder matching the JSON.
-
-    """
-    if absolute_path:
-        path = filename
-    else:
-        path = os.path.join(os.getcwd(), filename)
-
+def from_json(filename):
+    path = os.path.join(os.getcwd(), filename)
     with open(path, 'r') as fp:
         config = json.load(fp=fp)
-
     return layered_network_builder(config)

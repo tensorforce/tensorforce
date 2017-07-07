@@ -33,12 +33,11 @@ class MLPValueFunction(ValueFunction):
     def __init__(self, size, repeat_update=100):
         self.size = size
         self.repeat_update = repeat_update
+        self.session = None
 
     def create_tf_operations(self, config):
         if len(config.states) > 1:
             raise Exception()
-
-        self.session = config.session
 
         with tf.variable_scope('mlp_value_function'):
             self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(next(iter(config.states))[1].shape)))

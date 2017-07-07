@@ -79,14 +79,9 @@ class Model(object):
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_levels[config.log_level])
 
-        if config.distributed:
-            # assert config.session is not None
-            # self.session = config.session
-            pass
-        else:
+        if not config.distributed:
             assert not config.global_model and config.session is None
             tf.reset_default_graph()
-            self.session = config.session = tf.Session()
 
         if config.distributed and not config.global_model:
             # Global and local model for asynchronous updates
@@ -94,32 +89,54 @@ class Model(object):
             global_config.optimizer = None
             global_config.global_model = True
             global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=config.cluster_spec)
+            self.global_model = self.__class__(config=global_config)
+            self.global_timestep = self.global_model.timestep
+            self.global_episode = self.global_model.episode
+            self.global_variables = self.global_model.variables
 
-            self.global_model = self.__class__(global_config)
-            self.global_step = tf.get_variable(name='global_step', dtype=tf.int32, initializer=0, trainable=False)
-            self.global_episode = tf.get_variable(name='global_episode', dtype=tf.int32, initializer=0, trainable=False)
+        with tf.device(config.device):
+            if config.distributed:
+                if config.global_model:
+                    self.timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
+                    self.episode = tf.get_variable(name='episode', dtype=tf.int32, initializer=0, trainable=False)
+                    scope_context = tf.variable_scope('global')
+                else:
+                    scope_context = tf.variable_scope('local')
+                scope = scope_context.__enter__()
 
-        with tf.device(config.device) as scope:
             self.create_tf_operations(config)
-            self.variables = tf.contrib.framework.get_variables(scope)
-            assert self.optimizer or (not config.distributed or config.global_model)
-            if self.optimizer:
+
+            if config.distributed:
+                self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
+                self.variables = tf.contrib.framework.get_variables(scope=scope)
+            else:
                 self.loss = tf.losses.get_total_loss()
 
+            assert self.optimizer or (not config.distributed or config.global_model)
+            if self.optimizer:
                 if config.distributed and not config.global_model:
-                    self.increment_global_episode = self.global_episode.assign_add(1)
+                    self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
                     # Add operations for local/global sync
                     local_gradients = tf.gradients(self.loss, self.variables)
                     global_gradients = list(zip(local_gradients, self.global_model.variables))
                     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
-                    self.optimize = tf.group(self.optimizer.apply_gradients(global_gradients), self.update_local, self.global_step.assign_add(tf.shape(self.reward)[0]))
+                    self.optimize = tf.group(self.optimizer.apply_gradients(global_gradients), self.update_local, self.global_timestep.assign_add(tf.shape(self.reward)[0]))
                 else:
                     self.optimize = self.optimizer.minimize(self.loss)
+
+            if config.distributed:
+                scope_context.__exit__(None, None, None)
+
+        if config.distributed:
+            self.session = None
+        else:
+            self.set_session(tf.Session())
 
         if config.tf_saver:
             self.saver = tf.train.Saver()
         else:
             self.saver = None
+
         if config.tf_summary is not None:
             self.writer = tf.summary.FileWriter(config.tf_summary, graph=tf.get_default_graph())
         else:
@@ -143,20 +160,17 @@ class Model(object):
         self.internal_outputs = list()
         self.internal_inits = list()
 
-        config.states = config.states # hack to turn config.states and its subdicts into Configuration objects
-        config.actions = config.actions  # TODO: find a better way to convert into Configuration objects
-
         # Placeholders
         with tf.variable_scope('placeholder'):
             # States
             self.state = dict()
             for name, state in config.states.items():
                 self.state[name] = tf.placeholder(dtype=util.tf_dtype(state.type), shape=(None,) + tuple(state.shape), name=name)
+
             # Actions
             self.action = dict()
             self.discrete_actions = []
             self.continuous_actions = []
-
             for name, action in config.actions:
                 if action.continuous:
                     if not self.__class__.allows_continuous_actions:
@@ -166,6 +180,7 @@ class Model(object):
                     if not self.__class__.allows_discrete_actions:
                         raise TensorForceError("Error: Model does not support discrete actions.")
                     self.action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,), name=name)
+
             # Reward & terminal
             self.reward = tf.placeholder(dtype=tf.float32, shape=(None,), name='reward')
             self.terminal = tf.placeholder(dtype=tf.bool, shape=(None,), name='terminal')
@@ -180,6 +195,10 @@ class Model(object):
                 self.optimizer = optimizer(learning_rate, *args, **kwargs)
         else:
             self.optimizer = None
+
+    def set_session(self, session):
+        assert self.session is None
+        self.session = session
 
     def reset(self):
         return list(self.internal_inits)

@@ -74,10 +74,10 @@ class DQFDAgent(Agent):
     * `target_network_update_rate`: float of target network update rate (e.g. 0.01 = every 100 steps).
     * `use_target_network`: boolean indicating whether to use a target network.
     * `update_repeat`: integer of how many times to repeat an update.
-    * `expert_sampling_ratio`: float
-    * `update_target_weight`: float
-    * `supervised_weight`: float
-    * `expert_margin`: float
+    * `update_target_weight`: float of update target weight (tau parameter).
+    * `expert_sampling_ratio`: float, ratio of expert data used at runtime to train from.
+    * `supervised_weight`: float, weight of large margin classifier loss.
+    * `expert_margin`: float of difference in Q-values between expert action and other actions enforced by the large margin function.
     * `clip_gradients`: float of maximum values for gradients before clipping.
 
 

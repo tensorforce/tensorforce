@@ -26,6 +26,34 @@ from tensorforce.models import VPGModel
 
 
 class VPGAgent(BatchAgent):
+    """
+    Vanilla Policy Gradient agent as described by [Sutton et al. (1999)](https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf).
+
+    ## Configuration
+
+    Each agent requires the following ``Configuration`` parameters:
+
+    * `states`: dict containing one or more state definitions.
+    * `actions`: dict containing one or more action definitions.
+    * `preprocessing`: dict or list containing state preprocessing configuration.
+    * `exploration`: dict containing action exploration configuration.
+
+    The `BatchAgent` class additionally requires the following parameters:
+
+    * `batch_size`: integer of the batch size.
+
+    A Polcy Gradient Model expects the following additional configuration parameters:
+
+    * `sample_actions`: boolean of whether to sample actions
+    * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp')
+    * `baseline_args`: list of arguments for the baseline value function
+    * `baseline_kwargs`: dict of keyword arguments for the baseline value function
+    * `generalized_advantage_estimation`: boolean indicating whether to use GAE estimation
+    * `gae_lambda`: float of the Generalized Advantage Estimation lambda
+    * `normalize_advantage`: boolean indicating whether to normalize the advantage or not
+
+    """
+
 
     name = 'VPGAgent'
     model = VPGModel

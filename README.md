@@ -144,6 +144,19 @@ use it as seen below (see documentation for all optional parameters):
 Update notes
 ------------
 
+8th July 2017
+
+- BREAKING CHANGE: We modified the act and observe API once more because we think there was
+a lack of clarity with regard to which state is observed (current vs next). The agent now internally
+manages states and actions in the correct sequence so observe only needs reward and terminal.
+- We further introduced a method ```import_observations``` so memory-based agents can preload
+data into memory (e.g. if historic data is available). We also added a method ```last_observation```
+on the generic agent which gives the current state, action, reward, terminal and internal state
+- Fixed distributed agent mode, should run as intended now
+- Fixed target network usage in NAF. Tests now run smoothl
+- DQFDAgent now inherits from MemoryAgent
+
+
 2nd July 2017
 
 - Fixed lab integration: updated bazel BUILD file with command line options

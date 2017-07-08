@@ -13,23 +13,19 @@
 # limitations under the License.
 # ==============================================================================
 
-from random import randrange
-import numpy as np
+from random import gauss
 
 from tensorforce.core.explorations import Exploration
 
 
 class OrnsteinUhlenbeckProcess(Exploration):
 
-    def __init__(self, num_timesteps, sigma=0.3, mu=0, theta=0.15):
-        self.num_timesteps = num_timesteps
+    def __init__(self, sigma=0.3, mu=0, theta=0.15):
         self.mu = mu
         self.theta = theta
         self.sigma = sigma
-        self.timesteps = np.ones(self.num_timesteps) * self.mu
+        self.state = self.mu
 
     def __call__(self, episode=0, timestep=0):
-        timesteps = self.timesteps
-        dx = self.theta * (self.mu - timesteps) + self.sigma * randrange(len(timesteps))
-        self.timesteps = timesteps + dx
-        return self.timesteps
+        self.state += self.theta * (self.mu - self.state) + self.sigma * gauss(mu=0.0, sigma=1.0)
+        return self.state

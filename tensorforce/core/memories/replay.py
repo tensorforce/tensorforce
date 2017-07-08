@@ -43,7 +43,7 @@ class Replay(Memory):
         self.size = 0
         self.index = 0
 
-    def add_experience(self, state, action, reward, terminal, internal):
+    def add_observation(self, state, action, reward, terminal, internal):
         if self.internals is None and internal is not None:
             self.internals = [np.zeros((self.capacity,) + i.shape, i.dtype) for i in internal]
 

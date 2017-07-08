@@ -114,11 +114,15 @@ class TRPOModel(PolicyGradientModel):
             gradients = tf.gradients(fixed_kl_divergence, variables)
             gradient_vector_product = [tf.reduce_sum(g * t) for (g, t) in zip(gradients, tangents)]
 
-            self.flat_variable_helper = FlatVarHelper(self.session, variables)
+            self.flat_variable_helper = FlatVarHelper(variables)
             gradients = tf.gradients(gradient_vector_product, variables)
             self.fisher_vector_product = tf.concat(values=[tf.reshape(grad, (-1,)) for grad in gradients], axis=0)
 
             self.cg_optimizer = ConjugateGradientOptimizer(self.logger, config.cg_iterations)
+
+    def set_session(self, session):
+        super(TRPOModel, self).set_session(session)
+        self.flat_variable_helper.session = session
 
     def update(self, batch):
         """
@@ -168,12 +172,13 @@ class TRPOModel(PolicyGradientModel):
             self.flat_variable_helper.set(previous_theta + update_step)
 
         # Get loss values for progress monitoring
-        surrogate_loss, kl_divergence, entropy = self.session.run(self.losses, self.feed_dict)
+        surrogate_loss, kl_divergence, entropy, loss_per_instance = self.session.run(self.losses + [self.loss_per_instance], self.feed_dict)
 
         # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
         self.logger.debug('Surrogate loss = ' + str(surrogate_loss))
         self.logger.debug('KL-divergence after update = ' + str(kl_divergence))
         self.logger.debug('Entropy = ' + str(entropy))
+        return (surrogate_loss, kl_divergence, entropy), loss_per_instance
 
     def compute_fvp(self, p):
         self.feed_dict[self.tangent] = p
@@ -189,8 +194,8 @@ class TRPOModel(PolicyGradientModel):
 
 class FlatVarHelper(object):
 
-    def __init__(self, session, variables):
-        self.session = session
+    def __init__(self, variables):
+        self.session = None
         shapes = [util.shape(variable) for variable in variables]
         total_size = sum(util.prod(shape) for shape in shapes)
         self.theta = tf.placeholder(tf.float32, [total_size])

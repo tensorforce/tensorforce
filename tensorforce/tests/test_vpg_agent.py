@@ -47,10 +47,10 @@ class TestVPGAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            runner.run(episodes=10000, episode_finished=episode_finished)
+            runner.run(episodes=2000, episode_finished=episode_finished)
             print('VPG Agent (discrete): ' + str(runner.episode))
 
-            if runner.episode < 10000:
+            if runner.episode < 2000:
                 passed += 1
 
         print('VPG discrete agent passed = {}'.format(passed))
@@ -80,4 +80,4 @@ class TestVPGAgent(unittest.TestCase):
                 passed += 1
 
         print('VPG continuous agent passed = {}'.format(passed))
-        self.assertTrue(passed >= 4)
+        self.assertTrue(passed >= 3)

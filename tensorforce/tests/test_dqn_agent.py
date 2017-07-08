@@ -52,9 +52,9 @@ class TestDQNAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            runner.run(episodes=5000, episode_finished=episode_finished)
+            runner.run(episodes=1000, episode_finished=episode_finished)
             print('DQN Agent: ' + str(runner.episode))
-            if runner.episode < 5000:
+            if runner.episode < 1000:
                 passed += 1
 
         print('DQN Agent passed = {}'.format(passed))

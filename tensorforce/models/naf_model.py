@@ -162,7 +162,7 @@ class NAFModel(Model):
                 update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
                 self.target_network_update.append(update)
 
-    def update_target_network(self):
+    def update_target(self):
         """
         Updates target network.
 

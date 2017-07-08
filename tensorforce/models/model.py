@@ -42,7 +42,25 @@ log_levels = {
 
 
 class Model(object):
+    """
+    Base model class.
 
+    Each model requires the following configuration parameters:
+
+    * `discount`: float of discount factor (gamma).
+    * `learning_rate`: float of learning rate (alpha).
+    * `optimizer`: string of optimizer to use (e.g. 'adam').
+    * `optimizer_args`: list of arguments for optimizer.
+    * `optimizer_kwargs`: dict of keyword arguments for optimizer.
+    * `device`: string of tensorflow device name.
+    * `tf_saver`: boolean whether to save model parameters.
+    * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
+    * `log_level`: string containing logleve (e.g. 'info').
+    * `distributed`: boolean indicating whether to use distributed tensorflow.
+    * `global_model`: global model.
+    * `session`: session to use.
+
+    """
     allows_discrete_actions = None
     allows_continuous_actions = None
 
@@ -74,6 +92,7 @@ class Model(object):
 
         self.discount = config.discount
         self.distributed = config.distributed
+        self.session = None
 
         # TODO: change/remove
         self.logger = logging.getLogger(__name__)
@@ -107,30 +126,23 @@ class Model(object):
             self.create_tf_operations(config)
 
             if config.distributed:
-                self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
                 self.variables = tf.contrib.framework.get_variables(scope=scope)
-            else:
-                self.loss = tf.losses.get_total_loss()
 
             assert self.optimizer or (not config.distributed or config.global_model)
             if self.optimizer:
                 if config.distributed and not config.global_model:
-                    self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
-                    # Add operations for local/global sync
+                    self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
                     local_gradients = tf.gradients(self.loss, self.variables)
                     global_gradients = list(zip(local_gradients, self.global_model.variables))
                     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
                     self.optimize = tf.group(self.optimizer.apply_gradients(global_gradients), self.update_local, self.global_timestep.assign_add(tf.shape(self.reward)[0]))
+                    self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
                 else:
+                    self.loss = tf.losses.get_total_loss()
                     self.optimize = self.optimizer.minimize(self.loss)
 
             if config.distributed:
                 scope_context.__exit__(None, None, None)
-
-        if config.distributed:
-            self.session = None
-        else:
-            self.set_session(tf.Session())
 
         if config.tf_saver:
             self.saver = tf.train.Saver()
@@ -143,6 +155,7 @@ class Model(object):
             self.writer = None
 
         if not config.distributed:
+            self.set_session(tf.Session())
             self.session.run(tf.global_variables_initializer())
 
     def create_tf_operations(self, config):

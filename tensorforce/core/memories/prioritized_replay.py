@@ -38,22 +38,22 @@ class PrioritizedReplay(Memory):
         self.state_spec = {name: (tuple(state.shape), util.np_dtype(state.type)) for name, state in states_config}
         self.action_spec = {name: util.np_dtype('float' if action.continuous else 'int') for name, action in actions_config}
         self.internal_spec = None
-        self.experiences = list()
+        self.observations = list()
 
         self.sum_priorities = 0.0
         self.positive_priority_index = -1
         self.batch_indices = list()
 
-    def add_experience(self, state, action, reward, terminal, internal):
+    def add_observation(self, state, action, reward, terminal, internal):
         if self.internal_spec is None and internal is not None:
             self.internal_spec = [(i.shape, i.dtype) for i in internal]
 
-        experience = (state, action, reward, terminal, internal)
-        if len(self.experiences) < self.capacity:
-            self.experiences.append((0.0, experience))
+        observation = (state, action, reward, terminal, internal)
+        if len(self.observations) < self.capacity:
+            self.observations.append((0.0, observation))
         else:
-            priority, _ = self.experiences.pop(self.positive_priority_index)
-            self.experiences.append((0.0, experience))
+            priority, _ = self.observations.pop(self.positive_priority_index)
+            self.observations.append((0.0, observation))
             self.sum_priorities -= priority
             self.positive_priority_index -= 1
 
@@ -78,14 +78,14 @@ class PrioritizedReplay(Memory):
 
         zero_priority_index = self.positive_priority_index + 1
         for n in xrange(batch_size):
-            if zero_priority_index < len(self.experiences):
-                _, experience = self.experiences[zero_priority_index]
+            if zero_priority_index < len(self.observations):
+                _, observation = self.observations[zero_priority_index]
                 index = zero_priority_index
                 zero_priority_index += 1
             else:
                 while True:
                     sample = random()
-                    for index, (priority, experience) in enumerate(self.experiences):
+                    for index, (priority, observation) in enumerate(self.observations):
                         sample -= priority / self.sum_priorities
                         if sample < 0.0:
                             break
@@ -93,13 +93,13 @@ class PrioritizedReplay(Memory):
                         break
 
             for name, state in states.items():
-                state[n] = experience[0][name]
+                state[n] = observation[0][name]
             for name, action in actions.items():
-                action[n] = experience[1][name]
-            rewards[n] = experience[2]
-            terminals[n] = experience[3]
+                action[n] = observation[1][name]
+            rewards[n] = observation[2]
+            terminals[n] = observation[3]
             for k, internal in enumerate(internals):
-                internal[n] = experience[4][k]
+                internal[n] = observation[4][k]
             self.batch_indices.append(index)
 
         return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
@@ -110,28 +110,28 @@ class PrioritizedReplay(Memory):
 
         updated = list()
         for index, loss in zip(self.batch_indices, loss_per_instance):
-            priority, experience = self.experiences[index]
+            priority, observation = self.observations[index]
             self.sum_priorities -= priority
             if priority > 0.0:
                 self.positive_priority_index -= 1
-            updated.append((loss ** self.prioritization_weight, experience))
+            updated.append((loss ** self.prioritization_weight, observation))
         for index in sorted(self.batch_indices, reverse=True):
-            self.experiences.pop(index)
+            self.observations.pop(index)
         self.batch_indices = list()
         updated = sorted(updated, key=(lambda x: x[0]))
 
-        update_priority, update_experience = updated.pop()
-        for n, (priority, _) in enumerate(self.experiences):
+        update_priority, update_observation = updated.pop()
+        for n, (priority, _) in enumerate(self.observations):
             if update_priority <= priority:
                 continue
-            self.experiences.insert(n, (update_priority, update_experience))
+            self.observations.insert(n, (update_priority, update_observation))
             self.sum_priorities += update_priority
             if update_priority > 0.0:
                 self.positive_priority_index += 1
             if not updated:
                 break
-            update_priority, update_experience = updated.pop()
+            update_priority, update_observation = updated.pop()
         else:
-            self.experiences.append((update_priority, update_experience))
+            self.observations.append((update_priority, update_observation))
         while updated:
-            self.experiences.append(updated.pop())
+            self.observations.append(updated.pop())

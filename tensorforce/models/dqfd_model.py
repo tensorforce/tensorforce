@@ -43,34 +43,6 @@ class DQFDModel(Model):
         config.default(DQFDModel.default_config)
         super(DQFDModel, self).__init__(config)
 
-    def pre_train_update(self, batch=None):
-        """Computes the pre-training update.
-
-        Args:
-            batch: A batch of demo data.
-
-        Returns:
-
-        """
-
-        fetches = self.dqfd_opt
-
-        feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
-        feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
-
-        feed_dict[self.reward] = batch['rewards']
-        feed_dict[self.terminal] = batch['terminals']
-        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
-
-        self.session.run(fetches=fetches, feed_dict=feed_dict)
-
-    def update_target_network(self):
-        """
-        Updates target network.
-
-        """
-        self.session.run(self.target_network_update)
-
     def create_tf_operations(self, config):
         """Create training graph. For DQFD, we build the double-dqn training graph and
         modify the double_q_loss function according to eq. 5
@@ -172,3 +144,30 @@ class DQFDModel(Model):
                 update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
                 self.target_network_update.append(update)
 
+    def update_target(self):
+        """
+        Updates target network.
+
+        """
+        self.session.run(self.target_network_update)
+
+    def demonstration_update(self, batch=None):
+        """Computes the demonstration update.
+
+        Args:
+            batch: A batch of demo data.
+
+        Returns:
+
+        """
+
+        fetches = self.dqfd_opt
+
+        feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
+        feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
+
+        feed_dict[self.reward] = batch['rewards']
+        feed_dict[self.terminal] = batch['terminals']
+        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+
+        self.session.run(fetches=fetches, feed_dict=feed_dict)

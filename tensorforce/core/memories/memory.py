@@ -20,7 +20,7 @@ from __future__ import division
 
 class Memory(object):
 
-    def add_experience(self, state, action, reward, terminal, internal):
+    def add_observation(self, state, action, reward, terminal, internal):
         raise NotImplementedError
 
     def get_batch(self, batch_size):

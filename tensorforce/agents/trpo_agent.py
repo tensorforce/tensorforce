@@ -26,6 +26,45 @@ from tensorforce.models import TRPOModel
 
 
 class TRPOAgent(BatchAgent):
+    """
+    Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
+
+    Configuration:
+
+    Each agent requires the following ``Configuration`` parameters:
+
+    * `states`: dict containing one or more state definitions.
+    * `actions`: dict containing one or more action definitions.
+    * `preprocessing`: dict or list containing state preprocessing configuration.
+    * `exploration`: dict containing action exploration configuration.
+
+    The `BatchAgent` class additionally requires the following parameters:
+
+    * `batch_size`: integer of the batch size.
+
+    A Policy Gradient Model expects the following additional configuration parameters:
+
+    * `sample_actions`: boolean of whether to sample actions.
+    * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp').
+    * `baseline_args`: list of arguments for the baseline value function.
+    * `baseline_kwargs`: dict of keyword arguments for the baseline value function.
+    * `generalized_advantage_estimation`: boolean indicating whether to use GAE estimation.
+    * `gae_lambda`: float of the Generalized Advantage Estimation lambda.
+    * `normalize_advantage`: boolean indicating whether to normalize the advantage or not.
+
+
+    The TRPO agent expects the following additional configuration parameters:
+
+    * `learning_rate`: float of learning rate (alpha).
+    * `optimizer`: string of optimizer to use (e.g. 'adam').
+    * `cg_damping`: float of the damping factor for the conjugate gradient method.
+    * `line_search_steps`: int of how many steps to take during line search.
+    * `max_kl_divergence`: float indicating the maximum kl divergence to allow for updates.
+    * `cg_iterations`: int of count of conjugate gradient iterations.
+
+
+    """
+
 
     name = 'TRPOAgent'
     model = TRPOModel

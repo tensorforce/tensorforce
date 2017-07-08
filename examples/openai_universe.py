@@ -137,7 +137,7 @@ def main():
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
-    logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
+    logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
     if args.monitor:
         env.gym.monitor.close()

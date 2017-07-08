@@ -45,7 +45,13 @@ class RandomAgent(Agent):
         :return: random action
         """
         self.timestep += 1
-        actions = dict()
+
+        if self.unique_state:
+            self.current_state = dict(state=state)
+        else:
+            self.current_state = state
+
+        self.current_action = dict()
         for name, action in self.actions_config.items():
             if action.continuous:
                 action = random()
@@ -55,10 +61,13 @@ class RandomAgent(Agent):
                     action = gauss(mu=0.0, sigma=1.0)
             else:
                 action = randrange(action.num_actions)
-            if self.unique_action:
-                return action
-            actions[name] = action
-        return actions
+            self.current_action[name] = action
 
-    def observe(self, state, action, reward, terminal):
-        pass
+        if self.unique_action:
+            return self.current_action['action']
+        else:
+            return self.current_action
+
+    def observe(self, reward, terminal):
+        self.current_reward = reward
+        self.current_terminal = terminal

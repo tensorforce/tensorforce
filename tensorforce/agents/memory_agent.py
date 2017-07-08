@@ -50,13 +50,11 @@ class MemoryAgent(Agent):
         self.first_update = config.first_update
         self.repeat_update = config.repeat_update
 
-    def observe(self, state, action, reward, terminal):
-        if self.unique_state:
-            state = dict(state=state)
-        if self.unique_action:
-            action = dict(action=action)
+    def observe(self, reward, terminal):
+        self.current_reward = reward
+        self.current_terminal = terminal
 
-        self.memory.add_experience(state=state, action=action, reward=reward, terminal=terminal, internal=self.internal)
+        self.memory.add_experience(state=self.current_state, action=self.current_action, reward=self.current_reward, terminal=self.current_terminal, internal=self.current_internal)
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
             for _ in xrange(self.repeat_update):

@@ -28,6 +28,7 @@ from __future__ import division
 
 from random import random, randrange
 
+from tensorforce import TensorForceError
 from tensorforce.core.preprocessing import Preprocessing
 from tensorforce.core.explorations import Exploration
 
@@ -93,40 +94,44 @@ class Agent(object):
 
     def reset(self):
         self.episode += 1
-        self.internal = self.next_internal = self.model.reset()
+        self.current_internal = self.next_internal = self.model.reset()
         for preprocessing in self.preprocessing.values():
             preprocessing.reset()
 
     def act(self, state):
         self.timestep += 1
-        self.internal = self.next_internal
+        self.current_internal = self.next_internal
 
         if self.unique_state:
-            state = dict(state=state)
+            self.current_state = dict(state=state)
+        else:
+            self.current_state = state
 
         # preprocessing
         for name, preprocessing in self.preprocessing.items():
-            state[name] = preprocessing.process(state=state[name])
+            self.current_state[name] = preprocessing.process(state=self.current_state[name])
 
         # model action
-        action, self.next_internal = self.model.get_action(state=state, internal=self.internal)
+        self.current_action, self.next_internal = self.model.get_action(state=self.current_state, internal=self.current_internal)
 
         # exploration
         for name, exploration in self.exploration.items():
             if name in self.continuous_actions:
-                action[name] += exploration(episode=self.episode, timestep=self.timestep)
+                self.current_action[name] += exploration(episode=self.episode, timestep=self.timestep)
             else:
                 if random() < exploration(episode=self.episode, timestep=self.timestep):
-                    action[name] = randrange(self.actions_config[name].num_actions)
+                    self.current_action[name] = randrange(self.actions_config[name].num_actions)
 
-        if self.unique_state:
-            state = state['state']
         if self.unique_action:
-            action = action['action']
-        return state, action
+            return self.current_action['action']
+        else:
+            return self.current_action
 
-    def observe(self, state, action, reward, terminal):
+    def observe(self, reward, terminal):
         raise NotImplementedError
+
+    def last_observation(self):
+        return dict(state=self.current_state, action=self.current_action, reward=self.current_reward, terminal=self.current_terminal, internal=self.current_internal)
 
     def load_model(self, path):
         self.model.load_model(path)

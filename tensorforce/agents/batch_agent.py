@@ -36,7 +36,7 @@ class BatchAgent(Agent):
         self.batch_size = config.batch_size
         self.batch = None
 
-    def observe(self, state, action, reward, terminal):
+    def observe(self, reward, terminal):
         """
         Adds an observation and performs an update if the necessary conditions
         are satisfied, i.e. if one batch of experience has been collected as defined
@@ -51,21 +51,19 @@ class BatchAgent(Agent):
         :param terminal:
         :return:
         """
-        if self.unique_state:
-            state = dict(state=state)
-        if self.unique_action:
-            action = dict(action=action)
+        self.current_reward = reward
+        self.current_terminal = terminal
 
         if self.batch is None:
             self.reset_batch()
-        for name in self.batch['states']:
-            self.batch['states'][name].append(state[name])
-        for name in self.batch['actions']:
-            self.batch['actions'][name].append(action[name])
-        self.batch['rewards'].append(reward)
-        self.batch['terminals'].append(terminal)
-        for n, internal in enumerate(self.internal):
-            self.batch['internals'][n].append(internal)
+        for name, batch_state in self.batch['states'].items():
+            batch_state.append(self.current_state[name])
+        for name, batch_action in self.batch['actions'].items():
+            batch_action.append(self.current_action[name])
+        self.batch['rewards'].append(self.current_reward)
+        self.batch['terminals'].append(self.current_terminal)
+        for batch_internal, internal in zip(self.batch['internals'], self.current_internal):
+            batch_internal.append(internal)
 
         self.batch_count += 1
         if self.batch_count == self.batch_size:

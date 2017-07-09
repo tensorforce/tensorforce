@@ -57,13 +57,8 @@ class DeepMindLab(Environment):
         Args:
             level_id: string with id/descriptor of the level, e.g. 'seekavoid_arena_01'.
             repeat_action: number of frames the environment is advanced, executing the given action during every frame.
-            state_attribute: Attributes which represents the state for this environment, should adhere to the
-                specification given in DeepMindLabEnvironment.state_spec(level_id).
-            settings: dict specifying additional settings as key-value string pairs. The following options are
-                recognized: 'width' (horizontal resolution of the observation frames),
-                'height' (vertical resolution of the observation frames),
-                'fps' (frames per second) and
-                'appendCommand' (commands for the internal Quake console).
+            state_attribute: Attributes which represents the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id).
+            settings: dict specifying additional settings as key-value string pairs. The following options are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
 
         """
         self.level_id = level_id

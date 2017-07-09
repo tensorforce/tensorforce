@@ -27,17 +27,15 @@ from tensorforce.core.preprocessing import Preprocessor
 
 
 class Grayscale(Preprocessor):
+    """
+    Turn 3D color state into grayscale.
+    """
 
     def __init__(self, weights=(0.299, 0.587, 0.114)):
         super(Grayscale, self).__init__()
         self.weights = weights
 
     def process(self, state):
-        """
-        Turn 3D color state into grayscale, thereby removing the last dimension.
-        :param state: state
-        :return: grayscale state
-        """
         state = (self.weights * state).sum(-1)
         return np.reshape(state, tuple(state.shape) + (1,))
 

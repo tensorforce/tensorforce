@@ -28,18 +28,15 @@ from tensorforce.core.preprocessing import Preprocessor
 
 
 class ImageResize(Preprocessor):
+    """
+    Resize image to width x height.
+    """
 
     def __init__(self, width, height):
         super(ImageResize, self).__init__()
         self.size = (width, height)
 
     def process(self, state):
-        """
-        Resize state.
-
-        :param state: state
-        :return: resized state
-        """
         return scipy.misc.imresize(arr=state.astype(np.uint8), size=self.size)
 
     def processed_shape(self, shape):

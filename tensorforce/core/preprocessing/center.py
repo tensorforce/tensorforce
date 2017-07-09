@@ -28,12 +28,10 @@ from tensorforce.core.preprocessing import Preprocessor
 
 
 class Center(Preprocessor):
+    """
+    Center/standardize state. Subtract minimal value and divide by range.
+    """
 
     def process(self, state):
-        """
-        Standardize state.
-        :param state: state
-        :return: centered state
-        """
         state = state.astype(np.float32)
         return (state - state.min()) / (state.max() - state.min() + util.epsilon)

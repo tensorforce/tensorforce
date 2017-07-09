@@ -30,8 +30,10 @@ class Preprocessor(object):
         """
         Process state.
 
-        :param state: state
-        :return: processed state
+        Args:
+            state: state to process.
+
+        Returns: processed state.
         """
         return state
 
@@ -39,8 +41,10 @@ class Preprocessor(object):
         """
         Shape of preprocessed state given original shape.
 
-        :param shape: original state shape
-        :return: processed state shape
+        Args:
+            shape: original shape.
+
+        Returns: processed state shape
         """
         return shape
 

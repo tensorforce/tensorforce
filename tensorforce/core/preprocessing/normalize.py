@@ -28,12 +28,10 @@ from tensorforce.core.preprocessing import Preprocessor
 
 
 class Normalize(Preprocessor):
+    """
+    Normalize state. Subtract mean and divide by standard deviation.
+    """
 
     def process(self, state):
-        """
-        Standardize state.
-        :param state: state
-        :return: normalized state
-        """
         state = state.astype(np.float32)
         return (state - state.mean()) / (state.std() + util.epsilon)

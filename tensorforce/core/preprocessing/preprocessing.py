@@ -51,8 +51,10 @@ class Preprocessing(object):
         """
         Shape of preprocessed state given original shape.
 
-        :param shape: original state shape
-        :return: processed state shape
+        Args:
+            shape: original state shape
+
+        Returns: processed state shape
         """
         for processor in self.preprocessors:
             shape = processor.processed_shape(shape=shape)

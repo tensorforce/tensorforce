@@ -27,16 +27,11 @@ from tensorforce.core.preprocessing import Preprocessor
 
 
 class Sequence(Preprocessor):
+    """
+    Concatenate `length` state vectors. Example: Used in Atari
+    problems to create the Markov property.
 
-    default_config = {
-        'concat_length': 1,
-        'dimension_position': 'prepend'
-    }
-
-    config_args = [
-        'concat_length',
-        'dimension_position'
-    ]
+    """
 
     def __init__(self, length=2):
         super(Sequence, self).__init__()
@@ -44,12 +39,6 @@ class Sequence(Preprocessor):
         self.index = -1
 
     def process(self, state):
-        """
-        Return sequence state which ends with given state.
-
-        :param state: state
-        :return: sequence state
-        """
         if self.index == -1:
             self.previous_states = [state for _ in range(self.length)]
             self.index = 1

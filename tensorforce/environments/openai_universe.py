@@ -34,9 +34,10 @@ from tensorforce.environments.environment import Environment
 class OpenAIUniverse(Environment):
     def __init__(self, env_id):
         """
-        Initialize open ai universe environment.
+        Initialize OpenAI universe environment.
 
-        :param env_id: string with id/descriptor of the universe environment, e.g. 'HarvestDay-v0'
+        Args:
+            env_id: string with id/descriptor of the universe environment, e.g. 'HarvestDay-v0'.
         """
         self.env_id = env_id
         self.env = gym.make(env_id)
@@ -45,15 +46,9 @@ class OpenAIUniverse(Environment):
         return 'OpenAI-Universe({})'.format(self.env_id)
 
     def close(self):
-        """
-        Close environment. No other method calls possible afterwards.
-        """
         self.env = None
 
     def reset(self):
-        """
-        Pass reset function to universe environment.
-        """
         state = self.env.reset()
         if state == [None]:
             state, r, t = self._wait_state(state, None, None)
@@ -64,9 +59,6 @@ class OpenAIUniverse(Environment):
         return state[0]
 
     def execute(self, action):
-        """
-        Pass action to universe environment, return reward, next step, terminal state and additional info.
-        """
         state, reward, terminal = self._execute(action)
         return self._wait_state(state, reward, terminal)
 

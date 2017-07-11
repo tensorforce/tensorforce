@@ -30,7 +30,7 @@ install_requires=[
           'pytest'
       ]
 
-setup_requires=['mistune']
+setup_requires=['numpy', 'mistune']
 
 # Readthedocs requires Sphinx extensions to be specified as part of
 # install_requires in order to build properly.

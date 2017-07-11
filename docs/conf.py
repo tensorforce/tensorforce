@@ -20,16 +20,9 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))
 
-
 # import CommonMark
 from recommonmark.transform import AutoStructify
 from m2r import M2R
-
-import mock
-
-MOCK_MODULES = ['deepmind_lab', 'universe', 'universe.spaces', 'gym', 'gym.spaces', 'gym.wrappers', 'gym.spaces.discrete']
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
 
 
 # -- General configuration ------------------------------------------------
@@ -94,6 +87,10 @@ pygments_style = 'sphinx'
 todo_include_todos = False
 
 # autoclass_content = 'both'
+
+autodoc_mock_imports = ['go_vncdriver', 'tensorflow', 'deepmind_lab', 'universe.spaces', 'gym.spaces.discrete', 'gym.wrappers',
+    'tensorflow.python.training.adadelta', 'tensorflow.python.training.adagrad', 'tensorflow.python.training.adam',
+    'tensorflow.python.training.gradient_descent', 'tensorflow.python.training.momentum', 'tensorflow.python.training.rmsprop']
 
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False

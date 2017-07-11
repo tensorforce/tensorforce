@@ -16,7 +16,7 @@ TensorForce is built on top of TensorFlow and compatible with Python 2.7
 and &gt;3.5 and supports multiple state inputs and multi-dimensional
 actions to be compatible with Gym, Universe, and DeepMind lab.
 
-An introductory blogpost can also be found[on our blog.](https://reinforce.io/blog/introduction-to-tensorforce)
+An introductory blog post can also be found [on our blog.](https://reinforce.io/blog/introduction-to-tensorforce)
 
 IMPORTANT: Please do read the latest update notes at the bottom of this
 document to get an idea of how the project is evolving, especially

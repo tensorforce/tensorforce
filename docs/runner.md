@@ -25,8 +25,8 @@ initialization:
 from tensorforce.execution import Runner
 
 runner = Runner(
-    agent = agent,  # tensorforce.agents.agent.Agent object
-    environment = env  # tensorforce.environments.environment.Environment object
+    agent = agent,  # Agent object
+    environment = env  # Environment object
 )
 ```
 
@@ -66,53 +66,45 @@ def episode_finished(r):
 Here is some example code for using the runner (without preprocessing).
 
 ```python
-from tensorforce.config import Config
-from tensorforce.external.openai_gym import OpenAIGymEnvironment
+from tensorforce.config import Configuration
+from tensorforce.environments.openai_gym import OpenAIGym
+from tensorforce.agents import DQNAgent
 from tensorforce.execution import Runner
-from tensorforce.examples.simple_q_agent import SimpleQAgent
 
 def main():
     gym_id = 'CartPole-v0'
     max_episodes = 10000
     max_timesteps = 1000
 
-    env = OpenAIGymEnvironment(gym_id, monitor=False, monitor_video=False)
+    env = OpenAIGym(gym_id)
 
-    config = Config({
-        'repeat_actions': 1,
+    config = Configuration({
         'actions': env.actions,
-        'action_shape': env.action_shape,
-        'state_shape': env.state_shape,
-        'exploration': 'constant',
-        'exploration_args': [0.1]
+        'states': env.states
+        # ...
     })
 
-    agent = SimpleQAgent(config, "simpleq")
+    agent = DQNAgent(config)
 
     runner = Runner(agent, env)
 
     def episode_finished(r):
-        if r.episode % 10 == 0:
-            print("Finished episode {ep} after {ts} timesteps".format(ep=r.episode + 1, ts=r.timestep + 1))
-            print("Episode reward: {}".format(r.episode_rewards[-1]))
-            print("Average of last 10 rewards: {}".format(np.mean(r.episode_rewards[-10:])))
+        if r.episode % report_episodes == 0:
+            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode, ts=r.timestep))
+            logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
+            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
         return True
 
     print("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
+
     runner.run(max_episodes, max_timesteps, episode_finished=episode_finished)
-    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
+
+    print("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
 if __name__ == '__main__':
     main()
 ```
 
-### ThreadRunner
-
-No description, yet.
-
-### DistributedRunner
-
-No description, yet.
 
 Building your own runner
 ------------------------
@@ -123,13 +115,13 @@ resulting observation to the agent.
 
 ```python
 # Get action
-action = agent.get_action(state, self.episode)
+action = agent.act(state, self.episode)
 
 # Execute action in the environment
-result = environment.execute_action(action)
+state, reward, terminal_state = environment.execute(action)
 
 # Pass observation to the agent
-agent.add_observation(state, action, result['reward'], result['terminal_state'])
+agent.observe(state, action, reward, terminal_state)
 ```
 
 The key idea here is the separation of concerns. External code should
@@ -137,10 +129,6 @@ not need to manage batches or remember network features, this is that
 the agent is for. Conversely, an agent need not concern itself with how
 a model is implemented and the API should facilitate easy combination of
 different agents and models.
-
-There are other tasks a runner could implement, such as
-preprocessing &lt;preprocessing&gt;, repeating actions and storing
-episode rewards.
 
 If you would like to build your own runner, it is probably a good idea
 to take a look at the [source code of our Runner

@@ -16,15 +16,14 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
+import os
 import sys
-# sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('.'))
 
 
 # import CommonMark
-import pypandoc
-
 from recommonmark.transform import AutoStructify
+from m2r import M2R
 
 import mock
 
@@ -176,6 +175,7 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+m2r = M2R()
 def process_docstring(app, what, name, obj, options, lines):
     """Enable markdown syntax in docstrings"""
     
@@ -183,7 +183,7 @@ def process_docstring(app, what, name, obj, options, lines):
 
     # ast = cm_parser.parse(markdown)
     # html = cm_renderer.render(ast)
-    rest = pypandoc.convert_text(markdown, 'rst', format='md', extra_args=['--wrap=preserve'])
+    rest = m2r(markdown)
 
     rest.replace("\r\n", "\n")
     del lines[:]

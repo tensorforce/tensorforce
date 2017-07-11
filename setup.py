@@ -30,7 +30,7 @@ install_requires=[
           'pytest'
       ]
 
-setup_requires=['pypandoc']
+setup_requires=['mistune']
 
 # Readthedocs requires Sphinx extensions to be specified as part of
 # install_requires in order to build properly.
@@ -48,4 +48,5 @@ setup(name='tensorforce',
       license='Apache 2.0',
       packages=['tensorforce'],
       install_requires=install_requires,
+      setup_requires=setup_requires,
       zip_safe=False)

@@ -196,44 +196,6 @@ on the generic agent which gives the current state, action, reward, terminal and
 -   Added convenience method to create Network directly from json
     without needing to create a network builder, see examples for usage
 
-29th May 2017
-
-BREAKING CHANGES 0.2: We completely restructured the project to reduce
-redundant code, significantly improve execution time, allow for multiple
-states and actions per step (by wrapping them in dicts), and much more.
-We are aware not everything is working smoothly yet so please bear with
-us (or help by filing an issue). 0.1 still works. Following this
-rewrite, the high level API should be stable going forward. The most
-significant changes are listed below:
-
--   RlAgent (now Agent) API change: add\_observation() to observe(),
-    get\_action to act()
--   Code reorganised to contain a folder "core" which contains common
-    RL abstractions.
--   States and actions are now conceptualised as dictionaries to support
-    multiple state inputs and multiple actions of different shape per
-    time step. In particular, this allows us to have a generic interface
-    between gym, universe, lab and other potential environments
--   External environments (tensorforce/external) have to implement the
-    'states' and 'actions' properties to define environment shapes.
--   Models now all create their TensorFlow operations by calling the
-    same function (create\_tf\_operations()). This will allow us to do
-    useful things like wrapping these calls with TensorFlow
-    device mappings.
--   Minimal test environments are also implemented under
-    external/environments for consistency. Please note that these tests
-    are only meant to ensure the act and update mechanisms run in
-    principle to help us make changes, they cannot replace running full
-    environments
--   Examples moved into separate directory
--   N.b. we have not been able to test DeepMind lab yet
--   The distributed\_pg\_model/distributed\_agent have been deprecated.
-    We want a general parallel/distributed functionality that works for
-    as many models as possible, such as PAAC. We have started adding
-    this functionality in to the main model but this is still work
-    in progress.
--   We will soon publish a blog post detailing the overall architecture
-    and explaining some of our design choices
 
 Support and contact
 -------------------
@@ -247,21 +209,6 @@ You are also welcome to join our Gitter channel for help with using
 TensorForce, bugs or contributions:
 [<https://gitter.im/reinforceio/TensorForce>](https://gitter.im/reinforceio/TensorForce)
 
-Acknowledgements
-----------------
-
-The goal of TensorForce is not just to re-implement existing algorithms,
-but to provide clear APIs and modularisations, and later provide
-serving, integration and deployment components. Credit for some of the
-open source implementations we have adopted and modified into our
-architecture fully belongs to the original authors, which have all made
-their code available under MIT licenses.
-
-In particular, credit goes to John Schulman, Ilya Sutskever and Wojciech
-Zaremba for their various TRPO implementations, Rocky Duan for rllab,
-Taehoon Kim for his DQN and NAF implementations, and all the others who
-have put in effort to make deep reinforcement learning more accessible
-through blog posts and tutorials.
 
 Cite
 ----

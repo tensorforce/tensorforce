@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Replay memory to store observations and sample mini batches for training from.
+Replay memory implementing priotised experience replay.
 """
 
 from __future__ import absolute_import
@@ -59,8 +59,7 @@ class PrioritizedReplay(Memory):
 
     def get_batch(self, batch_size):
         """
-        Samples a batch of the specified size by selecting a random start/end point and returning
-        the contained sequence (as opposed to sampling each state separately).
+        Samples a batch of the specified size according to priority. 
 
         Args:
             batch_size: Length of the sampled sequence.
@@ -105,6 +104,15 @@ class PrioritizedReplay(Memory):
         return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
 
     def update_batch(self, loss_per_instance):
+        """
+        Computes priorities according to loss.
+        
+        Args:
+            loss_per_instance: 
+
+        Returns:
+
+        """
         assert self.batch_indices
         self.batch_indices = self.batch_indices[:len(loss_per_instance)]
 

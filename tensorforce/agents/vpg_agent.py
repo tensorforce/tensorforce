@@ -48,7 +48,7 @@ class VPGAgent(BatchAgent):
     * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp').
     * `baseline_args`: list of arguments for the baseline value function.
     * `baseline_kwargs`: dict of keyword arguments for the baseline value function.
-    * `generalized_advantage_estimation`: boolean indicating whether to use GAE estimation.
+    * `generalized_advantage_estimation`: boolean indicating whether to use GAE.
     * `gae_lambda`: float of the Generalized Advantage Estimation lambda.
     * `normalize_advantage`: boolean indicating whether to normalize the advantage or not.
 

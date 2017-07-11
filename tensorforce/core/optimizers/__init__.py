@@ -21,7 +21,6 @@ from tensorflow.python.training.momentum import MomentumOptimizer
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 from tensorforce.core.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 
-
 optimizers = dict(
     adadelta=AdadeltaOptimizer,
     adagrad=AdagradOptimizer,
@@ -31,6 +30,5 @@ optimizers = dict(
     rmsprop=RMSPropOptimizer,
     conjugate_gradient=ConjugateGradientOptimizer
 )
-
 
 __all__ = ['optimizers', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer', 'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'ConjugateGradientOptimizer']

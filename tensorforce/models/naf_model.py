@@ -12,17 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-"""
-Implements normalized advantage functions, largely following
-
-https://github.com/carpedm20/NAF-tensorflow/blob/master/src/network.py
-
-for the update logic with different modularisation.
-
-The core training update code is under MIT license, for more information see LICENSE-EXT.
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

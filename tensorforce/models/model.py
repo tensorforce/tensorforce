@@ -214,6 +214,11 @@ class Model(object):
         self.session = session
 
     def reset(self):
+        """
+        Resets the internal state to the initial state.
+        Returns: A list containing the internal_inits field.
+
+        """
         return list(self.internal_inits)
 
     def get_action(self, state, internal):

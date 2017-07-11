@@ -1,5 +1,5 @@
-TensorForce - modular deep reinforcement learning in TensorFlow
-===============================================================
+TensorForce: A TensorFlow library for applied reinforcement learning
+====================================================================
 
 [![Docs](https://readthedocs.org/projects/tensorforce/badge)](http://tensorforce.readthedocs.io/en/latest/)
 [![Gitter](https://badges.gitter.im/reinforceio/TensorForce.svg)](https://gitter.im/reinforceio/TensorForce?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
@@ -15,6 +15,8 @@ reinforcement learning solutions both in research and practice.
 TensorForce is built on top of TensorFlow and compatible with Python 2.7
 and &gt;3.5 and supports multiple state inputs and multi-dimensional
 actions to be compatible with Gym, Universe, and DeepMind lab.
+
+An introductory blogpost can also be found[on our blog.](https://reinforce.io/blog/introduction-to-tensorforce)
 
 IMPORTANT: Please do read the latest update notes at the bottom of this
 document to get an idea of how the project is evolving, especially
@@ -257,7 +259,21 @@ their code available under MIT licenses.
 
 In particular, credit goes to John Schulman, Ilya Sutskever and Wojciech
 Zaremba for their various TRPO implementations, Rocky Duan for rllab,
-Taehoon Kim for his DQN and NAF implementations, and many others who
+Taehoon Kim for his DQN and NAF implementations, and all the others who
 have put in effort to make deep reinforcement learning more accessible
 through blog posts and tutorials.
 
+Cite
+----
+
+If you use TensorForce in your academic research, we would be grateful if you could cite it as follows:
+
+```
+@misc{schaarschmidt2017tensorforce,
+    author = {Schaarschmidt, Michael and Kuhnle, Alexander and Fricke, Kai},
+    title = {TensorForce: A TensorFlow library for applied reinforcement learning},
+    howpublished={Web page},
+    url = {https://github.com/reinforceio/tensorforce},
+    year = {2017}
+}
+```

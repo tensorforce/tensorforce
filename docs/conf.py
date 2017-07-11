@@ -20,12 +20,15 @@
 import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+
+# import CommonMark
 import pypandoc
+
 from recommonmark.transform import AutoStructify
 
 import mock
 
-MOCK_MODULES = ['deepmind_lab']
+MOCK_MODULES = ['deepmind_lab', 'universe', 'universe.spaces', 'gym', 'gym.spaces', 'gym.wrappers', 'gym.spaces.discrete']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
@@ -177,9 +180,11 @@ def process_docstring(app, what, name, obj, options, lines):
     """Enable markdown syntax in docstrings"""
     
     markdown = "\n".join(lines)
-    
+
+    # ast = cm_parser.parse(markdown)
+    # html = cm_renderer.render(ast)
     rest = pypandoc.convert_text(markdown, 'rst', format='md', extra_args=['--wrap=preserve'])
-    
+
     rest.replace("\r\n", "\n")
     del lines[:]
     lines.extend(rest.split("\n"))

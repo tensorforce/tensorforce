@@ -29,13 +29,12 @@ agent inherits from this class.
         :members:
 ```
 
-### MemoryAgent
+### Model
 
-The `MemoryAgent` class implements a replay memory, from which it
-samples batches to update the value function.
+The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
-    .. autoclass:: tensorforce.agents.MemoryAgent
+    .. autoclass:: tensorforce.models.Model
         :show-inheritance:
         :members:
 ```

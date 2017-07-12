@@ -54,7 +54,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 
 ```eval_rst
-    .. autoclass:: tensorforce.agents.MemoryAgent
+    .. autoclass:: tensorforce.agents.BatchAgent
         :show-inheritance:
         :members:
 ```

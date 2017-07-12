@@ -61,9 +61,11 @@ Installation
 
 For the most straight-forward install via pip, execute:
 
-    git clone git@github.com:reinforceio/tensorforce.git
-    cd tensorforce
-    pip install -e .
+```bash
+git clone git@github.com:reinforceio/tensorforce.git
+cd tensorforce
+pip install -e .
+```
 
 To update TensorForce, just run `git pull` in the tensorforce directory.
 Please note that we did not include OpenAI Gym/Universe/DeepMind lab in
@@ -77,7 +79,9 @@ For a quick start, you can run one of our example scripts using the
 provided configurations, e.g. to run the TRPO agent on CartPole, execute
 from the examples folder:
 
-    python examples/openai_gym.py CartPole-v0 -a TRPOAgent -c examples/configs/trpo_cartpole.json -n examples/configs/trpo_cartpole_network.json
+```bash
+python examples/openai_gym.py CartPole-v0 -a TRPOAgent -c examples/configs/trpo_cartpole.json -n examples/configs/trpo_cartpole_network.json
+```
 
 Documentation is available at
 [ReadTheDocs](http://tensorforce.readthedocs.io). We also have tests
@@ -94,16 +98,22 @@ run it using the bazel BUILD file we provide. To use lab, first download
 and install it according to instructions
 <https://github.com/deepmind/lab/blob/master/docs/build.md>:
 
-    git clone https://github.com/deepmind/lab.git
+```bash
+git clone https://github.com/deepmind/lab.git
+```
 
 Add to the lab main BUILD file:
 
-    package(default_visibility = ["//visibility:public"])
+```
+package(default_visibility = ["//visibility:public"])
+```
 
 Clone TensorForce into the lab directory, then run the TensorForce bazel runner. Note that using any specific configuration file
 currently requires changing the Tensorforce BUILD file to adjust environment parameters.
 
-    bazel run //tensorforce:lab_runner
+```bash
+bazel run //tensorforce:lab_runner
+```
 
 Please note that we have not tried to reproduce any lab results yet, and
 these instructions just explain connectivity in case someone wants to
@@ -116,32 +126,34 @@ To use TensorForce as a library without using the pre-defined simulation
 runners, simply install and import the library, then create an agent and
 use it as seen below (see documentation for all optional parameters):
 
-    from tensorforce import Configuration
-    from tensorforce.agents import TRPOAgent
-    from tensorforce.core.networks import layered_network_builder
+```python
+from tensorforce import Configuration
+from tensorforce.agents import TRPOAgent
+from tensorforce.core.networks import layered_network_builder
 
-    config = Configuration(
-      batch_size=100,
-      state=dict(shape=(10,)),
-      actions=dict(continuous=False, num_actions=2)
-      network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
-    )
+config = Configuration(
+  batch_size=100,
+  state=dict(shape=(10,)),
+  actions=dict(continuous=False, num_actions=2)
+  network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
+)
 
-    # Create a Trust Region Policy Optimization agent
-    agent = TRPOAgent(config=config)
+# Create a Trust Region Policy Optimization agent
+agent = TRPOAgent(config=config)
 
-    # Get new data from somewhere, e.g. a client to a web app
-    client = MyClient('http://127.0.0.1', 8080)
+# Get new data from somewhere, e.g. a client to a web app
+client = MyClient('http://127.0.0.1', 8080)
 
-    # Poll new state from client
-    state = client.get_state()
+# Poll new state from client
+state = client.get_state()
 
-    # Get prediction from agent, execute
-    action = agent.act(state=state)
-    reward = client.execute(action)
+# Get prediction from agent, execute
+action = agent.act(state=state)
+reward = client.execute(action)
 
-    # Add experience, agent automatically updates model according to batch size
-    agent.observe(reward=reward, terminal=False)
+# Add experience, agent automatically updates model according to batch size
+agent.observe(reward=reward, terminal=False)
+```
 
 Update notes
 ------------

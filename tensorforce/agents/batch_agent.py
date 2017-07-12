@@ -60,11 +60,11 @@ class BatchAgent(Agent):
         In particular, note that episode control happens outside of the agent since
         the agent should be agnostic to how the training data is created.
 
-        :param state:
-        :param action:
-        :param reward:
-        :param terminal:
-        :return:
+        Args:
+            reward: float of a scalar reward
+            terminal: boolean whether episode is terminated or not
+
+        Returns: void
         """
         self.current_reward = reward
         self.current_terminal = terminal

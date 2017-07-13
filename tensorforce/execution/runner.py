@@ -31,7 +31,7 @@ from tensorforce import TensorForceError
 class Runner(object):
 
     # These agents can be used in an A3C fashion
-    async_supported = ['DQNAgent', 'VPGAgent', 'NAFAgent']
+    async_supported = ('VPGAgent', 'DQNAgent', 'NAFAgent')
 
     def __init__(self, agent, environment, repeat_actions=1, cluster_spec=None, task_index=None, save_path=None, save_episodes=None):
         """

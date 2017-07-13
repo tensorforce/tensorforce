@@ -42,7 +42,6 @@ class TRPOModel(PolicyGradientModel):
 
     default_config = dict(
         optimizer=None,
-        learning_rate=None,
         override_line_search=False,
         cg_damping=0.001,
         line_search_steps=20,
@@ -97,8 +96,10 @@ class TRPOModel(PolicyGradientModel):
             self.losses = [tf.reduce_mean(loss) for loss in zip(*losses)]
 
             # Get symbolic gradient expressions
-            variables = list(tf.trainable_variables())
+            variables = list(tf.trainable_variables())  # TODO: ideally not value function (see also for "gradients" below)
             gradients = tf.gradients(self.losses, variables)
+            variables = [var for var, grad in zip(variables, gradients) if grad is not None]
+            gradients = [grad for grad in gradients if grad is not None]
             self.policy_gradient = tf.concat(values=[tf.reshape(grad, (-1,)) for grad in gradients], axis=0)  # util.prod(util.shape(v))
 
             fixed_distribution = distribution.__class__([tf.stop_gradient(x) for x in distribution])
@@ -134,6 +135,8 @@ class TRPOModel(PolicyGradientModel):
         :param batch:
         :return:
         """
+        super(TRPOModel, self).update(batch)
+
         self.feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
         self.feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
         self.feed_dict[self.reward] = batch['rewards']

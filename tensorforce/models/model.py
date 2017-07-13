@@ -245,6 +245,9 @@ class Model(object):
         Returns:
 
         """
+        if self.optimizer is None:
+            return
+
         fetches = [self.optimize, self.loss, self.loss_per_instance]
 
         feed_dict = {state: batch['states'][name] for name, state in self.state.items()}

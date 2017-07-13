@@ -157,6 +157,7 @@ class Model(object):
         if not config.distributed:
             self.set_session(tf.Session())
             self.session.run(tf.global_variables_initializer())
+            tf.get_default_graph().finalize()
 
     def create_tf_operations(self, config):
         """

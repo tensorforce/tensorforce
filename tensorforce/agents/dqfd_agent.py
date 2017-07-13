@@ -102,6 +102,8 @@ class DQFDAgent(MemoryAgent):
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
         self.demo_batch_size = int(config.demo_sampling_ratio * config.batch_size / (1.0 - config.demo_sampling_ratio))
+        assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to make sure demo_batch_size is positive.' \
+                                         '(Calculated {} based on current parameters)'.format(self.demo_batch_size)
 
     def observe(self, reward, terminal):
         """Adds observations, updates via sampling from memories according to update rate.

@@ -42,7 +42,11 @@ class Configuration(object):
 
         with open(path, 'r') as fp:
             config = json.load(fp=fp)
-        return Configuration(allow_defaults=config.get('allow_defaults', allow_defaults), **config)
+        if 'allow_defaults' in config and config['allow_defaults'] != allow_defaults:
+            raise TensorForceError('allow_defaults conflict between JSON ({}) and method call ({})'.format(
+                config['allow_defaults'], allow_defaults
+            ))
+        return Configuration(allow_defaults=allow_defaults, **config)
 
     def __str__(self):
         return '{' + ', '.join('{}={}'.format(key, value) for key, value in self._config.items()) + '}'

@@ -36,5 +36,10 @@ class TestConfiguration(unittest.TestCase):
         config.default({'a': 'boo!'})
         self.assertEqual(config.a, 1)
 
+    def test_conflicting_desires_raises(self):
+        with self.assertRaises(TensorForceError):
+            config = Configuration.from_json('config_test_with_flag.json', allow_defaults=False)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# https://github.com/miyakogi/m2r
+# Licensed under the MIT License
+
 from __future__ import print_function, unicode_literals
 import os
 import re

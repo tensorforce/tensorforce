@@ -36,7 +36,7 @@ class TestDQFDAgent(unittest.TestCase):
         for _ in xrange(5):
             environment = MinimalTest(continuous=False)
             config = Configuration(
-                batch_size=8,
+                batch_size=16,
                 learning_rate=0.001,
                 memory_capacity=800,
                 first_update=80,

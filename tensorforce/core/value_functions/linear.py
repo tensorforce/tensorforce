@@ -53,13 +53,13 @@ class LinearValueFunction(ValueFunction):
             return self.features(states).dot(self.coefficients)
 
     def update(self, states, returns):
+        states = next(iter(states.values()))
         features = self.features(states)
         columns = features.shape[1]
         self.coefficients = np.linalg.lstsq(
             features.T.dot(features) + 2 * np.identity(columns), features.T.dot(returns))[0]
 
     def features(self, states):
-        states = next(iter(states.values()))
         states = np.array(states)
         states = states.reshape(states.shape[0], -1)
         al = np.arange(states.shape[0]).reshape(-1, 1) / 100.0

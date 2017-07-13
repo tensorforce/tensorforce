@@ -30,7 +30,19 @@ env = OpenAIGym('CartPole-v0')
 
 # Create a Trust Region Policy Optimization agent
 agent = TRPOAgent(config=Configuration(
+  loglevel="info",
   batch_size=200,
+  override_line_search=False,
+  use_gae=True,
+  normalize_advantage=False,
+  gae_lambda=0.97,
+  cg_iterations=20,
+  cg_damping=0.001,
+  line_search_steps=20,
+  max_kl_divergence=0.01,
+  gamma=0.97,
+  continuous=False,
+  preprocessing=None,
   states=env.states,
   actions=env.actions,
   network=layered_network_builder([dict(type='dense', size=10)])

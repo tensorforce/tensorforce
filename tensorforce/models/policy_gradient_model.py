@@ -145,7 +145,7 @@ class PolicyGradientModel(Model):
 
         estimates = self.baseline.predict(states=batch['states'])
         if self.generalized_advantage_estimation:
-            deltas = np.array(self.discount * estimates[n + 1] - estimates[n] if n < len(estimates) - 1 or terminal else 0.0 for n, terminal in enumerate(batch['terminals']))
+            deltas = np.array([self.discount * estimates[n + 1] - estimates[n] if (n < len(estimates) - 1 and not terminal) else 0.0 for n, terminal in enumerate(batch['terminals'])])
             deltas += batch['rewards']
             advantage = util.cumulative_discount(rewards=deltas, terminals=batch['terminals'], discount=(self.discount * self.gae_lambda))
         else:

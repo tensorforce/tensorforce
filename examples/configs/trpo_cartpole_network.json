@@ -1,6 +1,7 @@
 [
     {
         "type": "dense",
-        "size": 10
+        "size": 10,
+        "activation": "selu"
     }
 ]

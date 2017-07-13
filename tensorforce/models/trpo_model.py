@@ -43,6 +43,7 @@ class TRPOModel(PolicyGradientModel):
     default_config = dict(
         optimizer=None,
         learning_rate=None,
+        override_line_search=False,
         cg_damping=0.001,
         line_search_steps=20,
         max_kl_divergence=0.001,
@@ -53,6 +54,7 @@ class TRPOModel(PolicyGradientModel):
         config.default(TRPOModel.default_config)
         super(TRPOModel, self).__init__(config)
 
+        self.override_line_search = config.override_line_search
         self.cg_damping = config.cg_damping
         self.max_kl_divergence = config.max_kl_divergence
         self.line_search_steps = config.line_search_steps
@@ -167,7 +169,7 @@ class TRPOModel(PolicyGradientModel):
         if improved:
             self.logger.debug('Updating with line search result..')
             self.flat_variable_helper.set(theta)
-        else:
+        elif self.override_line_search:
             self.logger.debug('Updating with full step..')
             self.flat_variable_helper.set(previous_theta + update_step)
 

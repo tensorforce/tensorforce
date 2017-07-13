@@ -5,7 +5,7 @@
   "baseline": "mlp",
   "baseline_args": null,
   "baseline_kwargs": {
-     "size": 100,
+     "size": 32,
      "repeat_update": 100
   },
   "generalized_advantage_estimation": true,

@@ -8,6 +8,8 @@ from argparse import ArgumentParser, Namespace, ArgumentError
 
 from docutils import statemachine, nodes, io, utils
 from docutils.parsers import rst
+from docutils.core import ErrorString
+from docutils.utils import SafeString
 import mistune
 
 

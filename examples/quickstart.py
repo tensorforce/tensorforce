@@ -35,7 +35,7 @@ agent = TRPOAgent(config=Configuration(
     baseline="mlp",
     baseline_args=None,
     baseline_kwargs=dict(
-        size=100,
+        size=32,
         repeat_update=100
     ),
     override_line_search=False,

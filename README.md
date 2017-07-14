@@ -140,7 +140,6 @@ config = Configuration(
 
 # Create a Trust Region Policy Optimization agent, reset internal state 
 agent = TRPOAgent(config=config)
-agent.reset()
 
 # Get new data from somewhere, e.g. a client to a web app
 client = MyClient('http://127.0.0.1', 8080)

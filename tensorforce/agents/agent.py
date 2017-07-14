@@ -144,7 +144,11 @@ class Agent(object):
 
         self.episode = 0
         self.timestep = 0
+
+        # Reset internal state - needs to be called after every episode
         self.next_internal = self.current_internal = self.model.reset()
+        for preprocessing in self.preprocessing.values():
+            preprocessing.reset()
 
     def __str__(self):
         return str(self.__class__.name)

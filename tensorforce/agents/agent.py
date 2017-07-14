@@ -144,6 +144,7 @@ class Agent(object):
 
         self.episode = 0
         self.timestep = 0
+        self.next_internal = self.current_internal = self.model.reset()
 
     def __str__(self):
         return str(self.__class__.name)

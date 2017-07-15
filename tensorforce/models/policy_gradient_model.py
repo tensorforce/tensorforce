@@ -124,7 +124,8 @@ class PolicyGradientModel(Model):
         Returns:
 
         """
-        batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'], discount=self.discount)
+        batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'],
+                                                    discount=self.discount)
         # assert utils.discount(batch['rewards'], batch['terminals'], self.discount) == discount
         batch['rewards'] = self.advantage_estimation(batch)
         if self.baseline:
@@ -145,9 +146,12 @@ class PolicyGradientModel(Model):
 
         estimates = self.baseline.predict(states=batch['states'])
         if self.generalized_advantage_estimation:
-            deltas = np.array([self.discount * estimates[n + 1] - estimates[n] if (n < len(estimates) - 1 and not terminal) else 0.0 for n, terminal in enumerate(batch['terminals'])])
+            deltas = np.array(
+                [self.discount * estimates[n + 1] - estimates[n] if (n < len(estimates) - 1 and not terminal) else 0.0
+                 for n, terminal in enumerate(batch['terminals'])])
             deltas += batch['rewards']
-            advantage = util.cumulative_discount(rewards=deltas, terminals=batch['terminals'], discount=(self.discount * self.gae_lambda))
+            advantage = util.cumulative_discount(rewards=deltas, terminals=batch['terminals'],
+                                                 discount=(self.discount * self.gae_lambda))
         else:
             advantage = np.array(batch['returns']) - estimates
 

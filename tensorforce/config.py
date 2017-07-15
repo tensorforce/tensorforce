@@ -42,7 +42,7 @@ class Configuration(object):
         with open(path, 'r') as fp:
             config = json.load(fp=fp)
 
-        if config.get('allow_defaults') != allow_defaults:
+        if 'allow_defaults' in config and config['allow_defaults'] != allow_defaults:
             raise TensorForceError('allow_defaults conflict between JSON ({}) and method call ({})'.format(
                 config['allow_defaults'],
                 allow_defaults

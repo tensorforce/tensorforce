@@ -66,7 +66,7 @@ def linear(x, size, bias=True, l2_regularization=0.0):
     if util.rank(x) != 2:
         raise TensorForceError('Invalid input rank for linear layer.')
     with tf.variable_scope('linear'):
-        weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=sqrt(2.0 / (x.get_shape()[1].value + size))))
+        weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=min(0.1, sqrt(2.0 / (x.get_shape()[1].value + size)))))
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
         x = tf.matmul(a=x, b=weights)
@@ -91,7 +91,7 @@ def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regula
     if util.rank(x) != 4:
         raise TensorForceError('Invalid input rank for conv2d layer.')
     with tf.variable_scope('conv2d'):
-        filters = tf.Variable(initial_value=tf.random_normal(shape=(window, window, x.get_shape()[3].value, size), stddev=sqrt(2.0 / size)))
+        filters = tf.Variable(initial_value=tf.random_normal(shape=(window, window, x.get_shape()[3].value, size), stddev=min(0.1, sqrt(2.0 / size))))
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
         x = tf.nn.conv2d(input=x, filter=filters, strides=(1, stride, stride, 1), padding='SAME')

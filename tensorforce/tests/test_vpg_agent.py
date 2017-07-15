@@ -39,8 +39,10 @@ class TestVPGAgent(unittest.TestCase):
                 learning_rate=0.001,
                 states=environment.states,
                 actions=environment.actions,
-                network=layered_network_builder([dict(type='dense', size=32, activation='tanh'),
-                                                 dict(type='dense', size=32, activation='tanh')])
+                network=layered_network_builder([
+                    dict(type='dense', size=32, activation='tanh'),
+                    dict(type='dense', size=32, activation='tanh')
+                ])
             )
             agent = VPGAgent(config=config)
             runner = Runner(agent=agent, environment=environment)
@@ -67,8 +69,10 @@ class TestVPGAgent(unittest.TestCase):
                 learning_rate=0.001,
                 states=environment.states,
                 actions=environment.actions,
-                network=layered_network_builder([dict(type='dense', size=32, activation='tanh'),
-                                                 dict(type='dense', size=32, activation='tanh')])
+                network=layered_network_builder([
+                    dict(type='dense', size=32, activation='tanh'),
+                    dict(type='dense', size=32, activation='tanh')
+                ])
             )
             agent = VPGAgent(config=config)
             runner = Runner(agent=agent, environment=environment)
@@ -82,4 +86,4 @@ class TestVPGAgent(unittest.TestCase):
                 passed += 1
 
         print('VPG continuous agent passed = {}'.format(passed))
-        self.assertTrue(passed >= 3)
+        self.assertTrue(passed >= 4)

@@ -44,8 +44,10 @@ class TestTRPOAgent(unittest.TestCase):
                 max_kl_divergence=0.05,
                 states=environment.states,
                 actions=environment.actions,
-                network=layered_network_builder([dict(type='dense', size=32, activation='tanh'),
-                                                 dict(type='dense', size=32, activation='tanh')])
+                network=layered_network_builder([
+                    dict(type='dense', size=32, activation='tanh'),
+                    dict(type='dense', size=32, activation='tanh')
+                ])
             )
             agent = TRPOAgent(config=config)
             runner = Runner(agent=agent, environment=environment)
@@ -75,8 +77,10 @@ class TestTRPOAgent(unittest.TestCase):
                 max_kl_divergence=0.05,
                 states=environment.states,
                 actions=environment.actions,
-                network=layered_network_builder([dict(type='dense', size=32, activation='tanh'),
-                                                 dict(type='dense', size=32, activation='tanh')])
+                network=layered_network_builder([
+                    dict(type='dense', size=32, activation='tanh'),
+                    dict(type='dense', size=32, activation='tanh')
+                ])
             )
             agent = TRPOAgent(config=config)
             runner = Runner(agent=agent, environment=environment)

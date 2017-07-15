@@ -39,9 +39,9 @@ class TestQuickstartExample(unittest.TestCase):
 
             # Create a Trust Region Policy Optimization agent
             agent = TRPOAgent(config=Configuration(
-                loglevel="info",
+                loglevel='info',
                 batch_size=100,
-                baseline="mlp",
+                baseline='mlp',
                 baseline_args=None,
                 baseline_kwargs=dict(
                     size=32,
@@ -55,13 +55,12 @@ class TestQuickstartExample(unittest.TestCase):
                 cg_damping=0.01,
                 line_search_steps=20,
                 max_kl_divergence=0.005,
-                gamma=0.97,
-                continuous=False,
-                preprocessing=None,
                 states=env.states,
                 actions=env.actions,
-                network=layered_network_builder([dict(type='dense', size=32, activation='tanh'),
-                                                 dict(type='dense', size=32, activation='tanh')])
+                network=layered_network_builder([
+                    dict(type='dense', size=32, activation='tanh'),
+                    dict(type='dense', size=32, activation='tanh')
+                ])
             ))
             runner = Runner(agent=agent, environment=env)
 

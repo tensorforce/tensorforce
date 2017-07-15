@@ -36,7 +36,7 @@ class MinimalTest(Environment):
 
     def execute(self, action):
         if self.continuous:
-            self.state = (self.state[0] - action, self.state[1] + action)
+            self.state = (max(self.state[0] - action, 0.0), min(self.state[1] + action, 1.0))
         else:
             if action == 0:
                 self.state = (1.0, 0.0)
@@ -55,6 +55,6 @@ class MinimalTest(Environment):
     @property
     def actions(self):
         if self.continuous:
-            return dict(continuous=True, min_value=-1.0, max_value=1.0)
+            return dict(continuous=True, min_value=-3.0, max_value=3.0)
         else:
             return dict(continuous=False, num_actions=2)

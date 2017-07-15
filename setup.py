@@ -22,7 +22,6 @@ import os
 from setuptools import setup
 
 install_requires=[
-    'tensorflow',
     'numpy',
     'six',
     'scipy',

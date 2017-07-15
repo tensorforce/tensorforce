@@ -52,7 +52,7 @@ def main():
     args = parser.parse_args()
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)  # configurable!!!
+    logger.setLevel(logging.DEBUG)  # configurable!!!
 
     environment = OpenAIGym(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
 

@@ -146,7 +146,7 @@ class TRPOModel(PolicyGradientModel):
         gradient = self.session.run(self.policy_gradient, self.feed_dict)
 
         if np.allclose(gradient, np.zeros_like(gradient)):
-            self.logger.debug('Gradient zero, skipping update')
+            self.logger.debug('Gradient zero, skipping update.')
             return
 
         # The details of the approximations used here to solve the constrained
@@ -158,6 +158,10 @@ class TRPOModel(PolicyGradientModel):
         # Fisher matrix, which is a local approximation of the
         # KL divergence constraint
         shs = 0.5 * search_direction.dot(self.compute_fvp(search_direction))
+        if shs < 0:
+            self.logger.debug('Computing search direction failed, skipping update.')
+            return
+
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
         update_step = search_direction / (lagrange_multiplier + util.epsilon)
         negative_gradient_direction = -gradient.dot(search_direction)
@@ -175,6 +179,8 @@ class TRPOModel(PolicyGradientModel):
         elif self.override_line_search:
             self.logger.debug('Updating with full step..')
             self.flat_variable_helper.set(previous_theta + update_step)
+        else:
+            self.logger.debug('Failed to find line search solution, skipping update.')
 
         # Get loss values for progress monitoring
         surrogate_loss, kl_divergence, entropy, loss_per_instance = self.session.run(self.losses + [self.loss_per_instance], self.feed_dict)

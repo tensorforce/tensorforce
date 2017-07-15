@@ -1,6 +1,12 @@
 [
     {
         "type": "dense",
-        "size": 10
+        "size": 32,
+        "activation": "tanh"
+    },
+    {
+        "type": "dense",
+        "size": 32,
+        "activation": "tanh"
     }
 ]

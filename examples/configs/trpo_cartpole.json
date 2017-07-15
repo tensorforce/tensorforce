@@ -1,14 +1,19 @@
 {
   "loglevel": "info",
-  "batch_size": 200,
+  "batch_size": 100,
   "discount": 0.97,
-  "baseline": "linear",
+  "baseline": "mlp",
+  "baseline_args": null,
+  "baseline_kwargs": {
+     "size": 32,
+     "repeat_update": 100
+  },
   "generalized_advantage_estimation": true,
   "gae_lambda": 0.97,
   "normalize_advantage" : false,
   "override_line_search": false,
-  "cg_damping" : 0.001,
+  "cg_damping" : 0.01,
   "line_search_steps" : 20,
-  "max_kl_divergence": 0.01,
+  "max_kl_divergence": 0.005,
   "cg_iterations" : 20
 }

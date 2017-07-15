@@ -40,8 +40,12 @@ class Configuration(object):
             path = os.path.join(os.getcwd(), filename)
 
         with open(path, 'r') as fp:
-            config = json.load(fp=fp)
+            json_string = fp.read()
+        return Configuration.from_json_string(json_string=json_string, allow_defaults=True)
 
+    @staticmethod
+    def from_json_string(json_string, allow_defaults=True):
+        config = json.loads(json_string)
         if 'allow_defaults' in config and config['allow_defaults'] != allow_defaults:
             raise TensorForceError('allow_defaults conflict between JSON ({}) and method call ({})'.format(
                 config['allow_defaults'],

@@ -68,7 +68,6 @@ class TestQuickstartExample(unittest.TestCase):
             def episode_finished(r):
                 # Test if mean reward over 50 should ensure that learning took off
                 avg_reward = np.mean(r.episode_rewards[-50:])
-                print('avg_ward = {}'.format(avg_reward))
                 return r.episode < 100 or avg_reward < 50.0
 
             runner.run(episodes=2000, max_timesteps=200, episode_finished=episode_finished)

@@ -55,6 +55,6 @@ class MinimalTest(Environment):
     @property
     def actions(self):
         if self.continuous:
-            return dict(continuous=True, min_value=-3.0, max_value=3.0)
+            return dict(continuous=True, min_value=-2.0, max_value=2.0)
         else:
             return dict(continuous=False, num_actions=2)

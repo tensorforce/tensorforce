@@ -1,6 +1,6 @@
 import unittest
 
-from ..config import Configuration
+from tensorforce.config import Configuration
 from tensorforce import TensorForceError
 
 
@@ -38,8 +38,4 @@ class TestConfiguration(unittest.TestCase):
 
     def test_conflicting_desires_raises(self):
         with self.assertRaises(TensorForceError):
-            config = Configuration.from_json('config_test_with_flag.json', allow_defaults=False)
-
-
-if __name__ == "__main__":
-    unittest.main()
+            Configuration.from_json('config_test_with_flag.json', allow_defaults=False)

@@ -44,7 +44,6 @@ class TRPOAgent(BatchAgent):
 
     A Policy Gradient Model expects the following additional configuration parameters:
 
-    * `sample_actions`: boolean of whether to sample actions.
     * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp').
     * `baseline_args`: list of arguments for the baseline value function.
     * `baseline_kwargs`: dict of keyword arguments for the baseline value function.

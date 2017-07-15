@@ -40,14 +40,18 @@ class Categorical(Distribution):
         if self.distribution is not None:
             self.probabilities, = self.distribution
 
-    def create_tf_operations(self, x, sample=True):
+    def create_tf_operations(self, x, deterministic, **kwargs):
         logits = layers['linear'](x=x, size=self.num_actions)
         self.probabilities = tf.nn.softmax(logits=logits)
         self.distribution = (self.probabilities,)
-        if sample:
-            self.value = tf.squeeze(input=tf.multinomial(logits=logits, num_samples=1), axis=1)
-        else:
-            self.value = tf.argmax(input=self.distribution, axis=1)
+
+        self.deterministic_value = tf.argmax(input=self.probabilities, axis=1)
+        self.sampled_value = tf.squeeze(input=tf.multinomial(logits=logits, num_samples=1), axis=1)
+        self.value = tf.where(
+            condition=deterministic,
+            x=self.deterministic_value,
+            y=self.sampled_value
+        )
 
     def log_probability(self, action):
         action = tf.one_hot(indices=action, depth=self.probabilities.get_shape()[1].value)

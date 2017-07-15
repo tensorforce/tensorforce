@@ -199,6 +199,9 @@ class Model(object):
             self.reward = tf.placeholder(dtype=tf.float32, shape=(None,), name='reward')
             self.terminal = tf.placeholder(dtype=tf.bool, shape=(None,), name='terminal')
 
+            # Deterministic action flag
+            self.deterministic = tf.placeholder(dtype=tf.bool, shape=(), name='deterministic')
+
         # Optimizer
         if config.optimizer is not None:
             learning_rate = config.learning_rate
@@ -222,12 +225,13 @@ class Model(object):
         """
         return list(self.internal_inits)
 
-    def get_action(self, state, internal):
+    def get_action(self, state, internal, deterministic=False):
         fetches = {action: action_taken for action, action_taken in self.action_taken.items()}
         fetches.update({n: internal_output for n, internal_output in enumerate(self.internal_outputs)})
 
         feed_dict = {state_input: (state[name],) for name, state_input in self.state.items()}
         feed_dict.update({internal_input: (internal[n],) for n, internal_input in enumerate(self.internal_inputs)})
+        feed_dict[self.deterministic] = deterministic
 
         fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
 

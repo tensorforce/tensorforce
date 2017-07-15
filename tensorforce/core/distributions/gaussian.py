@@ -36,16 +36,27 @@ class Gaussian(Distribution):
         if self.distribution is not None:
             self.mean, self.std_dev = self.distribution
 
-    def create_tf_operations(self, x, sample=True):
+    def create_tf_operations(self, x, deterministic, min_value=None, max_value=None, **kwargs):
+        assert (min_value is None) == (max_value is None)
         self.mean = tf.squeeze(input=layers['linear'](x=x, size=1), axis=1)
-        # self.std_dev = tf.exp(tf.squeeze(input=layers['linear'](x=x, size=1), axis=1))
-        # self.std_dev = tf.ones_like(self.mean) * tf.exp(tf.Variable(initial_value=tf.random_normal(shape=(), stddev=0.01)))
-        self.std_dev = tf.ones_like(self.mean)
+        # self.mean = min_value + tf.sigmoid(x=self.mean) * (max_value - min_value)
+        self.std_dev = tf.sigmoid(x=tf.squeeze(input=layers['linear'](x=x, size=1), axis=1))
+        # self.std_dev = tf.ones_like(self.mean)
         self.distribution = (self.mean, self.std_dev)
-        if sample:
-            self.value = self.mean + tf.multiply(x=self.std_dev, y=tf.random_normal(shape=tf.shape(self.mean)))
-        else:
-            self.value = self.mean
+
+        self.deterministic_value = self.mean
+        self.sampled_value = self.mean + self.std_dev * tf.random_normal(shape=tf.shape(self.mean))
+        # if min_value is not None:
+        #     self.sampled_value = tf.clip_by_value(
+        #         t=self.sampled_value,
+        #         clip_value_min=min_value,
+        #         clip_value_max=max_value
+        #     )
+        self.value = tf.where(
+            condition=deterministic,
+            x=self.deterministic_value,
+            y=self.sampled_value
+        )
 
     def log_probability(self, action):
         l2_dist = tf.square(action - self.mean)

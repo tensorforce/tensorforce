@@ -33,7 +33,6 @@
   "tf_summary": null,
   "loglevel": "debug",
 
-  "sample_actions": true,
   "baseline": "mlp",
   "baseline_args": null,
   "baseline_kwargs": {

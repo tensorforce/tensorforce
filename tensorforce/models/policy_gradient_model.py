@@ -38,7 +38,6 @@ class PolicyGradientModel(Model):
 
     A Policy Gradient Model expects the following additional configuration parameters:
 
-    * `sample_actions`: boolean of whether to sample actions.
     * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp').
     * `baseline_args`: list of arguments for the baseline value function.
     * `baseline_kwargs`: dict of keyword arguments for the baseline value function.
@@ -48,7 +47,6 @@ class PolicyGradientModel(Model):
 
     """
     default_config = dict(
-        sample_actions=True,
         baseline=None,
         baseline_args=None,
         baseline_kwargs=None,
@@ -102,7 +100,7 @@ class PolicyGradientModel(Model):
 
         with tf.variable_scope('distribution'):
             for action, distribution in self.distribution.items():
-                distribution.create_tf_operations(x=self.network.output, sample=config.sample_actions)
+                distribution.create_tf_operations(x=self.network.output, deterministic=self.deterministic, **config.actions[action])
                 self.action_taken[action] = distribution.value
 
         if self.baseline:

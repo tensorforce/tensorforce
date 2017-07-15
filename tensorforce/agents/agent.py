@@ -165,7 +165,7 @@ class Agent(object):
         for preprocessing in self.preprocessing.values():
             preprocessing.reset()
 
-    def act(self, state):
+    def act(self, state, deterministic=False):
         """Return action(s) for given state(s). First, the states are preprocessed using the given preprocessing
         configuration. Then, the states are passed to the model to calculate the desired action(s) to execute.
 
@@ -174,6 +174,7 @@ class Agent(object):
 
         Args:
             state: One state (usually a value tuple) or dict of states if multiple states are expected.
+            deterministic: If true, no exploration and sampling is applied.
 
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
@@ -192,15 +193,16 @@ class Agent(object):
             self.current_state[name] = preprocessing.process(state=self.current_state[name])
 
         # model action
-        self.current_action, self.next_internal = self.model.get_action(state=self.current_state, internal=self.current_internal)
+        self.current_action, self.next_internal = self.model.get_action(state=self.current_state, internal=self.current_internal, deterministic=deterministic)
 
         # exploration
-        for name, exploration in self.exploration.items():
-            if name in self.continuous_actions:
-                self.current_action[name] += exploration(episode=self.episode, timestep=self.timestep)
-            else:
-                if random() < exploration(episode=self.episode, timestep=self.timestep):
-                    self.current_action[name] = randrange(self.actions_config[name].num_actions)
+        if not deterministic:
+            for name, exploration in self.exploration.items():
+                if name in self.continuous_actions:
+                    self.current_action[name] += exploration(episode=self.episode, timestep=self.timestep)
+                else:
+                    if random() < exploration(episode=self.episode, timestep=self.timestep):
+                        self.current_action[name] = randrange(self.actions_config[name].num_actions)
 
         if self.unique_action:
             return self.current_action['action']

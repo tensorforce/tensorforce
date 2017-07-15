@@ -37,7 +37,7 @@ class RandomAgent(Agent):
     def reset(self):
         self.episode += 1
 
-    def act(self, state):
+    def act(self, state, deterministic=False):
         """
         Get random action from action space
 

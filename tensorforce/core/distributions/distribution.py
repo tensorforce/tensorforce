@@ -27,7 +27,7 @@ class Distribution(object):
     def __iter__(self):
         return iter(self.distribution)
 
-    def create_tf_operations(self, x, sample=True):
+    def create_tf_operations(self, x, deterministic, **kwargs):
         raise NotImplementedError
 
     def log_probability(self, action):

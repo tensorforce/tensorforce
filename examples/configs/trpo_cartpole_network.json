@@ -1,7 +1,12 @@
 [
     {
         "type": "dense",
-        "size": 10,
-        "activation": "selu"
+        "size": 32,
+        "activation": "tanh"
+    },
+    {
+        "type": "dense",
+        "size": 32,
+        "activation": "tanh"
     }
 ]

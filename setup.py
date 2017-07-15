@@ -22,15 +22,24 @@ import os
 from setuptools import setup
 
 install_requires=[
-          'tensorflow',
-          'numpy',
-          'six',
-          'scipy',
-          'pillow',
-          'pytest'
-      ]
+    'numpy',
+    'six',
+    'scipy',
+    'pillow',
+    'pytest'
+]
 
-setup_requires=['numpy', 'recommonmark', 'mistune']
+setup_requires=[
+    'numpy',
+    'recommonmark'
+]
+
+extras_require = {
+    'tf': ['tensorflow>=1.2.0'],
+    'tf_gpu': ['tensorflow-gpu>=1.2.0'],
+    'gym': ['gym>=0.7.4'],
+    'universe': ['universe>=0.21.3']
+}
 
 # Readthedocs requires Sphinx extensions to be specified as part of
 # install_requires in order to build properly.
@@ -49,4 +58,5 @@ setup(name='tensorforce',
       packages=['tensorforce'],
       install_requires=install_requires,
       setup_requires=setup_requires,
+      extras_require=extras_require,
       zip_safe=False)

@@ -67,6 +67,23 @@ cd tensorforce
 pip install -e .
 ```
 
+TensorForce is built on [Google's Tensorflow](https://www.tensorflow.org/). The installation command assumes
+that you have `tensorflow` or `tensorflow-gpu` installed.
+
+Alternatively, you can use the following commands to install the tensorflow dependency.
+
+To install TensorForce with `tensorflow` (cpu), use:
+
+```bash
+pip install tensorforce[tf] -e .
+```
+
+To install TensorForce with `tensorflow-gpu` (gpu), use:
+
+```bash
+pip install tensorforce[tf_gpu] -e .
+```
+
 To update TensorForce, just run `git pull` in the tensorforce directory.
 Please note that we did not include OpenAI Gym/Universe/DeepMind lab in
 the default install script because not everyone will want to use these.

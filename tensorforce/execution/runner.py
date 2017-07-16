@@ -120,6 +120,7 @@ class Runner(object):
         self.episode_rewards = []
         self.episode_lengths = []
 
+        self.total_timesteps = 0
         self.episode = 1
         while True:
             state = self.environment.reset()
@@ -143,6 +144,7 @@ class Runner(object):
                 self.agent.observe(reward=reward, terminal=terminal)
 
                 self.timestep += 1
+                self.total_timesteps += 1
                 episode_reward += reward
 
                 if terminal or self.timestep == max_timesteps:

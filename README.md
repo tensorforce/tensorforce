@@ -35,7 +35,7 @@ service architectures.
 
 TensorForce is actively being maintained and developed both to
 continuously improve the existing code as well as to reflect new
-developments as they arise (see road map for more). The aim is not to
+developments as they arise. The aim is not to
 include every new trick but to adopt methods as
 they prove themselves stable.
 

@@ -28,7 +28,41 @@ from tensorforce import TensorForceError, util
 from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork
 from tensorforce.core.value_functions import value_functions
-from tensorforce.core.distributions import distributions
+from tensorforce.core.distributions import distributions, Distribution, Gaussian, Categorical
+
+
+def _get_distribution(action):
+    """Return the distribution associated with the action.
+
+    The distribution in `action.distribution` can be either provided as a string
+    or as an instance of Distribution. Defaults to `Gaussian` and `Categorical`.
+
+    Args:
+        action: dict
+
+    Returns:
+        distribution: instance of `Distribution`
+
+    """
+    if 'distribution' not in action:
+        if action.continuous:
+            return Gaussian()
+        else:
+            return Categorical(num_actions=action.num_actions)
+
+    distribution = action.distribution
+
+    if isinstance(distribution, Distribution):
+        return distribution
+
+    if distribution not in distributions:
+        raise TensorForceError('Unknown distribution: {}'.format(distribution))
+
+    distribution = distributions[distribution]
+    if action.continuous:
+        return distribution()
+    else:
+        return distribution(num_actions=action.num_actions)
 
 
 class PolicyGradientModel(Model):
@@ -61,16 +95,7 @@ class PolicyGradientModel(Model):
         # distribution
         self.distribution = dict()
         for name, action in config.actions:
-            if 'distribution' in action:
-                distribution = action.distribution
-            else:
-                distribution = 'gaussian' if action.continuous else 'categorical'
-            if distribution not in distributions:
-                raise TensorForceError()
-            if action.continuous:
-                self.distribution[name] = distributions[distribution]()
-            else:
-                self.distribution[name] = distributions[distribution](num_actions=action.num_actions)
+            self.distribution[name] = _get_distribution(action)
 
         # baseline
         if config.baseline is None:

@@ -63,8 +63,10 @@ class PolicyGradientModel(Model):
         for name, action in config.actions:
             if 'distribution' in action:
                 distribution = action.distribution
+            elif action.continuous:
+                distribution = 'gaussian'
             else:
-                distribution = 'gaussian' if action.continuous else 'categorical'
+                distribution = 'categorical'
             if distribution not in distributions:
                 raise TensorForceError()
             if action.continuous:
@@ -122,9 +124,7 @@ class PolicyGradientModel(Model):
         Returns:
 
         """
-        batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'],
-                                                    discount=self.discount)
-        # assert utils.discount(batch['rewards'], batch['terminals'], self.discount) == discount
+        batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'], discount=self.discount)
         batch['rewards'] = self.advantage_estimation(batch)
         if self.baseline:
             self.baseline.update(states=batch['states'], returns=batch['returns'])
@@ -148,8 +148,10 @@ class PolicyGradientModel(Model):
                 [self.discount * estimates[n + 1] - estimates[n] if (n < len(estimates) - 1 and not terminal) else 0.0
                  for n, terminal in enumerate(batch['terminals'])])
             deltas += batch['rewards']
-            advantage = util.cumulative_discount(rewards=deltas, terminals=batch['terminals'],
-                                                 discount=(self.discount * self.gae_lambda))
+            advantage = util.cumulative_discount(
+                rewards=deltas,
+                terminals=batch['terminals'],
+                discount=(self.discount * self.gae_lambda))
         else:
             advantage = np.array(batch['returns']) - estimates
 

@@ -103,7 +103,7 @@ class TRPOModel(PolicyGradientModel):
             gradients = [grad for grad in gradients if grad is not None]
             self.policy_gradient = tf.concat(values=[tf.reshape(grad, (-1,)) for grad in gradients], axis=0)  # util.prod(util.shape(v))
 
-            fixed_distribution = distribution.__class__([tf.stop_gradient(x) for x in distribution])
+            fixed_distribution = distribution.__class__.from_tensors(parameters=[tf.stop_gradient(x) for x in distribution])
             fixed_kl_divergence = fixed_distribution.kl_divergence(distribution)
 
             self.tangent = tf.placeholder(tf.float32, shape=(None,))

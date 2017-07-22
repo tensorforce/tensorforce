@@ -40,7 +40,7 @@ class TestTutorialCode(unittest.TestCase):
 
         config = Configuration(
             batch_size=100,
-            states=dict(shape=(10,), type=int),
+            states=dict(shape=(10,), type='float'),
             actions=dict(continuous=False, num_actions=2),
             network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
         )

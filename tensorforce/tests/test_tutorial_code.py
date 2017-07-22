@@ -31,7 +31,7 @@ class TestTutorialCode(unittest.TestCase):
         """
         Code example from the homepage and README.md.
         """
-        class MyClient:
+        class MyClient(object):
             def __init__(self, *args, **kwargs):
                 pass
 
@@ -61,7 +61,7 @@ class TestTutorialCode(unittest.TestCase):
 
         # Poll new state from client
         state = client.get_state()
-        print(state)
+
         # Get prediction from agent, execute
         action = agent.act(state=state)
         reward = client.execute(action)

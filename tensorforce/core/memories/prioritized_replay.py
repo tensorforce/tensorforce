@@ -21,7 +21,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from random import random
+from random import random, randrange
 from six.moves import xrange
 import numpy as np
 
@@ -36,8 +36,8 @@ class PrioritizedReplay(Memory):
         self.prioritization_weight = prioritization_weight
         self.internals_config = None
         self.observations = list()  # stores (priority, observation) pairs in reverse priority order
-        self.sum_priorities = 0.0
-        self.positive_priority_index = -1
+        self.not_sampled_index = 0
+        self.zero_priority_index = 0
         self.batch_indices = list()
 
     def add_observation(self, state, action, reward, terminal, internal):
@@ -47,11 +47,11 @@ class PrioritizedReplay(Memory):
         observation = (state, action, reward, terminal, internal)
         if len(self.observations) < self.capacity:
             self.observations.append((0.0, observation))
-        elif self.positive_priority_index >= 0:
-            priority, _ = self.observations.pop(self.positive_priority_index)
+        elif self.not_sampled_index > 0:
+            priority, _ = self.observations.pop(self.not_sampled_index - 1)
             self.observations.append((0.0, observation))
-            self.sum_priorities -= priority
-            self.positive_priority_index -= 1
+            self.zero_priority_index -= 1
+            self.not_sampled_index -= 1
         else:
             raise TensorForceError("Memory contains only unseen observations.")
 
@@ -73,19 +73,23 @@ class PrioritizedReplay(Memory):
         terminals = np.zeros((batch_size,), dtype=util.np_dtype('bool'))
         internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
 
-        zero_priority_index = self.positive_priority_index + 1
+        not_sampled_index = self.not_sampled_index
+        sum_priorities = None
         for n in xrange(batch_size):
-            if zero_priority_index < len(self.observations):
-                _, observation = self.observations[zero_priority_index]
-                index = zero_priority_index
-                zero_priority_index += 1
+            if not_sampled_index < len(self.observations):
+                _, observation = self.observations[not_sampled_index]
+                index = not_sampled_index
+                not_sampled_index += 1
+            elif self.zero_priority_index == 0:
+                index = randrange(self.not_sampled_index)
             else:
+                if sum_priorities is None:
+                    sum_priorities = sum(priority for priority, _ in self.observations)
                 while True:
                     sample = random()
-                    print(sample)
                     for index, (priority, observation) in enumerate(self.observations):
-                        sample -= priority / self.sum_priorities
-                        if sample < 0.0:
+                        sample -= priority / sum_priorities
+                        if sample < 0.0 or index >= self.zero_priority_index:
                             break
                     if index not in self.batch_indices:
                         break
@@ -118,12 +122,11 @@ class PrioritizedReplay(Memory):
         updated = list()
         for index, loss in zip(self.batch_indices, loss_per_instance):
             priority, observation = self.observations[index]
-            self.sum_priorities -= priority
-            if priority > 0.0:
-                self.positive_priority_index -= 1
             updated.append((loss ** self.prioritization_weight, observation))
         for index in sorted(self.batch_indices, reverse=True):
-            self.observations.pop(index)
+            priority, _ = self.observations.pop(index)
+            self.not_sampled_index -= (index < self.not_sampled_index)
+            self.zero_priority_index -= (priority > 0.0)
         self.batch_indices = list()
         updated = sorted(updated, key=(lambda x: x[0]))
 
@@ -134,16 +137,16 @@ class PrioritizedReplay(Memory):
             if update_priority < priority:
                 continue
             self.observations.insert(index, (update_priority, update_observation))
-            self.sum_priorities += update_priority
-            self.positive_priority_index += 1
+            self.not_sampled_index += 1
+            self.zero_priority_index += (update_priority > 0.0)
             if not updated:
                 break
             update_priority, update_observation = updated.pop()
         else:
             self.observations.append((update_priority, update_observation))
-            self.sum_priorities += update_priority
-            self.positive_priority_index += 1
+            self.not_sampled_index += 1
+            self.zero_priority_index += (update_priority > 0.0)
         while updated:
             self.observations.append(updated.pop())
-            self.sum_priorities += update_priority
-            self.positive_priority_index += 1
+            self.not_sampled_index += 1
+            self.zero_priority_index += (update_priority > 0.0)

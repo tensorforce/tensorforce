@@ -23,7 +23,6 @@ from __future__ import print_function
 from __future__ import division
 
 import unittest
-from mock import Mock
 
 
 class TestTutorialCode(unittest.TestCase):
@@ -32,7 +31,16 @@ class TestTutorialCode(unittest.TestCase):
         """
         Code example from the homepage and README.md.
         """
-        MyClient = Mock()
+        class MyClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def get_state(self):
+                import numpy as np
+                return np.random.rand(10)
+
+            def execute(self, action):
+                pass
 
         from tensorforce import Configuration
         from tensorforce.agents import TRPOAgent
@@ -53,7 +61,7 @@ class TestTutorialCode(unittest.TestCase):
 
         # Poll new state from client
         state = client.get_state()
-
+        print(state)
         # Get prediction from agent, execute
         action = agent.act(state=state)
         reward = client.execute(action)

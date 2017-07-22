@@ -94,14 +94,17 @@ def get_function(fct, predefined=None):
 def get_object(obj, predefined=None, kwargs=None):
     if isinstance(obj, Configuration):
         fct = obj.type
-        kwargs = {key: value for key, value in obj}
+        full_kwargs = {key: value for key, value in obj if key != 'type'}
+    elif isinstance(obj, dict):
+        fct = obj['type']
+        full_kwargs = {key: value for key, value in obj.items() if key != 'type'}
     else:
         fct = obj
-        kwargs = dict()
+        full_kwargs = dict()
     obj = get_function(fct=fct, predefined=predefined)
     if kwargs is not None:
-        kwargs.update(kwargs)
-    return obj(**kwargs)
+        full_kwargs.update(kwargs)
+    return obj(**full_kwargs)
 
 
 # def make_function(data, fk):

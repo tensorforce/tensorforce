@@ -32,6 +32,8 @@ from tensorforce.core.distributions import Distribution
 class Categorical(Distribution):
 
     def __init__(self, num_actions=None, probabilities=None):
+        if num_actions is None and probabilities is None:
+            return
         self.num_actions = num_actions
         if probabilities is None:
             self.probabilities = [0.0 for _ in range(num_actions)]
@@ -45,6 +47,7 @@ class Categorical(Distribution):
         self = cls()
         self.distribution = (self.probabilities,) = parameters
         self.num_actions = parameters[0].shape[1].value
+        return self
 
     def create_tf_operations(self, x, deterministic):
         logits = layers['linear'](x=x, size=self.num_actions, bias=self.probabilities)

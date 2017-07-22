@@ -40,6 +40,7 @@ class Gaussian(Distribution):
     def from_tensors(cls, parameters):
         self = cls()
         self.distribution = (self.mean, self.log_stddev) = parameters
+        return self
 
     def create_tf_operations(self, x, deterministic):
         self.mean = layers['linear'](x=x, size=1, bias=(self.mean,))

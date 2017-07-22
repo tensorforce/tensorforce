@@ -25,7 +25,7 @@ from random import random
 from six.moves import xrange
 import numpy as np
 
-from tensorforce import util
+from tensorforce import util, TensorForceError
 from tensorforce.core.memories import Memory
 
 
@@ -35,7 +35,7 @@ class PrioritizedReplay(Memory):
         super(PrioritizedReplay, self).__init__(capacity, states_config, actions_config)
         self.prioritization_weight = prioritization_weight
         self.internals_config = None
-        self.observations = list()
+        self.observations = list()  # stores (priority, observation) pairs in reverse priority order
         self.sum_priorities = 0.0
         self.positive_priority_index = -1
         self.batch_indices = list()
@@ -47,11 +47,13 @@ class PrioritizedReplay(Memory):
         observation = (state, action, reward, terminal, internal)
         if len(self.observations) < self.capacity:
             self.observations.append((0.0, observation))
-        else:
+        elif self.positive_priority_index >= 0:
             priority, _ = self.observations.pop(self.positive_priority_index)
             self.observations.append((0.0, observation))
             self.sum_priorities -= priority
             self.positive_priority_index -= 1
+        else:
+            raise TensorForceError("Memory contains only unseen observations.")
 
     def get_batch(self, batch_size):
         """
@@ -80,6 +82,7 @@ class PrioritizedReplay(Memory):
             else:
                 while True:
                     sample = random()
+                    print(sample)
                     for index, (priority, observation) in enumerate(self.observations):
                         sample -= priority / self.sum_priorities
                         if sample < 0.0:
@@ -125,17 +128,22 @@ class PrioritizedReplay(Memory):
         updated = sorted(updated, key=(lambda x: x[0]))
 
         update_priority, update_observation = updated.pop()
-        for n, (priority, _) in enumerate(self.observations):
-            if update_priority <= priority:
+        index = -1
+        for priority, _ in self.observations:
+            index += 1
+            if update_priority < priority:
                 continue
-            self.observations.insert(n, (update_priority, update_observation))
+            self.observations.insert(index, (update_priority, update_observation))
             self.sum_priorities += update_priority
-            if update_priority > 0.0:
-                self.positive_priority_index += 1
+            self.positive_priority_index += 1
             if not updated:
                 break
             update_priority, update_observation = updated.pop()
         else:
             self.observations.append((update_priority, update_observation))
+            self.sum_priorities += update_priority
+            self.positive_priority_index += 1
         while updated:
             self.observations.append(updated.pop())
+            self.sum_priorities += update_priority
+            self.positive_priority_index += 1

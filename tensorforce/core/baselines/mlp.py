@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Multi-layer perceptron baseline value function
+Multi-layer perceptron baseline value function.
 """
 
 from __future__ import absolute_import
@@ -25,10 +25,10 @@ import tensorflow as tf
 
 from tensorforce import util
 from tensorforce.core.networks import NeuralNetwork, layered_network_builder
-from tensorforce.core.value_functions import ValueFunction
+from tensorforce.core.baselines import Baseline
 
 
-class MLPValueFunction(ValueFunction):
+class MLPBaseline(Baseline):
 
     def __init__(self, size, repeat_update=100):
         self.size = size

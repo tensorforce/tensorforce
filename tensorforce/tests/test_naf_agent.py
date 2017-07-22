@@ -22,7 +22,9 @@ class TestNAFAgent(unittest.TestCase):
             config = Configuration(
                 batch_size=8,
                 learning_rate=0.001,
-                exploration=dict(type='ornstein_uhlenbeck'),
+                exploration=dict(
+                    type='ornstein_uhlenbeck'
+                ),
                 memory_capacity=800,
                 first_update=80,
                 repeat_update=4,

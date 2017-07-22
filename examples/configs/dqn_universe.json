@@ -8,23 +8,34 @@
   "target_update_frequency": 100,
   "first_update": 5e4,
   "learning_rate": 0.00025,
-  "optimizer": "tensorflow.python.training.rmsprop.RMSPropOptimizer",
-  "double_dqn": false,
-  "optimizer_param": {
+  "optimizer": {
+    "type": "rmsprop",
     "momentum": 0.95,
     "epsilon": 0.01
   },
-  "exploration": "epsilon_decay",
-  "exploration_param": {
+  "double_dqn": false,
+  "exploration": {
+    "type": "epsilon_decay",
     "epsilon": 1,
     "epsilon_final": 0.1,
     "epsilon_states": 1e6
   },
   "preprocessing": [
-    ["grayscale"],
-    ["imresize", 84, 84],
-    ["concat", 4, "append"],
-    ["normalize"]
+    {
+      "type": "image_resize",
+      "width": 84,
+      "height": 84
+    },
+    {
+      "type": "grayscale"
+    },
+    {
+      "type": "center"
+    },
+    {
+      "type": "sequence",
+      "length": 4
+    }
   ],
   "repeat_actions": 1,
   

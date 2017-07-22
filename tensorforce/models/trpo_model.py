@@ -70,8 +70,8 @@ class TRPOModel(PolicyGradientModel):
             losses = list()
             for name, action in config.actions:
                 distribution = self.distribution[name]
-                previous_distribution = tuple(tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
-                self.internal_inputs.extend(previous_distribution)
+                prev_distribution = tuple(tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
+                self.internal_inputs.extend(prev_distribution)
                 self.internal_outputs.extend(distribution)
                 if sum(1 for _ in distribution) == 2:
                     for n, x in enumerate(distribution):
@@ -81,15 +81,16 @@ class TRPOModel(PolicyGradientModel):
                             self.internal_inits.append(np.ones(shape=util.shape(x)[1:]))
                 else:
                     self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
-                previous_distribution = self.distribution[name].__class__(distribution=previous_distribution)
+                distr_cls = self.distribution[name].__class__
+                prev_distribution = distr_cls.from_tensors(parameters=prev_distribution)
 
                 log_prob = distribution.log_probability(action=self.action[name])
-                previous_log_prob = previous_distribution.log_probability(action=self.action[name])
-                prob_ratio = tf.minimum(tf.exp(log_prob - previous_log_prob), 1000)
+                prev_log_prob = prev_distribution.log_probability(action=self.action[name])
+                prob_ratio = tf.minimum(tf.exp(log_prob - prev_log_prob), 1000)
 
                 self.loss_per_instance = tf.multiply(x=prob_ratio, y=self.reward)
                 surrogate_loss = -tf.reduce_mean(self.loss_per_instance, axis=0)
-                kl_divergence = distribution.kl_divergence(previous_distribution)
+                kl_divergence = distribution.kl_divergence(prev_distribution)
                 entropy = distribution.entropy()
                 losses.append((surrogate_loss, kl_divergence, entropy))
 
@@ -143,7 +144,7 @@ class TRPOModel(PolicyGradientModel):
         self.feed_dict[self.terminal] = batch['terminals']
         self.feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
-        gradient = self.session.run(self.policy_gradient, self.feed_dict)
+        gradient = self.session.run(self.policy_gradient, self.feed_dict)  # dL
 
         if np.allclose(gradient, np.zeros_like(gradient)):
             self.logger.debug('Gradient zero, skipping update.')
@@ -152,19 +153,19 @@ class TRPOModel(PolicyGradientModel):
         # The details of the approximations used here to solve the constrained
         # optimisation can be found in Appendix C of the TRPO paper
         # Note that no subsampling is used, which would improve computational performance
-        search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)
+        search_direction = self.cg_optimizer.solve(self.compute_fvp, -gradient)  # x = ddKL(=F)^(-1) * -dL
 
         # Search direction has now been approximated as cg-solution s= A^-1g where A is
         # Fisher matrix, which is a local approximation of the
         # KL divergence constraint
-        shs = 0.5 * search_direction.dot(self.compute_fvp(search_direction))
+        shs = 0.5 * search_direction.dot(self.compute_fvp(search_direction))  # (c lambda^2) = 0.5 * xT * F * x
         if shs < 0:
             self.logger.debug('Computing search direction failed, skipping update.')
             return
 
         lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
-        update_step = search_direction / (lagrange_multiplier + util.epsilon)
-        negative_gradient_direction = -gradient.dot(search_direction)
+        update_step = search_direction / (lagrange_multiplier + util.epsilon)  # c
+        negative_gradient_direction = -gradient.dot(search_direction)  # -dL * x
 
         # Improve update step through simple backtracking line search
         # N.b. some implementations skip the line search

@@ -2,11 +2,10 @@
   "loglevel": "info",
   "batch_size": 100,
   "discount": 0.97,
-  "baseline": "mlp",
-  "baseline_args": null,
-  "baseline_kwargs": {
-     "size": 32,
-     "repeat_update": 100
+  "baseline": {
+    "type": "mlp",
+    "size": 32,
+    "repeat_update": 100
   },
   "generalized_advantage_estimation": true,
   "gae_lambda": 0.97,

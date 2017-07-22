@@ -13,18 +13,32 @@
 # limitations under the License.
 # ==============================================================================
 
+"""
+Generic baseline value function.
+"""
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 from tensorforce import util
-import tensorforce.core.explorations
+import tensorforce.core.baselines
 
 
-class Exploration(object):
+class Baseline(object):
 
-    def __call__(self, episode=0, timestep=0):
+    def create_tf_operations(self, config):
+        raise NotImplementedError
+
+    def predict(self, states):
+        raise NotImplementedError
+
+    def update(self, states, returns):
         raise NotImplementedError
 
     @staticmethod
     def from_config(config):
         return util.get_object(
             obj=config,
-            predefined=tensorforce.core.explorations.explorations
+            predefined=tensorforce.core.baselines.baselines
         )

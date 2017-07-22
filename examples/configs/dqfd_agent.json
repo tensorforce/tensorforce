@@ -11,22 +11,33 @@
   "target_network_update_rate": 0.0001,
   "min_replay_size": 5e2,
   "learning_rate": 0.00025,
-  "optimizer": "tensorflow.python.training.adam.AdamOptimizer",
-  "optimizer_param": {
+  "optimizer": {
+    "type": "adam",
     "momentum": 0.95,
     "epsilon": 0.01
   },
-  "exploration": "epsilon_decay",
-  "exploration_param": {
+  "exploration": {
+    "type": "epsilon_decay",
     "epsilon": 1,
     "epsilon_final": 0.1,
     "epsilon_states": 1e6
   },
   "preprocessing": [
-    ["grayscale"],
-    ["imresize", 84, 84],
-    ["concat", 4, "append"],
-    ["normalize"]
+    {
+      "type": "image_resize",
+      "width": 84,
+      "height": 84
+    },
+    {
+      "type": "grayscale"
+    },
+    {
+      "type": "center"
+    },
+    {
+      "type": "sequence",
+      "length": 4
+    }
   ],
   "repeat_actions": 1,
   "alpha": 0.00025,

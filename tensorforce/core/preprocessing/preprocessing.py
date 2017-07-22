@@ -71,9 +71,9 @@ class Preprocessing(object):
 
         preprocessing = Preprocessing()
         for config in config:
-            preprocessor = config.type
-            args = config.args if 'args' in config else ()
-            kwargs = config.kwargs if 'kwargs' in config else {}
-            preprocessor = util.function(preprocessor, tensorforce.core.preprocessing.preprocessors)(*args, **kwargs)
+            preprocessor = util.get_object(
+                obj=config,
+                predefined=tensorforce.core.preprocessing.preprocessors
+            )
             preprocessing.add(preprocessor=preprocessor)
         return preprocessing

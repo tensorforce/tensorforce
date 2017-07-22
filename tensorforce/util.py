@@ -17,7 +17,7 @@ import importlib
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorForceError
+from tensorforce import TensorForceError, Configuration
 
 
 epsilon = 1e-6
@@ -78,13 +78,30 @@ def tf_dtype(dtype):
         raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
 
 
-def function(f, predefined=None):
-    if predefined is not None and f in predefined:
-        return predefined[f]
-    module_name, function_name = f.rsplit('.', 1)
-    module = importlib.import_module(module_name)
-    return getattr(module, function_name)
+def get_function(fct, predefined=None):
+    if predefined is not None and fct in predefined:
+        return predefined[fct]
+    elif isinstance(fct, str):
+        module_name, function_name = fct.rsplit('.', 1)
+        module = importlib.import_module(module_name)
+        return getattr(module, function_name)
+    elif callable(fct):
+        return fct
+    else:
+        raise TensorForceError("Argument {} cannot be turned into a function.".format(fct))
 
+
+def get_object(obj, predefined=None, kwargs=None):
+    if isinstance(obj, Configuration):
+        fct = obj.type
+        kwargs = {key: value for key, value in obj}
+    else:
+        fct = obj
+        kwargs = dict()
+    obj = get_function(fct=fct, predefined=predefined)
+    if kwargs is not None:
+        kwargs.update(kwargs)
+    return obj(**kwargs)
 
 
 # def make_function(data, fk):

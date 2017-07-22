@@ -18,16 +18,23 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from tensorforce import util
+import tensorforce.core.distributions
+
 
 class Distribution(object):
 
-    def __init__(self, distribution=None):
-        self.distribution = None if distribution is None else tuple(distribution)
+    @classmethod
+    def from_tensors(cls, parameters):
+        raise NotImplementedError
+
+    def create_tf_operations(self, x, deterministic):
+        raise NotImplementedError
 
     def __iter__(self):
         return iter(self.distribution)
 
-    def create_tf_operations(self, x, deterministic, **kwargs):
+    def sample(self):
         raise NotImplementedError
 
     def log_probability(self, action):
@@ -38,3 +45,11 @@ class Distribution(object):
 
     def kl_divergence(self, other):
         raise NotImplementedError
+
+    @staticmethod
+    def from_config(config, kwargs=None):
+        return util.get_object(
+            obj=config,
+            predefined=tensorforce.core.distributions.distributions,
+            kwargs=kwargs
+        )

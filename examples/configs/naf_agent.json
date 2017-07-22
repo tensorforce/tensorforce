@@ -10,8 +10,8 @@
   "update_rate": 1,
   "update_repeat" : 10,
   "min_replay_size": 1000,
-  "exploration_mode": "ornstein_uhlenbeck",
-  "exploration_param": {
+  "exploration": {
+    "type": "ornstein_uhlenbeck",
     "sigma": 0.2,
     "mu": 0,
     "theta": 0.15

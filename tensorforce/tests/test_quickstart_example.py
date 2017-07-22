@@ -41,9 +41,8 @@ class TestQuickstartExample(unittest.TestCase):
             agent = TRPOAgent(config=Configuration(
                 loglevel='info',
                 batch_size=100,
-                baseline='mlp',
-                baseline_args=None,
-                baseline_kwargs=dict(
+                baseline=dict(
+                    type='mlp',
                     size=32,
                     repeat_update=100
                 ),

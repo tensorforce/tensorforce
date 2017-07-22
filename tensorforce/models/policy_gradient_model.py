@@ -24,11 +24,11 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorForceError, util
+from tensorforce import util
 from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork
-from tensorforce.core.value_functions import value_functions
-from tensorforce.core.distributions import distributions
+from tensorforce.core.baselines import Baseline
+from tensorforce.core.distributions import Distribution, Categorical, Gaussian
 
 
 class PolicyGradientModel(Model):
@@ -48,8 +48,6 @@ class PolicyGradientModel(Model):
     """
     default_config = dict(
         baseline=None,
-        baseline_args=None,
-        baseline_kwargs=None,
         generalized_advantage_estimation=False,
         gae_lambda=0.97,
         normalize_advantage=False
@@ -62,26 +60,23 @@ class PolicyGradientModel(Model):
         self.distribution = dict()
         for name, action in config.actions:
             if 'distribution' in action:
-                distribution = action.distribution
+                if not action.continuous:
+                    kwargs = dict(num_actions=action.num_actions)
+                elif 'min_value' in action:
+                    kwargs = dict(min_value=action.min_value, max_value=action.max_value)
+                else:
+                    kwargs = dict()
+                self.distribution[name] = Distribution.from_config(config=action.distribution, kwargs=kwargs)
             elif action.continuous:
-                distribution = 'gaussian'
+                self.distribution[name] = Gaussian()
             else:
-                distribution = 'categorical'
-            if distribution not in distributions:
-                raise TensorForceError()
-            if action.continuous:
-                self.distribution[name] = distributions[distribution]()
-            else:
-                self.distribution[name] = distributions[distribution](num_actions=action.num_actions)
+                self.distribution[name] = Categorical(num_actions=action.num_actions)
 
         # baseline
         if config.baseline is None:
             self.baseline = None
         else:
-            baseline = util.function(f=config.baseline, predefined=value_functions)
-            args = config.baseline_args or ()
-            kwargs = config.baseline_kwargs or {}
-            self.baseline = baseline(*args, **kwargs)
+            self.baseline = Baseline.from_config(config=config.baseline)
 
         super(PolicyGradientModel, self).__init__(config)
 
@@ -102,8 +97,8 @@ class PolicyGradientModel(Model):
 
         with tf.variable_scope('distribution'):
             for action, distribution in self.distribution.items():
-                distribution.create_tf_operations(x=self.network.output, deterministic=self.deterministic, **config.actions[action])
-                self.action_taken[action] = distribution.value
+                distribution.create_tf_operations(x=self.network.output, deterministic=self.deterministic)
+                self.action_taken[action] = distribution.sample()
 
         if self.baseline:
             with tf.variable_scope('baseline'):

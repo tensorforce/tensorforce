@@ -65,27 +65,27 @@ class Configuration(object):
     def items(self):
         return self._config.items()
 
-    def __contains__(self, name):
-        return name in self._config
+    def __contains__(self, key):
+        return key in self._config
 
-    def __getattr__(self, name):
-        if name not in self._config:
-            raise TensorForceError('Value for `{}` is not defined.'.format(name))
-        return self._config[name]
+    def __getattr__(self, key):
+        if key not in self._config:
+            raise TensorForceError('Value for `{}` is not defined.'.format(key))
+        return self._config[key]
 
-    def __getitem__(self, name):
-        return self.__getattr__(name)
+    def __getitem__(self, key):
+        return self.__getattr__(key)
 
-    def __setattr__(self, name, value):
-        if name == 'allow_defaults':
-            super(Configuration, self).__setattr__(name, value)
-        elif name == '_config':
+    def __setattr__(self, key, value):
+        if key == 'allow_defaults':
+            super(Configuration, self).__setattr__(key, value)
+        elif key == '_config':
             value = {k: make_config_value(v) for k, v in value.items()}
-            super(Configuration, self).__setattr__(name, value)
-        elif name not in self._config:
-            raise TensorForceError('Value {} is not defined.'.format(name))
+            super(Configuration, self).__setattr__(key, value)
+        elif key not in self._config:
+            raise TensorForceError('Value {} is not defined.'.format(key))
         else:
-            self._config[name] = make_config_value(value)
+            self._config[key] = make_config_value(value)
 
     def keys(self):
         return self._config.keys()

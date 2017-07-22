@@ -13,15 +13,20 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.value_functions.value_function import ValueFunction
-from tensorforce.core.value_functions.linear import LinearValueFunction
-from tensorforce.core.value_functions.mlp import MLPValueFunction
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+from tensorforce import util
+import tensorforce.core.optimizers
 
 
-value_functions = dict(
-    linear=LinearValueFunction,
-    mlp=MLPValueFunction
-)
+class Optimizer(object):
 
-
-__all__ = ['ValueFunction', 'LinearValueFunction', 'MLPValueFunction', 'value_functions']
+    @staticmethod
+    def from_config(config, kwargs=None):
+        return util.get_object(
+            obj=config,
+            predefined=tensorforce.core.optimizers.optimizers,
+            kwargs=kwargs
+        )

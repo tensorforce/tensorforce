@@ -16,9 +16,7 @@
 Models provide the general interface to TensorFlow functionality,
 manages TensorFlow session and execution. In particular, a agent for reinforcement learning
 always needs to provide a function that gives an action, and one to trigger updates.
-A agent may use one more multiple neural networks and implement the update logic of a particular
-RL algorithm.
-
+A agent may use one more multiple neural networks and implement the update logic of a particular RL algorithm.
 """
 
 from __future__ import absolute_import
@@ -29,7 +27,7 @@ import logging
 import tensorflow as tf
 
 from tensorforce import TensorForceError, util
-from tensorforce.core.optimizers import optimizers
+from tensorforce.core.optimizers import Optimizer
 
 
 log_levels = {
@@ -50,8 +48,6 @@ class Model(object):
     * `discount`: float of discount factor (gamma).
     * `learning_rate`: float of learning rate (alpha).
     * `optimizer`: string of optimizer to use (e.g. 'adam').
-    * `optimizer_args`: list of arguments for optimizer.
-    * `optimizer_kwargs`: dict of keyword arguments for optimizer.
     * `device`: string of tensorflow device name.
     * `tf_saver`: boolean whether to save model parameters.
     * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
@@ -68,8 +64,6 @@ class Model(object):
         discount=0.97,
         learning_rate=0.0001,
         optimizer='adam',
-        optimizer_args=None,
-        optimizer_kwargs=None,
         device=None,
         tf_saver=False,
         tf_summary=None,
@@ -204,12 +198,11 @@ class Model(object):
 
         # Optimizer
         if config.optimizer is not None:
-            learning_rate = config.learning_rate
             with tf.variable_scope('optimization'):
-                optimizer = util.function(config.optimizer, optimizers)
-                args = config.optimizer_args or ()
-                kwargs = config.optimizer_kwargs or {}
-                self.optimizer = optimizer(learning_rate, *args, **kwargs)
+                self.optimizer = Optimizer.from_config(
+                    config=config.optimizer,
+                    kwargs=dict(learning_rate=config.learning_rate)
+                )
         else:
             self.optimizer = None
 

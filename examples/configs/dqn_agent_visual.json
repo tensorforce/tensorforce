@@ -2,10 +2,8 @@
   "preprocessing": [
     {
       "type": "image_resize",
-      "kwargs": {
-        "width": 84,
-        "height": 84
-      }
+      "width": 84,
+      "height": 84
     },
     {
       "type": "grayscale"
@@ -15,25 +13,19 @@
     },
     {
       "type": "sequence",
-      "kwargs": {
-        "length": 4
-      }
+      "length": 4
     }
   ],
   "exploration": {
     "type": "epsilon_decay",
-    "kwargs": {
-      "epsilon": 1.0,
-      "epsilon_final": 0.1,
-      "epsilon_timesteps": 1e6
-    }
+    "epsilon": 1.0,
+    "epsilon_final": 0.1,
+    "epsilon_timesteps": 1e6
   },
 
   "batch_size": 32,
   "memory_capacity": 10000,
   "memory": "replay",
-  "memory_args": null,
-  "memory_kwargs": null,
   "update_frequency": 4,
   "first_update": 50000,
   "repeat_update": 1,
@@ -42,9 +34,8 @@
 
   "discount": 0.97,
   "learning_rate": 0.00025,
-  "optimizer": "rmsprop",
-  "optimizer_args": null,
-  "optimizer_kwargs": {
+  "optimizer": {
+    "type": "rmsprop",
     "momentum": 0.95,
     "epsilon": 0.01
   },

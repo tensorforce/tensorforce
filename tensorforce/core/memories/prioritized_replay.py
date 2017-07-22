@@ -32,21 +32,17 @@ from tensorforce.core.memories import Memory
 class PrioritizedReplay(Memory):
 
     def __init__(self, capacity, states_config, actions_config, prioritization_weight=1.0):
-        self.capacity = capacity
+        super(PrioritizedReplay, self).__init__(capacity, states_config, actions_config)
         self.prioritization_weight = prioritization_weight
-
-        self.state_spec = {name: (tuple(state.shape), util.np_dtype(state.type)) for name, state in states_config}
-        self.action_spec = {name: util.np_dtype('float' if action.continuous else 'int') for name, action in actions_config}
-        self.internal_spec = None
+        self.internals_config = None
         self.observations = list()
-
         self.sum_priorities = 0.0
         self.positive_priority_index = -1
         self.batch_indices = list()
 
     def add_observation(self, state, action, reward, terminal, internal):
-        if self.internal_spec is None and internal is not None:
-            self.internal_spec = [(i.shape, i.dtype) for i in internal]
+        if self.internals_config is None and internal is not None:
+            self.internals_config = [(i.shape, i.dtype) for i in internal]
 
         observation = (state, action, reward, terminal, internal)
         if len(self.observations) < self.capacity:
@@ -69,11 +65,11 @@ class PrioritizedReplay(Memory):
         """
         assert not self.batch_indices
 
-        states = {name: np.zeros((batch_size,) + tuple(shape), dtype=dtype) for name, (shape, dtype) in self.state_spec.items()}
-        actions = {name: np.zeros((batch_size,), dtype=dtype) for name, dtype in self.action_spec.items()}
+        states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in self.states_config.items()}
+        actions = {name: np.zeros((batch_size,), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in self.actions_config.items()}
         rewards = np.zeros((batch_size,), dtype=util.np_dtype('float'))
         terminals = np.zeros((batch_size,), dtype=util.np_dtype('bool'))
-        internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internal_spec]
+        internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
 
         zero_priority_index = self.positive_priority_index + 1
         for n in xrange(batch_size):

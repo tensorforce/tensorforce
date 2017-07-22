@@ -17,8 +17,16 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from tensorforce import util
+import tensorforce.core.memories
+
 
 class Memory(object):
+
+    def __init__(self, capacity, states_config, actions_config):
+        self.capacity = capacity
+        self.states_config = states_config
+        self.actions_config = actions_config
 
     def add_observation(self, state, action, reward, terminal, internal):
         raise NotImplementedError
@@ -28,3 +36,11 @@ class Memory(object):
 
     def update_batch(self, loss_per_instance):
         raise NotImplementedError
+
+    @staticmethod
+    def from_config(config, kwargs=None):
+        return util.get_object(
+            obj=config,
+            predefined=tensorforce.core.memories.memories,
+            kwargs=kwargs
+        )

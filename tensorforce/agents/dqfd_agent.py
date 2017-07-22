@@ -49,8 +49,6 @@ class DQFDAgent(MemoryAgent):
     * `discount`: float of discount factor (gamma).
     * `learning_rate`: float of learning rate (alpha).
     * `optimizer`: string of optimizer to use (e.g. 'adam').
-    * `optimizer_args`: list of arguments for optimizer.
-    * `optimizer_kwargs`: dict of keyword arguments for optimizer.
     * `device`: string of tensorflow device name.
     * `tf_saver`: boolean whether to save model parameters.
     * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
@@ -66,8 +64,6 @@ class DQFDAgent(MemoryAgent):
     * `batch_size`: integer of the batch size.
     * `memory_capacity`: integer of maximum experiences to store.
     * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-    * `memory_args`: list of arguments to pass to replay memory constructor.
-    * `memory_kwargs`: list of keyword arguments to pass to replay memory constructor.
     * `min_replay_size`: integer of minimum replay size before the first update.
     * `update_rate`: float of the update rate (e.g. 0.25 = every 4 steps).
     * `target_network_update_rate`: float of target network update rate (e.g. 0.01 = every 100 steps).

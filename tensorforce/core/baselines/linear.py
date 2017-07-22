@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Linear value function for baseline prediction in TRPO.
+Linear baseline value function.
 
 N.b. as part of TRPO implementation from https://github.com/ilyasu123/trpo
 
@@ -27,10 +27,10 @@ from __future__ import division
 
 import numpy as np
 
-from tensorforce.core.value_functions import ValueFunction
+from tensorforce.core.baselines import Baseline
 
 
-class LinearValueFunction(ValueFunction):
+class LinearBaseline(Baseline):
 
     def __init__(self):
         self.coefficients = None

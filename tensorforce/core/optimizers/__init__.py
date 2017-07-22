@@ -19,7 +19,10 @@ from tensorflow.python.training.adam import AdamOptimizer
 from tensorflow.python.training.gradient_descent import GradientDescentOptimizer
 from tensorflow.python.training.momentum import MomentumOptimizer
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
+
+from tensorforce.core.optimizers.optimizer import Optimizer
 from tensorforce.core.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
+
 
 optimizers = dict(
     adadelta=AdadeltaOptimizer,
@@ -31,4 +34,5 @@ optimizers = dict(
     conjugate_gradient=ConjugateGradientOptimizer
 )
 
-__all__ = ['optimizers', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer', 'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'ConjugateGradientOptimizer']
+
+__all__ = ['Optimizer', 'optimizers', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer', 'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'ConjugateGradientOptimizer']

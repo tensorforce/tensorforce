@@ -32,14 +32,12 @@ from tensorforce.core.memories import Memory
 class Replay(Memory):
 
     def __init__(self, capacity, states_config, actions_config):
-        self.capacity = capacity
-
+        super(Replay, self).__init__(capacity, states_config, actions_config)
         self.states = {name: np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in states_config}
         self.actions = {name: np.zeros((capacity,), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in actions_config}
         self.rewards = np.zeros((capacity,), dtype=util.np_dtype('float'))
         self.terminals = np.zeros((capacity,), dtype=util.np_dtype('bool'))
         self.internals = None
-
         self.size = 0
         self.index = 0
 

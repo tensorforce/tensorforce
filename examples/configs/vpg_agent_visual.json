@@ -2,10 +2,8 @@
   "preprocessing": [
     {
       "type": "image_resize",
-      "kwargs": {
-        "width": 84,
-        "height": 84
-      }
+      "width": 84,
+      "height": 84
     },
     {
       "type": "grayscale"
@@ -15,9 +13,7 @@
     },
     {
       "type": "sequence",
-      "kwargs": {
-        "length": 4
-      }
+      "length": 4
     }
   ],
   "exploration": null,
@@ -27,17 +23,14 @@
   "discount": 0.97,
   "learning_rate": 0.01,
   "optimizer": "adam",
-  "optimizer_args": null,
-  "optimizer_kwargs": null,
   "tf_saver": false,
   "tf_summary": null,
   "loglevel": "debug",
 
-  "baseline": "mlp",
-  "baseline_args": null,
-  "baseline_kwargs": {
-     "size": 100,
-     "repeat_update": 100
+  "baseline": {
+    "type": "mlp",
+    "size": 100,
+    "repeat_update": 100
   },
   "generalized_advantage_estimation": false,
   "gae_lambda": 0.97,

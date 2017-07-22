@@ -19,9 +19,8 @@ from __future__ import division
 
 from six.moves import xrange
 
-from tensorforce import util
 from tensorforce.agents import Agent
-from tensorforce.core.memories import memories
+from tensorforce.core.memories import Memory
 
 
 class MemoryAgent(Agent):
@@ -40,8 +39,6 @@ class MemoryAgent(Agent):
     * `batch_size`: integer of the batch size.
     * `memory_capacity`: integer of maximum experiences to store.
     * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-    * `memory_args`: list of arguments to pass to replay memory constructor.
-    * `memory_kwargs`: list of keyword arguments to pass to replay memory constructor.
     * `update_frequency`: integer indicating the number of steps between model updates.
     * `first_update`: integer indicating the number of steps to pass before the first update.
     * `repeat_update`: integer indicating how often to repeat the model update.
@@ -52,8 +49,6 @@ class MemoryAgent(Agent):
         batch_size=1,
         memory_capacity=1000000,
         memory='replay',
-        memory_args=None,
-        memory_kwargs=None,
         update_frequency=4,
         first_update=10000,
         repeat_update=1
@@ -64,10 +59,14 @@ class MemoryAgent(Agent):
         super(MemoryAgent, self).__init__(config)
 
         self.batch_size = config.batch_size
-        memory = util.function(config.memory, memories)
-        args = config.memory_args or ()
-        kwargs = config.memory_kwargs or {}
-        self.memory = memory(config.memory_capacity, config.states, config.actions, *args, **kwargs)
+        self.memory = Memory.from_config(
+            config=config.memory,
+            kwargs=dict(
+                capacity=config.memory_capacity,
+                states_config=config.states,
+                actions_config=config.actions
+            )
+        )
         self.update_frequency = config.update_frequency
         self.first_update = config.first_update
         self.repeat_update = config.repeat_update

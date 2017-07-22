@@ -13,22 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Generic baseline value function.
-"""
-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+from tensorforce.core.baselines.baseline import Baseline
+from tensorforce.core.baselines.linear import LinearBaseline
+from tensorforce.core.baselines.mlp import MLPBaseline
 
 
-class ValueFunction(object):
+baselines = dict(
+    linear=LinearBaseline,
+    mlp=MLPBaseline
+)
 
-    def create_tf_operations(self, config):
-        raise NotImplementedError
 
-    def predict(self, states):
-        raise NotImplementedError
-
-    def update(self, states, returns):
-        raise NotImplementedError
+__all__ = ['Baseline', 'LinearBaseline', 'MLPBaseline', 'baselines']

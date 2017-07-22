@@ -66,12 +66,21 @@ def linear(x, size, bias=True, l2_regularization=0.0):
     if util.rank(x) != 2:
         raise TensorForceError('Invalid input rank for linear layer.')
     with tf.variable_scope('linear'):
-        weights = tf.Variable(initial_value=tf.random_normal(shape=(x.get_shape()[1].value, size), stddev=min(0.1, sqrt(2.0 / (x.get_shape()[1].value + size)))))
+        if isinstance(bias, bool):
+            shape = (x.shape[1].value, size)
+            stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + size)))
+            weights = tf.random_normal(shape=shape, stddev=stddev)
+            bias = tf.zeros(shape=(size,)) if bias else None
+        else:
+            weights = tf.zeros(shape=(x.shape[1].value, size))
+            if len(bias) != size:
+                raise TensorForceError('Given bias has the wrong size.')
+        weights = tf.Variable(initial_value=weights)
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
         x = tf.matmul(a=x, b=weights)
-        if bias:
-            bias = tf.Variable(initial_value=tf.zeros(shape=(size,)))
+        if bias is not None:
+            bias = tf.Variable(initial_value=bias)
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             x = tf.nn.bias_add(value=x, bias=bias)
@@ -91,10 +100,13 @@ def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regula
     if util.rank(x) != 4:
         raise TensorForceError('Invalid input rank for conv2d layer.')
     with tf.variable_scope('conv2d'):
-        filters = tf.Variable(initial_value=tf.random_normal(shape=(window, window, x.get_shape()[3].value, size), stddev=min(0.1, sqrt(2.0 / size))))
+        shape = (window, window, x.shape[3].value, size)
+        stddev = min(0.1, sqrt(2.0 / size))
+        filters = tf.Variable(initial_value=tf.random_normal(shape=shape, stddev=stddev))
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
-        x = tf.nn.conv2d(input=x, filter=filters, strides=(1, stride, stride, 1), padding='SAME')
+        strides = (1, stride, stride, 1)
+        x = tf.nn.conv2d(input=x, filter=filters, strides=strides, padding='SAME')
         if bias:
             bias = tf.Variable(initial_value=tf.zeros(shape=(size,)))
             if l2_regularization > 0.0:
@@ -115,7 +127,9 @@ def lstm(x, size=None):
     with tf.variable_scope('lstm'):
         internal_input = tf.placeholder(dtype=tf.float32, shape=(None, 2, size))
         lstm = tf.contrib.rnn.LSTMCell(num_units=size)
-        state = tf.contrib.rnn.LSTMStateTuple(c=internal_input[:, 0, :], h=internal_input[:, 1, :])
+        c = internal_input[:, 0, :]
+        h = internal_input[:, 1, :]
+        state = tf.contrib.rnn.LSTMStateTuple(c=c, h=h)
         x, state = lstm(inputs=x, state=state)
         internal_output = tf.stack(values=(state.c, state.h), axis=1)
         internal_init = np.zeros(shape=(2, size))
@@ -149,10 +163,11 @@ def layered_network_builder(layers_config):
         internal_inits = []
 
         for layer_config in layers_config:
-            layer_type = layer_config['type']
-            layer = util.function(layer_type, predefined=layers)
-            x = layer(x=x, **{k: v for k, v in layer_config.items() if k != 'type'})
-
+            x = util.get_object(
+                obj=layer_config,
+                predefined=layers,
+                kwargs=dict(x=x)
+            )
             if isinstance(x, list) or isinstance(x, tuple):
                 assert len(x) == 4
                 internal_inputs.extend(x[1])

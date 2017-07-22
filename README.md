@@ -148,13 +148,13 @@ from tensorforce.agents import TRPOAgent
 from tensorforce.core.networks import layered_network_builder
 
 config = Configuration(
-  batch_size=100,
-  state=dict(shape=(10,)),
-  actions=dict(continuous=False, num_actions=2)
-  network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
+    batch_size=100,
+    states=dict(shape=(10,), type=int),
+    actions=dict(continuous=False, num_actions=2),
+    network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
 )
 
-# Create a Trust Region Policy Optimization agent, reset internal state 
+# Create a Trust Region Policy Optimization agent
 agent = TRPOAgent(config=config)
 
 # Get new data from somewhere, e.g. a client to a web app

@@ -20,6 +20,7 @@ from six.moves import xrange
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork, layers
 
@@ -48,7 +49,8 @@ class NAFModel(Model):
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
         with tf.variable_scope('training'):
-            self.training_network = NeuralNetwork(config.network, inputs=self.state)
+            network_builder = util.get_function(fct=config.network)
+            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -112,7 +114,8 @@ class NAFModel(Model):
             training_output_vars = tf.contrib.framework.get_variables('training_outputs')
 
         with tf.variable_scope('target'):
-            self.target_network = NeuralNetwork(config.network, inputs=self.state)
+            network_builder = util.get_function(fct=config.network)
+            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)

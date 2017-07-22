@@ -24,6 +24,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork, layers
 
@@ -57,8 +58,8 @@ class DQNModel(Model):
 
         # Training network
         with tf.variable_scope('training'):
-            self.training_network = NeuralNetwork(config.network, inputs=self.state)
-
+            network_builder = util.get_function(fct=config.network)
+            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -70,7 +71,8 @@ class DQNModel(Model):
 
         # Target network
         with tf.variable_scope('target'):
-            self.target_network = NeuralNetwork(config.network, inputs=self.state)
+            network_builder = util.get_function(fct=config.network)
+            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)

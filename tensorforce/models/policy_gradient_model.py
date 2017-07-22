@@ -67,6 +67,8 @@ class PolicyGradientModel(Model):
                 else:
                     kwargs = dict()
                 self.distribution[name] = Distribution.from_config(config=action.distribution, kwargs=kwargs)
+            # elif 'min_value' in action:
+            #     ...
             elif action.continuous:
                 self.distribution[name] = Gaussian()
             else:
@@ -90,7 +92,8 @@ class PolicyGradientModel(Model):
         super(PolicyGradientModel, self).create_tf_operations(config)
 
         with tf.variable_scope('value_function'):
-            self.network = NeuralNetwork(config.network, inputs=self.state)
+            network_builder = util.get_function(fct=config.network)
+            self.network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
             self.internal_inputs.extend(self.network.internal_inputs)
             self.internal_outputs.extend(self.network.internal_outputs)
             self.internal_inits.extend(self.network.internal_inits)

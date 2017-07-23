@@ -187,7 +187,7 @@ class TestTutorialCode(unittest.TestCase):
 
         def batch_normalization(x, variance_epsilon=1e-6):
             mean, variance = tf.nn.moments(x, axes=tuple(range(x.shape.ndims - 1)))
-            x = tf.nn.batch_normalization(x, mean=mean, variance=variance,
+            x = tf.nn.batch_normalization(x, mean=mean, variance=variance, offset=None, scale=None,
                                           variance_epsilon=variance_epsilon)
             return x
 
@@ -196,6 +196,9 @@ class TestTutorialCode(unittest.TestCase):
         network_config = [{"type": batch_normalization,
                            "variance_epsilon": 1e-9}]
         network = layered_network_builder(network_config)
+        agent_config.network=network
+        agent_config.states = dict(shape=(10,), type='float')
+        agent = DQNAgent(config=agent_config)
 
         ### Code block: Own network builder
 
@@ -228,6 +231,10 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Test own network builder
 
+        agent_config.states = dict(
+            image=dict(shape=(64, 64, 3), type='float'),
+            caption=dict(shape=(20,), type='int')
+        )
         agent_config.network=network_builder
         agent = DQNAgent(config=agent_config)
 

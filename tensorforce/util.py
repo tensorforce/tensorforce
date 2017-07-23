@@ -24,6 +24,14 @@ epsilon = 1e-6
 
 
 def prod(xs):
+    """Computes the product along the elements in an iterable. Returns 1 for empty
+        iterable.
+    Args:
+        xs: Iterable containing numbers.
+
+    Returns: Product along iterable.
+
+    """
     p = 1
     for x in xs:
         p *= x
@@ -51,6 +59,13 @@ def cumulative_discount(rewards, terminals, discount):
 
 
 def np_dtype(dtype):
+    """Translates dtype specifications in configurations to numpy data types.
+    Args:
+        dtype: String describing a numerical type (e.g. 'float') or numerical type primitive.
+
+    Returns: Numpy data type
+
+    """
     if dtype == 'float' or dtype == float:
         return np.float32
     elif dtype == 'int' or dtype == int:
@@ -62,14 +77,14 @@ def np_dtype(dtype):
 
 
 def tf_dtype(dtype):
-    """
-    Translates datatype specifications in environments into tensorflow dtypes.
-    Args:
-        dtype: 
+    """Translates dtype specifications in configurations to tensorflow data types.
+       Args:
+           dtype: String describing a numerical type (e.g. 'float'), numpy data type,
+            or numerical type primitive.
 
-    Returns:
+       Returns: TensorFlow data type
 
-    """
+       """
     if dtype == 'float' or dtype == float or dtype == np.float32:
         return tf.float32
     elif dtype == 'int' or dtype == int or dtype == np.int32:
@@ -105,3 +120,134 @@ def get_object(obj, predefined=None, kwargs=None):
     if kwargs is not None:
         full_kwargs.update(kwargs)
     return obj(**full_kwargs)
+
+# def make_function(data, fk):
+#     """
+#     Take data dict and convert string function reference with key `fk` to a real function reference, using
+#     `fk`_args as *args and `fk`_kwargs as **kwargs, removing these keys from the data dict.
+
+#     :param data: data dict
+#     :param fk: string function key
+#     :return: boolean
+#     """
+#     fn = data.get(fk)
+
+#     if fn is None:
+#         return True
+#     elif callable(fn):
+#         return True
+#     else:
+#         args_val = "{}_args".format(fk)
+#         kwargs_val = "{}_kwargs".format(fk)
+
+#         args = data.pop(args_val, None)
+#         kwargs = data.pop(kwargs_val, None)
+
+#         func = get_function(fn)
+
+#         if args is None and kwargs is None:
+#             # If there are no args and no kwargs, just return the function reference
+#             data[fk] = func
+#             return True
+
+#         # Otherwise, call the function
+#         if args is None:
+#             args = []
+#         if kwargs is None:
+#             kwargs = {}
+
+#         data[fk] = func(*args, **kwargs)
+#         return True
+
+
+
+
+# def repeat_action(environment, action, repeat_action=1):
+#     """
+#     Repeat action `repeat_action_count` times. Cumulate reward and return last state.
+#
+#     :param environment: Environment object
+#     :param action: Action to be executed
+#     :param repeat_action: How often to repeat the action
+#     :return: result dict
+#     """
+#     if repeat_action <= 0:
+#         raise ValueError('repeat_action lower or equal zero')
+#
+#     reward = 0.
+#     terminal_state = False
+#     for count in xrange(repeat_action):
+#         result = environment.execute_action(action)
+#
+#         state = result['state']
+#         reward += result['reward']
+#         terminal_state = terminal_state or result['terminal_state']
+#         info = result.get('info', None)
+#
+#     return dict(state=state,
+#                 reward=reward,
+#                 terminal_state=terminal_state,
+#                 info=info)
+#
+
+
+# preprocessors = {
+#     'concat': preprocessing.Concat,
+#     'grayscale': preprocessing.Grayscale,
+#     'imresize': preprocessing.Imresize,
+#     'maximum': preprocessing.Maximum,
+#     'normalize': preprocessing.Normalize,
+#     'standardize': preprocessing.Standardize
+# }
+#
+#
+# def build_preprocessing_stack(config):
+#     stack = preprocessing.Stack()
+#
+#     for preprocessor_conf in config:
+#         preprocessor_name = preprocessor_conf[0]
+#
+#         preprocessor_params = []
+#         if len(preprocessor_conf) > 1:
+#             preprocessor_params = preprocessor_conf[1:]
+#
+#         preprocessor_class = preprocessors.get(preprocessor_name, None)
+#         if not preprocessor_class:
+#             raise ConfigError("No such preprocessor: {}".format(preprocessor_name))
+#
+#         preprocessor = preprocessor_class(*preprocessor_params)
+#         stack += preprocessor
+#
+#     return stack
+
+# def create_agent(agent_type, config, scope='prefixed_scope'):
+#     """
+#     Create agent instance by providing type as a string parameter.
+#
+#     :param agent_type: String parameter containing agent type
+#     :param config: Dict containing configuration
+#     :param scope: Scope prefix used for distributed tensorflow scope separation
+#     :return: Agent instance
+#     """
+#     agent_class = agents.get(agent_type)
+#
+#     if not agent_class:
+#         raise TensorForceError("No such agent: {}".format(agent_type))
+#
+#     return agent_class(config, scope)
+
+
+# def get_default_config(agent_type):
+#     """
+#     Get default configuration from agent by providing type as a string parameter.
+#
+#     :param agent_type: String parameter containing agent type
+#     :return: Default configuration dict
+#     """
+#     agent_class = agents.get(agent_type)
+#
+#     if not agent_class:
+#         raise TensorForceError("No such agent: {}".format(agent_type))
+#
+#     return Configuration(agent_class.default_config), Config(agent_class.model_ref.default_config)
+

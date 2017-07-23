@@ -30,11 +30,12 @@ from tensorforce.core.memories import Memory
 
 
 class Replay(Memory):
-
     def __init__(self, capacity, states_config, actions_config):
         super(Replay, self).__init__(capacity, states_config, actions_config)
-        self.states = {name: np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in states_config}
-        self.actions = {name: np.zeros((capacity,), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in actions_config}
+        self.states = {name: np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state
+                       in states_config}
+        self.actions = {name: np.zeros((capacity,), dtype=util.np_dtype('float' if action.continuous else 'int')) for
+                        name, action in actions_config}
         self.rewards = np.zeros((capacity,), dtype=util.np_dtype('float'))
         self.terminals = np.zeros((capacity,), dtype=util.np_dtype('bool'))
         self.internals = None
@@ -69,7 +70,7 @@ class Replay(Memory):
         Returns: A dict containing states, rewards, terminals and internal states
 
         """
-        end = (self.index - randrange(self.size - batch_size)) % self.capacity
+        end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
         start = (end - batch_size) % self.capacity
         if start < end:
             indices = list(xrange(start, end))
@@ -86,3 +87,34 @@ class Replay(Memory):
 
     def update_batch(self, loss_per_instance):
         pass
+
+    def set_memory(self, states, actions, rewards, terminals, internals):
+        self.size = len(rewards)
+
+        if len(rewards) == self.capacity:
+            # Assign directly if capacity matches size.
+            for name, state in states.items():
+                self.states[name] = np.asarray(state)
+            for name, action in actions.items():
+                self.actions[name] = np.asarray(action)
+            self.rewards = np.asarray(rewards)
+            self.terminals = np.asarray(terminals)
+            self.internals = []
+            for i in internals:
+                self.internals.append(np.asarray(i))
+
+        else:
+            # Otherwise partial assignment
+            for name, state in states.items():
+                self.states[name][:len(state)] = np.asarray(state)
+            for name, action in actions.items():
+                self.actions[name][:len(action)] = np.asarray(action)
+            self.rewards[:len(rewards)] = np.asarray(rewards)
+            self.terminals[:len(terminals)] = np.asarray(terminals)
+
+            if self.internals is None and internals is not None:
+                self.internals = []
+            for n, internal in enumerate(internals):
+                self.internals.append(np.zeros((self.capacity, ) + internal.shape,))
+                self.internals[n][:len(internal)] = np.asarray(internal)
+

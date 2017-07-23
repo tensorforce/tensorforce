@@ -5,6 +5,14 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+23th July 2017
+
+- Implemented prototype of Proximal Policy Optimisation (PPO)
+- Configuration argument network can now take module paths, not just functions
+- Fixed prioritised experience replay sampling bug
+- Enabling default values for distributions,
+  see https://github.com/reinforceio/tensorforce/issues/34
+
 8th July 2017
 
 - BREAKING CHANGE: We modified the act and observe API once more because we think there was

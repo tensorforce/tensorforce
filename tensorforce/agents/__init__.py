@@ -22,6 +22,7 @@ from tensorforce.agents.trpo_agent import TRPOAgent
 from tensorforce.agents.dqn_agent import DQNAgent
 from tensorforce.agents.naf_agent import NAFAgent
 from tensorforce.agents.dqfd_agent import DQFDAgent
+from tensorforce.agents.ppo_agent import PPOAgent
 
 
 agents = dict(
@@ -30,8 +31,10 @@ agents = dict(
     TRPOAgent=TRPOAgent,
     DQNAgent=DQNAgent,
     NAFAgent=NAFAgent,
-    DQFDAgent=DQFDAgent
+    DQFDAgent=DQFDAgent,
+    PPOAgent=PPOAgent
 )
 
 
-__all__ = ['Agent', 'BatchAgent', 'MemoryAgent', 'RandomAgent', 'VPGAgent', 'TRPOAgent', 'DQNAgent', 'NAFAgent', 'DQFDAgent', 'agents']
+__all__ = ['Agent', 'BatchAgent', 'MemoryAgent', 'RandomAgent', 'VPGAgent',
+           'TRPOAgent', 'DQNAgent', 'NAFAgent', 'DQFDAgent', 'agents']

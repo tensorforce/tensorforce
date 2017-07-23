@@ -248,3 +248,72 @@ class TestTutorialCode(unittest.TestCase):
 
         network_config = [{"type": lstm}]
         network = layered_network_builder(network_config)
+
+    def test_blogpost_introduction_runner(self):
+        from tensorforce.config import Configuration
+        from tensorforce.core.networks import layered_network_builder
+        from tensorforce.environments.minimal_test import MinimalTest
+        from tensorforce.agents import DQNAgent
+        from tensorforce.execution import Runner
+
+        environment = MinimalTest(continuous=False)
+
+        network_config = [
+            dict(type='dense', size=32)
+        ]
+        agent_config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            states=environment.states,
+            actions=environment.actions,
+            network=layered_network_builder(network_config)
+        )
+
+        agent = DQNAgent(config=agent_config)
+        runner = Runner(agent=agent, environment=environment)
+
+        def episode_finished(runner):
+            if runner.episode % 100 == 0:
+                print(sum(runner.episode_rewards[-100:]) / 100)
+            return runner.episode < 100 \
+                   or not all(reward >= 1.0 for reward in runner.episode_rewards[-100:])
+
+        # runner.run(episodes=1000, episode_finished=episode_finished)
+        runner.run(episodes=10, episode_finished=episode_finished)  # Only 10 episodes for this test
+
+        ### Code block: next
+
+        # max_episodes = 1000
+        max_episodes = 10  # Only 10 episodes for this test
+        max_timesteps = 2000
+
+        episode = 0
+        episode_rewards = list()
+
+        while True:
+            state = environment.reset()
+            agent.reset()
+
+            timestep = 0
+            episode_reward = 0
+            while True:
+                action = agent.act(state=state)
+                state, reward, terminal = environment.execute(action=action)
+                agent.observe(reward=reward, terminal=terminal)
+
+                timestep += 1
+                episode_reward += reward
+
+                if terminal or timestep == max_timesteps:
+                    break
+
+            episode += 1
+            episode_rewards.append(episode_reward)
+
+            if all(reward >= 1.0 for reward in episode_rewards[-100:]) \
+                    or episode == max_episodes:
+                break

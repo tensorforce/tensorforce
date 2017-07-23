@@ -248,6 +248,61 @@ class TestTutorialCode(unittest.TestCase):
 
         network_config = [{"type": lstm}]
         network = layered_network_builder(network_config)
+        agent_config.network=network
+        agent_config.states = dict(shape=(10,), type='float')
+        agent = DQNAgent(config=agent_config)
+
+        ### Preprocessing configuration
+
+        agent_config.preprocessing = [
+            dict(
+                type='image_resize',
+                width=84,
+                height=84
+            ),
+            dict(
+                type='grayscale'
+            ),
+            dict(
+                type='center'
+            ),
+            dict(
+                type='sequence',
+                length=4
+            )
+        ]
+
+        ### Test preprocessing configuration
+
+        agent = DQNAgent(config=agent_config)
+
+        #agent_config.actions = dict(continuous=False, num_actions=5)
+
+        ### Code block: Continuous action exploration
+
+        agent_config.exploration = dict(
+            type='OrnsteinUhlenbeckProcess',
+            sigma=0.1,
+            mu=0,
+            theta=0.1
+        )
+
+        ### Test continuous action exploration
+
+        agent = DQNAgent(config=agent_config)
+
+        ### Code block: Discrete action exploration
+
+        agent_config.exploration = dict(
+            type='EpsilonDecay',
+            epsilon=1,
+            epsilon_final=0.01,
+            epsilon_timesteps=1e6
+        )
+
+        ### Test discrete action exploration
+
+        agent = DQNAgent(config=agent_config)
 
     def test_blogpost_introduction_runner(self):
         from tensorforce.config import Configuration

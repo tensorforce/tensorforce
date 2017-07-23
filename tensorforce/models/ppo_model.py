@@ -34,7 +34,7 @@ class PPOModel(PolicyGradientModel):
 
     default_config = dict(
         entropy_penalty=0.01,
-        loss_clipping=0.1, # Trust region clipping
+        loss_clipping=0.1,  # Trust region clipping
         epochs=10,  # Number of training epochs for SGD,
         optimizer_batch_size=100  # Batch size for optimiser
     )
@@ -89,6 +89,11 @@ class PPOModel(PolicyGradientModel):
                 # https://www.cs.cmu.edu/~jcl/presentation/RL/RL.ps
                 self.loss_per_instance = tf.multiply(x=prob_ratio, y=self.reward)
 
+                # This should potentially be refactored. We currently attempt to call
+                # the generic model update method in all specific model classes, which
+                # just runs tf.losses - this needs to be added so tf.losses is not empty,
+                # but since there is no super call in update(), it is not used.
+                # We will refactor this as part of the new optimisation module.
                 tf.losses.add_loss(self.loss_per_instance)
                 clipped_loss = tf.clip_by_value(prob_ratio, 1.0 - config.loss_clipping,
                                                 1.0 + config.loss_clipping) * self.reward
@@ -119,11 +124,11 @@ class PPOModel(PolicyGradientModel):
         Compute update for one batch of experiences using general advantage estimation
         and the trust region update based on SGD on the clipped loss.
 
-        :param batch: On policy batch of experienecs.
+        :param batch: On policy batch of experiences.
         :return:
         """
 
-        # Compute GAE
+        # Compute GAE.
         batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'],
                                                     discount=self.discount)
         batch['rewards'] = self.advantage_estimation(batch)
@@ -143,7 +148,7 @@ class PPOModel(PolicyGradientModel):
         for i in xrange(self.epochs):
             self.logger.debug('Optimising PPO, epoch = {}'.format(i))
 
-            # Sample a batch
+            # Sample a batch by sampling a starting point and taking a range from there.
             minibatch = memory.get_batch(self.optimizer_batch_size)
 
             # Create inputs over named states and actions

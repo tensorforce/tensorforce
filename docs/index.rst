@@ -13,9 +13,9 @@ For a quick start, you can run one of our example scripts using the
 provided configurations, e.g. to run the TRPO agent on CartPole, execute
 from the examples folder:
 
-.. code::
+.. code:: bash
 
-    python examples/openai_gym.py CartPole-v0 -a TRPOAgent -c examples/configs/trpo_agent.json -n examples/configs/trpo_network.json
+    python examples/openai_gym.py CartPole-v0 -a TRPOAgent -c examples/configs/trpo_cartpole.json -n examples/configs/trpo_cartpole_network.json
     
 In python, it could look like this:
     

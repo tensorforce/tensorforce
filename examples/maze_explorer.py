@@ -36,7 +36,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--mode', help="ID of the game mode")
-    parser.add_argument('--hide', help="Hide output window")
+    parser.add_argument('--hide', dest='hide', action='store_const', const=True, default=False, help="Hide output window")
     parser.add_argument('-a', '--agent', help='Agent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-config', help="Network configuration file")

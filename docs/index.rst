@@ -36,25 +36,48 @@ In python, it could look like this:
 
     # Create a Trust Region Policy Optimization agent
     agent = TRPOAgent(config=Configuration(
-      batch_size=200,
-      states=env.states,
-      actions=env.actions,
-      network=layered_network_builder([dict(type='dense', size=10)])
+        loglevel='info',
+        batch_size=100,
+        baseline=dict(
+            type='mlp',
+            size=32,
+            repeat_update=100
+        ),
+        generalized_advantage_estimation=True,
+        normalize_advantage=False,
+        gae_lambda=0.97,
+        override_line_search=False,
+        cg_iterations=20,
+        cg_damping=0.01,
+        line_search_steps=20,
+        max_kl_divergence=0.005,
+        states=env.states,
+        actions=env.actions,
+        network=layered_network_builder([
+            dict(type='dense', size=32, activation='tanh'),
+            dict(type='dense', size=32, activation='tanh')
+        ])
     ))
 
     # Create the runner
     runner = Runner(agent=agent, environment=env)
 
+
     # Callback function printing episode statistics
     def episode_finished(r):
-        print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.timestep, reward=r.episode_rewards[-1]))
+        print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.timestep,
+                                                                                     reward=r.episode_rewards[-1]))
         return True
+
 
     # Start learning
     runner.run(episodes=3000, max_timesteps=200, episode_finished=episode_finished)
 
     # Print statistics
-    print("Learning finished. Total episodes: {ep}. Average reward of last 100 episodes: {ar}.".format(ep=runner.episode, ar=np.mean(runner.episode_rewards[-100:])))
+    print("Learning finished. Total episodes: {ep}. Average reward of last 100 episodes: {ar}.".format(ep=runner.episode,
+                                                                                                       ar=np.mean(
+                                                                                                           runner.episode_rewards[
+                                                                                                           -100:])))
 
 
 .. toctree::

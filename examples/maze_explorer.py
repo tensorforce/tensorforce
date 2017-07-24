@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-OpenAI gym execution
+Maze Explorer execution
 """
 
 from __future__ import absolute_import

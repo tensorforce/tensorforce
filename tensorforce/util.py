@@ -94,6 +94,16 @@ def tf_dtype(dtype):
 
 
 def get_function(fct, predefined=None):
+    """
+    Turn a function specification from a configuration to a function, e.g.
+    by importing it from the respective module.
+    Args:
+        fct:
+        predefined:
+
+    Returns:
+
+    """
     if predefined is not None and fct in predefined:
         return predefined[fct]
     elif isinstance(fct, str):
@@ -107,6 +117,18 @@ def get_function(fct, predefined=None):
 
 
 def get_object(obj, predefined=None, kwargs=None):
+    """
+    Utility method to map Configuration objects to their contents, e.g. optimisers, baselines
+    to the respective classes.
+
+    Args:
+        obj: Configuration object or dict
+        predefined: Default value
+        kwargs: Parameters for the configuration
+
+    Returns: The retrieved object
+
+    """
     if isinstance(obj, Configuration):
         fct = obj.type
         full_kwargs = {key: value for key, value in obj if key != 'type'}

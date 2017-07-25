@@ -21,11 +21,10 @@ from tensorflow.python.training.momentum import MomentumOptimizer
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
 from tensorforce.core.optimizers.optimizer import Optimizer
-from tensorforce.core.optimizers.natural_gradient import NaturalGradient
 from tensorforce.core.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
-from tensorforce.core.optimizers.evolutionary import Evolutionary
 
 
+# This can register any class inheriting from tf.train.Optimizer
 optimizers = dict(
     adadelta=AdadeltaOptimizer,
     adagrad=AdagradOptimizer,
@@ -33,10 +32,11 @@ optimizers = dict(
     gradient_descent=GradientDescentOptimizer,
     momentum=MomentumOptimizer,
     rmsprop=RMSPropOptimizer,
-    natural_gradient=NaturalGradient,
+   # natural_gradient=NaturalGradient,  -> not yet merged to github
     conjugate_gradient=ConjugateGradientOptimizer,
-    evolutionary=Evolutionary
+   # evolutionary=Evolutionary
 )
 
 
-__all__ = ['optimizers', 'Optimizer', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer', 'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'NaturalGradient', 'ConjugateGradientOptimizer', 'Evolutionary']
+__all__ = ['optimizers', 'Optimizer', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer',
+           'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'ConjugateGradientOptimizer']

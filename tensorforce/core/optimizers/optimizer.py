@@ -18,13 +18,17 @@ from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
-
 from tensorforce import util, TensorForceError
 import tensorforce.core.optimizers
 
-
+##TODO - Optimisation package is work in progress
 class Optimizer(tf.train.Optimizer):
-    # custom optimizer
+    """
+    Generic optimizer extending the tf.train.Optimizer class. This is for the purpose of having
+    a consistent way of handling different types of optimisation such as SGD/momentum variants
+    and natural gradients or even evolutionary methods since TensorFlow currently does not offer
+    natural gradient optimisers natively.
+    """
 
     def __init__(self, learning_rate=1.0):
         super(Optimizer, self).__init__(use_locking=False, name='TensorForceOptimizer')
@@ -35,6 +39,16 @@ class Optimizer(tf.train.Optimizer):
 
     @staticmethod
     def from_config(config, kwargs=None):
+        """
+        Creates an optimizer from a configuration object.
+
+        Args:
+            config: Name of optimizer
+            kwargs: Dict of optimizer hyperparameters
+
+        Returns:
+
+        """
         return util.get_object(
             obj=config,
             predefined=tensorforce.core.optimizers.optimizers,
@@ -45,6 +59,20 @@ class Optimizer(tf.train.Optimizer):
     # tf.train.GradientDescentOptimizer implementations.
 
     def compute_gradients(self, loss, var_list=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, grad_loss=None):
+        """
+        Computes lists of gradients and variables.
+
+        Args:
+            loss:
+            var_list:
+            gate_gradients:
+            aggregation_method:
+            colocate_gradients_with_ops:
+            grad_loss:
+
+        Returns:
+
+        """
         if aggregation_method is not None or colocate_gradients_with_ops or grad_loss is not None:
             raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments are not supported.")
         if gate_gradients is None:
@@ -72,6 +100,7 @@ class Optimizer(tf.train.Optimizer):
             grads = tf.tuple(grads)
         grads_and_vars = list(zip(grads, var_list))
         self._assert_valid_dtypes([v for g, v in grads_and_vars if g is not None and v.dtype != tf.resource])
+
         return grads_and_vars
 
     def _prepare(self):
@@ -80,6 +109,7 @@ class Optimizer(tf.train.Optimizer):
         #                                                    name="learning_rate")
 
     def _apply_dense(self, grad, var):
+
         return tf.train.GradientDescentOptimizer._apply_dense(self=self, grad=grad, var=var)
         # return training_ops.apply_gradient_descent(
         #     var,

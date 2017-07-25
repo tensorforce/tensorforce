@@ -36,7 +36,8 @@ import numpy as np
 from tensorforce import util
 
 
-# TODO This should ultimately be refactored to do a full constrainted optimization as in rllab
+#TODO This should ultimately be refactored to do a full constrainted optimization as in rllab
+#TODO refactor into new optimisation structure
 class ConjugateGradientOptimizer(object):
 
     def __init__(self, logger=None, cg_iterations=10, stop_residual=1e-10):

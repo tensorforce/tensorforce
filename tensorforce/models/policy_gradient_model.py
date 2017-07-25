@@ -118,8 +118,7 @@ class PolicyGradientModel(Model):
         Returns:
 
         """
-        batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'], discount=self.discount)
-        batch['rewards'] = self.advantage_estimation(batch)
+        self.advantage_estimation(batch)
         if self.baseline:
             self.baseline.update(states=batch['states'], returns=batch['returns'])
         super(PolicyGradientModel, self).update(batch)
@@ -133,8 +132,11 @@ class PolicyGradientModel(Model):
         Returns:
 
         """
+        batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'], discount=self.discount)
+
         if not self.baseline:
-            return batch['returns']
+            batch['rewards'] = batch['returns']
+            return
 
         estimates = self.baseline.predict(states=batch['states'])
         if self.generalized_advantage_estimation:
@@ -153,4 +155,4 @@ class PolicyGradientModel(Model):
             advantage -= advantage.mean()
             advantage /= advantage.std() + 1e-8
 
-        return advantage
+        batch['rewards'] = advantage

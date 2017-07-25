@@ -60,8 +60,6 @@ class OpenAIGym(Environment):
         return self.gym.reset()
 
     def execute(self, action):
-        if isinstance(space, gym.spaces.Box):
-            action = [action]  # some gym environments expect a list (f.i. Pendulum-v0)
         state, reward, terminal, _ = self.gym.step(action)
         return state, reward, terminal
 
@@ -97,7 +95,7 @@ class OpenAIGym(Environment):
 
     @property
     def actions(self):
-        return OpenAIGym.state_from_space(space=self.gym.action_space)
+        return OpenAIGym.action_from_space(space=self.gym.action_space)
 
     @staticmethod
     def action_from_space(space):

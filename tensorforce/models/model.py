@@ -256,7 +256,7 @@ class Model(object):
         feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
         feed_dict[self.reward] = batch['rewards']
         feed_dict[self.terminal] = batch['terminals']
-        feed_dict.update({internal_input: batch['internals'][n] for n, internal_input in enumerate(self.internal_inputs)})
+        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
         if self.distributed:
             fetches.extend(self.increment_global_episode for terminal in batch['terminals'] if terminal)

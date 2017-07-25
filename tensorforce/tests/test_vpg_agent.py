@@ -40,8 +40,8 @@ class TestVPGAgent(unittest.TestCase):
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
-                    dict(type='dense', size=32, activation='tanh'),
-                    dict(type='dense', size=32, activation='tanh')
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32)
                 ])
             )
             agent = VPGAgent(config=config)
@@ -70,8 +70,8 @@ class TestVPGAgent(unittest.TestCase):
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
-                    dict(type='dense', size=32, activation='tanh'),
-                    dict(type='dense', size=32, activation='tanh')
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32)
                 ])
             )
             agent = VPGAgent(config=config)
@@ -92,10 +92,11 @@ class TestVPGAgent(unittest.TestCase):
         passed = 0
 
         def network_builder(inputs):
-            state0 = layers['dense'](x=inputs['state0'], size=32)
-            state1 = layers['dense'](x=inputs['state1'], size=32)
-            state2 = layers['dense'](x=inputs['state2'], size=32)
-            state3 = layers['dense'](x=inputs['state3'], size=32)
+            layer = layers['dense']
+            state0 = layer(x=layer(x=inputs['state0'], size=32), size=32)
+            state1 = layer(x=layer(x=inputs['state1'], size=32), size=32)
+            state2 = layer(x=layer(x=inputs['state2'], size=32), size=32)
+            state3 = layer(x=layer(x=inputs['state3'], size=32), size=32)
             return state0 * state1 * state2 * state3
 
         for _ in xrange(5):
@@ -111,11 +112,11 @@ class TestVPGAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 20 or not all(x >= 1.0 for x in r.episode_rewards[-20:])
+                return r.episode < 50 or not all(x >= 1.0 for x in r.episode_rewards[-50:])
 
-            runner.run(episodes=1500, episode_finished=episode_finished)
+            runner.run(episodes=2000, episode_finished=episode_finished)
             print('VPG agent (multi-state/action): ' + str(runner.episode))
-            if runner.episode < 1500:
+            if runner.episode < 2000:
                 passed += 1
 
         print('VPG agent (multi-state/action) passed = {}'.format(passed))

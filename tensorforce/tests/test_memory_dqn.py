@@ -43,7 +43,10 @@ class TestMemoryDQN(unittest.TestCase):
                 target_update_frequency=10,
                 states=environment.states,
                 actions=environment.actions,
-                network=layered_network_builder([dict(type='dense', size=32)])
+                network=layered_network_builder([
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32)
+                ])
             )
             agent = DQNAgent(config=config)
             runner = Runner(agent=agent, environment=environment)
@@ -73,7 +76,10 @@ class TestMemoryDQN(unittest.TestCase):
                 target_update_frequency=10,
                 states=environment.states,
                 actions=environment.actions,
-                network=layered_network_builder([dict(type='dense', size=32)])
+                network=layered_network_builder([
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32)
+                ])
             )
             agent = DQNAgent(config=config)
             runner = Runner(agent=agent, environment=environment)

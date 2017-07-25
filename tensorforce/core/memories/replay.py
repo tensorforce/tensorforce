@@ -98,21 +98,17 @@ class Replay(Memory):
                 self.actions[name] = np.asarray(action)
             self.rewards = np.asarray(rewards)
             self.terminals = np.asarray(terminals)
-            self.internals = []
-            for i in internals:
-                self.internals.append(np.asarray(i))
+            self.internals = [np.asarray(internal) for internal in internals]
 
         else:
             # Otherwise partial assignment
             for name, state in states.items():
-                self.states[name][:len(state)] = np.asarray(state)
+                self.states[name][:len(state)] = state
             for name, action in actions.items():
-                self.actions[name][:len(action)] = np.asarray(action)
-            self.rewards[:len(rewards)] = np.asarray(rewards)
-            self.terminals[:len(terminals)] = np.asarray(terminals)
-
+                self.actions[name][:len(action)] = action
+            self.rewards[:len(rewards)] = rewards
+            self.terminals[:len(terminals)] = terminals
             if self.internals is None and internals is not None:
-                self.internals = []
+                self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal in internals]
             for n, internal in enumerate(internals):
-                self.internals.append(np.zeros((self.capacity, ) + internal.shape,))
-                self.internals[n][:len(internal)] = np.asarray(internal)
+                self.internals[n][:len(internal)] = internal

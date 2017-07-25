@@ -81,7 +81,8 @@ class TRPOModel(PolicyGradientModel):
 
                 log_prob = distribution.log_probability(action=action)
                 prev_log_prob = prev_distribution.log_probability(action=action)
-                prob_ratio = tf.minimum(tf.exp(log_prob - prev_log_prob), 1000)
+                log_prob_diff = tf.minimum(x=(log_prob - prev_log_prob), y=10.0)
+                prob_ratio = tf.exp(x=log_prob_diff)
 
                 kl_divergence = distribution.kl_divergence(other=prev_distribution)
                 entropy = distribution.entropy()
@@ -104,11 +105,11 @@ class TRPOModel(PolicyGradientModel):
                 fixed_kl_divergences.extend(fkds_list)
 
             prob_ratio = tf.add_n(inputs=prob_ratios) / len(prob_ratios)
-            self.loss_per_instance = tf.multiply(x=prob_ratio, y=self.reward)
-            surrogate_loss = -tf.reduce_mean(self.loss_per_instance, axis=0)
+            self.loss_per_instance = -prob_ratio * self.reward
+            surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
 
-            kl_divergence = tf.add_n(inputs=kl_divergences) / len(kl_divergences)
-            entropy = tf.add_n(inputs=entropies) / len(entropies)
+            kl_divergence = tf.reduce_mean(input_tensor=(tf.add_n(inputs=kl_divergences) / len(kl_divergences)), axis=0)
+            entropy = tf.reduce_mean(input_tensor=(tf.add_n(inputs=entropies) / len(entropies)), axis=0)
             self.losses = (surrogate_loss, kl_divergence, entropy, self.loss_per_instance)
 
             fixed_kl_divergence = tf.add_n(inputs=fixed_kl_divergences) / len(fixed_kl_divergences)

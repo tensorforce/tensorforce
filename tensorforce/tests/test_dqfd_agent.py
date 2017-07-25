@@ -45,7 +45,10 @@ class TestDQFDAgent(unittest.TestCase):
                 demo_sampling_ratio=0.2,
                 states=environment.states,
                 actions=environment.actions,
-                network=layered_network_builder([dict(type='dense', size=32)])
+                network=layered_network_builder([
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32)
+                ])
             )
             agent = DQFDAgent(config=config)
 
@@ -82,9 +85,10 @@ class TestDQFDAgent(unittest.TestCase):
         passed = 0
 
         def network_builder(inputs):
-            state0 = layers['dense'](x=inputs['state0'], size=32)
-            state1 = layers['dense'](x=inputs['state1'], size=32)
-            state2 = layers['dense'](x=inputs['state2'], size=32)
+            layer = layers['dense']
+            state0 = layer(x=layer(x=inputs['state0'], size=32), size=32)
+            state1 = layer(x=layer(x=inputs['state1'], size=32), size=32)
+            state2 = layer(x=layer(x=inputs['state2'], size=32), size=32)
             return state0 * state1 * state2
 
         for _ in xrange(5):

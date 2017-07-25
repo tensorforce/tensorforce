@@ -5,13 +5,21 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+
+25th July 2017
+
+- New optional argument `shape` for action specification, if an array of actions sharing the same specification is required
+- Complete and correct mapping of OpenAIGym state/action spaces to corresponding TensorForce state/action specifications
+- `MinimalTest` environment extension for multiple actions, plus an additional multi-state/action test for each agent
+
+
 23th July 2017
 
 - Implemented prototype of Proximal Policy Optimisation (PPO)
 - Configuration argument network can now take module paths, not just functions
-- Fixed prioritised experience replay sampling bug
-- Enabling default values for distributions,
-  see https://github.com/reinforceio/tensorforce/issues/34
+- Fixed prioritized experience replay sampling bug
+- Enabling default values for distributions, see https://github.com/reinforceio/tensorforce/issues/34
+
 
 8th July 2017
 
@@ -38,6 +46,7 @@ on the generic agent which gives the current state, action, reward, terminal and
 -   Added prioritised experience replay
 -   Added RandomAgent for discrete/continuous random baselines
 -   Moved pre-processing from runner to agent, analogue to exploration
+
 
 11th June 2017
 

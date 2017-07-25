@@ -24,6 +24,12 @@ from tensorforce.environments import Environment
 class MinimalTest(Environment):
 
     def __init__(self, definition):
+        """
+        Initializes a minimal test environment.
+
+        Args:
+            definition: Takes a list of (continuous, shape) pairs specifying the state and action structure of the environment. Alternatively, a simple boolean value 'continuous' is a short-form for [(continuous, ())].
+        """
         if isinstance(definition, bool):
             self.definition = [(definition, ())]
             self.single_state_action = True

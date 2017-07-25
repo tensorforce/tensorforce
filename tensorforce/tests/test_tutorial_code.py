@@ -27,20 +27,22 @@ import unittest
 
 class TestTutorialCode(unittest.TestCase):
 
+    class MyClient(object):
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get_state(self):
+            import numpy as np
+            return np.random.rand(10)
+
+        def execute(self, action):
+            pass
+
     def test_reinforceio_homepage(self):
         """
         Code example from the homepage and README.md.
         """
-        class MyClient(object):
-            def __init__(self, *args, **kwargs):
-                pass
-
-            def get_state(self):
-                import numpy as np
-                return np.random.rand(10)
-
-            def execute(self, action):
-                pass
 
         from tensorforce import Configuration
         from tensorforce.agents import TRPOAgent
@@ -57,7 +59,7 @@ class TestTutorialCode(unittest.TestCase):
         agent = TRPOAgent(config=config)
 
         # Get new data from somewhere, e.g. a client to a web app
-        client = MyClient('http://127.0.0.1', 8080)
+        client = TestTutorialCode.MyClient('http://127.0.0.1', 8080)
 
         # Poll new state from client
         state = client.get_state()
@@ -318,7 +320,7 @@ class TestTutorialCode(unittest.TestCase):
         from tensorforce.agents import DQNAgent
         from tensorforce.execution import Runner
 
-        environment = MinimalTest(continuous=False)
+        environment = MinimalTest(definition=False)
 
         network_config = [
             dict(type='dense', size=32)

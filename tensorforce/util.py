@@ -24,6 +24,14 @@ epsilon = 1e-6
 
 
 def prod(xs):
+    """Computes the product along the elements in an iterable. Returns 1 for empty
+        iterable.
+    Args:
+        xs: Iterable containing numbers.
+
+    Returns: Product along iterable.
+
+    """
     p = 1
     for x in xs:
         p *= x
@@ -51,6 +59,13 @@ def cumulative_discount(rewards, terminals, discount):
 
 
 def np_dtype(dtype):
+    """Translates dtype specifications in configurations to numpy data types.
+    Args:
+        dtype: String describing a numerical type (e.g. 'float') or numerical type primitive.
+
+    Returns: Numpy data type
+
+    """
     if dtype == 'float' or dtype == float:
         return np.float32
     elif dtype == 'int' or dtype == int:
@@ -62,14 +77,14 @@ def np_dtype(dtype):
 
 
 def tf_dtype(dtype):
-    """
-    Translates datatype specifications in environments into tensorflow dtypes.
-    Args:
-        dtype: 
+    """Translates dtype specifications in configurations to tensorflow data types.
+       Args:
+           dtype: String describing a numerical type (e.g. 'float'), numpy data type,
+            or numerical type primitive.
 
-    Returns:
+       Returns: TensorFlow data type
 
-    """
+       """
     if dtype == 'float' or dtype == float or dtype == np.float32:
         return tf.float32
     elif dtype == 'int' or dtype == int or dtype == np.int32:

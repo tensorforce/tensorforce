@@ -54,6 +54,7 @@ policy methods both continuous/discrete):
 5.  Vanilla Policy Gradients (VPG)
 6.  Deep Q-learning from Demonstration (DQFD) -
     [paper](https://arxiv.org/abs/1704.03732)
+7.  Proximal Policy Optimisation (PPO)  - [paper](https://arxiv.org/abs/1707.06347)
 
 Installation
 ------------

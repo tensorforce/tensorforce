@@ -37,6 +37,22 @@ class Memory(object):
     def update_batch(self, loss_per_instance):
         raise NotImplementedError
 
+    def set_memory(self, states, actions, rewards, terminals, internals):
+        """
+        Deletes memory content and sets content to provided observations.
+
+        Args:
+            states:
+            actions:
+            rewards:
+            terminals:
+            internals:
+
+        Returns:
+
+        """
+        raise NotImplementedError
+
     @staticmethod
     def from_config(config, kwargs=None):
         return util.get_object(

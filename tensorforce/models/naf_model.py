@@ -84,23 +84,6 @@ class NAFModel(Model):
             # P = LL^T
             p_matrix = tf.matmul(a=l_matrix, b=tf.transpose(a=l_matrix, perm=(0, 2, 1)))
 
-            # l_rows = []
-            # offset = 0
-            # for i in xrange(num_actions):
-            #     # Diagonal elements are exponentiated, otherwise gradient often 0
-            #     # Slice out lower triangular entries from flat representation through moving offset
-            #     diagonal = tf.exp(l_entries[:, offset])  # tf.slice(l_entries, (0, offset), (-1, 1))
-            #     n = config.actions - i - 1
-            #     # Slice out non-zero non-diagonal entries, - 1 because we already took the diagonal
-            #     non_diagonal = l_entries[:, offset + 1: offset + n + 1]  # tf.slice(l_entries, (0, offset + 1), (-1, n))
-            #     # Fill up row with zeros
-            #     row = tf.pad(tf.concat(axis=1, values=(diagonal, non_diagonal)), ((0, 0), (i, 0)))
-            #     offset += (num_actions - i)
-            #     l_rows.append(row)
-            #
-            # # Stack rows to matrix
-            # l_matrix = tf.transpose(tf.stack(l_rows, axis=1), (0, 2, 1))
-
             flat_action = list()
             for name in sorted(self.action):
                 shape = config.actions[name].shape

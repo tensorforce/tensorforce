@@ -90,6 +90,16 @@ class MemoryAgent(Agent):
                 self.memory.update_batch(loss_per_instance=loss_per_instance)
 
     def import_observations(self, observations):
+        """Load an iterable of observation dicts into the replay memory.
+
+        Args:
+            observations: An iterable with each element containing an observation. Each
+            observation requires keys 'state','action','reward','terminal', 'internal'.
+            Use an empty list [] for 'internal' if internal state is irrelevant.
+
+        Returns:
+
+        """
         for observation in observations:
             self.memory.add_observation(
                 state=observation['state'],

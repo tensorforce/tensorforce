@@ -3,11 +3,10 @@
   "override_line_search": false,
   "batch_size": 1000,
   "discount": 0.97,
-  "baseline": "mlp",
-  "baseline_args": null,
-  "baseline_kwargs": {
-     "size": 32,
-     "repeat_update": 100
+  "baseline": {
+    "type": "mlp",
+    "size": 32,
+    "repeat_update": 100
   },
   "generalized_advantage_estimation": true,
   "normalize_advantage" : false,

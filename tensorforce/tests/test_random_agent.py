@@ -25,7 +25,7 @@ from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
 
 
-class TestVPGAgent(unittest.TestCase):
+class TestRandomAgent(unittest.TestCase):
 
     def test_discrete(self):
         environment = MinimalTest(definition=False)

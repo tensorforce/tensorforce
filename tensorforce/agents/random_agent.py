@@ -14,7 +14,8 @@
 # ==============================================================================
 
 """
-Random agent that always returns a random action.
+Random agent that always returns a random action. Useful to be able to get random
+agents with specific shapes.
 """
 
 from __future__ import absolute_import
@@ -29,7 +30,7 @@ from tensorforce.agents import Agent
 class RandomAgent(Agent):
 
     name = 'RandomAgent'
-    model = (lambda config: None)
+    model = staticmethod(lambda config: None)
 
     def __init__(self, config):
         super(RandomAgent, self).__init__(config)

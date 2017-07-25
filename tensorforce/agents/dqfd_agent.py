@@ -80,6 +80,7 @@ class DQFDAgent(MemoryAgent):
 
     name = 'DQFDAgent'
     model = DQFDModel
+
     default_config = dict(
         target_update_frequency=10000,
         demo_memory_capacity=1000000,

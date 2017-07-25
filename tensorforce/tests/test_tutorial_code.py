@@ -26,6 +26,9 @@ import unittest
 
 
 class TestTutorialCode(unittest.TestCase):
+    """
+    Validation of random code snippets as to be notified when old blog posts need to be changed.
+    """
 
     class MyClient(object):
 

@@ -22,7 +22,7 @@ from six.moves import xrange
 
 from tensorforce import Configuration
 from tensorforce.agents import VPGAgent
-from tensorforce.core.networks import layered_network_builder
+from tensorforce.core.networks import layered_network_builder, layers
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
 
@@ -33,7 +33,7 @@ class TestVPGAgent(unittest.TestCase):
         passed = 0
 
         for _ in xrange(5):
-            environment = MinimalTest(continuous=False)
+            environment = MinimalTest(definition=False)
             config = Configuration(
                 batch_size=8,
                 learning_rate=0.001,
@@ -50,20 +50,20 @@ class TestVPGAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            runner.run(episodes=2000, episode_finished=episode_finished)
-            print('VPG Agent (discrete): ' + str(runner.episode))
+            runner.run(episodes=1000, episode_finished=episode_finished)
+            print('VPG agent (discrete): ' + str(runner.episode))
 
-            if runner.episode < 2000:
+            if runner.episode < 1000:
                 passed += 1
 
-        print('VPG discrete agent passed = {}'.format(passed))
+        print('VPG agent (discrete) passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
 
     def test_continuous(self):
         passed = 0
 
         for _ in xrange(5):
-            environment = MinimalTest(continuous=True)
+            environment = MinimalTest(definition=True)
             config = Configuration(
                 batch_size=8,
                 learning_rate=0.001,
@@ -80,10 +80,43 @@ class TestVPGAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
-            runner.run(episodes=5000, episode_finished=episode_finished)
-            print('VPG Agent (continuous): ' + str(runner.episode))
-            if runner.episode < 5000:
+            runner.run(episodes=1000, episode_finished=episode_finished)
+            print('VPG agent (continuous): ' + str(runner.episode))
+            if runner.episode < 1000:
                 passed += 1
 
-        print('VPG continuous agent passed = {}'.format(passed))
+        print('VPG agent (continuous) passed = {}'.format(passed))
+        self.assertTrue(passed >= 4)
+
+    def test_multi(self):
+        passed = 0
+
+        def network_builder(inputs):
+            state0 = layers['dense'](x=inputs['state0'], size=32)
+            state1 = layers['dense'](x=inputs['state1'], size=32)
+            state2 = layers['dense'](x=inputs['state2'], size=32)
+            state3 = layers['dense'](x=inputs['state3'], size=32)
+            return state0 * state1 * state2 * state3
+
+        for _ in xrange(5):
+            environment = MinimalTest(definition=[False, (False, 2), (False, (1, 2)), (True, (1, 2))])
+            config = Configuration(
+                batch_size=8,
+                learning_rate=0.001,
+                states=environment.states,
+                actions=environment.actions,
+                network=network_builder
+            )
+            agent = VPGAgent(config=config)
+            runner = Runner(agent=agent, environment=environment)
+
+            def episode_finished(r):
+                return r.episode < 20 or not all(x >= 1.0 for x in r.episode_rewards[-20:])
+
+            runner.run(episodes=1500, episode_finished=episode_finished)
+            print('VPG agent (multi-state/action): ' + str(runner.episode))
+            if runner.episode < 1500:
+                passed += 1
+
+        print('VPG agent (multi-state/action) passed = {}'.format(passed))
         self.assertTrue(passed >= 4)

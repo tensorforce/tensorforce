@@ -37,7 +37,7 @@ class DQNModel(Model):
     default_config = dict(
         update_target_weight=1.0,
         double_dqn=False,
-        clip_gradients=0.0
+        clip_loss=0.0
     )
 
     def __init__(self, config):
@@ -54,7 +54,8 @@ class DQNModel(Model):
     def create_tf_operations(self, config):
         super(DQNModel, self).create_tf_operations(config)
 
-        num_actions = {name: action.num_actions for name, action in config.actions}
+        flat_action_sizes = {name: util.prod(action.shape) * action.num_actions for name, action in config.actions}
+        action_shapes = {name: (-1,) + action.shape + (action.num_actions,) for name, action in config.actions}
 
         # Training network
         with tf.variable_scope('training'):
@@ -63,11 +64,12 @@ class DQNModel(Model):
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
-            training_output = dict()
 
+            self.training_output = dict()
             for action in self.action:
-                training_output[action] = layers['linear'](x=self.training_network.output, size=num_actions[action])
-                self.action_taken[action] = tf.argmax(training_output[action], axis=1)
+                output = layers['linear'](x=self.training_network.output, size=flat_action_sizes[action])
+                self.training_output[action] = tf.reshape(tensor=output, shape=action_shapes[action])
+                self.action_taken[action] = tf.argmax(self.training_output[action], axis=-1)
 
         # Target network
         with tf.variable_scope('target'):
@@ -76,38 +78,57 @@ class DQNModel(Model):
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
-            target_value = dict()
 
+            target_value = dict()
             for action in self.action:
-                target_output = layers['linear'](x=self.target_network.output, size=num_actions[action])
+                output = layers['linear'](x=self.target_network.output, size=flat_action_sizes[action])
+                output = tf.reshape(tensor=output, shape=action_shapes[action])
                 if config.double_dqn:
-                    selector = tf.one_hot(self.action_taken[action], num_actions[action])
-                    target_value[action] = tf.reduce_sum(tf.multiply(target_output, selector), axis=1)
+                    selector = tf.one_hot(indices=self.action_taken[action], depth=action_shapes[action][1])
+                    target_value[action] = tf.reduce_sum(input_tensor=(output * selector), axis=-1)
                 else:
-                    target_value[action] = tf.reduce_max(target_output, axis=1)
+                    target_value[action] = tf.reduce_max(input_tensor=output, axis=-1)
 
         with tf.name_scope('update'):
+            self.actions_one_hot = dict()
+            self.q_values = dict()
+            deltas = list()
             for action in self.action:
                 # One_hot tensor of the actions that have been taken
-                action_one_hot = tf.one_hot(self.action[action][:-1], num_actions[action])
+                self.actions_one_hot[action] = tf.one_hot(indices=self.action[action][:-1], depth=config.actions[action].num_actions)
+
                 # Training output, so we get the expected rewards given the actual states and actions
-                q_value = tf.reduce_sum(training_output[action][:-1] * action_one_hot, axis=1)
+                self.q_values[action] = tf.reduce_sum(input_tensor=(self.training_output[action][:-1] * self.actions_one_hot[action]), axis=-1)
+
+                reward = self.reward[:-1]
+                terminal = tf.cast(x=self.terminal[:-1], dtype=tf.float32)
+                for _ in range(len(config.actions[action].shape)):
+                    reward = tf.expand_dims(input=reward, axis=1)
+                    terminal = tf.expand_dims(input=terminal, axis=1)
 
                 # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
-                q_target = self.reward[:-1] + (1.0 - tf.cast(self.terminal[:-1], tf.float32)) * self.discount * target_value[action][1:]
-                delta = q_target - q_value
-                self.loss_per_instance = tf.square(delta)
+                q_target = reward + (1.0 - terminal) * config.discount * target_value[action][1:]
+                delta = q_target - self.q_values[action]
 
-                # If gradient clipping is used, calculate the huber loss
-                if config.clip_gradients > 0.0:
-                    huber_loss = tf.where(tf.abs(delta) < config.clip_gradients, 0.5 * self.loss_per_instance, tf.abs(delta) - 0.5)
-                    loss = tf.reduce_mean(huber_loss)
-                else:
-                    loss = tf.reduce_mean(self.loss_per_instance)
-                tf.losses.add_loss(loss)
+                ds_list = [delta]
+                for _ in range(len(config.actions[action].shape)):
+                    ds_list = [d for ds in ds_list for d in tf.unstack(value=ds, axis=1)]
+                deltas.extend(ds_list)
+
+            delta = tf.add_n(inputs=deltas) / len(deltas)
+            self.loss_per_instance = tf.square(delta)
+
+            # If gradient clipping is used, calculate the huber loss
+            if config.clip_loss > 0.0:
+                huber_loss = tf.where(condition=(tf.abs(delta) < config.clip_gradients), x=(0.5 * self.loss_per_instance), y=(tf.abs(delta) - 0.5))
+                loss = tf.reduce_mean(input_tensor=huber_loss, axis=0)
+            else:
+                loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
+            self.dqn_loss = loss
+            tf.losses.add_loss(loss)
 
         # Update target network
-        with tf.name_scope("update_target"):
+        with tf.name_scope('update_target'):
             self.target_network_update = list()
             for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
                 update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))

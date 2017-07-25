@@ -22,8 +22,6 @@ from __future__ import print_function
 from __future__ import division
 
 import gym
-from gym.wrappers import Monitor
-from gym.spaces.discrete import Discrete
 
 from tensorforce import TensorForceError
 from tensorforce.environments import Environment
@@ -50,7 +48,7 @@ class OpenAIGym(Environment):
                 video_callable = False
             else:
                 video_callable = (lambda x: x % monitor_video == 0)
-            self.gym = Monitor(self.gym, monitor, force=not monitor_safe, video_callable=video_callable)
+            self.gym = gym.wrappers.Monitor(self.gym, monitor, force=not monitor_safe, video_callable=video_callable)
 
     def __str__(self):
         return 'OpenAIGym({})'.format(self.gym_id)
@@ -62,28 +60,81 @@ class OpenAIGym(Environment):
         return self.gym.reset()
 
     def execute(self, action):
-        if isinstance(self.gym.action_space, gym.spaces.Box):
+        if isinstance(space, gym.spaces.Box):
             action = [action]  # some gym environments expect a list (f.i. Pendulum-v0)
         state, reward, terminal, _ = self.gym.step(action)
         return state, reward, terminal
 
     @property
     def states(self):
-        if isinstance(self.gym.observation_space, Discrete):
-            return dict(shape=(), type='float')
+        return OpenAIGym.state_from_space(space=self.gym.observation_space)
+
+    @staticmethod
+    def state_from_space(space):
+        if isinstance(space, gym.spaces.Discrete):
+            return dict(shape=(), type='int')
+        elif isinstance(space, gym.spaces.MultiBinary):
+            return dict(shape=space.n, type='int')
+        elif isinstance(space, gym.spaces.MultiDiscrete):
+            return dict(shape=space.num_discrete_space, type='int')
+        elif isinstance(space, gym.spaces.Box):
+            return dict(shape=tuple(space.shape), type='float')
+        elif isinstance(space, gym.spaces.Tuple):
+            states = dict()
+            n = 0
+            for space in space.spaces:
+                state = OpenAIGym.state_from_space(space=space)
+                if 'type' in state:
+                    states['state{}'.format(n)] = state
+                    n += 1
+                else:
+                    for state in state.values():
+                        states['state{}'.format(n)] = state
+                        n += 1
+            return states
         else:
-            return dict(shape=tuple(self.gym.observation_space.shape), type='float')
+            raise TensorForceError('Unknown Gym space.')
 
     @property
     def actions(self):
-        if isinstance(self.gym.action_space, Discrete):
-            return dict(continuous=False, num_actions=self.gym.action_space.n)
-        elif len(self.gym.action_space.shape) == 1:
-            return dict(continuous=True)
-        elif len(self.gym.action_space.shape) > 1:
-            return {'action' + str(n): dict(continuous=True) for n in range(len(self.gym.action_space.shape))}
-        else:
-            raise TensorForceError()
+        return OpenAIGym.state_from_space(space=self.gym.action_space)
 
-    def monitor(self, path):
-        self.gym = Monitor(self.gym, path)
+    @staticmethod
+    def action_from_space(space):
+        if isinstance(space, gym.spaces.Discrete):
+            return dict(continuous=False, num_actions=space.n)
+        elif isinstance(space, gym.spaces.MultiBinary):
+            return dict(continuous=False, num_actions=2, shape=space.n)
+        elif isinstance(space, gym.spaces.MultiDiscrete):
+            if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
+                return dict(continuous=False, num_actions=(space.high[0] - space.low[0]), shape=space.num_discrete_space)
+            else:
+                actions = dict()
+                for n in range(space.num_discrete_space):
+                    actions['action{}'.format(n)] = dict(continuous=False, num_actions=(space.high[n] - space.low[n]))
+                return actions
+        elif isinstance(space, gym.spaces.Box):
+            if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
+                return dict(continuous=True, shape=space.low.shape, min_value=space.low[0], max_value=space.high[0])
+            else:
+                actions = dict()
+                low = space.low.flatten()
+                high = space.high.flatten()
+                for n in range(low.shape[0]):
+                    actions['action{}'.format(n)] = dict(continuous=True, min_value=low[n], max_value=high[n])
+                return actions
+        elif isinstance(space, gym.spaces.Tuple):
+            actions = dict()
+            n = 0
+            for space in space.spaces:
+                action = OpenAIGym.action_from_space(space=space)
+                if 'continuous' in action:
+                    actions['action{}'.format(n)] = action
+                    n += 1
+                else:
+                    for action in action.values():
+                        actions['action{}'.format(n)] = action
+                        n += 1
+            return actions
+        else:
+            raise TensorForceError('Unknown Gym space.')

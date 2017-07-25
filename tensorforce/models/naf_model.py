@@ -46,6 +46,7 @@ class NAFModel(Model):
 
     def create_tf_operations(self, config):
         super(NAFModel, self).create_tf_operations(config)
+        num_actions = sum(util.prod(config.actions[name].shape) for name in sorted(self.action))
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
         with tf.variable_scope('training'):
@@ -55,33 +56,33 @@ class NAFModel(Model):
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
 
-        with tf.variable_scope('training_outputs'):
-            num_actions = len(self.action)
+        with tf.variable_scope('training_outputs') as scope:
             # Action outputs
-            mean = layers['linear'](x=self.training_network.output, size=num_actions)
-            for n, action in enumerate(sorted(self.action)):
-                # mean = tf.Print(mean,[mean])
-                self.action_taken[action] = mean[n]
+            flat_mean = layers['linear'](x=self.training_network.output, size=num_actions)
+            n = 0
+            for name in sorted(self.action):
+                shape = config.actions[name].shape
+                self.action_taken[name] = tf.reshape(tensor=flat_mean[:, n: n + util.prod(shape)], shape=((-1,) + shape))
+                n += util.prod(shape)
 
             # Advantage computation
             # Network outputs entries of lower triangular matrix L
             lower_triangular_size = num_actions * (num_actions + 1) // 2
             l_entries = layers['linear'](x=self.training_network.output, size=lower_triangular_size)
 
-            l_matrix = tf.exp(tf.map_fn(tf.diag, l_entries[:, :num_actions]))
+            l_matrix = tf.exp(x=tf.map_fn(fn=tf.diag, elems=l_entries[:, :num_actions]))
 
             if num_actions > 1:
                 offset = num_actions
                 l_columns = list()
-                for zeros, size in enumerate(xrange(num_actions - 1, 0, -1), 1):
-                    column = tf.pad(l_entries[:, offset: offset + size], ((0, 0), (zeros, 0)))
+                for zeros, size in enumerate(xrange(num_actions - 1, -1, -1), 1):
+                    column = tf.pad(tensor=l_entries[:, offset: offset + size], paddings=((0, 0), (zeros, 0)))
                     l_columns.append(column)
                     offset += size
-                l_matrix += tf.stack(l_columns, 1)
+                l_matrix += tf.stack(values=l_columns, axis=1)
 
             # P = LL^T
-            p_matrix = tf.matmul(l_matrix, tf.transpose(l_matrix, (0, 2, 1)))
-            # p_matrix = tf.Print(p_matrix, [p_matrix])
+            p_matrix = tf.matmul(a=l_matrix, b=tf.transpose(a=l_matrix, perm=(0, 2, 1)))
 
             # l_rows = []
             # offset = 0
@@ -100,18 +101,23 @@ class NAFModel(Model):
             # # Stack rows to matrix
             # l_matrix = tf.transpose(tf.stack(l_rows, axis=1), (0, 2, 1))
 
-            actions = tf.stack(values=[self.action[name] for name in sorted(self.action)], axis=1)
-            action_diff = actions - mean
+            flat_action = list()
+            for name in sorted(self.action):
+                shape = config.actions[name].shape
+                flat_action.append(tf.reshape(tensor=self.action[name], shape=(-1, util.prod(shape))))
+            flat_action = tf.concat(values=flat_action, axis=1)
+            difference = flat_action - flat_mean
 
             # A = -0.5 (a - mean)P(a - mean)
-            advantage = -tf.matmul(tf.expand_dims(action_diff, 1), tf.matmul(p_matrix, tf.expand_dims(action_diff, 2))) / 2
-            advantage = tf.squeeze(advantage, 2)
+            advantage = tf.matmul(a=p_matrix, b=tf.expand_dims(input=difference, axis=2))
+            advantage = tf.matmul(a=tf.expand_dims(input=difference, axis=1), b=advantage)
+            advantage = tf.squeeze(input=(-advantage / 2.0), axis=2)
 
             # Q = A + V
             # State-value function
-            value = layers['linear'](x=self.training_network.output, size=1)
-            q_value = tf.squeeze(value + advantage, 1)
-            training_output_vars = tf.contrib.framework.get_variables('training_outputs')
+            value = layers['linear'](x=self.training_network.output, size=num_actions)
+            q_value = value + advantage
+            training_output_vars = tf.contrib.framework.get_variables(scope=scope)
 
         with tf.variable_scope('target'):
             network_builder = util.get_function(fct=config.network)
@@ -119,32 +125,29 @@ class NAFModel(Model):
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
-            target_value = dict()
 
-        with tf.variable_scope('target_outputs'):
+        with tf.variable_scope('target_outputs') as scope:
             # State-value function
-            target_value_output = layers['linear'](x=self.target_network.output, size=1)
-            for action in self.action:
-                # Naf directly outputs V(s)
-                target_value[action] = target_value_output
+            target_value = layers['linear'](x=self.target_network.output, size=num_actions)
+            target_output_vars = tf.contrib.framework.get_variables(scope=scope)
 
-            target_output_vars = tf.contrib.framework.get_variables('target_outputs')
+        with tf.name_scope('update'):
+            reward = tf.expand_dims(input=self.reward[:-1], axis=1)
+            terminal = tf.expand_dims(input=tf.cast(x=self.terminal[:-1], dtype=tf.float32), axis=1)
+            q_target = reward + (1.0 - terminal) * config.discount * target_value[1:]
+            delta = q_target - q_value[:-1]
+            delta = tf.reduce_mean(input_tensor=delta, axis=1)
+            self.loss_per_instance = tf.square(x=delta)
 
-        with tf.name_scope("update"):
-            for action in self.action:
-                q_target = self.reward[:-1] + (1.0 - tf.cast(self.terminal[:-1], tf.float32)) * config.discount * target_value[action][1:]
-                delta = q_target - q_value[:-1]
-                self.loss_per_instance = tf.square(delta)
+            # We observe issues with numerical stability in some tests, gradient clipping can help
+            if config.clip_gradients > 0.0:
+                huber_loss = tf.where(condition=(tf.abs(delta) < config.clip_gradients), x=(0.5 * self.loss_per_instance), y=(tf.abs(delta) - 0.5))
+                loss = tf.reduce_mean(input_tensor=huber_loss, axis=0)
+            else:
+                loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
+            tf.losses.add_loss(loss)
 
-                # We observe issues with numerical stability in some tests, gradient clipping can help
-                if config.clip_gradients > 0.0:
-                    huber_loss = tf.where(tf.abs(delta) < config.clip_gradients, 0.5 * self.loss_per_instance, tf.abs(delta) - 0.5)
-                    loss = tf.reduce_mean(huber_loss)
-                else:
-                    loss = tf.reduce_mean(self.loss_per_instance)
-                tf.losses.add_loss(loss)
-
-        with tf.name_scope("update_target"):
+        with tf.name_scope('update_target'):
             # Combine hidden layer variables and output layer variables
             training_vars = self.training_network.variables + training_output_vars
             target_vars = self.target_network.variables + target_output_vars

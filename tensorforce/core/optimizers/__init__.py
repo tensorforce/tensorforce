@@ -21,7 +21,9 @@ from tensorflow.python.training.momentum import MomentumOptimizer
 from tensorflow.python.training.rmsprop import RMSPropOptimizer
 
 from tensorforce.core.optimizers.optimizer import Optimizer
+from tensorforce.core.optimizers.natural_gradient import NaturalGradient
 from tensorforce.core.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
+from tensorforce.core.optimizers.evolutionary import Evolutionary
 
 
 optimizers = dict(
@@ -31,8 +33,10 @@ optimizers = dict(
     gradient_descent=GradientDescentOptimizer,
     momentum=MomentumOptimizer,
     rmsprop=RMSPropOptimizer,
-    conjugate_gradient=ConjugateGradientOptimizer
+    natural_gradient=NaturalGradient,
+    conjugate_gradient=ConjugateGradientOptimizer,
+    evolutionary=Evolutionary
 )
 
 
-__all__ = ['Optimizer', 'optimizers', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer', 'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'ConjugateGradientOptimizer']
+__all__ = ['optimizers', 'Optimizer', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer', 'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'NaturalGradient', 'ConjugateGradientOptimizer', 'Evolutionary']

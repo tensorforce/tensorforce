@@ -13,16 +13,34 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from random import random
 
+import numpy as np
+
+from tensorforce import util, TensorForceError
 from tensorforce.environments import Environment
 
 
 class MinimalTest(Environment):
 
-    def __init__(self, continuous):
-        self.continuous = continuous
+    def __init__(self, definition):
+        if isinstance(definition, bool):
+            self.definition = [(definition, ())]
+            self.single_state_action = True
+        else:
+            self.definition = list()
+            for action in definition:
+                if isinstance(action, bool):
+                    self.definition.append((action, ()))
+
+                elif len(action) == 2:
+                    if isinstance(action[1], int):
+                        self.definition.append((action[0], (action[1],)))
+                    else:
+                        self.definition.append((action[0], tuple(action[1])))
+                else:
+                    raise TensorForceError('Invalid MinimalTest definition.')
+            self.single_state_action = False
 
     def __str__(self):
         return 'MinimalTest'
@@ -31,30 +49,55 @@ class MinimalTest(Environment):
         pass
 
     def reset(self):
-        self.state = (1.0, 0.0)
-        return self.state
+        self.state = [(1.0, 0.0) for _ in self.definition]
+        if self.single_state_action:
+            return self.state[0]
+        else:
+            return {'state{}'.format(n): state for n, state in enumerate(self.state)}
 
     def execute(self, action):
-        if self.continuous:
-            self.state = (max(self.state[0] - action, 0.0), min(self.state[1] + action, 1.0))
+        if self.single_state_action:
+            action = (action,)
         else:
-            if action == 0:
-                self.state = (1.0, 0.0)
-            elif action == 1:
-                self.state = (0.0, 1.0)
+            action = tuple(action[name] for name in sorted(action))
+
+        reward = 0.0
+        for n, (continuous, shape) in enumerate(self.definition):
+            if continuous:
+                step = np.sum(action[n]) / util.prod(shape)
+                self.state[n] = (max(self.state[n][0] - step, 0.0), min(self.state[n][1] + step, 1.0))
             else:
-                raise Exception()
-        reward = self.state[1] * 2 - 1.0
+                correct = np.sum(action[n])
+                overall = util.prod(shape)
+                self.state[n] = ((overall - correct) / overall, correct / overall)
+            reward += self.state[n][1] * 2 - 1.0
+
         terminal = random() < 0.25
-        return self.state, reward, terminal
+        if self.single_state_action:
+            return self.state[0], reward, terminal
+        else:
+            reward = reward / len(self.definition)
+            return {'state{}'.format(n): state for n, state in enumerate(self.state)}, reward, terminal
 
     @property
     def states(self):
-        return dict(shape=(2,), type='float')
+        if self.single_state_action:
+            return dict(shape=2, type='float')
+        else:
+            return {'state{}'.format(n): dict(shape=(2,), type='float') for n in range(len(self.definition))}
 
     @property
     def actions(self):
-        if self.continuous:
-            return dict(continuous=True)
+        if self.single_state_action:
+            if self.definition[0][0]:
+                return dict(continuous=True)
+            else:
+                return dict(continuous=False, num_actions=2)
         else:
-            return dict(continuous=False, num_actions=2)
+            actions = dict()
+            for n, (continuous, shape) in enumerate(self.definition):
+                if continuous:
+                    actions['action{}'.format(n)] = dict(continuous=True, shape=shape)
+                else:
+                    actions['action{}'.format(n)] = dict(continuous=False, shape=shape, num_actions=2)
+            return actions

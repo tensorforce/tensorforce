@@ -67,44 +67,58 @@ class TRPOModel(PolicyGradientModel):
         super(TRPOModel, self).create_tf_operations(config)
 
         with tf.variable_scope('update'):
-            losses = list()
-            for name, action in config.actions:
+            prob_ratios = list()
+            kl_divergences = list()
+            entropies = list()
+            fixed_kl_divergences = list()
+            for name, action in self.action.items():
                 distribution = self.distribution[name]
                 prev_distribution = tuple(tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
                 self.internal_inputs.extend(prev_distribution)
                 self.internal_outputs.extend(distribution)
-                if sum(1 for _ in distribution) == 2:
-                    for n, x in enumerate(distribution):
-                        if n == 0:
-                            self.internal_inits.append(np.zeros(shape=util.shape(x)[1:]))
-                        else:
-                            self.internal_inits.append(np.ones(shape=util.shape(x)[1:]))
-                else:
-                    self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
-                distr_cls = self.distribution[name].__class__
-                prev_distribution = distr_cls.from_tensors(parameters=prev_distribution)
+                self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
+                prev_distribution = distribution.from_tensors(parameters=prev_distribution, deterministic=self.deterministic)
 
-                log_prob = distribution.log_probability(action=self.action[name])
-                prev_log_prob = prev_distribution.log_probability(action=self.action[name])
+                log_prob = distribution.log_probability(action=action)
+                prev_log_prob = prev_distribution.log_probability(action=action)
                 prob_ratio = tf.minimum(tf.exp(log_prob - prev_log_prob), 1000)
 
-                self.loss_per_instance = tf.multiply(x=prob_ratio, y=self.reward)
-                surrogate_loss = -tf.reduce_mean(self.loss_per_instance, axis=0)
-                kl_divergence = distribution.kl_divergence(prev_distribution)
+                kl_divergence = distribution.kl_divergence(other=prev_distribution)
                 entropy = distribution.entropy()
-                losses.append((surrogate_loss, kl_divergence, entropy))
 
-            self.losses = [tf.reduce_mean(loss) for loss in zip(*losses)]
+                fixed_distribution = distribution.__class__.from_tensors(parameters=[tf.stop_gradient(x) for x in distribution], deterministic=self.deterministic)
+                fixed_kl_divergence = fixed_distribution.kl_divergence(distribution)
+
+                prs_list = [prob_ratio]
+                kds_list = [kl_divergence]
+                es_list = [entropy]
+                fkds_list = [fixed_kl_divergence]
+                for _ in range(len(config.actions[name].shape)):
+                    prs_list = [pr for prs in prs_list for pr in tf.unstack(value=prs, axis=1)]
+                    kds_list = [kd for kds in kds_list for kd in tf.unstack(value=kds, axis=1)]
+                    es_list = [e for es in es_list for e in tf.unstack(value=es, axis=1)]
+                    fkds_list = [fkd for fkds in fkds_list for fkd in tf.unstack(value=fkds, axis=1)]
+                prob_ratios.extend(prs_list)
+                kl_divergences.extend(kds_list)
+                entropies.extend(es_list)
+                fixed_kl_divergences.extend(fkds_list)
+
+            prob_ratio = tf.add_n(inputs=prob_ratios) / len(prob_ratios)
+            self.loss_per_instance = tf.multiply(x=prob_ratio, y=self.reward)
+            surrogate_loss = -tf.reduce_mean(self.loss_per_instance, axis=0)
+
+            kl_divergence = tf.add_n(inputs=kl_divergences) / len(kl_divergences)
+            entropy = tf.add_n(inputs=entropies) / len(entropies)
+            self.losses = (surrogate_loss, kl_divergence, entropy, self.loss_per_instance)
+
+            fixed_kl_divergence = tf.add_n(inputs=fixed_kl_divergences) / len(fixed_kl_divergences)
 
             # Get symbolic gradient expressions
             variables = list(tf.trainable_variables())  # TODO: ideally not value function (see also for "gradients" below)
-            gradients = tf.gradients(self.losses, variables)
+            gradients = tf.gradients(self.losses[0], variables)
             variables = [var for var, grad in zip(variables, gradients) if grad is not None]
             gradients = [grad for grad in gradients if grad is not None]
             self.policy_gradient = tf.concat(values=[tf.reshape(grad, (-1,)) for grad in gradients], axis=0)  # util.prod(util.shape(v))
-
-            fixed_distribution = distribution.__class__.from_tensors(parameters=[tf.stop_gradient(x) for x in distribution])
-            fixed_kl_divergence = fixed_distribution.kl_divergence(distribution)
 
             self.tangent = tf.placeholder(tf.float32, shape=(None,))
             offset = 0
@@ -184,7 +198,7 @@ class TRPOModel(PolicyGradientModel):
             self.logger.debug('Failed to find line search solution, skipping update.')
 
         # Get loss values for progress monitoring
-        surrogate_loss, kl_divergence, entropy, loss_per_instance = self.session.run(self.losses + [self.loss_per_instance], self.feed_dict)
+        surrogate_loss, kl_divergence, entropy, loss_per_instance = self.session.run(self.losses, self.feed_dict)
 
         # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
         self.logger.debug('Surrogate loss = ' + str(surrogate_loss))

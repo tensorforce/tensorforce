@@ -107,6 +107,7 @@ class Model(object):
             self.global_episode = self.global_model.episode
             self.global_variables = self.global_model.variables
 
+        self.optimizer_args = None
         with tf.device(config.device):
             if config.distributed:
                 if config.global_model:
@@ -126,14 +127,22 @@ class Model(object):
             if self.optimizer:
                 if config.distributed and not config.global_model:
                     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
-                    local_gradients = tf.gradients(self.loss, self.variables)
+                    local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
+                    local_gradients = [grad for grad, var in local_grads_and_vars]
                     global_gradients = list(zip(local_gradients, self.global_model.variables))
                     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
-                    self.optimize = tf.group(self.optimizer.apply_gradients(global_gradients), self.update_local, self.global_timestep.assign_add(tf.shape(self.reward)[0]))
+                    self.optimize = tf.group(
+                        self.optimizer.apply_gradients(grads_and_vars=global_gradients),
+                        self.update_local,
+                        self.global_timestep.assign_add(tf.shape(self.reward)[0]))
                     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
                 else:
                     self.loss = tf.losses.get_total_loss()
-                    self.optimize = self.optimizer.minimize(self.loss)
+                    if self.optimizer_args is not None:
+                        self.optimizer_args['loss'] = self.loss
+                        self.optimize = self.optimizer.minimize(self.optimizer_args)
+                    else:
+                        self.optimize = self.optimizer.minimize(self.loss)
 
             if config.distributed:
                 scope_context.__exit__(None, None, None)
@@ -179,11 +188,11 @@ class Model(object):
                 if action.continuous:
                     if not self.__class__.allows_continuous_actions:
                         raise TensorForceError("Error: Model does not support continuous actions.")
-                    self.action[name] = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name=name)
+                    self.action[name] = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,) + tuple(action.shape), name=name)
                 else:
                     if not self.__class__.allows_discrete_actions:
                         raise TensorForceError("Error: Model does not support discrete actions.")
-                    self.action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,), name=name)
+                    self.action[name] = tf.placeholder(dtype=util.tf_dtype('int'), shape=(None,) + tuple(action.shape), name=name)
 
             # Reward & terminal
             self.reward = tf.placeholder(dtype=tf.float32, shape=(None,), name='reward')

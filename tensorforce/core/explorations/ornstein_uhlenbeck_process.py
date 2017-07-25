@@ -21,10 +21,9 @@ from tensorforce.core.explorations import Exploration
 class OrnsteinUhlenbeckProcess(Exploration):
 
     def __init__(self, sigma=0.3, mu=0, theta=0.15):
-        self.mu = mu
-        self.theta = theta
         self.sigma = sigma
-        self.state = self.mu
+        self.mu = self.state = mu
+        self.theta = theta
 
     def __call__(self, episode=0, timestep=0):
         self.state += self.theta * (self.mu - self.state) + self.sigma * gauss(mu=0.0, sigma=1.0)

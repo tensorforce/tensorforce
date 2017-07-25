@@ -68,7 +68,7 @@ class PrioritizedReplay(Memory):
         assert not self.batch_indices
 
         states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in self.states_config.items()}
-        actions = {name: np.zeros((batch_size,), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in self.actions_config.items()}
+        actions = {name: np.zeros((batch_size,) + tuple(action.shape), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in self.actions_config.items()}
         rewards = np.zeros((batch_size,), dtype=util.np_dtype('float'))
         terminals = np.zeros((batch_size,), dtype=util.np_dtype('bool'))
         internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]

@@ -23,30 +23,29 @@ import unittest
 
 from tensorforce import Configuration
 from tensorforce.agents import DQFDAgent
-from tensorforce.core.networks import layered_network_builder
+from tensorforce.core.networks import layered_network_builder, layers
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
 
 
 class TestDQFDAgent(unittest.TestCase):
 
-    def test_dqfd_agent(self):
+    def test_discrete(self):
         passed = 0
 
         for _ in xrange(5):
-            environment = MinimalTest(continuous=False)
+            environment = MinimalTest(definition=False)
             config = Configuration(
-                batch_size=16,
+                batch_size=8,
                 learning_rate=0.001,
                 memory_capacity=800,
                 first_update=80,
-                repeat_update=4,
                 target_update_frequency=20,
                 demo_memory_capacity=100,
-                demo_sampling_ratio=0.1,
+                demo_sampling_ratio=0.2,
                 states=environment.states,
                 actions=environment.actions,
-                network=layered_network_builder(layers_config=[dict(type='dense', size=32, l2_regularization=0.0001)])
+                network=layered_network_builder([dict(type='dense', size=32)])
             )
             agent = DQFDAgent(config=config)
 
@@ -72,9 +71,63 @@ class TestDQFDAgent(unittest.TestCase):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
             runner.run(episodes=1000, episode_finished=episode_finished)
-            print('DQFD Agent: ' + str(runner.episode))
+            print('DQFD agent: ' + str(runner.episode))
             if runner.episode < 1000:
                 passed += 1
 
-        print('DQFD Agent passed = {}'.format(passed))
+        print('DQFD agent passed = {}'.format(passed))
+        self.assertTrue(passed >= 4)
+
+    def test_multi(self):
+        passed = 0
+
+        def network_builder(inputs):
+            state0 = layers['dense'](x=inputs['state0'], size=32)
+            state1 = layers['dense'](x=inputs['state1'], size=32)
+            state2 = layers['dense'](x=inputs['state2'], size=32)
+            return state0 * state1 * state2
+
+        for _ in xrange(5):
+            environment = MinimalTest(definition=[False, (False, 2), (False, (1, 2))])
+            config = Configuration(
+                batch_size=8,
+                learning_rate=0.001,
+                memory_capacity=800,
+                first_update=80,
+                target_update_frequency=20,
+                demo_memory_capacity=100,
+                demo_sampling_ratio=0.2,
+                states=environment.states,
+                actions=environment.actions,
+                network=network_builder
+            )
+            agent = DQFDAgent(config=config)
+
+            # First generate demonstration data and pretrain
+            demonstrations = list()
+            terminal = True
+
+            for n in xrange(50):
+                if terminal:
+                    state = environment.reset()
+                action = dict(action0=1, action1=(1, 1), action2=((1, 1),))
+                state, reward, terminal = environment.execute(action=action)
+                demonstration = dict(state=state, action=action, reward=reward, terminal=terminal, internal=[])
+                demonstrations.append(demonstration)
+
+            agent.import_demonstrations(demonstrations)
+            agent.pretrain(steps=1000)
+
+            # Normal training
+            runner = Runner(agent=agent, environment=environment)
+
+            def episode_finished(r):
+                return r.episode < 50 or not all(x >= 1.0 for x in r.episode_rewards[-50:])
+
+            runner.run(episodes=1000, episode_finished=episode_finished)
+            print('DQFD agent (multi-state/action): ' + str(runner.episode))
+            if runner.episode < 1000:
+                passed += 1
+
+        print('DQFD agent (multi-state/action) passed = {}'.format(passed))
         self.assertTrue(passed >= 4)

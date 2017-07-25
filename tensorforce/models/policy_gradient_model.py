@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """
-A policy gradient agent provides generic methods used in pg algorithms, e.g.
+A policy gradient agent provides generic methods used of pg algorithms, e.g.
 GAE-computation or merging of episode data.
 """
 
@@ -60,19 +60,15 @@ class PolicyGradientModel(Model):
         self.distribution = dict()
         for name, action in config.actions:
             if 'distribution' in action:
-                if not action.continuous:
-                    kwargs = dict(num_actions=action.num_actions)
-                elif 'min_value' in action:
+                if action.continuous:
                     kwargs = dict(min_value=action.min_value, max_value=action.max_value)
                 else:
-                    kwargs = dict()
+                    kwargs = dict(num_actions=action.num_actions)
                 self.distribution[name] = Distribution.from_config(config=action.distribution, kwargs=kwargs)
-            # elif 'min_value' in action:
-            #     ...
             elif action.continuous:
-                self.distribution[name] = Gaussian()
+                self.distribution[name] = Gaussian(shape=action.shape, min_value=action.min_value, max_value=action.max_value)  # TODO: min_value/max_value
             else:
-                self.distribution[name] = Categorical(num_actions=action.num_actions)
+                self.distribution[name] = Categorical(shape=action.shape, num_actions=action.num_actions)
 
         # baseline
         if config.baseline is None:

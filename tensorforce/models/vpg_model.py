@@ -40,8 +40,15 @@ class VPGModel(PolicyGradientModel):
         super(VPGModel, self).create_tf_operations(config)
 
         with tf.variable_scope('update'):
+            log_probs = list()
             for name, action in self.action.items():
                 log_prob = self.distribution[name].log_probability(action=action)
-                self.loss_per_instance = tf.multiply(x=log_prob, y=self.reward)
-                loss = -tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
-                tf.losses.add_loss(loss)
+                lps_list = [log_prob]
+                for _ in range(len(config.actions[name].shape)):
+                    lps_list = [lp for lps in lps_list for lp in tf.unstack(value=lps, axis=1)]
+                log_probs.extend(lps_list)
+
+            log_prob = tf.add_n(inputs=log_probs) / len(log_probs)
+            self.loss_per_instance = log_prob * self.reward
+            loss = -tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
+            tf.losses.add_loss(loss)

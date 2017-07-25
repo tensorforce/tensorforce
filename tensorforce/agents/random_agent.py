@@ -21,7 +21,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from random import gauss, random, randrange
+import numpy as np
 
 from tensorforce.agents import Agent
 
@@ -54,13 +54,12 @@ class RandomAgent(Agent):
         self.current_action = dict()
         for name, action in self.actions_config.items():
             if action.continuous:
-                action = random()
-                if 'min_value' in action:
-                    action = action.min_value + random() * (action.max_value - action.min_value)
+                if action.min_value is None:
+                    action = np.random.randn(*action.shape)
                 else:
-                    action = gauss(mu=0.0, sigma=1.0)
+                    action = action.min_value + np.random.rand(*action.shape) * (action.max_value - action.min_value)
             else:
-                action = randrange(action.num_actions)
+                action = np.random.randint(action.num_actions, size=action.shape)
             self.current_action[name] = action
 
         if self.unique_action:
@@ -71,3 +70,9 @@ class RandomAgent(Agent):
     def observe(self, reward, terminal):
         self.current_reward = reward
         self.current_terminal = terminal
+
+    def load_model(self, path):
+        raise NotImplementedError
+
+    def save_model(self, path):
+        raise NotImplementedError

@@ -19,9 +19,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from random import random, randrange
+from random import random
+import numpy as np
 
-from tensorforce import TensorForceError
+from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessing
 from tensorforce.core.explorations import Exploration
 
@@ -113,18 +114,18 @@ class Agent(object):
         else:
             self.unique_state = False
         for name, state in config.states:
+            state.default(dict(type='float'))
+            if isinstance(state.shape, int):
+                state.shape = (state.shape,)
             if config.preprocessing is not None and name in config.preprocessing:
                 preprocessing = Preprocessing.from_config(config=config.preprocessing[name])
                 self.preprocessing[name] = preprocessing
                 state.shape = preprocessing.processed_shape(shape=state.shape)
 
         # actions config and exploration
-        self.continuous_actions = list()
         self.exploration = dict()
         if 'continuous' in config.actions:
             # only one action
-            if config.actions.continuous:
-                self.continuous_actions.append('action')
             config.actions = dict(action=config.actions)
             if config.exploration is not None:
                 config.exploration = dict(action=config.exploration)
@@ -133,7 +134,11 @@ class Agent(object):
             self.unique_action = False
         for name, action in config.actions:
             if action.continuous:
-                self.continuous_actions.append(name)
+                action.default(dict(shape=(), min_value=None, max_value=None))
+            else:
+                action.default(dict(shape=()))
+            if isinstance(action.shape, int):
+                action.shape = (action.shape,)
             if config.exploration is not None and name in config.exploration:
                 self.exploration[name] = Exploration.from_config(config=config.exploration[name])
 
@@ -142,13 +147,9 @@ class Agent(object):
 
         self.model = self.__class__.model(config)
 
-        self.episode = 0
+        self.episode = -1
         self.timestep = 0
-
-        # Reset internal state - needs to be called after every episode
-        self.next_internal = self.current_internal = self.model.reset()
-        for preprocessing in self.preprocessing.values():
-            preprocessing.reset()
+        self.reset()
 
     def __str__(self):
         return str(self.__class__.name)
@@ -198,11 +199,16 @@ class Agent(object):
         # exploration
         if not deterministic:
             for name, exploration in self.exploration.items():
-                if name in self.continuous_actions:
-                    self.current_action[name] += exploration(episode=self.episode, timestep=self.timestep)
+                if self.actions_config[name].continuous:
+                    explore = (lambda: exploration(episode=self.episode, timestep=self.timestep))
+                    shape = self.actions_config[name].shape
+                    exploration = np.array([explore() for _ in xrange(util.prod(shape))])
+                    self.current_action[name] += np.reshape(exploration, shape)
                 else:
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        self.current_action[name] = randrange(self.actions_config[name].num_actions)
+                        shape = self.actions_config[name].shape
+                        num_actions = self.actions_config[name].num_actions
+                        self.current_action[name] = np.random.randint(low=num_actions, size=shape)
 
         if self.unique_action:
             return self.current_action['action']

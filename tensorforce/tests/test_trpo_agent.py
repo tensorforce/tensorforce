@@ -121,4 +121,4 @@ class TestTRPOAgent(unittest.TestCase):
                 passed += 1
 
         print('TRPO agent (multi-state/action) passed = {}'.format(passed))
-        self.assertTrue(passed >= 0)
+        self.assertTrue(passed >= 2)

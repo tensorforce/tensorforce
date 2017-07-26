@@ -96,4 +96,4 @@ class TestDQNAgent(unittest.TestCase):
                 passed += 1
 
         print('DQN agent (multi-state/action) passed = {}'.format(passed))
-        self.assertTrue(passed >= 0)
+        self.assertTrue(passed >= 2)

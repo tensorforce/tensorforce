@@ -17,6 +17,7 @@
 from tensorforce.core.explorations.exploration import Exploration
 from tensorforce.core.explorations.constant import Constant
 from tensorforce.core.explorations.linear_decay import LinearDecay
+from tensorforce.core.explorations.epsilon_anneal import EpsilonAnneal
 from tensorforce.core.explorations.epsilon_decay import EpsilonDecay
 from tensorforce.core.explorations.ornstein_uhlenbeck_process import OrnsteinUhlenbeckProcess
 
@@ -24,6 +25,7 @@ from tensorforce.core.explorations.ornstein_uhlenbeck_process import OrnsteinUhl
 explorations = dict(
     constant=Constant,
     linear_decay=LinearDecay,
+    epsilon_anneal=EpsilonAnneal,
     epsilon_decay=EpsilonDecay,
     ornstein_uhlenbeck=OrnsteinUhlenbeckProcess
 )

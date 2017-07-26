@@ -130,7 +130,6 @@ class Runner(object):
             self.timestep = 0
             while True:
                 action = self.agent.act(state=state)
-
                 if self.repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(self.repeat_actions):

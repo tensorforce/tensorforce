@@ -39,7 +39,8 @@ class PPOModel(PolicyGradientModel):
         entropy_penalty=0.01,
         loss_clipping=0.1,  # Trust region clipping
         epochs=10,  # Number of training epochs for SGD,
-        optimizer_batch_size=100  # Batch size for optimiser
+        optimizer_batch_size=100,  # Batch size for optimiser
+        random_sampling=True # Sampling strategy for replay memory
     )
 
     def __init__(self, config):
@@ -48,7 +49,7 @@ class PPOModel(PolicyGradientModel):
         self.epochs = config.epochs
         self.optimizer_batch_size = config.optimizer_batch_size
         # Use replay memory so memory logic can be used to sample batches
-        self.memory = Replay(config.batch_size, config.states, config.actions)
+        self.memory = Replay(config.batch_size, config.states, config.actions, config.random_sampling)
 
     def create_tf_operations(self, config):
         """
@@ -62,6 +63,7 @@ class PPOModel(PolicyGradientModel):
             prob_ratios = list()
             entropy_penalties = list()
             kl_divergences = list()
+
             for name, action in self.action.items():
                 distribution = self.distribution[name]
                 prev_distribution = tuple(tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
@@ -74,6 +76,7 @@ class PPOModel(PolicyGradientModel):
                 log_prob = distribution.log_probability(action=action)
                 prev_log_prob = prev_distribution.log_probability(action=action)
                 log_prob_diff = tf.minimum(x=(log_prob - prev_log_prob), y=10.0)
+
                 prob_ratio = tf.exp(x=log_prob_diff)
 
                 entropy = distribution.entropy()
@@ -98,6 +101,7 @@ class PPOModel(PolicyGradientModel):
             # https://www.cs.cmu.edu/~jcl/presentation/RL/RL.ps
             prob_ratio = tf.add_n(inputs=prob_ratios) / len(prob_ratios)
             prob_ratio = tf.clip_by_value(prob_ratio, 1.0 - config.loss_clipping, 1.0 + config.loss_clipping)
+
             self.loss_per_instance = -prob_ratio * self.reward
             self.surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
             tf.losses.add_loss(self.surrogate_loss)

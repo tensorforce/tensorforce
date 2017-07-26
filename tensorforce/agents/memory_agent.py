@@ -48,7 +48,10 @@ class MemoryAgent(Agent):
     default_config = dict(
         batch_size=1,
         memory_capacity=1000000,
-        memory='replay',
+        memory=dict(
+            type='replay',
+            random_sampling=True
+        ),
         update_frequency=4,
         first_update=10000,
         repeat_update=1
@@ -64,7 +67,8 @@ class MemoryAgent(Agent):
             kwargs=dict(
                 capacity=config.memory_capacity,
                 states_config=config.states,
-                actions_config=config.actions
+                actions_config=config.actions,
+                random_sampling=config.memory.random_sampling
             )
         )
         self.update_frequency = config.update_frequency

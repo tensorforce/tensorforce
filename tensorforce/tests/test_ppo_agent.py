@@ -35,9 +35,12 @@ class TestPPOAgent(unittest.TestCase):
         for _ in xrange(5):
             environment = MinimalTest(definition=False)
             config = Configuration(
-                batch_size=8,
+                batch_size=20,
+                entropy_penalty=0.01,
+                loss_clipping=0.1,
+                epochs=10,
+                optimizer_batch_size=10,
                 learning_rate=0.001,
-                optimizer_batch_size=4,
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
@@ -66,9 +69,12 @@ class TestPPOAgent(unittest.TestCase):
         for _ in xrange(5):
             environment = MinimalTest(definition=True)
             config = Configuration(
-                batch_size=8,
+                batch_size=20,
+                entropy_penalty=0.01,
+                loss_clipping=0.1,
+                epochs=10,
+                optimizer_batch_size=10,
                 learning_rate=0.001,
-                optimizer_batch_size=4,
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
@@ -105,9 +111,12 @@ class TestPPOAgent(unittest.TestCase):
         for _ in xrange(5):
             environment = MinimalTest(definition=[False, (False, 2), (False, (1, 2)), (True, (1, 2))])
             config = Configuration(
-                batch_size=8,
+                batch_size=20,
+                entropy_penalty=0.01,
+                loss_clipping=0.1,
+                epochs=10,
+                optimizer_batch_size=10,
                 learning_rate=0.001,
-                optimizer_batch_size=4,
                 states=environment.states,
                 actions=environment.actions,
                 network=network_builder

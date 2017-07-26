@@ -31,7 +31,7 @@ from tensorforce.core.memories import Memory
 
 class Replay(Memory):
 
-    def __init__(self, capacity, states_config, actions_config):
+    def __init__(self, capacity, states_config, actions_config, random_sampling):
         super(Replay, self).__init__(capacity, states_config, actions_config)
         self.states = {name: np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in states_config}
         self.actions = {name: np.zeros((capacity,) + tuple(action.shape), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in actions_config}
@@ -40,6 +40,7 @@ class Replay(Memory):
         self.internals = None
         self.size = 0
         self.index = 0
+        self.random_sampling = random_sampling
 
     def add_observation(self, state, action, reward, terminal, internal):
         if self.internals is None and internal is not None:
@@ -61,7 +62,7 @@ class Replay(Memory):
     def get_batch(self, batch_size):
         """
         Samples a batch of the specified size by selecting a random start/end point and returning
-        the contained sequence (as opposed to sampling each state separately).
+        the contained sequence or random indices depending on the field 'random_sampling'
         
         Args:
             batch_size: Length of the sampled sequence.
@@ -69,12 +70,15 @@ class Replay(Memory):
         Returns: A dict containing states, rewards, terminals and internal states
 
         """
-        end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
-        start = (end - batch_size) % self.capacity
-        if start < end:
-            indices = list(xrange(start, end))
+        if self.random_sampling:
+            indices = np.random.randint(self.size, size=batch_size)
         else:
-            indices = list(xrange(start, self.capacity)) + list(xrange(0, end))
+            end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
+            start = (end - batch_size) % self.capacity
+            if start < end:
+                indices = list(xrange(start, end))
+            else:
+                indices = list(xrange(start, self.capacity)) + list(xrange(0, end))
 
         return dict(
             states={name: state.take(indices, axis=0) for name, state in self.states.items()},

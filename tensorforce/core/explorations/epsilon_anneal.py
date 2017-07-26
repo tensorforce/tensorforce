@@ -16,10 +16,9 @@
 from tensorforce.core.explorations import Exploration
 
 
-class EpsilonDecay(Exploration):
+class EpsilonAnneal(Exploration):
     """
-    Exponentially decaying epsilon parameter based on ratio of
-    difference between current and final epsilon to total timesteps.
+    Annealing epsilon parameter based on ratio of current timestep to total timesteps.
     """
 
     def __init__(self, epsilon=1.0, epsilon_final=0.1, epsilon_timesteps=10000):
@@ -28,8 +27,11 @@ class EpsilonDecay(Exploration):
         self.epsilon_timesteps = epsilon_timesteps
 
     def __call__(self, episode=0, timestep=0):
-        if timestep > self.epsilon_timesteps:
-            self.epsilon = self.epsilon_final
-        else:
-            self.epsilon -= ((self.epsilon - self.epsilon_final) / self.epsilon_timesteps) * timestep
+        # TODO: Trim by length of `first_update`, removing steps with no learning.
+        offset = 0 # self.first_update
+        self.epsilon = min(1.0, max(
+            self.epsilon_final,
+            1.0 - (timestep - offset) / (self.epsilon_timesteps - offset)
+        ))
+
         return self.epsilon

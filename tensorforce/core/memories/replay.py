@@ -21,7 +21,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from random import randrange
 from six.moves import xrange
 import numpy as np
 
@@ -62,20 +61,14 @@ class Replay(Memory):
         """
         Samples a batch of the specified size by selecting a random start/end point and returning
         the contained sequence (as opposed to sampling each state separately).
-        
+
         Args:
             batch_size: Length of the sampled sequence.
 
         Returns: A dict containing states, rewards, terminals and internal states
 
         """
-        end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
-        start = (end - batch_size) % self.capacity
-        if start < end:
-            indices = list(xrange(start, end))
-        else:
-            indices = list(xrange(start, self.capacity)) + list(xrange(0, end))
-
+        indices = np.random.permutation(self.size)[:batch_size]
         return dict(
             states={name: state.take(indices, axis=0) for name, state in self.states.items()},
             actions={name: action.take(indices, axis=0) for name, action in self.actions.items()},

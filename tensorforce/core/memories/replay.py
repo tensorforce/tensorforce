@@ -31,7 +31,7 @@ from tensorforce.core.memories import Memory
 
 class Replay(Memory):
 
-    def __init__(self, capacity, states_config, actions_config, random_sampling):
+    def __init__(self, capacity, states_config, actions_config, random_sampling=False):
         super(Replay, self).__init__(capacity, states_config, actions_config)
         self.states = {name: np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in states_config}
         self.actions = {name: np.zeros((capacity,) + tuple(action.shape), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in actions_config}

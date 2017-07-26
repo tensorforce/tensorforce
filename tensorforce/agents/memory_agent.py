@@ -67,8 +67,7 @@ class MemoryAgent(Agent):
             kwargs=dict(
                 capacity=config.memory_capacity,
                 states_config=config.states,
-                actions_config=config.actions,
-                random_sampling=config.memory.random_sampling
+                actions_config=config.actions
             )
         )
         self.update_frequency = config.update_frequency

@@ -66,15 +66,13 @@ def linear(x, size, bias=True, l2_regularization=0.0):
     if util.rank(x) != 2:
         raise TensorForceError('Invalid input rank for linear layer.')
     with tf.variable_scope('linear'):
+        shape = (x.shape[1].value, size)
+        stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + size)))
+        weights = tf.random_normal(shape=shape, stddev=stddev)
         if isinstance(bias, bool):
-            shape = (x.shape[1].value, size)
-            stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + size)))
-            weights = tf.random_normal(shape=shape, stddev=stddev)
             bias = tf.zeros(shape=(size,)) if bias else None
-        else:
-            weights = tf.zeros(shape=(x.shape[1].value, size))
-            if len(bias) != size:
-                raise TensorForceError('Given bias has the wrong size.')
+        elif len(bias) != size:
+            raise TensorForceError('Given bias has the wrong size.')
         weights = tf.Variable(initial_value=weights)
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))

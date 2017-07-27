@@ -62,21 +62,29 @@ def nonlinearity(x, name='relu'):
     return x
 
 
-def linear(x, size, bias=True, l2_regularization=0.0):
+def linear(x, size, bias=True, l2_regularization=0.0, weights=None):
     if util.rank(x) != 2:
         raise TensorForceError('Invalid input rank for linear layer.')
     with tf.variable_scope('linear'):
         shape = (x.shape[1].value, size)
-        stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + size)))
-        weights = tf.random_normal(shape=shape, stddev=stddev)
+        if weights is None:
+            stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + size)))
+            weights = tf.random_normal(shape=shape, stddev=stddev)
+        elif np.isscalar(weights):
+            weights = np.full(shape, weights, dtype=np.float32)
+
         if isinstance(bias, bool):
             bias = tf.zeros(shape=(size,)) if bias else None
         elif len(bias) != size:
             raise TensorForceError('Given bias has the wrong size.')
-        weights = tf.Variable(initial_value=weights)
+
+        weights = tf.Variable(initial_value=weights, expected_shape=shape)
+
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
+            
         x = tf.matmul(a=x, b=weights)
+
         if bias is not None:
             bias = tf.Variable(initial_value=bias)
             if l2_regularization > 0.0:

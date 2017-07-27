@@ -45,7 +45,8 @@ class MLPBaseline(Baseline):
 
             network_builder = layered_network_builder((
                 {'type': 'dense', 'size': self.size},
-                {'type': 'dense', 'size': 1})
+                {'type': 'dense', 'size': self.size},
+                {'type': 'linear', 'size': 1})
             )
 
             network = NeuralNetwork(network_builder=network_builder, inputs=dict(state=self.state))

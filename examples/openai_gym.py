@@ -29,7 +29,7 @@ from tensorforce import Configuration
 from tensorforce.agents import agents
 from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
-from tensorforce.contrib import OpenAIGym
+from tensorforce.contrib.openai_gym import OpenAIGym
 
 
 def main():

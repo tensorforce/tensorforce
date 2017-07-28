@@ -23,7 +23,7 @@ from tensorforce import Configuration
 from tensorforce.agents import TRPOAgent
 from tensorforce.core.networks import layered_network_builder
 from tensorforce.execution import Runner
-from tensorforce.contrib import OpenAIGym
+from tensorforce.contrib.openai_gym import OpenAIGym
 
 # Create an OpenAIgym environment
 env = OpenAIGym('CartPole-v0')

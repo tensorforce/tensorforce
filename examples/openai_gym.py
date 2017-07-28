@@ -25,11 +25,11 @@ import argparse
 import logging
 import os
 
-from external.openai_gym import OpenAIGym
 from tensorforce import Configuration
 from tensorforce.agents import agents
 from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
+from tensorforce.contrib import OpenAIGym
 
 
 def main():

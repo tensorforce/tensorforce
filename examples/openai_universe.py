@@ -37,10 +37,10 @@ import os
 import numpy as np
 from tensorforce.core.model import log_levels
 
-from external.openai_universe import OpenAIUniverse
 from tensorforce import Configuration, TensorForceError
 from tensorforce.agents import create_agent
 from tensorforce.execution import Runner
+from tensorforce.contrib.openai_universe import OpenAIUniverse
 
 
 def main():

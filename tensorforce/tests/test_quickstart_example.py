@@ -22,11 +22,11 @@ import unittest
 import numpy as np
 from six.moves import xrange
 
-from external.openai_gym import OpenAIGym
 from tensorforce import Configuration
 from tensorforce.agents import TRPOAgent
 from tensorforce.core.networks import layered_network_builder
 from tensorforce.execution import Runner
+from tensorforce.contrib import OpenAIGym
 
 
 class TestQuickstartExample(unittest.TestCase):

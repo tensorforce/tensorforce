@@ -7,7 +7,7 @@ be tracked here in detail but through github issues.
 
 28th July 2017
 
-- Moved external environments to Tensorforce/external. The core package just contains the base environment 
+- Moved external environments to tensorforce/contrib. The environment module just contains the base environment 
   class and our test environment going forward.
 - Merged environments ALE and Maze explorer, thanks to Islandman93 and mryellow
 

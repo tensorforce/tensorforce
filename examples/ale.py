@@ -26,11 +26,11 @@ import logging
 import os
 import sys
 
-from external.ale import ALE
 from tensorforce import Configuration
 from tensorforce.agents import agents
 from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
+from tensorforce.contrib.ale import ALE
 
 
 def main():

@@ -30,11 +30,11 @@ import sys
 import tensorflow as tf
 from six.moves import xrange, shlex_quote
 
-from external.openai_gym import OpenAIGym
 from tensorforce import Configuration, TensorForceError
 from tensorforce.agents import agents
 from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
+from tensorforce.contrib.openai_gym import OpenAIGym
 from tensorforce.models.model import log_levels
 
 

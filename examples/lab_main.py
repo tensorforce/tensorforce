@@ -18,15 +18,15 @@ Deepmind lab execution
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
-import sys
-import os
 import argparse
 import logging
+import os
+import sys
+
 import numpy as np
-import deepmind_lab
 
 from tensorforce import TensorForceError
 from tensorforce.agents import agents
@@ -36,7 +36,7 @@ from tensorforce.core.networks import from_json
 logger = logging.getLogger(__name__)
 
 from tensorforce.config import Configuration
-from tensorforce.environments.deepmind_lab import DeepMindLab
+from external.deepmind_lab import DeepMindLab
 from tensorforce.execution import Runner
 
 

@@ -25,10 +25,10 @@ import argparse
 import logging
 import os
 
-from tensorforce import Configuration, TensorForceError
-from tensorforce.core.networks import from_json
+from external.openai_gym import OpenAIGym
+from tensorforce import Configuration
 from tensorforce.agents import agents
-from tensorforce.environments.openai_gym import OpenAIGym
+from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
 
 

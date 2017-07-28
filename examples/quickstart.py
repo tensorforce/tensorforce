@@ -17,13 +17,13 @@
 Quick start example.
 """
 
+import numpy as np
+
+from external.openai_gym import OpenAIGym
 from tensorforce import Configuration
 from tensorforce.agents import TRPOAgent
-from tensorforce.environments.openai_gym import OpenAIGym
-from tensorforce.execution import Runner
 from tensorforce.core.networks import layered_network_builder
-
-import numpy as np
+from tensorforce.execution import Runner
 
 # Create an OpenAIgym environment
 env = OpenAIGym('CartPole-v0')

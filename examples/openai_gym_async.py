@@ -18,23 +18,24 @@ OpenAI gym execution
 """
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
+import argparse
+import inspect
+import logging
 import os
 import sys
-import inspect
-import argparse
-import logging
-from six.moves import xrange, shlex_quote
-import tensorflow as tf
 
+import tensorflow as tf
+from six.moves import xrange, shlex_quote
+
+from external.openai_gym import OpenAIGym
 from tensorforce import Configuration, TensorForceError
-from tensorforce.core.networks import from_json
 from tensorforce.agents import agents
-from tensorforce.models.model import log_levels
-from tensorforce.environments.openai_gym import OpenAIGym
+from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
+from tensorforce.models.model import log_levels
 
 
 def main():

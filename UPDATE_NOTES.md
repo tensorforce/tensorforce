@@ -5,6 +5,11 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+28th July 2017
+
+- Moved external environments to Tensorforce/external. The core package just contains the base environment 
+  class and our test environment going forward.
+- Merged environments ALE and Maze explorer, thanks to Islandman93 and mryellow
 
 25th July 2017
 

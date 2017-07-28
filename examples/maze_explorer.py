@@ -25,10 +25,10 @@ import argparse
 import logging
 import os
 
-from tensorforce import Configuration, TensorForceError
-from tensorforce.core.networks import from_json
+from external.maze_explorer import MazeExplorer
+from tensorforce import Configuration
 from tensorforce.agents import agents
-from tensorforce.environments.maze_explorer import MazeExplorer
+from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
 
 

@@ -14,17 +14,18 @@
 # ==============================================================================
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
 import unittest
+
 import numpy as np
 from six.moves import xrange
 
+from external.openai_gym import OpenAIGym
 from tensorforce import Configuration
 from tensorforce.agents import TRPOAgent
 from tensorforce.core.networks import layered_network_builder
-from tensorforce.environments.openai_gym import OpenAIGym
 from tensorforce.execution import Runner
 
 

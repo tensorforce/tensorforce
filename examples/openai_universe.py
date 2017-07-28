@@ -35,14 +35,11 @@ import logging
 import os
 
 import numpy as np
+from tensorforce.core.model import log_levels
 
-import go_vncdriver
-
+from external.openai_universe import OpenAIUniverse
 from tensorforce import Configuration, TensorForceError
 from tensorforce.agents import create_agent
-from tensorforce.core.model import log_levels
-from tensorforce.core.preprocessing import build_preprocessing_stack
-from tensorforce.environments.openai_universe import OpenAIUniverse
 from tensorforce.execution import Runner
 
 

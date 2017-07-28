@@ -26,10 +26,10 @@ import logging
 import os
 import sys
 
-from tensorforce import Configuration, TensorForceError
-from tensorforce.core.networks import from_json
+from external.ale import ALE
+from tensorforce import Configuration
 from tensorforce.agents import agents
-from tensorforce.environments.ale import ALE
+from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
 
 

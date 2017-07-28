@@ -38,7 +38,8 @@ extras_require = {
     'tf': ['tensorflow>=1.2.0'],
     'tf_gpu': ['tensorflow-gpu>=1.2.0'],
     'gym': ['gym>=0.7.4'],
-    'universe': ['universe>=0.21.3']
+    'universe': ['universe>=0.21.3'],
+    'mazeexp': ['mazeexp>=0.0.1']
 }
 
 # Readthedocs requires Sphinx extensions to be specified as part of

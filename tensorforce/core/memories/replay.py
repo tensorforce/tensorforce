@@ -63,7 +63,7 @@ class Replay(Memory):
         """
         Samples a batch of the specified size by selecting a random start/end point and returning
         the contained sequence or random indices depending on the field 'random_sampling'
-        
+
         Args:
             batch_size: Length of the sampled sequence.
 
@@ -73,12 +73,12 @@ class Replay(Memory):
         if self.random_sampling:
             indices = np.random.randint(self.size, size=batch_size)
         else:
-            end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
-            start = (end - batch_size) % self.capacity
-            if start < end:
-                indices = list(xrange(start, end))
-            else:
-                indices = list(xrange(start, self.capacity)) + list(xrange(0, end))
+            indices = self._sample_sequential_indices(batch_size)
+            # make sure no terminals exist in intermediate states
+            # TODO: there's a possibility that this infinitely loops if no batch is available
+            # should add a max_fails and return an error or None
+            while np.any(self.terminals.take(indices)[:-1]):
+                indices = self._sample_sequential_indices(batch_size)
 
         return dict(
             states={name: state.take(indices, axis=0) for name, state in self.states.items()},
@@ -87,6 +87,15 @@ class Replay(Memory):
             terminals=self.terminals.take(indices),
             internals=[internal.take(indices, axis=0) for internal in self.internals]
         )
+
+    def _sample_sequential_indices(self, batch_size):
+        end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
+        start = (end - batch_size) % self.capacity
+        if start < end:
+            indices = list(xrange(start, end))
+        else:
+            indices = list(xrange(start, self.capacity)) + list(xrange(0, end))
+        return indices
 
     def update_batch(self, loss_per_instance):
         pass

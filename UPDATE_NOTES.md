@@ -9,6 +9,7 @@ be tracked here in detail but through github issues.
 
 - Added `QModel` as base class for DQN (hence DQFD) and NAF
 - Added `next_state` placeholder to `QModel`, and boolean flag to `Memory.get_batch` to include next states
+- `Configuration` now keeps track of which values were accessed, and `Agent` reports warning if not all were accessed
 
 
 28th July 2017

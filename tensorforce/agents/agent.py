@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import logging
 from six.moves import xrange
 from random import random
 import numpy as np
@@ -90,7 +91,8 @@ class Agent(object):
     model = None
     default_config = dict(
         preprocessing=None,
-        exploration=None
+        exploration=None,
+        log_level='info'
     )
 
     def __init__(self, config):
@@ -103,6 +105,9 @@ class Agent(object):
         """
         assert self.__class__.name is not None and self.__class__.model is not None
         config.default(Agent.default_config)
+
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(util.log_levels[config.log_level])
 
         # states config and preprocessing
         self.preprocessing = dict()
@@ -150,7 +155,7 @@ class Agent(object):
 
         not_accessed = config.not_accessed()
         if not_accessed:
-            raise TensorForceError("Configuration values not accessed: {}".format(', '.join(not_accessed)))
+            self.logger.warning("Configuration values not accessed: {}".format(', '.join(not_accessed)))
 
         self.episode = -1
         self.timestep = 0

@@ -30,15 +30,6 @@ from tensorforce import TensorForceError, util
 from tensorforce.core.optimizers import Optimizer
 
 
-log_levels = {
-    'info': logging.INFO,
-    'debug': logging.DEBUG,
-    'critical': logging.CRITICAL,
-    'warning': logging.WARNING,
-    'fatal': logging.FATAL
-}
-
-
 class Model(object):
     """
     Base model class.
@@ -65,7 +56,6 @@ class Model(object):
         optimizer='adam',
         device=None,
         tf_summary=None,
-        log_level='info',
         distributed=False,
         global_model=False,
         session=None
@@ -87,7 +77,7 @@ class Model(object):
         self.session = None
 
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(log_levels[config.log_level])
+        self.logger.setLevel(util.log_levels[config.log_level])
 
         if not config.distributed:
             assert not config.global_model and config.session is None

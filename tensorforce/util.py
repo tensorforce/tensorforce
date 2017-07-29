@@ -14,6 +14,7 @@
 # ==============================================================================
 
 import importlib
+import logging
 import numpy as np
 import tensorflow as tf
 
@@ -21,6 +22,15 @@ from tensorforce import TensorForceError, Configuration
 
 
 epsilon = 1e-6
+
+
+log_levels = dict(
+    info=logging.INFO,
+    debug=logging.DEBUG,
+    critical=logging.CRITICAL,
+    warning=logging.WARNING,
+    fatal=logging.FATAL
+)
 
 
 def prod(xs):

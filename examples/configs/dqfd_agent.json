@@ -1,5 +1,5 @@
 {
-  "loglevel": "debug",
+  "log_level": "info",
   "expert_sampling_ratio": 0.01,
   "supervised_weight": 1.0,
   "expert_margin": 0.8,

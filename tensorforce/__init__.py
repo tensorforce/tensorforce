@@ -17,5 +17,18 @@
 from tensorforce.exception import TensorForceError
 from tensorforce.config import Configuration
 
+# Libraries shoulld add NullHandler() by default, as its the application code's
+# responsibility to configure log handlers.
+# https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
+
+import logging
+try:
+    from logging import NullHandler
+except ImportError:
+    class NullHandler(logging.Handler):
+        def emit(self, record):
+            pass
+
+logging.getLogger(__name__).addHandler(NullHandler())
 
 __all__ = ['TensorForceError', 'Configuration']

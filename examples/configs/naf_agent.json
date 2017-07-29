@@ -1,5 +1,5 @@
 {
-  "loglevel": "debug",
+  "log_level": "info",
   "learning_rate": 0.001,
   "use_target_network": true,
   "target_network_update_rate": 1,

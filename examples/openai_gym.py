@@ -52,7 +52,7 @@ def main():
     args = parser.parse_args()
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)  # configurable!!!
+    logger.setLevel(logging.INFO)
 
     environment = OpenAIGym(args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
 
@@ -61,6 +61,7 @@ def main():
     else:
         agent_config = Configuration()
         logger.info("No agent configuration provided.")
+
     if args.network_config:
         network = from_json(args.network_config)
     else:

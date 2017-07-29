@@ -1,5 +1,5 @@
 {
-  "loglevel": "info",
+  "log_level": "info",
   "override_line_search": false,
   "batch_size": 1000,
   "discount": 0.97,

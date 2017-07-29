@@ -1,5 +1,5 @@
 {
-  "loglevel": "info",
+  "log_level": "info",
   "batch_size": 128,
   "discount": 0.99,
   "baseline": {

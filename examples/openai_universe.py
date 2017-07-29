@@ -92,7 +92,7 @@ def main():
         print(config)
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[config.loglevel])
+    logger.setLevel(log_levels[config.log_level])
 
     stack = None
 

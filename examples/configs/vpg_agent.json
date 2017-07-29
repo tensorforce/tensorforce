@@ -9,7 +9,7 @@
   "optimizer": "adam",
   "tf_saver": false,
   "tf_summary": null,
-  "loglevel": "debug",
+  "log_level": "info",
 
   "baseline": {
     "type": "mlp",

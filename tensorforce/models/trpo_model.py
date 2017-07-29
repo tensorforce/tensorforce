@@ -71,6 +71,7 @@ class TRPOModel(PolicyGradientModel):
             kl_divergences = list()
             entropies = list()
             fixed_kl_divergences = list()
+
             for name, action in self.action.items():
                 distribution = self.distribution[name]
                 prev_distribution = tuple(tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
@@ -94,11 +95,13 @@ class TRPOModel(PolicyGradientModel):
                 kds_list = [kl_divergence]
                 es_list = [entropy]
                 fkds_list = [fixed_kl_divergence]
+
                 for _ in range(len(config.actions[name].shape)):
                     prs_list = [pr for prs in prs_list for pr in tf.unstack(value=prs, axis=1)]
                     kds_list = [kd for kds in kds_list for kd in tf.unstack(value=kds, axis=1)]
                     es_list = [e for es in es_list for e in tf.unstack(value=es, axis=1)]
                     fkds_list = [fkd for fkds in fkds_list for fkd in tf.unstack(value=fkds, axis=1)]
+
                 prob_ratios.extend(prs_list)
                 kl_divergences.extend(kds_list)
                 entropies.extend(es_list)

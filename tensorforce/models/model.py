@@ -88,7 +88,6 @@ class Model(object):
         self.distributed = config.distributed
         self.session = None
 
-        # TODO: change/remove
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_levels[config.log_level])
 

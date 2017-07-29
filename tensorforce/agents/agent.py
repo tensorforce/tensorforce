@@ -95,12 +95,13 @@ class Agent(object):
         log_level='info'
     )
 
-    def __init__(self, config):
+    def __init__(self, config, model=None):
         """Initializes the reinforcement learning agent.
 
         Args:
             config (Configuration): configuration object containing at least `states`, `actions`, `preprocessing` and
                 'exploration`.
+            model (Model): optional model instance. If not supplied, a new model is created.
 
         """
         assert self.__class__.name is not None and self.__class__.model is not None
@@ -151,7 +152,14 @@ class Agent(object):
         self.states_config = config.states
         self.actions_config = config.actions
 
-        self.model = self.__class__.model(config)
+        if model:
+            if not isinstance(model, self.__class__.model):
+                raise TensorForceError("Supplied model class `{}` does not match expected agent model class `{}`".format(
+                    type(model).__name__, self.__class__.model.__name__
+                ))
+            self.model = model
+        else:
+            self.model = self.__class__.model(config)
 
         not_accessed = config.not_accessed()
         if not_accessed:

@@ -21,14 +21,17 @@ class EpsilonAnneal(Exploration):
     Annealing epsilon parameter based on ratio of current timestep to total timesteps.
     """
 
-    def __init__(self, epsilon=1.0, epsilon_final=0.1, epsilon_timesteps=10000):
+    def __init__(self, epsilon=1.0, epsilon_final=0.1, epsilon_timesteps=10000, start_after=0):
         self.epsilon = epsilon
         self.epsilon_final = epsilon_final
         self.epsilon_timesteps = epsilon_timesteps
+        self.start_after = start_after
 
     def __call__(self, episode=0, timestep=0):
-        # TODO: Trim by length of `first_update`, removing steps with no learning.
-        offset = 0  # self.first_update
+        if timestep < self.start_after:
+            return self.epsilon
+
+        offset = self.start_after
 
         self.epsilon = min(1.0, max(
             self.epsilon_final,

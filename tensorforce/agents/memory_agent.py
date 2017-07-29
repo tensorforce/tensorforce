@@ -57,9 +57,9 @@ class MemoryAgent(Agent):
         repeat_update=1
     )
 
-    def __init__(self, config):
+    def __init__(self, config, model=None):
         config.default(MemoryAgent.default_config)
-        super(MemoryAgent, self).__init__(config)
+        super(MemoryAgent, self).__init__(config, model)
 
         self.batch_size = config.batch_size
         self.memory = Memory.from_config(

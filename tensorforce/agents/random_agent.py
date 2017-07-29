@@ -32,8 +32,8 @@ class RandomAgent(Agent):
     name = 'RandomAgent'
     model = staticmethod(lambda config: None)
 
-    def __init__(self, config):
-        super(RandomAgent, self).__init__(config)
+    def __init__(self, config, model=None):
+        super(RandomAgent, self).__init__(config, model)
 
     def reset(self):
         self.episode += 1

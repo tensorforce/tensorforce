@@ -31,7 +31,6 @@ from tensorforce.models import PolicyGradientModel
 
 
 class PPOModel(PolicyGradientModel):
-
     allows_discrete_actions = True
     allows_continuous_actions = True
 
@@ -63,14 +62,17 @@ class PPOModel(PolicyGradientModel):
             prob_ratios = list()
             entropy_penalties = list()
             kl_divergences = list()
+            entropies = list()
 
             for name, action in self.action.items():
                 distribution = self.distribution[name]
-                prev_distribution = tuple(tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
+                prev_distribution = tuple(
+                    tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
                 self.internal_inputs.extend(prev_distribution)
                 self.internal_outputs.extend(distribution)
                 self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
-                prev_distribution = self.distribution[name].__class__.from_tensors(parameters=prev_distribution, deterministic=self.deterministic)
+                prev_distribution = self.distribution[name].__class__.from_tensors(parameters=prev_distribution,
+                                                                                   deterministic=self.deterministic)
 
                 shape_size = util.prod(config.actions[name].shape)
 
@@ -83,9 +85,13 @@ class PPOModel(PolicyGradientModel):
                 prob_ratios.append(prob_ratio)
 
                 entropy = distribution.entropy()
+
                 entropy_penalty = -config.entropy_penalty * entropy
                 entropy_penalty = tf.reshape(tensor=entropy_penalty, shape=(-1, shape_size))
                 entropy_penalties.append(entropy_penalty)
+
+                entropy = tf.reshape(tensor=entropy, shape=(-1, shape_size))
+                entropies.append(entropy)
 
                 kl_divergence = distribution.kl_divergence(prev_distribution)
                 kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
@@ -101,12 +107,13 @@ class PPOModel(PolicyGradientModel):
             self.surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
             tf.losses.add_loss(self.surrogate_loss)
 
+            # Mean over actions, mean over batch
             entropy_penalty = tf.reduce_mean(input_tensor=tf.concat(values=entropy_penalties, axis=1), axis=1)
             self.entropy_penalty = tf.reduce_mean(input_tensor=entropy_penalty, axis=0)
             tf.losses.add_loss(self.entropy_penalty)
-            # Note: Not computing the trust region loss on the value function because
-            # the value function does not share a network with the policy. Worth
-            # analysing how this impacts performance.
+
+            entropy = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
+            self.entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
 
             kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
             self.kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
@@ -144,7 +151,7 @@ class PPOModel(PolicyGradientModel):
             # Sample a batch by sampling a starting point and taking a range from there.
             batch = self.memory.get_batch(self.optimizer_batch_size)
 
-            fetches = [self.optimize, self.loss, self.loss_per_instance]
+            fetches = [self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy]
 
             feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
             feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
@@ -153,11 +160,11 @@ class PPOModel(PolicyGradientModel):
             feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
             # self.surrogate_loss, self.entropy_penalty, self.kl_divergence
-            loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:3]
+            loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches,
+                                                                               feed_dict=feed_dict)[1:5]
 
             self.logger.debug('Loss = {}'.format(loss))
-            #self.logger.debug('KL divergence = {}'.format(kl_divergence))
-            #self.logger.debug('Entropy = {}'.format(entropy))
+            self.logger.debug('KL divergence = {}'.format(kl_divergence))
+            self.logger.debug('Entropy = {}'.format(entropy))
 
-        # TODO: average instead of last iteration?
         return loss, loss_per_instance

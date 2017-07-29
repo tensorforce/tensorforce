@@ -23,7 +23,7 @@ from six.moves import xrange
 from random import random
 import numpy as np
 
-from tensorforce import util
+from tensorforce import util, TensorForceError
 from tensorforce.core.preprocessing import Preprocessing
 from tensorforce.core.explorations import Exploration
 
@@ -93,12 +93,13 @@ class Agent(object):
         exploration=None
     )
 
-    def __init__(self, config):
+    def __init__(self, config, model=None):
         """Initializes the reinforcement learning agent.
 
         Args:
             config (Configuration): configuration object containing at least `states`, `actions`, `preprocessing` and
                 'exploration`.
+            model (Model): optional model instance. If not supplied, a new model is created.
 
         """
         assert self.__class__.name is not None and self.__class__.model is not None
@@ -146,7 +147,14 @@ class Agent(object):
         self.states_config = config.states
         self.actions_config = config.actions
 
-        self.model = self.__class__.model(config)
+        if model:
+            if not isinstance(model, self.__class__.model):
+                raise TensorForceError("Supplied model class `{}` does not match expected agent model class `{}`".format(
+                    type(model).__name__, self.__class__.model.__name__
+                ))
+            self.model = model
+        else:
+            self.model = self.__class__.model(config)
 
         self.episode = -1
         self.timestep = 0

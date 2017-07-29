@@ -45,9 +45,9 @@ class BatchAgent(Agent):
         batch_size=1
     )
 
-    def __init__(self, config):
+    def __init__(self, config, model=None):
         config.default(BatchAgent.default_config)
-        super(BatchAgent, self).__init__(config)
+        super(BatchAgent, self).__init__(config, model)
         self.batch_size = config.batch_size
         self.batch = None
 

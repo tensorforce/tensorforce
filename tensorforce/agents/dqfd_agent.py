@@ -87,9 +87,9 @@ class DQFDAgent(MemoryAgent):
         demo_sampling_ratio=0.01
     )
 
-    def __init__(self, config):
+    def __init__(self, config, model=None):
         config.default(DQFDAgent.default_config)
-        super(DQFDAgent, self).__init__(config)
+        super(DQFDAgent, self).__init__(config, model)
         self.target_update_frequency = config.target_update_frequency
 
         # This is the demonstration memory that we will fill with observations before starting

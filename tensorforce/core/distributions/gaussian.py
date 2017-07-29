@@ -47,20 +47,10 @@ class Gaussian(Distribution):
 
     def create_tf_operations(self, x, deterministic):
         flat_size = util.prod(self.shape)
-        if isinstance(self.mean, float):
-            bias = [self.mean for _ in range(flat_size)]
-        else:
-            bias = self.mean
-        self.mean = layers['linear'](x=x, size=flat_size, bias=bias, weights=0.)
+        self.mean = layers['linear'](x=x, size=flat_size, bias=self.mean)
         self.mean = tf.reshape(tensor=self.mean, shape=((-1,) + self.shape))
-        # self.mean = tf.squeeze(input=self.mean, axis=1)
-        if isinstance(self.log_stddev, float):
-            bias = [self.log_stddev for _ in range(flat_size)]
-        else:
-            bias = self.log_stddev
-        self.log_stddev = layers['linear'](x=x, size=flat_size, bias=bias)
+        self.log_stddev = layers['linear'](x=x, size=flat_size, bias=self.log_stddev)
         self.log_stddev = tf.reshape(tensor=self.log_stddev, shape=((-1,) + self.shape))
-        # self.log_stddev = tf.squeeze(input=self.log_stddev, axis=1)
         self.log_stddev = tf.minimum(x=self.log_stddev, y=10.0)  # prevent infinity when exp
         self.distribution = (self.mean, self.log_stddev)
         self.deterministic = deterministic

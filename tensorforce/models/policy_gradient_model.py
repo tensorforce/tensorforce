@@ -76,13 +76,12 @@ class PolicyGradientModel(Model):
         else:
             self.baseline = Baseline.from_config(config=config.baseline)
 
-        super(PolicyGradientModel, self).__init__(config)
-
         # advantage estimation
         self.generalized_advantage_estimation = config.generalized_advantage_estimation
-        if self.generalized_advantage_estimation:
-            self.gae_lambda = config.gae_lambda
+        self.gae_lambda = config.gae_lambda
         self.normalize_advantage = config.normalize_advantage
+
+        super(PolicyGradientModel, self).__init__(config)
 
     def create_tf_operations(self, config):
         super(PolicyGradientModel, self).create_tf_operations(config)

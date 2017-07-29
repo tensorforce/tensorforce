@@ -160,7 +160,7 @@ class DQFDAgent(MemoryAgent):
         """
         for _ in xrange(steps):
             # Sample from demo memory
-            batch = self.demo_memory.get_batch(self.batch_size)
+            batch = self.demo_memory.get_batch(batch_size=self.batch_size, next_states=True)
 
             # Update using both double Q-learning and supervised double_q_loss
             self.model.demonstration_update(batch)

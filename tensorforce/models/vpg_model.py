@@ -22,6 +22,7 @@ from __future__ import division
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.models import PolicyGradientModel
 
 
@@ -43,12 +44,10 @@ class VPGModel(PolicyGradientModel):
             log_probs = list()
             for name, action in self.action.items():
                 log_prob = self.distribution[name].log_probability(action=action)
-                lps_list = [log_prob]
-                for _ in range(len(config.actions[name].shape)):
-                    lps_list = [lp for lps in lps_list for lp in tf.unstack(value=lps, axis=1)]
-                log_probs.extend(lps_list)
+                log_prob = tf.reshape(tensor=log_prob, shape=(-1, util.prod(config.actions[name].shape)))
+                log_probs.append(log_prob)
 
-            log_prob = tf.add_n(inputs=log_probs) / len(log_probs)
+            log_prob = tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
             self.loss_per_instance = -log_prob * self.reward
             loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
             tf.losses.add_loss(loss)

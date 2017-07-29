@@ -15,6 +15,7 @@
 
 from tensorforce.models.model import Model
 from tensorforce.models.policy_gradient_model import PolicyGradientModel
+from tensorforce.models.q_model import QModel
 from tensorforce.models.vpg_model import VPGModel
 from tensorforce.models.trpo_model import TRPOModel
 from tensorforce.models.dqn_model import DQNModel
@@ -31,4 +32,4 @@ models = dict(
 )
 
 
-__all__ = ['Model', 'PolicyGradientModel', 'VPGModel', 'TRPOModel', 'DQNModel', 'NAFModel', 'DQFDModel', 'models']
+__all__ = ['Model', 'PolicyGradientModel', 'QModel', 'VPGModel', 'TRPOModel', 'DQNModel', 'NAFModel', 'DQFDModel', 'models']

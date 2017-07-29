@@ -88,7 +88,7 @@ class MemoryAgent(Agent):
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
             for _ in xrange(self.repeat_update):
-                batch = self.memory.get_batch(batch_size=self.batch_size)
+                batch = self.memory.get_batch(batch_size=self.batch_size, next_states=True)
                 _, loss_per_instance = self.model.update(batch=batch)
                 self.memory.update_batch(loss_per_instance=loss_per_instance)
 

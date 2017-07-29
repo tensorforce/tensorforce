@@ -250,12 +250,7 @@ class Model(object):
             return
 
         fetches = [self.optimize, self.loss, self.loss_per_instance]
-
-        feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
-        feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
-        feed_dict[self.reward] = batch['rewards']
-        feed_dict[self.terminal] = batch['terminals']
-        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+        feed_dict = self.update_feed_dict(batch=batch)
 
         if self.distributed:
             fetches.extend(self.increment_global_episode for terminal in batch['terminals'] if terminal)
@@ -263,6 +258,14 @@ class Model(object):
         else:
             loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:]
         return loss, loss_per_instance
+
+    def update_feed_dict(self, batch):
+        feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
+        feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
+        feed_dict[self.reward] = batch['rewards']
+        feed_dict[self.terminal] = batch['terminals']
+        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+        return feed_dict
 
     def load_model(self, path):
         self.saver.restore(self.session, path)

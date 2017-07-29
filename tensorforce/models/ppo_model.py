@@ -72,47 +72,44 @@ class PPOModel(PolicyGradientModel):
                 self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
                 prev_distribution = self.distribution[name].__class__.from_tensors(parameters=prev_distribution, deterministic=self.deterministic)
 
+                shape_size = util.prod(config.actions[name].shape)
+
                 # Standard policy gradient log likelihood computation
                 log_prob = distribution.log_probability(action=action)
                 prev_log_prob = prev_distribution.log_probability(action=action)
                 log_prob_diff = tf.minimum(x=(log_prob - prev_log_prob), y=10.0)
-
                 prob_ratio = tf.exp(x=log_prob_diff)
+                prob_ratio = tf.reshape(tensor=prob_ratio, shape=(-1, shape_size))
+                prob_ratios.append(prob_ratio)
 
                 entropy = distribution.entropy()
                 entropy_penalty = -config.entropy_penalty * entropy
+                entropy_penalty = tf.reshape(tensor=entropy_penalty, shape=(-1, shape_size))
+                entropy_penalties.append(entropy_penalty)
 
                 kl_divergence = distribution.kl_divergence(prev_distribution)
-
-                prs_list = [prob_ratio]
-                eps_list = [entropy_penalty]
-                kds_list = [kl_divergence]
-                for _ in range(len(config.actions[name].shape)):
-                    prs_list = [pr for prs in prs_list for pr in tf.unstack(value=prs, axis=1)]
-                    eps_list = [ep for eps in eps_list for ep in tf.unstack(value=eps, axis=1)]
-                    kds_list = [kd for kds in kds_list for kd in tf.unstack(value=kds, axis=1)]
-                prob_ratios.extend(prs_list)
-                entropy_penalties.extend(eps_list)
-                kl_divergences.extend(kds_list)
+                kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
+                kl_divergences.append(kl_divergence)
 
             # The surrogate loss in PPO is the minimum of clipped loss and
             # target advantage * prob_ratio, which is the CPO loss
             # Presentation on conservative policy iteration:
             # https://www.cs.cmu.edu/~jcl/presentation/RL/RL.ps
-            prob_ratio = tf.add_n(inputs=prob_ratios) / len(prob_ratios)
+            prob_ratio = tf.reduce_mean(input_tensor=tf.concat(values=prob_ratios, axis=1), axis=1)
             prob_ratio = tf.clip_by_value(prob_ratio, 1.0 - config.loss_clipping, 1.0 + config.loss_clipping)
-
             self.loss_per_instance = -prob_ratio * self.reward
             self.surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
             tf.losses.add_loss(self.surrogate_loss)
 
-            self.entropy_penalty = tf.reduce_mean(input_tensor=(tf.add_n(inputs=entropy_penalties) / len(entropy_penalties)), axis=0)
+            entropy_penalty = tf.reduce_mean(input_tensor=tf.concat(values=entropy_penalties, axis=1), axis=1)
+            self.entropy_penalty = tf.reduce_mean(input_tensor=entropy_penalty, axis=0)
             tf.losses.add_loss(self.entropy_penalty)
             # Note: Not computing the trust region loss on the value function because
             # the value function does not share a network with the policy. Worth
             # analysing how this impacts performance.
 
-            self.kl_divergence = tf.reduce_mean(input_tensor=(tf.add_n(inputs=kl_divergences) / len(kl_divergences)), axis=0)
+            kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
+            self.kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
 
     def update(self, batch):
         """

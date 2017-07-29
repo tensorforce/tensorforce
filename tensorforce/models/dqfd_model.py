@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.models import DQNModel
 
 
@@ -52,35 +53,31 @@ class DQFDModel(DQNModel):
 
         with tf.name_scope('supervised-update'):
             deltas = list()
-            for action in self.action:
+            for name, action in self.action.items():
                 # Create the supervised margin loss
-                mask = tf.ones_like(self.actions_one_hot[action], dtype=tf.float32)
-
                 # Zero for the action taken, one for all other actions, now multiply by expert margin
-                inverted_one_hot = mask - self.actions_one_hot[action]
+                one_hot = tf.one_hot(indices=action, depth=config.actions[name].num_actions)
+                ones = tf.ones_like(tensor=one_hot, dtype=tf.float32)
+                inverted_one_hot = ones - one_hot
 
                 # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
-                expert_margin = self.training_output[action][:-1] + inverted_one_hot * config.expert_margin
-
-                supervised_selector = tf.reduce_max(input_tensor=expert_margin, axis=1)
+                expert_margin = self.training_output[name] + inverted_one_hot * config.expert_margin
 
                 # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
-                delta = supervised_selector - self.q_values[action]
+                supervised_selector = tf.reduce_max(input_tensor=expert_margin, axis=-1)
+                delta = supervised_selector - self.q_values[name]
+                delta = tf.reshape(tensor=delta, shape=(-1, util.prod(config.actions[name].shape)))
+                deltas.append(delta)
 
-                ds_list = [delta]
-                for _ in range(len(config.actions[action].shape)):
-                    ds_list = [d for ds in ds_list for d in tf.unstack(value=ds, axis=1)]
-                deltas.extend(ds_list)
-
-            delta = tf.add_n(inputs=deltas) / len(deltas)
+            delta = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
             supervised_loss_per_instance = tf.square(delta)
             supervised_loss = tf.reduce_mean(input_tensor=supervised_loss_per_instance)
 
             # Combining double q loss with supervised loss
-            dqfd_loss = self.dqn_loss + supervised_loss * config.supervised_weight
+            dqfd_loss = self.q_loss + supervised_loss * config.supervised_weight
             self.dqfd_optimize = self.optimizer.minimize(dqfd_loss)
 
-    def demonstration_update(self, batch=None):
+    def demonstration_update(self, batch):
         """Computes the demonstration update.
 
         Args:
@@ -91,11 +88,5 @@ class DQFDModel(DQNModel):
         """
 
         fetches = self.dqfd_optimize
-
-        feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
-        feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
-        feed_dict[self.reward] = batch['rewards']
-        feed_dict[self.terminal] = batch['terminals']
-        feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
-
+        feed_dict = self.update_feed_dict(batch=batch)
         self.session.run(fetches=fetches, feed_dict=feed_dict)

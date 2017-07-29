@@ -80,42 +80,39 @@ class TRPOModel(PolicyGradientModel):
                 self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
                 prev_distribution = distribution.from_tensors(parameters=prev_distribution, deterministic=self.deterministic)
 
+                shape_size = util.prod(config.actions[name].shape)
+
                 log_prob = distribution.log_probability(action=action)
                 prev_log_prob = prev_distribution.log_probability(action=action)
                 log_prob_diff = tf.minimum(x=(log_prob - prev_log_prob), y=10.0)
                 prob_ratio = tf.exp(x=log_prob_diff)
+                prob_ratio = tf.reshape(tensor=prob_ratio, shape=(-1, shape_size))
+                prob_ratios.append(prob_ratio)
 
                 kl_divergence = distribution.kl_divergence(other=prev_distribution)
+                kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
+                kl_divergences.append(kl_divergence)
+
                 entropy = distribution.entropy()
+                entropy = tf.reshape(tensor=entropy, shape=(-1, shape_size))
+                entropies.append(entropy)
 
                 fixed_distribution = distribution.__class__.from_tensors(parameters=[tf.stop_gradient(x) for x in distribution], deterministic=self.deterministic)
                 fixed_kl_divergence = fixed_distribution.kl_divergence(distribution)
+                fixed_kl_divergence = tf.reshape(tensor=fixed_kl_divergence, shape=(-1, shape_size))
+                fixed_kl_divergences.append(fixed_kl_divergence)
 
-                prs_list = [prob_ratio]
-                kds_list = [kl_divergence]
-                es_list = [entropy]
-                fkds_list = [fixed_kl_divergence]
-
-                for _ in range(len(config.actions[name].shape)):
-                    prs_list = [pr for prs in prs_list for pr in tf.unstack(value=prs, axis=1)]
-                    kds_list = [kd for kds in kds_list for kd in tf.unstack(value=kds, axis=1)]
-                    es_list = [e for es in es_list for e in tf.unstack(value=es, axis=1)]
-                    fkds_list = [fkd for fkds in fkds_list for fkd in tf.unstack(value=fkds, axis=1)]
-
-                prob_ratios.extend(prs_list)
-                kl_divergences.extend(kds_list)
-                entropies.extend(es_list)
-                fixed_kl_divergences.extend(fkds_list)
-
-            prob_ratio = tf.add_n(inputs=prob_ratios) / len(prob_ratios)
+            prob_ratio = tf.reduce_mean(input_tensor=tf.concat(values=prob_ratios, axis=1), axis=1)
             self.loss_per_instance = -prob_ratio * self.reward
             surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
 
-            kl_divergence = tf.reduce_mean(input_tensor=(tf.add_n(inputs=kl_divergences) / len(kl_divergences)), axis=0)
-            entropy = tf.reduce_mean(input_tensor=(tf.add_n(inputs=entropies) / len(entropies)), axis=0)
+            kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
+            kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
+            entropy = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
+            entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
             self.losses = (surrogate_loss, kl_divergence, entropy, self.loss_per_instance)
 
-            fixed_kl_divergence = tf.add_n(inputs=fixed_kl_divergences) / len(fixed_kl_divergences)
+            fixed_kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=fixed_kl_divergences, axis=1), axis=1)
 
             # Get symbolic gradient expressions
             variables = list(tf.trainable_variables())  # TODO: ideally not value function (see also for "gradients" below)

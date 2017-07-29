@@ -21,11 +21,11 @@ from six.moves import xrange
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.models import Model
-from tensorforce.core.networks import NeuralNetwork, layers
+from tensorforce.models import QModel
+from tensorforce.core.networks import layers
 
 
-class NAFModel(Model):
+class NAFModel(QModel):
 
     allows_discrete_actions = False
     allows_continuous_actions = True
@@ -44,106 +44,72 @@ class NAFModel(Model):
         config.default(NAFModel.default_config)
         super(NAFModel, self).__init__(config)
 
-    def create_tf_operations(self, config):
-        super(NAFModel, self).create_tf_operations(config)
+    def create_training_operations(self, config):
         num_actions = sum(util.prod(config.actions[name].shape) for name in sorted(self.action))
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
-        with tf.variable_scope('training'):
-            network_builder = util.get_function(fct=config.network)
-            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
-            self.internal_inputs.extend(self.training_network.internal_inputs)
-            self.internal_outputs.extend(self.training_network.internal_outputs)
-            self.internal_inits.extend(self.training_network.internal_inits)
+        flat_mean = layers['linear'](x=self.training_network.output, size=num_actions)
+        n = 0
+        for name in sorted(self.action):
+            shape = config.actions[name].shape
+            self.action_taken[name] = tf.reshape(tensor=flat_mean[:, n: n + util.prod(shape)], shape=((-1,) + shape))
+            n += util.prod(shape)
 
-        with tf.variable_scope('training_outputs') as scope:
-            # Action outputs
-            flat_mean = layers['linear'](x=self.training_network.output, size=num_actions)
-            n = 0
-            for name in sorted(self.action):
-                shape = config.actions[name].shape
-                self.action_taken[name] = tf.reshape(tensor=flat_mean[:, n: n + util.prod(shape)], shape=((-1,) + shape))
-                n += util.prod(shape)
+        # Advantage computation
+        # Network outputs entries of lower triangular matrix L
+        lower_triangular_size = num_actions * (num_actions + 1) // 2
+        l_entries = layers['linear'](x=self.training_network.output, size=lower_triangular_size)
 
-            # Advantage computation
-            # Network outputs entries of lower triangular matrix L
-            lower_triangular_size = num_actions * (num_actions + 1) // 2
-            l_entries = layers['linear'](x=self.training_network.output, size=lower_triangular_size)
+        l_matrix = tf.exp(x=tf.map_fn(fn=tf.diag, elems=l_entries[:, :num_actions]))
 
-            l_matrix = tf.exp(x=tf.map_fn(fn=tf.diag, elems=l_entries[:, :num_actions]))
+        if num_actions > 1:
+            offset = num_actions
+            l_columns = list()
+            for zeros, size in enumerate(xrange(num_actions - 1, -1, -1), 1):
+                column = tf.pad(tensor=l_entries[:, offset: offset + size], paddings=((0, 0), (zeros, 0)))
+                l_columns.append(column)
+                offset += size
+            l_matrix += tf.stack(values=l_columns, axis=1)
 
-            if num_actions > 1:
-                offset = num_actions
-                l_columns = list()
-                for zeros, size in enumerate(xrange(num_actions - 1, -1, -1), 1):
-                    column = tf.pad(tensor=l_entries[:, offset: offset + size], paddings=((0, 0), (zeros, 0)))
-                    l_columns.append(column)
-                    offset += size
-                l_matrix += tf.stack(values=l_columns, axis=1)
+        # P = LL^T
+        p_matrix = tf.matmul(a=l_matrix, b=tf.transpose(a=l_matrix, perm=(0, 2, 1)))
 
-            # P = LL^T
-            p_matrix = tf.matmul(a=l_matrix, b=tf.transpose(a=l_matrix, perm=(0, 2, 1)))
+        flat_action = list()
+        for name in sorted(self.action):
+            shape = config.actions[name].shape
+            flat_action.append(tf.reshape(tensor=self.action[name], shape=(-1, util.prod(shape))))
+        flat_action = tf.concat(values=flat_action, axis=1)
+        difference = flat_action - flat_mean
 
-            flat_action = list()
-            for name in sorted(self.action):
-                shape = config.actions[name].shape
-                flat_action.append(tf.reshape(tensor=self.action[name], shape=(-1, util.prod(shape))))
-            flat_action = tf.concat(values=flat_action, axis=1)
-            difference = flat_action - flat_mean
+        # A = -0.5 (a - mean)P(a - mean)
+        advantage = tf.matmul(a=p_matrix, b=tf.expand_dims(input=difference, axis=2))
+        advantage = tf.matmul(a=tf.expand_dims(input=difference, axis=1), b=advantage)
+        advantage = tf.squeeze(input=(-advantage / 2.0), axis=2)
 
-            # A = -0.5 (a - mean)P(a - mean)
-            advantage = tf.matmul(a=p_matrix, b=tf.expand_dims(input=difference, axis=2))
-            advantage = tf.matmul(a=tf.expand_dims(input=difference, axis=1), b=advantage)
-            advantage = tf.squeeze(input=(-advantage / 2.0), axis=2)
+        # Q = A + V
+        # State-value function
+        value = layers['linear'](x=self.training_network.output, size=num_actions)
+        q_value = value + advantage
 
-            # Q = A + V
-            # State-value function
-            value = layers['linear'](x=self.training_network.output, size=num_actions)
-            q_value = value + advantage
-            training_output_vars = tf.contrib.framework.get_variables(scope=scope)
+        q_values = dict()
+        n = 0
+        for name in sorted(self.action):
+            shape = (-1,) + config.actions[name].shape
+            flat_size = util.prod(shape[1:])
+            q_values[name] = tf.reshape(tensor=q_value[:, n: n + flat_size], shape=shape)
+            n += flat_size
+        return q_values
 
-        with tf.variable_scope('target'):
-            network_builder = util.get_function(fct=config.network)
-            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
-            self.internal_inputs.extend(self.target_network.internal_inputs)
-            self.internal_outputs.extend(self.target_network.internal_outputs)
-            self.internal_inits.extend(self.target_network.internal_inits)
+    def create_target_operations(self, config):
+        # State-value function
+        num_actions = sum(util.prod(config.actions[name].shape) for name in sorted(self.action))
+        target_value = layers['linear'](x=self.target_network.output, size=num_actions)
 
-        with tf.variable_scope('target_outputs') as scope:
-            # State-value function
-            target_value = layers['linear'](x=self.target_network.output, size=num_actions)
-            target_output_vars = tf.contrib.framework.get_variables(scope=scope)
-
-        with tf.name_scope('update'):
-            reward = tf.expand_dims(input=self.reward[:-1], axis=1)
-            terminal = tf.expand_dims(input=tf.cast(x=self.terminal[:-1], dtype=tf.float32), axis=1)
-            q_target = reward + (1.0 - terminal) * config.discount * target_value[1:]
-            delta = q_target - q_value[:-1]
-            delta = tf.reduce_mean(input_tensor=delta, axis=1)
-            self.loss_per_instance = tf.square(x=delta)
-
-            # We observe issues with numerical stability in some tests, gradient clipping can help
-            if config.clip_gradients > 0.0:
-                huber_loss = tf.where(condition=(tf.abs(delta) < config.clip_gradients), x=(0.5 * self.loss_per_instance), y=(tf.abs(delta) - 0.5))
-                loss = tf.reduce_mean(input_tensor=huber_loss, axis=0)
-            else:
-                loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
-            tf.losses.add_loss(loss)
-
-        with tf.name_scope('update_target'):
-            # Combine hidden layer variables and output layer variables
-            training_vars = self.training_network.variables + training_output_vars
-            target_vars = self.target_network.variables + target_output_vars
-
-            self.target_network_update = list()
-            for v_source, v_target in zip(training_vars, target_vars):
-                update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
-                self.target_network_update.append(update)
-
-    def update_target(self):
-        """
-        Updates target network.
-
-        :return:
-        """
-        self.session.run(self.target_network_update)
+        target_values = dict()
+        n = 0
+        for name in sorted(self.action):
+            shape = (-1,) + config.actions[name].shape
+            flat_size = util.prod(shape[1:])
+            target_values[name] = tf.reshape(tensor=target_value[:, n: n + flat_size], shape=shape)
+            n += flat_size
+        return target_values

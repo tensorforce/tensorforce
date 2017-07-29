@@ -59,34 +59,55 @@ class Replay(Memory):
             self.size += 1
         self.index = (self.index + 1) % self.capacity
 
-    def get_batch(self, batch_size):
+    def get_batch(self, batch_size, next_states=False):
         """
         Samples a batch of the specified size by selecting a random start/end point and returning
         the contained sequence or random indices depending on the field 'random_sampling'
         
         Args:
-            batch_size: Length of the sampled sequence.
+            batch_size: The batch size
+            next_states: A boolean flag indicating whether 'next_states' values should be included
 
-        Returns: A dict containing states, rewards, terminals and internal states
+        Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
 
         """
         if self.random_sampling:
             indices = np.random.randint(self.size, size=batch_size)
+            states = {name: state.take(indices, axis=0) for name, state in self.states.items()}
+            actions = {name: action.take(indices, axis=0) for name, action in self.actions.items()}
+            rewards = self.rewards.take(indices)
+            terminals = self.terminals.take(indices)
+            internals = [internal.take(indices, axis=0) for internal in self.internals]
+            if next_states:
+                indices = (indices + 1) % self.capacity
+                next_states = {name: state.take(indices, axis=0) for name, state in self.states.items()}
+
         else:
             end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
             start = (end - batch_size) % self.capacity
-            if start < end:
-                indices = list(xrange(start, end))
-            else:
-                indices = list(xrange(start, self.capacity)) + list(xrange(0, end))
 
-        return dict(
-            states={name: state.take(indices, axis=0) for name, state in self.states.items()},
-            actions={name: action.take(indices, axis=0) for name, action in self.actions.items()},
-            rewards=self.rewards.take(indices),
-            terminals=self.terminals.take(indices),
-            internals=[internal.take(indices, axis=0) for internal in self.internals]
-        )
+            if start < end:
+                states = {name: state[start:end] for name, state in self.states.items()}
+                actions = {name: action[start:end] for name, action in self.actions.items()}
+                rewards = self.rewards[start:end]
+                terminals = self.terminals[start:end]
+                internals = [internal[start:end] for internal in self.internals]
+                if next_states:
+                    next_states = {name: state[start + 1: end + 1] for name, state in self.states.items()}
+
+            else:
+                states = {name: np.concatenate((state[start:], state[:end])) for name, state in self.states.items()}
+                actions = {name: np.concatenate((action[start:], action[:end])) for name, action in self.actions.items()}
+                rewards = np.concatenate((self.rewards[start:], self.rewards[:end]))
+                terminals = np.concatenate((self.terminals[start:], self.terminals[:end]))
+                internals = [np.concatenate((internal[start:], internal[:end])) for internal in self.internals]
+                if next_states:
+                    next_states = {name: np.concatenate((state[start + 1:], state[:end + 1])) for name, state in self.states.items()}
+
+        batch = dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
+        if next_states:
+            batch['next_states'] = next_states
+        return batch
 
     def update_batch(self, loss_per_instance):
         pass

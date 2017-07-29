@@ -31,7 +31,17 @@ class Memory(object):
     def add_observation(self, state, action, reward, terminal, internal):
         raise NotImplementedError
 
-    def get_batch(self, batch_size):
+    def get_batch(self, batch_size, next_states=False):
+        """
+        Samples a batch from the memory
+
+        Args:
+            batch_size: The batch size
+            next_states: A boolean flag indicating whether 'next_states' values should be included
+
+        Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
+
+        """
         raise NotImplementedError
 
     def update_batch(self, loss_per_instance):

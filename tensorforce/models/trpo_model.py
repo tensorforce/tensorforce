@@ -205,9 +205,10 @@ class TRPOModel(PolicyGradientModel):
         surrogate_loss, kl_divergence, entropy, loss_per_instance = self.session.run(self.losses, self.feed_dict)
 
         # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
-        self.logger.debug('Surrogate loss = ' + str(surrogate_loss))
-        self.logger.debug('KL-divergence after update = ' + str(kl_divergence))
-        self.logger.debug('Entropy = ' + str(entropy))
+        self.logger.debug('Surrogate loss = {}'.format(surrogate_loss))
+        self.logger.debug('KL-divergence after update = {}' .format(kl_divergence))
+        self.logger.debug('Entropy = {}'.format(entropy))
+
         return (surrogate_loss, kl_divergence, entropy), loss_per_instance
 
     def compute_fvp(self, p):

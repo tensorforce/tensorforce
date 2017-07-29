@@ -262,6 +262,9 @@ class Model(object):
             loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:3]
         else:
             loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:]
+
+        self.logger.debug('Computed update with loss = {}.'.format(loss))
+
         return loss, loss_per_instance
 
     def load_model(self, path):

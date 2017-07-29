@@ -14,7 +14,8 @@
 # ==============================================================================
 
 """
-Creates neural networks from a configuration dict.
+Creates neural networks from a network_builder, which creates layered networks by creating
+and stacking layers either according to layer configs or through a custom function.
 """
 
 from __future__ import absolute_import
@@ -28,12 +29,13 @@ class NeuralNetwork(object):
 
     def __init__(self, network_builder, inputs):
         """
-        A neural network.
 
-        :param inputs: TF input placeholders
-        :return: A TensorFlow network
+        Args:
+            network_builder: A network_builder function representing the desired network configuration
+            inputs: Input placeholders to the network
         """
         network = network_builder(inputs)
+
         if isinstance(network, tf.Tensor):
             self.output = network
             self.internal_inputs = []
@@ -45,4 +47,5 @@ class NeuralNetwork(object):
             self.internal_inputs = network[1]
             self.internal_outputs = network[2]
             self.internal_inits = network[3]
+
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=tf.get_variable_scope().name)

@@ -113,7 +113,7 @@ class TestDQFDAgent(unittest.TestCase):
             for n in xrange(50):
                 if terminal:
                     state = environment.reset()
-                action = dict(action0=1, action1=(1, 1), action2=((1, 1),))
+                action = dict(action0=1, action1=(1, 1))
                 state, reward, terminal = environment.execute(action=action)
                 demonstration = dict(state=state, action=action, reward=reward, terminal=terminal, internal=[])
                 demonstrations.append(demonstration)

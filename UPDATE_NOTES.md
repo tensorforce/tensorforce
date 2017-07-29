@@ -5,11 +5,17 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+29th July 2017
+
+- Added `QModel` as base class for DQN (hence DQFD) and NAF
+- Added `next_state` placeholder to `QModel`, and boolean flag to `Memory.get_batch` to include next states
+
+
 28th July 2017
 
-- Moved external environments to tensorforce/contrib. The environment module just contains the base environment 
-  class and our test environment going forward.
+- Moved external environments to tensorforce/contrib. The environment module just contains the base environment  class and our test environment going forward
 - Merged environments ALE and Maze explorer, thanks to Islandman93 and mryellow
+
 
 25th July 2017
 

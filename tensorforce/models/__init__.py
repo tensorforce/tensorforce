@@ -20,6 +20,7 @@ from tensorforce.models.trpo_model import TRPOModel
 from tensorforce.models.dqn_model import DQNModel
 from tensorforce.models.naf_model import NAFModel
 from tensorforce.models.dqfd_model import DQFDModel
+from tensorforce.models.categorical_dqn_model import CategoricalDQNModel
 
 
 models = dict(
@@ -27,8 +28,10 @@ models = dict(
     TRPOModel=TRPOModel,
     DQNModel=DQNModel,
     NAFModel=NAFModel,
-    DQFDModel=DQFDModel
+    DQFDModel=DQFDModel,
+    CategoricalDQNModel=CategoricalDQNModel,
 )
 
 
-__all__ = ['Model', 'PolicyGradientModel', 'VPGModel', 'TRPOModel', 'DQNModel', 'NAFModel', 'DQFDModel', 'models']
+__all__ = ['Model', 'PolicyGradientModel', 'VPGModel', 'TRPOModel', 'DQNModel', 'NAFModel', 'DQFDModel',
+           'CategoricalDQNModel', 'models']

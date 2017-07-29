@@ -28,7 +28,8 @@ class EpsilonAnneal(Exploration):
 
     def __call__(self, episode=0, timestep=0):
         # TODO: Trim by length of `first_update`, removing steps with no learning.
-        offset = 0 # self.first_update
+        offset = 0  # self.first_update
+
         self.epsilon = min(1.0, max(
             self.epsilon_final,
             1.0 - (timestep - offset) / (self.epsilon_timesteps - offset)

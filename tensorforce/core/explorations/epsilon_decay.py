@@ -32,4 +32,5 @@ class EpsilonDecay(Exploration):
             self.epsilon = self.epsilon_final
         else:
             self.epsilon -= ((self.epsilon - self.epsilon_final) / self.epsilon_timesteps) * timestep
+
         return self.epsilon

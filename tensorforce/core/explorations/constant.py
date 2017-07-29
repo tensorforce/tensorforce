@@ -21,5 +21,5 @@ class Constant(Exploration):
     def __init__(self, constant=0.0):
         self.constant = constant
 
-    def __call__(self, episodes=0, timesteps=0):
+    def __call__(self, episode=0, timestep=0):
         return self.constant

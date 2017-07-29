@@ -51,7 +51,7 @@ class Gaussian(Distribution):
             bias = [self.mean for _ in range(flat_size)]
         else:
             bias = self.mean
-        self.mean = layers['linear'](x=x, size=flat_size, bias=bias)
+        self.mean = layers['linear'](x=x, size=flat_size, bias=bias, weights=0.)
         self.mean = tf.reshape(tensor=self.mean, shape=((-1,) + self.shape))
         # self.mean = tf.squeeze(input=self.mean, axis=1)
         if isinstance(self.log_stddev, float):

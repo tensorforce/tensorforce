@@ -34,12 +34,31 @@ from tensorforce import TensorForceError, util
 
 
 def flatten(x):
+    """Flatten layer.
+
+    Args:
+        x: Input tensor
+
+    Returns: Input tensor reshaped to 1d tensor
+
+    """
     with tf.variable_scope('flatten'):
         x = tf.reshape(tensor=x, shape=(-1, util.prod(x.get_shape().as_list()[1:])))
+
     return x
 
 
 def nonlinearity(x, name='relu'):
+    """ Applies a non-linearity to an input and returns the result.
+
+    Args:
+        x: Input tensor
+        name: String identifier of non-linearity. Options: elu, relu, selu, sigmoid,
+        softmax, tanh
+
+    Returns:
+
+    """
     with tf.variable_scope('nonlinearity'):
         if name == 'elu':
             x = tf.nn.elu(features=x)
@@ -58,72 +77,145 @@ def nonlinearity(x, name='relu'):
         elif name == 'tanh':
             x = tf.nn.tanh(x=x)
         else:
-            raise TensorForceError('Invalid nonlinearity.')
+            raise TensorForceError('Invalid non-linearity: {}'.format(name))
+
     return x
 
 
-def linear(x, size, bias=True, l2_regularization=0.0):
-    if util.rank(x) != 2:
-        raise TensorForceError('Invalid input rank for linear layer.')
+def linear(x, size, bias=True, l2_regularization=0.0, weights=None):
+    """
+    Linear layer.
+
+    Args:
+        x: Input tensor. Must be rank 2
+        size: Neurons in layer
+        bias: Bool, indicates whether bias is used
+        l2_regularization: L2-regularisation value
+        weights: Weights for layer. If none, initialisation defaults to Xavier (normal with
+        size/shape dependent standard deviation).
+
+    Returns:
+
+    """
+    input_rank = util.rank(x)
+    if input_rank != 2:
+        raise TensorForceError('Invalid input rank for linear layer: {},'
+                               ' must be 2.'.format(input_rank))
+
     with tf.variable_scope('linear'):
-        if isinstance(bias, bool):
-            shape = (x.shape[1].value, size)
+        shape = (x.shape[1].value, size)
+        if weights is None:
             stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + size)))
             weights = tf.random_normal(shape=shape, stddev=stddev)
+        elif np.isscalar(weights):
+            weights = np.full(shape, weights, dtype=np.float32)
+
+        if isinstance(bias, bool):
             bias = tf.zeros(shape=(size,)) if bias else None
-        else:
-            weights = tf.zeros(shape=(x.shape[1].value, size))
-            if len(bias) != size:
-                raise TensorForceError('Given bias has the wrong size.')
-        weights = tf.Variable(initial_value=weights)
+        elif len(bias) != size:
+            raise TensorForceError('Bias size {} does not match size parameter {} '
+                                   .format(len(bias), size))
+
+        weights = tf.Variable(initial_value=weights, expected_shape=shape)
+
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
+            
         x = tf.matmul(a=x, b=weights)
+
         if bias is not None:
             bias = tf.Variable(initial_value=bias)
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             x = tf.nn.bias_add(value=x, bias=bias)
+
     return x
 
 
 def dense(x, size, bias=True, activation='relu', l2_regularization=0.0):
-    if util.rank(x) != 2:
-        raise TensorForceError('Invalid input rank for dense layer.')
+    """
+    Fully connected layer.
+
+    Args:
+        x: Input tensor
+        size: Neurons in layer
+        bias: Bool, indicates whether bias is used
+        activation: Non-linearity type, defaults to relu
+        l2_regularization: L2-regularisation value
+
+    Returns:
+
+    """
+    input_rank = util.rank(x)
+    if input_rank != 2:
+        raise TensorForceError('Invalid input rank for linear layer: {},'
+                               ' must be 2.'.format(input_rank))
+
     with tf.variable_scope('dense'):
         x = linear(x=x, size=size, bias=bias, l2_regularization=l2_regularization)
         x = nonlinearity(x=x, name=activation)
+
     return x
 
 
 def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regularization=0.0):
-    if util.rank(x) != 4:
-        raise TensorForceError('Invalid input rank for conv2d layer.')
+    """A 2d convolutional layer.
+
+    Args:
+        x: Input tensor. Must be rank 4
+        size: Neurons
+        window: Filter window size
+        stride: Filter stride
+        bias: Bool, indicates whether bias is used
+        activation: Non-linearity type, defaults to relu
+        l2_regularization: L2-regularisation value
+
+    Returns:
+
+    """
+    input_rank = util.rank(x)
+    if input_rank != 4:
+        raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 4'.format(input_rank))
+
     with tf.variable_scope('conv2d'):
         shape = (window, window, x.shape[3].value, size)
         stddev = min(0.1, sqrt(2.0 / size))
         filters = tf.Variable(initial_value=tf.random_normal(shape=shape, stddev=stddev))
+
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
+
         strides = (1, stride, stride, 1)
         x = tf.nn.conv2d(input=x, filter=filters, strides=strides, padding='SAME')
+
         if bias:
             bias = tf.Variable(initial_value=tf.zeros(shape=(size,)))
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             x = tf.nn.bias_add(value=x, bias=bias)
+
         x = nonlinearity(x=x, name=activation)
+
     return x
 
 
 def lstm(x, size=None):
     """
-    Creates an LSTM layer.
+
+    Args:
+        x: Input tensor.
+        size: Layer size, defaults to input size.
+
+    Returns:
+
     """
-    if util.rank(x) != 2:
-        raise TensorForceError('Invalid input rank for lstm layer.')
+    input_rank = util.rank(x)
+    if input_rank != 2:
+        raise TensorForceError('Invalid input rank for lstm layer: {},'
+                               ' must be 2.'.format(input_rank))
     if not size:
         size = x.get_shape()[1].value
+
     with tf.variable_scope('lstm'):
         internal_input = tf.placeholder(dtype=tf.float32, shape=(None, 2, size))
         lstm = tf.contrib.rnn.LSTMCell(num_units=size)
@@ -131,8 +223,10 @@ def lstm(x, size=None):
         h = internal_input[:, 1, :]
         state = tf.contrib.rnn.LSTMStateTuple(c=c, h=h)
         x, state = lstm(inputs=x, state=state)
+
         internal_output = tf.stack(values=(state.c, state.h), axis=1)
         internal_init = np.zeros(shape=(2, size))
+
     return x, (internal_input,), (internal_output,), (internal_init,)
 
 
@@ -147,16 +241,22 @@ layers = {
 
 
 def layered_network_builder(layers_config):
-    """
-    Returns a function defining a layered neural network according to the given configuration.
+    """Returns a function defining a layered neural network according to the given configuration.
 
-    :param layers: Dict that describes a neural network layer-wise
-    :return: A function defining a TensorFlow network
+
+    Args:
+        layers_config: Iterable of layer configuration dicts.
+
+    Returns:
+
     """
 
     def network_builder(inputs):
-        if len(inputs) != 1:
-            raise TensorForceError('Layered network must have only one input.')
+        input_length = len(inputs)
+
+        if input_length != 1:
+            raise TensorForceError('Layered network must have only one input,'
+                                   ' input length {} given.'.format(input_length))
         x = next(iter(inputs.values()))
         internal_inputs = []
         internal_outputs = []
@@ -184,7 +284,16 @@ def layered_network_builder(layers_config):
 
 
 def from_json(filename):
+    """Creates a layer_networkd_builder from a JSON.
+
+    Args:
+        filename: Path to configuration
+
+    Returns: A layered_network_builder function with layers generated from the JSON
+
+    """
     path = os.path.join(os.getcwd(), filename)
     with open(path, 'r') as fp:
         config = json.load(fp=fp)
+
     return layered_network_builder(config)

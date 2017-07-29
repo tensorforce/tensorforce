@@ -21,6 +21,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from six.moves import xrange
 import tensorflow as tf
 
 from tensorforce import util
@@ -30,8 +31,17 @@ from tensorforce.core.baselines import Baseline
 
 class MLPBaseline(Baseline):
 
-    def __init__(self, size, repeat_update=100):
+    def __init__(self, size, hidden_layers=2, repeat_update=100):
+        """Multilayer-perceptron baseline value function.
+
+        Args:
+            size: Number of neurons per hidden layer
+            hidden_layers: Number of hidden layers in the base line
+            repeat_update: Epochs over the training data to fit the baseline
+        """
+
         self.size = size
+        self.hidden_layers = hidden_layers
         self.repeat_update = repeat_update
         self.session = None
 
@@ -43,25 +53,29 @@ class MLPBaseline(Baseline):
             self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(next(iter(config.states))[1].shape)))
             self.returns = tf.placeholder(dtype=tf.float32, shape=(None,))
 
-            network_builder = layered_network_builder((
-                {'type': 'dense', 'size': self.size},
-                {'type': 'dense', 'size': self.size},
-                {'type': 'linear', 'size': 1})
-            )
+            layers = []
+            for _ in xrange(self.hidden_layers):
+                layers.append({'type': 'dense', 'size': self.size})
 
-            network = NeuralNetwork(network_builder=network_builder, inputs=dict(state=self.state))
+            layers.append({'type': 'linear', 'size': 1})
+            network = NeuralNetwork(network_builder=layered_network_builder(layers),
+                                    inputs=dict(state=self.state))
 
             self.prediction = network.output
             loss = tf.nn.l2_loss(self.prediction - self.returns)
 
             optimizer = tf.train.AdamOptimizer(learning_rate=config.learning_rate)
+
             self.optimize = optimizer.minimize(loss)
 
     def predict(self, states):
         states = next(iter(states.values()))
+
         return self.session.run(self.prediction, {self.state: states})[0]
 
     def update(self, states, returns):
+        #TODO could do sampling here
         states = next(iter(states.values()))
+
         for _ in range(self.repeat_update):
             self.session.run(self.optimize, {self.state: states, self.returns: returns})

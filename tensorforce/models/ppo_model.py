@@ -40,7 +40,7 @@ class PPOModel(PolicyGradientModel):
         loss_clipping=0.1,  # Trust region clipping
         epochs=10,  # Number of training epochs for SGD,
         optimizer_batch_size=100,  # Batch size for optimiser
-        random_sampling=True # Sampling strategy for replay memory
+        random_sampling=True  # Sampling strategy for replay memory
     )
 
     def __init__(self, config):
@@ -155,7 +155,7 @@ class PPOModel(PolicyGradientModel):
             # self.surrogate_loss, self.entropy_penalty, self.kl_divergence
             loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:3]
 
-            #self.logger.debug('Loss = {}'.format(loss))
+            self.logger.debug('Loss = {}'.format(loss))
             #self.logger.debug('KL divergence = {}'.format(kl_divergence))
             #self.logger.debug('Entropy = {}'.format(entropy))
 

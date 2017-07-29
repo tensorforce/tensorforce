@@ -35,6 +35,7 @@ agent = TRPOAgent(config=Configuration(
     baseline=dict(
         type='mlp',
         size=32,
+        hidden_layers=2,
         repeat_update=100
     ),
     generalized_advantage_estimation=True,

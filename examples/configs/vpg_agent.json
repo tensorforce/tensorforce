@@ -13,7 +13,8 @@
 
   "baseline": {
     "type": "mlp",
-    "size": 100,
+    "size": 32,
+    "hidden_layers": 2,
     "repeat_update": 100
   },
   "generalized_advantage_estimation": false,

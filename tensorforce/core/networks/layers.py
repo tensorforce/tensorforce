@@ -175,7 +175,7 @@ def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regula
     """
     input_rank = util.rank(x)
     if input_rank != 4:
-        raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 4'.format(input()))
+        raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 4'.format(input_rank))
 
     with tf.variable_scope('conv2d'):
         shape = (window, window, x.shape[3].value, size)

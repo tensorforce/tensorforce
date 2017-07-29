@@ -70,7 +70,7 @@ class NAFModel(Model):
             lower_triangular_size = num_actions * (num_actions + 1) // 2
             l_entries = layers['linear'](x=self.training_network.output, size=lower_triangular_size)
 
-            l_matrix = tf.exp(x=tf.map_fn(fn=tf.diag, elems=l_entries[:, :num_actions]))
+            l_matrix = tf.exp(x=tf.map_fn(fn=tf.diag, elems=l_entries[:, :num_actions])) + util.epsilon
 
             if num_actions > 1:
                 offset = num_actions

@@ -88,11 +88,10 @@ class TestDQFDAgent(unittest.TestCase):
             layer = layers['dense']
             state0 = layer(x=layer(x=inputs['state0'], size=32), size=32)
             state1 = layer(x=layer(x=inputs['state1'], size=32), size=32)
-            state2 = layer(x=layer(x=inputs['state2'], size=32), size=32)
-            return state0 * state1 * state2
+            return state0 * state1
 
         for _ in xrange(5):
-            environment = MinimalTest(definition=[False, (False, 2), (False, (1, 2))])
+            environment = MinimalTest(definition=[False, (False, 2)])
             config = Configuration(
                 batch_size=8,
                 learning_rate=0.001,

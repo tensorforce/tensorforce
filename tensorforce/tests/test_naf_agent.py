@@ -54,14 +54,13 @@ class TestNAFAgent(unittest.TestCase):
             layer = layers['dense']
             state0 = layer(x=layer(x=inputs['state0'], size=32), size=32)
             state1 = layer(x=layer(x=inputs['state1'], size=32), size=32)
-            state2 = layer(x=layer(x=inputs['state2'], size=32), size=32)
-            return state0 * state1 * state2
+            return state0 * state1
 
         for _ in xrange(5):
-            environment = MinimalTest(definition=[True, (True, 2), (True, (1, 2))])
+            environment = MinimalTest(definition=[True, (True, 2)])
             config = Configuration(
-                batch_size=8,
-                learning_rate=0.001,
+                batch_size=16,
+                learning_rate=0.00025,
                 exploration=dict(
                     type='ornstein_uhlenbeck'
                 ),
@@ -78,10 +77,10 @@ class TestNAFAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 20 or not all(x >= 1.0 for x in r.episode_rewards[-20:])
 
-            runner.run(episodes=2000, episode_finished=episode_finished)
+            runner.run(episodes=10000, episode_finished=episode_finished)
             print('NAF agent (multi-state/action): ' + str(runner.episode))
-            if runner.episode < 2000:
+            if runner.episode < 10000:
                 passed += 1
 
         print('NAF agent (multi-state/action) passed = {}'.format(passed))
-        self.assertTrue(passed >= 0)
+        self.assertTrue(passed >= 4)

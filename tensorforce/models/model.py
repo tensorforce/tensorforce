@@ -49,7 +49,6 @@ class Model(object):
     * `learning_rate`: float of learning rate (alpha).
     * `optimizer`: string of optimizer to use (e.g. 'adam').
     * `device`: string of tensorflow device name.
-    * `tf_saver`: boolean whether to save model parameters.
     * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
     * `log_level`: string containing logleve (e.g. 'info').
     * `distributed`: boolean indicating whether to use distributed tensorflow.
@@ -65,7 +64,6 @@ class Model(object):
         learning_rate=0.0001,
         optimizer='adam',
         device=None,
-        tf_saver=False,
         tf_summary=None,
         log_level='info',
         distributed=False,

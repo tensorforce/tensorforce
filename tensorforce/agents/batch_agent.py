@@ -47,9 +47,9 @@ class BatchAgent(Agent):
 
     def __init__(self, config):
         config.default(BatchAgent.default_config)
-        super(BatchAgent, self).__init__(config)
         self.batch_size = config.batch_size
         self.batch = None
+        super(BatchAgent, self).__init__(config)
 
     def observe(self, reward, terminal):
         """

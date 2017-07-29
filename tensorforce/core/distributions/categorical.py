@@ -53,10 +53,7 @@ class Categorical(Distribution):
 
     def create_tf_operations(self, x, deterministic):
         flat_size = util.prod(self.shape) * self.num_actions
-        if len(self.probabilities) < flat_size:
-            bias = [prob for _ in range(util.prod(self.shape)) for prob in self.probabilities]
-        else:
-            bias = self.probabilities
+        bias = [prob for _ in range(util.prod(self.shape)) for prob in self.probabilities]
         logits = layers['linear'](x=x, size=flat_size, bias=bias)
         logits = tf.reshape(tensor=logits, shape=((-1,) + self.shape + (self.num_actions,)))
         self.probabilities = tf.nn.softmax(logits=logits)

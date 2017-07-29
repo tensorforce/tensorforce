@@ -54,7 +54,6 @@ class NAFAgent(MemoryAgent):
     * `learning_rate`: float of learning rate (alpha).
     * `optimizer`: string of optimizer to use (e.g. 'adam').
     * `device`: string of tensorflow device name.
-    * `tf_saver`: boolean whether to save model parameters.
     * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
     * `log_level`: string containing logleve (e.g. 'info').
     * `distributed`: boolean indicating whether to use distributed tensorflow.

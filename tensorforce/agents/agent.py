@@ -23,7 +23,7 @@ from six.moves import xrange
 from random import random
 import numpy as np
 
-from tensorforce import util
+from tensorforce import util, TensorForceError
 from tensorforce.core.preprocessing import Preprocessing
 from tensorforce.core.explorations import Exploration
 
@@ -147,6 +147,10 @@ class Agent(object):
         self.actions_config = config.actions
 
         self.model = self.__class__.model(config)
+
+        not_accessed = config.not_accessed()
+        if not_accessed:
+            raise TensorForceError("Configuration values not accessed: {}".format(', '.join(not_accessed)))
 
         self.episode = -1
         self.timestep = 0

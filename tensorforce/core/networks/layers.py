@@ -82,14 +82,15 @@ def nonlinearity(x, name='relu'):
     return x
 
 
-def linear(x, size, bias=True, l2_regularization=0.0, weights=None):
+def linear(x, size, weights=None, bias=True, l2_regularization=0.0):
     """
     Linear layer.
 
     Args:
         x: Input tensor. Must be rank 2
         size: Neurons in layer
-        bias: Bool, indicates whether bias is used
+        weights: None for random matrix, otherwise given float or array is used.
+        bias: Bool to indicate whether bias is used, otherwise given float or array is used.
         l2_regularization: L2-regularisation value
         weights: Weights for layer. If none, initialisation defaults to Xavier (normal with
         size/shape dependent standard deviation).
@@ -107,24 +108,34 @@ def linear(x, size, bias=True, l2_regularization=0.0, weights=None):
         if weights is None:
             stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + size)))
             weights = tf.random_normal(shape=shape, stddev=stddev)
-        elif np.isscalar(weights):
+        elif isinstance(weights, float):
             weights = np.full(shape, weights, dtype=np.float32)
+        else:
+            weights = np.asarray(weights, dtype=np.float32)
+            if weights.shape != shape:
+                raise TensorForceError('Weights shape {} does not match expected shape {} '
+                                       .format(weights.shape, shape))
 
+        shape = (size,)
         if isinstance(bias, bool):
-            bias = tf.zeros(shape=(size,)) if bias else None
-        elif len(bias) != size:
-            raise TensorForceError('Bias size {} does not match size parameter {} '
-                                   .format(len(bias), size))
+            bias = tf.zeros(shape=shape) if bias else None
+        elif isinstance(bias, float):
+            bias = np.full(shape, bias, dtype=np.float32)
+        else:
+            bias = np.asarray(bias, dtype=np.float32)
+            if bias.shape != shape:
+                raise TensorForceError('Bias shape {} does not match expected shape {} '
+                                       .format(bias.shape, shape))
 
-        weights = tf.Variable(initial_value=weights, expected_shape=shape)
+        weights = tf.Variable(initial_value=weights, dtype=tf.float32)
 
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
-            
+
         x = tf.matmul(a=x, b=weights)
 
         if bias is not None:
-            bias = tf.Variable(initial_value=bias)
+            bias = tf.Variable(initial_value=bias, dtype=tf.float32)
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             x = tf.nn.bias_add(value=x, bias=bias)

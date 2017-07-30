@@ -45,7 +45,9 @@ class TestQuickstartExample(unittest.TestCase):
                 baseline=dict(
                     type='mlp',
                     size=32,
-                    repeat_update=100
+                    hidden_layers=1,
+                    epochs=20,
+                    update_batch_size=32
                 ),
                 override_line_search=False,
                 generalized_advantage_estimation=True,

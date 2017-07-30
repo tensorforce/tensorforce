@@ -10,3 +10,5 @@
 /docs/_*
 tf_worker_*.txt
 .DS_Store
+*.eggs
+*.vscode

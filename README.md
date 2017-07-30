@@ -45,16 +45,17 @@ TensorForce currently integrates with the OpenAI Gym API, OpenAI
 Universe, DeepMind lab, ALE and Maze explorer. The following algorithms are available (all
 policy methods both continuous/discrete):
 
-1.  A3C using distributed TensorFlow - now as part of our generic Model
+-  A3C using distributed TensorFlow - now as part of our generic Model
     usable with different agents
-2.  Trust Region Policy Optimization (TRPO) with generalised advantage
+-  Trust Region Policy Optimization (TRPO) with generalised advantage
     estimation (GAE)
-3.  Normalised Advantage functions (NAFs)
-4.  DQN/Double-DQN
-5.  Vanilla Policy Gradients (VPG)
-6.  Deep Q-learning from Demonstration (DQFD) -
+-  Normalised Advantage functions (NAFs)
+-  DQN/Double-DQN
+-  Vanilla Policy Gradients (VPG)
+-  Deep Q-learning from Demonstration (DQFD) -
     [paper](https://arxiv.org/abs/1704.03732)
-7.  Proximal Policy Optimisation (PPO)  - [paper](https://arxiv.org/abs/1707.06347)
+-  Proximal Policy Optimisation (PPO) - [paper](https://arxiv.org/abs/1707.06347)
+-  Categorical DQN - [paper](https://arxiv.org/abs/1707.06887) 
 
 Installation
 ------------

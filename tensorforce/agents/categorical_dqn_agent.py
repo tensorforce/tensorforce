@@ -78,5 +78,5 @@ class CategoricalDQNAgent(DQNAgent):
     model = CategoricalDQNModel
 
     def __init__(self, config, model=None):
-        config.default(DQNAgent.default_config, model)
-        super(CategoricalDQNAgent, self).__init__(config)
+        config.default(DQNAgent.default_config)
+        super(CategoricalDQNAgent, self).__init__(config, model)

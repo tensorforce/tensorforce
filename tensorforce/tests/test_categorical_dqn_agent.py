@@ -28,7 +28,7 @@ from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
 
 
-class TestDQNAgent(unittest.TestCase):
+class TestCategoricalDQNAgent(unittest.TestCase):
 
     def test_discrete(self):
         passed = 0
@@ -55,11 +55,11 @@ class TestDQNAgent(unittest.TestCase):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
             runner.run(episodes=1000, episode_finished=episode_finished)
-            print('DQN agent: ' + str(runner.episode))
+            print('Categorical DQN agent: ' + str(runner.episode))
             if runner.episode < 1000:
                 passed += 1
 
-        print('DQN agent passed = {}'.format(passed))
+        print('Categorical DQN agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
 
     def test_multi(self):
@@ -90,9 +90,9 @@ class TestDQNAgent(unittest.TestCase):
                 return r.episode < 15 or not all(x >= 1.0 for x in r.episode_rewards[-15:])
 
             runner.run(episodes=2000, episode_finished=episode_finished)
-            print('DQN agent (multi-state/action): ' + str(runner.episode))
+            print('Categorical DQN agent (multi-state/action): ' + str(runner.episode))
             if runner.episode < 2000:
                 passed += 1
 
-        print('DQN agent (multi-state/action) passed = {}'.format(passed))
+        print('Categorical DQN agent (multi-state/action) passed = {}'.format(passed))
         self.assertTrue(passed >= 2)

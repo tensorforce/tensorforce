@@ -132,12 +132,11 @@ class CategoricalDQNModel(Model):
 
         with tf.name_scope('update'):
             for action in self.action:
-                # -1 because we cut off the end
-                dynamic_batch_size = tf.shape(self.action[action])[0] - 1
+                dynamic_batch_size = tf.shape(self.action[action])[0]
                 # project onto the supports
                 # broadcast rewards and discounted quantization. Shape (batchsize, num_atoms). T_z_j in the paper
-                reward = tf.expand_dims(self.reward[:-1], axis=1)
-                terminal = tf.expand_dims(tf.cast(x=self.terminal[:-1], dtype=tf.float32), axis=1)
+                reward = tf.expand_dims(self.reward, axis=1)
+                terminal = tf.expand_dims(tf.cast(x=self.terminal, dtype=tf.float32), axis=1)
                 broadcasted_rewards = reward + (1.0 - terminal) * (quantized_steps * self.discount)
                 # clip into distribution_min, distribution_max
                 quantized_discounted_reward = tf.clip_by_value(broadcasted_rewards, self.distribution_min, self.distribution_max)
@@ -149,7 +148,7 @@ class CategoricalDQNModel(Model):
                 # vector magic here, create selections for later use
                 batch_selection = tf.range(0, dynamic_batch_size)
                 # tensorflow indexing is still not great, we stack these two and use gather_nd later
-                target_batch_action_selection = tf.stack((batch_selection, target_action[action][1:]), axis=1)
+                target_batch_action_selection = tf.stack((batch_selection, target_action[action]), axis=1)
                 # tile expects a tensor of same shape, we are just repeating the selection num_atoms times across the last dimension
                 batch_tiled_selection = tf.reshape(tf.tile(tf.reshape(batch_selection, (-1, 1)), [1, self.num_atoms]), [-1])
                 # combine with lower and upper ind, same as zip(flatten(batch_tiled_selection), flatten(lower_ind))
@@ -174,7 +173,7 @@ class CategoricalDQNModel(Model):
 
                 # now we have target probabilities loss is categorical cross entropy using logits
                 # compare to the actions we actually took
-                training_action_selection = tf.stack((batch_selection, self.action[action][1:]), axis=1)
+                training_action_selection = tf.stack((batch_selection, self.action[action]), axis=1)
                 logits_for_action = tf.gather_nd(training_output_logits[action], training_action_selection)
                 self.loss_per_instance = tf.nn.softmax_cross_entropy_with_logits(logits=logits_for_action, labels=target_quantized_probabilities)
                 loss = tf.reduce_mean(self.loss_per_instance)

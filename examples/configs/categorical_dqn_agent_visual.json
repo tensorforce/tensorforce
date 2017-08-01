@@ -24,13 +24,13 @@
   },
 
   "batch_size": 32,
-  "memory_capacity": 100000,
+  "memory_capacity": 10000,
   "memory": {
     "type": "replay",
     "random_sampling": true
   },
   "update_frequency": 1,
-  "first_update": 500,
+  "first_update": 50000,
   "repeat_update": 1,
 
   "target_update_frequency": 10000,
@@ -49,5 +49,5 @@
   "update_target_weight": 1.0,
   "distribution_min": -10,
   "distribution_max": 10,
-  "num_atoms": 5
+  "num_atoms": 51
 }

@@ -41,6 +41,9 @@ class TestPPOAgent(unittest.TestCase):
                 epochs=10,
                 optimizer_batch_size=10,
                 learning_rate=0.001,
+                generalized_advantage_estimation=True,
+                normalize_advantage=True,
+                gae_lambda=0.97,
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
@@ -116,7 +119,7 @@ class TestPPOAgent(unittest.TestCase):
                 loss_clipping=0.1,
                 epochs=10,
                 optimizer_batch_size=10,
-                learning_rate=0.001,
+                learning_rate=0.0005,
                 states=environment.states,
                 actions=environment.actions,
                 network=network_builder
@@ -127,9 +130,9 @@ class TestPPOAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 20 or not all(x >= 1.0 for x in r.episode_rewards[-20:])
 
-            runner.run(episodes=2000, episode_finished=episode_finished)
+            runner.run(episodes=5000, episode_finished=episode_finished)
             print('PPO agent (multi-state/action): ' + str(runner.episode))
-            if runner.episode < 2000:
+            if runner.episode < 5000:
                 passed += 1
 
         print('PPO agent (multi-state/action) passed = {}'.format(passed))

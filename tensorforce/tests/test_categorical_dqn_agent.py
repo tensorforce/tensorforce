@@ -37,7 +37,7 @@ class TestCategoricalDQNAgent(unittest.TestCase):
             environment = MinimalTest(definition=False)
             config = Configuration(
                 batch_size=8,
-                learning_rate=0.001,
+                learning_rate=0.0005,
                 memory_capacity=800,
                 first_update=80,
                 target_update_frequency=20,

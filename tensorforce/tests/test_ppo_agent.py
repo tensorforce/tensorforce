@@ -41,9 +41,6 @@ class TestPPOAgent(unittest.TestCase):
                 epochs=10,
                 optimizer_batch_size=10,
                 learning_rate=0.001,
-                generalized_advantage_estimation=True,
-                normalize_advantage=True,
-                gae_lambda=0.97,
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([

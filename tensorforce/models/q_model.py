@@ -43,7 +43,8 @@ class QModel(Model):
         """
         config.default(QModel.default_config)
         super(QModel, self).__init__(config)
-        # update target on init to make sure they are matched
+
+        # Synchronise target with training network
         self.update_target()
 
     def create_tf_operations(self, config):

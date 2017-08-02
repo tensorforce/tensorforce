@@ -39,10 +39,12 @@ class QModel(Model):
         """Training logic for DQN.
 
         Args:
-            config: 
+            config:
         """
         config.default(QModel.default_config)
         super(QModel, self).__init__(config)
+        # update target on init to make sure they are matched
+        self.update_target()
 
     def create_tf_operations(self, config):
         super(QModel, self).create_tf_operations(config)
@@ -83,7 +85,7 @@ class QModel(Model):
                     reward = tf.expand_dims(input=reward, axis=1)
                     terminal = tf.expand_dims(input=terminal, axis=1)
                 q_target = reward + (1.0 - terminal) * config.discount * self.target_values[name]
-                delta = q_target - self.q_values[name]
+                delta = tf.stop_gradient(q_target) - self.q_values[name]
                 delta = tf.reshape(tensor=delta, shape=(-1, util.prod(config.actions[name].shape)))
                 deltas.append(delta)
 

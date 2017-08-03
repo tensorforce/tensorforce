@@ -22,6 +22,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import time
+
 from six.moves import xrange
 import tensorflow as tf
 
@@ -119,6 +121,7 @@ class Runner(object):
         # save episode reward and length for statistics
         self.episode_rewards = []
         self.episode_lengths = []
+        self.episode_times = []
 
         self.total_timesteps = 0
         self.episode = 1
@@ -128,6 +131,7 @@ class Runner(object):
             episode_reward = 0
 
             self.timestep = 0
+            start_time = time.time()
             while True:
                 action = self.agent.act(state=state)
                 if self.repeat_actions > 1:
@@ -149,8 +153,11 @@ class Runner(object):
                 if terminal or self.timestep == max_timesteps:
                     break
 
+            time_passed = time.time() - start_time
+
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(self.timestep)
+            self.episode_times.append(time_passed)
 
             if self.save_path and self.save_episodes is not None and self.episode % self.save_episodes == 0:
                 print("Saving agent after episode {}".format(self.episode))

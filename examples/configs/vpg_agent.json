@@ -15,7 +15,8 @@
     "type": "mlp",
     "size": 32,
     "hidden_layers": 2,
-    "repeat_update": 100
+    "epochs": 5,
+    "update_batch_size" : 128
   },
   "generalized_advantage_estimation": false,
   "gae_lambda": 0.97,

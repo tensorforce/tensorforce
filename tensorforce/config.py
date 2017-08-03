@@ -93,6 +93,12 @@ class Configuration(object):
         else:
             self._config[key] = make_config_value(value)
 
+    def __getstate__(self):
+        return self._config
+
+    def __setstate__(self, d):
+        self._config = d
+
     def keys(self):
         return self._config.keys()
 

@@ -1,0 +1,53 @@
+{
+  "preprocessing": [
+    {
+      "type": "image_resize",
+      "width": 84,
+      "height": 84
+    },
+    {
+      "type": "grayscale"
+    },
+    {
+      "type": "center"
+    },
+    {
+      "type": "sequence",
+      "length": 4
+    }
+  ],
+  "exploration": {
+    "type": "epsilon_decay",
+    "epsilon": 1.0,
+    "epsilon_final": 0.1,
+    "epsilon_timesteps": 1e6
+  },
+
+  "batch_size": 32,
+  "memory_capacity": 10000,
+  "memory": {
+    "type": "replay",
+    "random_sampling": true
+  },
+  "update_frequency": 1,
+  "first_update": 50000,
+  "repeat_update": 1,
+
+  "target_update_frequency": 10000,
+
+  "discount": 0.97,
+  "learning_rate": 0.00025,
+  "optimizer": {
+    "type": "rmsprop",
+    "momentum": 0.95,
+    "epsilon": 0.01
+  },
+  "tf_saver": false,
+  "tf_summary": null,
+  "loglevel": "debug",
+
+  "update_target_weight": 1.0,
+  "distribution_min": -10,
+  "distribution_max": 10,
+  "num_atoms": 51
+}

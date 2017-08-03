@@ -15,7 +15,7 @@
 
 """
 Deep Q-learning from demonstration. This agent pre-trains from demonstration data.
- 
+
 Original paper: 'Learning from Demonstrations for Real World Reinforcement Learning'
 
 https://arxiv.org/abs/1704.03732
@@ -72,7 +72,7 @@ class DQFDAgent(MemoryAgent):
     * `demo_sampling_ratio`: float, ratio of expert data used at runtime to train from.
     * `supervised_weight`: float, weight of large margin classifier loss.
     * `expert_margin`: float of difference in Q-values between expert action and other actions enforced by the large margin function.
-    * `clip_gradients`: float of maximum values for gradients before clipping.
+    * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
 
 
     """
@@ -104,10 +104,10 @@ class DQFDAgent(MemoryAgent):
         """Adds observations, updates via sampling from memories according to update rate.
         DQFD samples from the online replay memory and the demo memory with
         the fractions controlled by a hyper parameter p called 'expert sampling ratio.
-        
+
         Args:
-            reward: 
-            terminal: 
+            reward:
+            terminal:
 
         Returns:
 
@@ -126,7 +126,7 @@ class DQFDAgent(MemoryAgent):
         """Imports demonstrations, i.e. expert observations
 
         Args:
-            demonstrations: 
+            demonstrations:
 
         Returns:
 
@@ -150,7 +150,7 @@ class DQFDAgent(MemoryAgent):
 
     def pretrain(self, steps):
         """Computes pretrain updates.
-        
+
         Args:
             steps: Number of updates to execute.
 

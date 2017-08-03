@@ -1,6 +1,5 @@
 {
   "log_level": "info",
-  "override_line_search": false,
   "batch_size": 1000,
   "discount": 0.97,
   "baseline": {
@@ -13,10 +12,11 @@
   "generalized_advantage_estimation": true,
   "normalize_advantage" : false,
   "gae_lambda": 0.97,
+  "max_kl_divergence": 0.005,
   "cg_iterations" : 20,
   "cg_damping" : 0.01,
-  "line_search_steps" : 20,
-  "max_kl_divergence": 0.005,
+  "ls_max_backtracks" : 20,
+  "ls_override": false,
   "continuous": false,
   "preprocessing": null
 }

@@ -49,14 +49,14 @@ class TestQuickstartExample(unittest.TestCase):
                     epochs=20,
                     update_batch_size=32
                 ),
-                override_line_search=False,
                 generalized_advantage_estimation=True,
                 normalize_advantage=False,
                 gae_lambda=0.97,
+                max_kl_divergence=0.005,
                 cg_iterations=20,
                 cg_damping=0.01,
-                line_search_steps=20,
-                max_kl_divergence=0.005,
+                ls_max_backtracks=20,
+                ls_override=False,
                 states=env.states,
                 actions=env.actions,
                 network=layered_network_builder([

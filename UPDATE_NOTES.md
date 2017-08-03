@@ -5,6 +5,11 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+3rd August 2017
+
+- Added `ls_accept_ratio=0.01` and adapted names of other TRPO config parameters related to line search
+
+
 29th July 2017
 
 - Added `QModel` as base class for DQN (hence DQFD) and NAF

@@ -12,9 +12,9 @@
   "generalized_advantage_estimation": true,
   "gae_lambda": 0.97,
   "normalize_advantage" : false,
-  "override_line_search": false,
-  "cg_damping" : 0.01,
-  "line_search_steps" : 20,
   "max_kl_divergence": 0.005,
-  "cg_iterations" : 20
+  "cg_iterations" : 20,
+  "cg_damping" : 0.01,
+  "ls_max_backtracks" : 20,
+  "ls_override": false
 }

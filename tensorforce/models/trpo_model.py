@@ -42,21 +42,22 @@ class TRPOModel(PolicyGradientModel):
 
     default_config = dict(
         optimizer=None,
-        override_line_search=False,
-        cg_damping=0.001,
-        line_search_steps=20,
         max_kl_divergence=0.001,
-        cg_iterations=20
+        cg_iterations=20,
+        cg_damping=0.001,
+        ls_max_backtracks=20,
+        ls_accept_ratio=0.01,
+        ls_override=False
     )
 
     def __init__(self, config):
         config.default(TRPOModel.default_config)
         super(TRPOModel, self).__init__(config)
-
-        self.override_line_search = config.override_line_search
-        self.cg_damping = config.cg_damping
         self.max_kl_divergence = config.max_kl_divergence
-        self.line_search_steps = config.line_search_steps
+        self.cg_damping = config.cg_damping
+        self.ls_max_backtracks = config.ls_max_backtracks
+        self.ls_accept_ratio = config.ls_accept_ratio
+        self.ls_override = config.ls_override
 
     def create_tf_operations(self, config):
         """
@@ -185,14 +186,14 @@ class TRPOModel(PolicyGradientModel):
         # Improve update step through simple backtracking line search
         # N.b. some implementations skip the line search
         previous_theta = self.flat_variable_helper.get()
-        improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step, negative_gradient_direction / (lagrange_multiplier + util.epsilon), self.line_search_steps)
+        improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step, negative_gradient_direction / (lagrange_multiplier + util.epsilon), self.ls_max_backtracks, self.ls_accept_ratio)
 
         # Use line search results, otherwise take full step
         # N.B. some implementations don't use the line search
         if improved:
             self.logger.debug('Updating with line search result..')
             self.flat_variable_helper.set(theta)
-        elif self.override_line_search:
+        elif self.ls_override:
             self.logger.debug('Updating with full step..')
             self.flat_variable_helper.set(previous_theta + update_step)
         else:
@@ -256,7 +257,7 @@ class FlatVarHelper(object):
         return self.session.run(self.get_op)
 
 
-def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks=10, accept_ratio=0.1):
+def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks, accept_ratio):
     """
     Line search for TRPO where a full step is taken first and then backtracked to
     find optimal step size.

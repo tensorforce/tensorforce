@@ -21,7 +21,8 @@ import tensorflow as tf
 from tensorforce import util, TensorForceError
 import tensorforce.core.optimizers
 
-##TODO - Optimisation package is work in progress
+#TODO - Optimisation package is work in progress
+
 class Optimizer(tf.train.Optimizer):
     """
     Generic optimizer extending the tf.train.Optimizer class. This is for the purpose of having
@@ -59,20 +60,6 @@ class Optimizer(tf.train.Optimizer):
     # tf.train.GradientDescentOptimizer implementations.
 
     def compute_gradients(self, loss, var_list=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, grad_loss=None):
-        """
-        Computes lists of gradients and variables.
-
-        Args:
-            loss:
-            var_list:
-            gate_gradients:
-            aggregation_method:
-            colocate_gradients_with_ops:
-            grad_loss:
-
-        Returns:
-
-        """
         if aggregation_method is not None or colocate_gradients_with_ops or grad_loss is not None:
             raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments are not supported.")
         if gate_gradients is None:

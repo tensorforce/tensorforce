@@ -152,14 +152,14 @@ class Agent(object):
         self.states_config = config.states
         self.actions_config = config.actions
 
-        if model:
+        if model is None:
+            self.model = self.__class__.model(config)
+        else:
             if not isinstance(model, self.__class__.model):
                 raise TensorForceError("Supplied model class `{}` does not match expected agent model class `{}`".format(
                     type(model).__name__, self.__class__.model.__name__
                 ))
             self.model = model
-        else:
-            self.model = self.__class__.model(config)
 
         not_accessed = config.not_accessed()
         if not_accessed:

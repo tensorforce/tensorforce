@@ -76,13 +76,13 @@ Alternatively, you can use the following commands to install the tensorflow depe
 To install TensorForce with `tensorflow` (cpu), use:
 
 ```bash
-pip install -e .[tf] -e
+pip install -e .[tf]
 ```
 
 To install TensorForce with `tensorflow-gpu` (gpu), use:
 
 ```bash
-pip install -e .[tf_gpu] -e
+pip install -e .[tf_gpu]
 ```
 
 To update TensorForce, just run `git pull` in the tensorforce directory.

@@ -74,115 +74,98 @@ class CategoricalDQNModel(Model):
         network_builder = util.get_function(fct=config.network)
 
         # Training network
-        with tf.variable_scope('training'):
+        with tf.variable_scope('training') as training_scope:
             self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
-            training_output = dict()
-            training_output_logits = dict()
-
+            training_output_logits, _, training_qval, action_taken = self._create_action_outputs(
+                self.training_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
+            )
+            # stack to preserve action_taken shape like (batch_size, num_actions)
             for action in self.action:
-                # for each action create an output of length num_atoms
-                # this results in an array of output shape (batch_size, num_actions, num_atoms)
-                # tensors are immutable so we must use lists then stack later
-                actions_and_logits = []
-                actions_and_probabilities = []
-                for action_ind in range(num_actions[action]):
-                    logits_output = layers['linear'](x=self.training_network.output, size=self.num_atoms)
-                    # logits are stored for use in loss function
-                    actions_and_logits.append(logits_output)
-                    # softmax
-                    actions_and_probabilities.append(layers['nonlinearity'](x=logits_output, name='softmax'))
-
-                # actions_and_x shape (batch_size, num_actions, num_atoms)
-                actions_and_logits = tf.stack(actions_and_logits, axis=1)
-                actions_and_probabilities = tf.stack(actions_and_probabilities, axis=1)
-                training_output_logits[action] = actions_and_logits
-                # Q value of state is action atom probabilities * quantization steps.
-                # in the paper: sum_i(z_i * p_i(x, a)) <- the a here represents all actions
-                training_output[action] = tf.reduce_sum(actions_and_probabilities * quantized_steps, axis=-1)
-                # training_output[action] shape = (batchsize, num_actions)
-                self.action_taken[action] = tf.argmax(training_output[action], axis=1)
+                if len(action_taken[action]) > 1:
+                    self.action_taken[action] = tf.stack(action_taken[action], axis=1)
+                else:
+                    self.action_taken[action] = action_taken[action][0]
+            self.training_variables = tf.contrib.framework.get_variables(scope=training_scope)
 
         # Target network
-        with tf.variable_scope('target'):
+        with tf.variable_scope('target') as target_scope:
             self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
-            target_value = dict()
-            target_output_probabilities = dict()
-            target_action = dict()
+            _, target_output_probabilities, target_qval, target_action = self._create_action_outputs(
+                self.target_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
+            )
 
-            for action in self.action:
-                target_actions_and_probabilities = []
-
-                for action_ind in range(num_actions[action]):
-                    target_logits_output = layers['linear'](x=self.target_network.output, size=self.num_atoms)
-                    target_actions_and_probabilities.append(layers['nonlinearity'](x=target_logits_output, name='softmax'))
-
-                target_actions_and_probabilities = tf.stack(target_actions_and_probabilities, axis=1)
-                # Q value of state is action atom probabilities * quantization steps.
-                # in the paper: sum_i(z_i * p_i(x, a)) <- the a here represents all actions
-                target_output_probabilities[action] = target_actions_and_probabilities
-                target_value[action] = tf.reduce_sum(target_actions_and_probabilities * quantized_steps, axis=-1)
-                # a* in the paper, must cast argmax to int32 to use as index later
-                target_action[action] = tf.cast(tf.argmax(target_value[action], axis=1), tf.int32)
+            self.target_variables = tf.contrib.framework.get_variables(scope=target_scope)
 
         with tf.name_scope('update'):
+            # broadcast rewards and discounted quantization. Shape (batchsize, num_atoms). T_z_j in the paper
+            reward = tf.expand_dims(self.reward, axis=1)
+            terminal = tf.expand_dims(tf.cast(x=self.terminal, dtype=tf.float32), axis=1)
+            broadcasted_rewards = reward + (1.0 - terminal) * (quantized_steps * self.discount)
+            # clip into distribution_min, distribution_max
+            quantized_discounted_reward = tf.clip_by_value(broadcasted_rewards, self.distribution_min, self.distribution_max)
+            # compute quantization indecies. b, l, u in the paper
+            closest_quantization = (quantized_discounted_reward - self.distribution_min) / scaling_increment
+            lower_ind = tf.floor(closest_quantization)
+            upper_ind = tf.ceil(closest_quantization)
+
+            # create shared selections for later use
+            dynamic_batch_size = tf.shape(self.reward)[0]
+            batch_selection = tf.range(0, dynamic_batch_size)
+            # tile expects a tensor of same shape, we are just repeating the selection num_atoms times across the last dimension
+            batch_tiled_selection = tf.reshape(tf.tile(tf.reshape(batch_selection, (-1, 1)), [1, self.num_atoms]), [-1])
+            # combine with lower and upper ind, same as zip(flatten(batch_tiled_selection), flatten(lower_ind))
+            # also cast to int32 to use as index
+            batch_lower_inds = tf.stack((batch_tiled_selection, tf.reshape(tf.cast(lower_ind, tf.int32), [-1])), axis=1)
+            batch_upper_inds = tf.stack((batch_tiled_selection, tf.reshape(tf.cast(upper_ind, tf.int32), [-1])), axis=1)
+
+            # create loss for each action
             for action in self.action:
-                dynamic_batch_size = tf.shape(self.action[action])[0]
-                # project onto the supports
-                # broadcast rewards and discounted quantization. Shape (batchsize, num_atoms). T_z_j in the paper
-                reward = tf.expand_dims(self.reward, axis=1)
-                terminal = tf.expand_dims(tf.cast(x=self.terminal, dtype=tf.float32), axis=1)
-                broadcasted_rewards = reward + (1.0 - terminal) * (quantized_steps * self.discount)
-                # clip into distribution_min, distribution_max
-                quantized_discounted_reward = tf.clip_by_value(broadcasted_rewards, self.distribution_min, self.distribution_max)
-                # compute quantization indecies. b, l, u in the paper
-                closest_quantization = (quantized_discounted_reward - self.distribution_min) / scaling_increment
-                lower_ind = tf.floor(closest_quantization)
-                upper_ind = tf.ceil(closest_quantization)
+                # if shape of action != () we need to process each action head separately
+                for action_ind in range(max([util.prod(config.actions[action].shape), 1])):
+                    # project onto the supports
+                    # tensorflow indexing is still not great, we stack these two and use gather_nd later
+                    target_batch_action_selection = tf.stack((batch_selection, target_action[action][action_ind]), axis=1)
 
-                # vector magic here, create selections for later use
-                batch_selection = tf.range(0, dynamic_batch_size)
-                # tensorflow indexing is still not great, we stack these two and use gather_nd later
-                target_batch_action_selection = tf.stack((batch_selection, target_action[action]), axis=1)
-                # tile expects a tensor of same shape, we are just repeating the selection num_atoms times across the last dimension
-                batch_tiled_selection = tf.reshape(tf.tile(tf.reshape(batch_selection, (-1, 1)), [1, self.num_atoms]), [-1])
-                # combine with lower and upper ind, same as zip(flatten(batch_tiled_selection), flatten(lower_ind))
-                # also cast to int32 to use as index
-                batch_lower_inds = tf.stack((batch_tiled_selection, tf.reshape(tf.cast(lower_ind, tf.int32), [-1])), axis=1)
-                batch_upper_inds = tf.stack((batch_tiled_selection, tf.reshape(tf.cast(upper_ind, tf.int32), [-1])), axis=1)
+                    # distribute probability scaled by distance
+                    # in numpy the equivalent is target_output_probabilities[action][batch_selection, target_action]
+                    target_probabilities_of_action = tf.gather_nd(target_output_probabilities[action][action_ind],
+                                                                  target_batch_action_selection)
+                    distance_lower = target_probabilities_of_action * (closest_quantization - lower_ind)
+                    distance_upper = target_probabilities_of_action * (upper_ind - closest_quantization)
 
-                # distribute probability scaled by distance
-                # in numpy the equivalent is target_output_probabilities[action][batch_selection, target_action]
-                distance_lower = tf.gather_nd(target_output_probabilities[action], target_batch_action_selection) * (closest_quantization - lower_ind)
-                distance_upper = tf.gather_nd(target_output_probabilities[action], target_batch_action_selection) * (upper_ind - closest_quantization)
+                    # sum distances aligned into quantized bins. m in the paper
+                    # scatter_nd actually sums the values into a zeros tensor instead of overwriting
+                    # this is pretty much a huge hack refer to https://github.com/tensorflow/tensorflow/issues/8102
+                    target_quantized_probabilities_lower = tf.scatter_nd(batch_lower_inds, tf.reshape(distance_lower, [-1]),
+                                                                         (dynamic_batch_size, self.num_atoms))
+                    target_quantized_probabilities_upper = tf.scatter_nd(batch_upper_inds, tf.reshape(distance_upper, [-1]),
+                                                                         (dynamic_batch_size, self.num_atoms))
+                    # no gradient should flow back to the target network
+                    target_quantized_probabilities = tf.stop_gradient(target_quantized_probabilities_lower + target_quantized_probabilities_upper)
 
-                # sum distances aligned into quantized bins. m in the paper
-                # scatter_nd actually sums the values into a zeros tensor instead of overwriting
-                # this is pretty much a huge hack refer to https://github.com/tensorflow/tensorflow/issues/8102
-                target_quantized_probabilities_lower = tf.scatter_nd(batch_lower_inds, tf.reshape(distance_lower, [-1]),
-                                                                     (dynamic_batch_size, self.num_atoms))
-                target_quantized_probabilities_upper = tf.scatter_nd(batch_upper_inds, tf.reshape(distance_upper, [-1]),
-                                                                     (dynamic_batch_size, self.num_atoms))
-                # no gradient should flow back to the target network
-                target_quantized_probabilities = tf.stop_gradient(target_quantized_probabilities_lower + target_quantized_probabilities_upper)
-
-                # now we have target probabilities loss is categorical cross entropy using logits
-                # compare to the actions we actually took
-                training_action_selection = tf.stack((batch_selection, self.action[action]), axis=1)
-                logits_for_action = tf.gather_nd(training_output_logits[action], training_action_selection)
-                self.loss_per_instance = tf.nn.softmax_cross_entropy_with_logits(logits=logits_for_action, labels=target_quantized_probabilities)
-                loss = tf.reduce_mean(self.loss_per_instance)
-                tf.losses.add_loss(loss)
+                    # we must check if input action has shape
+                    if len(self.action[action].shape) > 1:
+                        input_action = self.action[action][:, action_ind]
+                    else:
+                        input_action = self.action[action]
+                    # now we have target probabilities loss is categorical cross entropy using logits
+                    # compare to the actions we actually took
+                    training_action_selection = tf.stack((batch_selection, input_action), axis=1)
+                    logits_for_action = tf.gather_nd(training_output_logits[action][action_ind], training_action_selection)
+                    self.loss_per_instance = tf.nn.softmax_cross_entropy_with_logits(logits=logits_for_action, labels=target_quantized_probabilities)
+                    loss = tf.reduce_mean(self.loss_per_instance)
+                    tf.losses.add_loss(loss)
 
         # Update target network
         with tf.name_scope("update_target"):
             self.target_network_update = list()
-            for v_source, v_target in zip(self.training_network.variables, self.target_network.variables):
+            for v_source, v_target in zip(self.training_variables, self.target_variables):
                 update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
                 self.target_network_update.append(update)
 
@@ -211,3 +194,48 @@ class CategoricalDQNModel(Model):
         :return:
         """
         self.session.run(self.target_network_update)
+
+    @staticmethod
+    def _create_action_outputs(network_output, quantized_steps, num_atoms, config, actions, num_actions):
+        action_logits = dict()
+        action_probabilities = dict()
+        action_qvals = dict()
+        action_taken = dict()
+        for action in actions:
+            logits = []
+            probabilities = []
+            qvals = []
+            argmax = []
+            # if shape of action != () we need to create another network head for each
+            # but always create at least 1
+            for shaped_action in range(max([util.prod(config.actions[action].shape), 1])):
+                # for each action create an output of length num_atoms
+                # this results in an array of output shape (batch_size, num_actions, num_atoms)
+                # tensors are immutable so we must use lists then stack later
+                actions_and_logits = []
+                actions_and_probabilities = []
+                for action_ind in range(num_actions[action]):
+                    logits_output = layers['linear'](x=network_output, size=num_atoms)
+                    # logits are stored for use in loss function
+                    actions_and_logits.append(logits_output)
+                    # softmax
+                    actions_and_probabilities.append(layers['nonlinearity'](x=logits_output, name='softmax'))
+
+                # actions_and_x shape (batch_size, num_actions, num_atoms)
+                actions_and_logits = tf.stack(actions_and_logits, axis=1)
+                actions_and_probabilities = tf.stack(actions_and_probabilities, axis=1)
+
+                logits.append(actions_and_logits)
+                probabilities.append(actions_and_probabilities)
+                # Q value of state is action atom probabilities * quantization steps.
+                # in the paper: sum_i(z_i * p_i(x, a)) <- the a here represents all actions
+                qvals.append(tf.reduce_sum(actions_and_probabilities * quantized_steps, axis=-1))
+                # qval shape = (batchsize, num_actions)
+                # must cast argmax to int32 to use as index later
+                argmax.append(tf.cast(tf.argmax(qvals[-1], axis=1), tf.int32))
+
+            action_logits[action] = logits
+            action_probabilities[action] = probabilities
+            action_qvals[action] = qvals
+            action_taken[action] = argmax
+        return action_logits, action_probabilities, action_qvals, action_taken

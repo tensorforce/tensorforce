@@ -29,5 +29,5 @@
 
   "update_target_weight": 1.0,
   "double_dqn": false,
-  "clip_gradients": 0.0
+  "clip_loss": 0.0
 }

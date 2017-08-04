@@ -47,31 +47,31 @@ class Gaussian(Distribution):
         return self
 
     def create_tf_operations(self, x, deterministic):
-        # flat mean and log standard deviation
+        # Flat mean and log standard deviation
         flat_size = util.prod(self.shape)
         self.mean = layers['linear'](x=x, size=flat_size, bias=self.mean)
         self.log_stddev = layers['linear'](x=x, size=flat_size, bias=self.log_stddev)
 
-        # reshape mean and log stddev to action shape
+        # Reshape mean and log stddev to action shape
         shape = (-1,) + self.shape
         self.mean = tf.reshape(tensor=self.mean, shape=shape)
         self.log_stddev = tf.reshape(tensor=self.log_stddev, shape=shape)
 
-        # clip log stddev for numerical stability
+        # Clip log stddev for numerical stability
         log_eps = log(util.epsilon)
         self.log_stddev = tf.clip_by_value(t=self.log_stddev, clip_value_min=log_eps, clip_value_max=-log_eps)
 
-        # standard deviation
+        # Standard deviation
         self.stddev = tf.exp(x=self.log_stddev)
 
-        # general distribution values
+        # General distribution values
         self.distribution = (self.mean, self.log_stddev)
         self.deterministic = deterministic
 
     def sample(self):
-        # deterministic: mean as action
+        # Deterministic: mean as action
         deterministic = self.mean
-        # non-deterministic: sample action using default normal distribution
+        # Non-deterministic: sample action using default normal distribution
         normal = tf.random_normal(shape=tf.shape(input=self.mean))
         sampled = self.mean + self.stddev * normal
         return tf.where(condition=self.deterministic, x=deterministic, y=sampled)

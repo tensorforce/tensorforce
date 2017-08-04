@@ -49,31 +49,32 @@ class Categorical(Distribution):
         return self
 
     def create_tf_operations(self, x, deterministic):
-        # flat logits
+        # Flat logits
         flat_size = util.prod(self.shape) * self.num_actions
         self.logits = layers['linear'](x=x, size=flat_size, bias=self.logits)
 
-        # reshape logits to action shape
+        # Reshape logits to action shape
         shape = (-1,) + self.shape + (self.num_actions,)
         self.logits = tf.reshape(tensor=self.logits, shape=shape)
 
-        # linearly shift logits for numerical stability
+        # Linearly shift logits for numerical stability
         self.logits -= tf.reduce_max(input_tensor=self.logits, axis=-1, keep_dims=True)
 
-        # softmax for corresponding probabilities
+        # Softmax for corresponding probabilities
         self.probabilities = tf.nn.softmax(logits=self.logits, dim=-1)
 
         # "normalized" logits
         self.logits = tf.log(x=self.probabilities)
 
-        # general distribution values
+        # General distribution values
         self.distribution = (self.logits,)
         self.deterministic = deterministic
 
     def sample(self):
-        # deterministic: maximum likelihood action
+        # Deterministic: maximum likelihood action
         deterministic = tf.argmax(input=self.logits, axis=-1)
-        # non-deterministic: sample action using Gumbel distribution
+
+        # Non-deterministic: sample action using Gumbel distribution
         uniform = tf.random_uniform(shape=tf.shape(input=self.logits), minval=util.epsilon, maxval=(1.0 - util.epsilon))
         gumbel_distribution = -tf.log(x=-tf.log(x=uniform))
         sampled = tf.argmax(input=(self.logits + gumbel_distribution), axis=-1)
@@ -89,4 +90,5 @@ class Categorical(Distribution):
     def kl_divergence(self, other):
         assert isinstance(other, Categorical)
         log_prob_ratio = self.logits - other.logits
+
         return tf.reduce_sum(input_tensor=(self.probabilities * log_prob_ratio), axis=-1)

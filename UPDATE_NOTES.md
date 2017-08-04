@@ -8,7 +8,8 @@ be tracked here in detail but through github issues.
 3rd August 2017
 
 - Added `ls_accept_ratio=0.01` and adapted names of other TRPO config parameters related to line search
-
+- Various bugs in Categorical DQN and Q-model target network scope fixed by @Islandman93
+- Refactored distributions, categorical now using Gumbel-softmax
 
 29th July 2017
 

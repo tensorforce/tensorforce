@@ -98,7 +98,8 @@ class TRPOModel(PolicyGradientModel):
                 entropy = tf.reshape(tensor=entropy, shape=(-1, shape_size))
                 entropies.append(entropy)
 
-                fixed_distribution = distribution.__class__.from_tensors(parameters=[tf.stop_gradient(x) for x in distribution], deterministic=self.deterministic)
+                fixed_distribution = distribution.__class__.from_tensors(parameters=[tf.stop_gradient(x) for x in distribution],
+                                                                         deterministic=self.deterministic)
                 fixed_kl_divergence = fixed_distribution.kl_divergence(distribution)
                 fixed_kl_divergence = tf.reshape(tensor=fixed_kl_divergence, shape=(-1, shape_size))
                 fixed_kl_divergences.append(fixed_kl_divergence)
@@ -186,7 +187,9 @@ class TRPOModel(PolicyGradientModel):
         # Improve update step through simple backtracking line search
         # N.b. some implementations skip the line search
         previous_theta = self.flat_variable_helper.get()
-        improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step, negative_gradient_direction / (lagrange_multiplier + util.epsilon), self.ls_max_backtracks, self.ls_accept_ratio)
+        improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
+                                      negative_gradient_direction / (lagrange_multiplier + util.epsilon),
+                                      self.ls_max_backtracks, self.ls_accept_ratio)
 
         # Use line search results, otherwise take full step
         # N.B. some implementations don't use the line search

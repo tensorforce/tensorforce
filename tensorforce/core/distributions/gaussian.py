@@ -79,6 +79,7 @@ class Gaussian(Distribution):
     def log_probability(self, action):
         sq_mean_distance = tf.square(x=(action - self.mean))
         sq_stddev = tf.square(x=self.stddev)
+
         return -0.5 * tf.log(x=(2.0 * np.pi)) - self.log_stddev - 0.5 * sq_mean_distance / sq_stddev
 
     def entropy(self):
@@ -90,4 +91,5 @@ class Gaussian(Distribution):
         sq_mean_distance = tf.square(x=(self.mean - other.mean))
         sq_stddev1 = tf.square(x=self.stddev)
         sq_stddev2 = tf.square(x=other.stddev)
+
         return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5

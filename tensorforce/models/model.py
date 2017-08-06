@@ -41,7 +41,7 @@ class Model(object):
     * `optimizer`: string of optimizer to use (e.g. 'adam').
     * `device`: string of tensorflow device name.
     * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
-    * `log_level`: string containing logleve (e.g. 'info').
+    * `log_level`: string containing log level (e.g. 'info').
     * `distributed`: boolean indicating whether to use distributed tensorflow.
     * `global_model`: global model.
     * `session`: session to use.

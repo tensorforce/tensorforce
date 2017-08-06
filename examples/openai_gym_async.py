@@ -145,7 +145,7 @@ def main():
     agent_config.default(dict(distributed=True, cluster_spec=cluster_spec, global_model=(args.task_index == -1), device=('/job:ps' if args.task_index == -1 else '/job:worker/task:{}/cpu:0'.format(args.task_index))))
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[agent_config.loglevel])
+    logger.setLevel(log_levels[agent_config.log_level])
 
     agent = agents[args.agent](config=agent_config)
 

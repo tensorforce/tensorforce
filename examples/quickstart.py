@@ -30,7 +30,7 @@ env = OpenAIGym('CartPole-v0')
 
 # Create a Trust Region Policy Optimization agent
 agent = TRPOAgent(config=Configuration(
-    loglevel='info',
+    log_level='info',
     batch_size=100,
     baseline=dict(
         type='mlp',

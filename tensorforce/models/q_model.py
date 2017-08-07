@@ -60,7 +60,7 @@ class QModel(Model):
 
         # Training network
         with tf.variable_scope('training') as training_scope:
-            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
+            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state, summary_level=config.tf_summary_level)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -69,7 +69,7 @@ class QModel(Model):
 
         # Target network
         with tf.variable_scope('target') as target_scope:
-            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
+            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state, trainable=False)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
@@ -101,6 +101,13 @@ class QModel(Model):
             else:
                 self.q_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
             tf.losses.add_loss(self.q_loss)
+
+        # for each loss over an action create a summary
+        if len(self.q_loss.shape) > 1:
+            for action_ind in range(self.q_loss.shape[1]):
+                tf.summary.scalar('q-loss-action-{}'.format(action_ind), self.q_loss[action_ind])
+        else:
+            tf.summary.scalar('q-loss', self.q_loss)
 
         # Update target network
         with tf.name_scope('update-target'):

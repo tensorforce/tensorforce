@@ -33,7 +33,7 @@ import tensorflow as tf
 from tensorforce import TensorForceError, util
 
 
-def flatten(x):
+def flatten(x, **kwargs):
     """Flatten layer.
 
     Args:
@@ -48,7 +48,7 @@ def flatten(x):
     return x
 
 
-def nonlinearity(x, name='relu'):
+def nonlinearity(x, name='relu', summary_level=0, **kwargs):
     """ Applies a non-linearity to an input and returns the result.
 
     Args:
@@ -64,6 +64,9 @@ def nonlinearity(x, name='relu'):
             x = tf.nn.elu(features=x)
         elif name == 'relu':
             x = tf.nn.relu(features=x)
+            if summary_level >= 2:
+                non_zero_pct = (tf.cast(tf.count_nonzero(x), tf.float32) / tf.cast(tf.reduce_prod(tf.shape(x)), tf.float32))
+                tf.summary.scalar('relu-sparsity', 1.0 - non_zero_pct)
         elif name == 'selu':
             # https://arxiv.org/pdf/1706.02515.pdf
             alpha = 1.6732632423543772848170429916717
@@ -82,7 +85,7 @@ def nonlinearity(x, name='relu'):
     return x
 
 
-def linear(x, size, weights=None, bias=True, l2_regularization=0.0):
+def linear(x, size, weights=None, bias=True, l2_regularization=0.0, trainable=True, summary_level=0):
     """
     Linear layer.
 
@@ -127,7 +130,7 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0):
                 raise TensorForceError('Bias shape {} does not match expected shape {} '
                                        .format(bias.shape, shape))
 
-        weights = tf.Variable(initial_value=weights, dtype=tf.float32)
+        weights = tf.Variable(initial_value=weights, dtype=tf.float32, name='W', trainable=trainable)
 
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
@@ -135,7 +138,7 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0):
         x = tf.matmul(a=x, b=weights)
 
         if bias is not None:
-            bias = tf.Variable(initial_value=bias, dtype=tf.float32)
+            bias = tf.Variable(initial_value=bias, dtype=tf.float32, name='b', trainable=trainable)
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             x = tf.nn.bias_add(value=x, bias=bias)
@@ -143,7 +146,7 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0):
     return x
 
 
-def dense(x, size, bias=True, activation='relu', l2_regularization=0.0):
+def dense(x, size, bias=True, activation='relu', l2_regularization=0.0, trainable=True, summary_level=0):
     """
     Fully connected layer.
 
@@ -163,13 +166,14 @@ def dense(x, size, bias=True, activation='relu', l2_regularization=0.0):
                                ' must be 2.'.format(input_rank))
 
     with tf.variable_scope('dense'):
-        x = linear(x=x, size=size, bias=bias, l2_regularization=l2_regularization)
-        x = nonlinearity(x=x, name=activation)
+        x = linear(x=x, size=size, bias=bias, l2_regularization=l2_regularization, trainable=trainable)
+        x = nonlinearity(x=x, name=activation, summary_level=summary_level)
 
     return x
 
 
-def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regularization=0.0):
+def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regularization=0.0, trainable=True,
+           summary_level=0):
     """A 2d convolutional layer.
 
     Args:
@@ -191,7 +195,7 @@ def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regula
     with tf.variable_scope('conv2d'):
         shape = (window, window, x.shape[3].value, size)
         stddev = min(0.1, sqrt(2.0 / size))
-        filters = tf.Variable(initial_value=tf.random_normal(shape=shape, stddev=stddev))
+        filters = tf.Variable(initial_value=tf.random_normal(shape=shape, stddev=stddev), name='W', trainable=trainable)
 
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
@@ -200,17 +204,17 @@ def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regula
         x = tf.nn.conv2d(input=x, filter=filters, strides=strides, padding='SAME')
 
         if bias:
-            bias = tf.Variable(initial_value=tf.zeros(shape=(size,)))
+            bias = tf.Variable(initial_value=tf.zeros(shape=(size,)), name='b', trainable=trainable)
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             x = tf.nn.bias_add(value=x, bias=bias)
 
-        x = nonlinearity(x=x, name=activation)
+        x = nonlinearity(x=x, name=activation, summary_level=summary_level)
 
     return x
 
 
-def lstm(x, size=None):
+def lstm(x, size=None, **kwargs):
     """
 
     Args:
@@ -262,7 +266,7 @@ def layered_network_builder(layers_config):
 
     """
 
-    def network_builder(inputs):
+    def network_builder(inputs, trainable=True, summary_level=0):
         input_length = len(inputs)
 
         if input_length != 1:
@@ -277,7 +281,7 @@ def layered_network_builder(layers_config):
             x = util.get_object(
                 obj=layer_config,
                 predefined=layers,
-                kwargs=dict(x=x)
+                kwargs=dict(x=x, trainable=trainable, summary_level=summary_level)
             )
             if isinstance(x, list) or isinstance(x, tuple):
                 assert len(x) == 4

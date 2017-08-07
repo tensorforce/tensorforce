@@ -75,11 +75,11 @@ class CategoricalDQNModel(Model):
 
         # Training network
         with tf.variable_scope('training') as training_scope:
-            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
+            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state, summary_level=config.tf_summary_level)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
-            training_output_logits, _, training_qval, action_taken = self._create_action_outputs(
+            training_output_logits, training_output_probabilities, training_qval, action_taken = self._create_action_outputs(
                 self.training_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
             )
             # stack to preserve action_taken shape like (batch_size, num_actions)
@@ -88,16 +88,24 @@ class CategoricalDQNModel(Model):
                     self.action_taken[action] = tf.stack(action_taken[action], axis=1)
                 else:
                     self.action_taken[action] = action_taken[action][0]
+
+                # summarize expected reward histogram
+                if config.tf_summary_level >= 1:
+                    for action_shaped in range(len(action_taken[action])):
+                        for action_ind in range(num_actions[action]):
+                            tf.summary.histogram('{}-{}-{}-output-distribution'.format(action, action_shaped, action_ind),
+                                                 training_output_probabilities[action][action_shaped][:, action_ind] * quantized_steps)
+
             self.training_variables = tf.contrib.framework.get_variables(scope=training_scope)
 
         # Target network
         with tf.variable_scope('target') as target_scope:
-            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
+            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state, trainable=False)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
             _, target_output_probabilities, target_qval, target_action = self._create_action_outputs(
-                self.target_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
+                self.target_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions, trainable=False
             )
 
             self.target_variables = tf.contrib.framework.get_variables(scope=target_scope)
@@ -162,6 +170,8 @@ class CategoricalDQNModel(Model):
                     loss = tf.reduce_mean(self.loss_per_instance)
                     tf.losses.add_loss(loss)
 
+                    tf.summary.scalar('cce-loss-{}-{}'.format(action, action_ind), loss)
+
         # Update target network
         with tf.name_scope("update_target"):
             self.target_network_update = list()
@@ -196,7 +206,7 @@ class CategoricalDQNModel(Model):
         self.session.run(self.target_network_update)
 
     @staticmethod
-    def _create_action_outputs(network_output, quantized_steps, num_atoms, config, actions, num_actions):
+    def _create_action_outputs(network_output, quantized_steps, num_atoms, config, actions, num_actions, trainable=True):
         action_logits = dict()
         action_probabilities = dict()
         action_qvals = dict()
@@ -215,7 +225,7 @@ class CategoricalDQNModel(Model):
                 actions_and_logits = []
                 actions_and_probabilities = []
                 for action_ind in range(num_actions[action]):
-                    logits_output = layers['linear'](x=network_output, size=num_atoms)
+                    logits_output = layers['linear'](x=network_output, size=num_atoms, trainable=trainable)
                     # logits are stored for use in loss function
                     actions_and_logits.append(logits_output)
                     # softmax

@@ -190,7 +190,7 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Code block: Own layer type
 
-        def batch_normalization(x, variance_epsilon=1e-6):
+        def batch_normalization(x, variance_epsilon=1e-6, **kwargs):
             mean, variance = tf.nn.moments(x, axes=tuple(range(x.shape.ndims - 1)))
             x = tf.nn.batch_normalization(x, mean=mean, variance=variance, offset=None, scale=None,
                                           variance_epsilon=variance_epsilon)
@@ -207,7 +207,7 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Code block: Own network builder
 
-        def network_builder(inputs):
+        def network_builder(inputs, **kwargs):
             image = inputs['image']  # 64x64x3-dim, float
             caption = inputs['caption']  # 20-dim, int
 
@@ -245,7 +245,7 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Code block: LSTM function
 
-        def lstm(x):
+        def lstm(x, **kwargs):
             size = x.get_shape()[1].value
             internal_input = tf.placeholder(dtype=tf.float32, shape=(None, 2, size))
             lstm = tf.contrib.rnn.LSTMCell(num_units=size)

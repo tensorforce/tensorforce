@@ -92,7 +92,7 @@ class Model(object):
             global_config.global_model = True
             global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=config.cluster_spec)
             self.global_model = self.__class__(config=global_config)
-            self.global_timestep = self.global_model.timestep
+            self.global_timestep = self.global_model.global_timestep
             self.global_episode = self.global_model.episode
             self.global_variables = self.global_model.variables
 
@@ -100,7 +100,7 @@ class Model(object):
         with tf.device(config.device):
             if config.distributed:
                 if config.global_model:
-                    self.timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
+                    self.global_timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
                     self.episode = tf.get_variable(name='episode', dtype=tf.int32, initializer=0, trainable=False)
                     scope_context = tf.variable_scope('global')
                 else:

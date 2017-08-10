@@ -100,12 +100,12 @@ class CategoricalDQNModel(Model):
 
         # Target network
         with tf.variable_scope('target') as target_scope:
-            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state, trainable=False)
+            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
             _, target_output_probabilities, target_qval, target_action = self._create_action_outputs(
-                self.target_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions, trainable=False
+                self.target_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
             )
 
             self.target_variables = tf.contrib.framework.get_variables(scope=target_scope)
@@ -206,7 +206,7 @@ class CategoricalDQNModel(Model):
         self.session.run(self.target_network_update)
 
     @staticmethod
-    def _create_action_outputs(network_output, quantized_steps, num_atoms, config, actions, num_actions, trainable=True):
+    def _create_action_outputs(network_output, quantized_steps, num_atoms, config, actions, num_actions):
         action_logits = dict()
         action_probabilities = dict()
         action_qvals = dict()
@@ -225,7 +225,7 @@ class CategoricalDQNModel(Model):
                 actions_and_logits = []
                 actions_and_probabilities = []
                 for action_ind in range(num_actions[action]):
-                    logits_output = layers['linear'](x=network_output, size=num_atoms, trainable=trainable)
+                    logits_output = layers['linear'](x=network_output, size=num_atoms)
                     # logits are stored for use in loss function
                     actions_and_logits.append(logits_output)
                     # softmax

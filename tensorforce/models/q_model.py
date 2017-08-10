@@ -69,7 +69,7 @@ class QModel(Model):
 
         # Target network
         with tf.variable_scope('target') as target_scope:
-            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state, trainable=False)
+            self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)

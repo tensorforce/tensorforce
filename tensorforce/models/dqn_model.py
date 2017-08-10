@@ -89,7 +89,7 @@ class DQNModel(QModel):
             num_actions = config.actions[name].num_actions
             shape = (-1,) + config.actions[name].shape + (num_actions,)
 
-            output = layers['linear'](x=self.target_network.output, size=(flat_size * num_actions), trainable=False)
+            output = layers['linear'](x=self.target_network.output, size=(flat_size * num_actions))
             output = tf.reshape(tensor=output, shape=shape)
 
             if config.double_dqn:

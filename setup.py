@@ -19,7 +19,7 @@ from __future__ import division
 
 import os
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 install_requires=[
     'numpy',
@@ -56,7 +56,7 @@ setup(name='tensorforce',
       author='reinforce.io',
       author_email='contact@reinforce.io',
       license='Apache 2.0',
-      packages=['tensorforce'],
+      packages=[package for package in find_packages() if package.startswith('tensorforce')],
       install_requires=install_requires,
       setup_requires=setup_requires,
       extras_require=extras_require,

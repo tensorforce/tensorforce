@@ -64,7 +64,7 @@ class Categorical(Distribution):
         self.probabilities = tf.nn.softmax(logits=self.logits, dim=-1)
 
         # "normalized" logits
-        self.logits = tf.log(x=self.probabilities)
+        self.logits = tf.log(x=self.probabilities + util.epsilon)
 
         # General distribution values
         self.distribution = (self.logits,)

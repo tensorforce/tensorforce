@@ -70,7 +70,7 @@ def cumulative_discount(rewards, terminals, discount):
     if discount == 0.0:
         return rewards
     cumulative = 0.0
-    discounted_rewards = np.zeros_like(rewards)
+    discounted_rewards = np.zeros(len(rewards))
 
     for n, (reward, terminal) in reversed(list(enumerate(zip(rewards, terminals)))):
         if terminal:

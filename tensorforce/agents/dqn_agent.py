@@ -78,17 +78,3 @@ class DQNAgent(MemoryAgent):
 
     name = 'DQNAgent'
     model = DQNModel
-    default_config = dict(
-        target_update_frequency=10000
-    )
-
-    def __init__(self, config, model=None):
-        config.default(MemoryAgent.default_config)
-        super(DQNAgent, self).__init__(config, model)
-        self.target_update_frequency = config.target_update_frequency
-
-    def observe(self, reward, terminal):
-        super(DQNAgent, self).observe(reward=reward, terminal=terminal)
-
-        if self.timestep >= self.first_update and self.timestep % self.target_update_frequency == 0:
-            self.model.update_target()

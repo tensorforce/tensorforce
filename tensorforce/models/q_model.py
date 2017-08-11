@@ -31,6 +31,7 @@ from tensorforce.core.networks import NeuralNetwork
 class QModel(Model):
 
     default_config = dict(
+        target_update_frequency=10000,
         update_target_weight=1.0,
         clip_loss=0.0
     )
@@ -42,10 +43,12 @@ class QModel(Model):
             config:
         """
         config.default(QModel.default_config)
+        self.last_target_update = 0
+        self.target_update_frequency = config.target_update_frequency
         super(QModel, self).__init__(config)
 
         # Synchronise target with training network
-        self.update_target()
+        self.possible_update_target(force=True)
 
     def create_tf_operations(self, config):
         super(QModel, self).create_tf_operations(config)
@@ -147,9 +150,15 @@ class QModel(Model):
             feed_dict.update({internal: batch['internals'][n][:-1] for n, internal in enumerate(self.internal_inputs)})
         return feed_dict
 
-    def update_target(self):
+    def update(self, *args, **kwargs):
+        self.possible_update_target()
+        return super(QModel, self).update(*args, **kwargs)
+
+    def possible_update_target(self, force=False):
         """
-        Updates target network.
+        Updates target network if necessary
         :return:
         """
-        self.session.run(self.target_network_update)
+        if self.timestep > self.last_target_update + self.target_update_frequency or force:
+            self.last_target_update = self.timestep
+            self.session.run(self.target_network_update)

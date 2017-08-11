@@ -36,6 +36,7 @@ class CategoricalDQNModel(Model):
     allows_continuous_actions = False
 
     default_config = dict(
+        target_update_frequency=10000,
         update_target_weight=1.0,
         distribution_max=10,
         distribution_min=-10,
@@ -53,7 +54,12 @@ class CategoricalDQNModel(Model):
         self.distribution_max = config.distribution_max
         self.distribution_min = config.distribution_min
         self.num_atoms = config.num_atoms
+        self.last_target_update = 0
+        self.target_update_frequency = config.target_update_frequency
         super(CategoricalDQNModel, self).__init__(config)
+
+        # Synchronise target with training network
+        self.possible_update_target(force=True)
 
     def create_tf_operations(self, config):
         super(CategoricalDQNModel, self).create_tf_operations(config)
@@ -198,12 +204,18 @@ class CategoricalDQNModel(Model):
             feed_dict.update({internal: batch['internals'][n][:-1] for n, internal in enumerate(self.internal_inputs)})
         return feed_dict
 
-    def update_target(self):
+    def update(self, *args, **kwargs):
+        self.possible_update_target()
+        return super(CategoricalDQNModel, self).update(*args, **kwargs)
+
+    def possible_update_target(self):
         """
-        Updates target network.
+        Updates target network if necessary
         :return:
         """
-        self.session.run(self.target_network_update)
+        if self.timestep > self.last_target_update + self.target_update_frequency:
+            self.last_target_update = self.timestep
+            self.session.run(self.target_network_update)
 
     @staticmethod
     def _create_action_outputs(network_output, quantized_steps, num_atoms, config, actions, num_actions):

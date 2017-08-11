@@ -80,18 +80,7 @@ class QModel(Model):
             self.target_variables = tf.contrib.framework.get_variables(scope=target_scope)
 
         with tf.name_scope('update'):
-            deltas = list()
-            terminal_float = tf.cast(x=self.terminal, dtype=tf.float32)
-            for name, action in self.action.items():
-                reward = self.reward
-                terminal = terminal_float
-                for _ in range(len(config.actions[name].shape)):
-                    reward = tf.expand_dims(input=reward, axis=1)
-                    terminal = tf.expand_dims(input=terminal, axis=1)
-                q_target = reward + (1.0 - terminal) * config.discount * self.target_values[name]
-                delta = tf.stop_gradient(q_target) - self.q_values[name]
-                delta = tf.reshape(tensor=delta, shape=(-1, util.prod(config.actions[name].shape)))
-                deltas.append(delta)
+            deltas = self.create_q_deltas(config)
 
             # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
             delta = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
@@ -118,6 +107,25 @@ class QModel(Model):
             for v_source, v_target in zip(self.training_variables, self.target_variables):
                 update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
                 self.target_network_update.append(update)
+
+    def create_q_deltas(self, config):
+        """
+        Creates the deltas (or advantage) of the Q values
+        :return: A list of deltas per action
+        """
+        deltas = list()
+        terminal_float = tf.cast(x=self.terminal, dtype=tf.float32)
+        for name, action in self.action.items():
+            reward = self.reward
+            terminal = terminal_float
+            for _ in range(len(config.actions[name].shape)):
+                reward = tf.expand_dims(input=reward, axis=1)
+                terminal = tf.expand_dims(input=terminal, axis=1)
+            q_target = reward + (1.0 - terminal) * config.discount * self.target_values[name]
+            delta = tf.stop_gradient(q_target) - self.q_values[name]
+            delta = tf.reshape(tensor=delta, shape=(-1, util.prod(config.actions[name].shape)))
+            deltas.append(delta)
+        return deltas
 
     def create_training_operations(self, config):
         """

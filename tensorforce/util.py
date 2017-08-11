@@ -56,16 +56,29 @@ def shape(x, unknown=-1):
     return tuple(unknown if dims is None else dims for dims in x.get_shape().as_list())
 
 
-def cumulative_discount(rewards, terminals, discount):
+def cumulative_discount(rewards, terminals, discount, cumulative_start=0.0):
+    """
+    Compute cumulative discounts.
+    Args:
+        rewards: Rewards from a rollout
+        terminals: Booleans indicating terminal states
+        discount: Discount factor
+
+    Returns:
+
+    """
     if discount == 0.0:
         return rewards
-    cumulative = 0.0
+    cumulative = cumulative_start
+    discounted_rewards = np.zeros(len(rewards))
+
     for n, (reward, terminal) in reversed(list(enumerate(zip(rewards, terminals)))):
         if terminal:
             cumulative = 0.0
         cumulative = reward + cumulative * discount
-        rewards[n] = cumulative
-    return rewards
+        discounted_rewards[n] = cumulative
+
+    return discounted_rewards
 
 
 def np_dtype(dtype):

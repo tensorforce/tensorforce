@@ -62,6 +62,39 @@ class TestDQNAgent(unittest.TestCase):
         print('DQN agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
 
+    def test_lstm(self):
+        passed = 0
+
+        for _ in xrange(5):
+            environment = MinimalTest(definition=False)
+            config = Configuration(
+                batch_size=8,
+                learning_rate=0.001,
+                memory_capacity=800,
+                first_update=80,
+                target_update_frequency=20,
+                states=environment.states,
+                actions=environment.actions,
+                network=layered_network_builder([
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32),
+                    dict(type='lstm')
+                ])
+            )
+            agent = DQNAgent(config=config)
+            runner = Runner(agent=agent, environment=environment)
+
+            def episode_finished(r):
+                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+
+            runner.run(episodes=1000, episode_finished=episode_finished)
+            print('DQN agent: ' + str(runner.episode))
+            if runner.episode < 1000:
+                passed += 1
+
+        print('DQN agent passed = {}'.format(passed))
+        self.assertTrue(passed >= 4)
+
     def test_multi(self):
         passed = 0
 

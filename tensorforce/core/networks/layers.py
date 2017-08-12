@@ -172,8 +172,8 @@ def dense(x, size, bias=True, activation='relu', l2_regularization=0.0, summary_
     return x
 
 
-def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='relu', l2_regularization=0.0,
-           summary_level=0):
+def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='relu',
+           l2_regularization=0.0, summary_level=0):
     """A 2d convolutional layer.
 
     Args:

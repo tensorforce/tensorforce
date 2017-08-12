@@ -208,12 +208,12 @@ class CategoricalDQNModel(Model):
         self.possible_update_target()
         return super(CategoricalDQNModel, self).update(*args, **kwargs)
 
-    def possible_update_target(self):
+    def possible_update_target(self, force=False):
         """
         Updates target network if necessary
         :return:
         """
-        if self.timestep > self.last_target_update + self.target_update_frequency:
+        if self.timestep > self.last_target_update + self.target_update_frequency or force:
             self.last_target_update = self.timestep
             self.session.run(self.target_network_update)
 

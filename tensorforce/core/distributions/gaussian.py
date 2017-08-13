@@ -31,7 +31,7 @@ from tensorforce.core.distributions import Distribution
 
 class Gaussian(Distribution):
 
-    def __init__(self, shape, min_value, max_value, mean=0.0, stddev=1.0, logger=None):
+    def __init__(self, shape, mean=0.0, stddev=1.0, logger=None):
         # if min_value is not None or max_value is not None:
         #     raise TensorForceError('Min/max value not allowed for Gaussian.')
         self.shape = shape
@@ -39,14 +39,19 @@ class Gaussian(Distribution):
         self.log_stddev = log(stddev)
 
     @classmethod
-    def from_tensors(cls, parameters, deterministic):
-        self = cls(shape=None, min_value=None, max_value=None)
-        self.distribution = (self.mean, self.log_stddev) = parameters
+    def from_tensors(cls, tensors, deterministic):
+        self = cls(shape=None)
+        self.distribution = (self.mean, self.log_stddev) = tensors
         self.stddev = tf.exp(x=self.log_stddev)
         self.deterministic = deterministic
         return self
 
+    def get_tensors(self):
+        return (self.mean, self.log_stddev)
+
     def create_tf_operations(self, x, deterministic):
+        self.deterministic = deterministic
+
         # flat mean and log standard deviation
         flat_size = util.prod(self.shape)
         self.mean = layers['linear'](x=x, size=flat_size, bias=self.mean)
@@ -63,10 +68,6 @@ class Gaussian(Distribution):
 
         # standard deviation
         self.stddev = tf.exp(x=self.log_stddev)
-
-        # general distribution values
-        self.distribution = (self.mean, self.log_stddev)
-        self.deterministic = deterministic
 
     def sample(self):
         # deterministic: mean as action

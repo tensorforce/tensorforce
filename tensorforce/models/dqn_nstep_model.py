@@ -62,7 +62,7 @@ class DQNNstepModel(DQNModel):
         nstep_rewards = dict()
 
         for name, value in target_q_vals.items():
-            nstep_rewards[name] = util.cumulative_discount(rewards=batch['rewards'][:-1], terminals=batch['terminals'][:-1],
+            nstep_rewards[name] = util.cumulative_discount(values=batch['rewards'][:-1], terminals=batch['terminals'][:-1],
                                                            discount=self.discount, cumulative_start=target_q_vals[name][0])
 
         # create update feed dict

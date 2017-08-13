@@ -24,7 +24,7 @@ from tensorforce.core.distributions import Distribution
 
 class Beta(Distribution):
 
-    def __init__(self, shape, min_value, max_value, alpha=0, beta=0):
+    def __init__(self, shape, min_value, max_value, alpha=0.0, beta=0.0):
         """
         Beta distribution used for continuous actions. In particular, the Beta distribution
         allows to bound action values with min and max values.
@@ -42,16 +42,6 @@ class Beta(Distribution):
         self.max_value = max_value
         self.alpha = alpha
         self.beta = beta
-
-    def kl_divergence(self, other):
-        assert isinstance(other, Beta)
-
-        return other.log_norm - self.log_norm - tf.digamma(other.beta) * (other.beta - self.beta) - \
-            tf.digamma(other.alpha) * (other.alpha - self.alpha) + tf.digamma(other.sum) * (other.sum - self.sum)
-
-    def entropy(self):
-        return self.log_norm - (self.beta - 1.0) * tf.digamma(self.beta) - \
-               (self.alpha - 1.0) * tf.digamma(self.alpha) + ((self.sum - 2.0) * tf.digamma(self.sum))
 
     @classmethod
     def from_tensors(cls, tensors, deterministic):
@@ -78,14 +68,25 @@ class Beta(Distribution):
         self.beta = tf.reshape(tensor=self.beta, shape=shape)
 
         self.sum = self.alpha + self.beta
-        self.mean = self.alpha / self.sum
+        self.mean = self.alpha / tf.maximum(x=self.sum, y=util.epsilon)
 
         self.log_norm = tf.lgamma(self.alpha) + tf.lgamma(self.beta) - tf.lgamma(self.sum)
 
         self.deterministic = deterministic
 
     def log_probability(self, action):
-        return (self.alpha - 1.0) * tf.log(action) + (self.alpha - 1.0) * tf.log1p(-action) - self.log_norm
+        action = (action - self.min_value) / (self.max_value - self.min_value)
+        return (self.alpha - 1.0) * tf.log(action) + (self.beta - 1.0) * tf.log1p(-action) - self.log_norm
+
+    def kl_divergence(self, other):
+        assert isinstance(other, Beta)
+
+        return other.log_norm - self.log_norm - tf.digamma(other.beta) * (other.beta - self.beta) - \
+            tf.digamma(other.alpha) * (other.alpha - self.alpha) + tf.digamma(other.sum) * (other.sum - self.sum)
+
+    def entropy(self):
+        return self.log_norm - (self.beta - 1.0) * tf.digamma(self.beta) - \
+               (self.alpha - 1.0) * tf.digamma(self.alpha) + ((self.sum - 2.0) * tf.digamma(self.sum))
 
     def sample(self):
         deterministic = self.mean
@@ -93,7 +94,7 @@ class Beta(Distribution):
         alpha_sample = tf.random_gamma(shape=(), alpha=self.alpha)
         beta_sample = tf.random_gamma(shape=(), alpha=self.beta)
 
-        sample = alpha_sample / (alpha_sample + beta_sample)
+        sample = alpha_sample / tf.maximum(x=(alpha_sample + beta_sample), y=util.epsilon)
 
         return self.min_value + tf.where(condition=self.deterministic, x=deterministic, y=sample) * \
                                 (self.max_value - self.min_value)

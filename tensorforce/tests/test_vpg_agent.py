@@ -156,7 +156,7 @@ class TestVPGAgent(unittest.TestCase):
     def test_beta(self):
         passed = 0
 
-        for _ in xrange(5):
+        for _ in xrange(1):
             environment = MinimalTest(definition=True)
             actions = environment.actions
             actions['min_value'] = 0.0
@@ -164,7 +164,7 @@ class TestVPGAgent(unittest.TestCase):
 
             config = Configuration(
                 batch_size=8,
-                learning_rate=0.001,
+                learning_rate=0.0001,
                 states=environment.states,
                 actions=actions,
                 network=layered_network_builder([

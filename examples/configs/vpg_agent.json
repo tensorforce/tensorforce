@@ -18,7 +18,7 @@
     "epochs": 5,
     "update_batch_size" : 128
   },
-  "generalized_advantage_estimation": false,
+  "gae_rewards": false,
   "gae_lambda": 0.97,
-  "normalize_advantage": false
+  "normalize_rewards": false
 }

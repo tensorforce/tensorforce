@@ -23,6 +23,7 @@ from tensorforce.core.distributions import Distribution
 
 
 class Beta(Distribution):
+
     def __init__(self, shape, min_value, max_value, alpha=0, beta=0):
         """
         Beta distribution used for continuous actions. In particular, the Beta distribution
@@ -36,7 +37,6 @@ class Beta(Distribution):
             beta: Concentration parameter of the Beta distribution
         """
         assert max_value > min_value
-
         self.shape = shape
         self.min_value = min_value
         self.max_value = max_value
@@ -58,7 +58,6 @@ class Beta(Distribution):
         self = cls(shape=None, min_value=None, max_value=None)
         self.alpha, self.beta = tensors
         self.deterministic = deterministic
-
         return self
 
     def get_tensors(self):
@@ -87,14 +86,10 @@ class Beta(Distribution):
 
     def sample(self):
         deterministic = self.mean
-        print(tf.shape(deterministic))
-        print(tf.shape(self.alpha))
 
         alpha_sample = tf.random_gamma(shape=tf.shape(input=self.alpha), alpha=self.alpha)
         beta_sample = tf.random_gamma(shape=tf.shape(input=self.beta), alpha=self.beta)
         sample = alpha_sample / (alpha_sample + beta_sample)
-
-        print(tf.shape(alpha_sample))
 
         return self.min_value + tf.where(condition=self.deterministic, x=deterministic, y=sample) * \
                                 (self.max_value - self.min_value)

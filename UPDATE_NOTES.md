@@ -5,6 +5,13 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+13th August 2017
+
+- Fixed wrong internal calculation of `prob_ratio` and `kl_divergence` in TRPO/PPO
+- Added `next_internals` functionality to memories and QModel
+- Changed config value names related to advantage estimation to `gae_rewards` and `normalize_rewards`
+
+
 3rd August 2017
 
 - Added `ls_accept_ratio=0.01` and adapted names of other TRPO config parameters related to line search

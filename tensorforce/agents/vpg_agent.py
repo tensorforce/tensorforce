@@ -46,14 +46,13 @@ class VPGAgent(BatchAgent):
     A Policy Gradient Model expects the following additional configuration parameters:
 
     * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp').
-    * `generalized_advantage_estimation`: boolean indicating whether to use GAE.
-    * `gae_lambda`: float of the Generalized Advantage Estimation lambda.
-    * `normalize_advantage`: boolean indicating whether to normalize the advantage or not.
+    * `gae_rewards`: boolean indicating whether to use GAE reward estimation.
+    * `gae_lambda`: GAE lambda.
+    * `normalize_rewards`: boolean indicating whether to normalize rewards.
 
     The VPG agent does not require any additional configuration parameters.
 
     """
-
 
     name = 'VPGAgent'
     model = VPGModel

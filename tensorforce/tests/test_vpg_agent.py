@@ -88,6 +88,39 @@ class TestVPGAgent(unittest.TestCase):
         print('VPG agent (continuous) passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
 
+    def test_beta_distribution(self):
+        passed = 0
+
+        for _ in xrange(5):
+            environment = MinimalTest(definition=True)
+            actions = environment.actions
+            actions['min_value'] = 0
+            actions['max_value'] = 1
+
+            config = Configuration(
+                batch_size=8,
+                learning_rate=0.001,
+                states=environment.states,
+                actions=actions,
+                network=layered_network_builder([
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32)
+                ])
+            )
+            agent = VPGAgent(config=config)
+            runner = Runner(agent=agent, environment=environment)
+
+            def episode_finished(r):
+                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+
+            runner.run(episodes=1500, episode_finished=episode_finished)
+            print('VPG agent (continuous): ' + str(runner.episode))
+            if runner.episode < 1500:
+                passed += 1
+
+        print('VPG agent (continuous) passed = {}'.format(passed))
+        self.assertTrue(passed >= 4)
+
     def test_multi(self):
         passed = 0
 

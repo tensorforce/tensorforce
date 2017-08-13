@@ -25,6 +25,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core.distributions.beta import Beta
 from tensorforce.models import Model
 from tensorforce.core.networks import NeuralNetwork
 from tensorforce.core.baselines import Baseline
@@ -63,7 +64,13 @@ class PolicyGradientModel(Model):
                 kwargs = dict(action)
                 self.distribution[name] = Distribution.from_config(config=action.distribution, kwargs=kwargs)
             elif action.continuous:
-                self.distribution[name] = Gaussian(shape=action.shape)
+                if 'min_value' in action:
+                    assert 'max_value' in action
+                    self.distribution[name] = Beta(shape=action.shape, min_value=action.min_value,
+                                                   max_value=action.max_value, alpha=0.0, beta=0.0)
+
+                else:
+                    self.distribution[name] = Gaussian(shape=action.shape)
             else:
                 self.distribution[name] = Categorical(shape=action.shape, num_actions=action.num_actions)
 

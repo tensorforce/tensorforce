@@ -80,7 +80,7 @@ class Beta(Distribution):
     def sample(self):
         deterministic = self.mean
         alpha_sample = tf.random_gamma(shape=tf.shape(input=self.alpha), alpha=self.alpha)
-        beta_sample = tf.random_gamma(shape=tf.shape(input=self.alpha), alpha=self.alpha)
+        beta_sample = tf.random_gamma(shape=tf.shape(input=self.beta), alpha=self.beta)
 
         sample = alpha_sample / (alpha_sample + beta_sample)
 

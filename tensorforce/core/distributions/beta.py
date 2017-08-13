@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """
-Beta distribution.
+Beta distribution for bounded continuous action spaces.
 """
 import tensorflow as tf
 
@@ -22,9 +22,8 @@ from tensorforce.core.networks import layers
 from tensorforce.core.distributions import Distribution
 
 
-# TODO Michael: integrate to model, rescale min max
 class Beta(Distribution):
-    def __init__(self, shape, min_value, max_value, alpha, beta):
+    def __init__(self, shape, min_value, max_value, alpha=0, beta=0):
         """
         Beta distribution used for continuous actions. In particular, the Beta distribution
         allows to bound action values with min and max values.
@@ -36,9 +35,11 @@ class Beta(Distribution):
             alpha: Concentration parameter of the Beta distribution
             beta: Concentration parameter of the Beta distribution
         """
+        assert max_value > min_value
+
         self.shape = shape
         self.min_value = min_value
-        self.h = (max_value - min_value) / 2
+        self.max_value = max_value
         self.alpha = alpha
         self.beta = beta
 
@@ -53,25 +54,32 @@ class Beta(Distribution):
                (self.alpha - 1.0) * tf.digamma(self.alpha) + ((self.sum - 2.0) * tf.digamma(self.sum))
 
     @classmethod
-    def from_tensors(cls, parameters, deterministic):
+    def from_tensors(cls, tensors, deterministic):
         self = cls(shape=None, min_value=None, max_value=None)
-        self.distribution = (self.alpha, self.beta) = parameters
+        self.alpha, self.beta = tensors
         self.deterministic = deterministic
 
         return self
 
+    def get_tensors(self):
+        return (self.alpha, self.beta)
+
     def create_tf_operations(self, x, deterministic):
         # Flat mean and log standard deviation
         flat_size = util.prod(self.shape)
-        self.alpha = layers['dense'](x=x, size=flat_size, bias=self.alpha, activation='softplus')
-        self.beta = layers['dense'](x=x, size=flat_size, bias=self.beta, activation='softplus')
+
+        # Softplus to ensure alpha and beta >= 1
+        self.alpha = layers['linear'](x=x, size=flat_size, bias=self.alpha)
+        self.alpha = tf.nn.softplus(features=self.alpha)
+
+        self.beta = layers['linear'](x=x, size=flat_size, bias=self.beta)
+        self.beta = tf.nn.softplus(features=self.beta)
 
         self.sum = self.alpha + self.beta
         self.mean = self.alpha / self.sum
 
         self.log_norm = tf.lgamma(self.alpha) + tf.lgamma(self.beta) - tf.lgamma(self.sum)
 
-        self.distribution = (self.alpha, self.beta)
         self.deterministic = deterministic
 
     def log_probability(self, action):
@@ -79,9 +87,14 @@ class Beta(Distribution):
 
     def sample(self):
         deterministic = self.mean
+        print(tf.shape(deterministic))
+        print(tf.shape(self.alpha))
 
         alpha_sample = tf.random_gamma(shape=tf.shape(input=self.alpha), alpha=self.alpha)
         beta_sample = tf.random_gamma(shape=tf.shape(input=self.beta), alpha=self.beta)
         sample = alpha_sample / (alpha_sample + beta_sample)
 
-        return self.min_value + tf.where(condition=self.deterministic, x=deterministic, y=sample)
+        print(tf.shape(alpha_sample))
+
+        return self.min_value + tf.where(condition=self.deterministic, x=deterministic, y=sample) * \
+                                (self.max_value - self.min_value)

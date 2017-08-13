@@ -32,8 +32,6 @@ from tensorforce.core.distributions import Distribution
 class Gaussian(Distribution):
 
     def __init__(self, shape, mean=0.0, stddev=1.0, logger=None):
-        # if min_value is not None or max_value is not None:
-        #     raise TensorForceError('Min/max value not allowed for Gaussian.')
         self.shape = shape
         self.mean = mean
         self.log_stddev = log(stddev)

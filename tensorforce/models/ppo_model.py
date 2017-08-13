@@ -22,7 +22,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import numpy as np
 import tensorflow as tf
 from six.moves import xrange
 from tensorforce import util
@@ -66,27 +65,22 @@ class PPOModel(PolicyGradientModel):
             entropies = list()
 
             for name, action in self.action.items():
-                distribution = self.distribution[name]
-                prev_distribution = tuple(
-                    tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
-                self.internal_inputs.extend(prev_distribution)
-                self.internal_outputs.extend(distribution)
-                self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
-                prev_distribution = self.distribution[name].__class__.from_tensors(parameters=prev_distribution,
-                                                                                   deterministic=self.deterministic)
-
                 shape_size = util.prod(config.actions[name].shape)
+                distribution = self.distribution[name]
+                fixed_distribution = distribution.__class__.from_tensors(
+                    tensors=[tf.stop_gradient(x) for x in distribution.get_tensors()],
+                    deterministic=self.deterministic
+                )
 
                 # Standard policy gradient log likelihood computation
                 log_prob = distribution.log_probability(action=action)
-                prev_log_prob = prev_distribution.log_probability(action=action)
-                log_prob_diff = tf.minimum(x=(log_prob - prev_log_prob), y=10.0)
+                fixed_log_prob = fixed_distribution.log_probability(action=action)
+                log_prob_diff = log_prob - fixed_log_prob
                 prob_ratio = tf.exp(x=log_prob_diff)
                 prob_ratio = tf.reshape(tensor=prob_ratio, shape=(-1, shape_size))
                 prob_ratios.append(prob_ratio)
 
                 entropy = distribution.entropy()
-
                 entropy_penalty = -config.entropy_penalty * entropy
                 entropy_penalty = tf.reshape(tensor=entropy_penalty, shape=(-1, shape_size))
                 entropy_penalties.append(entropy_penalty)
@@ -94,7 +88,7 @@ class PPOModel(PolicyGradientModel):
                 entropy = tf.reshape(tensor=entropy, shape=(-1, shape_size))
                 entropies.append(entropy)
 
-                kl_divergence = distribution.kl_divergence(prev_distribution)
+                kl_divergence = fixed_distribution.kl_divergence(other=distribution)
                 kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
                 kl_divergences.append(kl_divergence)
 
@@ -158,8 +152,8 @@ class PPOModel(PolicyGradientModel):
             feed_dict[self.terminal] = batch['terminals']
             feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
-            loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches,
-                                                                               feed_dict=feed_dict)[1:5]
+            # self.surrogate_loss, self.entropy_penalty, self.kl_divergence
+            loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:5]
 
             self.logger.debug('Loss = {}'.format(loss))
             self.logger.debug('KL divergence = {}'.format(kl_divergence))

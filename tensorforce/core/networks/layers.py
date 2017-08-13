@@ -107,9 +107,15 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0):
 
     with tf.variable_scope('linear'):
         shape = (x.shape[1].value, size)
+        weights_variable = True
         if weights is None:
             stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + size)))
             weights = tf.random_normal(shape=shape, stddev=stddev)
+        elif isinstance(weights, tf.Tensor):
+            weights_variable = False
+            if util.shape(weights) != shape:
+                raise TensorForceError('Weights shape {} does not match expected shape {} '
+                                       .format(weights.shape, shape))
         elif isinstance(weights, float):
             weights = np.full(shape, weights, dtype=np.float32)
         else:
@@ -119,8 +125,14 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0):
                                        .format(weights.shape, shape))
 
         shape = (size,)
+        bias_variable = True
         if isinstance(bias, bool):
             bias = tf.zeros(shape=shape) if bias else None
+        elif isinstance(bias, tf.Tensor):
+            bias_variable = False
+            if util.shape(bias) != shape:
+                raise TensorForceError('Bias shape {} does not match expected shape {} '
+                                       .format(bias.shape, shape))
         elif isinstance(bias, float):
             bias = np.full(shape, bias, dtype=np.float32)
         else:
@@ -129,17 +141,18 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0):
                 raise TensorForceError('Bias shape {} does not match expected shape {} '
                                        .format(bias.shape, shape))
 
-        weights = tf.Variable(initial_value=weights, dtype=tf.float32)
-
-        if l2_regularization > 0.0:
-            tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
+        if weights_variable:
+            weights = tf.Variable(initial_value=weights, dtype=tf.float32)
+            if l2_regularization > 0.0:
+                tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
 
         x = tf.matmul(a=x, b=weights)
 
         if bias is not None:
-            bias = tf.Variable(initial_value=bias, dtype=tf.float32)
-            if l2_regularization > 0.0:
-                tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
+            if bias_variable:
+                bias = tf.Variable(initial_value=bias, dtype=tf.float32)
+                if l2_regularization > 0.0:
+                    tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             x = tf.nn.bias_add(value=x, bias=bias)
 
     return x

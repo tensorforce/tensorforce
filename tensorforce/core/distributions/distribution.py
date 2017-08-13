@@ -25,7 +25,10 @@ import tensorforce.core.distributions
 class Distribution(object):
 
     @classmethod
-    def from_tensors(cls, parameters, deterministic):
+    def from_tensors(cls, tensors):
+        raise NotImplementedError
+
+    def get_tensors(self):
         raise NotImplementedError
 
     def create_tf_operations(self, x, deterministic):

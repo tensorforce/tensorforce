@@ -37,18 +37,23 @@ class Categorical(Distribution):
         if probabilities is None:
             self.logits = 0.0
         else:
-            self.logits = [log(prob) for _ in range(util.prod(self.shape)) for prob in probabilities]
+            self.logits = [log(prob) for _ in range(util.prod(shape)) for prob in probabilities]
 
     @classmethod
-    def from_tensors(cls, parameters, deterministic):
+    def from_tensors(cls, tensors, deterministic):
         self = cls(shape=None, num_actions=None)
-        self.distribution = (self.logits,) = parameters
+        self.distribution = (self.logits,) = tensors
         self.probabilities = tf.exp(x=self.logits)  # assuming normalized logits
-        self.num_actions = parameters[0].shape[1].value
+        self.num_actions = tensors[0].shape[1].value
         self.deterministic = deterministic
         return self
 
+    def get_tensors(self):
+        return (self.logits,)
+
     def create_tf_operations(self, x, deterministic):
+        self.deterministic = deterministic
+
         # Flat logits
         flat_size = util.prod(self.shape) * self.num_actions
         self.logits = layers['linear'](x=x, size=flat_size, bias=self.logits)
@@ -57,18 +62,14 @@ class Categorical(Distribution):
         shape = (-1,) + self.shape + (self.num_actions,)
         self.logits = tf.reshape(tensor=self.logits, shape=shape)
 
-        # Linearly shift logits for numerical stability
-        self.logits -= tf.reduce_max(input_tensor=self.logits, axis=-1, keep_dims=True)
-
         # Softmax for corresponding probabilities
         self.probabilities = tf.nn.softmax(logits=self.logits, dim=-1)
 
-        # "normalized" logits
-        self.logits = tf.log(x=self.probabilities + util.epsilon)
+        # Min epsilon probability for numerical stability
+        self.probabilities = tf.maximum(x=self.probabilities, y=util.epsilon)
 
-        # General distribution values
-        self.distribution = (self.logits,)
-        self.deterministic = deterministic
+        # "Normalized" logits
+        self.logits = tf.log(x=self.probabilities + util.epsilon)
 
     def sample(self):
         # Deterministic: maximum likelihood action

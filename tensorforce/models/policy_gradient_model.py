@@ -60,13 +60,10 @@ class PolicyGradientModel(Model):
         self.distribution = dict()
         for name, action in config.actions:
             if 'distribution' in action:
-                if action.continuous:
-                    kwargs = dict(min_value=action.min_value, max_value=action.max_value)
-                else:
-                    kwargs = dict(num_actions=action.num_actions)
+                kwargs = dict(action)
                 self.distribution[name] = Distribution.from_config(config=action.distribution, kwargs=kwargs)
             elif action.continuous:
-                self.distribution[name] = Gaussian(shape=action.shape, min_value=action.min_value, max_value=action.max_value)  # TODO: min_value/max_value
+                self.distribution[name] = Gaussian(shape=action.shape)
             else:
                 self.distribution[name] = Categorical(shape=action.shape, num_actions=action.num_actions)
 

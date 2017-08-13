@@ -68,29 +68,31 @@ class TRPOModel(PolicyGradientModel):
         super(TRPOModel, self).create_tf_operations(config)
 
         with tf.variable_scope('update'):
+            log_probs = list()
             prob_ratios = list()
             kl_divergences = list()
             entropies = list()
-            fixed_kl_divergences = list()
 
             for name, action in self.action.items():
-                distribution = self.distribution[name]
-                prev_distribution = tuple(tf.placeholder(dtype=tf.float32, shape=util.shape(x, unknown=None)) for x in distribution)
-                self.internal_inputs.extend(prev_distribution)
-                self.internal_outputs.extend(distribution)
-                self.internal_inits.extend(np.zeros(shape=util.shape(x)[1:]) for x in distribution)
-                prev_distribution = distribution.from_tensors(parameters=prev_distribution, deterministic=self.deterministic)
-
                 shape_size = util.prod(config.actions[name].shape)
+                distribution = self.distribution[name]
+                fixed_distribution = distribution.__class__.from_tensors(
+                    tensors=[tf.stop_gradient(x) for x in distribution.get_tensors()],
+                    deterministic=self.deterministic
+                )
 
                 log_prob = distribution.log_probability(action=action)
-                prev_log_prob = prev_distribution.log_probability(action=action)
-                log_prob_diff = tf.minimum(x=(log_prob - prev_log_prob), y=10.0)
+                log_prob = tf.reshape(tensor=log_prob, shape=(-1, shape_size))
+                log_probs.append(log_prob)
+
+                fixed_log_prob = fixed_distribution.log_probability(action=action)
+                fixed_log_prob = tf.reshape(tensor=fixed_log_prob, shape=(-1, shape_size))
+
+                log_prob_diff = log_prob - fixed_log_prob
                 prob_ratio = tf.exp(x=log_prob_diff)
-                prob_ratio = tf.reshape(tensor=prob_ratio, shape=(-1, shape_size))
                 prob_ratios.append(prob_ratio)
 
-                kl_divergence = distribution.kl_divergence(other=prev_distribution)
+                kl_divergence = fixed_distribution.kl_divergence(other=distribution)
                 kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
                 kl_divergences.append(kl_divergence)
 
@@ -98,11 +100,7 @@ class TRPOModel(PolicyGradientModel):
                 entropy = tf.reshape(tensor=entropy, shape=(-1, shape_size))
                 entropies.append(entropy)
 
-                fixed_distribution = distribution.__class__.from_tensors(parameters=[tf.stop_gradient(x) for x in distribution],
-                                                                         deterministic=self.deterministic)
-                fixed_kl_divergence = fixed_distribution.kl_divergence(distribution)
-                fixed_kl_divergence = tf.reshape(tensor=fixed_kl_divergence, shape=(-1, shape_size))
-                fixed_kl_divergences.append(fixed_kl_divergence)
+            self.log_prob = tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
 
             prob_ratio = tf.reduce_mean(input_tensor=tf.concat(values=prob_ratios, axis=1), axis=1)
             self.loss_per_instance = -prob_ratio * self.reward
@@ -110,15 +108,16 @@ class TRPOModel(PolicyGradientModel):
 
             kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
             kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
+
             entropy = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
             entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
-            self.losses = (surrogate_loss, kl_divergence, entropy, self.loss_per_instance)
 
-            fixed_kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=fixed_kl_divergences, axis=1), axis=1)
+            self.losses = (surrogate_loss, kl_divergence, entropy, self.loss_per_instance)
 
             # Get symbolic gradient expressions
             variables = list(tf.trainable_variables())  # TODO: ideally not value function (see also for "gradients" below)
             gradients = tf.gradients(self.losses[0], variables)
+            # gradients[0] = tf.Print(gradients[0], (gradients[0],))
             variables = [var for var, grad in zip(variables, gradients) if grad is not None]
             gradients = [grad for grad in gradients if grad is not None]
             self.policy_gradient = tf.concat(values=[tf.reshape(grad, (-1,)) for grad in gradients], axis=0)  # util.prod(util.shape(v))
@@ -132,7 +131,7 @@ class TRPOModel(PolicyGradientModel):
                 tangents.append(tf.reshape(self.tangent[offset:offset + size], shape))
                 offset += size
 
-            gradients = tf.gradients(fixed_kl_divergence, variables)
+            gradients = tf.gradients(kl_divergence, variables)
             gradient_vector_product = [tf.reduce_sum(g * t) for (g, t) in zip(gradients, tangents)]
 
             self.flat_variable_helper = FlatVarHelper(variables)
@@ -187,9 +186,7 @@ class TRPOModel(PolicyGradientModel):
         # Improve update step through simple backtracking line search
         # N.b. some implementations skip the line search
         previous_theta = self.flat_variable_helper.get()
-        improved, theta = line_search(self.compute_surrogate_loss, previous_theta, update_step,
-                                      negative_gradient_direction / (lagrange_multiplier + util.epsilon),
-                                      self.ls_max_backtracks, self.ls_accept_ratio)
+        improved, theta = line_search(self.compute_surrogate_loss, batch['rewards'], previous_theta, update_step, negative_gradient_direction / (lagrange_multiplier + util.epsilon), self.ls_max_backtracks, self.ls_accept_ratio)
 
         # Use line search results, otherwise take full step
         # N.B. some implementations don't use the line search
@@ -221,7 +218,7 @@ class TRPOModel(PolicyGradientModel):
         self.flat_variable_helper.set(theta)
 
         # Losses[0] = surrogate_loss
-        return self.session.run(self.losses[0], self.feed_dict)
+        return self.session.run(self.log_prob, self.feed_dict)
 
 
 class FlatVarHelper(object):
@@ -260,7 +257,7 @@ class FlatVarHelper(object):
         return self.session.run(self.get_op)
 
 
-def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks, accept_ratio):
+def line_search(f, rewards, initial_x, full_step, expected_improve_rate, max_backtracks, accept_ratio):
     """
     Line search for TRPO where a full step is taken first and then backtracked to
     find optimal step size.
@@ -276,16 +273,23 @@ def line_search(f, initial_x, full_step, expected_improve_rate, max_backtracks, 
 
     function_value = f(initial_x)
 
-    for _, step_fraction in enumerate(0.5 ** np.arange(max_backtracks)):
+    value = sum(rewards) / len(rewards)
+    expected_improve_rate = max(expected_improve_rate, util.epsilon)
+
+    step_fraction = 1.0
+    for _ in range(max_backtracks):
         updated_x = initial_x + step_fraction * full_step
-        new_function_value = f(updated_x)
+        new_value = f(updated_x)
 
-        actual_improve = function_value - new_function_value
-        expected_improve = expected_improve_rate * step_fraction
+        new_value = new_value - function_value
+        new_value = np.exp(new_value)
+        new_value = new_value.dot(rewards) / new_value.shape[0]
 
-        improve_ratio = actual_improve / (expected_improve + util.epsilon)
-
-        if improve_ratio > accept_ratio and actual_improve > 0:
+        improve_ratio = (new_value - value) / expected_improve_rate
+        if improve_ratio > accept_ratio:
             return True, updated_x
+
+        step_fraction /= 2.0
+        expected_improve_rate /= 2.0
 
     return False, initial_x

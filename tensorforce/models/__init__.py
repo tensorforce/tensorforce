@@ -22,6 +22,7 @@ from tensorforce.models.dqn_model import DQNModel
 from tensorforce.models.naf_model import NAFModel
 from tensorforce.models.dqfd_model import DQFDModel
 from tensorforce.models.categorical_dqn_model import CategoricalDQNModel
+from tensorforce.models.dqn_nstep_model import DQNNstepModel
 
 
 models = dict(
@@ -31,7 +32,8 @@ models = dict(
     NAFModel=NAFModel,
     DQFDModel=DQFDModel,
     CategoricalDQNModel=CategoricalDQNModel,
+    DQNNstepModel=DQNNstepModel,
 )
 
 __all__ = ['Model', 'PolicyGradientModel', 'QModel', 'VPGModel', 'TRPOModel', 'DQNModel', 'NAFModel', 'DQFDModel',
-           'CategoricalDQNModel', 'models']
+           'CategoricalDQNModel', 'DQNNstepModel', 'models']

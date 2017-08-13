@@ -40,7 +40,9 @@ class Model(object):
     * `learning_rate`: float of learning rate (alpha).
     * `optimizer`: string of optimizer to use (e.g. 'adam').
     * `device`: string of tensorflow device name.
-    * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
+    * `tf_summary`: string directory to write tensorflow summaries. Default None
+    * `tf_summary_level`: int indicating which tensorflow summaries to create.
+    * `tf_summary_interval`: int number of calls to get_action until writing tensorflow summaries on update.
     * `log_level`: string containing log level (e.g. 'info').
     * `distributed`: boolean indicating whether to use distributed tensorflow.
     * `global_model`: global model.
@@ -56,6 +58,8 @@ class Model(object):
         optimizer='adam',
         device=None,
         tf_summary=None,
+        tf_summary_level=0,
+        tf_summary_interval=1000,
         distributed=False,
         global_model=False,
         session=None
@@ -65,9 +69,9 @@ class Model(object):
         """
         Creates a base reinforcement learning model with the specified configuration. Manages the creation
         of TensorFlow operations and provides a generic update method.
-        
+
         Args:
-            config: 
+            config:
         """
         assert self.__class__.allows_discrete_actions is not None and self.__class__.allows_continuous_actions is not None
         config.default(Model.default_config)
@@ -90,7 +94,7 @@ class Model(object):
             global_config.global_model = True
             global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=config.cluster_spec)
             self.global_model = self.__class__(config=global_config)
-            self.global_timestep = self.global_model.timestep
+            self.global_timestep = self.global_model.global_timestep
             self.global_episode = self.global_model.episode
             self.global_variables = self.global_model.variables
 
@@ -98,7 +102,7 @@ class Model(object):
         with tf.device(config.device):
             if config.distributed:
                 if config.global_model:
-                    self.timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
+                    self.global_timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
                     self.episode = tf.get_variable(name='episode', dtype=tf.int32, initializer=0, trainable=False)
                     scope_context = tf.variable_scope('global')
                 else:
@@ -136,9 +140,25 @@ class Model(object):
 
         self.saver = tf.train.Saver()
         if config.tf_summary is not None:
+            # create a summary for total loss
+            tf.summary.scalar('total-loss', self.loss)
+
+            # create summary writer
             self.writer = tf.summary.FileWriter(config.tf_summary, graph=tf.get_default_graph())
+            self.last_summary_step = -float('inf')
+
+            # create summaries based on summary level
+            if config.tf_summary_level >= 2:
+                for v in tf.trainable_variables():
+                    tf.summary.histogram(v.name, v)
+
+            # merge all summaries
+            self.tf_summaries = tf.summary.merge_all()
         else:
             self.writer = None
+
+        self.timestep = 0
+        self.summary_interval = config.tf_summary_interval
 
         if not config.distributed:
             self.set_session(tf.Session())
@@ -148,7 +168,7 @@ class Model(object):
     def create_tf_operations(self, config):
         """
         Creates generic TensorFlow operations and placeholders required for models.
-        
+
         Args:
             config: Model configuration which must contain entries for states and actions.
 
@@ -211,6 +231,7 @@ class Model(object):
         return list(self.internal_inits)
 
     def get_action(self, state, internal, deterministic=False):
+        self.timestep += 1
         fetches = {action: action_taken for action, action_taken in self.action_taken.items()}
         fetches.update({n: internal_output for n, internal_output in enumerate(self.internal_outputs)})
 
@@ -227,9 +248,9 @@ class Model(object):
     def update(self, batch):
         """Generic batch update operation for Q-learning and policy gradient algorithms.
          Takes a batch of experiences,
-         
+
         Args:
-            batch: Batch of experiences. 
+            batch: Batch of experiences.
 
         Returns:
 
@@ -240,11 +261,19 @@ class Model(object):
         fetches = [self.optimize, self.loss, self.loss_per_instance]
         feed_dict = self.update_feed_dict(batch=batch)
 
+        # check if we should write summaries
+        write_summaries = self.should_write_summaries(self.timestep)
+        if write_summaries:
+            self.last_summary_step = self.timestep
+            fetches.append(self.tf_summaries)
+
         if self.distributed:
             fetches.extend(self.increment_global_episode for terminal in batch['terminals'] if terminal)
-            loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:3]
-        else:
-            loss, loss_per_instance = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:]
+
+        returns = self.session.run(fetches=fetches, feed_dict=feed_dict)
+        loss, loss_per_instance = returns[1:3]
+        if write_summaries:
+            self.write_summaries(returns[3])
 
         self.logger.debug('Computed update with loss = {}.'.format(loss))
 
@@ -262,4 +291,10 @@ class Model(object):
         self.saver.restore(self.session, path)
 
     def save_model(self, path):
-        self.saver.save(self.session, path)
+        self.saver.save(self.session, path, global_step=self.timestep)
+
+    def should_write_summaries(self, num_updates):
+        return self.writer is not None and self.timestep > self.last_summary_step + self.summary_interval
+
+    def write_summaries(self, summaries):
+        self.writer.add_summary(summaries, global_step=self.timestep)

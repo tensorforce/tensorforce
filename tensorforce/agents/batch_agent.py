@@ -38,17 +38,20 @@ class BatchAgent(Agent):
     The `BatchAgent` class additionally requires the following parameters:
 
     * `batch_size`: integer of the batch size.
+    * `keep_last`: bool optionally keep the last observation for use in the next batch
 
     """
 
     default_config = dict(
-        batch_size=1
+        batch_size=1,
+        keep_last=False,
     )
 
     def __init__(self, config, model=None):
         config.default(BatchAgent.default_config)
         self.batch_size = config.batch_size
         self.batch = None
+        self.keep_last = config.keep_last
         super(BatchAgent, self).__init__(config, model)
 
     def observe(self, reward, terminal):
@@ -86,11 +89,21 @@ class BatchAgent(Agent):
             self.reset_batch()
 
     def reset_batch(self):
-        self.batch = dict(
-            states={state: [] for state, _ in self.states_config},
-            actions={action: [] for action, _ in self.actions_config},
-            rewards=[],
-            terminals=[],
-            internals=[[] for _ in range(len(self.current_internal))]
-        )
-        self.batch_count = 0
+        if self.batch is None or not self.keep_last:
+            self.batch = dict(
+                states={state: [] for state, _ in self.states_config},
+                actions={action: [] for action, _ in self.actions_config},
+                rewards=[],
+                terminals=[],
+                internals=[[] for _ in range(len(self.current_internal))]
+            )
+            self.batch_count = 0
+        else:
+            self.batch = dict(
+                states={state: [self.batch['states'][state][-1]] for state, _ in self.states_config},
+                actions={action: [self.batch['actions'][action][-1]] for action, _ in self.actions_config},
+                rewards=[self.batch['rewards'][-1]],
+                terminals=[self.batch['terminals'][-1]],
+                internals=[[self.batch['internals'][i][-1]] for i in range(len(self.current_internal))]
+            )
+            self.batch_count = 1

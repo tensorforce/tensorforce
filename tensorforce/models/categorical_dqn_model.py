@@ -36,6 +36,7 @@ class CategoricalDQNModel(Model):
     allows_continuous_actions = False
 
     default_config = dict(
+        target_update_frequency=10000,
         update_target_weight=1.0,
         distribution_max=10,
         distribution_min=-10,
@@ -53,7 +54,12 @@ class CategoricalDQNModel(Model):
         self.distribution_max = config.distribution_max
         self.distribution_min = config.distribution_min
         self.num_atoms = config.num_atoms
+        self.last_target_update = 0
+        self.target_update_frequency = config.target_update_frequency
         super(CategoricalDQNModel, self).__init__(config)
+
+        # Synchronise target with training network
+        self.possible_update_target(force=True)
 
     def create_tf_operations(self, config):
         super(CategoricalDQNModel, self).create_tf_operations(config)
@@ -75,11 +81,11 @@ class CategoricalDQNModel(Model):
 
         # Training network
         with tf.variable_scope('training') as training_scope:
-            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
+            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state, summary_level=config.tf_summary_level)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
-            training_output_logits, _, training_qval, action_taken = self._create_action_outputs(
+            training_output_logits, training_output_probabilities, training_qval, action_taken = self._create_action_outputs(
                 self.training_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
             )
             # stack to preserve action_taken shape like (batch_size, num_actions)
@@ -88,6 +94,14 @@ class CategoricalDQNModel(Model):
                     self.action_taken[action] = tf.stack(action_taken[action], axis=1)
                 else:
                     self.action_taken[action] = action_taken[action][0]
+
+                # summarize expected reward histogram
+                if config.tf_summary_level >= 1:
+                    for action_shaped in range(len(action_taken[action])):
+                        for action_ind in range(num_actions[action]):
+                            tf.summary.histogram('{}-{}-{}-output-distribution'.format(action, action_shaped, action_ind),
+                                                 training_output_probabilities[action][action_shaped][:, action_ind] * quantized_steps)
+
             self.training_variables = tf.contrib.framework.get_variables(scope=training_scope)
 
         # Target network
@@ -162,6 +176,8 @@ class CategoricalDQNModel(Model):
                     loss = tf.reduce_mean(self.loss_per_instance)
                     tf.losses.add_loss(loss)
 
+                    tf.summary.scalar('cce-loss-{}-{}'.format(action, action_ind), loss)
+
         # Update target network
         with tf.name_scope("update_target"):
             self.target_network_update = list()
@@ -188,12 +204,18 @@ class CategoricalDQNModel(Model):
             feed_dict.update({internal: batch['internals'][n][:-1] for n, internal in enumerate(self.internal_inputs)})
         return feed_dict
 
-    def update_target(self):
+    def update(self, *args, **kwargs):
+        self.possible_update_target()
+        return super(CategoricalDQNModel, self).update(*args, **kwargs)
+
+    def possible_update_target(self, force=False):
         """
-        Updates target network.
+        Updates target network if necessary
         :return:
         """
-        self.session.run(self.target_network_update)
+        if self.timestep > self.last_target_update + self.target_update_frequency or force:
+            self.last_target_update = self.timestep
+            self.session.run(self.target_network_update)
 
     @staticmethod
     def _create_action_outputs(network_output, quantized_steps, num_atoms, config, actions, num_actions):

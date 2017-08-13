@@ -27,14 +27,14 @@ import tensorflow as tf
 
 class NeuralNetwork(object):
 
-    def __init__(self, network_builder, inputs):
+    def __init__(self, network_builder, inputs, summary_level=0):
         """
 
         Args:
             network_builder: A network_builder function representing the desired network configuration
             inputs: Input placeholders to the network
         """
-        network = network_builder(inputs)
+        network = network_builder(inputs, summary_level=summary_level)
 
         if isinstance(network, tf.Tensor):
             self.output = network

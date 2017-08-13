@@ -21,11 +21,11 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.agents import DQNAgent
+from tensorforce.agents import MemoryAgent
 from tensorforce.models import CategoricalDQNModel
 
 
-class CategoricalDQNAgent(DQNAgent):
+class CategoricalDQNAgent(MemoryAgent):
     """
     Categorical DQN agent. Replaces linear outputs with a distribution for each action as described in
     https://arxiv.org/abs/1707.06887
@@ -55,18 +55,17 @@ class CategoricalDQNAgent(DQNAgent):
     * `optimizer`: string of optimizer to use (e.g. 'adam').
     * `device`: string of tensorflow device name.
     * `tf_saver`: boolean whether to save model parameters.
-    * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
+    * `tf_summary`: string directory to write tensorflow summaries. Default None
+    * `tf_summary_level`: int indicating which tensorflow summaries to create.
+    * `tf_summary_interval`: int number of calls to get_action until writing tensorflow summaries on update.
     * `log_level`: string containing logleve (e.g. 'info').
     * `distributed`: boolean indicating whether to use distributed tensorflow.
     * `global_model`: global model.
     * `session`: session to use.
 
-    The DQN agent expects the following additional configuration parameters:
-
-    * `target_update_frequency`: int of states between updates of the target network.
-
     The Cateogircal DQN model also expects the following configuration parameters:
 
+    * `target_update_frequency`: int of states between updates of the target network.
     * `distribution_min`: float minimum value of distribution
     * `distribution_max`: float maximum value of distribution
     * `num_atoms`: int number of atoms (discrete steps) to use in the distribution
@@ -76,7 +75,3 @@ class CategoricalDQNAgent(DQNAgent):
 
     name = 'CategoricalDQNAgent'
     model = CategoricalDQNModel
-
-    def __init__(self, config, model=None):
-        config.default(DQNAgent.default_config)
-        super(CategoricalDQNAgent, self).__init__(config, model)

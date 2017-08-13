@@ -22,13 +22,13 @@ from six.moves import xrange
 
 
 from tensorforce import Configuration
-from tensorforce.agents import CategoricalDQNAgent
+from tensorforce.agents import DQNNstepAgent
 from tensorforce.core.networks import layered_network_builder, layers
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
 
 
-class TestCategoricalDQNAgent(unittest.TestCase):
+class TestDQNNstepAgent(unittest.TestCase):
 
     def test_discrete(self):
         passed = 0
@@ -37,10 +37,8 @@ class TestCategoricalDQNAgent(unittest.TestCase):
             environment = MinimalTest(definition=False)
             config = Configuration(
                 batch_size=8,
-                learning_rate=0.0005,
-                memory_capacity=800,
-                first_update=80,
-                target_update_frequency=20,
+                keep_last=True,
+                learning_rate=0.001,
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
@@ -48,51 +46,16 @@ class TestCategoricalDQNAgent(unittest.TestCase):
                     dict(type='dense', size=32)
                 ])
             )
-            agent = CategoricalDQNAgent(config=config)
+            agent = DQNNstepAgent(config=config)
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
                 return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
 
             runner.run(episodes=1000, episode_finished=episode_finished)
-            print('Categorical DQN agent: ' + str(runner.episode))
+            print('DQN Nstep agent: ' + str(runner.episode))
             if runner.episode < 1000:
                 passed += 1
 
-        print('Categorical DQN agent passed = {}'.format(passed))
+        print('DQN Nstep agent passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
-
-    def test_multi(self):
-        passed = 0
-
-        def network_builder(inputs, **kwargs):
-            layer = layers['dense']
-            state0 = layer(x=layer(x=inputs['state0'], size=32), size=32)
-            state1 = layer(x=layer(x=inputs['state1'], size=32), size=32)
-            return state0 * state1
-
-        for _ in xrange(5):
-            environment = MinimalTest(definition=[False, (False, 2)])
-            config = Configuration(
-                batch_size=8,
-                learning_rate=0.001,
-                memory_capacity=800,
-                first_update=80,
-                target_update_frequency=20,
-                states=environment.states,
-                actions=environment.actions,
-                network=network_builder
-            )
-            agent = CategoricalDQNAgent(config=config)
-            runner = Runner(agent=agent, environment=environment)
-
-            def episode_finished(r):
-                return r.episode < 15 or not all(x >= 1.0 for x in r.episode_rewards[-15:])
-
-            runner.run(episodes=2000, episode_finished=episode_finished)
-            print('Categorical DQN agent (multi-state/action): ' + str(runner.episode))
-            if runner.episode < 2000:
-                passed += 1
-
-        print('Categorical DQN agent (multi-state/action) passed = {}'.format(passed))
-        self.assertTrue(passed >= 2)

@@ -41,6 +41,7 @@ class VPGAgent(BatchAgent):
     The `BatchAgent` class additionally requires the following parameters:
 
     * `batch_size`: integer of the batch size.
+    * `keep_last`: bool optionally keep the last observation for use in the next batch
 
     A Policy Gradient Model expects the following additional configuration parameters:
 

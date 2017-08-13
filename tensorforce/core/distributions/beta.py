@@ -71,9 +71,12 @@ class Beta(Distribution):
         # Softplus to ensure alpha and beta >= 1
         self.alpha = layers['linear'](x=x, size=flat_size, bias=self.alpha)
         self.alpha = tf.nn.softplus(features=self.alpha)
+        shape = (-1,) + self.shape
+        self.alpha = tf.reshape(tensor=self.alpha, shape=shape)
 
         self.beta = layers['linear'](x=x, size=flat_size, bias=self.beta)
         self.beta = tf.nn.softplus(features=self.beta)
+        self.beta = tf.reshape(tensor=self.beta, shape=shape)
 
         self.sum = self.alpha + self.beta
         self.mean = self.alpha / self.sum
@@ -87,14 +90,11 @@ class Beta(Distribution):
 
     def sample(self):
         deterministic = self.mean
-        print(tf.shape(deterministic))
-        print(tf.shape(self.alpha))
 
-        alpha_sample = tf.random_gamma(shape=tf.shape(input=self.alpha), alpha=self.alpha)
-        beta_sample = tf.random_gamma(shape=tf.shape(input=self.beta), alpha=self.beta)
+        alpha_sample = tf.random_gamma(shape=(), alpha=self.alpha)
+        beta_sample = tf.random_gamma(shape=(), alpha=self.beta)
+
         sample = alpha_sample / (alpha_sample + beta_sample)
-
-        print(tf.shape(alpha_sample))
 
         return self.min_value + tf.where(condition=self.deterministic, x=deterministic, y=sample) * \
                                 (self.max_value - self.min_value)

@@ -54,7 +54,7 @@ def nonlinearity(x, name='relu'):
     Args:
         x: Input tensor
         name: String identifier of non-linearity. Options: elu, relu, selu, sigmoid,
-        softmax, tanh
+        softmax, softplus, tanh
 
     Returns:
 
@@ -74,6 +74,8 @@ def nonlinearity(x, name='relu'):
             x = tf.sigmoid(x=x)
         elif name == 'softmax':
             x = tf.nn.softmax(logits=x)
+        elif name == 'softplus':
+            x = tf.nn.softplus(features=x)
         elif name == 'tanh':
             x = tf.nn.tanh(x=x)
         else:

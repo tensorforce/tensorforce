@@ -33,7 +33,7 @@ import tensorflow as tf
 from tensorforce import TensorForceError, util
 
 
-def flatten(x):
+def flatten(x, summary_level=0):
     """Flatten layer.
 
     Args:
@@ -230,7 +230,7 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
     return x
 
 
-def lstm(x, size=None):
+def lstm(x, size=None, summary_level=0):
     """
 
     Args:
@@ -249,11 +249,11 @@ def lstm(x, size=None):
 
     with tf.variable_scope('lstm'):
         internal_input = tf.placeholder(dtype=tf.float32, shape=(None, 2, size))
-        lstm = tf.contrib.rnn.LSTMCell(num_units=size)
+        lstm_cell = tf.contrib.rnn.LSTMCell(num_units=size)
         c = internal_input[:, 0, :]
         h = internal_input[:, 1, :]
         state = tf.contrib.rnn.LSTMStateTuple(c=c, h=h)
-        x, state = lstm(inputs=x, state=state)
+        x, state = lstm_cell(inputs=x, state=state)
 
         internal_output = tf.stack(values=(state.c, state.h), axis=1)
         internal_init = np.zeros(shape=(2, size))

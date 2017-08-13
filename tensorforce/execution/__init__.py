@@ -14,5 +14,6 @@
 # ==============================================================================
 
 from tensorforce.execution.runner import Runner
+from tensorforce.execution.threaded_runner import ThreadedRunner
 
-__all__ = ['Runner']
+__all__ = ['Runner', 'ThreadedRunner']

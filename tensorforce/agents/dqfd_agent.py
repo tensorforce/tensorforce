@@ -121,9 +121,6 @@ class DQFDAgent(MemoryAgent):
                 batch = self.demo_memory.get_batch(self.demo_batch_size)
                 self.model.demonstration_update(batch=batch)
 
-        if self.timestep >= self.first_update and self.timestep % self.target_update_frequency == 0:
-            self.model.update_target()
-
     def import_demonstrations(self, demonstrations):
         """Imports demonstrations, i.e. expert observations
 

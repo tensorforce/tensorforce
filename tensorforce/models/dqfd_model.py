@@ -42,7 +42,7 @@ class DQFDModel(DQNModel):
     def create_tf_operations(self, config):
         """Create training graph. For DQFD, we build the double-dqn training graph and
         modify the double_q_loss function according to eq. 5
-        
+
         Args:
             config: Config dict.
 
@@ -86,7 +86,7 @@ class DQFDModel(DQNModel):
         Returns:
 
         """
-
+        self.possible_update_target()
         fetches = self.dqfd_optimize
         feed_dict = self.update_feed_dict(batch=batch)
         self.session.run(fetches=fetches, feed_dict=feed_dict)

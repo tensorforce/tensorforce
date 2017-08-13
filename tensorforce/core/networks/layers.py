@@ -172,8 +172,8 @@ def dense(x, size, bias=True, activation='relu', l2_regularization=0.0, summary_
     return x
 
 
-def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regularization=0.0,
-           summary_level=0):
+def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='relu',
+           l2_regularization=0.0, summary_level=0):
     """A 2d convolutional layer.
 
     Args:
@@ -181,6 +181,7 @@ def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regula
         size: Neurons
         window: Filter window size
         stride: Filter stride
+        padding: One of [VALID, SAME]
         bias: Bool, indicates whether bias is used
         activation: Non-linearity type, defaults to relu
         l2_regularization: L2-regularisation value
@@ -201,7 +202,7 @@ def conv2d(x, size, window=3, stride=1, bias=False, activation='relu', l2_regula
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
 
         strides = (1, stride, stride, 1)
-        x = tf.nn.conv2d(input=x, filter=filters, strides=strides, padding='SAME')
+        x = tf.nn.conv2d(input=x, filter=filters, strides=strides, padding=padding)
 
         if bias:
             bias = tf.Variable(initial_value=tf.zeros(shape=(size,)), name='b')

@@ -72,17 +72,3 @@ class NAFAgent(MemoryAgent):
 
     name = 'NAFAgent'
     model = NAFModel
-    default_config = dict(
-        target_update_frequency=10000
-    )
-
-    def __init__(self, config, model=None):
-        config.default(MemoryAgent.default_config)
-        super(NAFAgent, self).__init__(config, model)
-        self.target_update_frequency = config.target_update_frequency
-
-    def observe(self, reward, terminal):
-        super(NAFAgent, self).observe(reward=reward, terminal=terminal)
-
-        if self.timestep >= self.first_update and self.timestep % self.target_update_frequency == 0:
-            self.model.update_target()

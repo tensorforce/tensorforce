@@ -57,13 +57,14 @@ class QModel(Model):
         with tf.variable_scope('placeholder'):
             self.next_state = dict()
             for name, state in config.states.items():
-                self.next_state[name] = tf.placeholder(dtype=util.tf_dtype(state.type), shape=(None,) + tuple(state.shape), name=name)
+                self.next_state[name] = tf.placeholder(dtype=util.tf_dtype(state.type), shape=(None,) + tuple(state.shape), name=('next_' + name))
 
         network_builder = util.get_function(fct=config.network)
 
         # Training network
         with tf.variable_scope('training') as training_scope:
             self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state, summary_level=config.tf_summary_level)
+            self.network_internal_index = len(self.internal_inputs)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -73,9 +74,7 @@ class QModel(Model):
         # Target network
         with tf.variable_scope('target') as target_scope:
             self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
-            self.internal_inputs.extend(self.target_network.internal_inputs)
-            self.internal_outputs.extend(self.target_network.internal_outputs)
-            self.internal_inits.extend(self.target_network.internal_inits)
+            self.next_internal_inputs = list(self.target_network.internal_inputs)
             self.target_values = self.create_target_operations(config)
             self.target_variables = tf.contrib.framework.get_variables(scope=target_scope)
 
@@ -148,6 +147,7 @@ class QModel(Model):
             feed_dict[self.reward] = batch['rewards']
             feed_dict[self.terminal] = batch['terminals']
             feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+            feed_dict.update({internal: batch['next_internals'][n] for n, internal in enumerate(self.next_internal_inputs, self.network_internal_index)})
         else:
             # if 'next_states' not explicitly given, assume temporally consistent sequence
             feed_dict = {state: batch['states'][name][:-1] for name, state in self.state.items()}
@@ -156,6 +156,7 @@ class QModel(Model):
             feed_dict[self.reward] = batch['rewards'][:-1]
             feed_dict[self.terminal] = batch['terminals'][:-1]
             feed_dict.update({internal: batch['internals'][n][:-1] for n, internal in enumerate(self.internal_inputs)})
+            feed_dict.update({internal: batch['internals'][n][1:] for n, internal in enumerate(self.next_internal_inputs, self.network_internal_index)})
         return feed_dict
 
     def update(self, *args, **kwargs):

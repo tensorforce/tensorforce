@@ -38,14 +38,14 @@ class PrioritizedReplay(Memory):
         self.observations = list()  # stores (priority, observation) pairs in reverse priority order
         self.none_priority_index = 0
         self.batch_indices = None
-        self.last_observation = None  # stores last bservation until next_state value is known
+        self.last_observation = None  # stores last observation until next_state value is known
 
     def add_observation(self, state, action, reward, terminal, internal):
         if self.internals_config is None and internal is not None:
             self.internals_config = [(i.shape, i.dtype) for i in internal]
 
         if self.last_observation is not None:
-            observation = self.last_observation + (state,)
+            observation = self.last_observation + (state, internal)
 
             if len(self.observations) < self.capacity:
                 self.observations.append((None, observation))
@@ -76,6 +76,7 @@ class PrioritizedReplay(Memory):
         internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
         if next_states:
             next_states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in self.states_config.items()}
+            next_internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
 
         self.batch_indices = list()
         not_sampled_index = self.none_priority_index
@@ -110,10 +111,12 @@ class PrioritizedReplay(Memory):
             if next_states:
                 for name, next_state in next_states.items():
                     next_state[n] = observation[5][name]
+                for k, next_internal in enumerate(next_internals):
+                    next_internal[n] = observation[6][k]
             self.batch_indices.append(index)
 
         if next_states:
-            return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals, next_states=next_states)
+            return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals, next_states=next_states, next_internals=next_internals)
         else:
             return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
 

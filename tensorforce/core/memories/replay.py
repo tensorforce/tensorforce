@@ -81,6 +81,7 @@ class Replay(Memory):
             if next_states:
                 indices = (indices + 1) % self.capacity
                 next_states = {name: state.take(indices, axis=0) for name, state in self.states.items()}
+                next_internals = [internal.take(indices, axis=0) for internal in self.internals]
 
         else:
             end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
@@ -94,6 +95,7 @@ class Replay(Memory):
                 internals = [internal[start:end] for internal in self.internals]
                 if next_states:
                     next_states = {name: state[start + 1: end + 1] for name, state in self.states.items()}
+                    next_internals = [internal[start + 1: end + 1] for internal in self.internals]
 
             else:
                 states = {name: np.concatenate((state[start:], state[:end])) for name, state in self.states.items()}
@@ -103,10 +105,12 @@ class Replay(Memory):
                 internals = [np.concatenate((internal[start:], internal[:end])) for internal in self.internals]
                 if next_states:
                     next_states = {name: np.concatenate((state[start + 1:], state[:end + 1])) for name, state in self.states.items()}
+                    next_internals = [np.concatenate((internal[start + 1:], internal[:end + 1])) for internal in self.internals]
 
         batch = dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
         if next_states:
             batch['next_states'] = next_states
+            batch['next_internals'] = next_internals
         return batch
 
     def update_batch(self, loss_per_instance):

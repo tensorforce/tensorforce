@@ -69,7 +69,7 @@ class PolicyGradientModel(Model):
                     self.distribution[name] = Gaussian(shape=action.shape)
                 else:
                     assert action.max_value is not None
-                    self.distribution[name] = Beta(shape=action.shape, min_value=action.min_value, max_value=action.max_value)
+                    self.distribution[name] = Beta(min_value=action.min_value, max_value=action.max_value, shape=action.shape)
             else:
                 self.distribution[name] = Categorical(shape=action.shape, num_actions=action.num_actions)
 

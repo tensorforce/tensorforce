@@ -49,8 +49,8 @@ class TestQuickstartExample(unittest.TestCase):
                     epochs=20,
                     update_batch_size=32
                 ),
-                generalized_advantage_estimation=True,
-                normalize_advantage=False,
+                gae_rewards=True,
+                normalize_rewards=False,
                 gae_lambda=0.97,
                 max_kl_divergence=0.005,
                 cg_iterations=20,

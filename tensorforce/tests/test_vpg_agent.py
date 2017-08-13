@@ -48,7 +48,7 @@ class TestVPGAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
             runner.run(episodes=1000, episode_finished=episode_finished)
             print('VPG agent (discrete): ' + str(runner.episode))
@@ -78,7 +78,7 @@ class TestVPGAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
             runner.run(episodes=1500, episode_finished=episode_finished)
             print('VPG agent (continuous): ' + str(runner.episode))
@@ -112,7 +112,7 @@ class TestVPGAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 50 or not all(x >= 1.0 for x in r.episode_rewards[-50:])
+                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
             runner.run(episodes=2000, episode_finished=episode_finished)
             print('VPG agent (multi-state/action): ' + str(runner.episode))
@@ -156,15 +156,15 @@ class TestVPGAgent(unittest.TestCase):
     def test_beta(self):
         passed = 0
 
-        for _ in xrange(1):
+        for _ in xrange(5):
             environment = MinimalTest(definition=True)
             actions = environment.actions
-            actions['min_value'] = 0.0
-            actions['max_value'] = 1.0
+            actions['min_value'] = -0.5
+            actions['max_value'] = 1.5
 
             config = Configuration(
                 batch_size=8,
-                learning_rate=0.0001,
+                learning_rate=0.01,
                 states=environment.states,
                 actions=actions,
                 network=layered_network_builder([
@@ -176,7 +176,7 @@ class TestVPGAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
             runner.run(episodes=1500, episode_finished=episode_finished)
             print('VPG agent (beta): ' + str(runner.episode))

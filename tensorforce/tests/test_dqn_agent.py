@@ -52,7 +52,7 @@ class TestDQNAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
             runner.run(episodes=1000, episode_finished=episode_finished)
             print('DQN agent: ' + str(runner.episode))
@@ -87,7 +87,7 @@ class TestDQNAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 15 or not all(x >= 1.0 for x in r.episode_rewards[-15:])
+                return r.episode < 15 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-15:], r.episode_lengths[-15:]))
 
             runner.run(episodes=1000, episode_finished=episode_finished)
             print('DQN agent (multi-state/action): ' + str(runner.episode))
@@ -120,7 +120,7 @@ class TestDQNAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
             runner.run(episodes=1000, episode_finished=episode_finished)
             print('DQN agent (LSTM): ' + str(runner.episode))

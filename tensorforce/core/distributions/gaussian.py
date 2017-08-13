@@ -41,7 +41,7 @@ class Gaussian(Distribution):
     @classmethod
     def from_tensors(cls, tensors, deterministic):
         self = cls(shape=None)
-        self.distribution = (self.mean, self.log_stddev) = tensors
+        self.mean, self.log_stddev = tensors
         self.stddev = tf.exp(x=self.log_stddev)
         self.deterministic = deterministic
         return self

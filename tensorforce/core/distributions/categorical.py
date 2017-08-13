@@ -42,7 +42,7 @@ class Categorical(Distribution):
     @classmethod
     def from_tensors(cls, tensors, deterministic):
         self = cls(shape=None, num_actions=None)
-        self.distribution = (self.logits,) = tensors
+        self.logits, = tensors
         self.probabilities = tf.exp(x=self.logits)  # assuming normalized logits
         self.num_actions = tensors[0].shape[1].value
         self.deterministic = deterministic

@@ -54,7 +54,9 @@ class NAFAgent(MemoryAgent):
     * `learning_rate`: float of learning rate (alpha).
     * `optimizer`: string of optimizer to use (e.g. 'adam').
     * `device`: string of tensorflow device name.
-    * `tf_summary`: boolean indicating whether to use tensorflow summary file writer.
+    * `tf_summary`: string directory to write tensorflow summaries. Default None
+    * `tf_summary_level`: int indicating which tensorflow summaries to create.
+    * `tf_summary_interval`: int number of calls to get_action until writing tensorflow summaries on update.
     * `log_level`: string containing logleve (e.g. 'info').
     * `distributed`: boolean indicating whether to use distributed tensorflow.
     * `global_model`: global model.
@@ -70,17 +72,3 @@ class NAFAgent(MemoryAgent):
 
     name = 'NAFAgent'
     model = NAFModel
-    default_config = dict(
-        target_update_frequency=10000
-    )
-
-    def __init__(self, config, model=None):
-        config.default(MemoryAgent.default_config)
-        super(NAFAgent, self).__init__(config, model)
-        self.target_update_frequency = config.target_update_frequency
-
-    def observe(self, reward, terminal):
-        super(NAFAgent, self).observe(reward=reward, terminal=terminal)
-
-        if self.timestep >= self.first_update and self.timestep % self.target_update_frequency == 0:
-            self.model.update_target()

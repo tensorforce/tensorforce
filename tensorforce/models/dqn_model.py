@@ -42,7 +42,7 @@ class DQNModel(QModel):
         """Training logic for DQN.
 
         Args:
-            config: 
+            config:
         """
         config.default(DQNModel.default_config)
         super(DQNModel, self).__init__(config)
@@ -63,6 +63,22 @@ class DQNModel(QModel):
 
             one_hot = tf.one_hot(indices=action, depth=num_actions)
             q_values[name] = tf.reduce_sum(input_tensor=(output * one_hot), axis=-1)
+            # Summaries for output
+            if config.tf_summary_level >= 1:
+                # multi action output
+                if flat_size > 1:
+                    for action_ind in range(flat_size):
+                        for real_action in range(num_actions):
+                            action_name = name + '-{}-{}'.format(action_ind, real_action)
+                            if len(output.shape) == 4:
+                                tf.summary.histogram(action_name, output[:, :, action_ind, real_action])
+                            else:
+                                tf.summary.histogram(action_name, output[:, action_ind, real_action])
+                # else single index output
+                else:
+                    for real_action in range(num_actions):
+                        action_name = name + '-{}'.format(real_action)
+                        tf.summary.histogram(action_name, output[:, real_action])
 
         return q_values
 

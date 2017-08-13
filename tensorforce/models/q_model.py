@@ -31,6 +31,7 @@ from tensorforce.core.networks import NeuralNetwork
 class QModel(Model):
 
     default_config = dict(
+        target_update_frequency=10000,
         update_target_weight=1.0,
         clip_loss=0.0
     )
@@ -42,10 +43,12 @@ class QModel(Model):
             config:
         """
         config.default(QModel.default_config)
+        self.last_target_update = 0
+        self.target_update_frequency = config.target_update_frequency
         super(QModel, self).__init__(config)
 
         # Synchronise target with training network
-        self.update_target()
+        self.possible_update_target(force=True)
 
     def create_tf_operations(self, config):
         super(QModel, self).create_tf_operations(config)
@@ -60,7 +63,7 @@ class QModel(Model):
 
         # Training network
         with tf.variable_scope('training') as training_scope:
-            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
+            self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state, summary_level=config.tf_summary_level)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -77,18 +80,7 @@ class QModel(Model):
             self.target_variables = tf.contrib.framework.get_variables(scope=target_scope)
 
         with tf.name_scope('update'):
-            deltas = list()
-            terminal_float = tf.cast(x=self.terminal, dtype=tf.float32)
-            for name, action in self.action.items():
-                reward = self.reward
-                terminal = terminal_float
-                for _ in range(len(config.actions[name].shape)):
-                    reward = tf.expand_dims(input=reward, axis=1)
-                    terminal = tf.expand_dims(input=terminal, axis=1)
-                q_target = reward + (1.0 - terminal) * config.discount * self.target_values[name]
-                delta = tf.stop_gradient(q_target) - self.q_values[name]
-                delta = tf.reshape(tensor=delta, shape=(-1, util.prod(config.actions[name].shape)))
-                deltas.append(delta)
+            deltas = self.create_q_deltas(config)
 
             # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
             delta = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
@@ -96,11 +88,18 @@ class QModel(Model):
 
             # If loss clipping is used, calculate the huber loss
             if config.clip_loss > 0.0:
-                huber_loss = tf.where(condition=(tf.abs(delta) < config.clip_gradients), x=(0.5 * self.loss_per_instance), y=(tf.abs(delta) - 0.5))
+                huber_loss = tf.where(condition=(tf.abs(delta) < config.clip_loss), x=(0.5 * self.loss_per_instance), y=(tf.abs(delta) - 0.5))
                 self.q_loss = tf.reduce_mean(input_tensor=huber_loss, axis=0)
             else:
                 self.q_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
             tf.losses.add_loss(self.q_loss)
+
+        # for each loss over an action create a summary
+        if len(self.q_loss.shape) > 1:
+            for action_ind in range(self.q_loss.shape[1]):
+                tf.summary.scalar('q-loss-action-{}'.format(action_ind), self.q_loss[action_ind])
+        else:
+            tf.summary.scalar('q-loss', self.q_loss)
 
         # Update target network
         with tf.name_scope('update-target'):
@@ -108,6 +107,25 @@ class QModel(Model):
             for v_source, v_target in zip(self.training_variables, self.target_variables):
                 update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
                 self.target_network_update.append(update)
+
+    def create_q_deltas(self, config):
+        """
+        Creates the deltas (or advantage) of the Q values
+        :return: A list of deltas per action
+        """
+        deltas = list()
+        terminal_float = tf.cast(x=self.terminal, dtype=tf.float32)
+        for name, action in self.action.items():
+            reward = self.reward
+            terminal = terminal_float
+            for _ in range(len(config.actions[name].shape)):
+                reward = tf.expand_dims(input=reward, axis=1)
+                terminal = tf.expand_dims(input=terminal, axis=1)
+            q_target = reward + (1.0 - terminal) * config.discount * self.target_values[name]
+            delta = tf.stop_gradient(q_target) - self.q_values[name]
+            delta = tf.reshape(tensor=delta, shape=(-1, util.prod(config.actions[name].shape)))
+            deltas.append(delta)
+        return deltas
 
     def create_training_operations(self, config):
         """
@@ -140,9 +158,15 @@ class QModel(Model):
             feed_dict.update({internal: batch['internals'][n][:-1] for n, internal in enumerate(self.internal_inputs)})
         return feed_dict
 
-    def update_target(self):
+    def update(self, *args, **kwargs):
+        self.possible_update_target()
+        return super(QModel, self).update(*args, **kwargs)
+
+    def possible_update_target(self, force=False):
         """
-        Updates target network.
+        Updates target network if necessary
         :return:
         """
-        self.session.run(self.target_network_update)
+        if self.timestep > self.last_target_update + self.target_update_frequency or force:
+            self.last_target_update = self.timestep
+            self.session.run(self.target_network_update)

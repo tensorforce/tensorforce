@@ -14,26 +14,24 @@
 # ==============================================================================
 
 """
-Standard DQN agent.
+NStep Batched DQN agent.
 """
 
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.agents import MemoryAgent
-from tensorforce.models import DQNModel
+from tensorforce.agents import BatchAgent
+from tensorforce.models import DQNNstepModel
 
 
-class DQNAgent(MemoryAgent):
+class DQNNstepAgent(BatchAgent):
     """
-    Deep-Q-Network agent (DQN). The piece de resistance of deep reinforcement learning as described by
-    [Minh et al. (2015)](http://www.nature.com/nature/journal/v518/n7540/full/nature14236.html). Includes
-    an option for double-DQN (DDQN; [van Hasselt et al., 2015](https://arxiv.org/abs/1509.06461))
+    Nstep Deep-Q-Network agent (DQN). Uses the last experiences (batch)
+    to train on.
 
     DQN chooses from one of a number of discrete actions by taking the maximum Q-value
-    from the value function with one output neuron per available action. DQN uses a replay memory for experience
-    playback.
+    from the value function with one output neuron per available action.
 
     Configuration:
 
@@ -44,14 +42,10 @@ class DQNAgent(MemoryAgent):
     * `preprocessing`: dict or list containing state preprocessing configuration.
     * `exploration`: dict containing action exploration configuration.
 
-    The `MemoryAgent` class additionally requires the following parameters:
+    The `BatchAgent` class additionally requires the following parameters:
 
     * `batch_size`: integer of the batch size.
-    * `memory_capacity`: integer of maximum experiences to store.
-    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-    * `update_frequency`: integer indicating the number of steps between model updates.
-    * `first_update`: integer indicating the number of steps to pass before the first update.
-    * `repeat_update`: integer indicating how often to repeat the model update.
+    * `keep_last`: bool optionally keep the last observation for use in the next batch
 
     Each model requires the following configuration parameters:
 
@@ -67,7 +61,7 @@ class DQNAgent(MemoryAgent):
     * `global_model`: global model.
     * `session`: session to use.
 
-    The DQN agent expects the following additional configuration parameters:
+    The DQN Nstep agent expects the following additional configuration parameters:
 
     * `target_update_frequency`: int of states between updates of the target network.
     * `update_target_weight`: float of update target weight (tau parameter).
@@ -76,5 +70,5 @@ class DQNAgent(MemoryAgent):
 
     """
 
-    name = 'DQNAgent'
-    model = DQNModel
+    name = 'DQNNstepAgent'
+    model = DQNNstepModel

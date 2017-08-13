@@ -50,7 +50,7 @@ class TestNAFAgent(unittest.TestCase):
     def test_multi(self):
         passed = 0
 
-        def network_builder(inputs):
+        def network_builder(inputs, **kwargs):
             layer = layers['dense']
             state0 = layer(x=layer(x=inputs['state0'], size=32), size=32)
             state1 = layer(x=layer(x=inputs['state1'], size=32), size=32)

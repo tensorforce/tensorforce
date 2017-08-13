@@ -57,14 +57,29 @@ def shape(x, unknown=-1):
 
 
 def cumulative_discount(rewards, terminals, discount):
+    """
+    Compute cumulative discounts.
+    Args:
+        rewards: Rewards from a rollout
+        terminals: Booleans indicating terminal states
+        discount: Discount factor
+
+    Returns:
+
+    """
     if discount == 0.0:
         return rewards
     cumulative = 0.0
+    discounted_rewards = np.zeros(len(rewards))
+
     for n, (reward, terminal) in reversed(list(enumerate(zip(rewards, terminals)))):
         if terminal:
             cumulative = 0.0
         cumulative = reward + cumulative * discount
-        rewards[n] = cumulative
+        discounted_rewards[n] = cumulative
+
+    return discounted_rewards
+
     return rewards
 
 

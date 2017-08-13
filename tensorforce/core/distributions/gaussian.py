@@ -52,27 +52,27 @@ class Gaussian(Distribution):
     def create_tf_operations(self, x, deterministic):
         self.deterministic = deterministic
 
-        # flat mean and log standard deviation
+        # Flat mean and log standard deviation
         flat_size = util.prod(self.shape)
         self.mean = layers['linear'](x=x, size=flat_size, bias=self.mean)
         self.log_stddev = layers['linear'](x=x, size=flat_size, bias=self.log_stddev)
 
-        # reshape mean and log stddev to action shape
+        # Reshape mean and log stddev to action shape
         shape = (-1,) + self.shape
         self.mean = tf.reshape(tensor=self.mean, shape=shape)
         self.log_stddev = tf.reshape(tensor=self.log_stddev, shape=shape)
 
-        # clip log stddev for numerical stability
+        # Clip log stddev for numerical stability
         log_eps = log(util.epsilon)
         self.log_stddev = tf.clip_by_value(t=self.log_stddev, clip_value_min=log_eps, clip_value_max=-log_eps)
 
-        # standard deviation
+        # Standard deviation
         self.stddev = tf.exp(x=self.log_stddev)
 
     def sample(self):
-        # deterministic: mean as action
+        # Deterministic: mean as action
         deterministic = self.mean
-        # non-deterministic: sample action using default normal distribution
+        # Non-deterministic: sample action using default normal distribution
         normal = tf.random_normal(shape=tf.shape(input=self.mean))
         sampled = self.mean + self.stddev * normal
         return tf.where(condition=self.deterministic, x=deterministic, y=sampled)
@@ -80,6 +80,7 @@ class Gaussian(Distribution):
     def log_probability(self, action):
         sq_mean_distance = tf.square(x=(action - self.mean))
         sq_stddev = tf.square(x=self.stddev)
+
         return -0.5 * tf.log(x=(2.0 * np.pi)) - self.log_stddev - 0.5 * sq_mean_distance / sq_stddev
 
     def entropy(self):
@@ -91,4 +92,5 @@ class Gaussian(Distribution):
         sq_mean_distance = tf.square(x=(self.mean - other.mean))
         sq_stddev1 = tf.square(x=self.stddev)
         sq_stddev2 = tf.square(x=other.stddev)
+
         return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5

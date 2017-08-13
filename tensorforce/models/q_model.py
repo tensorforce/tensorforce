@@ -59,22 +59,22 @@ class QModel(Model):
         network_builder = util.get_function(fct=config.network)
 
         # Training network
-        with tf.variable_scope('training') as scope:
+        with tf.variable_scope('training') as training_scope:
             self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
             self.q_values = self.create_training_operations(config)
-            self.training_variables = tf.contrib.framework.get_variables(scope=scope)
+            self.training_variables = tf.contrib.framework.get_variables(scope=training_scope)
 
         # Target network
-        with tf.variable_scope('target'):
+        with tf.variable_scope('target') as target_scope:
             self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
             self.internal_inputs.extend(self.target_network.internal_inputs)
             self.internal_outputs.extend(self.target_network.internal_outputs)
             self.internal_inits.extend(self.target_network.internal_inits)
             self.target_values = self.create_target_operations(config)
-            self.target_variables = tf.contrib.framework.get_variables(scope=scope)
+            self.target_variables = tf.contrib.framework.get_variables(scope=target_scope)
 
         with tf.name_scope('update'):
             deltas = list()
@@ -94,7 +94,7 @@ class QModel(Model):
             delta = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
             self.loss_per_instance = tf.square(delta)
 
-            # If gradient clipping is used, calculate the huber loss
+            # If loss clipping is used, calculate the huber loss
             if config.clip_loss > 0.0:
                 huber_loss = tf.where(condition=(tf.abs(delta) < config.clip_gradients), x=(0.5 * self.loss_per_instance), y=(tf.abs(delta) - 0.5))
                 self.q_loss = tf.reduce_mean(input_tensor=huber_loss, axis=0)

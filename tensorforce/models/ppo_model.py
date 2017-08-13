@@ -37,16 +37,17 @@ class PPOModel(PolicyGradientModel):
         entropy_penalty=0.01,
         loss_clipping=0.1,  # Trust region clipping
         epochs=10,  # Number of training epochs for SGD,
-        optimizer_batch_size=100,  # Batch size for optimiser
+        optimizer_batch_size=128,  # Batch size for optimiser
         random_sampling=True  # Sampling strategy for replay memory
     )
 
     def __init__(self, config):
         config.default(PPOModel.default_config)
         super(PPOModel, self).__init__(config)
-        self.epochs = config.epochs
         self.optimizer_batch_size = config.optimizer_batch_size
         # Use replay memory so memory logic can be used to sample batches
+
+        self.updates = int(config.batch_size / self.optimizer_batch_size) * config.epochs
         self.memory = Replay(config.batch_size, config.states, config.actions, config.random_sampling)
 
     def create_tf_operations(self, config):
@@ -139,10 +140,8 @@ class PPOModel(PolicyGradientModel):
         # PPO takes multiple passes over the on-policy batch.
         # We use a memory sampling random ranges (as opposed to keeping
         # track of indices and e.g. first taking elems 0-15, then 16-32, etc).
-        for epoch in xrange(self.epochs):
-            self.logger.debug('Optimising PPO, epoch = {}'.format(epoch))
-
-            # Sample a batch by sampling a starting point and taking a range from there.
+        for i in xrange(self.updates):
+            self.logger.debug('Optimising PPO, update = {}'.format(i))
             batch = self.memory.get_batch(self.optimizer_batch_size)
 
             fetches = [self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy]

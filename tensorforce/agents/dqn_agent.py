@@ -70,7 +70,7 @@ class DQNAgent(MemoryAgent):
     * `target_update_frequency`: int of states between updates of the target network.
     * `update_target_weight`: float of update target weight (tau parameter).
     * `double_dqn`: boolean indicating whether to use double-dqn.
-    * `clip_gradients`: float of maximum values for gradients before clipping.
+    * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
 
     """
 

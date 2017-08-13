@@ -68,7 +68,7 @@ def cumulative_discount(rewards, terminals, discount, cumulative_start=0.0):
 
     """
     if discount == 0.0:
-        return rewards
+        return np.asarray(rewards)
     cumulative = cumulative_start
     discounted_rewards = np.zeros(len(rewards))
 

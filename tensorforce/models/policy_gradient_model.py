@@ -128,27 +128,27 @@ class PolicyGradientModel(Model):
         Returns:
 
         """
-        batch['returns'] = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'], discount=self.discount)
+        discounted_rewards = util.cumulative_discount(rewards=batch['rewards'], terminals=batch['terminals'], discount=self.discount)
 
-        if not self.baseline:
-            batch['rewards'] = batch['returns']
-            return
+        if self.baseline:
+            estimates = self.baseline.predict(states=batch['states'])
+            if self.generalized_advantage_estimation:
+                deltas = np.array(
+                    [self.discount * estimates[n + 1] - estimates[n] if (n < len(estimates) - 1 and not terminal) else 0.0
+                     for n, terminal in enumerate(batch['terminals'])])
+                deltas += batch['rewards']
+                advantage = util.cumulative_discount(
+                    rewards=deltas,
+                    terminals=batch['terminals'],
+                    discount=(self.discount * self.gae_lambda))
+            else:
+                advantage = discounted_rewards - estimates
 
-        estimates = self.baseline.predict(states=batch['states'])
-        if self.generalized_advantage_estimation:
-            deltas = np.array(
-                [self.discount * estimates[n + 1] - estimates[n] if (n < len(estimates) - 1 and not terminal) else 0.0
-                 for n, terminal in enumerate(batch['terminals'])])
-            deltas += batch['rewards']
-            advantage = util.cumulative_discount(
-                rewards=deltas,
-                terminals=batch['terminals'],
-                discount=(self.discount * self.gae_lambda))
         else:
-            advantage = np.array(batch['returns']) - estimates
+            advantage = discounted_rewards
 
         if self.normalize_advantage:
             advantage -= advantage.mean()
-            advantage /= advantage.std() + 1e-8
+            advantage /= max(advantage.std(), util.epsilon)
 
         batch['rewards'] = advantage

@@ -15,7 +15,7 @@ from the examples folder:
 
 .. code:: bash
 
-    python examples/openai_gym.py CartPole-v0 -a TRPOAgent -c examples/configs/trpo_cartpole.json -n examples/configs/trpo_cartpole_network.json
+    python examples/openai_gym.py CartPole-v0 -a PPOAgent -c examples/configs/ppo_cartpole.json -n examples/configs/ppo_cartpole_network.json
     
 In python, it could look like this:
     
@@ -23,39 +23,34 @@ In python, it could look like this:
 
     # examples/quickstart.py
 
-    from tensorforce import Configuration
-    from tensorforce.agents import TRPOAgent
-    from tensorforce.environments.openai_gym import OpenAIGym
-    from tensorforce.execution import Runner
-    from tensorforce.core.networks import layered_network_builder
-
     import numpy as np
+
+    from tensorforce import Configuration
+    from tensorforce.agents import PPOAgent
+    from tensorforce.core.networks import layered_network_builder
+    from tensorforce.execution import Runner
+    from tensorforce.contrib.openai_gym import OpenAIGym
 
     # Create an OpenAIgym environment
     env = OpenAIGym('CartPole-v0')
 
     # Create a Trust Region Policy Optimization agent
-    agent = TRPOAgent(config=Configuration(
+    agent = PPOAgent(config=Configuration(
         log_level='info',
-        batch_size=100,
-        baseline=dict(
-            type='mlp',
-            size=32,
-            repeat_update=100
-        ),
-        generalized_advantage_estimation=True,
-        normalize_advantage=False,
+        batch_size=4096,
+
         gae_lambda=0.97,
-        override_line_search=False,
-        cg_iterations=20,
-        cg_damping=0.01,
-        line_search_steps=20,
-        max_kl_divergence=0.005,
+        learning_rate=0.001,
+        entropy_penalty=0.01,
+        epochs=5,
+        optimizer_batch_size=512,
+        loss_clipping=0.2,
+
         states=env.states,
         actions=env.actions,
         network=layered_network_builder([
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh')
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
         ])
     ))
 

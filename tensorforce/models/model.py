@@ -156,6 +156,8 @@ class Model(object):
             self.tf_summaries = tf.summary.merge_all()
         else:
             self.writer = None
+            config.tf_summary_level
+            config.tf_summary_interval
 
         self.timestep = 0
         self.summary_interval = config.tf_summary_interval

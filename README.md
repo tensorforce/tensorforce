@@ -43,15 +43,14 @@ Features
 
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
 Universe, DeepMind lab, ALE and Maze explorer. The following algorithms are available (all
-policy methods both continuous/discrete). We also offer a Beta distribution for bounding
-continuous actions.
+policy methods both continuous/discrete and using a Beta distribution for bounded actions). 
 
--  A3C using distributed TensorFlow or multithreaded - now as part of our generic Model
+-  A3C using distributed TensorFlow or a multithreaded runner - now as part of our generic Model
     usable with different agents.
 -  Trust Region Policy Optimization (TRPO) with generalised advantage
     estimation (GAE)
 -  Normalised Advantage functions (NAFs)
--  DQN/Double-DQN
+-  DQN/Double-DQN, N-step DQN
 -  Vanilla Policy Gradients (VPG)
 -  Deep Q-learning from Demonstration (DQFD) -
     [paper](https://arxiv.org/abs/1704.03732)
@@ -99,7 +98,7 @@ provided configurations, e.g. to run the TRPO agent on CartPole, execute
 from the examples folder:
 
 ```bash
-python examples/openai_gym.py CartPole-v0 -a PPOAgent -c examples/configs/ppo_cartpole.json -n examples/configs/trpo_cartpole_network.json
+python examples/openai_gym.py CartPole-v0 -a PPOAgent -c examples/configs/ppo_cartpole.json -n examples/configs/ppo_cartpole_network.json
 ```
 
 Documentation is available at
@@ -204,3 +203,6 @@ If you use TensorForce in your academic research, we would be grateful if you co
     year = {2017}
 }
 ```
+
+We are also very grateful for our open source contributors (listed according to github): Islandman93, mryellow, beflix,
+trickmeyer, AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.

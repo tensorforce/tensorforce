@@ -15,7 +15,7 @@
   "max_kl_divergence": 0.005,
   "cg_iterations" : 20,
   "cg_damping" : 0.01,
-  "ls_max_backtracks" : 20,
+  "ls_max_backtracks" : 10,
   "ls_override": false,
   "continuous": false,
   "preprocessing": null

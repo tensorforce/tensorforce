@@ -62,12 +62,13 @@ class Beta(Distribution):
 
         # Softplus to ensure alpha and beta >= 1
         self.alpha = layers['linear'](x=x, size=flat_size, bias=self.alpha)
-        self.alpha = tf.nn.softplus(features=self.alpha)
-        shape = (-1,) + self.shape
-        self.alpha = tf.reshape(tensor=self.alpha, shape=shape)
+        self.alpha = tf.log(x=(tf.exp(x=self.alpha) + 1.0))  # tf.nn.softplus(features=self.alpha)
 
         self.beta = layers['linear'](x=x, size=flat_size, bias=self.beta)
-        self.beta = tf.nn.softplus(features=self.beta)
+        self.beta = tf.log(x=(tf.exp(x=self.beta) + 1.0))  # tf.nn.softplus(features=self.beta)
+
+        shape = (-1,) + self.shape
+        self.alpha = tf.reshape(tensor=self.alpha, shape=shape)
         self.beta = tf.reshape(tensor=self.beta, shape=shape)
 
         self.sum = self.alpha + self.beta

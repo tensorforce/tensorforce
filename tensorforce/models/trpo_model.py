@@ -42,11 +42,11 @@ class TRPOModel(PolicyGradientModel):
 
     default_config = dict(
         optimizer=None,
-        max_kl_divergence=0.001,
+        max_kl_divergence=0.1,
         cg_iterations=20,
         cg_damping=0.001,
-        ls_max_backtracks=20,
-        ls_accept_ratio=0.01,
+        ls_max_backtracks=10,
+        ls_accept_ratio=0.9,
         ls_override=False
     )
 
@@ -104,19 +104,17 @@ class TRPOModel(PolicyGradientModel):
 
             prob_ratio = tf.reduce_mean(input_tensor=tf.concat(values=prob_ratios, axis=1), axis=1)
             self.loss_per_instance = -prob_ratio * self.reward
-            surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
+            self.surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
 
             kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
-            kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
+            self.kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
 
             entropy = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
-            entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
-
-            self.losses = (surrogate_loss, kl_divergence, entropy, self.loss_per_instance)
+            self.entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
 
             # Get symbolic gradient expressions
             variables = list(tf.trainable_variables())  # TODO: ideally not value function (see also for "gradients" below)
-            gradients = tf.gradients(self.losses[0], variables)
+            gradients = tf.gradients(self.surrogate_loss, variables)
             # gradients[0] = tf.Print(gradients[0], (gradients[0],))
             variables = [var for var, grad in zip(variables, gradients) if grad is not None]
             gradients = [grad for grad in gradients if grad is not None]
@@ -179,28 +177,36 @@ class TRPOModel(PolicyGradientModel):
             self.logger.debug('Computing search direction failed, skipping update.')
             return
 
-        lagrange_multiplier = np.sqrt(shs / self.max_kl_divergence)
-        update_step = search_direction / (lagrange_multiplier + util.epsilon)  # c
+        lagrange_multiplier = max(np.sqrt(shs / self.max_kl_divergence), util.epsilon)
+        natural_gradient_step = search_direction / lagrange_multiplier  # c
         negative_gradient_direction = -gradient.dot(search_direction)  # -dL * x
+        estimated_improvement = negative_gradient_direction / lagrange_multiplier
 
         # Improve update step through simple backtracking line search
         # N.b. some implementations skip the line search
-        previous_theta = self.flat_variable_helper.get()
-        improved, theta = line_search(self.compute_surrogate_loss, batch['rewards'], previous_theta, update_step, negative_gradient_direction / (lagrange_multiplier + util.epsilon), self.ls_max_backtracks, self.ls_accept_ratio)
+        parameters = self.flat_variable_helper.get()
+        new_parameters = self.line_search(
+            rewards=batch['rewards'],
+            parameters=parameters,
+            natural_gradient_step=natural_gradient_step,
+            estimated_improvement=estimated_improvement
+        )
 
         # Use line search results, otherwise take full step
         # N.B. some implementations don't use the line search
-        if improved:
+        if new_parameters is not None:
             self.logger.debug('Updating with line search result..')
-            self.flat_variable_helper.set(theta)
+            self.flat_variable_helper.set(new_parameters)
         elif self.ls_override:
             self.logger.debug('Updating with full step..')
-            self.flat_variable_helper.set(previous_theta + update_step)
+            self.flat_variable_helper.set(parameters + natural_gradient_step)
         else:
             self.logger.debug('Failed to find line search solution, skipping update.')
+            self.flat_variable_helper.set(parameters)
 
         # Get loss values for progress monitoring
-        surrogate_loss, kl_divergence, entropy, loss_per_instance = self.session.run(self.losses, self.feed_dict)
+        fetches = (self.surrogate_loss, self.kl_divergence, self.entropy, self.loss_per_instance)
+        surrogate_loss, kl_divergence, entropy, loss_per_instance = self.session.run(fetches=fetches, feed_dict=self.feed_dict)
 
         # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?
         self.logger.debug('Surrogate loss = {}'.format(surrogate_loss))
@@ -211,14 +217,44 @@ class TRPOModel(PolicyGradientModel):
 
     def compute_fvp(self, p):
         self.feed_dict[self.tangent] = p
-
         return self.session.run(self.fisher_vector_product, self.feed_dict) + p * self.cg_damping
 
-    def compute_surrogate_loss(self, theta):
+    def compute_log_prob(self, theta):
         self.flat_variable_helper.set(theta)
-
-        # Losses[0] = surrogate_loss
         return self.session.run(self.log_prob, self.feed_dict)
+
+    def line_search(self, rewards, parameters, natural_gradient_step, estimated_improvement):
+        """
+        Line search for TRPO where a full step is taken first and then backtracked to
+        find optimal step size.
+
+        :param rewards:
+        :param parameters:
+        :param natural_gradient_step:
+        :param estimated_improvement:
+
+        :return:
+        """
+
+        log_prob = self.compute_log_prob(parameters)
+        old_value = sum(rewards) / len(rewards)
+        estimated_improvement = max(estimated_improvement, util.epsilon)
+
+        step_fraction = 1.0
+        for _ in range(self.ls_max_backtracks):
+            new_parameters = parameters + step_fraction * natural_gradient_step
+            new_log_prob = self.compute_log_prob(new_parameters)
+            prob_ratio = np.exp(new_log_prob - log_prob)
+            new_value = prob_ratio.dot(rewards) / prob_ratio.shape[0]
+
+            improvement_ratio = (new_value - old_value) / estimated_improvement
+            if improvement_ratio > self.ls_accept_ratio:
+                return new_parameters
+
+            step_fraction /= 2.0
+            estimated_improvement /= 2.0
+
+        return None
 
 
 class FlatVarHelper(object):
@@ -255,41 +291,3 @@ class FlatVarHelper(object):
         """
 
         return self.session.run(self.get_op)
-
-
-def line_search(f, rewards, initial_x, full_step, expected_improve_rate, max_backtracks, accept_ratio):
-    """
-    Line search for TRPO where a full step is taken first and then backtracked to
-    find optimal step size.
-
-    :param f:
-    :param initial_x:
-    :param full_step:
-    :param expected_improve_rate:
-    :param max_backtracks:
-    :param accept_ratio:
-    :return:
-    """
-
-    function_value = f(initial_x)
-
-    value = sum(rewards) / len(rewards)
-    expected_improve_rate = max(expected_improve_rate, util.epsilon)
-
-    step_fraction = 1.0
-    for _ in range(max_backtracks):
-        updated_x = initial_x + step_fraction * full_step
-        new_value = f(updated_x)
-
-        new_value = new_value - function_value
-        new_value = np.exp(new_value)
-        new_value = new_value.dot(rewards) / new_value.shape[0]
-
-        improve_ratio = (new_value - value) / expected_improve_rate
-        if improve_ratio > accept_ratio:
-            return True, updated_x
-
-        step_fraction /= 2.0
-        expected_improve_rate /= 2.0
-
-    return False, initial_x

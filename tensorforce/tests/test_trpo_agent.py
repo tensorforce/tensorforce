@@ -36,12 +36,11 @@ class TestTRPOAgent(unittest.TestCase):
             environment = MinimalTest(definition=False)
             config = Configuration(
                 batch_size=8,
-                max_kl_divergence=0.01,
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
-                    dict(type='dense', size=32),
-                    dict(type='dense', size=32)
+                    dict(type='dense', size=32, activation='tanh'),
+                    dict(type='dense', size=32, activation='tanh')
                 ])
             )
             agent = TRPOAgent(config=config)
@@ -66,12 +65,11 @@ class TestTRPOAgent(unittest.TestCase):
             environment = MinimalTest(definition=True)
             config = Configuration(
                 batch_size=8,
-                max_kl_divergence=0.01,
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
-                    dict(type='dense', size=32),
-                    dict(type='dense', size=32)
+                    dict(type='dense', size=32, activation='tanh'),
+                    dict(type='dense', size=32, activation='tanh')
                 ])
             )
             agent = TRPOAgent(config=config)
@@ -94,9 +92,9 @@ class TestTRPOAgent(unittest.TestCase):
 
         def network_builder(inputs, **kwargs):
             layer = layers['dense']
-            state0 = layer(x=layer(x=inputs['state0'], size=32), size=32)
-            state1 = layer(x=layer(x=inputs['state1'], size=32), size=32)
-            state2 = layer(x=layer(x=inputs['state2'], size=32), size=32)
+            state0 = layer(x=layer(x=inputs['state0'], size=32, activation='tanh'), size=32, activation='tanh')
+            state1 = layer(x=layer(x=inputs['state1'], size=32, activation='tanh'), size=32, activation='tanh')
+            state2 = layer(x=layer(x=inputs['state2'], size=32, activation='tanh'), size=32, activation='tanh')
 
             return state0 * state1 * state2
 
@@ -104,7 +102,6 @@ class TestTRPOAgent(unittest.TestCase):
             environment = MinimalTest(definition=[False, (False, 2), (True, 2)])
             config = Configuration(
                 batch_size=8,
-                max_kl_divergence=0.01,
                 states=environment.states,
                 actions=environment.actions,
                 network=network_builder
@@ -115,9 +112,9 @@ class TestTRPOAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 15 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-15:], r.episode_lengths[-15:]))
 
-            runner.run(episodes=1000, episode_finished=episode_finished)
+            runner.run(episodes=2000, episode_finished=episode_finished)
             print('TRPO agent (multi-state/action): ' + str(runner.episode))
-            if runner.episode < 1000:
+            if runner.episode < 2000:
                 passed += 1
 
         print('TRPO agent (multi-state/action) passed = {}'.format(passed))
@@ -134,12 +131,11 @@ class TestTRPOAgent(unittest.TestCase):
 
             config = Configuration(
                 batch_size=8,
-                max_kl_divergence=0.01,
                 states=environment.states,
                 actions=actions,
                 network=layered_network_builder([
-                    dict(type='dense', size=32),
-                    dict(type='dense', size=32)
+                    dict(type='dense', size=32, activation='tanh'),
+                    dict(type='dense', size=32, activation='tanh')
                 ])
             )
             agent = TRPOAgent(config=config)

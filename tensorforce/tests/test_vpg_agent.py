@@ -50,10 +50,10 @@ class TestVPGAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
-            runner.run(episodes=1000, episode_finished=episode_finished)
+            runner.run(episodes=1500, episode_finished=episode_finished)
             print('VPG agent (discrete): ' + str(runner.episode))
 
-            if runner.episode < 1000:
+            if runner.episode < 1500:
                 passed += 1
 
         print('VPG agent (discrete) passed = {}'.format(passed))
@@ -178,9 +178,9 @@ class TestVPGAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
-            runner.run(episodes=1500, episode_finished=episode_finished)
+            runner.run(episodes=2000, episode_finished=episode_finished)
             print('VPG agent (beta): ' + str(runner.episode))
-            if runner.episode < 1500:
+            if runner.episode < 2000:
                 passed += 1
 
         print('VPG agent (beta) passed = {}'.format(passed))

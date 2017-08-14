@@ -19,6 +19,5 @@
     "update_batch_size" : 128
   },
   "gae_rewards": false,
-  "gae_lambda": 0.97,
-  "normalize_rewards": false
+  "normalize_rewards": true
 }

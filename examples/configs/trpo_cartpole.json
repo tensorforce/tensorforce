@@ -1,10 +1,11 @@
 {
   "log_level": "info",
-  "batch_size": 100,
+  "batch_size": 1000,
   "discount": 0.97,
-  "max_kl_divergence": 0.001,
+  "max_kl_divergence": 0.1,
   "cg_iterations" : 20,
-  "cg_damping" : 0.01,
-  "ls_max_backtracks" : 20,
+  "cg_damping" : 0.001,
+  "ls_max_backtracks" : 10,
+  "ls_accept_ratio": 0.9,
   "ls_override": false
 }

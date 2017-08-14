@@ -67,7 +67,7 @@ class PolicyGradientModel(Model):
                 if 'min_value' in action:
                     assert 'max_value' in action
                     self.distribution[name] = Beta(shape=action.shape, min_value=action.min_value,
-                                                   max_value=action.max_value, alpha=0.0, beta=0.0)
+                                                   max_value=action.max_value, alpha=1.0, beta=1.0)
 
                 else:
                     self.distribution[name] = Gaussian(shape=action.shape)

@@ -1,19 +1,17 @@
 {
+  "episodes": 5000,
+  "max_timesteps": 200,
+
   "log_level": "info",
-  "batch_size": 128,
+  "batch_size": 4096,
   "discount": 0.99,
-  "baseline": {
-    "type": "mlp",
-    "size": 32,
-    "epochs": 5,
-    "update_batch_size" : 32
-  },
-  "generalized_advantage_estimation": true,
-  "gae_lambda": 0.95,
-  "normalize_advantage" : true,
-  "learning_rate" : 0.0005,
+
+  "generalized_advantage_estimation": false,
+  "gae_lambda": 0.97,
+  "normalize_advantage" : false,
+  "learning_rate" : 0.001,
   "entropy_penalty" :  0.01,
-  "epochs" : 10,
-  "optimizer_batch_size" : 32,
+  "epochs" : 5,
+  "optimizer_batch_size" : 512,
   "loss_clipping" : 0.2
 }

@@ -112,7 +112,7 @@ class Agent(object):
 
         # states config and preprocessing
         self.preprocessing = dict()
-        if 'type' in config.states:
+        if 'shape' in config.states:
             # only one state
             config.states = dict(state=config.states)
             self.unique_state = True

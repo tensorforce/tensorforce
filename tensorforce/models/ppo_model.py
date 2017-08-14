@@ -122,11 +122,16 @@ class PPOModel(PolicyGradientModel):
         :return:
         """
 
-        # Compute GAE.
-        self.advantage_estimation(batch)
-
+        batch['rewards'], discounted_rewards = self.reward_estimation(
+            states=batch['states'],
+            rewards=batch['rewards'],
+            terminals=batch['terminals']
+        )
         if self.baseline:
-            self.baseline.update(states=batch['states'], returns=batch['returns'])
+            self.baseline.update(
+                states=batch['states'],
+                returns=discounted_rewards
+            )
 
         # Set memory contents to batch contents
         self.memory.set_memory(

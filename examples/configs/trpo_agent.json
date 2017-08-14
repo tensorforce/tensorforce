@@ -9,8 +9,8 @@
     "epochs": 5,
     "update_batch_size" : 128
   },
-  "generalized_advantage_estimation": true,
-  "normalize_advantage" : false,
+  "gae_rewards": true,
+  "normalize_rewards" : false,
   "gae_lambda": 0.97,
   "max_kl_divergence": 0.005,
   "cg_iterations" : 20,

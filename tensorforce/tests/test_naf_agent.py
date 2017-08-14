@@ -37,7 +37,7 @@ class TestNAFAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x >= 1.0 for x in r.episode_rewards[-100:])
+                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
 
             runner.run(episodes=1000, episode_finished=episode_finished)
             print('NAF agent: ' + str(runner.episode))
@@ -75,7 +75,7 @@ class TestNAFAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 20 or not all(x >= 1.0 for x in r.episode_rewards[-20:])
+                return r.episode < 20 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-20:], r.episode_lengths[-20:]))
 
             runner.run(episodes=10000, episode_finished=episode_finished)
             print('NAF agent (multi-state/action): ' + str(runner.episode))

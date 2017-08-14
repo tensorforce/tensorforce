@@ -82,6 +82,7 @@ class CategoricalDQNModel(Model):
         # Training network
         with tf.variable_scope('training') as training_scope:
             self.training_network = NeuralNetwork(network_builder=network_builder, inputs=self.state, summary_level=config.tf_summary_level)
+            self.network_internal_index = len(self.internal_inputs)
             self.internal_inputs.extend(self.training_network.internal_inputs)
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
@@ -107,9 +108,7 @@ class CategoricalDQNModel(Model):
         # Target network
         with tf.variable_scope('target') as target_scope:
             self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
-            self.internal_inputs.extend(self.target_network.internal_inputs)
-            self.internal_outputs.extend(self.target_network.internal_outputs)
-            self.internal_inits.extend(self.target_network.internal_inits)
+            self.next_internal_inputs = list(self.target_network.internal_inputs)
             _, target_output_probabilities, target_qval, target_action = self._create_action_outputs(
                 self.target_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
             )
@@ -194,6 +193,7 @@ class CategoricalDQNModel(Model):
             feed_dict[self.reward] = batch['rewards']
             feed_dict[self.terminal] = batch['terminals']
             feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+            feed_dict.update({internal: batch['next_internals'][n] for n, internal in enumerate(self.next_internal_inputs, self.network_internal_index)})
         else:
             # if 'next_states' not explicitly given, assume temporally consistent sequence
             feed_dict = {state: batch['states'][name][:-1] for name, state in self.state.items()}
@@ -202,6 +202,7 @@ class CategoricalDQNModel(Model):
             feed_dict[self.reward] = batch['rewards'][:-1]
             feed_dict[self.terminal] = batch['terminals'][:-1]
             feed_dict.update({internal: batch['internals'][n][:-1] for n, internal in enumerate(self.internal_inputs)})
+            feed_dict.update({internal: batch['internals'][n][1:] for n, internal in enumerate(self.next_internal_inputs, self.network_internal_index)})
         return feed_dict
 
     def update(self, *args, **kwargs):

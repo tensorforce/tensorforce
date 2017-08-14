@@ -56,18 +56,18 @@ class DQNNstepModel(DQNModel):
         # assume temporally consistent sequence
         # get state time + 1
         feed_dict = {next_state: [batch['states'][name][-1]] for name, next_state in self.next_state.items()}
-        feed_dict.update({internal: [batch['internals'][n][-1]] for n, internal in enumerate(self.internal_inputs)})
+        feed_dict.update({internal: [batch['internals'][n][-1]] for n, internal in enumerate(self.next_internal_inputs, self.network_internal_index)})
         # calcualte nstep rewards
         target_q_vals = self.session.run(self.target_values, feed_dict=feed_dict)
         nstep_rewards = dict()
 
         for name, value in target_q_vals.items():
-            nstep_rewards[name] = util.cumulative_discount(rewards=batch['rewards'][:-1], terminals=batch['terminals'][:-1],
+            nstep_rewards[name] = util.cumulative_discount(values=batch['rewards'][:-1], terminals=batch['terminals'][:-1],
                                                            discount=self.discount, cumulative_start=target_q_vals[name][0])
 
         # create update feed dict
         feed_dict = {state: batch['states'][name][:-1] for name, state in self.state.items()}
         feed_dict.update({action: batch['actions'][name][:-1] for name, action in self.action.items()})
-        feed_dict.update({internal: [batch['internals'][n][:-1]] for n, internal in enumerate(self.internal_inputs)})
+        feed_dict.update({internal: batch['internals'][n][:-1] for n, internal in enumerate(self.internal_inputs)})
         feed_dict.update({self.nstep_rewards[name]: nstep_rewards[name] for name, reward in nstep_rewards.items()})
         return feed_dict

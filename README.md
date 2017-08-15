@@ -176,7 +176,7 @@ agent.observe(reward=reward, terminal=False)
 Benchmarks
 ----------
 
-We provide a seperate repository for benchmarking our algorithm implementations in
+We provide a seperate repository for benchmarking our algorithm implementations at
 [reinforceio/tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark).
 
 Docker containers for benchmarking (CPU and GPU) are available.

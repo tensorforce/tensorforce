@@ -23,6 +23,7 @@ from tensorforce import Configuration
 from tensorforce.agents import RandomAgent
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
+from tensorforce.tests import reward_threshold
 
 
 class TestRandomAgent(unittest.TestCase):
@@ -53,7 +54,8 @@ class TestRandomAgent(unittest.TestCase):
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):
-            return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
+            return r.episode < 100 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-100:],
+                                                                                        r.episode_lengths[-100:]))
 
         runner.run(episodes=1000, episode_finished=episode_finished)
         print('Random agent (continuous): ' + str(runner.episode))
@@ -69,7 +71,8 @@ class TestRandomAgent(unittest.TestCase):
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(r):
-            return r.episode < 20 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-20:], r.episode_lengths[-20:]))
+            return r.episode < 20 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-20:],
+                                                                                       r.episode_lengths[-20:]))
 
         runner.run(episodes=1000, episode_finished=episode_finished)
         print('Random agent (multi-state/action): ' + str(runner.episode))

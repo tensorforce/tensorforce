@@ -26,6 +26,7 @@ from tensorforce.agents import CategoricalDQNAgent
 from tensorforce.core.networks import layered_network_builder, layers
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
+from tensorforce.tests import reward_threshold
 
 
 class TestCategoricalDQNAgent(unittest.TestCase):
@@ -52,7 +53,8 @@ class TestCategoricalDQNAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
+                return r.episode < 100 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-100:],
+                                                                                            r.episode_lengths[-100:]))
 
             runner.run(episodes=1000, episode_finished=episode_finished)
             print('Categorical DQN agent: ' + str(runner.episode))
@@ -87,7 +89,7 @@ class TestCategoricalDQNAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 15 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-15:], r.episode_lengths[-15:]))
+                return r.episode < 15 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-15:], r.episode_lengths[-15:]))
 
             runner.run(episodes=2000, episode_finished=episode_finished)
             print('Categorical DQN agent (multi-state/action): ' + str(runner.episode))

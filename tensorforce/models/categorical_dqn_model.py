@@ -170,8 +170,9 @@ class CategoricalDQNModel(Model):
                     # now we have target probabilities loss is categorical cross entropy using logits
                     # compare to the actions we actually took
                     training_action_selection = tf.stack((batch_selection, input_action), axis=1)
-                    logits_for_action = tf.gather_nd(training_output_logits[action][action_ind], training_action_selection)
-                    self.loss_per_instance = tf.nn.softmax_cross_entropy_with_logits(logits=logits_for_action, labels=target_quantized_probabilities)
+                    probabilities_for_action = tf.gather_nd(training_output_probabilities[action][action_ind], training_action_selection)
+                    self.loss_per_instance = -tf.reduce_sum(target_quantized_probabilities * tf.log(probabilities_for_action + util.epsilon),
+                                                            axis=-1)
                     loss = tf.reduce_mean(self.loss_per_instance)
                     tf.losses.add_loss(loss)
 

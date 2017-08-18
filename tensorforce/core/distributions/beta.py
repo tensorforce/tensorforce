@@ -81,7 +81,8 @@ class Beta(Distribution):
     def log_probability(self, action):
         action = (action - self.min_value) / (self.max_value - self.min_value)
         action = tf.minimum(x=action, y=(1.0 - util.epsilon))
-        return (self.alpha - 1.0) * tf.log(action) + (self.beta - 1.0) * tf.log1p(-action) - self.log_norm
+        return (self.alpha - 1.0) * tf.log(action + util.epsilon) +\
+               (self.beta - 1.0) * tf.log1p(-action) - self.log_norm
 
     def kl_divergence(self, other):
         assert isinstance(other, Beta)

@@ -136,6 +136,7 @@ class TestTRPOAgent(unittest.TestCase):
             config = Configuration(
                 batch_size=8,
                 states=environment.states,
+                max_kl_divergence=0.01,
                 actions=actions,
                 network=layered_network_builder([
                     dict(type='dense', size=32, activation='tanh'),
@@ -149,10 +150,10 @@ class TestTRPOAgent(unittest.TestCase):
                 return r.episode < 100 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-100:],
                                                                                             r.episode_lengths[-100:]))
 
-            runner.run(episodes=1000, episode_finished=episode_finished)
+            runner.run(episodes=2000, episode_finished=episode_finished)
             print('TRPO agent (beta): ' + str(runner.episode))
 
-            if runner.episode < 1000:
+            if runner.episode < 2000:
                 passed += 1
 
         print('TRPO agent (beta) passed = {}'.format(passed))

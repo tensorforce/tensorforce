@@ -35,7 +35,7 @@ import logging
 import os
 
 import numpy as np
-from tensorforce.core.model import log_levels
+from tensorforce.util import log_levels
 
 from tensorforce import Configuration, TensorForceError
 from tensorforce.agents import create_agent

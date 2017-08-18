@@ -35,7 +35,7 @@ from tensorforce.agents import agents
 from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
-from tensorforce.models.model import log_levels
+from tensorforce.util import log_levels
 
 
 def main():

@@ -74,25 +74,28 @@ class Beta(Distribution):
         self.sum = self.alpha + self.beta
         self.mean = self.alpha / tf.maximum(x=self.sum, y=util.epsilon)
 
-        self.log_norm = tf.lgamma(self.alpha) + tf.lgamma(self.beta) - tf.lgamma(self.sum)
+        self.log_norm = tf.lgamma(self.alpha + util.epsilon) + tf.lgamma(self.beta + util.epsilon) - tf.lgamma(self.sum + util.epsilon)
 
         self.deterministic = deterministic
 
     def log_probability(self, action):
         action = (action - self.min_value) / (self.max_value - self.min_value)
         action = tf.minimum(x=action, y=(1.0 - util.epsilon))
+
         return (self.alpha - 1.0) * tf.log(action + util.epsilon) +\
                (self.beta - 1.0) * tf.log1p(-action) - self.log_norm
 
     def kl_divergence(self, other):
         assert isinstance(other, Beta)
 
-        return other.log_norm - self.log_norm - tf.digamma(other.beta) * (other.beta - self.beta) - \
-            tf.digamma(other.alpha) * (other.alpha - self.alpha) + tf.digamma(other.sum) * (other.sum - self.sum)
+        return other.log_norm - self.log_norm - tf.digamma(other.beta + util.epsilon) * (other.beta - self.beta) - \
+               tf.digamma(other.alpha + util.epsilon) * (other.alpha - self.alpha) +\
+               tf.digamma(other.sum + util.epsilon) * (other.sum - self.sum)
 
     def entropy(self):
-        return self.log_norm - (self.beta - 1.0) * tf.digamma(self.beta) - \
-               (self.alpha - 1.0) * tf.digamma(self.alpha) + ((self.sum - 2.0) * tf.digamma(self.sum))
+        return self.log_norm - (self.beta - 1.0) * tf.digamma(self.beta + util.epsilon) - \
+               (self.alpha - 1.0) * tf.digamma(self.alpha + util.epsilon) +\
+               ((self.sum - 2.0) * tf.digamma(self.sum + util.epsilon))
 
     def sample(self):
         deterministic = self.mean

@@ -32,8 +32,14 @@ class DQNNstepModel(DQNModel):
         # create a nstep reward placeholder for each action
         with tf.variable_scope('placeholder'):
             self.nstep_rewards = dict()
-            for name, state in config.actions.items():
-                self.nstep_rewards[name] = tf.placeholder(dtype=tf.float32, shape=(None,), name='reward-{}'.format(name))
+            for name, action in config.actions.items():
+                # if shaped multi action (IE: action shape like (?, 2)) make a shaped nstep reward
+                if util.prod(action.shape) > 1:
+                    shape = (None, util.prod(action.shape))
+                else:
+                    shape = (None,)
+                self.nstep_rewards[name] = tf.placeholder(dtype=tf.float32, shape=shape,
+                                                          name='nstep-reward-{}'.format(name))
 
         super(DQNNstepModel, self).create_tf_operations(config)
 
@@ -45,8 +51,6 @@ class DQNNstepModel(DQNModel):
         deltas = list()
         for name, action in self.action.items():
             reward = self.nstep_rewards[name]
-            for _ in range(len(config.actions[name].shape)):
-                reward = tf.expand_dims(input=reward, axis=1)
             delta = reward - self.q_values[name]
             delta = tf.reshape(tensor=delta, shape=(-1, util.prod(config.actions[name].shape)))
             deltas.append(delta)

@@ -33,6 +33,7 @@ from __future__ import print_function
 import argparse
 import logging
 import os
+import time
 
 import numpy as np
 from tensorforce.core.model import log_levels
@@ -126,7 +127,8 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode, ts=r.timestep))
+            sps = r.total_timesteps / (time.time() - r.start_time)
+            logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep, sps=sps))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
             logger.info("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))

@@ -64,7 +64,7 @@ def nonlinearity(x, name='relu', summary_level=0):
             x = tf.nn.elu(features=x)
         elif name == 'relu':
             x = tf.nn.relu(features=x)
-            if summary_level >= 2:
+            if summary_level >= 3:  # summary level 3: layer activations
                 non_zero_pct = (tf.cast(tf.count_nonzero(x), tf.float32) / tf.cast(tf.reduce_prod(tf.shape(x)), tf.float32))
                 tf.summary.scalar('relu-sparsity', 1.0 - non_zero_pct)
         elif name == 'selu':
@@ -184,6 +184,8 @@ def dense(x, size, bias=True, activation='relu', l2_regularization=0.0, summary_
         x = linear(x=x, size=size, bias=bias, l2_regularization=l2_regularization)
         x = nonlinearity(x=x, name=activation, summary_level=summary_level)
 
+        if summary_level >= 3:
+            tf.summary.histogram('activations', x)
     return x
 
 
@@ -227,6 +229,8 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
 
         x = nonlinearity(x=x, name=activation, summary_level=summary_level)
 
+        if summary_level >= 3:
+            tf.summary.histogram('activations', x)
     return x
 
 
@@ -258,6 +262,8 @@ def lstm(x, size=None, summary_level=0):
         internal_output = tf.stack(values=(state.c, state.h), axis=1)
         internal_init = np.zeros(shape=(2, size))
 
+        if summary_level >= 3:
+            tf.summary.histogram('activations', x)
     return x, (internal_input,), (internal_output,), (internal_init,)
 
 

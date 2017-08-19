@@ -135,6 +135,7 @@ class TestTRPOAgent(unittest.TestCase):
 
             config = Configuration(
                 batch_size=8,
+                max_kl_divergence=0.01,
                 states=environment.states,
                 actions=actions,
                 network=layered_network_builder([

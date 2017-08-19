@@ -73,7 +73,7 @@ class Beta(Distribution):
         self.beta = tf.reshape(tensor=self.beta, shape=shape)
 
         self.sum = self.alpha + self.beta
-        self.mean = self.alpha / tf.maximum(x=self.sum, y=util.epsilon)
+        self.mean = self.beta / tf.maximum(x=self.sum, y=util.epsilon)
 
         self.log_norm = tf.lgamma(tf.maximum(self.alpha, util.epsilon)) + tf.lgamma(tf.maximum(self.beta, util.epsilon)) \
                         - tf.lgamma(tf.maximum(self.sum, util.epsilon))
@@ -84,15 +84,15 @@ class Beta(Distribution):
         action = (action - self.min_value) / (self.max_value - self.min_value)
         action = tf.minimum(x=action, y=(1.0 - util.epsilon))
 
-        return (self.alpha - 1.0) * tf.log(tf.maximum(action, util.epsilon)) + \
-               (self.beta - 1.0) * tf.log1p(-action) - self.log_norm
+        return (self.beta - 1.0) * tf.log(tf.maximum(action, util.epsilon)) + \
+               (self.alpha - 1.0) * tf.log1p(-action) - self.log_norm
 
     def kl_divergence(self, other):
         assert isinstance(other, Beta)
 
-        return other.log_norm - self.log_norm - tf.digamma(tf.maximum(other.beta, util.epsilon)) * (
-            other.beta - self.beta) - tf.digamma(tf.maximum(other.alpha, util.epsilon)) * (other.alpha - self.alpha) + \
-            tf.digamma(tf.maximum(other.sum, util.epsilon)) * (other.sum - self.sum)
+        return other.log_norm - self.log_norm - tf.digamma(tf.maximum(self.beta, util.epsilon)) * (
+            other.beta - self.beta) - tf.digamma(tf.maximum(self.alpha, util.epsilon)) * (other.alpha - self.alpha) + \
+            tf.digamma(tf.maximum(self.sum, util.epsilon)) * (other.sum - self.sum)
 
     def entropy(self):
         return self.log_norm - (self.beta - 1.0) * tf.digamma(tf.maximum(self.beta, util.epsilon)) - \
@@ -105,7 +105,7 @@ class Beta(Distribution):
         alpha_sample = tf.random_gamma(shape=(), alpha=self.alpha)
         beta_sample = tf.random_gamma(shape=(), alpha=self.beta)
 
-        sample = alpha_sample / tf.maximum(x=(alpha_sample + beta_sample), y=util.epsilon)
+        sample = beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=util.epsilon)
 
         return self.min_value + tf.where(condition=self.deterministic, x=deterministic, y=sample) * \
                                 (self.max_value - self.min_value)

@@ -148,7 +148,7 @@ class Model(object):
             self.last_summary_step = -float('inf')
 
             # create summaries based on summary level
-            if config.tf_summary_level >= 2:
+            if config.tf_summary_level >= 2:  # trainable variables
                 for v in tf.trainable_variables():
                     tf.summary.histogram(v.name, v)
 

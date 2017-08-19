@@ -26,6 +26,7 @@ import inspect
 import logging
 import os
 import sys
+import time
 
 import tensorflow as tf
 from six.moves import xrange, shlex_quote
@@ -35,7 +36,7 @@ from tensorforce.agents import agents
 from tensorforce.core.networks import from_json
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
-from tensorforce.models.model import log_levels
+from tensorforce.util import log_levels
 
 
 def main():
@@ -167,7 +168,8 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode, ts=r.timestep))
+            sps = r.total_timesteps / (time.time() - r.start_time)
+            logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep, sps=sps))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
             logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))

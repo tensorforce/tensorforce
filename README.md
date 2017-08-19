@@ -173,7 +173,20 @@ reward = client.execute(action)
 agent.observe(reward=reward, terminal=False)
 ```
 
+Benchmarks
+----------
 
+We provide a seperate repository for benchmarking our algorithm implementations at
+[reinforceio/tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark).
+
+Docker containers for benchmarking (CPU and GPU) are available.
+
+This is a sample output for `CartPole-v0`, comparing VPG, TRPO and PPO:
+
+![example output](https://user-images.githubusercontent.com/14904111/29328011-52778284-81f1-11e7-8f70-6554ca9388ed.png)
+
+Please refer to the [tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark) repository
+for more information.
 
 
 Support and contact

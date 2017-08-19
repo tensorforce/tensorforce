@@ -89,3 +89,6 @@ More information
 ----------------
 
 You can find more information at our `TensorForce GitHub repository <https://github.com/reinforceio/TensorForce>`__.
+
+We have a seperate repository available for benchmarking our algorithm implementations
+[here](https://github.com/reinforceio/tensorforce-benchmark).

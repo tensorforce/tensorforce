@@ -125,13 +125,14 @@ class Runner(object):
 
         self.total_timesteps = 0
         self.episode = 1
+        self.start_time = time.time()
         while True:
             state = self.environment.reset()
             self.agent.reset()
             episode_reward = 0
 
             self.timestep = 0
-            start_time = time.time()
+            episode_start_time = time.time()
             while True:
                 action = self.agent.act(state=state)
                 if self.repeat_actions > 1:
@@ -153,8 +154,8 @@ class Runner(object):
                 if terminal or self.timestep == max_timesteps:
                     break
 
-            time_passed = time.time() - start_time
             self.agent.observe_episode_reward(episode_reward)
+            time_passed = time.time() - episode_start_time
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(self.timestep)
             self.episode_times.append(time_passed)

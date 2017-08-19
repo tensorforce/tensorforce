@@ -22,7 +22,7 @@ from __future__ import print_function
 from __future__ import division
 
 import gym
-
+import numpy as np
 from tensorforce import TensorForceError
 from tensorforce.environments import Environment
 
@@ -113,7 +113,9 @@ class OpenAIGym(Environment):
                 return actions
         elif isinstance(space, gym.spaces.Box):
             if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
-                return dict(continuous=True, shape=space.low.shape, min_value=space.low[0], max_value=space.high[0])
+                return dict(continuous=True, shape=space.low.shape,
+                            min_value=np.float32(space.low[0]),
+                            max_value=np.float32(space.high[0]))
             else:
                 actions = dict()
                 low = space.low.flatten()

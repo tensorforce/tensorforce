@@ -244,6 +244,7 @@ class TRPOModel(PolicyGradientModel):
         for _ in range(self.ls_max_backtracks):
             new_parameters = parameters + step_fraction * natural_gradient_step
             new_log_prob = self.compute_log_prob(new_parameters)
+
             prob_ratio = np.exp(new_log_prob - log_prob)
             new_value = prob_ratio.dot(rewards) / prob_ratio.shape[0]
 

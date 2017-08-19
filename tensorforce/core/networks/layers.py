@@ -145,7 +145,7 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0, summary_leve
                                        .format(bias.shape, shape))
 
         if weights_variable:
-            weights = tf.Variable(initial_value=weights, dtype=tf.float32)
+            weights = tf.Variable(initial_value=weights, dtype=tf.float32, name='W')
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
 
@@ -153,7 +153,7 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0, summary_leve
 
         if bias is not None:
             if bias_variable:
-                bias = tf.Variable(initial_value=bias, dtype=tf.float32)
+                bias = tf.Variable(initial_value=bias, dtype=tf.float32, name='b')
                 if l2_regularization > 0.0:
                     tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             x = tf.nn.bias_add(value=x, bias=bias)

@@ -63,18 +63,24 @@ def cumulative_discount(values, terminals, discount, cumulative_start=0.0):
         values: Values to discount
         terminals: Booleans indicating terminal states
         discount: Discount factor
+        cumulative_start: Float or ndarray, estimated reward for state t + 1. Default 0.0
 
     Returns:
-
+        dicounted_values: The cumulative discounted rewards.
     """
     if discount == 0.0:
         return np.asarray(values)
 
+    # cumulative start can either be a number or ndarray
+    if type(cumulative_start) is np.ndarray:
+        discounted_values = np.zeros((len(values),) + (cumulative_start.shape))
+    else:
+        discounted_values = np.zeros(len(values))
+
     cumulative = cumulative_start
-    discounted_values = np.zeros(len(values))
     for n, (value, terminal) in reversed(list(enumerate(zip(values, terminals)))):
         if terminal:
-            cumulative = 0.0
+            cumulative = np.zeros_like(cumulative_start, dtype=np.float32)
         cumulative = value + cumulative * discount
         discounted_values[n] = cumulative
 

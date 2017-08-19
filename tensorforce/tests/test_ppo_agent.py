@@ -25,6 +25,7 @@ from tensorforce.agents.ppo_agent import PPOAgent
 from tensorforce.core.networks import layered_network_builder, layers
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.execution import Runner
+from tensorforce.tests import reward_threshold
 
 
 class TestPPOAgent(unittest.TestCase):
@@ -52,7 +53,8 @@ class TestPPOAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
+                return r.episode < 100 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-100:],
+                                                                                            r.episode_lengths[-100:]))
 
             runner.run(episodes=2000, episode_finished=episode_finished)
             print('PPO agent (discrete): ' + str(runner.episode))
@@ -86,7 +88,8 @@ class TestPPOAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
+                return r.episode < 100 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-100:],
+                                                                                            r.episode_lengths[-100:]))
 
             runner.run(episodes=2000, episode_finished=episode_finished)
             print('PPO agent (continuous): ' + str(runner.episode))
@@ -125,7 +128,8 @@ class TestPPOAgent(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 20 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-20:], r.episode_lengths[-20:]))
+                return r.episode < 20 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-20:],
+                                                                                           r.episode_lengths[-20:]))
 
             runner.run(episodes=5000, episode_finished=episode_finished)
             print('PPO agent (multi-state/action): ' + str(runner.episode))
@@ -134,3 +138,42 @@ class TestPPOAgent(unittest.TestCase):
 
         print('PPO agent (multi-state/action) passed = {}'.format(passed))
         self.assertTrue(passed >= 0)
+
+    def test_beta(self):
+        passed = 0
+
+        for _ in xrange(5):
+            environment = MinimalTest(definition=True)
+            actions = environment.actions
+            actions['min_value'] = -0.5
+            actions['max_value'] = 1.5
+
+            config = Configuration(
+                batch_size=20,
+                entropy_penalty=0.01,
+                loss_clipping=0.1,
+                epochs=10,
+                optimizer_batch_size=10,
+                learning_rate=0.0005,
+                states=environment.states,
+                actions=actions,
+                network=layered_network_builder([
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32)
+                ])
+            )
+            agent = PPOAgent(config=config)
+            runner = Runner(agent=agent, environment=environment)
+
+            def episode_finished(r):
+                return r.episode < 100 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-100:],
+                                                                                            r.episode_lengths[-100:]))
+
+            runner.run(episodes=2000, episode_finished=episode_finished)
+            print('PPO agent (beta): ' + str(runner.episode))
+            if runner.episode < 2000:
+                passed += 1
+
+        print('PPO agent (beta) passed = {}'.format(passed))
+        self.assertTrue(passed >= 4)
+

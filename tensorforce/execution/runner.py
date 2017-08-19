@@ -154,7 +154,7 @@ class Runner(object):
                     break
 
             time_passed = time.time() - start_time
-
+            self.agent.observe_episode_reward(episode_reward)
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(self.timestep)
             self.episode_times.append(time_passed)

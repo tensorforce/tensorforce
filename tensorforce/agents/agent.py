@@ -246,6 +246,9 @@ class Agent(object):
         """
         raise NotImplementedError
 
+    def observe_episode_reward(self, episode_reward):
+        self.model.write_episode_reward_summary(episode_reward)
+
     def last_observation(self):
         return dict(
             state=self.current_state,

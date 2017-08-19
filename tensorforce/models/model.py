@@ -154,6 +154,10 @@ class Model(object):
 
             # merge all summaries
             self.tf_summaries = tf.summary.merge_all()
+
+            # create a separate summary for episode rewards
+            self.tf_episode_reward = tf.placeholder(tf.float32, name='episode-reward-placeholder')
+            self.episode_reward_summary = tf.summary.scalar('episode-reward', self.tf_episode_reward)
         else:
             self.writer = None
             config.tf_summary_level
@@ -300,3 +304,8 @@ class Model(object):
 
     def write_summaries(self, summaries):
         self.writer.add_summary(summaries, global_step=self.timestep)
+
+    def write_episode_reward_summary(self, episode_reward):
+        if self.writer is not None:
+            reward_summary = self.session.run(self.episode_reward_summary, feed_dict={self.tf_episode_reward: episode_reward})
+            self.writer.add_summary(reward_summary, global_step=self.timestep)

@@ -92,6 +92,7 @@ class ThreadedRunner(object):
                 if self.global_should_stop:
                     return
 
+            agent.observe_episode_reward(episode_reward)
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(timestep)
 

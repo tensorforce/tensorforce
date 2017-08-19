@@ -207,14 +207,14 @@ class Agent(object):
         else:
             self.current_state = state
 
-        # preprocessing
+        # Preprocessing
         for name, preprocessing in self.preprocessing.items():
             self.current_state[name] = preprocessing.process(state=self.current_state[name])
 
-        # model action
+        # Podel action
         self.current_action, self.next_internal = self.model.get_action(state=self.current_state, internal=self.current_internal, deterministic=deterministic)
 
-        # exploration
+        # Exploration
         if not deterministic:
             for name, exploration in self.exploration.items():
                 if self.actions_config[name].continuous:
@@ -247,7 +247,8 @@ class Agent(object):
         raise NotImplementedError
 
     def observe_episode_reward(self, episode_reward):
-        self.model.write_episode_reward_summary(episode_reward)
+        if self.model:
+            self.model.write_episode_reward_summary(episode_reward)
 
     def last_observation(self):
         return dict(

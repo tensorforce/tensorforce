@@ -59,6 +59,9 @@ class Beta(Distribution):
         return (self.min_value, self.max_value, self.alpha, self.beta)
 
     def create_tf_operations(self, x, deterministic):
+        self.min_value = tf.constant(value=self.min_value, dtype=tf.float32)
+        self.max_value = tf.constant(value=self.max_value, dtype=tf.float32)
+
         # Flat mean and log standard deviation
         flat_size = util.prod(self.shape)
 

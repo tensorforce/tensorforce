@@ -35,7 +35,7 @@ class PPOModel(PolicyGradientModel):
 
     default_config = dict(
         entropy_penalty=0.01,
-        loss_clipping=0.1,  # Trust region clipping
+        loss_clipping=0.2,  # Trust region clipping
         epochs=10,  # Number of training epochs for SGD,
         optimizer_batch_size=128,  # Batch size for optimiser
         random_sampling=True  # Sampling strategy for replay memory
@@ -106,8 +106,8 @@ class PPOModel(PolicyGradientModel):
             # Presentation on conservative policy iteration:
             # https://www.cs.cmu.edu/~jcl/presentation/RL/RL.ps
             prob_ratio = tf.reduce_mean(input_tensor=tf.concat(values=prob_ratios, axis=1), axis=1)
-            prob_ratio = tf.clip_by_value(prob_ratio, 1.0 - config.loss_clipping, 1.0 + config.loss_clipping)
-            self.loss_per_instance = -prob_ratio * self.reward
+            clipped_prob_ratio = tf.clip_by_value(prob_ratio, 1.0 - config.loss_clipping, 1.0 + config.loss_clipping)
+            self.loss_per_instance = -tf.minimum(x=(prob_ratio * self.reward), y=(clipped_prob_ratio * self.reward))
             self.surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
             tf.losses.add_loss(self.surrogate_loss)
 

@@ -23,6 +23,7 @@ from tensorforce.core.distributions import Distribution
 
 
 class Beta(Distribution):
+
     def __init__(self, min_value, max_value, shape, alpha=0.0, beta=0.0):
         """
         Beta distribution used for continuous actions. In particular, the Beta distribution
@@ -47,7 +48,7 @@ class Beta(Distribution):
         self = cls(min_value=None, max_value=None, shape=None)
         self.min_value, self.max_value, self.alpha, self.beta = tensors
         self.sum = self.alpha + self.beta
-        self.mean = self.alpha / tf.maximum(x=self.sum, y=util.epsilon)
+        self.mean = self.beta / tf.maximum(x=self.sum, y=util.epsilon)
         self.log_norm = tf.lgamma(tf.maximum(self.alpha, util.epsilon)) + tf.lgamma(tf.maximum(self.beta, util.epsilon)) \
                         - tf.lgamma(tf.maximum(self.sum, util.epsilon))
 

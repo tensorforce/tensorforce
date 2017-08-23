@@ -61,8 +61,12 @@ class PPOModel(PolicyGradientModel):
         with tf.variable_scope('update'):
             prob_ratios = list()
             entropy_penalties = list()
+
+            # for diagnostics
             kl_divergences = list()
             entropies = list()
+            self.distribution_tensors = dict()
+            self.prev_distribution_tensors = dict()
 
             for name, action in self.action.items():
                 shape_size = util.prod(config.actions[name].shape)
@@ -85,12 +89,17 @@ class PPOModel(PolicyGradientModel):
                 entropy_penalty = tf.reshape(tensor=entropy_penalty, shape=(-1, shape_size))
                 entropy_penalties.append(entropy_penalty)
 
-                entropy = tf.reshape(tensor=entropy, shape=(-1, shape_size))
-                entropies.append(entropy)
+                self.distribution_tensors[name] = list(distribution.get_tensors())
+                prev_distribution = list(tf.placeholder(dtype=tf.float32, shape=util.shape(tensor, unknown=None)) for tensor in distribution.get_tensors())
+                self.prev_distribution_tensors[name] = prev_distribution
+                prev_distribution = distribution.from_tensors(tensors=prev_distribution, deterministic=self.deterministic)
 
-                kl_divergence = fixed_distribution.kl_divergence(other=distribution)
+                kl_divergence = distribution.kl_divergence(other=prev_distribution)
                 kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
                 kl_divergences.append(kl_divergence)
+
+                entropy = tf.reshape(tensor=entropy, shape=(-1, shape_size))
+                entropies.append(entropy)
 
             # The surrogate loss in PPO is the minimum of clipped loss and
             # target advantage * prob_ratio, which is the CPO loss
@@ -107,11 +116,11 @@ class PPOModel(PolicyGradientModel):
             self.entropy_penalty = tf.reduce_mean(input_tensor=entropy_penalty, axis=0)
             tf.losses.add_loss(self.entropy_penalty)
 
-            entropy = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
-            self.entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
-
             kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
             self.kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
+
+            entropy = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
+            self.entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
 
     def update(self, batch):
         """
@@ -149,19 +158,31 @@ class PPOModel(PolicyGradientModel):
             self.logger.debug('Optimising PPO, update = {}'.format(i))
             batch = self.memory.get_batch(self.optimizer_batch_size)
 
-            fetches = [self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy]
-
             feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
             feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
             feed_dict[self.reward] = batch['rewards']
             feed_dict[self.terminal] = batch['terminals']
             feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
-            # self.surrogate_loss, self.entropy_penalty, self.kl_divergence
-            loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:5]
+            if i == 0:  # First update, fetch previous distribution tensors
+                assert self.updates >= 2
+                assert 'optimize' not in self.distribution_tensors
+                fetches = dict(optimize=self.optimize)
+                fetches.update(self.distribution_tensors)
+                prev_distribution_tensors = self.session.run(fetches=fetches, feed_dict=feed_dict)
+                prev_distribution_tensors.pop('optimize')
 
-            self.logger.debug('Loss = {}'.format(loss))
-            self.logger.debug('KL divergence = {}'.format(kl_divergence))
-            self.logger.debug('Entropy = {}'.format(entropy))
+            elif i == self.updates - 1:  # Last update, fetch return and diagnostics values
+                fetches = (self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy)
+                prev_distribution_tensors = {placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items() for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])}
+                feed_dict.update(prev_distribution_tensors)
+                loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:]
+
+            else:  # Otherwise just optimize
+                self.session.run(fetches=self.optimize, feed_dict=feed_dict)
+
+        self.logger.debug('Loss = {}'.format(loss))
+        self.logger.debug('KL divergence = {}'.format(kl_divergence))
+        self.logger.debug('Entropy = {}'.format(entropy))
 
         return loss, loss_per_instance

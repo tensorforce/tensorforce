@@ -70,8 +70,13 @@ class TRPOModel(PolicyGradientModel):
         with tf.variable_scope('update'):
             log_probs = list()
             prob_ratios = list()
+            kl_divs = list()
+
+            # for diagnostics
             kl_divergences = list()
             entropies = list()
+            self.distribution_tensors = dict()
+            self.prev_distribution_tensors = dict()
 
             for name, action in self.action.items():
                 shape_size = util.prod(config.actions[name].shape)
@@ -92,7 +97,16 @@ class TRPOModel(PolicyGradientModel):
                 prob_ratio = tf.exp(x=log_prob_diff)
                 prob_ratios.append(prob_ratio)
 
-                kl_divergence = fixed_distribution.kl_divergence(other=distribution)
+                kl_div = fixed_distribution.kl_divergence(other=distribution)
+                kl_div = tf.reshape(tensor=kl_div, shape=(-1, shape_size))
+                kl_divs.append(kl_div)
+
+                self.distribution_tensors[name] = list(distribution.get_tensors())
+                prev_distribution = list(tf.placeholder(dtype=tf.float32, shape=util.shape(tensor, unknown=None)) for tensor in distribution.get_tensors())
+                self.prev_distribution_tensors[name] = prev_distribution
+                prev_distribution = distribution.from_tensors(tensors=prev_distribution, deterministic=self.deterministic)
+
+                kl_divergence = distribution.kl_divergence(other=prev_distribution)
                 kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
                 kl_divergences.append(kl_divergence)
 
@@ -106,11 +120,7 @@ class TRPOModel(PolicyGradientModel):
             self.loss_per_instance = -prob_ratio * self.reward
             self.surrogate_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)
 
-            kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
-            self.kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
-
-            entropy = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
-            self.entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
+            kl_div = tf.reduce_mean(input_tensor=tf.concat(values=kl_divs, axis=1), axis=1)
 
             # Get symbolic gradient expressions
             variables = list(tf.trainable_variables())  # TODO: ideally not value function (see also for "gradients" below)
@@ -129,7 +139,7 @@ class TRPOModel(PolicyGradientModel):
                 tangents.append(tf.reshape(self.tangent[offset:offset + size], shape))
                 offset += size
 
-            gradients = tf.gradients(kl_divergence, variables)
+            gradients = tf.gradients(kl_div, variables)
             gradient_vector_product = [tf.reduce_sum(g * t) for (g, t) in zip(gradients, tangents)]
 
             self.flat_variable_helper = FlatVarHelper(variables)
@@ -137,6 +147,12 @@ class TRPOModel(PolicyGradientModel):
             self.fisher_vector_product = tf.concat(values=[tf.reshape(grad, (-1,)) for grad in gradients], axis=0)
 
             self.cg_optimizer = ConjugateGradientOptimizer(self.logger, config.cg_iterations)
+
+            kl_divergence = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
+            self.kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=0)
+
+            entropy = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
+            self.entropy = tf.reduce_mean(input_tensor=entropy, axis=0)
 
     def set_session(self, session):
         super(TRPOModel, self).set_session(session)
@@ -152,13 +168,18 @@ class TRPOModel(PolicyGradientModel):
         """
         super(TRPOModel, self).update(batch)
 
+        assert 'policy_gradient' not in self.distribution_tensors
+        fetches = dict(policy_gradient=self.policy_gradient)
+        fetches.update(self.distribution_tensors)
+
         self.feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
         self.feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
         self.feed_dict[self.reward] = batch['rewards']
         self.feed_dict[self.terminal] = batch['terminals']
         self.feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
-        gradient = self.session.run(self.policy_gradient, self.feed_dict)  # dL
+        prev_distribution_tensors = self.session.run(fetches=fetches, feed_dict=self.feed_dict)  # dL
+        gradient = prev_distribution_tensors.pop('policy_gradient')
 
         if np.allclose(gradient, np.zeros_like(gradient)):
             self.logger.debug('Gradient zero, skipping update.')
@@ -206,6 +227,9 @@ class TRPOModel(PolicyGradientModel):
 
         # Get loss values for progress monitoring
         fetches = (self.surrogate_loss, self.kl_divergence, self.entropy, self.loss_per_instance)
+        prev_distribution_tensors = {placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items() for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])}
+        self.feed_dict.update(prev_distribution_tensors)
+
         surrogate_loss, kl_divergence, entropy, loss_per_instance = self.session.run(fetches=fetches, feed_dict=self.feed_dict)
 
         # Sanity checks. Is entropy decreasing? Is KL divergence within reason? Is loss non-zero?

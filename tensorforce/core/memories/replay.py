@@ -137,7 +137,8 @@ class Replay(Memory):
                 self.actions[name][:len(action)] = action
             self.rewards[:len(rewards)] = rewards
             self.terminals[:len(terminals)] = terminals
-            if self.internals is None and internals is not None:
-                self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal in internals]
+            if self.internals is None and internals[0] is not None:
+                self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal
+                                  in internals[0]]
             for n, internal in enumerate(internals):
                 self.internals[n][:len(internal)] = internal

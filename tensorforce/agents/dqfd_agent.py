@@ -122,10 +122,12 @@ class DQFDAgent(MemoryAgent):
                 self.model.demonstration_update(batch=batch)
 
     def import_demonstrations(self, demonstrations):
-        """Imports demonstrations, i.e. expert observations
+        """Imports demonstrations, i.e. expert observations. Note that for large numbers of observations,
+        set_demonstrations is more appropriate, which directly sets memory contents to an array an expects
+        a different layout.
 
         Args:
-            demonstrations:
+            demonstrations: List of observation dicts
 
         Returns:
 
@@ -146,6 +148,25 @@ class DQFDAgent(MemoryAgent):
                 terminal=observation['terminal'],
                 internal=observation['internal']
             )
+
+    def set_demonstrations(self, batch):
+        """
+        Set all demonstrations from batch data. Expects a dict wherein each value contains an array
+        containing all states, actions, rewards, terminals and internals respectively.
+        of
+        Args:
+            batch:
+
+        Returns:
+
+        """
+        self.demo_memory.set_memory(
+            states=batch['states'],
+            actions=batch['actions'],
+            rewards=batch['rewards'],
+            terminals=batch['terminals'],
+            internals=batch['internals']
+        )
 
     def pretrain(self, steps):
         """Computes pretrain updates.

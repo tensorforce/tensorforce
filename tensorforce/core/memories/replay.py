@@ -22,7 +22,6 @@ from __future__ import print_function
 from __future__ import division
 
 from random import randrange
-from six.moves import xrange
 import numpy as np
 
 from tensorforce import util

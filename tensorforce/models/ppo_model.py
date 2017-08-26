@@ -94,7 +94,7 @@ class PPOModel(PolicyGradientModel):
                 self.prev_distribution_tensors[name] = prev_distribution
                 prev_distribution = distribution.from_tensors(tensors=prev_distribution, deterministic=self.deterministic)
 
-                kl_divergence = distribution.kl_divergence(other=prev_distribution)
+                kl_divergence = prev_distribution.kl_divergence(other=distribution)
                 kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
                 kl_divergences.append(kl_divergence)
 

@@ -305,7 +305,11 @@ def layered_network_builder(layers_config):
 
         layer_counter = Counter()
         for layer_config in layers_config:
-            scope = layer_config['type'] + str(layer_counter[layer_config['type']])
+            if callable(layer_config['type']):
+                scope = layer_config['type'].__name__ + str(layer_counter[layer_config['type']])
+            else:
+                scope = layer_config['type'] + str(layer_counter[layer_config['type']])
+
             x = util.get_object(
                 obj=layer_config,
                 predefined=layers,

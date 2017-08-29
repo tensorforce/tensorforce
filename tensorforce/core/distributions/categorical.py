@@ -69,7 +69,7 @@ class Categorical(Distribution):
         self.probabilities = tf.maximum(x=self.probabilities, y=util.epsilon)
 
         # "Normalized" logits
-        self.logits = tf.log(x=self.probabilities + util.epsilon)
+        self.logits = tf.log(x=self.probabilities)
 
     def sample(self):
         # Deterministic: maximum likelihood action

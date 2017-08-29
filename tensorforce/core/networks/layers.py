@@ -234,12 +234,13 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
     return x
 
 
-def lstm(x, size=None, summary_level=0):
+def lstm(x, size=None, summary_level=0, dropout=None):
     """
 
     Args:
         x: Input tensor.
         size: Layer size, defaults to input size.
+        dropout: dropout_keep_prob (eg 0.5) for regularization, applied via rnn.DropoutWrapper
 
     Returns:
 
@@ -254,6 +255,8 @@ def lstm(x, size=None, summary_level=0):
     with tf.variable_scope('lstm'):
         internal_input = tf.placeholder(dtype=tf.float32, shape=(None, 2, size))
         lstm_cell = tf.contrib.rnn.LSTMCell(num_units=size)
+        if dropout:
+            lstm_cell = tf.contrib.rnn.DropoutWrapper(lstm_cell, output_keep_prob=dropout)
         c = internal_input[:, 0, :]
         h = internal_input[:, 1, :]
         state = tf.contrib.rnn.LSTMStateTuple(c=c, h=h)

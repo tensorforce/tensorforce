@@ -265,12 +265,13 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
     return x
 
 
-def lstm(x, size=None, scope='lstm', summary_level=0):
+def lstm(x, size=None, dropout=None, scope='lstm', summary_level=0):
     """
 
     Args:
         x: Input tensor.
         size: Layer size, defaults to input size.
+        dropout: dropout_keep_prob (eg 0.5) for regularization, applied via rnn.DropoutWrapper
 
     Returns:
 
@@ -285,6 +286,8 @@ def lstm(x, size=None, scope='lstm', summary_level=0):
     with tf.variable_scope(scope):
         internal_input = tf.placeholder(dtype=tf.float32, shape=(None, 2, size))
         lstm_cell = tf.contrib.rnn.LSTMCell(num_units=size)
+        if dropout:
+            lstm_cell = tf.contrib.rnn.DropoutWrapper(lstm_cell, output_keep_prob=dropout)
         c = internal_input[:, 0, :]
         h = internal_input[:, 1, :]
         state = tf.contrib.rnn.LSTMStateTuple(c=c, h=h)
@@ -332,7 +335,11 @@ def layered_network_builder(layers_config):
 
         layer_counter = Counter()
         for layer_config in layers_config:
-            scope = layer_config['type'] + str(layer_counter[layer_config['type']])
+            if callable(layer_config['type']):
+                scope = layer_config['type'].__name__ + str(layer_counter[layer_config['type']])
+            else:
+                scope = layer_config['type'] + str(layer_counter[layer_config['type']])
+
             x = util.get_object(
                 obj=layer_config,
                 predefined=layers,

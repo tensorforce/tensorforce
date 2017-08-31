@@ -257,7 +257,7 @@ def lstm(x, size=None, dropout=None, scope='lstm', summary_level=0):
         internal_input = tf.placeholder(dtype=tf.float32, shape=(None, 2, size))
         lstm_cell = tf.contrib.rnn.LSTMCell(num_units=size)
         if dropout:
-            lstm_cell = tf.contrib.rnn.DropoutWrapper(lstm_cell, output_keep_prob=dropout)
+            lstm_cell = tf.contrib.rnn.DropoutWrapper(lstm_cell, output_keep_prob=1 - dropout)
         c = internal_input[:, 0, :]
         h = internal_input[:, 1, :]
         state = tf.contrib.rnn.LSTMStateTuple(c=c, h=h)

@@ -167,7 +167,7 @@ class Model(object):
         self.summary_interval = config.tf_summary_interval
 
         if not config.distributed:
-            self.set_session(tf.Session())
+            self.set_session(tf.Session(config=config.get('tf_session_config', {})))
             self.session.run(tf.global_variables_initializer())
             tf.get_default_graph().finalize()
 

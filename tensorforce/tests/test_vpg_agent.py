@@ -106,6 +106,13 @@ class TestVPGAgent(unittest.TestCase):
             config = Configuration(
                 batch_size=8,
                 learning_rate=0.001,
+                # baseline=dict(
+                #     type="mlp",
+                #     sizes=[32, 32],
+                #     epochs=5,
+                #     update_batch_size=8,
+                #     learning_rate=0.01
+                # ),
                 states=environment.states,
                 actions=environment.actions,
                 network=network_builder

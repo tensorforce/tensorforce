@@ -32,12 +32,11 @@ from tensorforce.core.baselines import Baseline
 
 class LinearBaseline(Baseline):
 
+    def create_tf_operations(self, state, batch_size, scope=''):
+        pass
+
     def __init__(self):
         self.coefficients = None
-
-    def create_tf_operations(self, config):
-        if len(config.states) > 1:
-            raise Exception()
 
     def predict(self, states):
         """
@@ -46,14 +45,12 @@ class LinearBaseline(Baseline):
         :param episode:
         :return: Returns value estimate or 0 if coefficients have not been set
         """
-        states = next(iter(states.values()))
         if self.coefficients is None:
             return np.zeros(shape=(len(states), 1))
         else:
             return self.features(states).dot(self.coefficients)
 
     def update(self, states, returns):
-        states = next(iter(states.values()))
         features = self.features(states)
         columns = features.shape[1]
         self.coefficients = np.linalg.lstsq(

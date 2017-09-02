@@ -117,12 +117,12 @@ class ALE(Environment):
 
     @property
     def actions(self):
-        return dict(continuous=False, num_actions=len(self.action_inds))
+        return dict(continuous=False, num_actions=len(self.action_inds), names=self.action_names)
 
     @property
     def current_state(self):
         self.gamescreen = self.ale.getScreenRGB(self.gamescreen)
-        return self.gamescreen
+        return np.copy(self.gamescreen)
 
     @property
     def is_terminal(self):
@@ -130,3 +130,12 @@ class ALE(Environment):
             return True
         else:
             return self.ale.game_over()
+
+    @property
+    def action_names(self):
+        action_names = [
+            'No-Op', 'Fire', 'Up', 'Right', 'Left', 'Down', 'Up Right', 'Up Left', 'Down Right',
+            'Down Left', 'Up Fire', 'Right Fire', 'Left Fire', 'Down Fire', 'Up Right Fire',
+            'Up Left Fire', 'Down Right Fire', 'Down Left Fire'
+        ]
+        return np.asarray(action_names)[self.action_inds]

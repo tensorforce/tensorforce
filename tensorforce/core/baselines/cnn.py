@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Multi-layer perceptron baseline value function.
+CNN baseline value function.
 """
 
 from __future__ import absolute_import
@@ -30,10 +30,10 @@ from tensorforce.core.networks import NeuralNetwork, layered_network_builder
 from tensorforce.core.baselines import Baseline
 
 
-class MLPBaseline(Baseline):
+class CNNBaseline(Baseline):
 
     def __init__(self, sizes, epochs=1, update_batch_size=64):
-        """Multilayer-perceptron baseline value function.
+        """CNN baseline value function.
 
         Args:
             sizes: Number of neurons per hidden layer
@@ -57,8 +57,12 @@ class MLPBaseline(Baseline):
 
             layers = []
             for size in self.sizes:
-                layers.append({'type': 'dense', 'size': size})
+                layers.append({'type': 'conv2d', 'size': size, 'stride': 1, 'window': 3})
 
+            # First layer has larger window
+            layers[0]['window'] = 5
+
+            # TODO append maxpooling
             layers.append({'type': 'linear', 'size': 1})
 
             network = NeuralNetwork(network_builder=layered_network_builder(layers),
@@ -84,7 +88,7 @@ class MLPBaseline(Baseline):
             batch_states = {name: np.asarray(state).take(indices, axis=0) for name, state in states.items()}
             batch_returns = returns.take(indices)
 
-            state_values =  next(iter(batch_states.values()))
+            state_values = next(iter(batch_states.values()))
             self.session.run(self.optimize, {self.state: state_values, self.returns: batch_returns})
 
 

@@ -39,7 +39,12 @@ agent = PPOAgent(config=Configuration(
     epochs=5,
     optimizer_batch_size=512,
     loss_clipping=0.2,
-
+    baseline=dict(
+        type="mlp",
+        sizes=[32, 32],
+        epochs=1,
+        update_batch_size=512
+    ),
     states=env.states,
     actions=env.actions,
     network=layered_network_builder([

@@ -64,7 +64,7 @@ class Optimizer(tf.train.Optimizer):
     # Inherited tf.train.Optimizer methods, mostly calling the
     # tf.train.GradientDescentOptimizer implementations.
 
-    # modified minimize
+    # Modified minimize
     def step(self, diffs, global_step=None, var_list=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, name=None, grad_loss=None):
         diffs_and_vars = self.compute_diffs(diffs, var_list=var_list, gate_gradients=gate_gradients, aggregation_method=aggregation_method, colocate_gradients_with_ops=colocate_gradients_with_ops, grad_loss=grad_loss)
         vars_with_diff = [v for g, v in diffs_and_vars if g is not None]
@@ -72,7 +72,7 @@ class Optimizer(tf.train.Optimizer):
             raise TensorForceError("No gradients provided for any variable, check your graph for ops that do not support gradients, between variables {} and loss {}.".format([str(v) for _, v in diffs_and_vars], diffs))
         return self.apply_gradients(diffs_and_vars, global_step=global_step, name=name)
 
-    # modified compute_gradients
+    # Modified compute_gradients
     def compute_diffs(self, diffs, var_list=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, grad_loss=None):
         if aggregation_method is not None or colocate_gradients_with_ops or grad_loss is not None:
             raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments are not supported.")

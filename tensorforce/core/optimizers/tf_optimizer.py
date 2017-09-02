@@ -18,11 +18,14 @@ from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
-
 from tensorforce.core.optimizers import Optimizer
 
 
 class TensorFlowOptimizer(Optimizer):
+    """
+    Wrapper class for native TensorFlow optimizers.
+
+    """
 
     tf_optimizers = dict(
         adadelta=tf.train.AdadeltaOptimizer,

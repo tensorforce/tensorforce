@@ -43,7 +43,8 @@ agent = PPOAgent(config=Configuration(
         type="mlp",
         sizes=[32, 32],
         epochs=1,
-        update_batch_size=512
+        update_batch_size=512,
+        learning_rate=0.01
     ),
     states=env.states,
     actions=env.actions,

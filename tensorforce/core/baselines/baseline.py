@@ -27,7 +27,7 @@ import tensorforce.core.baselines
 
 class Baseline(object):
 
-    def create_tf_operations(self, config):
+    def create_tf_operations(self, state, batch_size, scope=''):
         raise NotImplementedError
 
     def predict(self, states):

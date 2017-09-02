@@ -77,7 +77,9 @@ class PolicyGradientModel(Model):
         if config.baseline is None:
             self.baseline = None
         else:
-            self.baseline = Baseline.from_config(config=config.baseline)
+            self.baseline = dict()
+            for name, state in config.states:
+                self.baseline[name] = Baseline.from_config(config=config.baseline)
 
         # advantage estimation
         self.gae_rewards = config.gae_rewards
@@ -103,12 +105,16 @@ class PolicyGradientModel(Model):
 
         if self.baseline:
             with tf.variable_scope('baseline'):
-                self.baseline.create_tf_operations(config)
+                # Generate one baseline per state input, later average their predictions
+                for name, state in config.states:
+                    self.baseline[name].create_tf_operations(state, config.batch_size, scope='baseline_' + name)
 
     def set_session(self, session):
         super(PolicyGradientModel, self).set_session(session)
+
         if self.baseline is not None:
-            self.baseline.session = session
+            for baseline in self.baseline.values():
+                baseline.session = session
 
     def update(self, batch):
         """Generic policy gradient update on a batch of experiences. Each model needs to update its specific
@@ -126,10 +132,12 @@ class PolicyGradientModel(Model):
             terminals=batch['terminals']
         )
         if self.baseline:
-            self.baseline.update(
-                states=batch['states'],
-                returns=discounted_rewards
-            )
+            for name, state in batch['states'].items():
+                self.baseline[name].update(
+                    states=state,
+                    returns=discounted_rewards
+                )
+
         super(PolicyGradientModel, self).update(batch)
 
     def reward_estimation(self, states, rewards, terminals):
@@ -150,7 +158,12 @@ class PolicyGradientModel(Model):
         )
 
         if self.baseline:
-            state_values = self.baseline.predict(states=states)
+            state_values = []
+            for name, state in states.items():
+                state_values.append(self.baseline[name].predict(states=state))
+
+            state_values = np.mean(state_values)
+            # TODO mean
             if self.gae_rewards:
                 td_residuals = rewards + np.array(
                     [self.discount * state_values[n + 1] - state_values[n] if (n < len(state_values) - 1 and not terminal) else 0.0 for n, terminal in enumerate(terminals)])

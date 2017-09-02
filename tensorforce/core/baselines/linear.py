@@ -35,10 +35,6 @@ class LinearBaseline(Baseline):
     def __init__(self):
         self.coefficients = None
 
-    def create_tf_operations(self, config):
-        if len(config.states) > 1:
-            raise Exception()
-
     def predict(self, states):
         """
         Predict episode value based on linear coefficients.

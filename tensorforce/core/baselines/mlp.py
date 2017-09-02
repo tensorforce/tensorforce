@@ -32,7 +32,7 @@ from tensorforce.core.baselines import Baseline
 
 class MLPBaseline(Baseline):
 
-    def __init__(self, sizes, epochs=1, update_batch_size=64):
+    def __init__(self, sizes, epochs=1, update_batch_size=64, learning_rate=0.001):
         """Multilayer-perceptron baseline value function.
 
         Args:
@@ -43,17 +43,15 @@ class MLPBaseline(Baseline):
         self.sizes = sizes
         self.epochs = epochs
         self.update_batch_size = update_batch_size
+        self.learning_rate = learning_rate
         self.session = None
 
-    def create_tf_operations(self, config):
-        if len(config.states) > 1:
-            raise Exception()
-
-        with tf.variable_scope('mlp_value_function'):
-            self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(next(iter(config.states))[1].shape)))
+    def create_tf_operations(self, state, batch_size, scope='mlp_baseline'):
+        with tf.variable_scope(scope):
+            self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(state.shape)))
             self.returns = tf.placeholder(dtype=tf.float32, shape=(None,))
-            self.updates = int(config.batch_size / self.update_batch_size) * self.epochs
-            self.batch_size = config.batch_size
+            self.updates = int(batch_size / self.update_batch_size) * self.epochs
+            self.batch_size = batch_size
 
             layers = []
             for size in self.sizes:
@@ -67,13 +65,11 @@ class MLPBaseline(Baseline):
             self.prediction = network.output
             loss = tf.nn.l2_loss(self.prediction - self.returns)
 
-            optimizer = tf.train.AdamOptimizer(learning_rate=config.learning_rate)
+            optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
             self.optimize = optimizer.minimize(loss)
 
     def predict(self, states):
-        states = next(iter(states.values()))
-
         return self.session.run(self.prediction, {self.state: states})[0]
 
     def update(self, states, returns):
@@ -81,10 +77,8 @@ class MLPBaseline(Baseline):
 
         for _ in xrange(self.updates):
             indices = np.random.randint(low =0, high=self.batch_size, size=self.update_batch_size)
-            batch_states = {name: np.asarray(state).take(indices, axis=0) for name, state in states.items()}
             batch_returns = returns.take(indices)
 
-            state_values =  next(iter(batch_states.values()))
-            self.session.run(self.optimize, {self.state: state_values, self.returns: batch_returns})
+            self.session.run(self.optimize, {self.state: states, self.returns: batch_returns})
 
 

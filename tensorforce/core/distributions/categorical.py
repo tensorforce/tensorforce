@@ -56,7 +56,7 @@ class Categorical(Distribution):
 
         # Flat logits
         flat_size = util.prod(self.shape) * self.num_actions
-        self.logits = layers['linear'](x=x, size=flat_size, bias=self.logits)
+        self.logits = layers['linear'](x=x, size=flat_size, bias=self.logits, scope='logits')
 
         # Reshape logits to action shape
         shape = (-1,) + self.shape + (self.num_actions,)

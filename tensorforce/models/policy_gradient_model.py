@@ -100,7 +100,8 @@ class PolicyGradientModel(Model):
 
         with tf.variable_scope('distribution'):
             for action, distribution in self.distribution.items():
-                distribution.create_tf_operations(x=self.network.output, deterministic=self.deterministic)
+                with tf.variable_scope(action):
+                    distribution.create_tf_operations(x=self.network.output, deterministic=self.deterministic)
                 self.action_taken[action] = distribution.sample()
 
         if self.baseline:

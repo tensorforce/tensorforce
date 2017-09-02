@@ -67,11 +67,11 @@ class Beta(Distribution):
         log_eps = log(util.epsilon)
 
         # Softplus to ensure alpha and beta >= 1
-        self.alpha = layers['linear'](x=x, size=flat_size, bias=self.alpha)
+        self.alpha = layers['linear'](x=x, size=flat_size, bias=self.alpha, scope='alpha')
         self.alpha = tf.clip_by_value(t=self.alpha, clip_value_min=log_eps, clip_value_max=-log_eps)
         self.alpha = tf.log(x=(tf.exp(x=self.alpha) + 1.0))  # tf.nn.softplus(features=self.alpha)
 
-        self.beta = layers['linear'](x=x, size=flat_size, bias=self.beta)
+        self.beta = layers['linear'](x=x, size=flat_size, bias=self.beta, scope='beta')
         self.beta = tf.clip_by_value(t=self.beta, clip_value_min=log_eps, clip_value_max=-log_eps)
         self.beta = tf.log(x=(tf.exp(x=self.beta) + 1.0))  # tf.nn.softplus(features=self.beta)
 

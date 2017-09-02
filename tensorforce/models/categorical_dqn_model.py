@@ -239,7 +239,7 @@ class CategoricalDQNModel(Model):
                 actions_and_logits = []
                 actions_and_probabilities = []
                 for action_ind in range(num_actions[action]):
-                    logits_output = layers['linear'](x=network_output, size=num_atoms)
+                    logits_output = layers['linear'](x=network_output, size=num_atoms, scope='{}-{}-{}'.format(action, shaped_action, action_ind))
                     # logits are stored for use in loss function
                     actions_and_logits.append(logits_output)
                     # softmax

@@ -102,7 +102,7 @@ class DQFDAgent(MemoryAgent):
         self.demo_batch_size = int(config.demo_sampling_ratio * config.batch_size / (1.0 - config.demo_sampling_ratio))
         assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to make sure demo_batch_size is positive. (Calculated {} based on current parameters)'.format(self.demo_batch_size)
 
-    def observe(self, reward, terminal):
+    def _observe(self, reward, terminal):
         """Adds observations, updates via sampling from memories according to update rate.
         DQFD samples from the online replay memory and the demo memory with
         the fractions controlled by a hyper parameter p called 'expert sampling ratio.
@@ -114,7 +114,7 @@ class DQFDAgent(MemoryAgent):
         Returns:
 
         """
-        super(DQFDAgent, self).observe(reward=reward, terminal=terminal)
+        super(DQFDAgent, self)._observe(reward=reward, terminal=terminal)
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
             for _ in xrange(self.repeat_update):

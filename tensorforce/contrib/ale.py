@@ -30,7 +30,7 @@ from tensorforce.environments import Environment
 
 class ALE(Environment):
 
-    def __init__(self, rom, frame_skip=1, reward_clipping=None, repeat_action_probability=0.0,
+    def __init__(self, rom, frame_skip=1, repeat_action_probability=0.0,
                  loss_of_life_termination=False, loss_of_life_reward=0, display_screen=False,
                  seed=np.random.RandomState()):
         """
@@ -39,7 +39,6 @@ class ALE(Environment):
         Args:
             rom: Rom filename and directory.
             frame_skip: Repeat action for n frames. Default 1.
-            reward_clipping: Clip rewards between (low, high). Can be None. Default None.
             repeat_action_probability: Repeats last action with given probability. Default 0.
             loss_of_life_termination: Signals a terminal state on loss of life. Default False.
             loss_of_life_reward: Reward/Penalty on loss of life (negative values are a penalty). Default 0.
@@ -75,9 +74,6 @@ class ALE(Environment):
         self.loss_of_life_termination = loss_of_life_termination
         self.life_lost = False
 
-        # reward clipping
-        self.reward_clipping = reward_clipping
-
     def __str__(self):
         return 'ALE({})'.format(self.rom)
 
@@ -105,8 +101,6 @@ class ALE(Environment):
                 self.life_lost = True
                 rew += self.loss_of_life_reward
 
-        if self.reward_clipping is not None:
-            rew = np.clip(rew, self.reward_clipping[0], self.reward_clipping[1])
         terminal = self.is_terminal
         state_tp1 = self.current_state
         return state_tp1, rew, terminal

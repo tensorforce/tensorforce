@@ -68,7 +68,7 @@ class RandomAgent(Agent):
         else:
             return self.current_action
 
-    def observe(self, reward, terminal):
+    def _observe(self, reward, terminal):
         self.current_reward = reward
         self.current_terminal = terminal
 

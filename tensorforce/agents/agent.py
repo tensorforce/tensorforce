@@ -92,6 +92,7 @@ class Agent(object):
     default_config = dict(
         preprocessing=None,
         exploration=None,
+        reward_preprocessing=None,
         log_level='info'
     )
 
@@ -148,6 +149,11 @@ class Agent(object):
                 action.shape = (action.shape,)
             if config.exploration is not None and name in config.exploration:
                 self.exploration[name] = Exploration.from_config(config=config.exploration[name])
+
+        # reward preprocessing config
+        self.reward_preprocessing = None
+        if config.reward_preprocessing is not None:
+            self.reward_preprocessing = Preprocessing.from_config(config=config.reward_preprocessing)
 
         self.states_config = config.states
         self.actions_config = config.actions
@@ -234,7 +240,9 @@ class Agent(object):
             return self.current_action
 
     def observe(self, reward, terminal):
-        """Observe experience from the environment to learn from.
+        """
+        Observe experience from the environment to learn from. Optionally preprocesses rewards
+        Child classes should override _observe
 
         Args:
             reward: scalar reward that resulted from executing the action.
@@ -243,6 +251,13 @@ class Agent(object):
         Returns:
             void
 
+        """
+        if self.reward_preprocessing is not None:
+            reward = self.reward_preprocessing.process(reward)
+        self._observe(reward, terminal)
+
+    def _observe(self, reward, terminal):
+        """ Child classes should override this method
         """
         raise NotImplementedError
 

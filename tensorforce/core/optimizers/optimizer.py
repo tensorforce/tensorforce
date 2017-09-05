@@ -75,7 +75,7 @@ class Optimizer(tf.train.Optimizer):
             raise TensorForceError("No gradients provided for any variable, check your graph for ops that do not support gradients, between variables {} and loss {}.".format([str(v) for _, v in diffs_and_vars], diffs))
         return self.apply_gradients(diffs_and_vars, global_step=global_step, name=name)
 
-    # modified compute_gradients
+    # Modified compute_gradients
     def compute_diffs(self, diffs, var_list=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, grad_loss=None):
         if aggregation_method is not None or colocate_gradients_with_ops or grad_loss is not None:
             raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments are not supported.")

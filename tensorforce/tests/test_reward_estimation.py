@@ -26,7 +26,7 @@ from tensorforce.core.networks import layered_network_builder
 from tensorforce.core.baselines import Baseline
 
 
-class TestAdvantage(unittest.TestCase):
+class TestRewardEstimation(unittest.TestCase):
 
     def test_basic(self):
         config = Configuration(
@@ -47,7 +47,7 @@ class TestAdvantage(unittest.TestCase):
             1.0 + 0.75 ** 2, 0.75, 1.0, 0.0
         ])
 
-        result, _ = agent.model.reward_estimation(states=states, rewards=rewards, terminals=terminals)
+        result, _ = agent.model.reward_estimation(states=dict(state=states), rewards=rewards, terminals=terminals)
         expected = discounted_rewards
         self.assertTrue((result == expected).all())
 
@@ -70,11 +70,13 @@ class TestAdvantage(unittest.TestCase):
             1.0 + 0.75 ** 2, 0.75, 1.0, 0.0
         ])
         baseline = np.array([0.25, 0.5, 0.0, 0.25, 0.5, 0.5, 0.25, 0.5, 0.0])
-        agent.model.baseline = Baseline()
-        agent.model.baseline.predict = lambda states: baseline
+        agent.model.baseline = dict(state=Baseline())
+        agent.model.baseline['state'].predict = lambda states: baseline
 
-        result, _ = agent.model.reward_estimation(states=states, rewards=rewards, terminals=terminals)
+        result, _ = agent.model.reward_estimation(states=dict(state=states), rewards=rewards, terminals=terminals)
         expected = discounted_rewards - baseline
+        print(result)
+        print(expected)
         self.assertTrue((result == expected).all())
 
     def test_gae(self):
@@ -94,14 +96,14 @@ class TestAdvantage(unittest.TestCase):
         rewards = [0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0]
         terminals = [False, False, False, False, True, False, False, False, True]
         baseline = np.array([0.25, 0.5, 0.0, 0.25, 0.5, 0.5, 0.25, 0.5, 0.0])
-        agent.model.baseline = Baseline()
-        agent.model.baseline.predict = lambda states: baseline
+        agent.model.baseline = dict(state=Baseline())
+        agent.model.baseline['state'].predict = lambda states: baseline
         td_residuals = np.array([
             0.75 * 0.5 - 0.25, 1.0 - 0.5, 0.75 * 0.25, 0.75 * 0.5 - 0.25, 1.0,
             1.0 + 0.75 * 0.25 - 0.5, 0.75 * 0.5 - 0.25, 1.0 - 0.5, 0.0
         ])
 
-        result, _ = agent.model.reward_estimation(states=states, rewards=rewards, terminals=terminals)
+        result, _ = agent.model.reward_estimation(states=dict(state=states), rewards=rewards, terminals=terminals)
         expected = np.array([
             np.sum(((0.5 * 0.75) ** np.array([0, 1, 2, 3, 4])) * td_residuals[:5]),
             np.sum(((0.5 * 0.75) ** np.array([0, 1, 2, 3])) * td_residuals[1:5]),

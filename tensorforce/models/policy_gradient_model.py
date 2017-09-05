@@ -163,8 +163,7 @@ class PolicyGradientModel(Model):
             for name, state in states.items():
                 state_values.append(self.baseline[name].predict(states=state))
 
-            state_values = np.mean(state_values)
-            # TODO mean
+            state_values = np.mean(state_values, axis=0)
             if self.gae_rewards:
                 td_residuals = rewards + np.array(
                     [self.discount * state_values[n + 1] - state_values[n] if (n < len(state_values) - 1 and not terminal) else 0.0 for n, terminal in enumerate(terminals)])

@@ -30,18 +30,18 @@ class Optimizer(tf.train.Optimizer):
     natural gradient optimisers natively.
     """
 
-    def __init__(self):
+    def __init__(self, variables=None):
         super(Optimizer, self).__init__(use_locking=False, name='TensorForceOptimizer')
         self._learning_rate = -1.0
+        self.variables = variables
 
-    def get_variables(self, variables):
-        if variables is None:
-            return tf.trainable_variables() + tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
+    def minimize(self, fn_loss, fn_kl_divergence=None):
+        loss = fn_loss()
+        if self.variables is None:  # should exclude prefixes or so
+            self.variables = tf.trainable_variables() + tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
         else:
-            return variables
-
-    def minimize(self, fn_loss, fn_kl_divergence=None, variables=None):
-        raise NotImplementedError
+            raise NotImplementedError
+        return loss
 
     @staticmethod
     def from_config(config, kwargs=None):
@@ -64,9 +64,12 @@ class Optimizer(tf.train.Optimizer):
     # Inherited tf.train.Optimizer methods, mostly calling the
     # tf.train.GradientDescentOptimizer implementations.
 
+    def apply_values(self, values):
+        return self.apply_diffs(diffs=[value - variable for variable, value in zip(self.variables, values)])
+
     # modified minimize
-    def step(self, diffs, global_step=None, var_list=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, name=None, grad_loss=None):
-        diffs_and_vars = self.compute_diffs(diffs, var_list=var_list, gate_gradients=gate_gradients, aggregation_method=aggregation_method, colocate_gradients_with_ops=colocate_gradients_with_ops, grad_loss=grad_loss)
+    def apply_diffs(self, diffs, global_step=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, name=None, grad_loss=None):
+        diffs_and_vars = self.compute_diffs(diffs, var_list=self.variables, gate_gradients=gate_gradients, aggregation_method=aggregation_method, colocate_gradients_with_ops=colocate_gradients_with_ops, grad_loss=grad_loss)
         vars_with_diff = [v for g, v in diffs_and_vars if g is not None]
         if not vars_with_diff:
             raise TensorForceError("No gradients provided for any variable, check your graph for ops that do not support gradients, between variables {} and loss {}.".format([str(v) for _, v in diffs_and_vars], diffs))
@@ -84,10 +87,10 @@ class Optimizer(tf.train.Optimizer):
         #     self._assert_valid_dtypes([loss])
         # else:
         #     self._assert_valid_dtypes(loss)
-        if var_list is None:
-            var_list = tf.trainable_variables() + tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
-        else:
-            var_list = tf.python.util.nest.flatten(var_list)
+        # if var_list is None:
+        #     var_list = tf.trainable_variables() + tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
+        # else:
+        #     var_list = tf.python.util.nest.flatten(var_list)
         var_list += tf.get_collection(tf.GraphKeys._STREAMING_MODEL_PORTS)
         if not var_list:
             raise TensorForceError("No variables to optimize.")

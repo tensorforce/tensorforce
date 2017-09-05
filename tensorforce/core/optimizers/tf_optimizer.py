@@ -34,18 +34,17 @@ class TensorFlowOptimizer(Optimizer):
     )
 
     @classmethod
-    def get_wrapper(cls, optimizer):
+    def get_wrapper(cls, optimizer, variables=None):
         def wrapper(**kwargs):
-            return cls(optimizer=optimizer, **kwargs)
+            return cls(variables=variables, optimizer=optimizer, **kwargs)
         return wrapper
 
-    def __init__(self, optimizer, **kwargs):
-        super(TensorFlowOptimizer, self).__init__()
+    def __init__(self, optimizer, variables=None, **kwargs):
+        super(TensorFlowOptimizer, self).__init__(variables=variables)
         self.optimizer = TensorFlowOptimizer.tf_optimizers[optimizer](**kwargs)
 
-    def minimize(self, fn_loss, fn_kl_divergence=None, variables=None):
-        variables = self.get_variables(variables=variables)
+    def minimize(self, fn_loss, fn_kl_divergence=None):
         if isinstance(fn_loss, tf.Tensor):  # TEMPORARY !!!!!!!!
-            return self.optimizer.minimize(loss=fn_loss, var_list=variables)
-        else:
-            return self.optimizer.minimize(loss=fn_loss(), var_list=variables)
+            fn_loss = (lambda: fn_loss)
+        loss = super(TensorFlowOptimizer, self).minimize(fn_loss=fn_loss, fn_kl_divergence=fn_kl_divergence)
+        return self.optimizer.minimize(loss=loss)

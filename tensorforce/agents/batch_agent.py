@@ -69,6 +69,7 @@ class BatchAgent(Agent):
 
         Returns: void
         """
+        reward, terminal = super(BatchAgent, self).observe(reward, terminal)
         self.current_reward = reward
         self.current_terminal = terminal
 

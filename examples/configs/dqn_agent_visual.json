@@ -22,6 +22,13 @@
     "epsilon_final": 0.1,
     "epsilon_timesteps": 1e6
   },
+  "reward_preprocessing": [
+    {
+      "type": "clip",
+      "min": -1,
+      "max": 1
+    }
+  ],
 
   "batch_size": 32,
   "memory_capacity": 10000,

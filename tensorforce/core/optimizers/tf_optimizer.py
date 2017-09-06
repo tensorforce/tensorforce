@@ -51,4 +51,4 @@ class TensorFlowOptimizer(Optimizer):
             _loss = fn_loss
             fn_loss = (lambda: _loss)
         loss = super(TensorFlowOptimizer, self).minimize(fn_loss=fn_loss, fn_kl_divergence=fn_kl_divergence)
-        return self.optimizer.minimize(loss=loss)
+        return self.optimizer.minimize(loss=loss, var_list=self.variables)

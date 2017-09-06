@@ -39,8 +39,6 @@ class Optimizer(tf.train.Optimizer):
         loss = fn_loss()
         if self.variables is None:  # should exclude prefixes or so
             self.variables = tf.trainable_variables() + tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
-        else:
-            raise NotImplementedError
         return loss
 
     @staticmethod

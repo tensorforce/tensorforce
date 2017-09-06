@@ -39,7 +39,7 @@ class TensorFlowOptimizer(Optimizer):
     @classmethod
     def get_wrapper(cls, optimizer, variables=None):
         def wrapper(**kwargs):
-            return cls(variables=variables, optimizer=optimizer, **kwargs)
+            return cls(optimizer=optimizer, variables=variables, **kwargs)
         return wrapper
 
     def __init__(self, optimizer, variables=None, **kwargs):

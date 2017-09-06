@@ -1,10 +1,13 @@
 [
     {
         "type": "dense",
-        "size": 32
+        "size": 32,
+        "activation": "tanh"
+
     },
     {
         "type": "dense",
-        "size": 32
+        "size": 32,
+        "activation": "tanh"
     }
 ]

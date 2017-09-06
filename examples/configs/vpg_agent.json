@@ -13,7 +13,7 @@
 
   "baseline": {
     "type": "mlp",
-    "size": [32, 32],
+    "sizes": [32, 32],
     "epochs": 5,
     "update_batch_size" : 128
   },

@@ -108,7 +108,7 @@ class PolicyGradientModel(Model):
             with tf.variable_scope('baseline'):
                 # Generate one baseline per state input, later average their predictions
                 for name, state in config.states:
-                    self.baseline[name].create_tf_operations(state, config.batch_size, scope='baseline_' + name)
+                    self.baseline[name].create_tf_operations(state, scope='baseline_' + name)
 
     def set_session(self, session):
         super(PolicyGradientModel, self).set_session(session)
@@ -159,11 +159,13 @@ class PolicyGradientModel(Model):
         )
 
         if self.baseline:
-            state_values = []
+            state_values = list()
             for name, state in states.items():
-                state_values.append(self.baseline[name].predict(states=state))
+                state_value = self.baseline[name].predict(states=state)
+                state_values.append(state_value)
 
             state_values = np.mean(state_values, axis=0)
+
             if self.gae_rewards:
                 td_residuals = rewards + np.array(
                     [self.discount * state_values[n + 1] - state_values[n] if (n < len(state_values) - 1 and not terminal) else 0.0 for n, terminal in enumerate(terminals)])

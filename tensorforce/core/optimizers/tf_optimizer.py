@@ -48,6 +48,7 @@ class TensorFlowOptimizer(Optimizer):
 
     def minimize(self, fn_loss, fn_kl_divergence=None):
         if isinstance(fn_loss, tf.Tensor):  # TEMPORARY !!!!!!!!
-            fn_loss = (lambda: fn_loss)
+            _loss = fn_loss
+            fn_loss = (lambda: _loss)
         loss = super(TensorFlowOptimizer, self).minimize(fn_loss=fn_loss, fn_kl_divergence=fn_kl_divergence)
         return self.optimizer.minimize(loss=loss)

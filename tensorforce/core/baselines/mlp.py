@@ -46,12 +46,10 @@ class MLPBaseline(Baseline):
         self.learning_rate = learning_rate
         self.session = None
 
-    def create_tf_operations(self, state, batch_size, scope='mlp_baseline'):
-        with tf.variable_scope(scope):
+    def create_tf_operations(self, state, scope='mlp_baseline'):
+        with tf.variable_scope(scope) as scope:
             self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(state.shape)))
             self.returns = tf.placeholder(dtype=tf.float32, shape=(None,))
-            self.updates = int(batch_size / self.update_batch_size) * self.epochs
-            self.batch_size = batch_size
 
             layers = []
             for size in self.sizes:
@@ -62,23 +60,26 @@ class MLPBaseline(Baseline):
             network = NeuralNetwork(network_builder=layered_network_builder(layers),
                                     inputs=dict(state=self.state))
 
-            self.prediction = network.output
+            self.prediction = tf.squeeze(input=network.output, axis=1)
             loss = tf.nn.l2_loss(self.prediction - self.returns)
 
             optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
-            self.optimize = optimizer.minimize(loss)
+            variables = tf.contrib.framework.get_variables(scope=scope)
+            self.optimize = optimizer.minimize(loss, var_list=variables)
 
     def predict(self, states):
-        return self.session.run(self.prediction, {self.state: states})[0]
+        return self.session.run(self.prediction, {self.state: states})
 
     def update(self, states, returns):
+        states = np.asarray(states)
         returns = np.asarray(returns)
+        batch_size = states.shape[0]
+        updates = int(batch_size / self.update_batch_size) * self.epochs
 
-        for _ in xrange(self.updates):
-            indices = np.random.randint(low =0, high=self.batch_size, size=self.update_batch_size)
-            batch_returns = returns.take(indices)
+        for _ in xrange(updates):
+            indices = np.random.randint(low=0, high=batch_size, size=self.update_batch_size)
+            batch_states = states.take(indices, axis=0)
+            batch_returns = returns.take(indices, axis=0)
 
-            self.session.run(self.optimize, {self.state: states, self.returns: batch_returns})
-
-
+            self.session.run(self.optimize, {self.state: batch_states, self.returns: batch_returns})

@@ -60,44 +60,6 @@ class TestVPGAgent(unittest.TestCase):
         print('VPG agent (discrete) passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
 
-    def test_discrete_baseline(self):
-        passed = 0
-
-        for _ in xrange(5):
-            environment = MinimalTest(definition=False)
-            config = Configuration(
-                batch_size=8,
-                learning_rate=0.001,
-                states=environment.states,
-                actions=environment.actions,
-                baseline=dict(
-                    type="mlp",
-                    sizes=[32, 32],
-                    epochs=5,
-                    update_batch_size=8,
-                    learning_rate=0.01
-                ),
-                network=layered_network_builder([
-                    dict(type='dense', size=32),
-                    dict(type='dense', size=32)
-                ])
-            )
-            agent = VPGAgent(config=config)
-            runner = Runner(agent=agent, environment=environment)
-
-            def episode_finished(r):
-                return r.episode < 100 or not all(
-                    x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
-
-            runner.run(episodes=1500, episode_finished=episode_finished)
-            print('VPG agent (discrete): ' + str(runner.episode))
-
-            if runner.episode < 1500:
-                passed += 1
-
-        print('VPG agent (discrete) passed = {}'.format(passed))
-        self.assertTrue(passed >= 4)
-
     def test_continuous(self):
         passed = 0
 
@@ -160,6 +122,44 @@ class TestVPGAgent(unittest.TestCase):
                 passed += 1
 
         print('VPG agent (multi-state/action) passed = {}'.format(passed))
+        self.assertTrue(passed >= 4)
+
+    def test_discrete_baseline(self):
+        passed = 0
+
+        for _ in xrange(5):
+            environment = MinimalTest(definition=False)
+            config = Configuration(
+                batch_size=8,
+                learning_rate=0.001,
+                states=environment.states,
+                actions=environment.actions,
+                baseline=dict(
+                    type="mlp",
+                    sizes=[32, 32],
+                    epochs=5,
+                    update_batch_size=8,
+                    learning_rate=0.01
+                ),
+                network=layered_network_builder([
+                    dict(type='dense', size=32),
+                    dict(type='dense', size=32)
+                ])
+            )
+            agent = VPGAgent(config=config)
+            runner = Runner(agent=agent, environment=environment)
+
+            def episode_finished(r):
+                return r.episode < 100 or not all(
+                    x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
+
+            runner.run(episodes=1500, episode_finished=episode_finished)
+            print('VPG agent (discrete): ' + str(runner.episode))
+
+            if runner.episode < 1500:
+                passed += 1
+
+        print('VPG agent (discrete) passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
 
     def test_multi_baseline(self):

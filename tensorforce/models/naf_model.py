@@ -48,7 +48,7 @@ class NAFModel(QModel):
         num_actions = sum(util.prod(config.actions[name].shape) for name in sorted(self.action))
 
         # Get hidden layers from network generator, then add NAF outputs, same for target network
-        flat_mean = layers['linear'](x=self.training_network.output, size=num_actions)
+        flat_mean = layers['linear'](x=self.training_network.output, size=num_actions, scope='naf_action_means')
         n = 0
         for name in sorted(self.action):
             shape = config.actions[name].shape
@@ -58,7 +58,7 @@ class NAFModel(QModel):
         # Advantage computation
         # Network outputs entries of lower triangular matrix L
         lower_triangular_size = num_actions * (num_actions + 1) // 2
-        l_entries = layers['linear'](x=self.training_network.output, size=lower_triangular_size)
+        l_entries = layers['linear'](x=self.training_network.output, size=lower_triangular_size, scope='naf_matrix_entries')
 
         l_matrix = tf.exp(x=tf.map_fn(fn=tf.diag, elems=l_entries[:, :num_actions]))
 

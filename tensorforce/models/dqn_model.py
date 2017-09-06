@@ -51,51 +51,53 @@ class DQNModel(QModel):
         self.training_output = dict()
         q_values = dict()
         for name, action in self.action.items():
-            flat_size = util.prod(config.actions[name].shape)
-            num_actions = config.actions[name].num_actions
-            shape = (-1,) + config.actions[name].shape + (num_actions,)
+            with tf.variable_scope(name):
+                flat_size = util.prod(config.actions[name].shape)
+                num_actions = config.actions[name].num_actions
+                shape = (-1,) + config.actions[name].shape + (num_actions,)
 
-            output = layers['linear'](x=self.training_network.output, size=(flat_size * num_actions))
-            output = tf.reshape(tensor=output, shape=shape)
+                output = layers['linear'](x=self.training_network.output, size=(flat_size * num_actions))
+                output = tf.reshape(tensor=output, shape=shape)
 
-            self.training_output[name] = output
-            self.action_taken[name] = tf.argmax(input=output, axis=-1)
+                self.training_output[name] = output
+                self.action_taken[name] = tf.argmax(input=output, axis=-1)
 
-            one_hot = tf.one_hot(indices=action, depth=num_actions)
-            q_values[name] = tf.reduce_sum(input_tensor=(output * one_hot), axis=-1)
-            # Summaries for output
-            if config.tf_summary_level >= 1:
-                # multi action output
-                if flat_size > 1:
-                    for action_ind in range(flat_size):
+                one_hot = tf.one_hot(indices=action, depth=num_actions)
+                q_values[name] = tf.reduce_sum(input_tensor=(output * one_hot), axis=-1)
+                # Summaries for output
+                if config.tf_summary_level >= 1:
+                    # multi action output
+                    if flat_size > 1:
+                        for action_ind in range(flat_size):
+                            for real_action in range(num_actions):
+                                action_name = name + '-{}-{}'.format(action_ind, real_action)
+                                if len(output.shape) == 4:
+                                    tf.summary.histogram(action_name, output[:, :, action_ind, real_action])
+                                else:
+                                    tf.summary.histogram(action_name, output[:, action_ind, real_action])
+                    # else single index output
+                    else:
                         for real_action in range(num_actions):
-                            action_name = name + '-{}-{}'.format(action_ind, real_action)
-                            if len(output.shape) == 4:
-                                tf.summary.histogram(action_name, output[:, :, action_ind, real_action])
-                            else:
-                                tf.summary.histogram(action_name, output[:, action_ind, real_action])
-                # else single index output
-                else:
-                    for real_action in range(num_actions):
-                        action_name = name + '-{}'.format(real_action)
-                        tf.summary.histogram(action_name, output[:, real_action])
+                            action_name = name + '-{}'.format(real_action)
+                            tf.summary.histogram(action_name, output[:, real_action])
 
         return q_values
 
     def create_target_operations(self, config):
         target_values = dict()
         for name, action in self.action_taken.items():
-            flat_size = util.prod(config.actions[name].shape)
-            num_actions = config.actions[name].num_actions
-            shape = (-1,) + config.actions[name].shape + (num_actions,)
+            with tf.variable_scope(name):
+                flat_size = util.prod(config.actions[name].shape)
+                num_actions = config.actions[name].num_actions
+                shape = (-1,) + config.actions[name].shape + (num_actions,)
 
-            output = layers['linear'](x=self.target_network.output, size=(flat_size * num_actions))
-            output = tf.reshape(tensor=output, shape=shape)
+                output = layers['linear'](x=self.target_network.output, size=(flat_size * num_actions))
+                output = tf.reshape(tensor=output, shape=shape)
 
-            if config.double_dqn:
-                one_hot = tf.one_hot(indices=action, depth=num_actions)
-                target_values[name] = tf.reduce_sum(input_tensor=(output * one_hot), axis=-1)
-            else:
-                target_values[name] = tf.reduce_max(input_tensor=output, axis=-1)
+                if config.double_dqn:
+                    one_hot = tf.one_hot(indices=action, depth=num_actions)
+                    target_values[name] = tf.reduce_sum(input_tensor=(output * one_hot), axis=-1)
+                else:
+                    target_values[name] = tf.reduce_max(input_tensor=output, axis=-1)
 
         return target_values

@@ -13,17 +13,26 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.baselines.baseline import Baseline
-from tensorforce.core.baselines.cnn import CNNBaseline
-from tensorforce.core.baselines.linear import LinearBaseline
-from tensorforce.core.baselines.mlp import MLPBaseline
+"""
+Clip data by min/max values.
+"""
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import numpy as np
+from tensorforce.core.preprocessing import Preprocessor
 
 
-baselines = dict(
-    linear=LinearBaseline,
-    mlp=MLPBaseline,
-    cnn=CNNBaseline,
-)
+class Clip(Preprocessor):
+    """
+    Clip by min/max.
+    """
+    def __init__(self, min, max):
+        super(Clip, self).__init__()
+        self.min = min
+        self.max = max
 
-
-__all__ = ['Baseline', 'LinearBaseline', 'MLPBaseline','CNNBaseline', 'baselines']
+    def process(self, state):
+        return np.clip(state, self.min, self.max)

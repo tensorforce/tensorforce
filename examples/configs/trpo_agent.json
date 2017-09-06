@@ -4,10 +4,10 @@
   "discount": 0.97,
   "baseline": {
     "type": "mlp",
-    "size": 32,
-    "hidden_layers": 2,
+    "size": [32, 32],
     "epochs": 5,
-    "update_batch_size" : 128
+    "update_batch_size" : 128,
+    "learning_rate": 0.01
   },
   "gae_rewards": true,
   "normalize_rewards" : false,

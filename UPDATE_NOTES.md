@@ -5,6 +5,13 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+2nd September 2017
+
+- Added multi-LSTM support
+- Fixed various bugs around reporting and logging
+- Introduced CNN baseline
+- Added baseline support for multiple states (experimental). Every state gets its own baseline
+  and predictions are averaged
 
 13th August 2017
 

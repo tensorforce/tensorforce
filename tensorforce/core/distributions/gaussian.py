@@ -52,8 +52,8 @@ class Gaussian(Distribution):
 
         # Flat mean and log standard deviation
         flat_size = util.prod(self.shape)
-        self.mean = layers['linear'](x=x, size=flat_size, bias=self.mean)
-        self.log_stddev = layers['linear'](x=x, size=flat_size, bias=self.log_stddev)
+        self.mean = layers['linear'](x=x, size=flat_size, bias=self.mean, scope='mean')
+        self.log_stddev = layers['linear'](x=x, size=flat_size, bias=self.log_stddev, scope='log_stddev')
 
         # Reshape mean and log stddev to action shape
         shape = (-1,) + self.shape

@@ -28,6 +28,7 @@ from tensorforce.models import DQNModel
 
 
 class DQNNstepModel(DQNModel):
+
     def create_tf_operations(self, config):
         # create a nstep reward placeholder for each action
         with tf.variable_scope('placeholder'):

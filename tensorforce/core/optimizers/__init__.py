@@ -13,30 +13,25 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorflow.python.training.adadelta import AdadeltaOptimizer
-from tensorflow.python.training.adagrad import AdagradOptimizer
-from tensorflow.python.training.adam import AdamOptimizer
-from tensorflow.python.training.gradient_descent import GradientDescentOptimizer
-from tensorflow.python.training.momentum import MomentumOptimizer
-from tensorflow.python.training.rmsprop import RMSPropOptimizer
-
 from tensorforce.core.optimizers.optimizer import Optimizer
+from tensorforce.core.optimizers.tf_optimizer import TensorFlowOptimizer
+# from tensorforce.core.optimizers.evolutionary import Evolutionary
+# from tensorforce.core.optimizers.natural_gradient import NaturalGradient
 from tensorforce.core.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
 
 
 # This can register any class inheriting from tf.train.Optimizer
 optimizers = dict(
-    adadelta=AdadeltaOptimizer,
-    adagrad=AdagradOptimizer,
-    adam=AdamOptimizer,
-    gradient_descent=GradientDescentOptimizer,
-    momentum=MomentumOptimizer,
-    rmsprop=RMSPropOptimizer,
-   # natural_gradient=NaturalGradient,  -> not yet merged to github
-    conjugate_gradient=ConjugateGradientOptimizer,
-   # evolutionary=Evolutionary
+    adadelta=TensorFlowOptimizer.get_wrapper(optimizer='adadelta'),
+    adagrad=TensorFlowOptimizer.get_wrapper(optimizer='adagrad'),
+    adam=TensorFlowOptimizer.get_wrapper(optimizer='adam'),
+    gradient_descent=TensorFlowOptimizer.get_wrapper(optimizer='gradient_descent'),
+    momentum=TensorFlowOptimizer.get_wrapper(optimizer='momentum'),
+    rmsprop=TensorFlowOptimizer.get_wrapper(optimizer='rmsprop'),
+    # evolutionary=Evolutionary,
+    # natural_gradient=NaturalGradient,
+    conjugate_gradient=ConjugateGradientOptimizer
 )
 
 
-__all__ = ['optimizers', 'Optimizer', 'AdadeltaOptimizer', 'AdagradOptimizer', 'AdamOptimizer',
-           'GradientDescentOptimizer', 'MomentumOptimizer', 'RMSPropOptimizer', 'ConjugateGradientOptimizer']
+__all__ = ['optimizers', 'Optimizer', 'TensorFlowOptimizer', 'Evolutionary', 'ConjugateGradientOptimizer']

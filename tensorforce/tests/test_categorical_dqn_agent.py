@@ -69,8 +69,8 @@ class TestCategoricalDQNAgent(unittest.TestCase):
 
         def network_builder(inputs, **kwargs):
             layer = layers['dense']
-            state0 = layer(x=layer(x=inputs['state0'], size=32), size=32)
-            state1 = layer(x=layer(x=inputs['state1'], size=32), size=32)
+            state0 = layer(x=layer(x=inputs['state0'], size=32, scope='state0-1'), size=32, scope='state0-2')
+            state1 = layer(x=layer(x=inputs['state1'], size=32, scope='state1-1'), size=32, scope='state1-2')
             return state0 * state1
 
         for _ in xrange(5):

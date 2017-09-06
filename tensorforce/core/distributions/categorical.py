@@ -56,7 +56,7 @@ class Categorical(Distribution):
 
         # Flat logits
         flat_size = util.prod(self.shape) * self.num_actions
-        self.logits = layers['linear'](x=x, size=flat_size, bias=self.logits)
+        self.logits = layers['linear'](x=x, size=flat_size, bias=self.logits, scope='logits')
 
         # Reshape logits to action shape
         shape = (-1,) + self.shape + (self.num_actions,)
@@ -69,7 +69,7 @@ class Categorical(Distribution):
         self.probabilities = tf.maximum(x=self.probabilities, y=util.epsilon)
 
         # "Normalized" logits
-        self.logits = tf.log(x=self.probabilities + util.epsilon)
+        self.logits = tf.log(x=self.probabilities)
 
     def sample(self):
         # Deterministic: maximum likelihood action

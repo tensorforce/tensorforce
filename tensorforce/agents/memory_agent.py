@@ -74,7 +74,8 @@ class MemoryAgent(Agent):
         self.first_update = config.first_update
         self.repeat_update = config.repeat_update
 
-    def _observe(self, reward, terminal):
+    def observe(self, reward, terminal):
+        reward, terminal = super(MemoryAgent, self).observe(reward, terminal)
         self.current_reward = reward
         self.current_terminal = terminal
 

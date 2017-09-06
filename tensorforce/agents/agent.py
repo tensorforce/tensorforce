@@ -242,24 +242,20 @@ class Agent(object):
     def observe(self, reward, terminal):
         """
         Observe experience from the environment to learn from. Optionally preprocesses rewards
-        Child classes should override _observe
+        Child classes should call super to get the processed reward
+        EX: reward, terminal = super()...
 
         Args:
             reward: scalar reward that resulted from executing the action.
             terminal: boolean indicating if the episode terminated after the observation.
 
         Returns:
-            void
-
+            processed_reward
+            terminal
         """
         if self.reward_preprocessing is not None:
             reward = self.reward_preprocessing.process(reward)
-        self._observe(reward, terminal)
-
-    def _observe(self, reward, terminal):
-        """ Child classes should override this method
-        """
-        raise NotImplementedError
+        return reward, terminal
 
     def observe_episode_reward(self, episode_reward):
         if self.model:

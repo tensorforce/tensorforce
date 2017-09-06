@@ -54,7 +54,7 @@ class BatchAgent(Agent):
         self.keep_last = config.keep_last
         super(BatchAgent, self).__init__(config, model)
 
-    def _observe(self, reward, terminal):
+    def observe(self, reward, terminal):
         """
         Adds an observation and performs an update if the necessary conditions
         are satisfied, i.e. if one batch of experience has been collected as defined
@@ -69,6 +69,7 @@ class BatchAgent(Agent):
 
         Returns: void
         """
+        reward, terminal = super(BatchAgent, self).observe(reward, terminal)
         self.current_reward = reward
         self.current_terminal = terminal
 

@@ -43,6 +43,5 @@
   "gradient_clipping": 40,
   "update_target_weight": 1.0,
   "double_dqn": false,
-  "clip_loss": 1.0,
-  "loss_aggregation_type": "sum"
+  "clip_loss": 1.0
 }

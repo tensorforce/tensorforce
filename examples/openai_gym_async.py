@@ -15,6 +15,15 @@
 
 """
 OpenAI gym execution
+
+To run this script with 3 workers:
+$ python examples/openai_gym_async.py Pong-ram-v0 -a VPGAgent -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -w 3 -D
+
+You can check what the workers are doing:
+$ tmux a -t openai_async  # `ctrl+b d` to exit tmux
+
+To kill the session:
+$ python examples/openai_gym_async.py Pong-ram-v0 -a VPGAgent -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -w 3 -D -K
 """
 
 from __future__ import absolute_import

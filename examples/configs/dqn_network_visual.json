@@ -3,25 +3,29 @@
         "type": "conv2d",
         "size": 32,
         "window": 8,
-        "stride": 4
+        "stride": 4,
+        "bias": true
     },
     {
         "type": "conv2d",
         "size": 64,
         "window": 4,
-        "stride": 2
+        "stride": 2,
+        "bias": true
     },
     {
         "type": "conv2d",
         "size": 64,
         "window": 3,
-        "stride": 1
+        "stride": 1,
+        "bias": true
     },
     {
         "type": "flatten"
     },
     {
         "type": "dense",
-        "size": 512
+        "size": 512,
+        "bias": true
     }
 ]

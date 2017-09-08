@@ -1,4 +1,6 @@
 {
+  "log_level": "info",
+
   "preprocessing": null,
   "exploration": null,
 
@@ -9,14 +11,15 @@
   "optimizer": "adam",
   "tf_saver": false,
   "tf_summary": null,
-  "log_level": "info",
 
   "baseline": {
     "type": "mlp",
     "sizes": [32, 32],
-    "epochs": 5,
-    "update_batch_size" : 128
+    "epochs": 1,
+    "update_batch_size" : 512,
+    "learning_rate": 0.01
   },
+
   "gae_rewards": false,
   "normalize_rewards": true
 }

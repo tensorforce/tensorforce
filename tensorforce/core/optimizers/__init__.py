@@ -34,4 +34,4 @@ optimizers = dict(
 )
 
 
-__all__ = ['optimizers', 'Optimizer', 'TensorFlowOptimizer', 'Evolutionary', 'ConjugateGradientOptimizer']
+__all__ = ['optimizers', 'Optimizer', 'TensorFlowOptimizer', 'Evolutionary', 'NaturalGradient', 'ConjugateGradientOptimizer']

@@ -42,7 +42,7 @@ class Configuration(object):
 
         with open(path, 'r') as fp:
             json_string = fp.read()
-        return Configuration.from_json_string(json_string=json_string, allow_defaults=True)
+        return Configuration.from_json_string(json_string=json_string, allow_defaults=allow_defaults)
 
     @staticmethod
     def from_json_string(json_string, allow_defaults=True):

@@ -27,6 +27,10 @@ class TestNAFAgent(unittest.TestCase):
                 memory_capacity=800,
                 first_update=80,
                 target_update_frequency=20,
+                memory=dict(
+                    type='replay',
+                    random_sampling=True
+                ),
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
@@ -65,6 +69,10 @@ class TestNAFAgent(unittest.TestCase):
                 learning_rate=0.00025,
                 exploration=dict(
                     type='ornstein_uhlenbeck'
+                ),
+                memory=dict(
+                    type='replay',
+                    random_sampling=False
                 ),
                 memory_capacity=800,
                 first_update=80,

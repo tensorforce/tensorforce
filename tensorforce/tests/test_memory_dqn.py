@@ -36,7 +36,10 @@ class TestMemoryDQN(unittest.TestCase):
             batch_size=8,
             learning_rate=0.001,
             memory_capacity=50,
-            memory='replay',
+            memory=dict(
+                type='replay',
+                random_sampling=True
+            ),
             first_update=20,
             target_update_frequency=10,
             states=environment.states,

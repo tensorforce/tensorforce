@@ -50,7 +50,7 @@ class MemoryAgent(Agent):
         memory_capacity=1000000,
         memory=dict(
             type='replay',
-            random_sampling=False
+            random_sampling=True
         ),
         update_frequency=4,
         first_update=10000,

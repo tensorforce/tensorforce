@@ -40,6 +40,10 @@ class TestDQNNstepAgent(unittest.TestCase):
                 batch_size=8,
                 keep_last=True,
                 learning_rate=0.001,
+                memory=dict(
+                    type='replay',
+                    random_sampling=True
+                ),
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([

@@ -32,7 +32,7 @@ env = OpenAIGym('CartPole-v0')
 agent = PPOAgent(
     Configuration(
     log_level='info',
-    batch_size=1024,
+    batch_size=4000,
 
     # max_kl_divergence=0.1,
     # cg_iterations=20,
@@ -46,11 +46,12 @@ agent = PPOAgent(
     epochs=5,
     optimizer_batch_size=512,
     loss_clipping=0.2,
+    normalize_advantage=False,
     baseline=dict(
         type="mlp",
         sizes=[32, 32],
         epochs=1,
-        update_batch_size=256,
+        update_batch_size=512,
         learning_rate=0.01
     ),
     states=env.states,

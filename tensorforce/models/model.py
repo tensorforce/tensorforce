@@ -294,10 +294,35 @@ class Model(object):
         return feed_dict
 
     def load_model(self, path):
+        """
+        Import model from path using tf.train.Saver.
+
+        Args:
+            path: Path to checkpoint
+
+        Returns:
+
+        """
         self.saver.restore(self.session, path)
 
-    def save_model(self, path):
-        self.saver.save(self.session, path, global_step=self.timestep)
+    def save_model(self, path, use_global_step=True):
+        """
+        Export model using a tf.train.Saver. Optionally append current time step as to not
+        overwrite previous checkpoint file. Set to 'false' to be able to load model
+        from exact path it was saved to in case of restarting program.
+
+        Args:
+            path: Model export directory
+            use_global_step: Whether to append the current timestep to the checkpoint path.
+
+        Returns:
+
+        """
+        if use_global_step:
+            self.saver.save(self.session, path, global_step=self.timestep)
+        else:
+            self.saver.save(self.session, path)
+
 
     def should_write_summaries(self, num_updates):
         return self.writer is not None and self.timestep > self.last_summary_step + self.summary_interval

@@ -33,7 +33,8 @@ class TensorFlowOptimizer(Optimizer):
         adam=tf.train.AdamOptimizer,
         gradient_descent=tf.train.GradientDescentOptimizer,
         momentum=tf.train.MomentumOptimizer,
-        rmsprop=tf.train.RMSPropOptimizer
+        rmsprop=tf.train.RMSPropOptimizer,
+        nadam=tf.contrib.opt.NadamOptimizer
     )
 
     @classmethod

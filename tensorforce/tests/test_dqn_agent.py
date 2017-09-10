@@ -42,6 +42,10 @@ class TestDQNAgent(unittest.TestCase):
                 memory_capacity=800,
                 first_update=80,
                 target_update_frequency=20,
+                memory=dict(
+                    type='replay',
+                    random_sampling=True
+                ),
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
@@ -65,6 +69,11 @@ class TestDQNAgent(unittest.TestCase):
         self.assertTrue(passed >= 4)
 
     def test_multi(self):
+        """
+        This is relatively unstable and highly depends on initialisation - either passes quickly
+        or fails no matter what.
+
+        """
         passed = 0
 
         def network_builder(inputs, **kwargs):
@@ -77,10 +86,14 @@ class TestDQNAgent(unittest.TestCase):
             environment = MinimalTest(definition=[False, (False, 2)])
             config = Configuration(
                 batch_size=8,
-                learning_rate=0.001,
+                learning_rate=0.0001,
                 memory_capacity=800,
                 first_update=80,
                 target_update_frequency=20,
+                repeat_update=4,
+                memory=dict(
+                    type='prioritized_replay',
+                ),
                 states=environment.states,
                 actions=environment.actions,
                 network=network_builder
@@ -92,13 +105,13 @@ class TestDQNAgent(unittest.TestCase):
                 return r.episode < 15 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-15:],
                                                                                            r.episode_lengths[-15:]))
 
-            runner.run(episodes=5000, episode_finished=episode_finished)
+            runner.run(episodes=2000, episode_finished=episode_finished)
             print('DQN agent (multi-state/action): ' + str(runner.episode))
-            if runner.episode < 5000:
+            if runner.episode < 2000:
                 passed += 1
 
         print('DQN agent (multi-state/action) passed = {}'.format(passed))
-        self.assertTrue(passed >= 4)
+        self.assertTrue(passed >= 3)
 
     def test_lstm(self):
         passed = 0
@@ -111,6 +124,10 @@ class TestDQNAgent(unittest.TestCase):
                 memory_capacity=800,
                 first_update=80,
                 target_update_frequency=20,
+                memory=dict(
+                    type='replay',
+                    random_sampling=True
+                ),
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([

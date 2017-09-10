@@ -16,7 +16,10 @@
 
   "batch_size": 32,
   "memory_capacity": 10000,
-  "memory": "replay",
+  "memory": {
+      "type": "replay",
+      "random_sampling": true
+  },
   "update_frequency": 4,
   "first_update": 50000,
   "repeat_update": 1,

@@ -12,6 +12,10 @@
   "target_network_update_rate": 0.0001,
   "min_replay_size": 5e2,
   "learning_rate": 0.00025,
+  "memory": {
+      "type": "replay",
+      "random_sampling": true
+  },
   "optimizer": {
     "type": "adam",
     "momentum": 0.95,

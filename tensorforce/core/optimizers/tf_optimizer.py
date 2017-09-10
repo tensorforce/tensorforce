@@ -33,7 +33,8 @@ class TensorFlowOptimizer(Optimizer):
         adam=tf.train.AdamOptimizer,
         gradient_descent=tf.train.GradientDescentOptimizer,
         momentum=tf.train.MomentumOptimizer,
-        rmsprop=tf.train.RMSPropOptimizer
+        rmsprop=tf.train.RMSPropOptimizer,
+        nadam=tf.contrib.opt.NadamOptimizer
     )
 
     @classmethod
@@ -51,7 +52,10 @@ class TensorFlowOptimizer(Optimizer):
             _loss = fn_loss
             fn_loss = (lambda: _loss)
         loss = super(TensorFlowOptimizer, self).minimize(fn_loss=fn_loss, fn_kl_divergence=fn_kl_divergence)
-        return self.optimizer.minimize(loss=loss)
+        return self.optimizer.minimize(loss=loss, var_list=self.variables)
+
+    def compute_gradients(self, *args, **kwargs):
+        return self.optimizer.compute_gradients(*args, **kwargs)
 
     def apply_gradients(self, *args, **kwargs):
         return self.optimizer.apply_gradients(*args, **kwargs)

@@ -85,7 +85,7 @@ class DQFDAgent(MemoryAgent):
     default_config = dict(
         target_update_frequency=10000,
         demo_memory_capacity=1000000,
-        demo_sampling_ratio=0.01
+        demo_sampling_ratio=0.01,
     )
 
     def __init__(self, config, model=None):

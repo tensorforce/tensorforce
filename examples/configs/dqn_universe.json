@@ -13,6 +13,10 @@
     "momentum": 0.95,
     "epsilon": 0.01
   },
+  "memory": {
+      "type": "replay",
+      "random_sampling": true
+  },
   "double_dqn": false,
   "exploration": {
     "type": "epsilon_decay",

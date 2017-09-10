@@ -44,6 +44,10 @@ class TestDQFDAgent(unittest.TestCase):
                 target_update_frequency=20,
                 demo_memory_capacity=100,
                 demo_sampling_ratio=0.2,
+                memory=dict(
+                    type='replay',
+                    random_sampling=True
+                ),
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
@@ -101,6 +105,10 @@ class TestDQFDAgent(unittest.TestCase):
                 target_update_frequency=20,
                 demo_memory_capacity=100,
                 demo_sampling_ratio=0.2,
+                memory=dict(
+                    type='replay',
+                    random_sampling=True
+                ),
                 states=environment.states,
                 actions=environment.actions,
                 network=network_builder

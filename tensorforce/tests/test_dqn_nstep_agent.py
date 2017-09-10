@@ -40,6 +40,10 @@ class TestDQNNstepAgent(unittest.TestCase):
                 batch_size=8,
                 keep_last=True,
                 learning_rate=0.001,
+                memory=dict(
+                    type='replay',
+                    random_sampling=True
+                ),
                 states=environment.states,
                 actions=environment.actions,
                 network=layered_network_builder([
@@ -87,9 +91,9 @@ class TestDQNNstepAgent(unittest.TestCase):
             def episode_finished(r):
                 return r.episode < 15 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-15:], r.episode_lengths[-15:]))
 
-            runner.run(episodes=2000, episode_finished=episode_finished)
+            runner.run(episodes=5000, episode_finished=episode_finished)
             print('DQN Nstep agent (multi-state/action): ' + str(runner.episode))
-            if runner.episode < 2000:
+            if runner.episode < 5000:
                 passed += 1
 
         print('DQN Nstep agent (multi-state/action) passed = {}'.format(passed))

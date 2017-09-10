@@ -25,6 +25,7 @@ optimizers = dict(
     adadelta=TensorFlowOptimizer.get_wrapper(optimizer='adadelta'),
     adagrad=TensorFlowOptimizer.get_wrapper(optimizer='adagrad'),
     adam=TensorFlowOptimizer.get_wrapper(optimizer='adam'),
+    nadam=TensorFlowOptimizer.get_wrapper(optimizer='nadam'),
     gradient_descent=TensorFlowOptimizer.get_wrapper(optimizer='gradient_descent'),
     momentum=TensorFlowOptimizer.get_wrapper(optimizer='momentum'),
     rmsprop=TensorFlowOptimizer.get_wrapper(optimizer='rmsprop'),
@@ -34,4 +35,4 @@ optimizers = dict(
 )
 
 
-__all__ = ['optimizers', 'Optimizer', 'TensorFlowOptimizer', 'Evolutionary', 'ConjugateGradientOptimizer']
+__all__ = ['optimizers', 'Optimizer', 'TensorFlowOptimizer', 'Evolutionary', 'NaturalGradient', 'ConjugateGradientOptimizer']

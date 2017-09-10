@@ -86,7 +86,8 @@ def nonlinearity(x, name='relu', scope='nonlinearity', summary_level=0):
     return x
 
 
-def linear(x, size, weights=None, bias=True, l2_regularization=0.0, scope='linear', summary_level=0):
+def linear(x, size, weights=None, bias=True, l2_regularization=0.0, l1_regularization=0.0, scope='linear',
+           summary_level=0):
     """
     Linear layer.
 
@@ -171,6 +172,11 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0, scope='linea
 
         if l2_regularization > 0.0:
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
+        if l1_regularization > 0.0:
+            weight_l1_t = tf.convert_to_tensor(l1_regularization, dtype=tf.float32, name='weight_l1')
+            tf.losses.add_loss(tf.multiply(weight_l1_t, tf.reduce_sum(tf.abs(weights)), name='loss_l1_weights'))
+        else:
+            weight_l1_t = None
 
         x = tf.matmul(a=x, b=weights)
 
@@ -182,13 +188,16 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0, scope='linea
 
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
+            if l1_regularization > 0.0:
+                tf.losses.add_loss(tf.multiply(weight_l1_t, tf.reduce_sum(tf.abs(bias)), name='loss_l1_bias'))
 
             x = tf.nn.bias_add(value=x, bias=bias)
 
     return x
 
 
-def dense(x, size, bias=True, activation='relu', l2_regularization=0.0, scope='dense', summary_level=0):
+def dense(x, size, bias=True, activation='relu', l2_regularization=0.0, l1_regularization=0.0, scope='dense',
+          summary_level=0):
     """
     Fully connected layer.
 
@@ -208,7 +217,7 @@ def dense(x, size, bias=True, activation='relu', l2_regularization=0.0, scope='d
                                ' must be 2.'.format(input_rank))
 
     with tf.variable_scope(scope):
-        x = linear(x=x, size=size, bias=bias, l2_regularization=l2_regularization)
+        x = linear(x=x, size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization)
         x = nonlinearity(x=x, name=activation, summary_level=summary_level)
 
         if summary_level >= 3:

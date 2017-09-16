@@ -75,4 +75,12 @@ class DQNNstepModel(DQNModel):
         feed_dict.update({action: batch['actions'][name][:-1] for name, action in self.action.items()})
         feed_dict.update({internal: batch['internals'][n][:-1] for n, internal in enumerate(self.internal_inputs)})
         feed_dict.update({self.nstep_rewards[name]: nstep_rewards[name] for name, reward in nstep_rewards.items()})
+
+        # pass in terminals so that the global episode counter is correct in distributed mode
+        if self.distributed:
+            feed_dict.update({self.terminal: batch['terminals']})
         return feed_dict
+
+    def get_global_increment_value(self):
+        # nstep DQN doesn't pass in reward so use actions shape
+        return tf.shape(self.action[list(self.action.keys())[0]])[0]

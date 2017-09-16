@@ -32,7 +32,6 @@
   ],
 
   "batch_size": 6,
-  "repeat_update": 1,
   "keep_last": true,
   "target_update_frequency": 10000,
 
@@ -47,7 +46,6 @@
   "tf_summary": null,
   "log_level": "info",
 
-  "gradient_clipping": 40,
   "update_target_weight": 1.0,
   "double_dqn": false,
   "clip_loss": 1.0

@@ -125,7 +125,7 @@ class Model(object):
                     self.optimize = tf.group(
                         self.optimizer.apply_gradients(grads_and_vars=global_gradients),
                         self.update_local,
-                        self.global_timestep.assign_add(tf.shape(self.reward)[0]))
+                        self.global_timestep.assign_add(self.get_global_increment_value()))
                     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
                 else:
                     self.loss = tf.losses.get_total_loss()
@@ -323,7 +323,6 @@ class Model(object):
         else:
             self.saver.save(self.session, path)
 
-
     def should_write_summaries(self, num_updates):
         return self.writer is not None and self.timestep > self.last_summary_step + self.summary_interval
 
@@ -334,3 +333,9 @@ class Model(object):
         if self.writer is not None:
             reward_summary = self.session.run(self.episode_reward_summary, feed_dict={self.tf_episode_reward: episode_reward})
             self.writer.add_summary(reward_summary, global_step=self.timestep)
+
+    def get_global_increment_value(self):
+        """
+            The amount to increment the global timestep. Should be a constant or tensorflow value
+        """
+        return tf.shape(self.reward)[0]

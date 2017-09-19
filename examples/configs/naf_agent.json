@@ -3,7 +3,7 @@
   "learning_rate": 0.001,
   "use_target_network": true,
   "target_network_update_rate": 1,
-  "tau": 0.001,
+  "update_target_weight": 0.001,
   "gamma": 0.99,
   "memory_capacity": 5e4,
   "batch_size": 100,

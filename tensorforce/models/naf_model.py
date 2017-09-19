@@ -32,7 +32,6 @@ class NAFModel(QModel):
 
     default_config = dict(
         update_target_weight=1.0,
-        clip_gradients=0.0
     )
 
     def __init__(self, config):

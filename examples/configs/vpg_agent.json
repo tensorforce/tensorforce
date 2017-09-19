@@ -1,15 +1,11 @@
 {
   "log_level": "info",
-
   "preprocessing": null,
   "exploration": null,
-
   "batch_size": 4000,
-
   "discount": 0.97,
   "learning_rate": 0.01,
   "optimizer": "adam",
-  "tf_saver": false,
   "tf_summary": null,
 
   "baseline": {

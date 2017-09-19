@@ -43,7 +43,6 @@
     "decay": 0.99,
     "epsilon": 1e-6
   },
-  "tf_saver": false,
   "tf_summary": null,
   "log_level": "info",
 

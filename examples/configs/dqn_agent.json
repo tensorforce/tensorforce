@@ -31,7 +31,6 @@
     "momentum": 0.95,
     "epsilon": 0.01
   },
-  "tf_saver": false,
   "tf_summary": null,
   "log_level": "info",
   "update_target_weight": 1.0,

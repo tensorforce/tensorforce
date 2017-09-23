@@ -48,8 +48,7 @@ class CNNBaseline(Baseline):
         self.session = None
 
     def create_tf_operations(self, state, scope='cnn_baseline'):
-
-        with tf.variable_scope(scope):
+        with tf.variable_scope(scope) as scope:
             self.state = tf.placeholder(dtype=tf.float32, shape=(None,) + tuple(state.shape))
             self.returns = tf.placeholder(dtype=tf.float32, shape=(None,))
 
@@ -60,8 +59,8 @@ class CNNBaseline(Baseline):
             # First layer has larger window
             layers[0]['window'] = 5
             layers.append({'type': 'flatten'})
-            # for size in self.dense_sizes:
-            #     layers.append({'type': 'dense', 'size': size})
+            for size in self.dense_sizes:
+                layers.append({'type': 'dense', 'size': size})
             layers.append({'type': 'linear', 'size': 1})
 
             network = NeuralNetwork(network_builder=layered_network_builder(layers),

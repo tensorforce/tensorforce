@@ -32,7 +32,7 @@ from tensorforce.core.baselines import Baseline
 
 class CNNBaseline(Baseline):
 
-    def __init__(self, sizes, epochs=1, update_batch_size=64, learning_rate=0.001):
+    def __init__(self, cnn_sizes, dense_sizes, epochs=1, update_batch_size=64, learning_rate=0.001):
         """CNN baseline value function.
 
         Args:
@@ -40,7 +40,8 @@ class CNNBaseline(Baseline):
             repeat_update: Epochs over the training data to fit the baseline
         """
 
-        self.sizes = sizes
+        self.cnn_sizes = cnn_sizes
+        self.dense_sizes = dense_sizes
         self.epochs = epochs
         self.update_batch_size = update_batch_size
         self.learning_rate = learning_rate
@@ -49,17 +50,18 @@ class CNNBaseline(Baseline):
     def create_tf_operations(self, state, scope='cnn_baseline'):
 
         with tf.variable_scope(scope):
-            self.state = tf.placeholder(dtype=tf.float32, shape=(None, util.prod(state.shape)))
+            self.state = tf.placeholder(dtype=tf.float32, shape=(None,) + tuple(state.shape))
             self.returns = tf.placeholder(dtype=tf.float32, shape=(None,))
 
             layers = []
-            for size in self.sizes:
+            for size in self.cnn_sizes:
                 layers.append({'type': 'conv2d', 'size': size, 'stride': 1, 'window': 3})
 
             # First layer has larger window
             layers[0]['window'] = 5
-
-            # TODO append maxpooling
+            layers.append({'type': 'flatten'})
+            # for size in self.dense_sizes:
+            #     layers.append({'type': 'dense', 'size': size})
             layers.append({'type': 'linear', 'size': 1})
 
             network = NeuralNetwork(network_builder=layered_network_builder(layers),

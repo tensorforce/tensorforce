@@ -1,12 +1,24 @@
 [
+     {
+        "type": "conv2d",
+        "size": 8,
+        "window": 8,
+        "stride": 4,
+        "bias": true
+    },
     {
-        "type": "dense",
-        "size": 32,
-        "activation": "tanh"
+        "type": "conv2d",
+        "size": 16,
+        "window": 4,
+        "stride": 2,
+        "bias": true
+    },
+    {
+        "type": "flatten"
     },
     {
         "type": "dense",
-        "size": 32,
-        "activation": "tanh"
+        "size": 128,
+        "bias": true
     }
 ]

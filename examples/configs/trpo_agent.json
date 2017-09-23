@@ -1,20 +1,21 @@
 {
   "log_level": "info",
-
-  "batch_size": 1000,
-  "discount": 0.97,
-  "max_kl_divergence": 0.1,
-  "cg_iterations" : 20,
+  "batch_size": 8192,
+  "discount": 0.98,
+  "max_kl_divergence": 0.01,
+  "cg_iterations" : 10,
   "cg_damping" : 0.001,
   "ls_max_backtracks" : 10,
-  "ls_accept_ratio": 0.9,
+  "ls_accept_ratio": 0.1,
   "ls_override": false,
 
   "baseline": {
-    "type": "mlp",
-    "sizes": [32, 32],
-    "epochs": 1,
-    "update_batch_size" : 250,
-    "learning_rate": 0.01
+    "type": "cnn",
+    "cnn_sizes": [8, 16],
+    "dense_sizes": [128],
+    "epochs": 10,
+    "update_batch_size" : 30000,
+    "learning_rate": 0.001
   }
+
 }

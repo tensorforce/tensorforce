@@ -14,25 +14,27 @@
 # ==============================================================================
 
 from tensorforce.core.optimizers.optimizer import Optimizer
-from tensorforce.core.optimizers.tf_optimizer import TensorFlowOptimizer
-# from tensorforce.core.optimizers.evolutionary import Evolutionary
-# from tensorforce.core.optimizers.natural_gradient import NaturalGradient
-from tensorforce.core.optimizers.conjugate_gradient_optimizer import ConjugateGradientOptimizer
+from tensorforce.core.optimizers.meta_optimizer import MetaOptimizer
+from tensorforce.core.optimizers.tf_optimizer import TFOptimizer
+from tensorforce.core.optimizers.evolutionary import Evolutionary
+from tensorforce.core.optimizers.natural_gradient import NaturalGradient
+from tensorforce.core.optimizers.multi_step import MultiStep
+from tensorforce.core.optimizers.optimized_step import OptimizedStep
 
 
 # This can register any class inheriting from tf.train.Optimizer
 optimizers = dict(
-    adadelta=TensorFlowOptimizer.get_wrapper(optimizer='adadelta'),
-    adagrad=TensorFlowOptimizer.get_wrapper(optimizer='adagrad'),
-    adam=TensorFlowOptimizer.get_wrapper(optimizer='adam'),
-    nadam=TensorFlowOptimizer.get_wrapper(optimizer='nadam'),
-    gradient_descent=TensorFlowOptimizer.get_wrapper(optimizer='gradient_descent'),
-    momentum=TensorFlowOptimizer.get_wrapper(optimizer='momentum'),
-    rmsprop=TensorFlowOptimizer.get_wrapper(optimizer='rmsprop'),
-    # evolutionary=Evolutionary,
-    # natural_gradient=NaturalGradient,
-    conjugate_gradient=ConjugateGradientOptimizer
+    adadelta=TFOptimizer.get_wrapper(optimizer='adadelta'),
+    adagrad=TFOptimizer.get_wrapper(optimizer='adagrad'),
+    adam=TFOptimizer.get_wrapper(optimizer='adam'),
+    gradient_descent=TFOptimizer.get_wrapper(optimizer='gradient_descent'),
+    momentum=TFOptimizer.get_wrapper(optimizer='momentum'),
+    rmsprop=TFOptimizer.get_wrapper(optimizer='rmsprop'),
+    evolutionary=Evolutionary,
+    natural_gradient=NaturalGradient,
+    multi_step=MultiStep,
+    optimized_step=OptimizedStep
 )
 
 
-__all__ = ['optimizers', 'Optimizer', 'TensorFlowOptimizer', 'Evolutionary', 'NaturalGradient', 'ConjugateGradientOptimizer']
+__all__ = ['optimizers', 'Optimizer', 'MetaOptimizer', 'TFOptimizer', 'Evolutionary', 'NaturalGradient', 'MultiStep', 'OptimizedStep']

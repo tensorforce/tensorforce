@@ -21,9 +21,10 @@ import tensorflow as tf
 from tensorforce.core.optimizers import Optimizer
 
 
-class TensorFlowOptimizer(Optimizer):
+class TFOptimizer(Optimizer):
     """
-    Wrapper class for native TensorFlow optimizers.
+    Wrapper class for TensorFlow optimizers. This maps
+    native TensorFlow optimizers to the TensorForce optimization interface.
 
     """
 
@@ -33,29 +34,24 @@ class TensorFlowOptimizer(Optimizer):
         adam=tf.train.AdamOptimizer,
         gradient_descent=tf.train.GradientDescentOptimizer,
         momentum=tf.train.MomentumOptimizer,
-        rmsprop=tf.train.RMSPropOptimizer,
-        nadam=tf.contrib.opt.NadamOptimizer
+        rmsprop=tf.train.RMSPropOptimizer
     )
 
-    @classmethod
-    def get_wrapper(cls, optimizer, variables=None):
-        def wrapper(**kwargs):
-            return cls(optimizer=optimizer, variables=variables, **kwargs)
+    @staticmethod
+    def get_wrapper(optimizer):
+        def wrapper(variables=None, **kwargs):
+            return TFOptimizer(optimizer=optimizer, variables=variables, **kwargs)
         return wrapper
 
     def __init__(self, optimizer, variables=None, **kwargs):
-        super(TensorFlowOptimizer, self).__init__(variables=variables)
-        self.optimizer = TensorFlowOptimizer.tf_optimizers[optimizer](**kwargs)
+        self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
+        super(TFOptimizer, self).__init__(variables=variables)
 
-    def minimize(self, fn_loss, fn_kl_divergence=None):
-        if isinstance(fn_loss, tf.Tensor):  # TEMPORARY !!!!!!!!
-            _loss = fn_loss
-            fn_loss = (lambda: _loss)
-        loss = super(TensorFlowOptimizer, self).minimize(fn_loss=fn_loss, fn_kl_divergence=fn_kl_divergence)
-        return self.optimizer.minimize(loss=loss, var_list=self.variables)
-
-    def compute_gradients(self, *args, **kwargs):
-        return self.optimizer.compute_gradients(*args, **kwargs)
-
-    def apply_gradients(self, *args, **kwargs):
-        return self.optimizer.apply_gradients(*args, **kwargs)
+    def tf_step(self, fn_loss, **kwargs):
+        loss = fn_loss()
+        with tf.control_dependencies(control_inputs=(loss,)):
+            vars_before = [tf.add(x=var, y=0.0) for var in self.get_variables()]
+        with tf.control_dependencies(control_inputs=vars_before):
+            applied = self.optimizer.minimize(loss=loss, var_list=self.variables)
+        with tf.control_dependencies(control_inputs=(applied,)):
+            return [var - var_before for var, var_before in zip(self.variables, vars_before)]

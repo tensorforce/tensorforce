@@ -361,7 +361,7 @@ layers = {
     'nonlinearity': nonlinearity,
     'linear': linear,
     'dense': dense,
-    'conv1d', conv1d,
+    'conv1d': conv1d,
     'conv2d': conv2d,
     'lstm': lstm
 }

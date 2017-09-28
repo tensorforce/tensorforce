@@ -128,11 +128,16 @@ class Model(object):
                     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
                     local_gradients = tf.gradients(self.loss, self.variables)
                     global_gradients = list(zip(local_gradients, self.global_variables))
-                    self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_variables)))
-                    self.optimize = tf.group(
-                        self.global_optimizer.apply_gradients(grads_and_vars=global_gradients),
-                        self.update_local,
-                        self.global_timestep.assign_add(self.get_global_increment_value()))
+                    self.update_local = self._create_local_var_update_ops(self.variables, self.global_variables)
+
+                    # control_dependencies make sure gradients are applied before copying to local
+                    apply_grads = self.global_optimizer.apply_gradients(grads_and_vars=global_gradients)
+                    with tf.control_dependencies([apply_grads]):
+                        # we must recreate the local var update ops under the control dependencies context
+                        self.optimize = tf.group(
+                            apply_grads,
+                            self._create_local_var_update_ops(self.variables, self.global_variables),
+                            self.global_timestep.assign_add(self.get_global_increment_value()))
                     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
                 # not distributed and not global model just minimize the loss
                 elif self.optimizer is not None:
@@ -236,6 +241,11 @@ class Model(object):
         else:
             self.optimizer = None
 
+    @staticmethod
+    def _create_local_var_update_ops(local_vars, global_vars):
+        # read_value is a MUST here otherwise it's a cached copy https://www.tensorflow.org/api_docs/python/tf/Variable#read_value
+        return tf.group(*(v1.assign(v2.read_value()) for v1, v2 in zip(local_vars, global_vars)))
+
     def set_session(self, session, supervisor=None):
         assert self.session is None
         self.session = session
@@ -247,6 +257,9 @@ class Model(object):
         Returns: A list containing the internal_inits field.
 
         """
+        # sync local vars if distributed
+        if self.distributed and self.session is not None:
+            self.session.run(self.update_local)
         return list(self.internal_inits)
 
     def get_action(self, state, internal, deterministic=False):

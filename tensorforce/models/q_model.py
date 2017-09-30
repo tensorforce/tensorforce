@@ -96,11 +96,12 @@ class QModel(Model):
             tf.losses.add_loss(self.q_loss)
 
         # for each loss over an action create a summary
-        if len(self.q_loss.shape) > 1:
-            for action_ind in range(self.q_loss.shape[1]):
-                tf.summary.scalar('q-loss-action-{}'.format(action_ind), self.q_loss[action_ind])
-        else:
-            tf.summary.scalar('q-loss', self.q_loss)
+        if config.tf_summary_level >= 0:
+            if len(self.q_loss.shape) > 1:
+                for action_ind in range(self.q_loss.shape[1]):
+                    tf.summary.scalar('q-loss-action-{}'.format(action_ind), self.q_loss[action_ind])
+            else:
+                tf.summary.scalar('q-loss', self.q_loss)
 
         # Update target network
         with tf.name_scope('update-target'):

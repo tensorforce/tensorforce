@@ -102,20 +102,19 @@ class Runner(object):
             config = tf.ConfigProto(device_filters=['/job:ps', '/job:worker/task:{}/cpu:0'.format(self.task_index)])
 
             init_op = tf.global_variables_initializer()
+            logdir = self.save_path if self.save_path is not None else '/tmp/train_logs/'
             supervisor = tf.train.Supervisor(
                 is_chief=(self.task_index == 0),
-                logdir='/tmp/train_logs',
+                logdir=logdir,
                 global_step=self.agent.model.global_timestep,
                 init_op=tf.variables_initializer(self.agent.model.global_variables),
                 local_init_op=tf.variables_initializer(self.agent.model.variables),
                 init_fn=(lambda session: session.run(init_op)),
                 saver=self.agent.model.saver)
-            # summary_op=tf.summary.merge_all(),
-            # summary_writer=worker_agent.model.summary_writer)
 
             managed_session = supervisor.managed_session(server.target, config=config)
             session = managed_session.__enter__()
-            self.agent.model.set_session(session)
+            self.agent.model.set_session(session, supervisor)
             # session.run(self.agent.model.update_local)
 
         # save episode reward and length for statistics

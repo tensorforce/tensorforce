@@ -79,6 +79,9 @@ class Model(object):
         self.discount = config.discount
         self.distributed = config.distributed
         self.session = None
+        self.supervisor = None
+        self.summaries_enabled = config.tf_summary is not None
+        self.summary_writer = None
 
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(util.log_levels[config.log_level])
@@ -92,6 +95,9 @@ class Model(object):
             global_config = config.copy()
             global_config.optimizer = None
             global_config.global_model = True
+            # create no summaries for the global model
+            global_config.tf_summary = None
+            global_config.tf_summary_level = -1
             global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=config.cluster_spec)
             self.global_model = self.__class__(config=global_config)
             self.global_timestep = self.global_model.global_timestep
@@ -139,12 +145,15 @@ class Model(object):
                 scope_context.__exit__(None, None, None)
 
         self.saver = tf.train.Saver()
-        if config.tf_summary is not None:
+        # only create summaries if requested
+        if self.summaries_enabled:
             # create a summary for total loss
             tf.summary.scalar('total-loss', self.loss)
 
-            # create summary writer
-            self.writer = tf.summary.FileWriter(config.tf_summary, graph=tf.get_default_graph())
+            if not self.distributed:
+                self.summary_writer = tf.summary.FileWriter(config.tf_summary, graph=tf.get_default_graph())
+            else:
+                self.summary_writer = None
             self.last_summary_step = -float('inf')
 
             # create summaries based on summary level
@@ -159,9 +168,8 @@ class Model(object):
             self.tf_episode_reward = tf.placeholder(tf.float32, name='episode-reward-placeholder')
             self.episode_reward_summary = tf.summary.scalar('episode-reward', self.tf_episode_reward)
         else:
-            self.writer = None
+            self.summary_writer = None
             config.tf_summary_level
-            config.tf_summary_interval
 
         self.timestep = 0
         self.summary_interval = config.tf_summary_interval
@@ -224,9 +232,10 @@ class Model(object):
         else:
             self.optimizer = None
 
-    def set_session(self, session):
+    def set_session(self, session, supervisor=None):
         assert self.session is None
         self.session = session
+        self.supervisor = supervisor
 
     def reset(self):
         """
@@ -324,15 +333,19 @@ class Model(object):
             self.saver.save(self.session, path)
 
     def should_write_summaries(self, num_updates):
-        return self.writer is not None and self.timestep > self.last_summary_step + self.summary_interval
+        return self.summaries_enabled and self.timestep > self.last_summary_step + self.summary_interval
 
-    def write_summaries(self, summaries):
-        self.writer.add_summary(summaries, global_step=self.timestep)
+    def write_summaries(self, summaries, global_step=None):
+        if self.supervisor is not None:
+            # supervisor takes care of global step
+            self.supervisor.summary_computed(self.session, summaries)
+        elif self.summary_writer is not None:
+            self.summary_writer.add_summary(summaries, global_step=self.timestep)
 
     def write_episode_reward_summary(self, episode_reward):
-        if self.writer is not None:
+        if self.summaries_enabled:
             reward_summary = self.session.run(self.episode_reward_summary, feed_dict={self.tf_episode_reward: episode_reward})
-            self.writer.add_summary(reward_summary, global_step=self.timestep)
+            self.write_summaries(reward_summary)
 
     def get_global_increment_value(self):
         """

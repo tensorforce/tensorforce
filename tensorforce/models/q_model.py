@@ -105,28 +105,26 @@ class QModel(Model):
 
         # Update target network
         with tf.name_scope('update-target'):
-            self.target_network_update = list()
-            for v_source, v_target in zip(self.training_variables, self.target_variables):
-                update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
-                self.target_network_update.append(update)
-
             # if distributed, set up a tensorflow op that will check the global timestep
             # and the global last target update and possibly update the global target vars
             if config.distributed and config.global_model:
                 self.global_last_target_update = tf.get_variable(name='last-target-update', dtype=tf.int32, initializer=0, trainable=False)
 
-                # check if timestep greater than last update + interval or first update
-                timestep_greater = tf.greater_equal(self.global_timestep,
-                                                    self.global_last_target_update + self.target_update_frequency)
-                first_update = tf.equal(self.global_last_target_update, 0)
-                self.should_update_target = tf.logical_or(timestep_greater, first_update)
+                # check if timestep greater than last update + interval
+                self.global_should_update_target = self.global_timestep >= self.global_last_target_update
 
                 def update_global_target():
-                    global_target_counter_update = self.global_last_target_update.assign_add(self.target_update_frequency)
-                    global_target_update_op = self.target_network_update + [global_target_counter_update]
-                    return tf.group(*global_target_update_op)
+                    # since this op automatically is run once on tf.cond init the target values will be the same as training at the start
+                    global_target_counter_update = tf.assign_add(self.global_last_target_update, self.target_update_frequency)
+                    # these update ops must be created here otherwise they will be run everytime
+                    # https://github.com/tensorflow/tensorflow/issues/3287
+                    target_network_update = self.create_target_update_operations(config)
+                    with tf.control_dependencies([global_target_counter_update] + target_network_update):
+                        return tf.no_op()
                 # if should update return the update op otherwise nothing
-                self.global_possible_update_target = tf.cond(self.should_update_target, update_global_target, lambda: tf.no_op())
+                self.global_possible_update_target = tf.cond(self.global_should_update_target, update_global_target, lambda: tf.no_op())
+            else:
+                self.target_network_update = self.create_target_update_operations(config)
 
     def create_q_deltas(self, config):
         """
@@ -158,6 +156,18 @@ class QModel(Model):
         Create target network operations.
         :return: A dict containing the target values per action.
         """
+
+    def create_target_update_operations(self, config):
+        """
+        Creates target network update operations.
+        :return: A list of target variable update ops
+        """
+
+        target_network_update = list()
+        for v_source, v_target in zip(self.training_variables, self.target_variables):
+            update = v_target.assign_sub(config.update_target_weight * (v_target - v_source))
+            target_network_update.append(update)
+        return target_network_update
 
     def update_feed_dict(self, batch):
         if 'next_states' in batch:
@@ -201,4 +211,4 @@ class QModel(Model):
                 self.session.run(self.target_network_update)
         # must check & update from global vars
         else:
-            self.session.run(self.global_model.global_possible_update_target.op)
+            self.session.run(self.global_model.global_possible_update_target)

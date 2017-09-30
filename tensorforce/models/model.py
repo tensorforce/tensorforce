@@ -93,7 +93,6 @@ class Model(object):
         if config.distributed and not config.global_model:
             # Global and local model for asynchronous updates
             global_config = config.copy()
-            global_config.optimizer = None
             global_config.global_model = True
             # create no summaries for the global model
             global_config.tf_summary = None
@@ -103,6 +102,8 @@ class Model(object):
             self.global_timestep = self.global_model.global_timestep
             self.global_episode = self.global_model.episode
             self.global_variables = self.global_model.variables
+            self.global_optimizer = self.global_model.optimizer
+            config.optimizer = None
 
         self.optimizer_args = None
         with tf.device(config.device):
@@ -120,26 +121,29 @@ class Model(object):
             if config.distributed:
                 self.variables = tf.contrib.framework.get_variables(scope=scope)
 
-            assert self.optimizer or (not config.distributed or config.global_model)
-            if self.optimizer:
-                if config.distributed and not config.global_model:
+            # set up optimization op for distributed models
+            if not config.global_model:
+                if config.distributed:
+                    # the global model creates the shared optimizer, we just pass our gradients to it
                     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
-                    local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
-                    local_gradients = [grad for grad, var in local_grads_and_vars]
-                    global_gradients = list(zip(local_gradients, self.global_model.variables))
-                    self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
+                    local_gradients = tf.gradients(self.loss, self.variables)
+                    global_gradients = list(zip(local_gradients, self.global_variables))
+                    self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_variables)))
                     self.optimize = tf.group(
-                        self.optimizer.apply_gradients(grads_and_vars=global_gradients),
+                        self.global_optimizer.apply_gradients(grads_and_vars=global_gradients),
                         self.update_local,
                         self.global_timestep.assign_add(self.get_global_increment_value()))
                     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
-                else:
+                # not distributed and not global model just minimize the loss
+                elif self.optimizer is not None:
                     self.loss = tf.losses.get_total_loss()
                     if self.optimizer_args is not None:
                         self.optimizer_args['loss'] = self.loss
                         self.optimize = self.optimizer.minimize(self.optimizer_args)
                     else:
                         self.optimize = self.optimizer.minimize(self.loss)
+                else:
+                    raise TensorForceError("An optimizer must be specified")
 
             if config.distributed:
                 scope_context.__exit__(None, None, None)
@@ -270,9 +274,6 @@ class Model(object):
         Returns:
 
         """
-        if self.optimizer is None:
-            return
-
         fetches = [self.optimize, self.loss, self.loss_per_instance]
         feed_dict = self.update_feed_dict(batch=batch)
 

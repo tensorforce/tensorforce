@@ -111,11 +111,11 @@ class QModel(Model):
                 self.global_last_target_update = tf.get_variable(name='last-target-update', dtype=tf.int32, initializer=0, trainable=False)
 
                 # check if timestep greater than last update + interval
-                self.global_should_update_target = self.global_timestep >= self.global_last_target_update
+                self.global_should_update_target = self.global_timestep >= self.global_last_target_update + self.target_update_frequency
 
                 def update_global_target():
                     # since this op automatically is run once on tf.cond init the target values will be the same as training at the start
-                    global_target_counter_update = tf.assign_add(self.global_last_target_update, self.target_update_frequency)
+                    global_target_counter_update = tf.assign(self.global_last_target_update, self.global_timestep)
                     # these update ops must be created here otherwise they will be run everytime
                     # https://github.com/tensorflow/tensorflow/issues/3287
                     target_network_update = self.create_target_update_operations(config)

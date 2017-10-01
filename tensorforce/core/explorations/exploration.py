@@ -23,8 +23,11 @@ class Exploration(object):
         raise NotImplementedError
 
     @staticmethod
-    def from_config(config):
+    def from_spec(spec):
+        """
+        Creates an exploration object from a specification dict.
+        """
         return util.get_object(
-            obj=config,
+            obj=spec,
             predefined=tensorforce.core.explorations.explorations
         )

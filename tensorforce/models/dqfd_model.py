@@ -35,9 +35,9 @@ class DQFDModel(DQNModel):
         expert_margin=0.8
     )
 
-    def __init__(self, config):
+    def __init__(self, config, states_config, actions_config):
         config.default(DQFDModel.default_config)
-        super(DQFDModel, self).__init__(config)
+        super(DQFDModel, self).__init__(config, states_config, actions_config)
 
     def create_tf_operations(self, config):
         """Create training graph. For DQFD, we build the double-dqn training graph and
@@ -56,7 +56,7 @@ class DQFDModel(DQNModel):
             for name, action in self.action.items():
                 # Create the supervised margin loss
                 # Zero for the action taken, one for all other actions, now multiply by expert margin
-                one_hot = tf.one_hot(indices=action, depth=config.actions[name].num_actions)
+                one_hot = tf.one_hot(indices=action, depth=self.actions_config[name]['num_actions'])
                 ones = tf.ones_like(tensor=one_hot, dtype=tf.float32)
                 inverted_one_hot = ones - one_hot
 
@@ -66,7 +66,7 @@ class DQFDModel(DQNModel):
                 # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
                 supervised_selector = tf.reduce_max(input_tensor=expert_margin, axis=-1)
                 delta = supervised_selector - self.q_values[name]
-                delta = tf.reshape(tensor=delta, shape=(-1, util.prod(config.actions[name].shape)))
+                delta = tf.reshape(tensor=delta, shape=(-1, util.prod(self.actions_config[name]['shape'])))
                 deltas.append(delta)
 
             delta = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)

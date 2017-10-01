@@ -14,7 +14,18 @@
 # ==============================================================================
 
 
-from tensorforce.core.networks.layers import layers, layered_network_builder, from_json
-from tensorforce.core.networks.network import NeuralNetwork
+from tensorforce.core.networks.layer import Layer, Flatten, Nonlinearity, Linear, Dense, Conv2d, Lstm
+from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
 
-__all__ = ['NeuralNetwork', 'layers', 'layered_network_builder', 'from_json']
+
+layers = dict(
+    flatten=Flatten,
+    nonlinearity=Nonlinearity,
+    linear=Linear,
+    dense=Dense,
+    conv2d=Conv2d,
+    lstm=Lstm
+)
+
+
+__all__ = ['layers', 'Layer', 'Flatten', 'Nonlinearity', 'Linear', 'Dense', 'Conv2d', 'Lstm', 'Network', 'LayerBasedNetwork', 'LayeredNetwork']

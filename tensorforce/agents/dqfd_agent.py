@@ -90,17 +90,17 @@ class DQFDAgent(MemoryAgent):
 
     def __init__(self, config, model=None):
         config.default(DQFDAgent.default_config)
-        super(DQFDAgent, self).__init__(config, model)
         self.target_update_frequency = config.target_update_frequency
-
-        # This is the demonstration memory that we will fill with observations before starting
-        # the main training loop
-        self.demo_memory = Replay(config.demo_memory_capacity, config.states, config.actions)
-
+        self.demo_memory_capacity = config.demo_memory_capacity
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
         self.demo_batch_size = int(config.demo_sampling_ratio * config.batch_size / (1.0 - config.demo_sampling_ratio))
         assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to make sure demo_batch_size is positive. (Calculated {} based on current parameters)'.format(self.demo_batch_size)
+        super(DQFDAgent, self).__init__(config, model)
+
+        # This is the demonstration memory that we will fill with observations before starting
+        # the main training loop
+        self.demo_memory = Replay(self.demo_memory_capacity, self.states_config, self.actions_config)
 
     def observe(self, reward, terminal):
         """Adds observations, updates via sampling from memories according to update rate.

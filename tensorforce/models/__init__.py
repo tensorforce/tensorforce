@@ -14,26 +14,22 @@
 # ==============================================================================
 
 from tensorforce.models.model import Model
-from tensorforce.models.policy_gradient_model import PolicyGradientModel
+from tensorforce.models.distribution_model import DistributionModel
+
+from tensorforce.models.pg_model import PGModel
+from tensorforce.models.pg_ll_model import PGLLModel
+from tensorforce.models.pg_lr_model import PGLRModel
+
 from tensorforce.models.q_model import QModel
-from tensorforce.models.vpg_model import VPGModel
-from tensorforce.models.trpo_model import TRPOModel
-from tensorforce.models.dqn_model import DQNModel
-from tensorforce.models.naf_model import NAFModel
-from tensorforce.models.dqfd_model import DQFDModel
-from tensorforce.models.categorical_dqn_model import CategoricalDQNModel
-from tensorforce.models.dqn_nstep_model import DQNNstepModel
+from tensorforce.models.q_nstep_model import QNstepModel
 
 
 models = dict(
-    VPGModel=VPGModel,
-    TRPOModel=TRPOModel,
-    DQNModel=DQNModel,
-    NAFModel=NAFModel,
-    DQFDModel=DQFDModel,
-    CategoricalDQNModel=CategoricalDQNModel,
-    DQNNstepModel=DQNNstepModel,
+    pg_ll_model=PGLLModel,
+    pg_lr_model=PGLRModel,
+    q_model=QModel,
+    q_nstep_model=QNstepModel
 )
 
-__all__ = ['Model', 'PolicyGradientModel', 'QModel', 'VPGModel', 'TRPOModel', 'DQNModel', 'NAFModel', 'DQFDModel',
-           'CategoricalDQNModel', 'DQNNstepModel', 'models']
+
+__all__ = ['Model', 'DistributionModel', 'PGModel', 'PGLLModel', 'PGLRModel', 'QModel', 'QNstepModel', 'models']

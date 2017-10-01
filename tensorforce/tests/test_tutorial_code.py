@@ -120,10 +120,19 @@ class TestTutorialCode(unittest.TestCase):
             caption=dict(shape=(20,), type='int')
         )
 
-        agent_config.states = states
+        agent_config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            states=states,
+            actions=actions,
+            network=network
+        )
         # DQN does not support multiple states. Omit test for now.
         # agent = DQNAgent(config=agent_config)
-
 
         ### Code block: DQN observer function
 
@@ -198,11 +207,21 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Test own layer
 
+        states = dict(shape=(10,), type='float')
         network_config = [{"type": batch_normalization,
                            "variance_epsilon": 1e-9}]
         network = layered_network_builder(network_config)
-        agent_config.network=network
-        agent_config.states = dict(shape=(10,), type='float')
+        agent_config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            states=states,
+            actions=actions,
+            network=network
+        )
         agent = DQNAgent(config=agent_config)
 
         ### Code block: Own network builder
@@ -236,11 +255,21 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Test own network builder
 
-        agent_config.states = dict(
+        states = dict(
             image=dict(shape=(64, 64, 3), type='float'),
             caption=dict(shape=(20,), type='int')
         )
-        agent_config.network=network_builder
+        agent_config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            states=states,
+            actions=actions,
+            network=network_builder
+        )
         agent = DQNAgent(config=agent_config)
 
         ### Code block: LSTM function
@@ -258,15 +287,26 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Test LSTM
 
-        network_config = [{"type": lstm}]
+        states = dict(shape=(10,), type='float')
+        network_config = [{"type": 'flatten'}, {"type": lstm}]
         network = layered_network_builder(network_config)
-        agent_config.network=network
-        agent_config.states = dict(shape=(10,), type='float')
+        agent_config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            states=states,
+            actions=actions,
+            network=network
+        )
         agent = DQNAgent(config=agent_config)
 
         ### Preprocessing configuration
 
-        agent_config.preprocessing = [
+        states = dict(shape=(84, 84, 3), type='float')
+        preprocessing = [
             dict(
                 type='image_resize',
                 width=84,
@@ -283,6 +323,18 @@ class TestTutorialCode(unittest.TestCase):
                 length=4
             )
         ]
+        agent_config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            preprocessing=preprocessing,
+            states=states,
+            actions=actions,
+            network=network
+        )
 
         ### Test preprocessing configuration
 
@@ -292,11 +344,23 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Code block: Continuous action exploration
 
-        agent_config.exploration = dict(
+        exploration = dict(
             type='OrnsteinUhlenbeckProcess',
             sigma=0.1,
             mu=0,
             theta=0.1
+        )
+        agent_config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            exploration=exploration,
+            states=states,
+            actions=actions,
+            network=network
         )
 
         ### Test continuous action exploration
@@ -305,11 +369,23 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Code block: Discrete action exploration
 
-        agent_config.exploration = dict(
+        exploration = dict(
             type='EpsilonDecay',
             epsilon=1,
             epsilon_final=0.01,
             epsilon_timesteps=1e6
+        )
+        agent_config = Configuration(
+            batch_size=8,
+            learning_rate=0.001,
+            memory_capacity=800,
+            first_update=80,
+            repeat_update=4,
+            target_update_frequency=20,
+            exploration=exploration,
+            states=states,
+            actions=actions,
+            network=network
         )
 
         ### Test discrete action exploration

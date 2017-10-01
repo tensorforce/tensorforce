@@ -20,26 +20,24 @@ from tensorforce.agents.random_agent import RandomAgent
 from tensorforce.agents.vpg_agent import VPGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
 from tensorforce.agents.dqn_agent import DQNAgent
-from tensorforce.agents.naf_agent import NAFAgent
-from tensorforce.agents.dqfd_agent import DQFDAgent
-from tensorforce.agents.ppo_agent import PPOAgent
-from tensorforce.agents.categorical_dqn_agent import CategoricalDQNAgent
 from tensorforce.agents.dqn_nstep_agent import DQNNstepAgent
+# from tensorforce.agents.naf_agent import NAFAgent
+# from tensorforce.agents.dqfd_agent import DQFDAgent
+# from tensorforce.agents.ppo_agent import PPOAgent
+# from tensorforce.agents.categorical_dqn_agent import CategoricalDQNAgent
 
 
 agents = dict(
-    RandomAgent=RandomAgent,
-    VPGAgent=VPGAgent,
-    TRPOAgent=TRPOAgent,
-    DQNAgent=DQNAgent,
-    NAFAgent=NAFAgent,
-    DQFDAgent=DQFDAgent,
-    PPOAgent=PPOAgent,
-    CategoricalDQNAgent=CategoricalDQNAgent,
-    DQNNstepAgent=DQNNstepAgent,
+    random_agent=RandomAgent,
+    vpg_agent=VPGAgent,
+    trpo_agent=TRPOAgent,
+    dqn_agent=DQNAgent,
+    dqn_nstep_agent=DQNNstepAgent,
+    # naf_agent=NAFAgent,
+    # DQFDAgent=DQFDAgent,
+    # PPOAgent=PPOAgent,
+    # CategoricalDQNAgent=CategoricalDQNAgent,
 )
 
 
-__all__ = ['Agent', 'BatchAgent', 'MemoryAgent', 'RandomAgent', 'VPGAgent',
-           'TRPOAgent', 'DQNAgent', 'NAFAgent', 'DQFDAgent', 'CategoricalDQNAgent',
-           'DQNNstepAgent', 'agents']
+__all__ = ['Agent', 'BatchAgent', 'MemoryAgent', 'RandomAgent', 'VPGAgent', 'TRPOAgent', 'DQNAgent', 'DQNNstepAgent', 'agents']

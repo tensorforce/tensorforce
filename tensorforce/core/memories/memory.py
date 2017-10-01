@@ -23,10 +23,10 @@ import tensorforce.core.memories
 
 class Memory(object):
 
-    def __init__(self, capacity, states_config, actions_config):
+    def __init__(self, capacity, states_spec, actions_spec):
         self.capacity = capacity
-        self.states_config = states_config
-        self.actions_config = actions_config
+        self.states_spec = states_spec
+        self.actions_spec = actions_spec
 
     def add_observation(self, state, action, reward, terminal, internal):
         raise NotImplementedError
@@ -64,9 +64,12 @@ class Memory(object):
         raise NotImplementedError
 
     @staticmethod
-    def from_config(config, kwargs=None):
+    def from_spec(spec, kwargs=None):
+        """
+        Creates a memory from a specification dict.
+        """
         return util.get_object(
-            obj=config,
-            predefined=tensorforce.core.memories.memories,
+            obj=spec,
+            predefined_objects=tensorforce.core.memories.memories,
             kwargs=kwargs
         )

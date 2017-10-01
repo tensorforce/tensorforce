@@ -58,7 +58,7 @@ class Runner(object):
         self.save_path = save_path
         self.save_episodes = save_episodes
 
-    def run(self, episodes=-1, max_timesteps=-1, episode_finished=None):
+    def run(self, episodes=-1, max_timesteps=-1, deterministic=False, episode_finished=None):
         """
         Runs an environments for the specified number of episodes and time steps per episode.
 
@@ -134,7 +134,7 @@ class Runner(object):
             self.timestep = 0
             episode_start_time = time.time()
             while True:
-                action = self.agent.act(state=state)
+                action = self.agent.act(state=state, deterministic=deterministic)
                 if self.repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(self.repeat_actions):

@@ -13,16 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Standard DQN agent.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
 from tensorforce.agents import MemoryAgent
-from tensorforce.models import DQNModel
+from tensorforce.models import QModel
 
 
 class DQNAgent(MemoryAgent):
@@ -74,7 +70,86 @@ class DQNAgent(MemoryAgent):
     * `double_dqn`: boolean indicating whether to use double-dqn.
     * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
 
+
+
+
+
+    ### Configuration options
+
+    #### General:
+
+    * `scope`: TensorFlow variable scope name (default: 'vpg')
+
+    #### Hyperparameters:
+
+    * `batch_size`: Positive integer (**mandatory**)
+    * `learning_rate`: positive float (default: 1e-3)
+    * `discount`: Positive float, at most 1.0 (default: 0.99)
+    * `entropy_regularization`: None or positive float (default: none)
+
+    #### Pre-/post-processing:
+
+    * `state_preprocessing`: None or dict with (default: none)
+    * `exploration`: None or dict with (default: none)
+    * `reward_preprocessing`: None or dict with (default: none)
+
+    #### Logging:
+
+    * `log_level`: Logging level (default: 'info')
+        + One of 'info', 'debug', 'critical', 'warning', 'fatal'
+    * `tf_summary`: None or dict with the following values (default: none)
+        + `logdir`: Directory where TensorFlow event file will be written
+        + `level`: TensorFlow summary logging level
+            - `0`:
+            - `1`:
+            - `2`:
+            - `3`:
+        + `interval`: Number of timesteps between summaries
     """
 
-    name = 'DQNAgent'
-    model = DQNModel
+    default_config = dict(
+        # Agent
+        preprocessing=None,
+        exploration=None,
+        reward_preprocessing=None,
+        # MemoryAgent
+        # missing, not documented!
+        # DQNAgent
+        learning_rate=1e-3,
+        # Model
+        scope='dqn',
+        discount=0.99,
+        # DistributionModel
+        distributions=None,  # not documented!!!
+        entropy_regularization=None,
+        # QModel
+        target_update_frequency=10000,  # not documented!!!
+        update_target_weight=1.0,  # not documented!!!
+        clip_loss=0.0,  # not documented!!!
+        double_dqn=False,  # not documented!!!
+        # Logging
+        log_level='info',
+        tf_summary=None
+    )
+
+    # missing: memory agent configs
+
+    def __init__(self, states_spec, actions_spec, network_spec, config):
+        self.network_spec = network_spec
+        config = config.copy()
+        config.default(self.__class__.default_config)
+        config.obligatory(
+            optimizer=dict(
+                type='adam',
+                learning_rate=config.learning_rate  # or also default?
+            )
+        )
+        super(DQNAgent, self).__init__(states_spec, actions_spec, config)
+
+    def initialize_model(self, states_spec, actions_spec, config):
+        return QModel(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=self.network_spec,
+            config=config
+        )

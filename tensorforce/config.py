@@ -18,8 +18,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import os
+from copy import deepcopy
 import json
+import os
 
 from tensorforce import TensorForceError
 
@@ -29,7 +30,7 @@ class Configuration(object):
     """
 
     def __init__(self, allow_defaults=True, **kwargs):
-        self._config = kwargs
+        self._config = dict(kwargs)
         self._accessed = {key: False for key, value in kwargs.items() if not isinstance(value, Configuration)}
         self.allow_defaults = allow_defaults
 
@@ -61,20 +62,30 @@ class Configuration(object):
     def __str__(self):
         return '{' + ', '.join('{}={}'.format(key, value) for key, value in self._config.items()) + '}'
 
-    def __iter__(self):
-        for key, value in self._config.items():
-            if key in self._accessed:
-                self._accessed[key] = True
-            yield key, value
-
     def __len__(self):
         return len(self._config)
 
+    def __iter__(self):
+        for key in self._config:
+            yield key
+
     def items(self):
-        return iter(self)
+        for key, value in self._config.items():
+            yield key, value
+
+    def keys(self):
+        for key in self._config.keys():
+            yield key
+
+    def values(self):
+        for value in self._config.values():
+            yield value
 
     def __contains__(self, key):
         return key in self._config
+
+    def copy(self):
+        return Configuration(**deepcopy(self._config))
 
     def __getattr__(self, key):
         if key not in self._config:
@@ -83,19 +94,22 @@ class Configuration(object):
             self._accessed[key] = True
         return self._config[key]
 
-    def __getitem__(self, key):
-        return self.__getattr__(key)
+    # def __getitem__(self, key):
+    #     return self.__getattr__(key)
 
     def __setattr__(self, key, value):
-        if key == '_config':
-            value = {k: make_config_value(v) for k, v in value.items()}
-            super(Configuration, self).__setattr__(key, value)
-        elif key == '_accessed' or key == 'allow_defaults':
+        if key == '_config' or key == '_accessed' or key == 'allow_defaults':
+            # value = {k: make_config_value(v) for k, v in value.items()}
             super(Configuration, self).__setattr__(key, value)
         elif key not in self._config:
-            raise TensorForceError('Value {} is not defined.'.format(key))
+            raise TensorForceError("Value {} is not defined.".format(key))
         else:
-            self._config[key] = make_config_value(value)
+            raise TensorForceError("Setting config attributes not allowed!")
+            # self._config[key] = value
+
+    def set(self, key, value):
+        self._config[key] = value
+        self._accessed[key] = False
 
     def __getstate__(self):
         return self._config
@@ -103,11 +117,12 @@ class Configuration(object):
     def __setstate__(self, d):
         self._config = d
 
-    def keys(self):
-        return self._config.keys()
-
-    def copy(self):
-        return Configuration(**self._config)
+    def obligatory(self, **kwargs):
+        for key, value in kwargs.items():
+            if key in self._config:
+                raise TensorForceError("The value {} is already set, but should be free.".format(key))
+            self._config[key] = value
+            self._accessed[key] = False
 
     def as_dict(self):
         d = dict()
@@ -123,11 +138,8 @@ class Configuration(object):
             if key not in self._config:
                 if not self.allow_defaults:
                     raise TensorForceError('This Configuration does not allow defaults. Attempt to default {}'.format(key))
-                if isinstance(value, dict):
-                    value = Configuration(**value)
-                else:
-                    self._accessed[key] = False
                 self._config[key] = value
+                self._accessed[key] = False
 
     def not_accessed(self):
         not_accessed = list()
@@ -138,12 +150,3 @@ class Configuration(object):
             elif not self._accessed[key]:
                 not_accessed.append(key)
         return not_accessed
-
-
-def make_config_value(value):
-    if isinstance(value, dict):
-        return Configuration(**value)
-    elif isinstance(value, list):
-        return [make_config_value(v) for v in value]
-    else:
-        return value

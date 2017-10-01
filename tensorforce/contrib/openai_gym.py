@@ -100,20 +100,20 @@ class OpenAIGym(Environment):
     @staticmethod
     def action_from_space(space):
         if isinstance(space, gym.spaces.Discrete):
-            return dict(continuous=False, num_actions=space.n)
+            return dict(type='int', num_actions=space.n)
         elif isinstance(space, gym.spaces.MultiBinary):
-            return dict(continuous=False, num_actions=2, shape=space.n)
+            return dict(type='bool', shape=space.n)
         elif isinstance(space, gym.spaces.MultiDiscrete):
             if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
-                return dict(continuous=False, num_actions=(space.high[0] - space.low[0]), shape=space.num_discrete_space)
+                return dict(type='int', num_actions=(space.high[0] - space.low[0]), shape=space.num_discrete_space)
             else:
                 actions = dict()
                 for n in range(space.num_discrete_space):
-                    actions['action{}'.format(n)] = dict(continuous=False, num_actions=(space.high[n] - space.low[n]))
+                    actions['action{}'.format(n)] = dict(type='int', num_actions=(space.high[n] - space.low[n]))
                 return actions
         elif isinstance(space, gym.spaces.Box):
             if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
-                return dict(continuous=True, shape=space.low.shape,
+                return dict(type='float', shape=space.low.shape,
                             min_value=np.float32(space.low[0]),
                             max_value=np.float32(space.high[0]))
             else:
@@ -121,14 +121,14 @@ class OpenAIGym(Environment):
                 low = space.low.flatten()
                 high = space.high.flatten()
                 for n in range(low.shape[0]):
-                    actions['action{}'.format(n)] = dict(continuous=True, min_value=low[n], max_value=high[n])
+                    actions['action{}'.format(n)] = dict(type='float', min_value=low[n], max_value=high[n])
                 return actions
         elif isinstance(space, gym.spaces.Tuple):
             actions = dict()
             n = 0
             for space in space.spaces:
                 action = OpenAIGym.action_from_space(space=space)
-                if 'continuous' in action:
+                if 'type' in action:
                     actions['action{}'.format(n)] = action
                     n += 1
                 else:

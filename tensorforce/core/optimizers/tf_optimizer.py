@@ -18,12 +18,14 @@ from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
+
 from tensorforce.core.optimizers import Optimizer
 
 
-class TensorFlowOptimizer(Optimizer):
+class TFOptimizer(Optimizer):
     """
-    Wrapper class for native TensorFlow optimizers.
+    Wrapper class for TensorFlow optimizers. This maps
+    native TensorFlow optimizers to the TensorForce optimization interface.
 
     """
 
@@ -37,25 +39,25 @@ class TensorFlowOptimizer(Optimizer):
         nadam=tf.contrib.opt.NadamOptimizer
     )
 
-    @classmethod
-    def get_wrapper(cls, optimizer, variables=None):
+    @staticmethod
+    def get_wrapper(optimizer):
         def wrapper(**kwargs):
-            return cls(optimizer=optimizer, variables=variables, **kwargs)
+            return TFOptimizer(optimizer=optimizer, **kwargs)
         return wrapper
 
-    def __init__(self, optimizer, variables=None, **kwargs):
-        super(TensorFlowOptimizer, self).__init__(variables=variables)
-        self.optimizer = TensorFlowOptimizer.tf_optimizers[optimizer](**kwargs)
+    def __init__(self, optimizer, **kwargs):
+        super(TFOptimizer, self).__init__()
 
-    def minimize(self, fn_loss, fn_kl_divergence=None):
-        if isinstance(fn_loss, tf.Tensor):  # TEMPORARY !!!!!!!!
-            _loss = fn_loss
-            fn_loss = (lambda: _loss)
-        loss = super(TensorFlowOptimizer, self).minimize(fn_loss=fn_loss, fn_kl_divergence=fn_kl_divergence)
-        return self.optimizer.minimize(loss=loss, var_list=self.variables)
+        self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
 
-    def compute_gradients(self, *args, **kwargs):
-        return self.optimizer.compute_gradients(*args, **kwargs)
+    def tf_step(self, time, variables, fn_loss, **kwargs):
+        loss = fn_loss()
 
-    def apply_gradients(self, *args, **kwargs):
-        return self.optimizer.apply_gradients(*args, **kwargs)
+        with tf.control_dependencies(control_inputs=(loss,)):
+            vars_before = [tf.add(x=var, y=0.0) for var in variables]
+
+        with tf.control_dependencies(control_inputs=vars_before):
+            applied = self.optimizer.minimize(loss=loss, var_list=variables)
+
+        with tf.control_dependencies(control_inputs=(applied,)):
+            return [var - var_before for var, var_before in zip(variables, vars_before)]

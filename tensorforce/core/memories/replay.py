@@ -30,28 +30,29 @@ from tensorforce.core.memories import Memory
 
 class Replay(Memory):
 
-    def __init__(self, capacity, states_config, actions_config, random_sampling=True):
-        super(Replay, self).__init__(capacity, states_config, actions_config)
-        self.states = {name: np.zeros((capacity,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in states_config}
-        self.actions = {name: np.zeros((capacity,) + tuple(action.shape), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in actions_config}
-        self.rewards = np.zeros((capacity,), dtype=util.np_dtype('float'))
-        self.terminals = np.zeros((capacity,), dtype=util.np_dtype('bool'))
+    def __init__(self, capacity, states_spec, actions_spec, random_sampling=False):
+        super(Replay, self).__init__(capacity, states_spec, actions_spec)
+        self.states = {name: np.zeros((capacity,) + tuple(state['shape']), dtype=util.np_dtype(state['type'])) for name, state in states_spec.items()}
+        self.actions = {name: np.zeros((capacity,) + tuple(action['shape']), dtype=util.np_dtype(action['type'])) for name, action in actions_spec.items()}
+        self.terminal = np.zeros((capacity,), dtype=util.np_dtype('bool'))
+        self.reward = np.zeros((capacity,), dtype=util.np_dtype('float'))
         self.internals = None
+
         self.size = 0
         self.index = 0
         self.random_sampling = random_sampling
 
-    def add_observation(self, state, action, reward, terminal, internal):
-        if self.internals is None and internal is not None:
-            self.internals = [np.zeros((self.capacity,) + i.shape, i.dtype) for i in internal]
+    def add_observation(self, states, actions, terminal, reward, internals):
+        if self.internals is None and internals is not None:
+            self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal in internals]
 
-        for name, state in state.items():
+        for name, state in states.items():
             self.states[name][self.index] = state
-        for name, action in action.items():
+        for name, action in actions.items():
             self.actions[name][self.index] = action
-        self.rewards[self.index] = reward
-        self.terminals[self.index] = terminal
-        for n, internal in enumerate(internal):
+        self.reward[self.index] = reward
+        self.terminal[self.index] = terminal
+        for n, internal in enumerate(internals):
             self.internals[n][self.index] = internal
 
         if self.size < self.capacity:
@@ -71,11 +72,15 @@ class Replay(Memory):
 
         """
         if self.random_sampling:
-            indices = np.random.randint(self.size, size=batch_size)
+            if next_states:
+                indices = np.random.randint(self.size - 1, size=batch_size)
+            else:
+                indices = np.random.randint(self.size, size=batch_size)
+
             states = {name: state.take(indices, axis=0) for name, state in self.states.items()}
             actions = {name: action.take(indices, axis=0) for name, action in self.actions.items()}
-            rewards = self.rewards.take(indices)
-            terminals = self.terminals.take(indices)
+            terminal = self.terminal.take(indices)
+            reward = self.reward.take(indices)
             internals = [internal.take(indices, axis=0) for internal in self.internals]
             if next_states:
                 indices = (indices + 1) % self.capacity
@@ -83,14 +88,18 @@ class Replay(Memory):
                 next_internals = [internal.take(indices, axis=0) for internal in self.internals]
 
         else:
-            end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
-            start = (end - batch_size) % self.capacity
+            if next_states:
+                end = (self.index - 1 - randrange(self.size - batch_size + 1)) % self.capacity
+                start = (end - batch_size) % self.capacity
+            else:
+                end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
+                start = (end - batch_size) % self.capacity
 
             if start < end:
                 states = {name: state[start:end] for name, state in self.states.items()}
                 actions = {name: action[start:end] for name, action in self.actions.items()}
-                rewards = self.rewards[start:end]
-                terminals = self.terminals[start:end]
+                terminal = self.terminal[start:end]
+                reward = self.reward[start:end]
                 internals = [internal[start:end] for internal in self.internals]
                 if next_states:
                     next_states = {name: state[start + 1: end + 1] for name, state in self.states.items()}
@@ -99,14 +108,14 @@ class Replay(Memory):
             else:
                 states = {name: np.concatenate((state[start:], state[:end])) for name, state in self.states.items()}
                 actions = {name: np.concatenate((action[start:], action[:end])) for name, action in self.actions.items()}
-                rewards = np.concatenate((self.rewards[start:], self.rewards[:end]))
-                terminals = np.concatenate((self.terminals[start:], self.terminals[:end]))
+                terminal = np.concatenate((self.terminal[start:], self.terminal[:end]))
+                reward = np.concatenate((self.reward[start:], self.reward[:end]))
                 internals = [np.concatenate((internal[start:], internal[:end])) for internal in self.internals]
                 if next_states:
                     next_states = {name: np.concatenate((state[start + 1:], state[:end + 1])) for name, state in self.states.items()}
                     next_internals = [np.concatenate((internal[start + 1:], internal[:end + 1])) for internal in self.internals]
 
-        batch = dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
+        batch = dict(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals)
         if next_states:
             batch['next_states'] = next_states
             batch['next_internals'] = next_internals
@@ -115,17 +124,17 @@ class Replay(Memory):
     def update_batch(self, loss_per_instance):
         pass
 
-    def set_memory(self, states, actions, rewards, terminals, internals):
-        self.size = len(rewards)
+    def set_memory(self, states, actions, terminal, reward, internals):
+        self.size = len(terminal)
 
-        if len(rewards) == self.capacity:
+        if len(terminal) == self.capacity:
             # Assign directly if capacity matches size.
             for name, state in states.items():
                 self.states[name] = np.asarray(state)
             for name, action in actions.items():
                 self.actions[name] = np.asarray(action)
-            self.rewards = np.asarray(rewards)
-            self.terminals = np.asarray(terminals)
+            self.terminal = np.asarray(terminal)
+            self.reward = np.asarray(reward)
             self.internals = [np.asarray(internal) for internal in internals]
 
         else:
@@ -134,8 +143,8 @@ class Replay(Memory):
                 self.states[name][:len(state)] = state
             for name, action in actions.items():
                 self.actions[name][:len(action)] = action
-            self.rewards[:len(rewards)] = rewards
-            self.terminals[:len(terminals)] = terminals
+            self.terminal[:len(terminal)] = terminal
+            self.reward[:len(reward)] = reward
             if self.internals is None and internals is not None:
                 self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal
                                   in internals]

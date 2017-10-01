@@ -125,9 +125,9 @@ class DeepMindLab(Environment):
         actions = dict()
         for action in self.level.action_spec():
             if action['min'] == -1 and action['max'] == 1:
-                actions[action['name']] = dict(continuous=False, num_actions=3)
+                actions[action['name']] = dict(type='int', num_actions=3)
             else:
-                actions[action['name']] = dict(continuous=True, min_value=action['min'], max_value=action['max'])
+                actions[action['name']] = dict(type='float', min_value=action['min'], max_value=action['max'])
         return actions
 
     @property

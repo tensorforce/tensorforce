@@ -26,23 +26,6 @@ from tensorforce.core.memories import Memory
 class MemoryAgent(Agent):
     """
     The `MemoryAgent` class implements a replay memory, from which it samples batches to update the value function.
-
-    Each agent requires the following ``Configuration`` parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    The `MemoryAgent` class additionally requires the following parameters:
-
-    * `batch_size`: integer of the batch size.
-    * `memory_capacity`: integer of maximum experiences to store.
-    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-    * `update_frequency`: integer indicating the number of steps between model updates.
-    * `first_update`: integer indicating the number of steps to pass before the first update.
-    * `repeat_update`: integer indicating how often to repeat the model update.
-
     """
 
     default_config = dict(
@@ -57,40 +40,42 @@ class MemoryAgent(Agent):
         repeat_update=1
     )
 
-    def __init__(self, config, model=None):
+    def __init__(self, states_spec, actions_spec, config):
         config.default(MemoryAgent.default_config)
-        super(MemoryAgent, self).__init__(config, model)
-
         self.batch_size = config.batch_size
-        self.memory = Memory.from_config(
-            config=config.memory,
-            kwargs=dict(
-                capacity=config.memory_capacity,
-                states_config=config.states,
-                actions_config=config.actions
-            )
-        )
+        self.memory_capacity = config.memory_capacity
         self.update_frequency = config.update_frequency
         self.first_update = config.first_update
         self.repeat_update = config.repeat_update
 
-    def observe(self, reward, terminal):
-        reward, terminal = super(MemoryAgent, self).observe(reward, terminal)
-        self.current_reward = reward
+        super(MemoryAgent, self).__init__(states_spec, actions_spec, config)
+
+        self.memory = Memory.from_spec(
+            spec=config.memory,
+            kwargs=dict(
+                capacity=self.memory_capacity,
+                states_spec=self.states_spec,
+                actions_spec=self.actions_spec
+            )
+        )
+
+    def observe(self, terminal, reward):
+        terminal, reward = super(MemoryAgent, self).observe(terminal, reward)
         self.current_terminal = terminal
+        self.current_reward = reward
 
         self.memory.add_observation(
-            state=self.current_state,
-            action=self.current_action,
-            reward=self.current_reward,
+            states=self.current_states,
+            actions=self.current_actions,
             terminal=self.current_terminal,
-            internal=self.current_internal
+            reward=self.current_reward,
+            internals=self.current_internals
         )
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
             for _ in xrange(self.repeat_update):
                 batch = self.memory.get_batch(batch_size=self.batch_size, next_states=True)
-                _, loss_per_instance = self.model.update(batch=batch)
+                loss_per_instance = self.model.update(batch=batch, return_loss_per_instance=True)
                 self.memory.update_batch(loss_per_instance=loss_per_instance)
 
     def import_observations(self, observations):

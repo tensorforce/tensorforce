@@ -67,4 +67,4 @@ class MazeExplorer(Environment):
 
     @property
     def actions(self):
-        return dict(continuous=False, num_actions=self.engine.actions_num)
+        return dict(type='int', num_actions=self.engine.actions_num)

@@ -102,7 +102,7 @@ class Categorical(Distribution):
 
     def tf_kl_divergence(self, distr_params1, distr_params2):
         logits1, probabilities1, _ = distr_params1
-        logits2, _ = distr_params2
+        logits2, _, _ = distr_params2
         log_prob_ratio = logits1 - logits2
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
 

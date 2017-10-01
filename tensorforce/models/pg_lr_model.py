@@ -33,10 +33,10 @@ class PGLRModel(PGModel):
         assert config.likelihood_ratio_clipping is None or config.likelihood_ratio_clipping > 1.0
         self.likelihood_ratio_clipping = config.likelihood_ratio_clipping
 
-        super(LRPGModel, self).__init__(states_spec, actions_spec, network_spec, config)
+        super(PGLRModel, self).__init__(states_spec, actions_spec, network_spec, config)
 
-    def initialize(self, config, custom_getter):
-        super(LRPGModel, self).initialize(config, custom_getter)
+    def initialize(self, custom_getter):
+        super(PGLRModel, self).initialize(custom_getter)
 
         # Model comparison functions
         self.reference = tf.make_template(
@@ -98,7 +98,7 @@ class PGLRModel(PGModel):
         return tf.reduce_mean(input_tensor=(-prob_ratio * reward), axis=0)
 
     def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
-        kwargs = super(LRPGModel, self).get_optimizer_kwargs(states, actions, terminal, reward, internals)
+        kwargs = super(PGLRModel, self).get_optimizer_kwargs(states, actions, terminal, reward, internals)
         kwargs['fn_reference'] = (lambda: self.reference(states=states, actions=actions, internals=internals))
         kwargs['fn_compare'] = (lambda reference: self.compare(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals, reference=reference))
         return kwargs

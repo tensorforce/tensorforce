@@ -42,9 +42,9 @@ class OptimizedStep(MetaOptimizer):
             loss_before = fn_compare(reference=reference)
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
-            applied, diffs = self.optimizer.step(time=time, variables=variables, fn_loss=fn_loss, **kwargs)
+            diffs = self.optimizer.step(time=time, variables=variables, fn_loss=fn_loss, **kwargs)
 
-        with tf.control_dependencies(control_inputs=(applied,)):
+        with tf.control_dependencies(control_inputs=diffs):
             if fn_reference is None:
                 loss_step = fn_loss()
             else:

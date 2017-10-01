@@ -32,7 +32,7 @@ from tensorforce.core.baselines import Baseline
 
 class LinearBaseline(Baseline):
 
-    def create_tf_operations(self, state, batch_size, scope=''):
+    def create_tf_operations(self, state, batch_size, scope='linear-baseline'):
         pass
 
     def __init__(self):

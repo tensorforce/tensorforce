@@ -17,8 +17,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import tensorflow as tf
-
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -28,12 +26,10 @@ class MetaOptimizer(Optimizer):
      optimizer obtains a result using a conjugate gradient solver, then refines the result
      using line search."""
 
-    def __init__(self, optimizer, variables=None):
-        super(MetaOptimizer, self).__init__(variables=variables)
-        self.optimizer = Optimizer.from_config(config=optimizer, kwargs=dict(variables=variables))
+    def __init__(self, optimizer):
+        super(MetaOptimizer, self).__init__()
 
-    def minimize(self, fn_loss, **kwargs):
-        if self.variables is None:
-            self.variables = self.optimizer.variables = tf.trainable_variables() \
-                                                        + tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
-        return super(MetaOptimizer, self).minimize(fn_loss=fn_loss, **kwargs)
+        self.optimizer = Optimizer.from_spec(spec=optimizer)
+
+    def minimize(self, time, variables, **kwargs):
+        return super(MetaOptimizer, self).minimize(time=time, variables=variables, **kwargs)

@@ -26,10 +26,10 @@ import tensorflow as tf
 from six.moves import xrange
 from tensorforce import util
 from tensorforce.core.memories import Replay
-from tensorforce.models import PolicyGradientModel
+from tensorforce.models import PGModel
 
 
-class PPOModel(PolicyGradientModel):
+class PPOModel(PGModel):
     allows_discrete_actions = True
     allows_continuous_actions = True
 
@@ -41,14 +41,16 @@ class PPOModel(PolicyGradientModel):
         random_sampling=True  # Sampling strategy for replay memory
     )
 
-    def __init__(self, config):
+    def __init__(self, config, states_config, actions_config):
         config.default(PPOModel.default_config)
-        super(PPOModel, self).__init__(config)
         self.optimizer_batch_size = config.optimizer_batch_size
         # Use replay memory so memory logic can be used to sample batches
-
+        self.batch_size = config.batch_size
+        self.random_sampling = config.random_sampling
         self.updates = int(config.batch_size / self.optimizer_batch_size) * config.epochs
-        self.memory = Replay(config.batch_size, config.states, config.actions, config.random_sampling)
+        super(PPOModel, self).__init__(config, states_config, actions_config)
+
+        self.memory = Replay(self.batch_size, self.states_config, self.actions_config, config.random_sampling)
 
     def create_tf_operations(self, config):
         """
@@ -69,7 +71,7 @@ class PPOModel(PolicyGradientModel):
             self.prev_distribution_tensors = dict()
 
             for name, action in self.action.items():
-                shape_size = util.prod(config.actions[name].shape)
+                shape_size = util.prod(self.actions_config[name]['shape'])
                 distribution = self.distribution[name]
                 fixed_distribution = distribution.__class__.from_tensors(
                     tensors=[tf.stop_gradient(x) for x in distribution.get_tensors()],

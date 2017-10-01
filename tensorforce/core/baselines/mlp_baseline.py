@@ -13,21 +13,28 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import util
-import tensorforce.core.explorations
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+from tensorforce.core.baselines import NetworkBaseline
 
 
-class Exploration(object):
+class MLPBaseline(NetworkBaseline):
+    """
+    Multi-layer perceptron baseline (single-state) consisting of dense layers
+    """
 
-    def __call__(self, episode=0, timestep=0):
-        raise NotImplementedError
-
-    @staticmethod
-    def from_spec(spec):
+    def __init__(self, sizes, scope='mlp-baseline', summary_level=0):
         """
-        Creates an exploration object from a specification dict.
+        Multi-layer perceptron baseline
+
+        Args:
+            sizes: List of dense layer sizes
         """
-        return util.get_object(
-            obj=spec,
-            predefined=tensorforce.core.explorations.explorations
-        )
+
+        layers_spec = []
+        for size in sizes:
+            layers_spec.append({'type': 'dense', 'size': size})
+
+        super(MLPBaseline, self).__init__(layers_spec, scope, summary_level)

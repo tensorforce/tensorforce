@@ -16,26 +16,29 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
-from six.moves import xrange
 
+from six.moves import xrange
 import tensorflow as tf
+
 from tensorforce.core.optimizers import MetaOptimizer
 
 
 class MultiStep(MetaOptimizer):
 
-    def __init__(self, optimizer, num_steps, variables=None):
+    def __init__(self, optimizer, num_steps):
+        super(MultiStep, self).__init__(optimizer=optimizer)
+
         assert isinstance(num_steps, int) and num_steps > 0
         self.num_steps = num_steps
 
-        super(MultiStep, self).__init__(optimizer=optimizer, variables=variables)
-
-    def tf_step(self, fn_loss, **kwargs):
+    def tf_step(self, time, variables, fn_loss, **kwargs):
         overall_diffs = None
         diffs = ()
         for _ in xrange(self.num_steps):
+
             with tf.control_dependencies(control_inputs=diffs):
-                diffs = self.optimizer.step(fn_loss=fn_loss, **kwargs)
+                diffs = self.optimizer.step(time=time, variables=variables, fn_loss=fn_loss, **kwargs)
+
                 if overall_diffs is None:
                     overall_diffs = diffs
                 else:

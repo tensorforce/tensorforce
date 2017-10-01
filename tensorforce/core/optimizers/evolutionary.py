@@ -17,20 +17,20 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-
-import tensorflow as tf
 from six.moves import xrange
+import tensorflow as tf
+
 from tensorforce import util
 from tensorforce.core.optimizers import Optimizer
 
 
 class Evolutionary(Optimizer):
     """
-    TensorFlow based evolutionary optimizer.
+    Evolutionary optimizer
     """
 
-    def __init__(self, learning_rate, samples=1, variables=None):
-        super(Evolutionary, self).__init__(variables=variables)
+    def __init__(self, learning_rate, samples=1):
+        super(Evolutionary, self).__init__()
 
         assert learning_rate > 0.0
         self.learning_rate = learning_rate
@@ -38,7 +38,7 @@ class Evolutionary(Optimizer):
         assert samples >= 1
         self.samples = samples
 
-    def tf_step(self, fn_loss, **kwargs):
+    def tf_step(self, time, variables, fn_loss, **kwargs):
         """
         Evolutionary step function based on normal-sampled perturbations.
 
@@ -47,8 +47,8 @@ class Evolutionary(Optimizer):
         :return:
         """
         unperturbed_loss = fn_loss()
+        diffs = variables
         diffs_list = list()
-        diffs = ()
         previous_perturbations = None
 
         for sample in xrange(self.samples):
@@ -56,10 +56,10 @@ class Evolutionary(Optimizer):
             with tf.control_dependencies(control_inputs=diffs):
                 perturbations = [tf.random_normal(shape=util.shape(t)) * self.learning_rate for t in diffs]
                 if previous_perturbations is None:
-                    applied = self.apply_step(diffs=perturbations)
+                    applied = self.apply_step(variables=variables, diffs=perturbations)
                 else:
                     perturbation_diffs = [pert - prev_pert for pert, prev_pert in zip(perturbations, previous_perturbations)]
-                    applied = self.apply_step(diffs=perturbation_diffs)
+                    applied = self.apply_step(variables=variables, diffs=perturbation_diffs)
                 previous_perturbations = perturbations
 
             with tf.control_dependencies(control_inputs=(applied,)):
@@ -76,4 +76,4 @@ class Evolutionary(Optimizer):
             applied = self.apply_diffs(diffs=perturbation_diffs)
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            return diffs
+            return [tf.identity(input=diff) for diff in diffs]

@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
+
 from tensorforce import util, TensorForceError
 import tensorforce.core.optimizers
 
@@ -27,46 +28,33 @@ class Optimizer(tf.train.Optimizer):
     Generic optimizer extending the tf.train.Optimizer class.
     """
 
-    def __init__(self, variables=None):
+    def __init__(self):
         super(Optimizer, self).__init__(use_locking=False, name='TensorForceOptimizer')
         self._learning_rate = -1.0
-        self.variables = variables
         self.step = tf.make_template(name_='step', func_=self.tf_step)
 
-    def get_variables(self):
-        if self.variables is None:  # should exclude prefixes or so
-            self.variables = tf.trainable_variables() + tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
-        return self.variables
-
-    def minimize(self, fn_loss, **kwargs):
-        diffs = self.step(fn_loss=fn_loss, **kwargs)
+    def minimize(self, time, variables, **kwargs):
+        diffs = self.step(time=time, variables=variables, **kwargs)
         with tf.control_dependencies(control_inputs=diffs):
             return tf.no_op()
 
-    def tf_step(self, fn_loss, **kwargs):
+    def tf_step(self, time, variables, **kwargs):
         raise NotImplementedError
 
     @staticmethod
-    def from_config(config, kwargs=None):
+    def from_spec(spec, kwargs=None):
         """
-        Creates an optimizer from a configuration object.
-
-        Args:
-            config: Name of optimizer
-            kwargs: Dict of optimizer hyperparameters
-
-        Returns: The optimizer
-
+        Creates an optimizer from a specification dict.
         """
         return util.get_object(
-            obj=config,
-            predefined=tensorforce.core.optimizers.optimizers,
+            obj=spec,
+            predefined_objects=tensorforce.core.optimizers.optimizers,
             kwargs=kwargs
         )
 
     # modified minimize
-    def apply_step(self, diffs, global_step=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, name=None, grad_loss=None):
-        diffs_and_vars = self.compute_diffs(diffs, var_list=self.variables, gate_gradients=gate_gradients, aggregation_method=aggregation_method, colocate_gradients_with_ops=colocate_gradients_with_ops, grad_loss=grad_loss)
+    def apply_step(self, variables, diffs, global_step=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, name=None, grad_loss=None):
+        diffs_and_vars = self.compute_diffs(diffs, var_list=variables, gate_gradients=gate_gradients, aggregation_method=aggregation_method, colocate_gradients_with_ops=colocate_gradients_with_ops, grad_loss=grad_loss)
         vars_with_diff = [v for g, v in diffs_and_vars if g is not None]
         if not vars_with_diff:
             raise TensorForceError("No gradients provided for any variable, check your graph for ops that do not support gradients, between variables {} and loss {}.".format([str(v) for _, v in diffs_and_vars], diffs))

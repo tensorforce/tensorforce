@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
+
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -39,19 +40,23 @@ class TFOptimizer(Optimizer):
 
     @staticmethod
     def get_wrapper(optimizer):
-        def wrapper(variables=None, **kwargs):
-            return TFOptimizer(optimizer=optimizer, variables=variables, **kwargs)
+        def wrapper(**kwargs):
+            return TFOptimizer(optimizer=optimizer, **kwargs)
         return wrapper
 
-    def __init__(self, optimizer, variables=None, **kwargs):
-        self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
-        super(TFOptimizer, self).__init__(variables=variables)
+    def __init__(self, optimizer, **kwargs):
+        super(TFOptimizer, self).__init__()
 
-    def tf_step(self, fn_loss, **kwargs):
+        self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
+
+    def tf_step(self, time, variables, fn_loss, **kwargs):
         loss = fn_loss()
+
         with tf.control_dependencies(control_inputs=(loss,)):
-            vars_before = [tf.add(x=var, y=0.0) for var in self.get_variables()]
+            vars_before = [tf.add(x=var, y=0.0) for var in variables]
+
         with tf.control_dependencies(control_inputs=vars_before):
-            applied = self.optimizer.minimize(loss=loss, var_list=self.variables)
+            applied = self.optimizer.minimize(loss=loss, var_list=variables)
+
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [var - var_before for var, var_before in zip(self.variables, vars_before)]
+            return [var - var_before for var, var_before in zip(variables, vars_before)]

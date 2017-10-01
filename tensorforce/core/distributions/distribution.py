@@ -13,46 +13,141 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+
+import tensorflow as tf
 
 from tensorforce import util
 import tensorforce.core.distributions
 
 
 class Distribution(object):
+    """
+    Base class for policy distributions
+    """
 
-    @classmethod
-    def from_tensors(cls, tensors, deterministic):
+    def __init__(self, scope='distribution', summary_level=0):
+        self.summary_level = summary_level
+        self.variables = dict()
+
+        with tf.name_scope(name=scope):
+            def custom_getter(getter, name, *args, **kwargs):
+                variable = getter(name=name, *args, **kwargs)
+                self.variables[name] = variable
+                return variable
+
+            self.parameters = tf.make_template(
+                name_='parameters',
+                func_=self.tf_parameters,
+                create_scope_now_=True,
+                custom_getter_=custom_getter
+            )
+            self.sample = tf.make_template(
+                name_='sample',
+                func_=self.tf_sample,
+                create_scope_now_=True,
+                custom_getter_=custom_getter
+            )
+            self.log_probability = tf.make_template(
+                name_='log-probability',
+                func_=self.tf_log_probability,
+                create_scope_now_=True,
+                custom_getter_=custom_getter
+            )
+            self.entropy = tf.make_template(
+                name_='entropy',
+                func_=self.tf_entropy,
+                create_scope_now_=True,
+                custom_getter_=custom_getter
+            )
+            self.kl_divergence = tf.make_template(
+                name_='kl-divergence',
+                func_=self.tf_kl_divergence,
+                create_scope_now_=True,
+                custom_getter_=custom_getter
+            )
+
+    def tf_parameters(self, x):
+        """
+        Creates the TensorFlow operations for parameterizing a distribution conditioned on the given input
+
+        Args:
+            x: Input tensor which the distribution is conditioned on
+
+        Returns:
+            Tuple of distribution parameter tensors
+        """
         raise NotImplementedError
 
-    def get_tensors(self):
+    def tf_sample(self, distr_params, deterministic):
+        """
+        Creates the TensorFlow operations for sampling an action based on a distribution
+
+        Args:
+            distr_params: Tuple of distribution parameter tensors
+            deterministic: Boolean input tensor indicating whether the maximum likelihood action should be returned
+
+        Returns:
+            Sampled action tensor
+        """
         raise NotImplementedError
 
-    def create_tf_operations(self, x, deterministic):
+    def tf_log_probability(self, distr_params, action):
+        """
+        Creates the TensorFlow operations for calculating the log probability of an action for a distribution
+
+        Args:
+            distr_params: Tuple of distribution parameter tensors
+            action: Action tensor
+
+        Returns:
+            KL divergence tensor
+        """
         raise NotImplementedError
 
-    def __iter__(self):
-        return iter(self.distribution)
+    def tf_entropy(self, distr_params):
+        """
+        Creates the TensorFlow operations for calculating the entropy of a distribution
 
-    def sample(self):
+        Args:
+            distr_params: Tuple of distribution parameter tensors
+
+        Returns:
+            Entropy tensor
+        """
         raise NotImplementedError
 
-    def log_probability(self, action):
+    def tf_kl_divergence(self, distr_params1, distr_params2):
+        """
+        Creates the TensorFlow operations for calculating the KL divergence between two distributions
+
+        Args:
+            distr_params1: Tuple of parameter tensors for first distribution
+            distr_params2: Tuple of parameter tensors for second distribution
+
+        Returns:
+            KL divergence tensor
+        """
         raise NotImplementedError
 
-    def entropy(self):
-        raise NotImplementedError
+    def get_variables(self):
+        """
+        Returns the TensorFlow variables used by the distribution
 
-    def kl_divergence(self, other):
-        raise NotImplementedError
+        Returns:
+            List of distribution variables
+        """
+        return [self.variables[key] for key in sorted(self.variables)]
 
     @staticmethod
-    def from_config(config, kwargs=None):
+    def from_spec(spec, kwargs=None):
+        """
+        Creates a distribution from a specification dict.
+        """
         return util.get_object(
-            obj=config,
-            predefined=tensorforce.core.distributions.distributions,
+            obj=spec,
+            predefined_objects=tensorforce.core.distributions.distributions,
             kwargs=kwargs
         )

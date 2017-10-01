@@ -38,23 +38,23 @@ class BatchAgent(Agent):
     The `BatchAgent` class additionally requires the following parameters:
 
     * `batch_size`: integer of the batch size.
-    * `keep_last`: bool optionally keep the last observation for use in the next batch
+    * `keep_last_timestep`: bool optionally keep the last observation for use in the next batch
 
     """
 
-    default_config = dict(
-        batch_size=1,
-        keep_last=False,
-    )
-
-    def __init__(self, config, model=None):
-        config.default(BatchAgent.default_config)
+    def __init__(self, states_spec, actions_spec, config):
+        assert isinstance(config.batch_size, int) and config.batch_size > 0
         self.batch_size = config.batch_size
-        self.batch = None
-        self.keep_last = config.keep_last
-        super(BatchAgent, self).__init__(config, model)
 
-    def observe(self, reward, terminal):
+        assert isinstance(config.keep_last_timestep, bool)
+        self.keep_last_timestep = config.keep_last_timestep
+
+        super(BatchAgent, self).__init__(states_spec, actions_spec, config)
+
+        self.batch = None
+        self.reset_batch()
+
+    def observe(self, terminal, reward):
         """
         Adds an observation and performs an update if the necessary conditions
         are satisfied, i.e. if one batch of experience has been collected as defined
@@ -70,41 +70,40 @@ class BatchAgent(Agent):
         Returns: void
         """
         reward, terminal = super(BatchAgent, self).observe(reward, terminal)
-        self.current_reward = reward
         self.current_terminal = terminal
+        self.current_reward = reward
 
-        if self.batch is None:
-            self.reset_batch()
         for name, batch_state in self.batch['states'].items():
-            batch_state.append(self.current_state[name])
+            batch_state.append(self.current_states[name])
         for name, batch_action in self.batch['actions'].items():
-            batch_action.append(self.current_action[name])
-        self.batch['rewards'].append(self.current_reward)
-        self.batch['terminals'].append(self.current_terminal)
-        for batch_internal, internal in zip(self.batch['internals'], self.current_internal):
+            batch_action.append(self.current_actions[name])
+        self.batch['terminal'].append(self.current_terminal)
+        self.batch['reward'].append(self.current_reward)
+        for batch_internal, internal in zip(self.batch['internals'], self.current_internals):
             batch_internal.append(internal)
 
         self.batch_count += 1
         if self.batch_count == self.batch_size:
-            self.model.update(self.batch)
+            self.model.update(batch=self.batch)
             self.reset_batch()
 
     def reset_batch(self):
-        if self.batch is None or not self.keep_last:
+        if self.batch is None or not self.keep_last_timestep:
             self.batch = dict(
-                states={state: [] for state, _ in self.states_config},
-                actions={action: [] for action, _ in self.actions_config},
-                rewards=[],
-                terminals=[],
-                internals=[[] for _ in range(len(self.current_internal))]
+                states={name: [] for name in self.states_spec},
+                actions={name: [] for name in self.actions_spec},
+                terminal=[],
+                reward=[],
+                internals=[[] for _ in range(len(self.current_internals))]
             )
             self.batch_count = 0
+
         else:
             self.batch = dict(
-                states={state: [self.batch['states'][state][-1]] for state, _ in self.states_config},
-                actions={action: [self.batch['actions'][action][-1]] for action, _ in self.actions_config},
-                rewards=[self.batch['rewards'][-1]],
-                terminals=[self.batch['terminals'][-1]],
-                internals=[[self.batch['internals'][i][-1]] for i in range(len(self.current_internal))]
+                states={name: [self.batch['states'][name][-1]] for name in self.states_spec},
+                actions={name: [self.batch['actions'][name][-1]] for name in self.actions_spec},
+                terminal=[self.batch['terminal'][-1]],
+                reward=[self.batch['reward'][-1]],
+                internals=[[self.batch['internals'][i][-1]] for i in range(len(self.current_internals))]
             )
             self.batch_count = 1

@@ -122,7 +122,7 @@ class OpenAIUniverse(Environment):
         print(self.env.observation_space)
         if isinstance(self.env.observation_space, VNCObservationSpace):
             return dict(
-                vision=dict(type=float, shape=(768, 1024, 3)) # VNCObeservationSpace seems to be hardcoded to 1024x768
+                vision=dict(type='float', shape=(768, 1024, 3)) # VNCObeservationSpace seems to be hardcoded to 1024x768
                 # vision = dict(type=float, shape=(self.env.action_space.screen_shape[1], self.env.action_space.screen_shape[0], 3))
                 # text=dict(type=str, shape=(1,)) # TODO: implement string states
             )
@@ -135,13 +135,13 @@ class OpenAIUniverse(Environment):
     def actions(self):
         if isinstance(self.env.action_space, VNCActionSpace):
             return dict(
-                key=dict(continuous=False, num_actions=len(self.env.action_space.keys)),
-                button=dict(continuous=False, num_actions=len(self.env.action_space.buttonmasks)),
-                position=dict(continuous=False, num_actions=self.env.action_space.screen_shape[0] * self.env.action_space.screen_shape[1])
+                key=dict(type='int', num_actions=len(self.env.action_space.keys)),
+                button=dict(type='int', num_actions=len(self.env.action_space.buttonmasks)),
+                position=dict(type='int', num_actions=self.env.action_space.screen_shape[0] * self.env.action_space.screen_shape[1])
             )
         elif isinstance(self.env.action_space, Discrete):
-            return dict(continuous=False, num_actions=self.env.action_space.n)
+            return dict(type='int', num_actions=self.env.action_space.n)
         elif len(self.env.action_space.shape) == 1:
-            return {'action' + str(n): dict(continuous=True) for n in range(len(self.env.action_space.shape[0]))}
+            return {'action' + str(n): dict(type='float') for n in range(len(self.env.action_space.shape[0]))}
         else:
             raise TensorForceError()

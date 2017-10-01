@@ -1,0 +1,98 @@
+# Copyright 2017 reinforce.io. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+from tensorforce.core.networks import Dense, LayerBasedNetwork
+from tensorforce.environments.minimal_test import MinimalTest
+from tensorforce.tests.base_test import BaseTest
+
+
+class BaseAgentTest(BaseTest):
+
+    config = None
+
+    def test_bool(self):
+        environment = MinimalTest(specification=[('bool', ())])
+        network_spec = [
+            dict(type='dense', size=32, activation='tanh'),
+            dict(type='dense', size=32, activation='tanh')
+        ]
+        self.base_test(name='bool', environment=environment, network_spec=network_spec, config=self.__class__.config)
+
+    def test_int(self):
+        environment = MinimalTest(specification=[('int', ())])
+        network_spec = [
+            dict(type='dense', size=32, activation='tanh'),
+            dict(type='dense', size=32, activation='tanh')
+        ]
+        self.base_test(name='int', environment=environment, network_spec=network_spec, config=self.__class__.config)
+
+    def test_float(self):
+        environment = MinimalTest(specification=[('float', ())])
+        network_spec = [
+            dict(type='dense', size=32, activation='tanh'),
+            dict(type='dense', size=32, activation='tanh')
+        ]
+        self.base_test(name='float', environment=environment, network_spec=network_spec, config=self.__class__.config)
+
+    def test_bounded_float(self):
+        environment = MinimalTest(specification=[('bounded-float', ())])
+        network_spec = [
+            dict(type='dense', size=32, activation='tanh'),
+            dict(type='dense', size=32, activation='tanh')
+        ]
+        self.base_test(name='bounded-float', environment=environment, network_spec=network_spec, config=self.__class__.config)
+
+    def test_multi(self):
+
+        class CustomNetwork(LayerBasedNetwork):
+            def tf_apply(self, x, internals, return_internals=False):
+                layer01 = Dense(size=32, scope='state0-1')
+                self.add_layer(layer=layer01)
+                layer02 = Dense(size=32, scope='state0-2')
+                self.add_layer(layer=layer02)
+                x0 = layer02.apply(x=layer01.apply(x=x['state0']))
+                layer11 = Dense(size=32, scope='state1-1')
+                self.add_layer(layer=layer11)
+                layer12 = Dense(size=32, scope='state1-2')
+                self.add_layer(layer=layer12)
+                x1 = layer12.apply(x=layer11.apply(x=x['state1']))
+                layer21 = Dense(size=32, scope='state2-1')
+                self.add_layer(layer=layer21)
+                layer22 = Dense(size=32, scope='state2-2')
+                self.add_layer(layer=layer22)
+                x2 = layer22.apply(x=layer21.apply(x=x['state2']))
+                layer31 = Dense(size=32, scope='state3-1')
+                self.add_layer(layer=layer31)
+                layer32 = Dense(size=32, scope='state3-2')
+                self.add_layer(layer=layer32)
+                x3 = layer32.apply(x=layer31.apply(x=x['state3']))
+                x = x0 * x1 * x2 * x3
+                return (x, list()) if return_internals else x
+
+        environment = MinimalTest(specification=[('bool', ()), ('int', (2,)), ('float', (1,)), ('bounded-float', (1, 1))])
+        self.base_test(name='multi', environment=environment, network_spec=CustomNetwork, config=self.__class__.config)
+
+    def test_lstm(self):
+        environment = MinimalTest(specification=[('int', ())])
+        network_spec = [
+            dict(type='dense', size=32, activation='tanh'),
+            dict(type='dense', size=32, activation='tanh'),
+            dict(type='lstm', size=32)
+        ]
+        self.base_test(name='lstm', environment=environment, network_spec=network_spec, config=self.__class__.config)

@@ -29,32 +29,32 @@ class BaseAgentTest(BaseTest):
     def test_bool(self):
         environment = MinimalTest(specification=[('bool', ())])
         network_spec = [
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh')
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
         ]
         self.base_test(name='bool', environment=environment, network_spec=network_spec, config=self.__class__.config)
 
     def test_int(self):
         environment = MinimalTest(specification=[('int', ())])
         network_spec = [
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh')
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
         ]
         self.base_test(name='int', environment=environment, network_spec=network_spec, config=self.__class__.config)
 
     def test_float(self):
         environment = MinimalTest(specification=[('float', ())])
         network_spec = [
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh')
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
         ]
         self.base_test(name='float', environment=environment, network_spec=network_spec, config=self.__class__.config)
 
     def test_bounded_float(self):
         environment = MinimalTest(specification=[('bounded-float', ())])
         network_spec = [
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh')
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
         ]
         self.base_test(name='bounded-float', environment=environment, network_spec=network_spec, config=self.__class__.config)
 
@@ -91,8 +91,8 @@ class BaseAgentTest(BaseTest):
     def test_lstm(self):
         environment = MinimalTest(specification=[('int', ())])
         network_spec = [
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh'),
+            dict(type='dense', size=32),
+            dict(type='dense', size=32),
             dict(type='lstm', size=32)
         ]
         self.base_test(name='lstm', environment=environment, network_spec=network_spec, config=self.__class__.config)

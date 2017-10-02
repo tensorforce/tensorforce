@@ -302,7 +302,7 @@ class Dense(Layer):
     Dense layer, i.e. linear fully connected layer with subsequent nonlinearity
     """
 
-    def __init__(self, size, bias=True, activation='relu', l2_regularization=0.0, scope='dense', summary_level=0):
+    def __init__(self, size, bias=True, activation='tanh', l2_regularization=0.0, scope='dense', summary_level=0):
         """
         Dense layer
 

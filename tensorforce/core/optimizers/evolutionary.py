@@ -73,7 +73,7 @@ class Evolutionary(Optimizer):
         with tf.control_dependencies(control_inputs=diffs):
             diffs = [tf.add_n(inputs=[diffs[n] for diffs in diffs_list]) / self.samples for n in range(len(diffs_list[0]))]
             perturbation_diffs = [diff - pert for diff, pert in zip(diffs, previous_perturbations)]
-            applied = self.apply_diffs(diffs=perturbation_diffs)
+            applied = self.apply_step(variables=variables, diffs=perturbation_diffs)
 
         with tf.control_dependencies(control_inputs=(applied,)):
             return [tf.identity(input=diff) for diff in diffs]

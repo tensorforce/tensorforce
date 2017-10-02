@@ -29,12 +29,13 @@ from tensorforce.tests.base_test import BaseTest
 class TestVPGBaselines(BaseTest, unittest.TestCase):
 
     agent = VPGAgent
+    deterministic = False
 
     def test_states_baseline(self):
         environment = MinimalTest(specification=[('int', ())])
         network_spec = [
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh')
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
         ]
         config = Configuration(
             batch_size=8,
@@ -57,8 +58,8 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
     def test_network_baseline(self):
         environment = MinimalTest(specification=[('int', ())])
         network_spec = [
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh')
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
         ]
         config = Configuration(
             batch_size=8,
@@ -81,8 +82,8 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
     def test_gae_baseline(self):
         environment = MinimalTest(specification=[('int', ())])
         network_spec = [
-            dict(type='dense', size=32, activation='tanh'),
-            dict(type='dense', size=32, activation='tanh')
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
         ]
         config = Configuration(
             batch_size=8,

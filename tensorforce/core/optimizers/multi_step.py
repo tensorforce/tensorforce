@@ -25,7 +25,7 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class MultiStep(MetaOptimizer):
 
-    def __init__(self, optimizer, num_steps):
+    def __init__(self, optimizer, num_steps=5):
         super(MultiStep, self).__init__(optimizer=optimizer)
 
         assert isinstance(num_steps, int) and num_steps > 0

@@ -4,16 +4,25 @@
   "exploration": null,
   "batch_size": 4000,
   "discount": 0.97,
-  "learning_rate": 0.01,
-  "optimizer": "adam",
   "tf_summary": null,
 
+  "optimizer": {
+    "type": "adam",
+    "learning_rate": 0.01
+  },
+
+  "baseline_mode": "states",
   "baseline": {
     "type": "mlp",
-    "sizes": [32, 32],
-    "epochs": 1,
-    "update_batch_size" : 512,
-    "learning_rate": 0.01
+    "sizes": [32, 32]
+  },
+  "baseline_optimizer": {
+    "type": "multi_step",
+    "optimizer": {
+      "type": "adam",
+      "learning_rate": 0.01
+    },
+    "num_steps": 5
   },
 
   "gae_rewards": false,

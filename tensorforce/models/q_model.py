@@ -21,7 +21,7 @@ import tensorflow as tf
 
 from tensorforce import util
 from tensorforce.models import DistributionModel
-from tensorforce.core.networks import Network, LayeredNetwork
+from tensorforce.core.networks import Network
 from tensorforce.core.optimizers import Synchronization
 
 
@@ -32,15 +32,16 @@ class QModel(DistributionModel):
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         # Target network
-        self.target_network = util.get_object(obj=network_spec, default_object=LayeredNetwork, kwargs=dict(scope='target'))
-        assert isinstance(self.target_network, Network)
+        self.target_network = Network.from_spec(spec=network_spec, kwargs=dict(scope='target'))
 
+        # Target network optimizer
         self.target_optimizer = Synchronization(
             update_frequency=config.target_update_frequency,
             update_weight=config.update_target_weight
         )
 
         self.double_dqn = config.double_dqn
+        self.huber_loss = config.huber_loss
 
         super(QModel, self).__init__(states_spec, actions_spec, network_spec, config)
 
@@ -91,8 +92,7 @@ class QModel(DistributionModel):
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
         loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
 
-        # TODO config parameter
-        self.huber_loss = None
+        # Optional Huber loss
         if self.huber_loss is not None and self.huber_loss > 0.0:
             return tf.where(
                 condition=(tf.abs(x=loss_per_instance) <= self.huber_loss),

@@ -146,8 +146,10 @@ class Distribution(object):
         """
         Creates a distribution from a specification dict.
         """
-        return util.get_object(
+        distribution = util.get_object(
             obj=spec,
             predefined_objects=tensorforce.core.distributions.distributions,
             kwargs=kwargs
         )
+        assert isinstance(distribution, Distribution)
+        return distribution

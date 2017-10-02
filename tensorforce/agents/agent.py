@@ -25,6 +25,7 @@ import numpy as np
 from tensorforce import util, TensorForceError
 from tensorforce.core.preprocessing import Preprocessing
 from tensorforce.core.explorations import Exploration
+import tensorforce.agents
 
 
 class Agent(object):
@@ -288,3 +289,16 @@ class Agent(object):
 
     def save_model(self, path):
         self.model.save_model(path)
+
+    @staticmethod
+    def from_spec(spec, kwargs):
+        """
+        Creates an agent from a specification dict.
+        """
+        agent = util.get_object(
+            obj=spec,
+            predefined_objects=tensorforce.agents.agents,
+            kwargs=kwargs
+        )
+        assert isinstance(agent, Agent)
+        return agent

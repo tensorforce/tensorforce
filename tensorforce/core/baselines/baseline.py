@@ -88,8 +88,10 @@ class Baseline(object):
         """
         Creates a baseline from a specification dict.
         """
-        return util.get_object(
+        baseline = util.get_object(
             obj=spec,
             predefined_objects=tensorforce.core.baselines.baselines,
             kwargs=kwargs
         )
+        assert isinstance(baseline, Baseline)
+        return baseline

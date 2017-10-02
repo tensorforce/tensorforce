@@ -27,7 +27,9 @@ class Exploration(object):
         """
         Creates an exploration object from a specification dict.
         """
-        return util.get_object(
+        exploration = util.get_object(
             obj=spec,
             predefined=tensorforce.core.explorations.explorations
         )
+        assert isinstance(exploration, Exploration)
+        return exploration

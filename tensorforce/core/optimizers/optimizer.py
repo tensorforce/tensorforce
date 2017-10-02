@@ -46,11 +46,13 @@ class Optimizer(tf.train.Optimizer):
         """
         Creates an optimizer from a specification dict.
         """
-        return util.get_object(
+        optimizer = util.get_object(
             obj=spec,
             predefined_objects=tensorforce.core.optimizers.optimizers,
             kwargs=kwargs
         )
+        assert isinstance(optimizer, Optimizer)
+        return optimizer
 
     # modified minimize
     def apply_step(self, variables, diffs, global_step=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, name=None, grad_loss=None):

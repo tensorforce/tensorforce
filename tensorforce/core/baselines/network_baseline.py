@@ -20,8 +20,7 @@ from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core.networks import Linear, LayeredNetwork
+from tensorforce.core.networks import Linear, Network
 from tensorforce.core.baselines import Baseline
 
 
@@ -38,7 +37,7 @@ class NetworkBaseline(Baseline):
             network_spec: Network specification dict
         """
         with tf.name_scope(name=scope):
-            self.network = util.get_object(obj=network_spec, default_object=LayeredNetwork)
+            self.network = Network.from_spec(spec=network_spec)
             assert len(self.network.internal_inputs()) == 0
 
             self.linear = Linear(size=1, bias=0.0, scope='prediction')

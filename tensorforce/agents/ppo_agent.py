@@ -35,12 +35,16 @@ class PPOAgent(BatchAgent):
 
     * `batch_size`: Positive integer (**mandatory**)
     * `learning_rate`: positive float (default: 1e-4)
-    * `optimization_steps`: positive integer (default: 10)
     * `discount`: Positive float, at most 1.0 (default: 0.99)
     * `entropy_regularization`: None or positive float (default: 0.01)
     * `gae_lambda`: None or float between 0.0 and 1.0 (default: none)
     * `normalize_rewards`: Boolean (default: false)
     * `likelihood_ratio_clipping`: None or float greater than 1.0 (default: none)
+
+    #### Multi-step optimizer:
+
+    * `step_optimizer`: Specification dict (default: Adam with learning rate 1e-4)
+    * `optimization_steps`: positive integer (default: 10)
 
     #### Baseline:
 
@@ -76,7 +80,10 @@ class PPOAgent(BatchAgent):
         # BatchAgent
         keep_last_timestep=True,  # not documented!
         # PPOAgent
-        learning_rate=1e-4,
+        step_optimizer=dict(
+            type='adam',
+            learning_rate=1e-4
+        ),
         optimization_steps=10,
         # Model
         scope='ppo',
@@ -111,10 +118,7 @@ class PPOAgent(BatchAgent):
         config.obligatory(
             optimizer=dict(
                 type='multi_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=config.learning_rate
-                ),
+                optimizer=config.step_optimizer,
                 num_steps=config.optimization_steps
             )
         )

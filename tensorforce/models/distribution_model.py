@@ -20,7 +20,7 @@ from __future__ import division
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.networks import Network, LayeredNetwork
+from tensorforce.core.networks import Network
 from tensorforce.core.distributions import Distribution, Bernoulli, Categorical, Gaussian, Beta
 from tensorforce.models import Model
 
@@ -33,8 +33,7 @@ class DistributionModel(Model):
     def __init__(self, states_spec, actions_spec, network_spec, config):
         with tf.name_scope(name=config.scope):
             # Network
-            self.network = util.get_object(obj=network_spec, default_object=LayeredNetwork)
-            assert isinstance(self.network, Network)
+            self.network = Network.from_spec(spec=network_spec)
 
             # Distributions
             self.distributions = dict()

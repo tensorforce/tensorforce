@@ -34,11 +34,14 @@ class VPGAgent(BatchAgent):
     #### Hyperparameters:
 
     * `batch_size`: Positive integer (**mandatory**)
-    * `learning_rate`: positive float (default: 1e-3)
     * `discount`: Positive float, at most 1.0 (default: 0.99)
     * `entropy_regularization`: None or positive float (default: none)
     * `gae_lambda`: None or float between 0.0 and 1.0 (default: none)
     * `normalize_rewards`: Boolean (default: false)
+
+    #### Optimizer:
+
+    * `optimizer`: Specification dict (default: Adam with learning rate 1e-3)
 
     #### Baseline:
 
@@ -73,10 +76,12 @@ class VPGAgent(BatchAgent):
         reward_preprocessing=None,
         # BatchAgent
         keep_last_timestep=True,  # not documented!
-        # VPGAgent
-        learning_rate=1e-3,
         # Model
         scope='vpg',
+        optimizer=dict(
+            type='adam',
+            learning_rate=1e-3
+        ),
         discount=0.99,
         # DistributionModel
         distributions=None,  # not documented!!!
@@ -98,12 +103,6 @@ class VPGAgent(BatchAgent):
         self.network_spec = network_spec
         config = config.copy()
         config.default(self.__class__.default_config)
-        config.obligatory(
-            optimizer=dict(
-                type='adam',
-                learning_rate=config.learning_rate  # or also default?
-            )
-        )
         super(VPGAgent, self).__init__(states_spec, actions_spec, config)
 
     def initialize_model(self, states_spec, actions_spec, config):

@@ -87,6 +87,10 @@ class DQNAgent(MemoryAgent):
     * `discount`: Positive float, at most 1.0 (default: 0.99)
     * `entropy_regularization`: None or positive float (default: none)
 
+    #### Optimizer:
+
+    * `optimizer`: Specification dict (default: Adam with learning rate 1e-3)
+
     #### Pre-/post-processing:
 
     * `state_preprocessing`: None or dict with (default: none)
@@ -114,10 +118,12 @@ class DQNAgent(MemoryAgent):
         reward_preprocessing=None,
         # MemoryAgent
         # missing, not documented!
-        # DQNAgent
-        learning_rate=1e-3,
         # Model
         scope='dqn',
+        optimizer=dict(
+            type='adam',
+            learning_rate=1e-3
+        ),
         discount=0.99,
         # DistributionModel
         distributions=None,  # not documented!!!
@@ -125,8 +131,8 @@ class DQNAgent(MemoryAgent):
         # QModel
         target_update_frequency=10000,  # not documented!!!
         update_target_weight=1.0,  # not documented!!!
-        clip_loss=0.0,  # not documented!!!
         double_dqn=False,  # not documented!!!
+        huber_loss=0.0,  # not documented!!!
         # Logging
         log_level='info',
         tf_summary=None
@@ -138,12 +144,6 @@ class DQNAgent(MemoryAgent):
         self.network_spec = network_spec
         config = config.copy()
         config.default(self.__class__.default_config)
-        config.obligatory(
-            optimizer=dict(
-                type='adam',
-                learning_rate=config.learning_rate  # or also default?
-            )
-        )
         super(DQNAgent, self).__init__(states_spec, actions_spec, config)
 
     def initialize_model(self, states_spec, actions_spec, config):

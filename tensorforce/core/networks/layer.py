@@ -114,11 +114,13 @@ class Layer(object):
         """
         Creates a layer from a specification dict.
         """
-        return util.get_object(
+        layer = util.get_object(
             obj=spec,
             predefined_objects=tensorforce.core.networks.layers,
             kwargs=kwargs
         )
+        assert isinstance(layer, Layer)
+        return layer
 
 
 class Flatten(Layer):

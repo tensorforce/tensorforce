@@ -22,6 +22,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce import util
+from tensorforce.core.preprocessing import Preprocessor
 import tensorforce.core.preprocessing
 
 
@@ -78,5 +79,6 @@ class Preprocessing(object):
                 obj=spec,
                 predefined=tensorforce.core.preprocessing.preprocessors
             )
+            assert isinstance(preprocessor, Preprocessor)
             preprocessing.add(preprocessor=preprocessor)
         return preprocessing

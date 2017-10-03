@@ -296,6 +296,9 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
         filter_width = window
         filter_height = window
     elif isinstance(window, tuple):
+        if len(window) != 2:
+            raise TensorForceError('Invalid window for conv2d layer: {}, must be tuple of size 2'.format(window))
+
         filter_width = window[0]
         filter_height = window[1]
 

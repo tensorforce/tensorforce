@@ -41,14 +41,25 @@ class TestQuickstartExample(unittest.TestCase):
             # Create a Trust Region Policy Optimization agent
             agent = PPOAgent(config=Configuration(
                 log_level='info',
-                batch_size=4096,
+                batch_size=256,
 
-                gae_lambda=0.97,
-                learning_rate=0.001,
-                entropy_penalty=0.01,
-                epochs=5,
-                optimizer_batch_size=512,
-                loss_clipping=0.2,
+                memory=dict(
+                    type='prioritized_replay',
+                ),
+                update_frequency=256,
+                first_update=512,
+
+                learning_rate=0.0001,
+                optimizer_batch_size=64,
+                normalize_rewards=False,
+                gae_rewards=False,
+                baseline=dict(
+                    type="mlp",
+                    sizes=[32, 32],
+                    epochs=1,
+                    update_batch_size=64,
+                    learning_rate=0.001
+                ),
                 states=env.states,
                 actions=env.actions,
                 network=layered_network_builder([

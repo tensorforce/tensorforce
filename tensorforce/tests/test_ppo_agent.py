@@ -37,6 +37,8 @@ class TestPPOAgent(unittest.TestCase):
             environment = MinimalTest(definition=False)
             config = Configuration(
                 batch_size=20,
+                first_update=80,
+                update_frequency=20,
                 entropy_penalty=0.01,
                 loss_clipping=0.1,
                 epochs=10,
@@ -72,6 +74,8 @@ class TestPPOAgent(unittest.TestCase):
             environment = MinimalTest(definition=True)
             config = Configuration(
                 batch_size=20,
+                first_update=80,
+                update_frequency=20,
                 entropy_penalty=0.01,
                 loss_clipping=0.1,
                 epochs=10,
@@ -114,6 +118,8 @@ class TestPPOAgent(unittest.TestCase):
             environment = MinimalTest(definition=[False, (False, 2), (True, 2)])
             config = Configuration(
                 batch_size=20,
+                first_update=80,
+                update_frequency=20,
                 entropy_penalty=0.01,
                 loss_clipping=0.1,
                 epochs=10,
@@ -154,6 +160,8 @@ class TestPPOAgent(unittest.TestCase):
                 epochs=10,
                 optimizer_batch_size=10,
                 learning_rate=0.0005,
+                first_update=80,
+                update_frequency=20,
                 states=environment.states,
                 actions=actions,
                 network=layered_network_builder([
@@ -175,4 +183,3 @@ class TestPPOAgent(unittest.TestCase):
 
         print('PPO agent (beta) passed = {}'.format(passed))
         self.assertTrue(passed >= 4)
-

@@ -24,8 +24,10 @@ from __future__ import division
 
 import tensorflow as tf
 from six.moves import xrange
+import numpy as np
+
 from tensorforce import util
-from tensorforce.core.memories import Replay
+from tensorforce.core.memories import Replay, PrioritizedReplay, Memory
 from tensorforce.models import PolicyGradientModel
 
 
@@ -36,8 +38,8 @@ class PPOModel(PolicyGradientModel):
     default_config = dict(
         entropy_penalty=0.01,
         loss_clipping=0.2,  # Trust region clipping
-        epochs=10,  # Number of training epochs for SGD,
-        optimizer_batch_size=128,  # Batch size for optimiser
+        epochs=10,  # Number of training epochs for optimizer,
+        optimizer_batch_size=64,  # Batch size for optimizer
         random_sampling=True  # Sampling strategy for replay memory
     )
 
@@ -45,14 +47,15 @@ class PPOModel(PolicyGradientModel):
         config.default(PPOModel.default_config)
         super(PPOModel, self).__init__(config)
         self.optimizer_batch_size = config.optimizer_batch_size
-        # Use replay memory so memory logic can be used to sample batches
-
+        self.batch_size = config.batch_size
         self.updates = int(config.batch_size / self.optimizer_batch_size) * config.epochs
+
+        # Use replay memory as a cache so it can be used to sample minibatches
         self.memory = Replay(config.batch_size, config.states, config.actions, config.random_sampling)
 
     def create_tf_operations(self, config):
         """
-        Creates PPO training operations, i.e. the SGD update
+        Creates PPO training operations, i.e. the optimizer update
         based on the trust region loss.
         :return:
         """
@@ -125,7 +128,7 @@ class PPOModel(PolicyGradientModel):
     def update(self, batch):
         """
         Compute update for one batch of experiences using general advantage estimation
-        and the trust region update based on SGD on the clipped loss.
+        and the trust region update based on optimizer on the clipped loss.
 
         :param batch: On policy batch of experiences.
         :return:
@@ -156,13 +159,13 @@ class PPOModel(PolicyGradientModel):
         # track of indices and e.g. first taking elems 0-15, then 16-32, etc).
         for i in xrange(self.updates):
             self.logger.debug('Optimising PPO, update = {}'.format(i))
-            batch = self.memory.get_batch(self.optimizer_batch_size)
+            minibatch = self.memory.get_batch(self.optimizer_batch_size)
 
-            feed_dict = {state: batch['states'][name] for name, state in self.state.items()}
-            feed_dict.update({action: batch['actions'][name] for name, action in self.action.items()})
-            feed_dict[self.reward] = batch['rewards']
-            feed_dict[self.terminal] = batch['terminals']
-            feed_dict.update({internal: batch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+            feed_dict = {state: minibatch['states'][name] for name, state in self.state.items()}
+            feed_dict.update({action: minibatch['actions'][name] for name, action in self.action.items()})
+            feed_dict[self.reward] = minibatch['rewards']
+            feed_dict[self.terminal] = minibatch['terminals']
+            feed_dict.update({internal: minibatch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
 
             if i == 0:  # First update, fetch previous distribution tensors
                 assert self.updates >= 2
@@ -171,18 +174,45 @@ class PPOModel(PolicyGradientModel):
                 fetches.update(self.distribution_tensors)
                 prev_distribution_tensors = self.session.run(fetches=fetches, feed_dict=feed_dict)
                 prev_distribution_tensors.pop('optimize')
-
-            elif i == self.updates - 1:  # Last update, fetch return and diagnostics values
-                fetches = (self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy)
-                prev_distribution_tensors = {placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items() for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])}
-                feed_dict.update(prev_distribution_tensors)
-                loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:]
-
             else:  # Otherwise just optimize
                 self.session.run(fetches=self.optimize, feed_dict=feed_dict)
+
+        # For the last epoch, fetch return and diagnostics values for each instance
+        # by sampling on seqential non-random ranges e.g 0-15, 16-32 etc
+        losses = []
+        losses_per_instance = []
+        kl_divergences = []
+        prev_distribution_tensors = {placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items() for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])}
+        for i in range(int(self.batch_size / self.optimizer_batch_size)):
+            start, end = i * self.optimizer_batch_size, (i + 1) * self.optimizer_batch_size
+            states = {name: batch['states'][name][start:end] for name, state in self.state.items()}
+            actions = {name: batch['actions'][name][start:end] for name, action in self.action.items()}
+            rewards = batch['rewards'][start:end]
+            terminals = batch['terminals'][start:end]
+            internals = [batch['internals'][start:end] for internal in self.internal_inputs]
+            minibatch = dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
+
+            # Last update, fetch return and diagnostics values for all samples
+            feed_dict = {state: minibatch['states'][name] for name, state in self.state.items()}
+            feed_dict.update({action: minibatch['actions'][name] for name, action in self.action.items()})
+            feed_dict[self.reward] = minibatch['rewards']
+            feed_dict[self.terminal] = minibatch['terminals']
+            feed_dict.update({internal: minibatch['internals'][n] for n, internal in enumerate(self.internal_inputs)})
+
+            fetches = (self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy)
+            feed_dict.update(prev_distribution_tensors)
+            _, loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches, feed_dict=feed_dict)
+
+            losses.append(loss)
+            losses_per_instance.append(loss_per_instance)
+            kl_divergences.append(kl_divergence)
+
+        loss_per_instance = np.concatenate(losses_per_instance)
+        # FIXME should I sum these?
+        loss = np.sum(losses)
+        kl_divergence = np.sum(kl_divergences)
 
         self.logger.debug('Loss = {}'.format(loss))
         self.logger.debug('KL divergence = {}'.format(kl_divergence))
         self.logger.debug('Entropy = {}'.format(entropy))
-
         return loss, loss_per_instance

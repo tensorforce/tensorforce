@@ -285,10 +285,35 @@ class Agent(object):
         )
 
     def load_model(self, path):
+        """
+        Loads model from from checkpoint file. Consult the save model documentation to understand how
+        checkpoint paths are created.
+
+        Args:
+            path: Path to .ckpt file
+
+        Returns:
+
+        """
         self.model.load_model(path)
 
-    def save_model(self, path):
-        self.model.save_model(path)
+    def save_model(self, path, use_global_step=True):
+        """
+        Stores model in path.
+
+        Args:
+            path: Path to checkpoint file
+            use_global_step:  Whether to append the current timestep to the checkpoint path. If this is
+            set to True, the load path must include the checkpoint id. For example, if we store to
+            models/model.ckpt and set global step to true, the exported file will be of the form models/model.ckpt-X
+            where X is the last step saved. The load path must precisely match this file name. If this option
+            is turned off, the checkpoint will always overwrite the file specified in path and the model
+            can always be loaded under this path.
+
+        Returns:
+
+        """
+        self.model.save_model(path, use_global_step)
 
     @staticmethod
     def from_spec(spec, kwargs):

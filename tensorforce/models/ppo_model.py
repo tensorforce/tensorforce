@@ -64,7 +64,6 @@ class PPOModel(PGModel):
             prob_ratios = list()
             entropy_penalties = list()
 
-            # for diagnostics
             kl_divergences = list()
             entropies = list()
             self.distribution_tensors = dict()

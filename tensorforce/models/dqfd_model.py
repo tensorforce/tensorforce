@@ -15,7 +15,6 @@
 """
 Model for deep-q learning from demonstration. Principal structure similar to double deep-q-networks
 but uses additional loss terms for demo data.
-
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -41,7 +40,7 @@ class DQFDModel(DQNModel):
 
     def create_tf_operations(self, config):
         """Create training graph. For DQFD, we build the double-dqn training graph and
-        modify the double_q_loss function according to eq. 5
+        modify the double_q_loss function according to equation 5.
 
         Args:
             config: Config dict.

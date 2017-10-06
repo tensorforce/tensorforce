@@ -24,8 +24,9 @@ from tensorforce.models import PGModel
 
 
 class PGLRModel(PGModel):
+    #TODO more justification of this class here and why this object is necessary.
     """
-    Policy gradient model based on likelihood ratios (for instance, TRPO and PPO)
+        Policy gradient model based on likelihood ratios, e.g. TRPO and PPO.
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):

@@ -24,9 +24,7 @@ from tensorforce.core.optimizers.solvers import ConjugateGradient
 
 
 class NaturalGradient(Optimizer):
-    """
-    Natural gradient optimizer
-    """
+    """Natural gradient optimizer."""
 
     def __init__(self, learning_rate, cg_max_iterations=20, cg_damping=1e-3):
         super(NaturalGradient, self).__init__()

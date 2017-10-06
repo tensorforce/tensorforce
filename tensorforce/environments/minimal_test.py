@@ -25,7 +25,10 @@ class MinimalTest(Environment):
 
     def __init__(self, specification):
         """
-        Initializes a minimal test environment, which is used for the unit tests. Given a specification of actions types and shapes, the environment states consist of the same number of pairs (x, y). The (mean of) an action a gives the next state via (1-a, a), and the 'correct' state is always (0, 1).
+        Initializes a minimal test environment, which is used for the unit tests.
+        Given a specification of actions types and shapes, the environment states consist
+        of the same number of pairs (x, y). The (mean of) an action a gives the next state via (1-a, a),
+        and the 'correct' state is always (0, 1).
 
         Args:
             specification: Takes a list of (type, shape) pairs specifying the action structure of the environment.

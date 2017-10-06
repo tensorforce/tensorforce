@@ -22,6 +22,7 @@ import tensorforce.core.memories
 
 
 class Memory(object):
+    """Abstract memory class."""
 
     def __init__(self, capacity, states_spec, actions_spec):
         self.capacity = capacity
@@ -29,11 +30,24 @@ class Memory(object):
         self.actions_spec = actions_spec
 
     def add_observation(self, states, internals, actions, terminal, reward):
+        """
+        Inserts a single experience to the memory.
+
+        Args:
+            states:
+            internals:
+            actions:
+            terminal:
+            reward:
+
+        Returns:
+
+        """
         raise NotImplementedError
 
     def get_batch(self, batch_size, next_states=False):
         """
-        Samples a batch from the memory
+        Samples a batch from the memory.
 
         Args:
             batch_size: The batch size
@@ -45,6 +59,15 @@ class Memory(object):
         raise NotImplementedError
 
     def update_batch(self, loss_per_instance):
+        """
+        Updates loss values for sampling strategies based on loss functions.
+
+        Args:
+            loss_per_instance:
+
+        Returns:
+
+        """
         raise NotImplementedError
 
     def set_memory(self, states, internals, actions, terminals, rewards):

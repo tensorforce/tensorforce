@@ -35,7 +35,7 @@ class NaturalGradient(Optimizer):
         self.solver = ConjugateGradient(max_iterations=cg_max_iterations, damping=cg_damping)
 
     def tf_step(self, time, variables, fn_loss, fn_kl_divergence, **kwargs):
-        # Optimize: argmin(delta) loss(theta + delta) such that kldiv = c
+        # Optimize: argmin(delta) loss(theta + delta) s.t. kldiv = c
         # Approximate:
         # - kldiv = 0.5 * delta^T * F * delta
         # - loss(theta + delta) = loss + grad(loss) * delta

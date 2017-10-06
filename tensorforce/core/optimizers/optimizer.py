@@ -56,10 +56,12 @@ class Optimizer(tf.train.Optimizer):
 
     # modified minimize
     def apply_step(self, variables, diffs, global_step=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, name=None, grad_loss=None):
-        diffs_and_vars = self.compute_diffs(diffs, var_list=variables, gate_gradients=gate_gradients, aggregation_method=aggregation_method, colocate_gradients_with_ops=colocate_gradients_with_ops, grad_loss=grad_loss)
+        diffs_and_vars = self.compute_diffs(diffs, var_list=variables, gate_gradients=gate_gradients, aggregation_method=aggregation_method,
+                                            colocate_gradients_with_ops=colocate_gradients_with_ops, grad_loss=grad_loss)
         vars_with_diff = [v for g, v in diffs_and_vars if g is not None]
         if not vars_with_diff:
-            raise TensorForceError("No gradients provided for any variable, check your graph for ops that do not support gradients, between variables {} and loss {}.".format([str(v) for _, v in diffs_and_vars], diffs))
+            raise TensorForceError("No gradients provided for any variable, check your graph for ops that do not support"
+                                   " gradients, between variables {} and loss {}.".format([str(v) for _, v in diffs_and_vars], diffs))
         return super(Optimizer, self).apply_gradients(diffs_and_vars, global_step=global_step, name=name)
 
     def compute_gradients(self, *args, **kwargs):

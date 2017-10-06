@@ -15,9 +15,10 @@
 
 
 """
-The `PGModel` class implements the specified reward estimation. It optionally defines a baseline and handles its optimization. It implements the `tf_loss_per_instance` function, but requires subclasses to implement `tf_pg_loss_per_instance`.
+The `PGModel` class implements the specified reward estimation. It optionally defines a baseline
+and handles its optimization. It implements the `tf_loss_per_instance` function, but requires
+subclasses to implement `tf_pg_loss_per_instance`.
 """
-
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -31,9 +32,7 @@ from tensorforce.models import DistributionModel
 
 
 class PGModel(DistributionModel):
-    """
-    Base class for policy gradient models
-    """
+    """Base class for policy gradient models."""
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         # Baseline mode
@@ -81,7 +80,8 @@ class PGModel(DistributionModel):
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
         """
-        Creates the TensorFlow operations for calculating the (policy-gradient-specific) loss per batch instance of the given input states and actions, after the specified reward/advantage calculations.
+        Creates the TensorFlow operations for calculating the (policy-gradient-specific) loss per batch
+        instance of the given input states and actions, after the specified reward/advantage calculations.
 
         Args:
             states: Dict of state tensors.

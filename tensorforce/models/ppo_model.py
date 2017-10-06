@@ -56,7 +56,6 @@ class PPOModel(PGModel):
         """
         Creates PPO training operations, i.e. the SGD update
         based on the trust region loss.
-        :return:
         """
         super(PPOModel, self).create_tf_operations(config)
 
@@ -147,8 +146,8 @@ class PPOModel(PGModel):
         self.memory.set_memory(
             states=batch['states'],
             actions=batch['actions'],
-            rewards=batch['rewards'],
-            terminals=batch['terminals'],
+            reward=batch['rewards'],
+            terminal=batch['terminals'],
             internals=batch['internals']
         )
 

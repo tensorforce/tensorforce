@@ -26,9 +26,7 @@ from tensorforce.core.optimizers import Synchronization
 
 
 class QModel(DistributionModel):
-    """
-    Base class for Q-value models
-    """
+    """Base class for Q-value models."""
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         # Target network
@@ -58,7 +56,8 @@ class QModel(DistributionModel):
 
     def tf_q_delta(self, q_value, next_q_value, terminal, reward):
         """
-        Creates the deltas (or advantage) of the Q values
+        Creates the deltas (or advantage) of the Q values.
+
         :return: A list of deltas per action
         """
         zeros = tf.zeros_like(tensor=next_q_value)

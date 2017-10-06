@@ -13,13 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 
+
+"""
+The `PGModel` class implements the specified reward estimation. It optionally defines a baseline and handles its optimization. It implements the `tf_loss_per_instance` function, but requires subclasses to implement `tf_pg_loss_per_instance`.
+"""
+
+
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core.baselines import Baseline, AggregatedBaseline
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.models import DistributionModel
@@ -61,15 +66,36 @@ class PGModel(DistributionModel):
         assert config.gae_lambda is None or (0.0 <= config.gae_lambda <= 1.0 and self.baseline_mode is not None)
         self.gae_lambda = config.gae_lambda
 
-        # Reward normalization
-        assert isinstance(config.normalize_rewards, bool)
-        self.normalize_rewards = config.normalize_rewards
-
         super(PGModel, self).__init__(states_spec, actions_spec, network_spec, config)
 
-    def get_reward(self, states, terminal, reward, internals):
-        reward = super(PGModel, self).get_reward(states, terminal, reward, internals)
+    def initialize(self, custom_getter):
+        super(PGModel, self).initialize(custom_getter)
 
+        # PG loss per instance function
+        self.fn_pg_loss_per_instance = tf.make_template(
+            name_='pg-loss-per-instance',
+            func_=self.tf_pg_loss_per_instance,
+            create_scope_now_=True,
+            custom_getter_=custom_getter
+        )
+
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
+        """
+        Creates the TensorFlow operations for calculating the (policy-gradient-specific) loss per batch instance of the given input states and actions, after the specified reward/advantage calculations.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+
+        Returns:
+            Loss tensor.
+        """
+        raise NotImplementedError
+
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         if self.baseline_mode is None:
             reward = self.fn_discounted_cumulative_reward(reward=reward, terminal=terminal, discount=self.discount)
 
@@ -93,19 +119,17 @@ class PGModel(DistributionModel):
                 gae_discount = self.discount * self.gae_lambda
                 self.fn_discounted_cumulative_reward(reward=td_residual, terminal=terminal, discount=gae_discount)
 
-        if self.normalize_rewards:
-            mean, variance = tf.nn.moments(x=reward, axes=0)
-            reward = (reward - mean) / tf.maximum(x=variance, y=util.epsilon)
+        return self.fn_pg_loss_per_instance(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
 
-        return reward
-
-    def tf_optimization(self, states, actions, terminal, reward, internals):
-        optimization = super(PGModel, self).tf_optimization(states, actions, terminal, reward, internals)
+    def tf_optimization(self, states, internals, actions, terminal, reward):
+        optimization = super(PGModel, self).tf_optimization(states, internals, actions, terminal, reward)
 
         if self.baseline_mode is None:
             return optimization
 
-        elif self.baseline_mode == 'states':
+        reward = self.fn_discounted_cumulative_reward(reward=reward, terminal=terminal, discount=self.discount)
+
+        if self.baseline_mode == 'states':
             fn_loss = (lambda: self.baseline.loss(states=states, reward=reward))
         elif self.baseline_mode == 'network':
             fn_loss = (lambda: self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward))

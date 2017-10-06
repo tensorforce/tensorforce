@@ -72,7 +72,7 @@ class Bernoulli(Distribution):
         return logit + state_value
 
     def tf_sample(self, distr_params, deterministic):
-        _, _, probability = distr_params
+        _, _, probability, _ = distr_params
 
         # Deterministic: true if >= 0.5
         definite = tf.greater_equal(x=probability, y=0.5)
@@ -84,16 +84,16 @@ class Bernoulli(Distribution):
         return tf.where(condition=deterministic, x=definite, y=sampled)
 
     def tf_log_probability(self, distr_params, action):
-        true_logit, false_logit, _ = distr_params
+        true_logit, false_logit, _, _ = distr_params
         return tf.where(condition=action, x=true_logit, y=false_logit)
 
     def tf_entropy(self, distr_params):
-        true_logit, false_logit, probability = distr_params
+        true_logit, false_logit, probability, _ = distr_params
         return -probability * true_logit - (1.0 - probability) * false_logit
 
     def tf_kl_divergence(self, distr_params1, distr_params2):
-        true_logit1, false_logit1, probability1 = distr_params1
-        true_logit2, false_logit2, _ = distr_params2
+        true_logit1, false_logit1, probability1, _ = distr_params1
+        true_logit2, false_logit2, _, _ = distr_params2
         true_log_prob_ratio = true_logit1 - true_logit2
         false_log_prob_ratio = false_logit1 - false_logit2
         return probability1 * true_log_prob_ratio + (1.0 - probability1) * false_log_prob_ratio

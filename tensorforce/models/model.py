@@ -13,6 +13,30 @@
 # limitations under the License.
 # ==============================================================================
 
+
+"""
+The `Model` class coordinates the creation and execution of all TensorFlow operations within a model. It implements the `reset`, `act` and `update` functions, which give the interface the `Agent` class communicates with, and which should not need to be overwritten. Instead, the following TensorFlow functions need to be implemented:
+
+* `tf_actions_and_internals(states, internals, deterministic)` returning the batch of actions and successor internal states.
+* `tf_loss_per_instance(states, internals, actions, terminal, reward)` returning the loss per instance for a batch.
+
+Moreover, the following TensorFlow functions should be extended accordingly:
+
+* `initialize(custom_getter)` defining TensorFlow placeholders/functions and adding internal states.
+* `get_variables()` returning the list of TensorFlow variables (to be optimized) of this model.
+* `tf_regularization_losses(states, internals)` returning a dict of regularization losses.
+* `get_optimizer_kwargs(states, internals, actions, terminal, reward)` returning a dict of potential  arguments (argument-less functions) to the optimizer.
+
+Finally, the following TensorFlow functions can be useful in some cases:
+
+* `get_states(states)` for state preprocessing, returning the processed batch of states.
+* `get_actions(actions)` for action preprocessing, returning the processed batch of actions.
+* `get_reward(states, internals, terminal, reward)` for reward preprocessing (like reward normalization), returning the processed batch of rewards.
+* `create_output_operations(states, internals, actions, terminal, reward)` for further output operations, similar to the two above for `Model.act` and `Model.update`.
+* `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations (like the baseline update in a `PGModel` or the target network update in a `QModel`), returning a single grouped optimization operation.
+"""
+
+
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -26,8 +50,9 @@ from tensorforce.core.optimizers import Optimizer
 
 class Model(object):
     """
-    Base class for all models
+    Base class for all (TensorFlow-based) models
     """
+
 
     # default_config = dict(
     #     discount=0.97,
@@ -57,6 +82,11 @@ class Model(object):
         self.actions_spec = actions_spec
 
         self.discount = config.discount
+
+        # Reward normalization
+        assert isinstance(config.normalize_rewards, bool)
+        self.normalize_rewards = config.normalize_rewards
+
         # self.distributed = config.distributed
         self.session = None
 
@@ -125,9 +155,10 @@ class Model(object):
 
                 # Input tensors
                 states = self.get_states(states=self.state_inputs)
+                internals = [tf.identity(input=internal) for internal in self.internal_inputs]
                 actions = self.get_actions(actions=self.action_inputs)
                 terminal = tf.identity(input=self.terminal_input)
-                reward = self.get_reward(states=states, terminal=terminal, reward=self.reward_input, internals=self.internal_inputs)
+                reward = self.get_reward(states=states, internals=internals, terminal=terminal, reward=self.reward_input)
 
                 # Stop gradients for input preprocessing
                 states = {name: tf.stop_gradient(input=state) for name, state in states.items()}
@@ -137,14 +168,8 @@ class Model(object):
                 # Optimizer
                 self.optimizer = Optimizer.from_spec(spec=config.optimizer)
 
-                # Tensor fetched for model.act()
-                increment_time = self.time.assign_add(delta=1)
-                with tf.control_dependencies(control_inputs=(increment_time,)):
-                    self.actions_and_internals = self.fn_actions_and_internals(states=states, internals=self.internal_inputs, deterministic=self.deterministic)
-
-                # Tensor(s) fetched for model.update()
-                self.loss_per_instance = self.fn_loss_per_instance(states=states, actions=actions, reward=reward, terminal=terminal, internals=self.internal_inputs)
-                self.optimization = self.fn_optimization(states=states, actions=actions, reward=reward, terminal=terminal, internals=self.internal_inputs)
+                # Create output fetch operations
+                self.create_output_operations(states=states, internals=self.internals, actions=actions, terminal=terminal, reward=reward)
 
                 # if config.distributed:
                 #     scope_context.__exit__(None, None, None)
@@ -185,6 +210,12 @@ class Model(object):
         tf.get_default_graph().finalize()
 
     def initialize(self, custom_getter):
+        """
+        Creates the TensorFlow placeholders and functions for this model. Moreover adds the internal state placeholders and initialization values to the model.
+
+        Args:
+            custom_getter: The `custom_getter_` object to use for `tf.make_template` when creating TensorFlow functions.
+        """
         # States
         self.state_inputs = dict()
         for name, state in self.states_spec.items():
@@ -209,30 +240,30 @@ class Model(object):
         self.deterministic = tf.placeholder(dtype=tf.bool, shape=(), name='deterministic')
 
         # Time
-        # various modes !!!
+        # TODO: various modes !!!
         self.time = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, expected_shape=())
 
         # TensorFlow functions
         self.fn_discounted_cumulative_reward = tf.make_template(
-            name_=('discounted_cumulative_reward'),
+            name_=('discounted-cumulative-reward'),
             func_=self.tf_discounted_cumulative_reward,
             create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.fn_actions_and_internals = tf.make_template(
-            name_='actions_and_internals',
+            name_='actions-and-internals',
             func_=self.tf_actions_and_internals,
             create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.fn_loss_per_instance = tf.make_template(
-            name_='loss_per_instance',
+            name_='loss-per-instance',
             func_=self.tf_loss_per_instance,
             create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.fn_regularization_losses = tf.make_template(
-            name_='regularization_losses',
+            name_='regularization-losses',
             func_=self.tf_regularization_losses,
             create_scope_now_=True,
             custom_getter_=custom_getter
@@ -251,18 +282,34 @@ class Model(object):
         )
 
     def get_states(self, states):
-        # preprocessing could go here
+        # TODO: preprocessing could go here?
         return {name: tf.identity(input=state) for name, state in states.items()}
 
     def get_actions(self, actions):
-        # preprocessing could go here
+        # TODO: preprocessing could go here?
         return {name: tf.identity(input=action) for name, action in actions.items()}
 
-    def get_reward(self, states, terminal, reward, internals):
-        # preprocessing could go here
-        return tf.identity(input=reward)
+    def get_reward(self, states, internals, terminal, reward):
+        if self.normalize_rewards:
+            mean, variance = tf.nn.moments(x=reward, axes=0)
+            return (reward - mean) / tf.maximum(x=variance, y=util.epsilon)
+        else:
+            return tf.identity(input=reward)
 
     def tf_discounted_cumulative_reward(self, reward, terminal, discount, final_reward=0.0):
+        """
+        Creates the TensorFlow operations for calculating the discounted cumulative rewards for a given sequence of rewards.
+
+        Args:
+            reward: Reward tensor.
+            terminal: Terminal boolean tensor.
+            discount: Discount factor.
+            final_reward: Last reward value in the sequence.
+
+        Returns:
+            Discounted cumulative reward tensor.
+        """
+
         # TODO: n-step cumulative reward (particularly for envs without terminal)
 
         def fn_scan(cumulative, reward_and_terminal):
@@ -278,21 +325,72 @@ class Model(object):
         reward = tf.scan(fn=fn_scan, elems=(reward, terminal), initializer=final_reward)
         return tf.reverse(tensor=reward, axis=(0,))
 
-    # def update_inputs(self, ...???):
-    #     # for batching ??? for sequence format?
-    #     return self.states, self.actions, self.terminal, self.reward, self.internals
+    def tf_actions_and_internals(self, states, internals, deterministic):
+        """
+        Creates the TensorFlow operations for retrieving the actions (and posterior internal states) in reaction to the given input states (and prior internal states).
 
-    def tf_actions_and_internals(self, states):
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            deterministic: If true, the action is chosen deterministically.
+
+        Returns:
+            Actions and list of posterior internal state tensors.
+        """
         raise NotImplementedError
 
-    def tf_loss_per_instance(self, states, actions, terminal, reward, internals):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
+        """
+        Creates the TensorFlow operations for calculating the loss per batch instance of the given input states and actions.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+
+        Returns:
+            Loss tensor.
+        """
         raise NotImplementedError
+
+    def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
+        """
+        Calls all the relevant TensorFlow functions for this model and hence creates all the TensorFlow operations involved.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+            deterministic: If true, the action is chosen deterministically.
+        """
+        # Tensor fetched for model.act()
+        increment_time = self.time.assign_add(delta=1)
+        with tf.control_dependencies(control_inputs=(increment_time,)):
+            self.actions_and_internals = self.fn_actions_and_internals(states=states, internals=self.internals, deterministic=deterministic)
+
+        # Tensor(s) fetched for model.update()
+        self.loss_per_instance = self.fn_loss_per_instance(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+        self.optimization = self.fn_optimization(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
 
     def tf_regularization_losses(self, states, internals):
+        """
+        Creates the TensorFlow operations for calculating the regularization losses for the given input states.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+
+        Returns:
+            Dict of regularization loss tensors.
+        """
         return dict()
 
-    def tf_loss(self, states, actions, terminal, reward, internals):
-        loss_per_instance = self.fn_loss_per_instance(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals)
+    def tf_loss(self, states, internals, actions, terminal, reward):
+        loss_per_instance = self.fn_loss_per_instance(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
 
         loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
@@ -302,18 +400,50 @@ class Model(object):
 
         return loss
 
-    def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
+    def get_optimizer_kwargs(self, states, internals, actions, terminal, reward):
+        """
+        Returns the optimizer arguments including the time, the list of variables to optimize, and various argument-less functions (in particular `fn_loss` returning the combined 0-dim batch loss tensor) which the optimizer might require to perform an update step.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+
+        Returns:
+            Loss tensor of the size of the batch.
+        """
         kwargs = dict()
-        kwargs['variables'] = self.get_variables()
         kwargs['time'] = self.time
-        kwargs['fn_loss'] = (lambda: self.fn_loss(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals))
+        kwargs['variables'] = self.get_variables()
+        kwargs['fn_loss'] = (lambda: self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward))
         return kwargs
 
-    def tf_optimization(self, states, actions, terminal, reward, internals):
-        optimizer_kwargs = self.get_optimizer_kwargs(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals)
+    def tf_optimization(self, states, internals, actions, terminal, reward):
+        """
+        Creates the TensorFlow operations for performing an optimization update step based on the given input states and actions batch.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+
+        Returns:
+            The optimization operation.
+        """
+        optimizer_kwargs = self.get_optimizer_kwargs(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
         return self.optimizer.minimize(**optimizer_kwargs)
 
     def get_variables(self):
+        """
+        Returns the TensorFlow variables used by the network.
+
+        Returns:
+            List of network variables.
+        """
         return [self.variables[key] for key in sorted(self.variables)]
 
     def set_session(self, session):
@@ -322,9 +452,10 @@ class Model(object):
 
     def reset(self):
         """
-        Resets the internal state to the initial state.
-        Returns: A list containing the internal_inits field.
+        Resets the model to its initial state.
 
+        Returns:
+            A list containing the internal states initializations.
         """
         return list(self.internal_inits)
 
@@ -379,10 +510,10 @@ class Model(object):
 
     def update_feed_dict(self, batch):
         feed_dict = {state_input: batch['states'][name] for name, state_input in self.state_inputs.items()}
+        feed_dict.update({internal_input: batch['internals'][n] for n, internal_input in enumerate(self.internal_inputs)})
         feed_dict.update({action_input: batch['actions'][name] for name, action_input in self.action_inputs.items()})
         feed_dict[self.terminal_input] = batch['terminal']
         feed_dict[self.reward_input] = batch['reward']
-        feed_dict.update({internal_input: batch['internals'][n] for n, internal_input in enumerate(self.internal_inputs)})
         return feed_dict
 
     def load_model(self, path):

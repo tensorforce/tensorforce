@@ -13,6 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
+
+"""
+The `DistributionModel` class defines a neural network and policy distributions parameterized by its output. It implements the `tf_actions_and_internals` function, adds KL divergence to `get_optimizer_kwargs`, and optionally adds entropy regularization to `tf_regularization_losses`.
+"""
+
+
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -27,7 +33,7 @@ from tensorforce.models import Model
 
 class DistributionModel(Model):
     """
-    Base class for models using distributions
+    Base class for models using distributions parameterized by a neural network
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
@@ -66,7 +72,7 @@ class DistributionModel(Model):
 
         # KL divergence function
         self.fn_kl_divergence = tf.make_template(
-            name_='kl_divergence',
+            name_='kl-divergence',
             func_=self.tf_kl_divergence,
             create_scope_now_=True,
             custom_getter_=custom_getter
@@ -83,7 +89,7 @@ class DistributionModel(Model):
     def tf_regularization_losses(self, states, internals):
         losses = super(DistributionModel, self).tf_regularization_losses(states=states, internals=internals)
 
-        network_loss = self.network.regularization_losses()
+        network_loss = self.network.regularization_loss()
         if network_loss is not None:
             losses['network'] = network_loss
 
@@ -116,7 +122,7 @@ class DistributionModel(Model):
         kl_divergence_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
         return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
 
-    def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
+    def get_optimizer_kwargs(self, states, internals, actions, terminal, reward):
         kwargs = super(DistributionModel, self).get_optimizer_kwargs(states, actions, terminal, reward, internals)
         kwargs['fn_kl_divergence'] = (lambda: self.fn_kl_divergence(states=states, internals=internals))
         return kwargs

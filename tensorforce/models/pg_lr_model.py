@@ -52,7 +52,7 @@ class PGLRModel(PGModel):
             custom_getter_=custom_getter
         )
 
-    def tf_loss_per_instance(self, states, actions, reward, terminal, internals):
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
         embedding = self.network.apply(x=states, internals=internals)
         prob_ratios = list()
         for name, distribution in self.distributions.items():
@@ -73,7 +73,7 @@ class PGLRModel(PGModel):
             clipped_prob_ratio = tf.clip_by_value(t=prob_ratio, clip_value_min=(1.0 / self.likelihood_ratio_clipping), clip_value_max=self.likelihood_ratio_clipping)
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
-    def tf_reference(self, states, actions, internals):
+    def tf_reference(self, states, internals, actions):
         embedding = self.network.apply(x=states, internals=internals)
         log_probs = list()
         for name, distribution in self.distributions.items():
@@ -84,7 +84,7 @@ class PGLRModel(PGModel):
             log_probs.append(log_prob)
         return tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
 
-    def tf_compare(self, states, actions, reward, terminal, internals, reference):
+    def tf_compare(self, states, internals, actions, terminal, reward, reference):
         embedding = self.network.apply(x=states, internals=internals)
         log_probs = list()
         for name, distribution in self.distributions.items():

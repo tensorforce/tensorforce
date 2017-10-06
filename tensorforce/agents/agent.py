@@ -278,10 +278,10 @@ class Agent(object):
     def last_observation(self):
         return dict(
             states=self.current_states,
+            internals=self.current_internals,
             actions=self.current_actions,
             terminal=self.current_terminal,
-            reward=self.current_reward,
-            internals=self.current_internals
+            reward=self.current_reward
         )
 
     def load_model(self, path):

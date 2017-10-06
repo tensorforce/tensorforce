@@ -33,27 +33,27 @@ class Replay(Memory):
     def __init__(self, capacity, states_spec, actions_spec, random_sampling=False):
         super(Replay, self).__init__(capacity, states_spec, actions_spec)
         self.states = {name: np.zeros((capacity,) + tuple(state['shape']), dtype=util.np_dtype(state['type'])) for name, state in states_spec.items()}
+        self.internals = None
         self.actions = {name: np.zeros((capacity,) + tuple(action['shape']), dtype=util.np_dtype(action['type'])) for name, action in actions_spec.items()}
         self.terminal = np.zeros((capacity,), dtype=util.np_dtype('bool'))
         self.reward = np.zeros((capacity,), dtype=util.np_dtype('float'))
-        self.internals = None
 
         self.size = 0
         self.index = 0
         self.random_sampling = random_sampling
 
-    def add_observation(self, states, actions, terminal, reward, internals):
+    def add_observation(self, states, internals, actions, terminal, reward):
         if self.internals is None and internals is not None:
             self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal in internals]
 
         for name, state in states.items():
             self.states[name][self.index] = state
+        for n, internal in enumerate(internals):
+            self.internals[n][self.index] = internal
         for name, action in actions.items():
             self.actions[name][self.index] = action
         self.reward[self.index] = reward
         self.terminal[self.index] = terminal
-        for n, internal in enumerate(internals):
-            self.internals[n][self.index] = internal
 
         if self.size < self.capacity:
             self.size += 1
@@ -78,10 +78,10 @@ class Replay(Memory):
                 indices = np.random.randint(self.size, size=batch_size)
 
             states = {name: state.take(indices, axis=0) for name, state in self.states.items()}
+            internals = [internal.take(indices, axis=0) for internal in self.internals]
             actions = {name: action.take(indices, axis=0) for name, action in self.actions.items()}
             terminal = self.terminal.take(indices)
             reward = self.reward.take(indices)
-            internals = [internal.take(indices, axis=0) for internal in self.internals]
             if next_states:
                 indices = (indices + 1) % self.capacity
                 next_states = {name: state.take(indices, axis=0) for name, state in self.states.items()}
@@ -97,25 +97,25 @@ class Replay(Memory):
 
             if start < end:
                 states = {name: state[start:end] for name, state in self.states.items()}
+                internals = [internal[start:end] for internal in self.internals]
                 actions = {name: action[start:end] for name, action in self.actions.items()}
                 terminal = self.terminal[start:end]
                 reward = self.reward[start:end]
-                internals = [internal[start:end] for internal in self.internals]
                 if next_states:
                     next_states = {name: state[start + 1: end + 1] for name, state in self.states.items()}
                     next_internals = [internal[start + 1: end + 1] for internal in self.internals]
 
             else:
                 states = {name: np.concatenate((state[start:], state[:end])) for name, state in self.states.items()}
+                internals = [np.concatenate((internal[start:], internal[:end])) for internal in self.internals]
                 actions = {name: np.concatenate((action[start:], action[:end])) for name, action in self.actions.items()}
                 terminal = np.concatenate((self.terminal[start:], self.terminal[:end]))
                 reward = np.concatenate((self.reward[start:], self.reward[:end]))
-                internals = [np.concatenate((internal[start:], internal[:end])) for internal in self.internals]
                 if next_states:
                     next_states = {name: np.concatenate((state[start + 1:], state[:end + 1])) for name, state in self.states.items()}
                     next_internals = [np.concatenate((internal[start + 1:], internal[:end + 1])) for internal in self.internals]
 
-        batch = dict(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals)
+        batch = dict(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
         if next_states:
             batch['next_states'] = next_states
             batch['next_internals'] = next_internals
@@ -124,29 +124,30 @@ class Replay(Memory):
     def update_batch(self, loss_per_instance):
         pass
 
-    def set_memory(self, states, actions, terminal, reward, internals):
+    def set_memory(self, states, internals, actions, terminal, reward):
         self.size = len(terminal)
 
         if len(terminal) == self.capacity:
             # Assign directly if capacity matches size.
             for name, state in states.items():
                 self.states[name] = np.asarray(state)
+            self.internals = [np.asarray(internal) for internal in internals]
             for name, action in actions.items():
                 self.actions[name] = np.asarray(action)
             self.terminal = np.asarray(terminal)
             self.reward = np.asarray(reward)
-            self.internals = [np.asarray(internal) for internal in internals]
 
         else:
             # Otherwise partial assignment
+            if self.internals is None and internals is not None:
+                self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal
+                                  in internals]
+
             for name, state in states.items():
                 self.states[name][:len(state)] = state
+            for n, internal in enumerate(internals):
+                self.internals[n][:len(internal)] = internal
             for name, action in actions.items():
                 self.actions[name][:len(action)] = action
             self.terminal[:len(terminal)] = terminal
             self.reward[:len(reward)] = reward
-            if self.internals is None and internals is not None:
-                self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal
-                                  in internals]
-            for n, internal in enumerate(internals):
-                self.internals[n][:len(internal)] = internal

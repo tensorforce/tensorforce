@@ -1,10 +1,7 @@
 {
-  "log_level": "info",
-  "preprocessing": null,
-  "exploration": null,
   "batch_size": 4000,
-  "discount": 0.97,
-  "tf_summary": null,
+  "discount": 0.99,
+  "gae_lambda": 0.97,
 
   "optimizer": {
     "type": "adam",
@@ -23,8 +20,5 @@
       "learning_rate": 0.01
     },
     "num_steps": 5
-  },
-
-  "gae_rewards": false,
-  "normalize_rewards": true
+  }
 }

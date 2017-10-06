@@ -28,7 +28,7 @@ class PGLLModel(PGModel):
     Policy gradient model based on log likelihoods (for instance, VPG)
     """
 
-    def tf_loss_per_instance(self, states, actions, reward, terminal, internals):
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
         embedding = self.network.apply(x=states, internals=internals)
         log_probs = list()
         for name, distribution in self.distributions.items():

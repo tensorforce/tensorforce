@@ -40,7 +40,7 @@ class PrioritizedReplay(Memory):
         self.batch_indices = None
         self.last_observation = None  # stores last observation until next_state value is known
 
-    def add_observation(self, states, actions, terminal, reward, internals):
+    def add_observation(self, states, internals, actions, terminal, reward):
         if self.internals_config is None and internals is not None:
             self.internals_config = [(internal.shape, internal.dtype) for internal in internals]
 
@@ -56,7 +56,7 @@ class PrioritizedReplay(Memory):
             else:
                 raise TensorForceError("Memory contains only unseen observations.")
 
-        self.last_observation = (states, actions, terminal, reward, internals)
+        self.last_observation = (states, internals, actions, terminal, reward)
 
     def get_batch(self, batch_size, next_states=False):
         """
@@ -70,10 +70,10 @@ class PrioritizedReplay(Memory):
 
         """
         states = {name: np.zeros((batch_size,) + tuple(state['shape']), dtype=util.np_dtype(state['type'])) for name, state in self.states_spec.items()}
+        internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
         actions = {name: np.zeros((batch_size,) + tuple(action['shape']), dtype=util.np_dtype(action['type'])) for name, action in self.actions_spec.items()}
         terminal = np.zeros((batch_size,), dtype=util.np_dtype('bool'))
         reward = np.zeros((batch_size,), dtype=util.np_dtype('float'))
-        internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
         if next_states:
             next_states = {name: np.zeros((batch_size,) + tuple(state['shape']), dtype=util.np_dtype(state['type'])) for name, state in self.states_spec.items()}
             next_internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
@@ -102,12 +102,12 @@ class PrioritizedReplay(Memory):
 
             for name, state in states.items():
                 state[n] = observation[0][name]
+            for k, internal in enumerate(internals):
+                internal[n] = observation[4][k]
             for name, action in actions.items():
                 action[n] = observation[1][name]
             terminal[n] = observation[2]
             reward[n] = observation[3]
-            for k, internal in enumerate(internals):
-                internal[n] = observation[4][k]
             if next_states:
                 for name, next_state in next_states.items():
                     next_state[n] = observation[5][name]
@@ -116,9 +116,9 @@ class PrioritizedReplay(Memory):
             self.batch_indices.append(index)
 
         if next_states:
-            return dict(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals, next_states=next_states, next_internals=next_internals)
+            return dict(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward, next_states=next_states, next_internals=next_internals)
         else:
-            return dict(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals)
+            return dict(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
 
     def update_batch(self, loss_per_instance):
         """

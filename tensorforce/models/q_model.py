@@ -56,9 +56,6 @@ class QModel(DistributionModel):
         self.internal_inputs.extend(self.target_network.internal_inputs())
         self.internal_inits.extend(self.target_network.internal_inits())
 
-    def tf_q_value(self, logits, action):
-        raise NotImplementedError
-
     def tf_q_delta(self, q_value, next_q_value, terminal, reward):
         """
         Creates the deltas (or advantage) of the Q values
@@ -71,7 +68,7 @@ class QModel(DistributionModel):
         collapsed_size = util.prod(util.shape(delta)[1:])
         return tf.reshape(tensor=delta, shape=(-1, collapsed_size))
 
-    def tf_loss_per_instance(self, states, actions, terminal, reward, internals):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         embedding = self.network.apply(x={name: state[:-1] for name, state in states.items()}, internals=internals[:-1])
         target_embedding = self.target_network.apply(x={name: state[1:] for name, state in states.items()}, internals=internals[1:])
         deltas = list()
@@ -102,8 +99,8 @@ class QModel(DistributionModel):
         else:
             return tf.square(x=loss_per_instance)
 
-    def tf_optimization(self, states, actions, terminal, reward, internals):
-        optimization = super(QModel, self).tf_optimization(states, actions, terminal, reward, internals)
+    def tf_optimization(self, states, internals, actions, terminal, reward):
+        optimization = super(QModel, self).tf_optimization(states, internals, actions, terminal, reward)
 
         target_optimization = self.target_optimizer.minimize(time=self.time, variables=self.target_network.get_variables(), source_variables=self.network.get_variables())
 

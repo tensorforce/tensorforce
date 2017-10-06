@@ -39,7 +39,7 @@ class PPOAgent(BatchAgent):
     * `entropy_regularization`: None or positive float (default: 0.01)
     * `gae_lambda`: None or float between 0.0 and 1.0 (default: none)
     * `normalize_rewards`: Boolean (default: false)
-    * `likelihood_ratio_clipping`: None or float greater than 1.0 (default: none)
+    * `likelihood_ratio_clipping`: None or positive float (default: 0.2)
 
     #### Multi-step optimizer:
 
@@ -98,7 +98,7 @@ class PPOAgent(BatchAgent):
         gae_lambda=None,
         normalize_rewards=False,
         # PGLRModel
-        likelihood_ratio_clipping=None,
+        likelihood_ratio_clipping=0.2,
         # Logging
         log_level='info',
         tf_summary=None

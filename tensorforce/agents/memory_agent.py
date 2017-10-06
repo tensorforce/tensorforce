@@ -30,7 +30,7 @@ class MemoryAgent(Agent):
 
     default_config = dict(
         batch_size=1,
-        memory_capacity=1000000,
+        memory_capacity=1e6,
         memory=dict(
             type='replay',
             random_sampling=True
@@ -66,10 +66,10 @@ class MemoryAgent(Agent):
 
         self.memory.add_observation(
             states=self.current_states,
+            internals=self.current_internals,
             actions=self.current_actions,
             terminal=self.current_terminal,
-            reward=self.current_reward,
-            internals=self.current_internals
+            reward=self.current_reward
         )
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
@@ -91,9 +91,9 @@ class MemoryAgent(Agent):
         """
         for observation in observations:
             self.memory.add_observation(
-                state=observation['state'],
-                action=observation['action'],
-                reward=observation['reward'],
+                states=observation['states'],
+                internals=observation['internals'],
+                actions=observation['actions'],
                 terminal=observation['terminal'],
-                internal=observation['internal']
+                reward=observation['reward']
             )

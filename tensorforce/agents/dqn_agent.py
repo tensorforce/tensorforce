@@ -85,6 +85,7 @@ class DQNAgent(MemoryAgent):
     * `batch_size`: Positive integer (**mandatory**)
     * `learning_rate`: positive float (default: 1e-3)
     * `discount`: Positive float, at most 1.0 (default: 0.99)
+    * `normalize_rewards`: Boolean (default: false)
     * `entropy_regularization`: None or positive float (default: none)
 
     #### Optimizer:
@@ -125,6 +126,7 @@ class DQNAgent(MemoryAgent):
             learning_rate=1e-3
         ),
         discount=0.99,
+        normalize_rewards=False,
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,

@@ -28,7 +28,7 @@ class Memory(object):
         self.states_spec = states_spec
         self.actions_spec = actions_spec
 
-    def add_observation(self, state, action, reward, terminal, internal):
+    def add_observation(self, states, internals, actions, terminal, reward):
         raise NotImplementedError
 
     def get_batch(self, batch_size, next_states=False):
@@ -39,7 +39,7 @@ class Memory(object):
             batch_size: The batch size
             next_states: A boolean flag indicating whether 'next_states' values should be included
 
-        Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
+        Returns: A dict containing states, internal states, actions, terminals, rewards (and next states)
 
         """
         raise NotImplementedError
@@ -47,16 +47,16 @@ class Memory(object):
     def update_batch(self, loss_per_instance):
         raise NotImplementedError
 
-    def set_memory(self, states, actions, rewards, terminals, internals):
+    def set_memory(self, states, internals, actions, terminals, rewards):
         """
         Deletes memory content and sets content to provided observations.
 
         Args:
             states:
-            actions:
-            rewards:
-            terminals:
             internals:
+            actions:
+            terminals:
+            rewards:
 
         Returns:
 

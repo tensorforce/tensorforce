@@ -23,7 +23,9 @@ https://arxiv.org/abs/1704.03732
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+
 from six.moves import xrange
+import tensorflow as tf
 
 from tensorforce.agents import MemoryAgent
 from tensorforce.core.memories import Replay
@@ -87,6 +89,11 @@ class DQFDAgent(MemoryAgent):
         demo_memory_capacity=1000000,
         demo_sampling_ratio=0.01,
     )
+    default_config = dict(
+        double_dqn=True,
+        supervised_weight=1.0,
+        expert_margin=0.8
+    )
 
     def __init__(self, config, model=None):
         config.default(DQFDAgent.default_config)
@@ -143,10 +150,10 @@ class DQFDAgent(MemoryAgent):
                 action = observation['action']
             self.demo_memory.add_observation(
                 state=state,
+                internal=observation['internals'],
                 action=action,
-                reward=observation['reward'],
                 terminal=observation['terminal'],
-                internal=observation['internal']
+                reward=observation['reward']
             )
 
     def set_demonstrations(self, batch):
@@ -162,10 +169,10 @@ class DQFDAgent(MemoryAgent):
         """
         self.demo_memory.set_memory(
             states=batch['states'],
+            internals=batch['internals'],
             actions=batch['actions'],
-            rewards=batch['rewards'],
-            terminals=batch['terminals'],
-            internals=batch['internals']
+            terminal=batch['terminal'],
+            reward=batch['reward']
         )
 
     def pretrain(self, steps):

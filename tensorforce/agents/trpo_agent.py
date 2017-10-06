@@ -39,7 +39,7 @@ class TRPOAgent(BatchAgent):
     * `entropy_regularization`: None or positive float (default: none)
     * `gae_lambda`: None or float between 0.0 and 1.0 (default: none)
     * `normalize_rewards`: Boolean (default: false)
-    * `likelihood_ratio_clipping`: None or float greater than 1.0 (default: none)
+    * `likelihood_ratio_clipping`: None or positive float (default: none)
 
     #### Baseline:
 

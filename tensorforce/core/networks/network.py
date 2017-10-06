@@ -60,21 +60,21 @@ class Network(object):
         Creates the TensorFlow operations for applying the network to the given input
 
         Args:
-            x: Network input tensor
-            internals: Prior internal state tensors
+            x: Network input tensor or dict of input tensors
+            internals: List of prior internal state tensors
             return_internals: If true, also returns posterior internal state tensors
 
         Returns:
-            Network output tensor, plus optionally posterior internal state tensors
+            Network output tensor, plus optionally list of posterior internal state tensors
         """
         raise NotImplementedError
 
-    def tf_regularization_losses(self):
+    def tf_regularization_loss(self):
         """
-        Creates the TensorFlow operations for the network regularization losses
+        Creates the TensorFlow operations for the network regularization loss
 
         Returns:
-            List of network regularization loss tensors
+            Network regularization loss tensor
         """
         return None
 
@@ -131,7 +131,7 @@ class LayerBasedNetwork(Network):
     def add_layer(self, layer):
         self.layers.append(layer)
 
-    def tf_regularization_losses(self):
+    def tf_regularization_loss(self):
         losses = list()
         for layer in self.layers:
             losses.extend(layer.regularization_losses())

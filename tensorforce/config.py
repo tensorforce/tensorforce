@@ -107,7 +107,7 @@ class Configuration(object):
         return self._config.keys()
 
     def copy(self):
-        return Configuration(**self._config)
+        return Configuration(allow_defaults=self.allow_defaults, **self._config)
 
     def as_dict(self):
         d = dict()

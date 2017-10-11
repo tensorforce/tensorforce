@@ -174,7 +174,7 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0, l1_regulariz
             tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=weights))
         if l1_regularization > 0.0:
             weight_l1_t = tf.convert_to_tensor(l1_regularization, dtype=tf.float32, name='weight_l1')
-            tf.losses.add_loss(tf.multiply(weight_l1_t, tf.reduce_sum(tf.abs(weights)), name='loss_l1_weights'))
+            tf.losses.add_loss(tf.multiply(weight_l1_t, tf.reduce_sum(tf.abs(weights))))
         else:
             weight_l1_t = None
 
@@ -189,7 +189,7 @@ def linear(x, size, weights=None, bias=True, l2_regularization=0.0, l1_regulariz
             if l2_regularization > 0.0:
                 tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
             if l1_regularization > 0.0:
-                tf.losses.add_loss(tf.multiply(weight_l1_t, tf.reduce_sum(tf.abs(bias)), name='loss_l1_bias'))
+                tf.losses.add_loss(tf.multiply(weight_l1_t, tf.reduce_sum(tf.abs(bias))))
 
             x = tf.nn.bias_add(value=x, bias=bias)
 

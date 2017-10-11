@@ -23,9 +23,7 @@
   "update_frequency": 4,
   "first_update": 50000,
   "repeat_update": 1,
-
   "target_update_frequency": 10000,
-
   "discount": 0.97,
   "learning_rate": 0.00025,
   "optimizer": {
@@ -33,10 +31,8 @@
     "momentum": 0.95,
     "epsilon": 0.01
   },
-  "tf_saver": false,
   "tf_summary": null,
   "log_level": "info",
-
   "update_target_weight": 1.0,
   "double_dqn": false,
   "clip_loss": 0.0

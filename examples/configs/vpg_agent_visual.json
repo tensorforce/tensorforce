@@ -23,7 +23,6 @@
   "discount": 0.97,
   "learning_rate": 0.01,
   "optimizer": "adam",
-  "tf_saver": false,
   "tf_summary": null,
   "log_level": "info",
 

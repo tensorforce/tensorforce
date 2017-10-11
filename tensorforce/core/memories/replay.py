@@ -71,7 +71,11 @@ class Replay(Memory):
 
         """
         if self.random_sampling:
-            indices = np.random.randint(self.size, size=batch_size)
+            rand_end = (self.size - 1) if next_states else self.size
+            indices = np.random.randint(rand_end, size=batch_size)
+            if self.index < self.size:
+                # self.index points to the head of the circular buffer
+                indices = (indices + self.index) % self.capacity
             states = {name: state.take(indices, axis=0) for name, state in self.states.items()}
             actions = {name: action.take(indices, axis=0) for name, action in self.actions.items()}
             rewards = self.rewards.take(indices)
@@ -83,7 +87,8 @@ class Replay(Memory):
                 next_internals = [internal.take(indices, axis=0) for internal in self.internals]
 
         else:
-            end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
+            rand_start = 1 if next_states else 0
+            end = (self.index - randrange(rand_start, self.size - batch_size + 1)) % self.capacity
             start = (end - batch_size) % self.capacity
 
             if start < end:

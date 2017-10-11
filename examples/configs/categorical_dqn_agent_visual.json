@@ -42,10 +42,8 @@
     "momentum": 0.95,
     "epsilon": 0.01
   },
-  "tf_saver": false,
   "tf_summary": null,
   "log_level": "debug",
-
   "update_target_weight": 1.0,
   "distribution_min": -10,
   "distribution_max": 10,

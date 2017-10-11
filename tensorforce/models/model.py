@@ -28,6 +28,7 @@ import tensorflow as tf
 
 from tensorforce import TensorForceError, util
 from tensorforce.core.optimizers import Optimizer
+from tensorforce.util import SummarySessionWrapper
 
 
 class Model(object):
@@ -267,19 +268,12 @@ class Model(object):
         fetches = [self.optimize, self.loss, self.loss_per_instance]
         feed_dict = self.update_feed_dict(batch=batch)
 
-        # check if we should write summaries
-        write_summaries = self.should_write_summaries(self.timestep)
-        if write_summaries:
-            self.last_summary_step = self.timestep
-            fetches.append(self.tf_summaries)
-
         if self.distributed:
             fetches.extend(self.increment_global_episode for terminal in batch['terminals'] if terminal)
 
-        returns = self.session.run(fetches=fetches, feed_dict=feed_dict)
+        with SummarySessionWrapper(self, fetches, feed_dict) as session:
+            returns = session.run()
         loss, loss_per_instance = returns[1:3]
-        if write_summaries:
-            self.write_summaries(returns[3])
 
         self.logger.debug('Computed update with loss = {}.'.format(loss))
 
@@ -323,8 +317,7 @@ class Model(object):
         else:
             self.saver.save(self.session, path)
 
-
-    def should_write_summaries(self, num_updates):
+    def should_write_summaries(self):
         return self.writer is not None and self.timestep > self.last_summary_step + self.summary_interval
 
     def write_summaries(self, summaries):

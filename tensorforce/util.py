@@ -171,3 +171,52 @@ def get_object(obj, predefined=None, kwargs=None):
     if kwargs is not None:
         full_kwargs.update(kwargs)
     return obj(**full_kwargs)
+
+
+class SummarySessionWrapper(object):
+    def __init__(self, model, fetches, feed_dict):
+        """
+        A wrapper around a standard session.run() call that checks to see if the model should write summaries.  If so,
+        it will write the summaries transparently.  Call the object's .run() method just like you would session.run(),
+        and it returns fetches without the summaries.
+
+        :param model: TensorForce model
+        :param fetches:  What to fetch, just as you would with tf.session.run()
+        :param feed_dict:   What to feed, just as you would with tf.session.run()
+        """
+        self._model = model
+        self._session = model.session
+        self._should_write_summaries = model.should_write_summaries()
+        self._fetches = fetches
+        if self._should_write_summaries:
+            self._fetches.append(model.tf_summaries)
+        self._feed_dict = feed_dict
+        self._returns = None
+        self._have_executed = False
+
+    def __enter__(self):
+        return self
+
+    def _raise_duplicate_key_error(self, key):
+        raise TensorForceError('Do not pass {} kwarg into run() for {}.  It is passed in constructor.'.format(
+            self.__class__.__name__, key))
+
+    def run(self, **kwargs):
+        # check to make sure we don't accidentally pass in an altered fetches or feed dict
+        for k in ('fetches', 'feed_dict'):
+            if k in kwargs:
+                self._raise_duplicate_key_error(k)
+        self._returns = self._session.run(fetches=self._fetches, feed_dict=self._feed_dict, **kwargs)
+        self._have_executed = True
+        if self._should_write_summaries:
+            # don't return the tf summaries we appended in __init__
+            return self._returns[:-1]
+        else:
+            return self._returns
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self._have_executed:
+            raise TensorForceError('{} exiting without run() being called.'.format(self.__class__.__name__))
+        if self._should_write_summaries:
+            self._model.write_summaries(self._returns[-1])
+            self._model.last_summary_step = self._model.timestep

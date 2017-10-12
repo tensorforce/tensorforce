@@ -59,8 +59,8 @@ class OpenAIUniverse(Environment):
         return state[0]
 
     def execute(self, action):
-        state, reward, terminal = self._execute(action)
-        return self._wait_state(state, reward, terminal)
+        state, terminal, reward = self._execute(action)
+        return self._wait_state(state, terminal, reward)
 
     def _execute(self, action):
         pass_actions = []
@@ -78,7 +78,7 @@ class OpenAIUniverse(Environment):
         if isinstance(state[0], dict):
             state[0].pop('text', None) # We can't handle string states right now, so omit the text state for now
 
-        return state[0], reward[0], terminal[0]
+        return state[0], terminal[0], reward[0]
 
     def _int_to_pos(self, flat_position):
         """return x, y from flat_position integer
@@ -107,9 +107,9 @@ class OpenAIUniverse(Environment):
         """Wait until there is a state
         """
         while state == [None] or not state:
-             state, reward, terminal = self._execute(dict(key=0))
+             state, terminal, reward = self._execute(dict(key=0))
 
-        return state, reward, terminal
+        return state, terminal, reward
 
     def configure(self, *args, **kwargs):
         self.env.configure(*args, **kwargs)

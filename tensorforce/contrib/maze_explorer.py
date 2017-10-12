@@ -52,7 +52,7 @@ class MazeExplorer(Environment):
 
     def execute(self, action):
         state, reward, terminal, _ = self.engine.act(action)
-        return state, reward, terminal
+        return state, terminal, reward
 
     @property
     def states(self):

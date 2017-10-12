@@ -48,7 +48,7 @@ class Environment(object):
         Args:
             action: Action to execute.
 
-        Returns: tuple of state (tuple), reward (float), and terminal_state (bool).
+        Returns: tuple of state (tuple), terminal_state (bool), and reward (float).
         """
         raise NotImplementedError
 

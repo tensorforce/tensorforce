@@ -103,7 +103,7 @@ class ALE(Environment):
 
         terminal = self.is_terminal
         state_tp1 = self.current_state
-        return state_tp1, rew, terminal
+        return state_tp1, terminal, rew
 
     @property
     def states(self):

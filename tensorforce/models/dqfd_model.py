@@ -23,70 +23,94 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import util, TensorForceError
 from tensorforce.models import DQNModel
 
 
 class DQFDModel(DQNModel):
 
-    default_config = dict(
-        double_dqn=True,
-        supervised_weight=1.0,
-        expert_margin=0.8
-    )
+    def __init__(self, states_spec, actions_spec, network_spec, config):
+        if any(action['type'] not in ('bool', 'int') for action in actions_spec.values()):
+            raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")
 
-    def __init__(self, config, states_config, actions_config):
-        config.default(DQFDModel.default_config)
-        super(DQFDModel, self).__init__(config, states_config, actions_config)
+            config.expert_margin
+            config.supervised_weight
 
-    def create_tf_operations(self, config):
-        """Create training graph. For DQFD, we build the double-dqn training graph and
-        modify the double_q_loss function according to eq. 5
+        super(DQFDModel, self).__init__(states_spec, actions_spec, network_spec, config)
 
-        Args:
-            config: Config dict.
+    def initialize(self, custom_getter):
+        super(DQFDModel, self).initialize(custom_getter=custom_getter)
 
-        Returns:
+        # Demonstration loss
+        self.fn_demo_loss = tf.make_template(
+            name_='demo-loss',
+            func_=self.tf_demo_loss,
+            create_scope_now_=True,
+            custom_getter_=custom_getter
+        )
 
-        """
-        super(DQFDModel, self).create_tf_operations(config)
+        # Demonstration optimization
+        self.fn_demo_optimization = tf.make_template(
+            name_='demo-optimization',
+            func_=self.tf_demo_optimization,
+            create_scope_now_=True,
+            custom_getter_=custom_getter
+        )
 
-        with tf.name_scope('supervised-update'):
-            deltas = list()
-            for name, action in self.action.items():
-                # Create the supervised margin loss
-                # Zero for the action taken, one for all other actions, now multiply by expert margin
-                one_hot = tf.one_hot(indices=action, depth=self.actions_config[name]['num_actions'])
-                ones = tf.ones_like(tensor=one_hot, dtype=tf.float32)
-                inverted_one_hot = ones - one_hot
+    def create_output_operations(self, states, internals, actions, terminal, reward):
+        super(DQFDModel, self).create_output_operations()
 
-                # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
-                expert_margin = self.training_output[name] + inverted_one_hot * config.expert_margin
+        self.demo_optimization = self.fn_optimization(states=states, internals=internals, actions=actions, reward=reward, terminal=terminal)
 
-                # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
-                supervised_selector = tf.reduce_max(input_tensor=expert_margin, axis=-1)
-                delta = supervised_selector - self.q_values[name]
-                delta = tf.reshape(tensor=delta, shape=(-1, util.prod(self.actions_config[name]['shape'])))
-                deltas.append(delta)
+    def tf_demo_loss(self, states, actions, terminal, reward, internals):
+        embedding = self.network.apply(x=states, internals=internals)
+        deltas = list()
 
-            delta = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
-            supervised_loss_per_instance = tf.square(delta)
-            supervised_loss = tf.reduce_mean(input_tensor=supervised_loss_per_instance)
+        for name, distribution in self.distributions.items():
+            distr_params = distribution.parameters(x=embedding)
+            state_action_values = distribution.state_action_values(distr_params=distr_params)
 
-            # Combining double q loss with supervised loss
-            dqfd_loss = self.q_loss + supervised_loss * config.supervised_weight
-            self.dqfd_optimize = self.optimizer.minimize(dqfd_loss)
+            # Create the supervised margin loss
+            # Zero for the action taken, one for all other actions, now multiply by expert margin
+            if self.actions_spec[name]['type'] == 'bool':
+                num_actions = 2
+            else:
+                num_actions = self.actions_spec[name]['num_actions']
+            one_hot = tf.one_hot(indices=actions[name], depth=num_actions)
+            ones = tf.ones_like(tensor=one_hot, dtype=tf.float32)
+            inverted_one_hot = ones - one_hot
+
+            # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
+            expert_margin = self.training_output[name] + inverted_one_hot * self.expert_margin
+
+            # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
+            supervised_selector = tf.reduce_max(input_tensor=expert_margin, axis=-1)
+            delta = supervised_selector - state_action_values
+            delta = tf.reshape(tensor=delta, shape=(-1, util.prod(self.actions_config[name]['shape'])))
+            deltas.append(delta)
+
+        loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
+        loss_per_instance = tf.square(x=loss_per_instance)
+        return tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
+
+    def tf_demo_optimization(self, states, internals, actions, terminal, reward):
+
+        def fn_loss():
+            # Combining q loss with demonstration loss
+            q_model_loss = self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+            demo_loss = self.fn_demo_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+            return q_model_loss + self.demonstration_weight * demo_loss
+
+        demo_optimization = self.optimizer.minimize(time=self.time, variables=self.get_variables(), fn_loss=fn_loss)
+
+        target_optimization = self.target_optimizer.minimize(time=self.time, variables=self.target_network.get_variables(), source_variables=self.network.get_variables())
+
+        return tf.group(demo_optimization, target_optimization)
 
     def demonstration_update(self, batch):
-        """Computes the demonstration update.
-
-        Args:
-            batch: A batch of demo data.
-
-        Returns:
-
-        """
-        self.possible_update_target()
-        fetches = self.dqfd_optimize
+        fetches = self.demo_optimization
         feed_dict = self.update_feed_dict(batch=batch)
+
+        # TODO: summaries? distributed?
+
         self.session.run(fetches=fetches, feed_dict=feed_dict)

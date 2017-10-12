@@ -25,7 +25,7 @@ Moreover, the following TensorFlow functions should be extended accordingly:
 * `initialize(custom_getter)` defining TensorFlow placeholders/functions and adding internal states.
 * `get_variables()` returning the list of TensorFlow variables (to be optimized) of this model.
 * `tf_regularization_losses(states, internals)` returning a dict of regularization losses.
-* `get_optimizer_kwargs(states, internals, actions, terminal, reward)` returning a dict of potential  arguments (argument-less functions) to the optimizer.
+* `get_optimizer_kwargs(states, internals, actions, terminal, reward)` returning a dict of potential  arguments (argument-free functions) to the optimizer.
 
 Finally, the following TensorFlow functions can be useful in some cases:
 
@@ -402,7 +402,7 @@ class Model(object):
 
     def get_optimizer_kwargs(self, states, internals, actions, terminal, reward):
         """
-        Returns the optimizer arguments including the time, the list of variables to optimize, and various argument-less functions (in particular `fn_loss` returning the combined 0-dim batch loss tensor) which the optimizer might require to perform an update step.
+        Returns the optimizer arguments including the time, the list of variables to optimize, and various argument-free functions (in particular `fn_loss` returning the combined 0-dim batch loss tensor) which the optimizer might require to perform an update step.
 
         Args:
             states: Dict of state tensors.

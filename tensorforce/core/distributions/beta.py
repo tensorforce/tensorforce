@@ -53,7 +53,7 @@ class Beta(Distribution):
 
     def tf_parameters(self, x):
         # Softplus to ensure alpha and beta >= 1
-        log_eps = log(util.epsilon)
+        log_eps = log(util.epsilon)  # epsilon < 1.0, hence negative
 
         alpha = self.alpha.apply(x=x)
         alpha = tf.clip_by_value(t=alpha, clip_value_min=log_eps, clip_value_max=-log_eps)

@@ -28,6 +28,9 @@ class BaseTest(object):
     agent = None
     deterministic = None
 
+    def pre_run(self, agent, environment):
+        pass
+
     def base_test(self, name, environment, network_spec, config):
         self.__class__.agent(
             states_spec=environment.states,
@@ -49,6 +52,8 @@ class BaseTest(object):
                 config=config
             )
             runner = Runner(agent=agent, environment=environment)
+
+            self.pre_run(agent=agent, environment=environment)
 
             def episode_finished(r):
                 return r.episode < 100 or not all(rw / ln >= 0.8 for rw, ln in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))

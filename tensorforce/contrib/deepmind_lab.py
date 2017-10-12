@@ -103,7 +103,7 @@ class DeepMindLab(Environment):
         reward = self.level.step(action=action, num_steps=self.repeat_action)
         state = self.level.observations()['RGB_INTERLACED']
         terminal = not self.level.is_running()
-        return state, reward, terminal
+        return state, terminal, reward
 
     @property
     def states(self):

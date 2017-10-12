@@ -73,10 +73,10 @@ class MinimalTest(Environment):
 
         terminal = random() < 0.25
         if self.single_state_action:
-            return self.state[0], reward, terminal
+            return self.state[0], terminal, reward
         else:
             reward = reward / len(self.specification)
-            return {'state{}'.format(n): state for n, state in enumerate(self.state)}, reward, terminal
+            return {'state{}'.format(n): state for n, state in enumerate(self.state)}, terminal, reward
 
     @property
     def states(self):

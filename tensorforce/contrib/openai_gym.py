@@ -61,7 +61,7 @@ class OpenAIGym(Environment):
 
     def execute(self, action):
         state, reward, terminal, _ = self.gym.step(action)
-        return state, reward, terminal
+        return state, terminal, reward
 
     @property
     def states(self):

@@ -96,10 +96,13 @@ class DistributionalModel(Model):
             actions[name] = max_action
         return actions, internals
 
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
+        return tf.zeros_like(input=reward)
+
     def tf_regularization_losses(self, states, internals):
         losses = super(DistributionalModel, self).tf_regularization_losses(states=states, internals=internals)
 
-        network_loss = self.network.regularization_losses()
+        network_loss = self.network.regularization_loss()
         if network_loss is not None:
             losses['network'] = network_loss
 
@@ -119,18 +122,18 @@ class DistributionalModel(Model):
 
         return losses
 
-    def tf_kl_divergence(self, states, internals):
-        embedding = self.network.apply(x=states, internals=internals)
-        kl_divergences = list()
-        for name, distribution in self.distributions.items():
-            distr_params = distribution.parameters(x=embedding)
-            fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
-            kl_divergence = distribution.kl_divergence(distr_params1=fixed_distr_params, distr_params2=distr_params)
-            collapsed_size = util.prod(util.shape(kl_divergence)[1:])
-            kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
-            kl_divergences.append(kl_divergence)
-        kl_divergence_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
-        return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
+    # def tf_kl_divergence(self, states, internals):
+    #     embedding = self.network.apply(x=states, internals=internals)
+    #     kl_divergences = list()
+    #     for name, distribution in self.distributions.items():
+    #         distr_params = distribution.parameters(x=embedding)
+    #         fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
+    #         kl_divergence = distribution.kl_divergence(distr_params1=fixed_distr_params, distr_params2=distr_params)
+    #         collapsed_size = util.prod(util.shape(kl_divergence)[1:])
+    #         kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
+    #         kl_divergences.append(kl_divergence)
+    #     kl_divergence_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
+    #     return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
 
     # def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
     #     kwargs = super(DistributionalModel, self).get_optimizer_kwargs(states, actions, terminal, reward, internals)

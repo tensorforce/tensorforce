@@ -51,7 +51,7 @@ class Gaussian(Distribution):
         log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
 
         # Clip log stddev for numerical stability
-        log_eps = log(util.epsilon)
+        log_eps = log(util.epsilon)  # epsilon < 1.0, hence negative
         log_stddev = tf.clip_by_value(t=log_stddev, clip_value_min=log_eps, clip_value_max=-log_eps)
 
         # Standard deviation

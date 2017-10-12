@@ -215,8 +215,11 @@ class SummarySessionWrapper(object):
             return self._returns
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if not self._have_executed:
-            raise TensorForceError('{} exiting without run() being called.'.format(self.__class__.__name__))
-        if self._should_write_summaries:
-            self._model.write_summaries(self._returns[-1])
-            self._model.last_summary_step = self._model.timestep
+        if exc_tb is None:
+            if not self._have_executed:
+                raise TensorForceError('{} exiting without run() being called.'.format(self.__class__.__name__))
+            if self._should_write_summaries:
+                self._model.write_summaries(self._returns[-1])
+                self._model.last_summary_step = self._model.timestep
+        else:
+            return 0

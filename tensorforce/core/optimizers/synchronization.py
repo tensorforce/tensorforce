@@ -38,7 +38,12 @@ class Synchronization(Optimizer):
         self.update_weight = update_weight
 
     def tf_step(self, time, variables, source_variables, **kwargs):
-        last_update = tf.get_variable(name='last-update', dtype=tf.int32, initializer=(-self.update_frequency), trainable=False)
+        last_update = tf.get_variable(
+            name='last-update',
+            dtype=tf.int32,
+            initializer=(-self.update_frequency),
+            trainable=False
+        )
 
         def true_fn():
             diffs = list()

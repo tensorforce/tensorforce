@@ -90,7 +90,12 @@ class PPOModel(PGModel):
                 entropy_penalties.append(entropy_penalty)
 
                 self.distribution_tensors[name] = list(distribution.get_tensors())
-                prev_distribution = list(tf.placeholder(dtype=tf.float32, shape=util.shape(tensor, unknown=None)) for tensor in distribution.get_tensors())
+                prev_distribution = list(
+                    tf.placeholder(
+                        dtype=tf.float32,
+                        shape=util.shape(tensor, unknown=None)
+                    ) for tensor in distribution.get_tensors()
+                )
                 self.prev_distribution_tensors[name] = prev_distribution
                 prev_distribution = distribution.from_tensors(tensors=prev_distribution, deterministic=self.deterministic)
 
@@ -174,9 +179,16 @@ class PPOModel(PGModel):
 
             elif i == self.updates - 1:  # Last update, fetch return and diagnostics values
                 fetches = (self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy)
+
+                #TODO not very nice to read
                 prev_distribution_tensors = {placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items() for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])}
+
                 feed_dict.update(prev_distribution_tensors)
-                loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:]
+
+                loss, loss_per_instance, kl_divergence, entropy = self.session.run(
+                    fetches=fetches,
+                    feed_dict=feed_dict
+                )[1:]
 
             else:  # Otherwise just optimize
                 self.session.run(fetches=self.optimize, feed_dict=feed_dict)

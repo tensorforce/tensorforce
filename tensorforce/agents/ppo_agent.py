@@ -23,7 +23,8 @@ from tensorforce.models import PGLRModel
 
 class PPOAgent(BatchAgent):
     """
-    Proximal Policy Optimization agent ([Schulman et al., 2017] (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
+    Proximal Policy Optimization agent ([Schulman et al., 2017]
+    (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
 
     ### Configuration options
 

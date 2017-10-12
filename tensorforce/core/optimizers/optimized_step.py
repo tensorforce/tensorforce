@@ -29,7 +29,12 @@ class OptimizedStep(MetaOptimizer):
     def __init__(self, optimizer, max_iterations=10, accept_ratio=0.1, ls_mode='exponential', ls_parameter=0.5):
         super(OptimizedStep, self).__init__(optimizer=optimizer)
 
-        self.solver = LineSearch(max_iterations=max_iterations, accept_ratio=accept_ratio, mode=ls_mode, parameter=ls_parameter)
+        self.solver = LineSearch(
+            max_iterations=max_iterations,
+            accept_ratio=accept_ratio,
+            mode=ls_mode,
+            parameter=ls_parameter
+        )
 
     def tf_step(self, time, variables, fn_loss, fn_reference=None, fn_compare=None, **kwargs):
         if (fn_reference is None) != (fn_compare is None):

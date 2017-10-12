@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from tensorforce.models.dqfd_model import DQFDModel
 from tensorforce.models.model import Model
 from tensorforce.models.distribution_model import DistributionModel
 
@@ -22,6 +21,7 @@ from tensorforce.models.pg_lr_model import PGLRModel
 from tensorforce.models.ppo_model import PPOModel
 
 from tensorforce.models.q_model import QModel
+from tensorforce.models.dqfd_model import DQFDModel
 from tensorforce.models.q_nstep_model import QNstepModel
 
 

@@ -56,7 +56,8 @@ class Evolutionary(Optimizer):
                 if previous_perturbations is None:
                     applied = self.apply_step(variables=variables, diffs=perturbations)
                 else:
-                    perturbation_diffs = [pert - prev_pert for pert, prev_pert in zip(perturbations, previous_perturbations)]
+                    perturbation_diffs = [pert - prev_pert for pert, prev_pert
+                                          in zip(perturbations, previous_perturbations)]
                     applied = self.apply_step(variables=variables, diffs=perturbation_diffs)
                 previous_perturbations = perturbations
 
@@ -69,7 +70,8 @@ class Evolutionary(Optimizer):
                 diffs_list.append(diffs)
 
         with tf.control_dependencies(control_inputs=diffs):
-            diffs = [tf.add_n(inputs=[diffs[n] for diffs in diffs_list]) / self.samples for n in range(len(diffs_list[0]))]
+            diffs = [tf.add_n(inputs=[diffs[n] for diffs in diffs_list]) /
+                     self.samples for n in range(len(diffs_list[0]))]
             perturbation_diffs = [diff - pert for diff, pert in zip(diffs, previous_perturbations)]
             applied = self.apply_step(variables=variables, diffs=perturbation_diffs)
 

@@ -55,13 +55,31 @@ class Optimizer(tf.train.Optimizer):
         return optimizer
 
     # modified minimize
-    def apply_step(self, variables, diffs, global_step=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, name=None, grad_loss=None):
-        diffs_and_vars = self.compute_diffs(diffs, var_list=variables, gate_gradients=gate_gradients, aggregation_method=aggregation_method,
-                                            colocate_gradients_with_ops=colocate_gradients_with_ops, grad_loss=grad_loss)
+    def apply_step(self,
+                   variables,
+                   diffs,
+                   global_step=None,
+                   gate_gradients=None,
+                   aggregation_method=None,
+                   colocate_gradients_with_ops=False,
+                   name=None,
+                   grad_loss=None):
+
+        diffs_and_vars = self.compute_diffs(
+            diffs=diffs,
+            var_list=variables,
+            gate_gradients=gate_gradients,
+            aggregation_method=aggregation_method,
+            colocate_gradients_with_ops=colocate_gradients_with_ops,
+            grad_loss=grad_loss
+        )
+
         vars_with_diff = [v for g, v in diffs_and_vars if g is not None]
         if not vars_with_diff:
-            raise TensorForceError("No gradients provided for any variable, check your graph for ops that do not support"
-                                   " gradients, between variables {} and loss {}.".format([str(v) for _, v in diffs_and_vars], diffs))
+            raise TensorForceError("No gradients provided for any variable, check your graph for ops that do "
+                                   "not support gradients, between variables {} and loss {}".
+                                   format([str(v) for _, v in diffs_and_vars], diffs))
+
         return super(Optimizer, self).apply_gradients(diffs_and_vars, global_step=global_step, name=name)
 
     def compute_gradients(self, *args, **kwargs):
@@ -71,7 +89,13 @@ class Optimizer(tf.train.Optimizer):
         raise NotImplementedError
 
     # Modified compute_gradients
-    def compute_diffs(self, diffs, var_list=None, gate_gradients=None, aggregation_method=None, colocate_gradients_with_ops=False, grad_loss=None):
+    def compute_diffs(self,
+                      diffs,
+                      var_list=None,
+                      gate_gradients=None,
+                      aggregation_method=None,
+                      colocate_gradients_with_ops=False,
+                      grad_loss=None):
         if aggregation_method is not None or colocate_gradients_with_ops or grad_loss is not None:
             raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments"
                                    " are not supported.")
@@ -115,4 +139,6 @@ class Optimizer(tf.train.Optimizer):
         return tf.train.GradientDescentOptimizer._resource_apply_dense(self=self, grad=grad, handle=handle)
 
     def _resource_apply_sparse_duplicate_indices(self, grad, handle, indices):
-        return tf.train.GradientDescentOptimizer._resource_apply_sparse_duplicate_indices(self=self, grad=grad, handle=handle)
+        return tf.train.GradientDescentOptimizer._resource_apply_sparse_duplicate_indices(self=self,
+                                                                                          grad=grad,
+                                                                                          handle=handle)

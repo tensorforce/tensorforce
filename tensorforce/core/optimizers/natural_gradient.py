@@ -74,7 +74,8 @@ class NaturalGradient(Optimizer):
             # [delta*lambda] / lambda
             estimated_diffs = [diff / lagrange_multiplier for diff in diffs]
             # deriv(loss)^T * sum(delta)
-            estimated_improvement = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(grad * diff)) for grad, diff in zip(loss_gradient, estimated_diffs)])
+            estimated_improvement = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(grad * diff))
+                                                     for grad, diff in zip(loss_gradient, estimated_diffs)])
 
             applied = self.apply_step(variables=variables, diffs=estimated_diffs)
 

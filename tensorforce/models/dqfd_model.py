@@ -15,7 +15,6 @@
 """
 Model for deep-q learning from demonstration. Principal structure similar to double deep-q-networks
 but uses additional loss terms for demo data.
-
 """
 from __future__ import absolute_import
 from __future__ import division

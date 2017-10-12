@@ -15,7 +15,7 @@
 
 """
 Categorical Deep Q network. Implements training and update logic as described
-in the paper A Distributional Perspective on Reinforcement Learning. https://arxiv.org/abs/1707.06887
+in the paper A Distributional Perspective on Reinforcement Learning. https://arxiv.org/abs/1707.06887.
 """
 
 from __future__ import absolute_import
@@ -76,7 +76,7 @@ class CategoricalDQNModel(Model):
 
         num_actions = {name: action['num_actions'] for name, action in self.actions_config.items()}
 
-        # creating networks
+        # Creating networks
         network_builder = util.get_function(fct=config.network)
 
         # Training network
@@ -89,14 +89,14 @@ class CategoricalDQNModel(Model):
             training_output_logits, training_output_probabilities, training_qval, action_taken = self._create_action_outputs(
                 self.training_network.output, quantized_steps, self.num_atoms, self.actions_config, self.action, num_actions
             )
-            # stack to preserve action_taken shape like (batch_size, num_actions)
+            # Stack to preserve action_taken shape like (batch_size, num_actions)
             for action in self.action:
                 if len(action_taken[action]) > 1:
                     self.action_taken[action] = tf.stack(action_taken[action], axis=1)
                 else:
                     self.action_taken[action] = action_taken[action][0]
 
-                # summarize expected reward histogram
+                # Summarize expected reward histogram
                 if config.tf_summary_level >= 1:
                     for action_shaped in range(len(action_taken[action])):
                         for action_ind in range(num_actions[action]):

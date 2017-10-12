@@ -14,9 +14,8 @@
 # ==============================================================================
 
 """
-Creates various neural network layers. For most layers, these functions use
-TF-slim layer types. The purpose of this class is to encapsulate
-layer types to mix between layers available in TF-slim and custom implementations.
+Collection of custom layer implementations. We prefer not to use contrib-layers to retain
+full control over shapes and internal states.
 """
 
 from __future__ import absolute_import
@@ -34,7 +33,7 @@ import tensorforce.core.networks
 
 class Layer(object):
     """
-    Base class for network layers
+    Base class for network layers.
     """
 
     def __init__(self, num_internals=0, scope='layer', summary_level=0):
@@ -93,16 +92,16 @@ class Layer(object):
 
     def internal_inputs(self):
         """
-        Returns the TensorFlow placeholders for internal state inputs
+        Returns the TensorFlow placeholders for internal state inputs.
 
         Returns:
-            List of internal state input placeholders
+            List of internal state input placeholders.
         """
         return list()
 
     def internal_inits(self):
         """
-        Returns the TensorFlow tensors for internal state initializations
+        Returns the TensorFlow tensors for internal state initializations.
 
         Returns:
             List of internal state initialization tensors
@@ -124,9 +123,7 @@ class Layer(object):
 
 
 class Flatten(Layer):
-    """
-    Flatten layer
-    """
+    """Flatten layer. Utility class to reshape inputs."""
 
     def __init__(self, scope='flatten', summary_level=0):
         super(Flatten, self).__init__(scope=scope, summary_level=summary_level)
@@ -136,16 +133,14 @@ class Flatten(Layer):
 
 
 class Nonlinearity(Layer):
-    """
-    Nonlinearity layer
-    """
+    """Non-linearity layer. Applies a non-linear transformation."""
 
     def __init__(self, name='relu', scope='nonlinearity', summary_level=0):
         """
-        Nonlinearity layer
+        Non-linearity layer.
 
         Args:
-            name: Nonlinearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', or 'tanh'
+            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', or 'tanh'/
         """
         self.name = name
         super(Nonlinearity, self).__init__(scope=scope, summary_level=summary_level)
@@ -178,13 +173,11 @@ class Nonlinearity(Layer):
 
 
 class Linear(Layer):
-    """
-    Linear fully connected layer
-    """
+    """Linear fully connected layer."""
 
     def __init__(self, size, weights=None, bias=True, l2_regularization=0.0, scope='linear', summary_level=0):
         """
-        Linear layer
+        Linear layer.
 
         Args:
             size: Layer size
@@ -299,12 +292,12 @@ class Linear(Layer):
 
 class Dense(Layer):
     """
-    Dense layer, i.e. linear fully connected layer with subsequent nonlinearity
+    Dense layer, i.e. linear fully connected layer with subsequent non-linearity.
     """
 
     def __init__(self, size, bias=True, activation='tanh', l2_regularization=0.0, scope='dense', summary_level=0):
         """
-        Dense layer
+        Dense layer.
 
         Args:
             size: Layer size
@@ -334,13 +327,11 @@ class Dense(Layer):
 
 
 class Conv2d(Layer):
-    """
-    A 2-dimensional convolutional layer.
-    """
+    """A 2-dimensional convolutional layer."""
 
     def __init__(self, size, window=3, stride=1, padding='SAME', bias=False, activation='relu', l2_regularization=0.0, scope='conv2d', summary_level=0):
         """
-        Convolutional layer
+        Convolutional layer.
 
         Args:
             size: Number of filters
@@ -351,6 +342,7 @@ class Conv2d(Layer):
             activation: Type of nonlinearity
             l2_regularization: L2 regularization weight
         """
+        self.size = size
         self.window = window
         self.stride = stride
         self.padding = padding
@@ -389,13 +381,11 @@ class Conv2d(Layer):
 
 
 class Lstm(Layer):
-    """
-    LSTM layer
-    """
+    """Long-term-short-term memory layer."""
 
     def __init__(self, size, dropout=None, scope='lstm', summary_level=0):
         """
-        LSTM layer
+        LSTM layer.
 
         Args:
             size: LSTM size

@@ -25,9 +25,7 @@ from tensorforce.core.optimizers import Optimizer
 
 
 class Evolutionary(Optimizer):
-    """
-    Evolutionary optimizer
-    """
+    """Evolutionary optimizer."""
 
     def __init__(self, learning_rate, samples=1):
         super(Evolutionary, self).__init__()

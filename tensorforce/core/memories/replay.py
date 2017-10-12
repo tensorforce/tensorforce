@@ -125,6 +125,20 @@ class Replay(Memory):
         pass
 
     def set_memory(self, states, internals, actions, terminal, reward):
+        """
+        Convenience function to set whole batches as memory content to bypass
+        calling the insert function for every single experience.
+
+        Args:
+            states:
+            internals:
+            actions:
+            terminal:
+            reward:
+
+        Returns:
+
+        """
         self.size = len(terminal)
 
         if len(terminal) == self.capacity:
@@ -138,7 +152,7 @@ class Replay(Memory):
             self.reward = np.asarray(reward)
 
         else:
-            # Otherwise partial assignment
+            # Otherwise partial assignment.
             if self.internals is None and internals is not None:
                 self.internals = [np.zeros((self.capacity,) + internal.shape, internal.dtype) for internal
                                   in internals]

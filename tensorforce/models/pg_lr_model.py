@@ -24,8 +24,9 @@ from tensorforce.models import PGModel
 
 
 class PGLRModel(PGModel):
+    #TODO more justification of this class here and why this object is necessary.
     """
-    Policy gradient model based on likelihood ratios (for instance, TRPO and PPO)
+        Policy gradient model based on likelihood ratios, e.g. TRPO and PPO.
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
@@ -70,7 +71,8 @@ class PGLRModel(PGModel):
         if self.likelihood_ratio_clipping is None:
             return -prob_ratio * reward
         else:
-            clipped_prob_ratio = tf.clip_by_value(t=prob_ratio, clip_value_min=(1.0 / self.likelihood_ratio_clipping), clip_value_max=self.likelihood_ratio_clipping)
+            clipped_prob_ratio = tf.clip_by_value(t=prob_ratio, clip_value_min=(1.0 / self.likelihood_ratio_clipping),
+                                                  clip_value_max=self.likelihood_ratio_clipping)
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
     def tf_reference(self, states, internals, actions):

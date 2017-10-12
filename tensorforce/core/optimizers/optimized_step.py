@@ -61,4 +61,5 @@ class OptimizedStep(MetaOptimizer):
                     else:
                         return fn_compare(reference=reference)
 
-            return self.solver.solve(fn_x=evaluate_step, x_init=diffs, base_value=loss_before, target_value=loss_step)  # estimated_improvement=estimated_improvement)
+            return self.solver.solve(fn_x=evaluate_step, x_init=diffs, base_value=loss_before, target_value=loss_step)
+            # estimated_improvement=estimated_improvement)

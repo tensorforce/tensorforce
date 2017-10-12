@@ -474,7 +474,6 @@ class Model(object):
 
     def update(self, batch, return_loss_per_instance=False):
         """Generic batch update operation for Q-learning and policy gradient algorithms.
-         Takes a batch of experiences,
 
         Args:
             batch: Batch of experiences.
@@ -488,7 +487,7 @@ class Model(object):
 
         feed_dict = self.update_feed_dict(batch=batch)
 
-        # check if we should write summaries
+        # Check if we should write summaries
         write_summaries = self.should_write_summaries(self.timestep)
         if write_summaries:
             self.last_summary_step = self.timestep

@@ -20,9 +20,7 @@ from __future__ import division
 
 
 class Environment(object):
-    """
-    Base environment class.
-    """
+    """Base environment class."""
 
     def __str__(self):
         raise NotImplementedError

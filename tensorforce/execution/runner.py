@@ -32,7 +32,7 @@ from tensorforce import TensorForceError
 
 class Runner(object):
 
-    # These agents can be used in an A3C fashion
+    # These agents can be used in an A3C fashion.
     async_supported = ('VPGAgent', 'PPOAgent')  # And potentially TRPOAgent, needs to be checked...
 
     def __init__(self, agent, environment, repeat_actions=1, cluster_spec=None, task_index=None, save_path=None, save_episodes=None):
@@ -87,7 +87,7 @@ class Runner(object):
                 server.join()
                 return
 
-            # Worker creates runner for execution
+            # Worker creates runner for execution.
             server = tf.train.Server(
                 server_or_cluster_def=cluster_def,
                 job_name='worker',
@@ -118,7 +118,7 @@ class Runner(object):
             self.agent.model.set_session(session)
             # session.run(self.agent.model.update_local)
 
-        # save episode reward and length for statistics
+        # Keep track of episode reward and episode length for statistics.
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_times = []

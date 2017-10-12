@@ -25,7 +25,7 @@ from tensorforce.models import QModel
 
 class QNstepModel(QModel):
     """
-    Deep Q network using Nstep rewards as desribed in Asynchronous Methods for Reinforcement Learning
+    Deep Q network using Nstep rewards as decsribed in Asynchronous Methods for Reinforcement Learning.
     """
 
     # def get_reward(self, states, terminal, reward, internals):

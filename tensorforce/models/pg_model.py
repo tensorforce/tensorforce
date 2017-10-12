@@ -135,7 +135,9 @@ class PGModel(DistributionModel):
             fn_loss = (lambda: self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward))
 
         # TODO: time as argument?
-        baseline_optimization = self.baseline_optimizer.minimize(time=self.time, variables=self.baseline.get_variables(), fn_loss=fn_loss, source_variables=self.network.get_variables())
+        baseline_optimization = self.baseline_optimizer.minimize(
+            time=self.time,
+            variables=self.baseline.get_variables(), fn_loss=fn_loss, source_variables=self.network.get_variables())
 
         return tf.group(optimization, baseline_optimization)
 

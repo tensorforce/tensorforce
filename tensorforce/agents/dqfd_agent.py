@@ -25,7 +25,6 @@ from __future__ import print_function
 from __future__ import division
 
 from six.moves import xrange
-import tensorflow as tf
 
 from tensorforce.agents import MemoryAgent
 from tensorforce.core.memories import Replay
@@ -85,11 +84,6 @@ class DQFDAgent(MemoryAgent):
     model = DQFDModel
 
     default_config = dict(
-        target_update_frequency=10000,
-        demo_memory_capacity=1000000,
-        demo_sampling_ratio=0.01,
-    )
-    default_config = dict(
         double_dqn=True,
         supervised_weight=1.0,
         expert_margin=0.8
@@ -99,15 +93,20 @@ class DQFDAgent(MemoryAgent):
         config.default(DQFDAgent.default_config)
         self.target_update_frequency = config.target_update_frequency
         self.demo_memory_capacity = config.demo_memory_capacity
+
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
         self.demo_batch_size = int(config.demo_sampling_ratio * config.batch_size / (1.0 - config.demo_sampling_ratio))
-        assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to make sure demo_batch_size is positive. (Calculated {} based on current parameters)'.format(self.demo_batch_size)
+
+        assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to ensure ' \
+                                         'demo_batch_size is positive. (Calculated {} based on current' \
+                                         ' parameters)'.format(self.demo_batch_size)
+
         super(DQFDAgent, self).__init__(config, model)
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
-        self.demo_memory = Replay(self.demo_memory_capacity, self.states_config, self.actions_config)
+        self.demo_memory = Replay(self.demo_memory_capacity, self.states_spec, self.actions_spec)
 
     def observe(self, reward, terminal):
         """Adds observations, updates via sampling from memories according to update rate.
@@ -149,9 +148,9 @@ class DQFDAgent(MemoryAgent):
             else:
                 action = observation['action']
             self.demo_memory.add_observation(
-                state=state,
-                internal=observation['internals'],
-                action=action,
+                states=state,
+                internals=observation['internals'],
+                actions=action,
                 terminal=observation['terminal'],
                 reward=observation['reward']
             )

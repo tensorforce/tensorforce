@@ -21,19 +21,18 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
 from tensorforce import util, TensorForceError
-from tensorforce.models import DQNModel
+from tensorforce.models import QModel
 
 
-class DQFDModel(DQNModel):
+class DQFDModel(QModel):
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         if any(action['type'] not in ('bool', 'int') for action in actions_spec.values()):
             raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")
 
-            config.expert_margin
-            config.supervised_weight
+        self.expert_margin = config.expert_margin
+        self.supervised_weight = config.supervised_weight
 
         super(DQFDModel, self).__init__(states_spec, actions_spec, network_spec, config)
 
@@ -56,10 +55,23 @@ class DQFDModel(DQNModel):
             custom_getter_=custom_getter
         )
 
-    def create_output_operations(self, states, internals, actions, terminal, reward):
-        super(DQFDModel, self).create_output_operations()
+    def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
+        super(DQFDModel, self).create_output_operations(
+            states=states,
+            internals=internals,
+            actions=actions,
+            reward=reward,
+            terminal=terminal,
+            deterministic=deterministic
+        )
 
-        self.demo_optimization = self.fn_optimization(states=states, internals=internals, actions=actions, reward=reward, terminal=terminal)
+        self.demo_optimization = self.fn_optimization(
+            states=states,
+            internals=internals,
+            actions=actions,
+            reward=reward,
+            terminal=terminal
+        )
 
     def tf_demo_loss(self, states, actions, terminal, reward, internals):
         embedding = self.network.apply(x=states, internals=internals)
@@ -80,12 +92,12 @@ class DQFDModel(DQNModel):
             inverted_one_hot = ones - one_hot
 
             # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
-            expert_margin = self.training_output[name] + inverted_one_hot * self.expert_margin
+            expert_margin = distr_params + inverted_one_hot * self.expert_margin
 
             # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
             supervised_selector = tf.reduce_max(input_tensor=expert_margin, axis=-1)
             delta = supervised_selector - state_action_values
-            delta = tf.reshape(tensor=delta, shape=(-1, util.prod(self.actions_config[name]['shape'])))
+            delta = tf.reshape(tensor=delta, shape=(-1, util.prod(self.actions_spec[name]['shape'])))
             deltas.append(delta)
 
         loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
@@ -96,13 +108,29 @@ class DQFDModel(DQNModel):
 
         def fn_loss():
             # Combining q loss with demonstration loss
-            q_model_loss = self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
-            demo_loss = self.fn_demo_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
-            return q_model_loss + self.demonstration_weight * demo_loss
+            q_model_loss = self.fn_loss(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
+            )
+            demo_loss = self.fn_demo_loss(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
+            )
+            return q_model_loss + self.supervised_weight * demo_loss
 
         demo_optimization = self.optimizer.minimize(time=self.time, variables=self.get_variables(), fn_loss=fn_loss)
 
-        target_optimization = self.target_optimizer.minimize(time=self.time, variables=self.target_network.get_variables(), source_variables=self.network.get_variables())
+        target_optimization = self.target_optimizer.minimize(
+            time=self.time,
+            variables=self.target_network.get_variables(),
+            source_variables=self.network.get_variables()
+        )
 
         return tf.group(demo_optimization, target_optimization)
 

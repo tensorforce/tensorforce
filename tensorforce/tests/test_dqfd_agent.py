@@ -17,15 +17,16 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from six import xrange
+from six.moves import xrange
 import unittest
+import numpy as np
 
-from tensorforce import Configuration
+from tensorforce import Configuration, util
 from tensorforce.agents import DQFDAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
 
-class TestDQNAgent(BaseAgentTest, unittest.TestCase):
+class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQFDAgent
     deterministic = True
@@ -37,13 +38,8 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
         demo_memory_capacity=100,
         demo_sampling_ratio=0.2
     )
-                # memory=dict(
-                #     type='replay',
-                #     random_sampling=True
-                # ),
 
     def pre_run(self, agent, environment):
-        # First generate demonstration data and pretrain
         demonstrations = list()
         terminal = True
 
@@ -52,29 +48,50 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
                 state = environment.reset()
 
             actions = dict()
-
-            # TODO: shape parameter, np array
-
+            # Create demonstration actions of the right shape.
             if 'type' in environment.actions:
                 if environment.actions['type'] == 'bool':
-                    actions = True
+                    actions = np.full(
+                        shape=environment.actions['shape'],
+                        fill_value=True,
+                        dtype=util.np_dtype(environment.actions['type'])
+                    )
                 elif environment.actions['type'] == 'int':
-                    actions = 1
+                    actions = np.full(
+                        shape=environment.actions['shape'],
+                        fill_value=1,
+                        dtype=util.np_dtype(environment.actions['type'])
+                    )
                 elif environment.actions['type'] == 'float':
-                    actions = 1.0
-
+                    actions = np.full(
+                        shape=environment.actions['shape'],
+                        fill_value=1.0,
+                        dtype=util.np_dtype(environment.actions['type'])
+                    )
             else:
                 for name, action in environment.actions.items():
                     if environment.actions['type'] == 'bool':
-                        actions[name] = True
+                        actions[name] = np.full(
+                            shape=action['shape'],
+                            fill_value=True,
+                            dtype=util.np_dtype(action['type'])
+                        )
                     elif environment.actions['type'] == 'int':
-                        actions[name] = 1
+                        actions[name] = np.full(
+                            shape=action['shape'],
+                            fill_value=1,
+                            dtype=util.np_dtype(action['type'])
+                        )
                     elif environment.actions['type'] == 'float':
-                        actions[name] = 1.0
+                        actions[name] = np.full(
+                            shape=environment.actions['shape'],
+                            fill_value=1.0,
+                            dtype=util.np_dtype(environment.actions['type'])
+                        )
 
-            state, terminal, reward = environment.execute(action=action)
+            state, terminal, reward = environment.execute(action=actions)
 
-            demonstration = dict(states=state, internal=[], actions=action, terminal=terminal, reward=reward)
+            demonstration = dict(states=state, internal=[], actions=actions, terminal=terminal, reward=reward)
             demonstrations.append(demonstration)
 
         agent.import_demonstrations(demonstrations)

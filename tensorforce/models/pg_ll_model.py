@@ -24,7 +24,6 @@ from tensorforce.models import PGModel
 
 
 class PGLLModel(PGModel):
-    #TODO better justification
     """Policy gradient model based on computing log likelihoods."""
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):

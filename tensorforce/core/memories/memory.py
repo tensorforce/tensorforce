@@ -25,6 +25,13 @@ class Memory(object):
     """Abstract memory class."""
 
     def __init__(self, capacity, states_spec, actions_spec):
+        """
+
+        Args:
+            capacity: Maximum size of memory
+            states_spec: State specifiction
+            actions_spec: Action specification
+        """
         self.capacity = capacity
         self.states_spec = states_spec
         self.actions_spec = actions_spec
@@ -88,9 +95,7 @@ class Memory(object):
 
     @staticmethod
     def from_spec(spec, kwargs=None):
-        """
-        Creates a memory from a specification dict.
-        """
+        """Creates a memory from a specification dict."""
         memory = util.get_object(
             obj=spec,
             predefined_objects=tensorforce.core.memories.memories,

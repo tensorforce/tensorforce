@@ -23,6 +23,7 @@ from tensorforce.tests.base_test import BaseTest
 
 
 class BaseAgentTest(BaseTest):
+    #TODO describe the purpose of each test case
 
     config = None
 

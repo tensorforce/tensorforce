@@ -69,7 +69,10 @@ class QModel(DistributionModel):
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         embedding = self.network.apply(x={name: state[:-1] for name, state in states.items()}, internals=internals[:-1])
-        target_embedding = self.target_network.apply(x={name: state[1:] for name, state in states.items()}, internals=internals[1:])
+        target_embedding = self.target_network.apply(
+            x={name: state[1:] for name, state in states.items()},
+            internals=internals[1:]
+        )
         deltas = list()
 
         for name, distribution in self.distributions.items():

@@ -169,7 +169,14 @@ class Model(object):
                 self.optimizer = Optimizer.from_spec(spec=config.optimizer)
 
                 # Create output fetch operations
-                self.create_output_operations(states=states, internals=self.internals, actions=actions, terminal=terminal, reward=reward)
+                self.create_output_operations(
+                    states=states,
+                    internals=self.internals,
+                    actions=actions,
+                    terminal=terminal,
+                    reward=reward,
+                    deterministic=self.deterministic
+                )
 
                 # if config.distributed:
                 #     scope_context.__exit__(None, None, None)

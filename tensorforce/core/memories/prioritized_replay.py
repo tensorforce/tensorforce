@@ -42,7 +42,6 @@ class PrioritizedReplay(Memory):
         self.last_observation = None  # stores last observation until next_state value is known
         
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(util.log_levels[config.log_level])
 
     def add_observation(self, state, action, reward, terminal, internal):
         if self.internals_config is None and internal is not None:

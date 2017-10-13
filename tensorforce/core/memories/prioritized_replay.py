@@ -90,7 +90,7 @@ class PrioritizedReplay(Memory):
                 index = randrange(self.none_priority_index)
                 while index in self.batch_indices:
                     index = randrange(self.none_priority_index)
-                observation = self.observations[index]
+                _, observation = self.observations[index]
             else:
                 while True:
                     sample = random()

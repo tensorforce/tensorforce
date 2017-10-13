@@ -39,6 +39,9 @@ class PrioritizedReplay(Memory):
         self.none_priority_index = 0
         self.batch_indices = None
         self.last_observation = None  # stores last observation until next_state value is known
+        
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(util.log_levels[config.log_level])
 
     def add_observation(self, state, action, reward, terminal, internal):
         if self.internals_config is None and internal is not None:
@@ -92,6 +95,8 @@ class PrioritizedReplay(Memory):
                     index = randrange(self.none_priority_index)
             else:
                 while True:
+                    if len(self.observations) < batch_size*100:
+                        self.logger.warn("batch size should be much smaller than the number of observations in memory or get_batch wil be extremely slow. Increase config.first_update")
                     sample = random()
                     for index, (priority, observation) in enumerate(self.observations):
                         sample -= priority / sum_priorities

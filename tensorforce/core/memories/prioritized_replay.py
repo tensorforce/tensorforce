@@ -24,6 +24,7 @@ from __future__ import division
 from random import random, randrange
 from six.moves import xrange
 import numpy as np
+import logging
 
 from tensorforce import util, TensorForceError
 from tensorforce.core.memories import Memory

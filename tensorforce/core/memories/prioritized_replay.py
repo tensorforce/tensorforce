@@ -94,9 +94,9 @@ class PrioritizedReplay(Memory):
                 while index in self.batch_indices:
                     index = randrange(self.none_priority_index)
             else:
+                if len(self.observations) < batch_size*100:
+                    self.logger.warn("batch size should be much smaller than the number of observations in memory or get_batch wil be extremely slow. Increase config.first_update")
                 while True:
-                    if len(self.observations) < batch_size*100:
-                        self.logger.warn("batch size should be much smaller than the number of observations in memory or get_batch wil be extremely slow. Increase config.first_update")
                     sample = random()
                     for index, (priority, observation) in enumerate(self.observations):
                         sample -= priority / sum_priorities

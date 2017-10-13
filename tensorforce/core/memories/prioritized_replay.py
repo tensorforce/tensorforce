@@ -106,9 +106,9 @@ class PrioritizedReplay(Memory):
             if sum_priorities / self.capacity < util.epsilon:
                 p = None
             else:
-                probabilities = priorities / sum_priorities
-                unsampled_probabilities = probabilities[unsampled_indices]
-                p = unsampled_probabilities / unsampled_probabilities.sum()
+                unsampled_probabilities = priorities[unsampled_indices]
+                p = unsampled_probabilities - unsampled_probabilities.min()
+                p /= p.sum()
             self.batch_indices += np.random.choice(unsampled_indices, size=batch_size - len(
                 self.batch_indices), replace=False, p=p).tolist()
 

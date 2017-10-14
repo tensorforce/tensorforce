@@ -119,7 +119,13 @@ class PGModel(DistributionModel):
                 gae_discount = self.discount * self.gae_lambda
                 self.fn_discounted_cumulative_reward(reward=td_residual, terminal=terminal, discount=gae_discount)
 
-        return self.fn_pg_loss_per_instance(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+        return self.fn_pg_loss_per_instance(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
 
     def tf_optimization(self, states, internals, actions, terminal, reward):
         optimization = super(PGModel, self).tf_optimization(states, internals, actions, terminal, reward)
@@ -132,7 +138,9 @@ class PGModel(DistributionModel):
         if self.baseline_mode == 'states':
             fn_loss = (lambda: self.baseline.loss(states=states, reward=reward))
         elif self.baseline_mode == 'network':
-            fn_loss = (lambda: self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward))
+            fn_loss = (
+                lambda: self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward)
+            )
 
         # TODO: time as argument?
         baseline_optimization = self.baseline_optimizer.minimize(

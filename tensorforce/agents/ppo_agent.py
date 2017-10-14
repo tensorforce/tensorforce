@@ -20,7 +20,6 @@ from __future__ import division
 from tensorforce.agents import BatchAgent
 from tensorforce.models import PGLRModel
 
-
 class PPOAgent(BatchAgent):
     """
     Proximal Policy Optimization agent ([Schulman et al., 2017]

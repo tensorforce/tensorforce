@@ -14,12 +14,9 @@
 # ==============================================================================
 from tensorforce.models.model import Model
 from tensorforce.models.distribution_model import DistributionModel
-
 from tensorforce.models.pg_model import PGModel
 from tensorforce.models.pg_ll_model import PGLLModel
 from tensorforce.models.pg_lr_model import PGLRModel
-from tensorforce.models.ppo_model import PPOModel
-
 from tensorforce.models.q_model import QModel
 from tensorforce.models.dqfd_model import DQFDModel
 from tensorforce.models.q_nstep_model import QNstepModel
@@ -30,10 +27,9 @@ models = dict(
     pg_lr_model=PGLRModel,
     q_model=QModel,
     q_nstep_model=QNstepModel,
-    dqfd_model=DQFDModel,
-    ppo_model=PPOModel
+    dqfd_model=DQFDModel
 )
 
 
 __all__ = ['Model', 'DistributionModel', 'PGModel', 'PGLLModel', 'PGLRModel', 'QModel',
-           'QNstepModel','DQFDModel','PPOModel','models']
+           'QNstepModel','DQFDModel','models']

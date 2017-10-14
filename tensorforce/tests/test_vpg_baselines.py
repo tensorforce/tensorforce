@@ -132,7 +132,9 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 x = x0 * x1 * x2 * x3
                 return (x, list()) if return_internals else x
 
-        environment = MinimalTest(specification=[('bool', ()), ('int', (2,)), ('float', (1,)), ('bounded-float', (1, 1))])
+        environment = MinimalTest(
+            specification=[('bool', ()), ('int', (2,)), ('float', (1,)), ('bounded-float', (1, 1))]
+        )
         config = Configuration(
             batch_size=8,
             baseline_mode='states',

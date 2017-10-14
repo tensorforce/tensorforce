@@ -29,4 +29,12 @@ baselines = dict(
 )
 
 
-__all__ = ['baselines', 'Baseline', 'AggregatedBaseline', 'NetworkBaseline', 'LinearBaseline', 'MLPBaseline', 'CNNBaseline']
+__all__ = [
+    'baselines',
+    'Baseline',
+    'AggregatedBaseline',
+    'NetworkBaseline',
+    'LinearBaseline',
+    'MLPBaseline',
+    'CNNBaseline'
+]

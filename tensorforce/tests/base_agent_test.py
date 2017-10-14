@@ -86,7 +86,9 @@ class BaseAgentTest(BaseTest):
                 x = x0 * x1 * x2 * x3
                 return (x, list()) if return_internals else x
 
-        environment = MinimalTest(specification=[('bool', ()), ('int', (2,)), ('float', (1,)), ('bounded-float', (1, 1))])
+        environment = MinimalTest(
+            specification=[('bool', ()), ('int', (2,)), ('float', (1,)), ('bounded-float', (1, 1))]
+        )
         self.base_test(name='multi', environment=environment, network_spec=CustomNetwork, config=self.__class__.config)
 
     def test_lstm(self):

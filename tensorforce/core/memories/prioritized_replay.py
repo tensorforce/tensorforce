@@ -21,7 +21,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from random import random
+import random
 from six.moves import xrange
 import numpy as np
 from collections import namedtuple
@@ -123,7 +123,7 @@ class SumTree(object):
                 return parent
 
             left_p = self._memory[left] if left < self._capacity - 1 \
-                else self._memory[left].priority
+                else (self._memory[left].priority or 0)
             if p <= left_p:
                 parent = left
             else:

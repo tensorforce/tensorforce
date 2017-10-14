@@ -13,13 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Deep Q-learning from demonstration. This agent pre-trains from demonstration data.
-
-Original paper: 'Learning from Demonstrations for Real World Reinforcement Learning'
-
-https://arxiv.org/abs/1704.03732
-"""
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -80,18 +73,43 @@ class DQFDAgent(MemoryAgent):
 
 
     """
-
-    name = 'DQFDAgent'
-    model = DQFDModel
-
     default_config = dict(
-        double_dqn=True,
+        # Agent
+        preprocessing=None,
+        exploration=None,
+        reward_preprocessing=None,
+        # Model
+        scope='dqn',
+        optimizer=dict(
+            type='adam',
+            learning_rate=1e-3
+        ),
+        discount=0.99,
+        normalize_rewards=False,
+        # DistributionModel
+        distributions=None,  # not documented!!!
+        entropy_regularization=None,
+        # QModel
+        target_sync_frequency=10000,  # not documented!!!
+        target_update_weight=1.0,  # not documented!!!
+        huber_loss=0.0,  # not documented!!!
+        # Logging
+        log_level='info',
+        # TensorFlow Summaries
+        summary_logdir=None,
+        summary_labels=['total-loss'],
+        summary_frequency=1,
+        # Distributed
+        distributed=False,
+        device=None,
         supervised_weight=1.0,
         expert_margin=0.8
     )
 
-    def __init__(self, config, model=None):
+    def __init__(self, states_spec, actions_spec, network_spec, config):
+        self.network_spec = network_spec
         config.default(DQFDAgent.default_config)
+
         self.target_update_frequency = config.target_update_frequency
         self.demo_memory_capacity = config.demo_memory_capacity
 
@@ -103,23 +121,21 @@ class DQFDAgent(MemoryAgent):
                                          'demo_batch_size is positive. (Calculated {} based on current' \
                                          ' parameters)'.format(self.demo_batch_size)
 
-        super(DQFDAgent, self).__init__(config, model)
+        super(DQFDAgent, self).__init__(states_spec, actions_spec, config)
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
         self.demo_memory = Replay(self.demo_memory_capacity, self.states_spec, self.actions_spec)
 
     def observe(self, reward, terminal):
-        """Adds observations, updates via sampling from memories according to update rate.
+        """
+        Adds observations, updates via sampling from memories according to update rate.
         DQFD samples from the online replay memory and the demo memory with
         the fractions controlled by a hyper parameter p called 'expert sampling ratio.
 
         Args:
             reward:
             terminal:
-
-        Returns:
-
         """
         super(DQFDAgent, self).observe(reward=reward, terminal=terminal)
 
@@ -129,15 +145,13 @@ class DQFDAgent(MemoryAgent):
                 self.model.demonstration_update(batch=batch)
 
     def import_demonstrations(self, demonstrations):
-        """Imports demonstrations, i.e. expert observations. Note that for large numbers of observations,
+        """
+        Imports demonstrations, i.e. expert observations. Note that for large numbers of observations,
         set_demonstrations is more appropriate, which directly sets memory contents to an array an expects
         a different layout.
 
         Args:
             demonstrations: List of observation dicts
-
-        Returns:
-
         """
         for observation in demonstrations:
             if self.unique_state:
@@ -148,6 +162,7 @@ class DQFDAgent(MemoryAgent):
                 action = dict(action=observation['action'])
             else:
                 action = observation['action']
+
             self.demo_memory.add_observation(
                 states=state,
                 internals=observation['internals'],
@@ -160,11 +175,9 @@ class DQFDAgent(MemoryAgent):
         """
         Set all demonstrations from batch data. Expects a dict wherein each value contains an array
         containing all states, actions, rewards, terminals and internals respectively.
-        of
+
         Args:
             batch:
-
-        Returns:
 
         """
         self.demo_memory.set_memory(
@@ -175,18 +188,25 @@ class DQFDAgent(MemoryAgent):
             reward=batch['reward']
         )
 
+    def initialize_model(self, states_spec, actions_spec, config):
+        return DQFDModel(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=self.network_spec,
+            config=config
+        )
+
     def pretrain(self, steps):
-        """Computes pretrain updates.
+        """
+        Computes pretrain updates.
 
         Args:
             steps: Number of updates to execute.
 
-        Returns:
-
         """
         for _ in xrange(steps):
-            # Sample from demo memory
+            # Sample from demo memory.
             batch = self.demo_memory.get_batch(batch_size=self.batch_size, next_states=True)
 
-            # Update using both double Q-learning and supervised double_q_loss
+            # Update using both double Q-learning and supervised double_q_loss.
             self.model.demonstration_update(batch)

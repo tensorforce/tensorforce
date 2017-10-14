@@ -70,10 +70,6 @@ class DQNAgent(MemoryAgent):
     * `double_dqn`: boolean indicating whether to use double-dqn.
     * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
 
-
-
-
-
     ### Configuration options
 
     #### General:

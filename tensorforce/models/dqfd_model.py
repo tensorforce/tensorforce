@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""
-Model for deep-q learning from demonstration. Principal structure similar to double deep-q-networks
-but uses additional loss terms for demo data.
-"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -26,7 +22,10 @@ from tensorforce.models import QModel
 
 
 class DQFDModel(QModel):
-
+    """
+    Model for deep-q learning from demonstration. Principal structure similar to double deep-q-networks
+    but uses additional loss terms for demo data.
+    """
     def __init__(self, states_spec, actions_spec, network_spec, config):
         if any(action['type'] not in ('bool', 'int') for action in actions_spec.values()):
             raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")
@@ -107,7 +106,7 @@ class DQFDModel(QModel):
     def tf_demo_optimization(self, states, internals, actions, terminal, reward):
 
         def fn_loss():
-            # Combining q loss with demonstration loss
+            # Combining q-loss with demonstration loss
             q_model_loss = self.fn_loss(
                 states=states,
                 internals=internals,
@@ -124,10 +123,10 @@ class DQFDModel(QModel):
             )
             return q_model_loss + self.supervised_weight * demo_loss
 
-        demo_optimization = self.optimizer.minimize(time=self.time, variables=self.get_variables(), fn_loss=fn_loss)
+        demo_optimization = self.optimizer.minimize(time=self.timestep, variables=self.get_variables(), fn_loss=fn_loss)
 
         target_optimization = self.target_optimizer.minimize(
-            time=self.time,
+            time=self.timestep,
             variables=self.target_network.get_variables(),
             source_variables=self.network.get_variables()
         )

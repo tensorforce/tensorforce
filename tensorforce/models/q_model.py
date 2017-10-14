@@ -26,7 +26,9 @@ from tensorforce.core.optimizers import Synchronization
 
 
 class QModel(DistributionModel):
-    """Base class for Q-value models."""
+    """
+    Base class for Q-value models.
+    """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         # Target network

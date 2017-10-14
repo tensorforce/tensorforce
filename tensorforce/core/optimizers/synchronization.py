@@ -40,7 +40,12 @@ class Synchronization(Optimizer):
     def tf_step(self, time, variables, source_variables, **kwargs):
         assert all(util.shape(source) == util.shape(target) for source, target in zip(source_variables, variables))
 
-        last_sync = tf.get_variable(name='last-sync', dtype=tf.int32, initializer=(-self.sync_frequency), trainable=False)
+        last_sync = tf.get_variable(
+            name='last-sync',
+            dtype=tf.int32,
+            initializer=(-self.sync_frequency),
+            trainable=False
+        )
 
         def sync():
             diffs = list()

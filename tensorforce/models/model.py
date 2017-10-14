@@ -37,19 +37,9 @@ Finally, the following TensorFlow functions can be useful in some cases:
 
 * `get_states(states)` for state preprocessing, returning the processed batch of states.
 * `get_actions(actions)` for action preprocessing, returning the processed batch of actions.
-<<<<<<< Updated upstream
-* `get_reward(states, internals, terminal, reward)` for reward preprocessing (like reward normalization),
-   returning the processed batch of rewards.
-* `create_output_operations(states, internals, actions, terminal, reward)` for further output operations,
-   similar to the two above for `Model.act` and `Model.update`.
-* `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations
-   (like the baseline update in a `PGModel` or the target network update in a `QModel`), returning a single
-   grouped optimization operation.
-=======
 * `get_reward(states, internals, terminal, reward)` for reward preprocessing (like reward normalization), returning the processed batch of rewards.
 * `create_output_operations(states, internals, actions, terminal, reward, deterministic)` for further output operations, similar to the two above for `Model.act` and `Model.update`.
 * `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations (like the baseline update in a `PGModel` or the target network update in a `QModel`), returning a single grouped optimization operation.
->>>>>>> Stashed changes
 """
 
 
@@ -57,7 +47,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import logging
 import tensorflow as tf
 
 from tensorforce import TensorForceError, util
@@ -443,7 +432,6 @@ class Model(object):
             Loss tensor of the size of the batch.
         """
         kwargs = dict()
-        print(self.get_variables())
         kwargs['time'] = self.timestep
         kwargs['variables'] = self.get_variables()
         kwargs['fn_loss'] = (

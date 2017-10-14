@@ -138,14 +138,14 @@ class Runner(object):
                 if self.repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(self.repeat_actions):
-                        state, step_reward, terminal = self.environment.execute(action=action)
+                        state, terminal, step_reward = self.environment.execute(action=action)
                         reward += step_reward
                         if terminal:
                             break
                 else:
-                    state, reward, terminal = self.environment.execute(action=action)
+                    state, terminal, reward = self.environment.execute(action=action)
 
-                self.agent.observe(reward=reward, terminal=terminal)
+                self.agent.observe(terminal=terminal, reward=reward)
 
                 self.timestep += 1
                 self.total_timesteps += 1

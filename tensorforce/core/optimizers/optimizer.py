@@ -101,13 +101,11 @@ class Optimizer(tf.train.Optimizer):
                       colocate_gradients_with_ops=False,
                       grad_loss=None):
         if aggregation_method is not None or colocate_gradients_with_ops or grad_loss is not None:
-            raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments"
-                                   " are not supported.")
+            raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments are not supported.")
         if gate_gradients is None:
             gate_gradients = Optimizer.GATE_OP
         if gate_gradients not in (Optimizer.GATE_NONE, Optimizer.GATE_OP, Optimizer.GATE_GRAPH):
-            raise TensorForceError("'gate_gradients' must be one of: Optimizer.GATE_NONE, Optimizer.GATE_OP,"
-                                   " Optimizer.GATE_GRAPH. Not {}".format(gate_gradients))
+            raise TensorForceError("'gate_gradients' must be one of: Optimizer.GATE_NONE, Optimizer.GATE_OP, Optimizer.GATE_GRAPH. Not {}".format(gate_gradients))
         # if isinstance(loss, tf.Tensor):
         #     self._assert_valid_dtypes([loss])
         # else:

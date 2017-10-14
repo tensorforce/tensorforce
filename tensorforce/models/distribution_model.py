@@ -15,9 +15,7 @@
 
 
 """
-The `DistributionModel` class defines a neural network and policy distributions parameterized
-by its output. It implements the `tf_actions_and_internals` function, adds KL divergence to
-get_optimizer_kwargs`, and optionally adds entropy regularization to `tf_regularization_losses`.
+The `DistributionModel` class defines a neural network and policy distributions parameterized by its output. It implements the `tf_actions_and_internals` function, adds KL divergence to `get_optimizer_kwargs`, and optionally adds entropy regularization to `tf_regularization_losses`.
 """
 
 

@@ -100,7 +100,7 @@ class VPGAgent(BatchAgent):
         # TensorFlow Summaries
         summary_logdir=None,
         summary_labels=['total-loss'],
-        summary_frequency=100,
+        summary_frequency=1,
         # Distributed
         distributed=False,
         device=None

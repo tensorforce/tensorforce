@@ -37,7 +37,7 @@ class MultiStep(MetaOptimizer):
         for _ in xrange(self.num_steps):
 
             with tf.control_dependencies(control_inputs=diffs):
-                diffs = self.optimizer.step(time=time, variables=variables, fn_loss=fn_loss, **kwargs)
+                diffs = self.optimizer.fn_step(time=time, variables=variables, fn_loss=fn_loss, **kwargs)
 
                 if overall_diffs is None:
                     overall_diffs = diffs

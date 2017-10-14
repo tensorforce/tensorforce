@@ -65,7 +65,12 @@ class DistributionalModel(Model):
         # assert config.entropy_regularization is None or config.entropy_regularization > 0.0
         # self.entropy_regularization = config.entropy_regularization
 
-        super(DistributionalModel, self).__init__(states_spec, actions_spec, config)
+        super(DistributionalModel, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=network_spec,
+            config=config
+        )
 
     def initialize(self, custom_getter):
         super(DistributionalModel, self).initialize(custom_getter)

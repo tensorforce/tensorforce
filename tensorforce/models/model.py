@@ -50,7 +50,7 @@ from __future__ import division
 import tensorflow as tf
 
 from tensorforce import TensorForceError, util
-from tensorforce.core.optimizers import Optimizer
+from tensorforce.core.optimizers import Optimizer, DistributedOptimizer
 
 
 class Model(object):
@@ -58,23 +58,7 @@ class Model(object):
     Base class for all (TensorFlow-based) models
     """
 
-
-    # default_config = dict(
-    #     discount=0.97,
-    #     optimizer=dict(
-    #         type='adam',
-    #         learning_rate=0.0001
-    #     ),
-    #     device=None,
-    #     tf_summary=None,
-    #     tf_summary_level=0,
-    #     tf_summary_interval=1000,
-    #     distributed=False,
-    #     global_model=False,
-    #     session=None
-    # )
-
-    def __init__(self, states_spec, actions_spec, config):
+    def __init__(self, states_spec, actions_spec, config, **kwargs):
         # States and actions specifications
         self.states_spec = states_spec
         self.actions_spec = actions_spec
@@ -97,27 +81,31 @@ class Model(object):
 
         self.distributed = config.distributed
 
-        if config.distributed:
-            # Distributed model
-            if config.global_model:
-                # Global and local model for asynchronous updates
-                global_default = dict(
-                    # scope='global',
-                    distributed = False,
-                    global_model=True,
-                    device=tf.train.replica_device_setter(
-                        ps_tasks=1,
-                        worker_device=config.device,
-                        cluster=config.cluster_spec
-                    )
+        if config.distributed:  # Distributed model
+            global_config = config.copy()
+            global_config.set(
+                key='distributed',
+                value=False
+            )
+            global_config.set(
+                key='device',
+                value=tf.train.replica_device_setter(
+                    ps_tasks=1,
+                    worker_device=config.device,
+                    cluster=config.cluster_spec
                 )
-                global_config = config.copy()
-                global_config.default(global_default)
+            )
 
-                self.global_model = self.__class__(config=global_config)  # states_spec, actions_spec, config)
-                self.global_timestep = self.global_model.global_timestep
-                self.global_episode = self.global_model.episode
-                # self.global_variables = self.global_model.variables
+            # Global model for asynchronous updates
+            self.global_model = self.__class__(
+                states_spec=states_spec,
+                actions_spec=actions_spec,
+                config=global_config,
+                **kwargs
+            )
+            self.global_timestep = self.global_model.global_timestep
+            self.global_episode = self.global_model.episode
+            # self.global_variables = self.global_model.variables
 
         else:
             pass
@@ -127,7 +115,7 @@ class Model(object):
 
         with tf.device(device_name_or_function=config.device):  # TODO: config.device!!!
 
-            if config.distributed and config.global_model:
+            if config.distributed:
                 pass
                 # general self.time ???
                 # self.global_timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
@@ -138,9 +126,9 @@ class Model(object):
             self.summaries = list()
 
             with tf.name_scope(name=config.scope):
-                def custom_getter(getter, name, *args, **kwargs):
-                    variable = getter(name=name, *args, **kwargs)
-                    if not name.startswith('optimization'):
+                def custom_getter(getter, name, **kwargs):
+                    variable = getter(name=name, **kwargs)
+                    if not name.startswith('optimization') and kwargs.get('trainable', True):
                         self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -163,10 +151,12 @@ class Model(object):
                 reward = tf.stop_gradient(input=reward)
 
                 # Optimizer
-                if not config.distributed or config.global_model:
+                if config.optimizer is None:
+                    self.optimizer = None
+                elif not config.distributed:
                     self.optimizer = Optimizer.from_spec(spec=config.optimizer)
                 else:
-                    self.optimizer = GlobalOptimizer(optimizer=config.optimizer)
+                    self.optimizer = DistributedOptimizer(optimizer=config.optimizer)
 
                 # Create output fetch operations
                 self.create_output_operations(
@@ -180,17 +170,17 @@ class Model(object):
                 # TODO: if global_config.global_model == True, then no optimization stuff
 
 
-                if config.distributed and not config.global_model:
-                    self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
-                    local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
-                    local_gradients = [grad for grad, var in local_grads_and_vars]
-                    global_gradients = list(zip(local_gradients, self.global_model.variables))
-                    self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
-                    self.optimize = tf.group(
-                        self.optimizer.apply_gradients(grads_and_vars=global_gradients),
-                        self.update_local,
-                        self.global_timestep.assign_add(tf.shape(self.reward)[0]))
-                    self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
+                # if config.distributed:
+                #     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
+                #     local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
+                #     local_gradients = [grad for grad, var in local_grads_and_vars]
+                #     global_gradients = list(zip(local_gradients, self.global_model.variables))
+                #     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
+                #     self.optimize = tf.group(
+                #         self.optimizer.apply_gradients(grads_and_vars=global_gradients),
+                #         self.update_local,
+                #         self.global_timestep.assign_add(tf.shape(self.reward)[0]))
+                #     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
 
             # if config.distributed:
             #     scope_context.__exit__(None, None, None)
@@ -456,14 +446,17 @@ class Model(object):
         Returns:
             The optimization operation.
         """
-        optimizer_kwargs = self.get_optimizer_kwargs(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward
-        )
-        return self.optimizer.minimize(**optimizer_kwargs)
+        if self.optimizer is None:
+            return tf.no_op()
+        else:
+            optimizer_kwargs = self.get_optimizer_kwargs(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
+            )
+            return self.optimizer.minimize(**optimizer_kwargs)
 
                 # if config.distributed and not config.global_model:
 

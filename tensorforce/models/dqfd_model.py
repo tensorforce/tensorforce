@@ -26,6 +26,7 @@ class DQFDModel(QModel):
     Model for deep-q learning from demonstration. Principal structure similar to double deep-q-networks
     but uses additional loss terms for demo data.
     """
+
     def __init__(self, states_spec, actions_spec, network_spec, config):
         if any(action['type'] not in ('bool', 'int') for action in actions_spec.values()):
             raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")

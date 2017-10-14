@@ -115,7 +115,7 @@ class Runner(object):
 
             managed_session = supervisor.managed_session(server.target, config=config)
             session = managed_session.__enter__()
-            self.agent.model.set_session(session)
+            self.agent.model.session = session
             # session.run(self.agent.model.update_local)
 
         # Keep track of episode reward and episode length for statistics.

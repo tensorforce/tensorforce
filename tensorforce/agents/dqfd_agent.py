@@ -108,7 +108,11 @@ class DQFDAgent(MemoryAgent):
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         self.network_spec = network_spec
+        config = config.copy()
         config.default(DQFDAgent.default_config)
+        config.obligatory(
+            double_dqn=True
+        )
 
         self.target_update_frequency = config.target_update_frequency
         self.demo_memory_capacity = config.demo_memory_capacity

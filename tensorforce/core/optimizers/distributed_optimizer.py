@@ -23,10 +23,10 @@ from tensorforce import util
 from tensorforce.core.optimizers import MetaOptimizer
 
 
-class GlobalOptimizer(MetaOptimizer):
+class DistributedOptimizer(MetaOptimizer):
 
     def __init__(self, optimizer):
-        super(GlobalOptimizer, self).__init__(optimizer=optimizer)
+        super(DistributedOptimizer, self).__init__(optimizer=optimizer)
 
     def tf_step(self, time, variables, global_variables, **kwargs):
         assert all(util.shape(global_var) == util.shape(local_var) for global_var, local_var in zip(global_variables, variables))

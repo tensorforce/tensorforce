@@ -52,6 +52,12 @@ class Configuration(object):
     def from_json_string(json_string):
         return Configuration(**json.loads(json_string))
 
+    def __getstate__(self):
+        return self._config
+
+    def __setstate__(self, d):
+        self._config = d
+
     def __str__(self):
         return '{' + ', '.join('{}={}'.format(key, value) for key, value in self._config.items()) + '}'
 
@@ -99,12 +105,6 @@ class Configuration(object):
     def set(self, key, value):
         self._config[key] = value
         self._accessed[key] = False
-
-    def __getstate__(self):
-        return self._config
-
-    def __setstate__(self, d):
-        self._config = d
 
     def obligatory(self, **kwargs):
         for key, value in kwargs.items():

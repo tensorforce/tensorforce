@@ -64,8 +64,6 @@ class Categorical(Distribution):
         # "Normalized" logits
         logits = tf.log(x=probabilities)
 
-        logits = tf.Print(logits, (logits, probabilities, state_value))
-
         return logits, probabilities, state_value
 
     def state_value(self, distr_params):

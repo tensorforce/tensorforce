@@ -38,9 +38,10 @@ class Network(object):
         self.summaries = list()
 
         with tf.name_scope(name=scope):
-            def custom_getter(getter, name, *args, **kwargs):
-                variable = getter(name=name, *args, **kwargs)
-                self.variables[name] = variable
+            def custom_getter(getter, name, **kwargs):
+                variable = getter(name=name, **kwargs)
+                if kwargs.get('trainable', True):
+                    self.variables[name] = variable
                 if 'variables' in self.summary_labels:
                     summary = tf.summary.histogram(name=name, values=variable)
                     self.summaries.append(summary)

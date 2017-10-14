@@ -70,13 +70,13 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
                     )
             else:
                 for name, action in environment.actions.items():
-                    if environment.actions['type'] == 'bool':
+                    if action['type'] == 'bool':
                         actions[name] = np.full(
                             shape=action['shape'],
                             fill_value=True,
                             dtype=util.np_dtype(action['type'])
                         )
-                    elif environment.actions['type'] == 'int':
+                    elif actions['type'] == 'int':
                         actions[name] = np.full(
                             shape=action['shape'],
                             fill_value=1,

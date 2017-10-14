@@ -21,6 +21,7 @@ from tensorforce.core.optimizers.natural_gradient import NaturalGradient
 from tensorforce.core.optimizers.multi_step import MultiStep
 from tensorforce.core.optimizers.optimized_step import OptimizedStep
 from tensorforce.core.optimizers.synchronization import Synchronization
+from tensorforce.core.optimizers.distributed_optimizer import DistributedOptimizer
 
 
 # This can register any class inheriting from tf.train.Optimizer
@@ -36,7 +37,8 @@ optimizers = dict(
     multi_step=MultiStep,
     optimized_step=OptimizedStep,
     synchronization=Synchronization
+    # DistributedOptimizer not (yet) a valid choice
 )
 
 
-__all__ = ['optimizers', 'Optimizer', 'MetaOptimizer', 'TFOptimizer', 'Evolutionary', 'NaturalGradient', 'MultiStep', 'OptimizedStep', 'Synchronization']
+__all__ = ['optimizers', 'Optimizer', 'MetaOptimizer', 'TFOptimizer', 'Evolutionary', 'NaturalGradient', 'MultiStep', 'OptimizedStep', 'Synchronization', 'DistributedOptimizer']

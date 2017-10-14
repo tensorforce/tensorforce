@@ -200,6 +200,9 @@ class PrioritizedReplay(Memory):
             next_states: A boolean flag indicating whether 'next_states' values should be included
         Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
         """
+        if batch_size > len(self.observations):
+            raise TensorForceError(
+                "Requested batch size is larger than observations in memory: increase config.first_update.")
 
         # init empty states etc
         states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(

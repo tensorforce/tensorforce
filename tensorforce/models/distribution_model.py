@@ -55,7 +55,7 @@ class DistributionModel(Model):
                         kwargs['summary_labels'] = config.summary_labels
                         self.distributions[name] = Distribution.from_spec(
                             spec=config.distributions[name],
-                            kwargs=action
+                            kwargs=kwargs
                         )
                     elif action['type'] == 'bool':
                         self.distributions[name] = Bernoulli(
@@ -137,6 +137,7 @@ class DistributionModel(Model):
     def tf_kl_divergence(self, states, internals):
         embedding = self.network.apply(x=states, internals=internals)
         kl_divergences = list()
+
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameters(x=embedding)
             fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
@@ -144,6 +145,7 @@ class DistributionModel(Model):
             collapsed_size = util.prod(util.shape(kl_divergence)[1:])
             kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
             kl_divergences.append(kl_divergence)
+
         kl_divergence_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
         return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
 
@@ -159,9 +161,19 @@ class DistributionModel(Model):
         return kwargs
 
     def get_variables(self):
-        return super(DistributionModel, self).get_variables() + self.network.get_variables() + \
-            [variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables()]
+        model_variables = super(DistributionModel, self).get_variables()
+        network_variables = self.network.get_variables()
+        distribution_variables = [
+            variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables()
+        ]
+
+        return model_variables + network_variables + distribution_variables
 
     def get_summaries(self):
-        return super(DistributionModel, self).get_summaries() + self.network.get_summaries() + \
-            [summary for name in sorted(self.distributions) for summary in self.distributions[name].get_summaries()]
+        model_summaries = super(DistributionModel, self).get_summaries()
+        network_summaries = self.network.get_summaries()
+        distribution_summaries = [
+            summary for name in sorted(self.distributions) for summary in self.distributions[name].get_summaries()
+        ]
+
+        return model_summaries + network_summaries + distribution_summaries

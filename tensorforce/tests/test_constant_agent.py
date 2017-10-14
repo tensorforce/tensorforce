@@ -1,3 +1,4 @@
+
 # Copyright 2017 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,14 +21,14 @@ from __future__ import division
 import unittest
 
 from tensorforce import Configuration
-from tensorforce.agents import RandomAgent
+from tensorforce.agents import ConstantAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
 
-class TestRandomAgent(BaseAgentTest, unittest.TestCase):
+class TestConstantAgent(BaseAgentTest, unittest.TestCase):
 
     #TODO we expect this to fail, need flag to indicate this in base tests
-    agent = RandomAgent
+    agent = ConstantAgent
     deterministic = False
     config = Configuration()
 

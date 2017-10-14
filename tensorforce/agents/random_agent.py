@@ -22,59 +22,22 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import numpy as np
-
 from tensorforce.agents import Agent
+from tensorforce.models.random_model import RandomModel
 
 
 class RandomAgent(Agent):
+    """
+    Random agent, useful as a baseline and sanity check.
+    """
 
-    name = 'RandomAgent'
-    model = staticmethod(lambda config: None)
+    def __init__(self, states_spec, actions_spec, config):
+        config = config.copy()
+        super(RandomAgent, self).__init__(states_spec, actions_spec, config)
 
-    def __init__(self, config, model=None):
-        super(RandomAgent, self).__init__(config, model)
-
-    def reset(self):
-        self.episode += 1
-
-    def act(self, state, deterministic=False):
-        """
-        Get random action from action space
-
-        :param state: current state (disregarded)
-        :return: random action
-        """
-        self.timestep += 1
-
-        if self.unique_state:
-            self.current_state = dict(state=state)
-        else:
-            self.current_state = state
-
-        self.current_action = dict()
-        for name, action in self.actions_config.items():
-            if action.continuous:
-                if action.min_value is None:
-                    action = np.random.randn(*action.shape)
-                else:
-                    action = action.min_value + np.random.rand(*action.shape) * (action.max_value - action.min_value)
-            else:
-                action = np.random.randint(action.num_actions, size=action.shape)
-            self.current_action[name] = action
-
-        if self.unique_action:
-            return self.current_action['action']
-        else:
-            return self.current_action
-
-    def observe(self, reward, terminal):
-        reward, terminal = super(RandomAgent, self).observe(reward, terminal)
-        self.current_reward = reward
-        self.current_terminal = terminal
-
-    def load_model(self, path):
-        raise NotImplementedError
-
-    def save_model(self, path):
-        raise NotImplementedError
+    def initialize_model(self, states_spec, actions_spec, config):
+        return RandomModel(
+                states_spec=states_spec,
+                actions_spec=actions_spec,
+                config=config
+            )

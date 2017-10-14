@@ -13,21 +13,31 @@
 # limitations under the License.
 # ==============================================================================
 
+"""
+Random agent that always returns a random action. Useful to be able to get random
+agents with specific shapes.
+"""
+
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import unittest
-
-from tensorforce import Configuration
-from tensorforce.agents import RandomAgent
-from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.agents import Agent
+from tensorforce.models.constant_model import ConstantModel
 
 
-class TestRandomAgent(BaseAgentTest, unittest.TestCase):
+class ConstantAgent(Agent):
+    """
+    Constant action agent for sanity checks.
+    """
 
-    #TODO we expect this to fail, need flag to indicate this in base tests
-    agent = RandomAgent
-    deterministic = False
-    config = Configuration()
+    def __init__(self, states_spec, actions_spec, config):
+        config = config.copy()
+        super(ConstantAgent, self).__init__(states_spec, actions_spec, config)
 
+    def initialize_model(self, states_spec, actions_spec, config):
+        return ConstantModel(
+                states_spec=states_spec,
+                actions_spec=actions_spec,
+                config=config
+            )

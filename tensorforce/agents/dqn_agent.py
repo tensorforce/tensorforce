@@ -152,6 +152,8 @@ class DQNAgent(MemoryAgent):
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         self.network_spec = network_spec
+
+        #TODO is this necessary?
         config = config.copy()
         config.default(self.__class__.default_config)
         super(DQNAgent, self).__init__(states_spec, actions_spec, config)

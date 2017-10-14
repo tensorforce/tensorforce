@@ -27,7 +27,7 @@ from tensorforce.core.distributions import Distribution
 
 class Bernoulli(Distribution):
     """
-    Bernoulli distribution, for binary actions
+    Bernoulli distribution for binary actions.
     """
 
     def __init__(self, shape, probability=0.5, scope='bernoulli', summary_labels=()):
@@ -47,14 +47,18 @@ class Bernoulli(Distribution):
         shape = (-1,) + self.shape
         logit = tf.reshape(tensor=logit, shape=shape)
 
-        # !!!
+        #TODO rename
         state_value = logit
 
         # Sigmoid for corresponding probability
         probability = tf.sigmoid(x=logit)
 
         # Min epsilon probability for numerical stability
-        probability = tf.clip_by_value(t=probability, clip_value_min=util.epsilon, clip_value_max=(1.0 - util.epsilon))
+        probability = tf.clip_by_value(
+            t=probability,
+            clip_value_min=util.epsilon,
+            clip_value_max=(1.0 - util.epsilon)
+        )
 
         # "Normalized" logits
         true_logit = tf.log(x=probability)

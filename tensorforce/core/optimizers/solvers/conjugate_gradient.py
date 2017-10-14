@@ -65,17 +65,33 @@ class ConjugateGradient(Iterative):
         return initial_args + (conjugate, residual, square_residual)
 
     def tf_step(self, x, iteration, conjugate, residual, square_residual):
-        x, iteration, conjugate, residual, square_residual = super(ConjugateGradient, self).tf_step(x, iteration, conjugate, residual, square_residual)
+        #TODO Comments
+        x, iteration, conjugate, residual, square_residual = super(ConjugateGradient, self).tf_step(
+            x,
+            iteration,
+            conjugate,
+            residual,
+            square_residual
+        )
+
         A_conjugate = self.fn_x(x=conjugate)
+
         if self.damping > 0.0:
             A_conjugate = [A_conj + self.damping * conj for A_conj, conj in zip(A_conjugate, conjugate)]
-        conjugate_A_conjugate = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(conj * A_conj)) for conj, A_conj in zip(conjugate, A_conjugate)])
+
+        conjugate_A_conjugate = tf.add_n(
+            inputs=[tf.reduce_sum(input_tensor=(conj * A_conj)) for conj, A_conj in zip(conjugate, A_conjugate)]
+        )
+
         alpha = square_residual / tf.maximum(x=conjugate_A_conjugate, y=util.epsilon)
         x = [t + alpha * conj for t, conj in zip(x, conjugate)]
         residual = [res - alpha * A_conj for res, A_conj in zip(residual, A_conjugate)]
         next_square_residual = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(res * res)) for res in residual])
-        conjugate = [res + (next_square_residual / tf.maximum(x=square_residual, y=util.epsilon)) * conj for res, conj in zip(residual, conjugate)]
+
+        conjugate = [res + (next_square_residual / tf.maximum(x=square_residual, y=util.epsilon)) * conj
+                     for res, conj in zip(residual, conjugate)]
         square_residual = next_square_residual
+
         return x, iteration, conjugate, residual, square_residual
 
     def tf_next_step(self, x, iteration, conjugate, residual, square_residual):

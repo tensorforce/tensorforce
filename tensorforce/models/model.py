@@ -15,25 +15,35 @@
 
 
 """
-The `Model` class coordinates the creation and execution of all TensorFlow operations within a model. It implements the `reset`, `act` and `update` functions, which give the interface the `Agent` class communicates with, and which should not need to be overwritten. Instead, the following TensorFlow functions need to be implemented:
+The `Model` class coordinates the creation and execution of all TensorFlow operations within a model.
+It implements the `reset`, `act` and `update` functions, which give the interface the `Agent` class
+communicates with, and which should not need to be overwritten. Instead, the following TensorFlow
+functions need to be implemented:
 
-* `tf_actions_and_internals(states, internals, deterministic)` returning the batch of actions and successor internal states.
-* `tf_loss_per_instance(states, internals, actions, terminal, reward)` returning the loss per instance for a batch.
+* `tf_actions_and_internals(states, internals, deterministic)` returning the batch of
+   actions and successor internal states.
+* `tf_loss_per_instance(states, internals, actions, terminal, reward)` returning the loss
+   per instance for a batch.
 
-Moreover, the following TensorFlow functions should be extended accordingly:
+Further, the following TensorFlow functions should be extended accordingly:
 
 * `initialize(custom_getter)` defining TensorFlow placeholders/functions and adding internal states.
 * `get_variables()` returning the list of TensorFlow variables (to be optimized) of this model.
 * `tf_regularization_losses(states, internals)` returning a dict of regularization losses.
-* `get_optimizer_kwargs(states, internals, actions, terminal, reward)` returning a dict of potential  arguments (argument-free functions) to the optimizer.
+* `get_optimizer_kwargs(states, internals, actions, terminal, reward)` returning a dict of potential
+   arguments (argument-free functions) to the optimizer.
 
 Finally, the following TensorFlow functions can be useful in some cases:
 
 * `get_states(states)` for state preprocessing, returning the processed batch of states.
 * `get_actions(actions)` for action preprocessing, returning the processed batch of actions.
-* `get_reward(states, internals, terminal, reward)` for reward preprocessing (like reward normalization), returning the processed batch of rewards.
-* `create_output_operations(states, internals, actions, terminal, reward)` for further output operations, similar to the two above for `Model.act` and `Model.update`.
-* `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations (like the baseline update in a `PGModel` or the target network update in a `QModel`), returning a single grouped optimization operation.
+* `get_reward(states, internals, terminal, reward)` for reward preprocessing (like reward normalization),
+   returning the processed batch of rewards.
+* `create_output_operations(states, internals, actions, terminal, reward)` for further output operations,
+   similar to the two above for `Model.act` and `Model.update`.
+* `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations
+   (like the baseline update in a `PGModel` or the target network update in a `QModel`), returning a single
+   grouped optimization operation.
 """
 
 
@@ -218,7 +228,8 @@ class Model(object):
 
     def initialize(self, custom_getter):
         """
-        Creates the TensorFlow placeholders and functions for this model. Moreover adds the internal state placeholders and initialization values to the model.
+        Creates the TensorFlow placeholders and functions for this model. Moreover adds the internal state
+        placeholders and initialization values to the model.
 
         Args:
             custom_getter: The `custom_getter_` object to use for `tf.make_template` when creating TensorFlow functions.
@@ -226,12 +237,20 @@ class Model(object):
         # States
         self.state_inputs = dict()
         for name, state in self.states_spec.items():
-            self.state_inputs[name] = tf.placeholder(dtype=util.tf_dtype(state['type']), shape=(None,) + tuple(state['shape']), name=name)
+            self.state_inputs[name] = tf.placeholder(
+                dtype=util.tf_dtype(state['type']),
+                shape=(None,) + tuple(state['shape']),
+                name=name
+            )
 
         # Actions
         self.action_inputs = dict()
         for name, action in self.actions_spec.items():
-            self.action_inputs[name] = tf.placeholder(dtype=util.tf_dtype(action['type']), shape=(None,) + tuple(action['shape']), name=name)
+            self.action_inputs[name] = tf.placeholder(
+                dtype=util.tf_dtype(action['type']),
+                shape=(None,) + tuple(action['shape']),
+                name=name
+            )
 
         # Terminal
         self.terminal_input = tf.placeholder(dtype=tf.bool, shape=(None,), name='terminal')
@@ -305,7 +324,8 @@ class Model(object):
 
     def tf_discounted_cumulative_reward(self, reward, terminal, discount, final_reward=0.0):
         """
-        Creates the TensorFlow operations for calculating the discounted cumulative rewards for a given sequence of rewards.
+        Creates the TensorFlow operations for calculating the discounted cumulative rewards
+        for a given sequence of rewards.
 
         Args:
             reward: Reward tensor.
@@ -334,7 +354,8 @@ class Model(object):
 
     def tf_actions_and_internals(self, states, internals, deterministic):
         """
-        Creates the TensorFlow operations for retrieving the actions (and posterior internal states) in reaction to the given input states (and prior internal states).
+        Creates the TensorFlow operations for retrieving the actions (and posterior internal states)
+        in reaction to the given input states (and prior internal states).
 
         Args:
             states: Dict of state tensors.
@@ -348,7 +369,8 @@ class Model(object):
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         """
-        Creates the TensorFlow operations for calculating the loss per batch instance of the given input states and actions.
+        Creates the TensorFlow operations for calculating the loss per batch instance
+        of the given input states and actions.
 
         Args:
             states: Dict of state tensors.
@@ -364,7 +386,8 @@ class Model(object):
 
     def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
         """
-        Calls all the relevant TensorFlow functions for this model and hence creates all the TensorFlow operations involved.
+        Calls all the relevant TensorFlow functions for this model and hence creates all the
+        TensorFlow operations involved.
 
         Args:
             states: Dict of state tensors.
@@ -377,11 +400,27 @@ class Model(object):
         # Tensor fetched for model.act()
         increment_time = self.time.assign_add(delta=1)
         with tf.control_dependencies(control_inputs=(increment_time,)):
-            self.actions_and_internals = self.fn_actions_and_internals(states=states, internals=self.internals, deterministic=deterministic)
+            self.actions_and_internals = self.fn_actions_and_internals(
+                states=states,
+                internals=self.internals,
+                deterministic=deterministic
+            )
 
         # Tensor(s) fetched for model.update()
-        self.loss_per_instance = self.fn_loss_per_instance(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
-        self.optimization = self.fn_optimization(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+        self.loss_per_instance = self.fn_loss_per_instance(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
+        self.optimization = self.fn_optimization(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
 
     def tf_regularization_losses(self, states, internals):
         """
@@ -397,7 +436,13 @@ class Model(object):
         return dict()
 
     def tf_loss(self, states, internals, actions, terminal, reward):
-        loss_per_instance = self.fn_loss_per_instance(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+        loss_per_instance = self.fn_loss_per_instance(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
 
         loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
@@ -409,7 +454,9 @@ class Model(object):
 
     def get_optimizer_kwargs(self, states, internals, actions, terminal, reward):
         """
-        Returns the optimizer arguments including the time, the list of variables to optimize, and various argument-free functions (in particular `fn_loss` returning the combined 0-dim batch loss tensor) which the optimizer might require to perform an update step.
+        Returns the optimizer arguments including the time, the list of variables to optimize,
+        and various argument-free functions (in particular `fn_loss` returning the combined
+        0-dim batch loss tensor) which the optimizer might require to perform an update step.
 
         Args:
             states: Dict of state tensors.
@@ -429,7 +476,8 @@ class Model(object):
 
     def tf_optimization(self, states, internals, actions, terminal, reward):
         """
-        Creates the TensorFlow operations for performing an optimization update step based on the given input states and actions batch.
+        Creates the TensorFlow operations for performing an optimization update step based
+        on the given input states and actions batch.
 
         Args:
             states: Dict of state tensors.
@@ -441,7 +489,13 @@ class Model(object):
         Returns:
             The optimization operation.
         """
-        optimizer_kwargs = self.get_optimizer_kwargs(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+        optimizer_kwargs = self.get_optimizer_kwargs(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
         return self.optimizer.minimize(**optimizer_kwargs)
 
     def get_variables(self):
@@ -560,5 +614,9 @@ class Model(object):
 
     def write_episode_reward_summary(self, episode_reward):
         if self.writer is not None:
-            reward_summary = self.session.run(self.episode_reward_summary, feed_dict={self.tf_episode_reward: episode_reward})
+            reward_summary = self.session.run(
+                fetches=self.episode_reward_summary,
+                feed_dict={self.tf_episode_reward: episode_reward}
+            )
+
             self.writer.add_summary(reward_summary, global_step=self.timestep)

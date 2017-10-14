@@ -40,12 +40,7 @@ class QModel(DistributionModel):
 
         self.double_dqn = config.double_dqn
         self.huber_loss = config.huber_loss
-
         super(QModel, self).__init__(states_spec, actions_spec, network_spec, config)
-
-        # self.last_target_update = 0
-        # Synchronize target with training network
-        # self.maybe_update_target(force=True)
 
     def initialize(self, custom_getter):
         super(QModel, self).initialize(custom_getter)
@@ -88,6 +83,7 @@ class QModel(DistributionModel):
             next_q_value = distribution.state_action_value(distr_params=target_distr_params, action=action_taken)
             delta = self.tf_q_delta(q_value=q_value, next_q_value=next_q_value, terminal=terminal[:-1], reward=reward[:-1])
             deltas.append(delta)
+
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
         loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
 
@@ -104,29 +100,10 @@ class QModel(DistributionModel):
     def tf_optimization(self, states, internals, actions, terminal, reward):
         optimization = super(QModel, self).tf_optimization(states, internals, actions, terminal, reward)
 
-        target_optimization = self.target_optimizer.minimize(time=self.time, variables=self.target_network.get_variables(), source_variables=self.network.get_variables())
+        target_optimization = self.target_optimizer.minimize(
+            time=self.time,
+            variables=self.target_network.get_variables(),
+            source_variables=self.network.get_variables()
+        )
 
         return tf.group(optimization, target_optimization)
-
-        # def true_fn():
-        #     updates = list()
-        #     for v_source, v_target in zip(self.network.get_variables(), self.target_network.get_variables()):
-        #         update = v_target.assign_sub(delta=(self.update_target_weight * (v_target - v_source)))
-        #         updates.append(update)
-        #     update_time = self.last_update.assign(value=self.time)
-        #     updates.append(update_time)
-        #     return tf.group(*updates)
-
-        # update = (self.time - self.last_update >= self.target_update_frequency)
-        # target_optimization = tf.cond(pred=update, true_fn=true_fn, false_fn=tf.no_op)
-
-        # return tf.group(optimization, target_optimization)
-
-
-
-
-    # def get_variables(self):
-    #     if False:
-    #         return super(QModel, self).get_variables() + self.target_network.get_variables()
-    #     else:
-    #         return super(QModel, self).get_variables()

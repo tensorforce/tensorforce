@@ -74,7 +74,8 @@ class DQFDAgent(MemoryAgent):
     * `update_target_weight`: float of update target weight (tau parameter).
     * `demo_sampling_ratio`: float, ratio of expert data used at runtime to train from.
     * `supervised_weight`: float, weight of large margin classifier loss.
-    * `expert_margin`: float of difference in Q-values between expert action and other actions enforced by the large margin function.
+    * `expert_margin`: float of difference in Q-values between expert action and other actions enforced
+                       by the large margin function.
     * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
 
 

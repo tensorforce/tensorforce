@@ -23,7 +23,8 @@ from tensorforce.models import PGLLModel
 
 class VPGAgent(BatchAgent):
     """
-    Vanilla Policy Gradient agent as described by [Sutton et al. (1999)](https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf).
+    Vanilla Policy Gradient agent as described by [Sutton et al. (1999)]
+    (https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf).
 
     ### Configuration options
 

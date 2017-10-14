@@ -37,7 +37,12 @@ class QNstepModel(QModel):
             terminal = tf.expand_dims(input=terminal, axis=1)
             reward = tf.expand_dims(input=reward, axis=1)
 
-        reward = self.fn_discounted_cumulative_reward(reward=reward, terminal=terminal, discount=self.discount, final_reward=next_q_value[-1])
+        reward = self.fn_discounted_cumulative_reward(
+            reward=reward,
+            terminal=terminal,
+            discount=self.discount,
+            final_reward=next_q_value[-1]
+        )
 
         # zeros = tf.zeros_like(tensor=next_q_value)
         # next_q_value = tf.where(condition=terminal, x=zeros, y=(self.discount * next_q_value))

@@ -97,7 +97,10 @@ class PPOModel(PGModel):
                     ) for tensor in distribution.get_tensors()
                 )
                 self.prev_distribution_tensors[name] = prev_distribution
-                prev_distribution = distribution.from_tensors(tensors=prev_distribution, deterministic=self.deterministic)
+                prev_distribution = distribution.from_tensors(
+                    tensors=prev_distribution,
+                    deterministic=self.deterministic
+                )
 
                 kl_divergence = prev_distribution.kl_divergence(other=distribution)
                 kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, shape_size))
@@ -181,7 +184,10 @@ class PPOModel(PGModel):
                 fetches = (self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy)
 
                 #TODO not very nice to read
-                prev_distribution_tensors = {placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items() for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])}
+                prev_distribution_tensors = {
+                    placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items()
+                    for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])
+                }
 
                 feed_dict.update(prev_distribution_tensors)
 

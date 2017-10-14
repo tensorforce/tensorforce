@@ -27,7 +27,7 @@ from tensorforce.core.distributions import Distribution
 
 class Gaussian(Distribution):
     """
-    Gaussian distribution, for unbounded continuous actions
+    Gaussian distribution, for unbounded continuous actions.
     """
 
     def __init__(self, shape, mean=0.0, log_stddev=0.0, scope='gaussian', summary_level=0):
@@ -57,8 +57,6 @@ class Gaussian(Distribution):
         # Standard deviation
         stddev = tf.exp(x=log_stddev)
 
-        # stddev = tf.Print(stddev, (mean, stddev, log_stddev))
-
         return mean, stddev, log_stddev
 
     def state_value(self, distr_params):
@@ -67,6 +65,7 @@ class Gaussian(Distribution):
 
     def state_action_value(self, distr_params, action):
         mean, stddev, log_stddev = distr_params
+
         sq_mean_distance = tf.square(x=(action - mean))
         sq_stddev = tf.maximum(x=tf.square(x=stddev), y=util.epsilon)
         return -0.5 * sq_mean_distance / sq_stddev - 2.0 * log_stddev - log(2.0 * pi)
@@ -96,10 +95,12 @@ class Gaussian(Distribution):
     def tf_kl_divergence(self, distr_params1, distr_params2):
         mean1, stddev1, log_stddev1 = distr_params1
         mean2, stddev2, log_stddev2 = distr_params2
+
         log_stddev_ratio = log_stddev2 - log_stddev1
         sq_mean_distance = tf.square(x=(mean1 - mean2))
         sq_stddev1 = tf.square(x=stddev1)
         sq_stddev2 = tf.maximum(x=tf.square(x=stddev2), y=util.epsilon)
+
         return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5
 
     def get_variables(self):

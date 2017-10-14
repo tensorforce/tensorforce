@@ -226,7 +226,11 @@ class Agent(object):
             self.current_states[name] = preprocessing.process(state=self.current_state[name])
 
         # Podel action
-        self.current_actions, self.next_internals = self.model.act(states=self.current_states, internals=self.current_internals, deterministic=deterministic)
+        self.current_actions, self.next_internals = self.model.act(
+            states=self.current_states,
+            internals=self.current_internals,
+            deterministic=deterministic
+        )
 
         # Exploration
         if not deterministic:
@@ -244,8 +248,14 @@ class Agent(object):
                     explore = (lambda: exploration(episode=self.episode, timestep=self.timestep))
                     shape = self.actions_spec[name]['shape']
                     exploration = np.array([explore() for _ in xrange(util.prod(shape))])
+
                     if 'min_value' in self.actions_spec[name]:
-                        exploration = np.clip(a=exploration, a_min=self.actions_spec[name]['min_value'], a_max=self.actions_spec[name]['max_value'])
+                        exploration = np.clip(
+                            a=exploration,
+                            a_min=self.actions_spec[name]['min_value'],
+                            a_max=self.actions_spec[name]['max_value']
+                        )
+
                     self.current_actions[name] += np.reshape(exploration, shape)
 
         if self.unique_action:

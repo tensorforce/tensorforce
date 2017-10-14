@@ -275,6 +275,9 @@ class PrioritizedReplay(Memory):
         if len(loss_per_instance) != len(self.batch_indices):
             raise TensorForceError(
                 "For all instances a loss value has to be provided.")
+        if min(loss_per_instance) < 0:
+            raise TensorForceError(
+                "Prioritized replay required positive losses.")
 
         for index, loss in zip(self.batch_indices, loss_per_instance):
             new_priority = loss ** self.prioritization_weight

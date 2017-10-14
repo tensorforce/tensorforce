@@ -88,8 +88,10 @@ class ConjugateGradient(Iterative):
         residual = [res - alpha * A_conj for res, A_conj in zip(residual, A_conjugate)]
         next_square_residual = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(res * res)) for res in residual])
 
-        conjugate = [res + (next_square_residual / tf.maximum(x=square_residual, y=util.epsilon)) * conj
-                     for res, conj in zip(residual, conjugate)]
+        conjugate = [
+            res + (next_square_residual / tf.maximum(x=square_residual, y=util.epsilon)) * conj
+            for res, conj in zip(residual, conjugate)
+        ]
         square_residual = next_square_residual
 
         return x, iteration, conjugate, residual, square_residual

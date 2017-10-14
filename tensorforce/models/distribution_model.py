@@ -48,14 +48,21 @@ class DistributionModel(Model):
             for name, action in actions_spec.items():
                 with tf.variable_scope(name_or_scope=(name + '-distribution')):
                     if config.distributions is not None and name in config.distributions:
-                        self.distributions[name] = Distribution.from_spec(spec=config.distributions[name], kwargs=action)
+                        self.distributions[name] = Distribution.from_spec(
+                            spec=config.distributions[name],
+                            kwargs=action
+                        )
                     elif action['type'] == 'bool':
                         self.distributions[name] = Bernoulli(shape=action['shape'])
                     elif action['type'] == 'int':
                         self.distributions[name] = Categorical(shape=action['shape'], num_actions=action['num_actions'])
                     elif action['type'] == 'float':
                         if 'min_value' in action:
-                            self.distributions[name] = Beta(shape=action['shape'], min_value=action['min_value'], max_value=action['max_value'])
+                            self.distributions[name] = Beta(
+                                shape=action['shape'],
+                                min_value=action['min_value'],
+                                max_value=action['max_value']
+                            )
                         else:
                             self.distributions[name] = Gaussian(shape=action['shape'])
 
@@ -114,6 +121,7 @@ class DistributionModel(Model):
     def tf_kl_divergence(self, states, internals):
         embedding = self.network.apply(x=states, internals=internals)
         kl_divergences = list()
+
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameters(x=embedding)
             fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
@@ -121,6 +129,7 @@ class DistributionModel(Model):
             collapsed_size = util.prod(util.shape(kl_divergence)[1:])
             kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
             kl_divergences.append(kl_divergence)
+
         kl_divergence_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
         return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
 
@@ -130,4 +139,17 @@ class DistributionModel(Model):
         return kwargs
 
     def get_variables(self):
-        return super(DistributionModel, self).get_variables() + self.network.get_variables() + [variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables()]
+        """
+        Variables are model variables, network variables and distribution variables
+
+        Returns: List of variables
+
+        """
+        model_vars = super(DistributionModel, self).get_variables()
+        network_vars = self.network.get_variables()
+
+        dist_vars = [
+            variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables()
+        ]
+
+        return model_vars + network_vars + dist_vars

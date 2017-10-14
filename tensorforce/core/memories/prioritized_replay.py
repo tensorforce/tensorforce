@@ -21,7 +21,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from random import random, randrange
+from random import random
 from six.moves import xrange
 import numpy as np
 from collections import namedtuple
@@ -39,14 +39,14 @@ class SumTree(object):
     tree contains a sum of the children.
             # For prioritized replay, 'sum-tree' data structure is used.
     Items and priorities are stored in leaf nodes, while internal nodes store
-    the sum of priorities from all its descendants. Internally a single list 
+    the sum of priorities from all its descendants. Internally a single list
     stores the internal nodes followed by leaf nodes.
-    
+
     See:
     - [Binary heap trees](https://en.wikipedia.org/wiki/Binary_heap)
     - [Section B.2.1 in the prioritized replay paper](https://arxiv.org/pdf/1511.05952.pdf)
     - [The CNTK implementation](https://github.com/Microsoft/CNTK/blob/258fbec7600fe525b50c3e12d4df0c971a42b96a/bindings/python/cntk/contrib/deeprl/agent/shared/replay_memory.py)
-        
+
     Usage:
         tree = SumTree(100)
         tree.push('item1', priority=0.5)
@@ -58,7 +58,6 @@ class SumTree(object):
     def __init__(self, capacity):
         self._capacity = capacity
 
-        
         # initializes all internal nodes to have value 0.
         self._memory = [0] * (capacity - 1)
         self._position = 0
@@ -67,7 +66,7 @@ class SumTree(object):
     def put(self, item, priority=None):
         """
         Store a transition in replay memory.
-        
+
         If the memory is full, the oldest one gets overwritten.
         """
         if not self._isfull():
@@ -93,7 +92,7 @@ class SumTree(object):
         self._update_internal_nodes(index, new_priority - old_priority)
 
     def _update_internal_nodes(self, index, delta):
-        """        
+        """
         Update internal priority sums when leaf priority has been changed.
         Args:
             index: leaf node index
@@ -141,7 +140,7 @@ class SumTree(object):
 
         delta_p = self._memory[0] / batch_size
         chosen_idx = []
-        for i in range(batch_size):
+        for i in xrange(batch_size):
             lower = max(i * delta_p, 0)
             upper = min((i + 1) * delta_p, self._memory[0])
             p = random.uniform(lower, upper)
@@ -161,13 +160,20 @@ class SumTree(object):
 
 class PrioritizedReplay(Memory):
     def __init__(self, capacity, states_config, actions_config, prioritization_weight=1.0):
-        super(PrioritizedReplay, self).__init__(capacity, states_config, actions_config)
+        super(PrioritizedReplay, self).__init__(
+            capacity, states_config, actions_config)
         self.prioritization_weight = prioritization_weight
         self.internals_config = None
-        self.observations = SumTree(capacity)  # stores (priority, observation) pairs in reverse priority order
-        self.none_priority_index = 0 # tells us where seed observations end and seen ones begin
         self.batch_indices = None
-        self.last_observation = None  # stores last observation until next_state value is known
+
+        # stores (priority, observation) pairs
+        self.observations = SumTree(capacity)
+
+        # queue index where seen observations end and unseen ones begin
+        self.none_priority_index = 0
+
+        # stores last observation until next_state value is known
+        self.last_observation = None
 
     def add_observation(self, state, action, reward, terminal, internal):
         if self.internals_config is None and internal is not None:
@@ -179,48 +185,53 @@ class PrioritizedReplay(Memory):
             # we we are above capacity and have some seen observations
             if self.observations._isfull():
                 if self.none_priority_index <= 0:
-                    raise TensorForceError("Trying to replace unseed observations: Memory is at capacity and contains only unseen observations.")
+                    raise TensorForceError(
+                        "Trying to replace unseen observations: Memory is at capacity and contains only unseen observations.")
                 self.none_priority_index -= 1
-            
+
             self.observations.put(observation, None)
-                
+
         self.last_observation = (state, action, reward, terminal, internal)
-        
+
     def get_batch(self, batch_size, next_states=False):
         """
-        Samples a batch of the specified size according to priority. 
+        Samples a batch of the specified size according to priority.
         Args:
             batch_size: The batch size
             next_states: A boolean flag indicating whether 'next_states' values should be included
         Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
         """
-        
+
         # init empty states etc
-        states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in self.states_config.items()}
-        actions = {name: np.zeros((batch_size,) + tuple(action.shape), dtype=util.np_dtype('float' if action.continuous else 'int')) for name, action in self.actions_config.items()}
+        states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(
+            state.type)) for name, state in self.states_config.items()}
+        actions = {name: np.zeros((batch_size,) + tuple(action.shape), dtype=util.np_dtype(
+            'float' if action.continuous else 'int')) for name, action in self.actions_config.items()}
         rewards = np.zeros((batch_size,), dtype=util.np_dtype('float'))
         terminals = np.zeros((batch_size,), dtype=util.np_dtype('bool'))
-        internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
+        internals = [np.zeros((batch_size,) + shape, dtype)
+                     for shape, dtype in self.internals_config]
         if next_states:
-            next_states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(state.type)) for name, state in self.states_config.items()}
-            next_internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
+            next_states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(
+                state.type)) for name, state in self.states_config.items()}
+            next_internals = [np.zeros((batch_size,) + shape, dtype)
+                              for shape, dtype in self.internals_config]
 
-        
         # start with unseed observations
         unseed_indices = list(
-            range(self.none_priority_index + self.observations._capacity-1, len(self.observations) + self.observations._capacity-1))
+            xrange(self.none_priority_index + self.observations._capacity - 1, len(self.observations) + self.observations._capacity - 1))
         self.batch_indices = unseed_indices[:batch_size]
-        
+
         # get remaining observations using weighted sampling
         remaining = batch_size - len(self.batch_indices)
         if remaining:
             samples = self.observations.sample_minibatch(remaining)
-            sample_indices = [i for i,o in samples]
-            self.batch_indices += sample_indices 
-        
+            sample_indices = [i for i, o in samples]
+            self.batch_indices += sample_indices
+
         # shuffle
         np.random.shuffle(self.batch_indices)
-        
+
         # collect observations
         for n, index in enumerate(self.batch_indices):
             observation, _ = self.observations._memory[index]
@@ -243,21 +254,23 @@ class PrioritizedReplay(Memory):
             return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals, next_states=next_states, next_internals=next_internals)
         else:
             return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
-        
-    def update_batch(self, loss_per_instance):
-            """
-            Computes priorities according to loss.
 
-            Args:
-                loss_per_instance: 
-            Returns:
-            """
-            if self.batch_indices is None:
-                raise TensorForceError("Need to call get_batch before each update_batch call.")
-            if len(loss_per_instance) != len(self.batch_indices):
-                raise TensorForceError("For all instances a loss value has to be provided.")
-            
-            for index, loss in zip(self.batch_indices, loss_per_instance):
-                new_priority = loss ** self.prioritization_weight
-                self.observations._move(index, new_priority)
-                self.none_priority_index += 1
+    def update_batch(self, loss_per_instance):
+        """
+        Computes priorities according to loss.
+
+        Args:
+            loss_per_instance:
+        Returns:
+        """
+        if self.batch_indices is None:
+            raise TensorForceError(
+                "Need to call get_batch before each update_batch call.")
+        if len(loss_per_instance) != len(self.batch_indices):
+            raise TensorForceError(
+                "For all instances a loss value has to be provided.")
+
+        for index, loss in zip(self.batch_indices, loss_per_instance):
+            new_priority = loss ** self.prioritization_weight
+            self.observations._move(index, new_priority)
+            self.none_priority_index += 1

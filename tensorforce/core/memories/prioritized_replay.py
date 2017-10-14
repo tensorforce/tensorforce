@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Replay memory implementing priotised experience replay.
+Replay memory implementing prioritized experience replay.
 """
 
 from __future__ import absolute_import
@@ -29,8 +29,7 @@ from collections import namedtuple
 from tensorforce import util, TensorForceError
 from tensorforce.core.memories import Memory
 
-_QueueRow = namedtuple('QueueRow',
-                       ['item', 'priority'])
+_SumRow = namedtuple('SumRow', ['item', 'priority'])
 
 
 class SumTree(object):
@@ -74,7 +73,7 @@ class SumTree(object):
         position = self._next_position_then_increment()
         old_priority = 0 if self._memory[position] is None \
             else (self._memory[position].priority or 0)
-        row = _QueueRow(item, priority)
+        row = _SumRow(item, priority)
         self._memory[position] = row
         self._update_internal_nodes(
             position, (row.priority or 0) - old_priority)
@@ -88,7 +87,7 @@ class SumTree(object):
         """Change the priority of a leaf node"""
         item, old_priority = self._memory[index]
         old_priority = old_priority or 0
-        self._memory[index] = _QueueRow(item, new_priority)
+        self._memory[index] = _SumRow(item, new_priority)
         self._update_internal_nodes(index, new_priority - old_priority)
 
     def _update_internal_nodes(self, index, delta):

@@ -216,10 +216,10 @@ class PrioritizedReplay(Memory):
             next_internals = [np.zeros((batch_size,) + shape, dtype)
                               for shape, dtype in self.internals_config]
 
-        # start with unseed observations
-        unseed_indices = list(
+        # start with unseen observations
+        unseen_indices = list(
             xrange(self.none_priority_index + self.observations._capacity - 1, len(self.observations) + self.observations._capacity - 1))
-        self.batch_indices = unseed_indices[:batch_size]
+        self.batch_indices = unseen_indices[:batch_size]
 
         # get remaining observations using weighted sampling
         remaining = batch_size - len(self.batch_indices)

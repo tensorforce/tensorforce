@@ -27,7 +27,6 @@ from tensorforce.agents.dqfd_agent import DQFDAgent
 # from tensorforce.agents.naf_agent import NAFAgent
 # from tensorforce.agents.categorical_dqn_agent import CategoricalDQNAgent
 
-
 agents = dict(
     constant_agent=ConstantAgent,
     random_agent=RandomAgent,
@@ -52,6 +51,7 @@ __all__ = [
     'TRPOAgent',
     'PPOAgent',
     'DQNAgent',
+    'DQFDAgent',
     'DQNNstepAgent',
     'agents'
 ]

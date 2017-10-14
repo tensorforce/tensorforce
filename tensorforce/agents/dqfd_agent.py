@@ -79,7 +79,7 @@ class DQFDAgent(MemoryAgent):
         exploration=None,
         reward_preprocessing=None,
         # Model
-        scope='dqn',
+        scope='dqfd',
         optimizer=dict(
             type='adam',
             learning_rate=1e-3
@@ -114,6 +114,8 @@ class DQFDAgent(MemoryAgent):
             double_dqn=True
         )
 
+        # DQFD always uses double dqn, which is a required key for a q-model.
+        config.obligatory(double_dqn=True)
         self.target_update_frequency = config.target_update_frequency
         self.demo_memory_capacity = config.demo_memory_capacity
 

@@ -27,7 +27,7 @@ class Beta(Distribution):
     Beta distribution, for bounded continuous actions
     """
 
-    def __init__(self, shape, min_value, max_value, alpha=0.0, beta=0.0, scope='beta', summary_level=0):
+    def __init__(self, shape, min_value, max_value, alpha=0.0, beta=0.0, scope='beta', summary_labels=()):
         """
         Beta distribution used for continuous actions. In particular, the Beta distribution
         allows to bound action values with min and max values.
@@ -49,7 +49,7 @@ class Beta(Distribution):
             self.alpha = Linear(size=action_size, bias=alpha, scope='alpha')
             self.beta = Linear(size=action_size, bias=beta, scope='beta')
 
-        super(Beta, self).__init__(scope, summary_level)
+        super(Beta, self).__init__(scope, summary_labels)
 
     def tf_parameters(self, x):
         # Softplus to ensure alpha and beta >= 1

@@ -154,7 +154,7 @@ class Runner(object):
                 if terminal or self.timestep == max_timesteps:
                     break
 
-            self.agent.observe_episode_reward(episode_reward)
+            # self.agent.observe_episode_reward(episode_reward)
             time_passed = time.time() - episode_start_time
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(self.timestep)

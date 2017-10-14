@@ -30,14 +30,14 @@ class Bernoulli(Distribution):
     Bernoulli distribution, for binary actions
     """
 
-    def __init__(self, shape, probability=0.5, scope='bernoulli', summary_level=0):
+    def __init__(self, shape, probability=0.5, scope='bernoulli', summary_labels=()):
         self.shape = shape
         action_size = util.prod(self.shape)
 
         with tf.name_scope(name=scope):
             self.logit = Linear(size=action_size, bias=log(probability), scope='logit')
 
-        super(Bernoulli, self).__init__(scope, summary_level)
+        super(Bernoulli, self).__init__(scope, summary_labels)
 
     def tf_parameters(self, x):
         # Flat logit

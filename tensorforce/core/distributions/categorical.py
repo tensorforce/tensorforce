@@ -30,7 +30,7 @@ class Categorical(Distribution):
     Categorical distribution, for discrete actions
     """
 
-    def __init__(self, shape, num_actions, probabilities=None, scope='categorical', summary_level=0):
+    def __init__(self, shape, num_actions, probabilities=None, scope='categorical', summary_labels=()):
         self.shape = shape
         self.num_actions = num_actions
         if probabilities is None:
@@ -42,7 +42,7 @@ class Categorical(Distribution):
         with tf.name_scope(name=scope):
             self.logits = Linear(size=action_size, bias=logits, scope='logits')
 
-        super(Categorical, self).__init__(scope, summary_level)
+        super(Categorical, self).__init__(scope, summary_labels)
 
     def tf_parameters(self, x):
         # Flat logits
@@ -85,8 +85,12 @@ class Categorical(Distribution):
         definite = tf.argmax(input=logits, axis=-1)
 
         # Non-deterministic: sample action using Gumbel distribution
-        uniform = tf.random_uniform(shape=tf.shape(input=logits), minval=util.epsilon, maxval=(1.0 - util.epsilon))
-        gumbel_distribution = -tf.log(x=-tf.log(x=uniform))
+        uniform_distribution = tf.random_uniform(
+            shape=tf.shape(input=logits),
+            minval=util.epsilon,
+            maxval=(1.0 - util.epsilon)
+        )
+        gumbel_distribution = -tf.log(x=-tf.log(x=uniform_distribution))
         sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
 
         return tf.where(condition=deterministic, x=definite, y=sampled)

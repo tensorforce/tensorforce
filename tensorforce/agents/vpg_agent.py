@@ -58,16 +58,18 @@ class VPGAgent(BatchAgent):
 
     #### Logging:
 
-    * `log_level`: Logging level (default: 'info')
-        + One of 'info', 'debug', 'critical', 'warning', 'fatal'
-    * `tf_summary`: None or dict with the following values (default: none)
-        + `logdir`: Directory where TensorFlow event file will be written
-        + `level`: TensorFlow summary logging level
-            - `0`:
-            - `1`:
-            - `2`:
-            - `3`:
-        + `interval`: Number of timesteps between summaries
+    * `log_level`: Logging level, one of the following values (default: 'info')
+        + 'info', 'debug', 'critical', 'warning', 'fatal'
+
+    #### TensorFlow Summaries:
+    * `summary_logdir`: None or summary directory string (default: none)
+    * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
+        + 'total-loss'
+        + 'losses'
+        + 'variables'
+        + 'activations'
+        + 'relu'
+    * `summary_frequency`: Positive integer (default: 1)
     """
 
     default_config = dict(
@@ -95,14 +97,20 @@ class VPGAgent(BatchAgent):
         gae_lambda=None,
         # Logging
         log_level='info',
-        tf_summary=None
+        # TensorFlow Summaries
+        summary_logdir=None,
+        summary_labels=['total-loss'],
+        summary_frequency=100,
+        # Distributed
+        distributed=False,
+        device=None
     )
 
     # missing: batch agent configs
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         self.network_spec = network_spec
-        config = config.copy()
+        config = config.copy()  # TODO: copy necessary?
         config.default(self.__class__.default_config)
         super(VPGAgent, self).__init__(states_spec, actions_spec, config)
 

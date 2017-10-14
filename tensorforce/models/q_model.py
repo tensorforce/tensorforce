@@ -34,8 +34,8 @@ class QModel(DistributionModel):
 
         # Target network optimizer
         self.target_optimizer = Synchronization(
-            update_frequency=config.target_update_frequency,
-            update_weight=config.update_target_weight
+            sync_frequency=config.target_sync_frequency,
+            update_weight=config.target_update_weight
         )
 
         self.double_dqn = config.double_dqn
@@ -101,7 +101,7 @@ class QModel(DistributionModel):
         optimization = super(QModel, self).tf_optimization(states, internals, actions, terminal, reward)
 
         target_optimization = self.target_optimizer.minimize(
-            time=self.time,
+            time=self.timestep,
             variables=self.target_network.get_variables(),
             source_variables=self.network.get_variables()
         )

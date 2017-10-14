@@ -25,7 +25,7 @@ class CNNBaseline(NetworkBaseline):
     CNN baseline (single-state) consisting of convolutional layers followed by dense layers
     """
 
-    def __init__(self, conv_sizes, dense_sizes, scope='cnn-baseline', summary_level=0):
+    def __init__(self, conv_sizes, dense_sizes, scope='cnn-baseline', summary_labels=()):
         """
         CNN baseline
 
@@ -44,4 +44,4 @@ class CNNBaseline(NetworkBaseline):
         for size in dense_sizes:
             layers_spec.append({'type': 'dense', 'size': size})
 
-        super(CNNBaseline, self).__init__(layers_spec, scope, summary_level)
+        super(CNNBaseline, self).__init__(layers_spec, scope, summary_labels)

@@ -80,7 +80,7 @@ class NaturalGradient(Optimizer):
             applied = self.apply_step(variables=variables, diffs=estimated_diffs)
 
             with tf.control_dependencies(control_inputs=(applied,)):
-                return [tf.identity(input=estimated_diff) for estimated_diff in estimated_diffs]
+                return [estimated_diff + 0.0 for estimated_diff in estimated_diffs]
 
         def false_fn():
             return [tf.zeros_like(tensor=diff) for diff in diffs]

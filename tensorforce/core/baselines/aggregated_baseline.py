@@ -29,7 +29,7 @@ class AggregatedBaseline(Baseline):
     Baseline which aggregates per-state baselines
     """
 
-    def __init__(self, baselines, scope='aggregated-baseline', summary_level=0):
+    def __init__(self, baselines, scope='aggregated-baseline', summary_labels=()):
         """
         Aggregated baseline
 
@@ -43,12 +43,12 @@ class AggregatedBaseline(Baseline):
                 with tf.name_scope(name=(name + '-baseline')):
                     self.baselines[name] = Baseline.from_spec(
                         spec=baseline_spec,
-                        kwargs=dict(summary_level=summary_level)
+                        kwargs=dict(summary_labels=summary_labels)
                     )
 
             self.linear = Linear(size=1, bias=0.0, scope='prediction')
 
-        super(AggregatedBaseline, self).__init__(scope, summary_level)
+        super(AggregatedBaseline, self).__init__(scope, summary_labels)
 
     def tf_predict(self, states):
         predictions = list()

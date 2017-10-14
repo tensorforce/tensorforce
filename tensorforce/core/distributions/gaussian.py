@@ -30,7 +30,7 @@ class Gaussian(Distribution):
     Gaussian distribution, for unbounded continuous actions.
     """
 
-    def __init__(self, shape, mean=0.0, log_stddev=0.0, scope='gaussian', summary_level=0):
+    def __init__(self, shape, mean=0.0, log_stddev=0.0, scope='gaussian', summary_labels=()):
         self.shape = shape
         action_size = util.prod(self.shape)
 
@@ -38,7 +38,7 @@ class Gaussian(Distribution):
             self.mean = Linear(size=action_size, bias=mean, scope='mean')
             self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev')
 
-        super(Gaussian, self).__init__(scope, summary_level)
+        super(Gaussian, self).__init__(scope, summary_labels)
 
     def tf_parameters(self, x):
         # Flat mean and log standard deviation
@@ -77,8 +77,8 @@ class Gaussian(Distribution):
         definite = mean
 
         # Non-deterministic: sample action using default normal distribution
-        normal = tf.random_normal(shape=tf.shape(input=mean))
-        sampled = mean + stddev * normal
+        normal_distribution = tf.random_normal(shape=tf.shape(input=mean))
+        sampled = mean + stddev * normal_distribution
 
         return tf.where(condition=deterministic, x=definite, y=sampled)
 

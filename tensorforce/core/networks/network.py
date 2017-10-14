@@ -32,14 +32,18 @@ class Network(object):
     Base class for networks
     """
 
-    def __init__(self, scope='network', summary_level=0):
-        self.summary_level = summary_level
+    def __init__(self, scope='network', summary_labels=None):
+        self.summary_labels = set(summary_labels or ())
         self.variables = dict()
+        self.summaries = list()
 
         with tf.name_scope(name=scope):
             def custom_getter(getter, name, *args, **kwargs):
                 variable = getter(name=name, *args, **kwargs)
                 self.variables[name] = variable
+                if 'variables' in self.summary_labels:
+                    summary = tf.summary.histogram(name=name, values=variable)
+                    self.summaries.append(summary)
                 return variable
 
             self.apply = tf.make_template(
@@ -48,9 +52,9 @@ class Network(object):
                 create_scope_now_=True,
                 custom_getter_=custom_getter
             )
-            self.regularization_losses = tf.make_template(
-                name_='regularization-losses',
-                func_=self.tf_regularization_losses,
+            self.regularization_loss = tf.make_template(
+                name_='regularization-loss',
+                func_=self.tf_regularization_loss,
                 create_scope_now_=True,
                 custom_getter_=custom_getter
             )
@@ -78,15 +82,6 @@ class Network(object):
         """
         return None
 
-    def get_variables(self):
-        """
-        Returns the TensorFlow variables used by the network
-
-        Returns:
-            List of network variables
-        """
-        return [self.variables[key] for key in sorted(self.variables)]
-
     def internal_inputs(self):
         """
         Returns the TensorFlow placeholders for internal state inputs
@@ -104,6 +99,24 @@ class Network(object):
             List of internal state initialization tensors
         """
         return list()
+
+    def get_variables(self):
+        """
+        Returns the TensorFlow variables used by the network
+
+        Returns:
+            List of variables
+        """
+        return [self.variables[key] for key in sorted(self.variables)]
+
+    def get_summaries(self):
+        """
+        Returns the TensorFlow summaries reported by the network
+
+        Returns:
+            List of summaries
+        """
+        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):
@@ -124,8 +137,8 @@ class LayerBasedNetwork(Network):
     Base class for networks using TensorForce layers
     """
 
-    def __init__(self, scope='layerbased-network', summary_level=0):
-        super(LayerBasedNetwork, self).__init__(scope=scope, summary_level=summary_level)
+    def __init__(self, scope='layerbased-network', summary_labels=()):
+        super(LayerBasedNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
         self.layers = list()
 
     def add_layer(self, layer):
@@ -140,9 +153,6 @@ class LayerBasedNetwork(Network):
         else:
             return None
 
-    def get_variables(self):
-        return super(LayerBasedNetwork, self).get_variables() + [variable for layer in self.layers for variable in layer.get_variables()]
-
     def internal_inputs(self):
         internal_inputs = list()
         for layer in self.layers:
@@ -155,20 +165,26 @@ class LayerBasedNetwork(Network):
             internal_inits.extend(layer.internal_inits())
         return internal_inits
 
+    def get_variables(self):
+        return super(LayerBasedNetwork, self).get_variables() + [variable for layer in self.layers for variable in layer.get_variables()]
+
+    def get_summaries(self):
+        return super(LayerBasedNetwork, self).get_summaries() + [summary for layer in self.layers for summary in layer.get_summaries()]
+
 
 class LayeredNetwork(LayerBasedNetwork):
     """
     Network consisting of a sequence of layers, which can be created from a specification dict.
     """
 
-    def __init__(self, layers_spec, scope='layered-network', summary_level=0):
+    def __init__(self, layers_spec, scope='layered-network', summary_labels=()):
         """
         Layered network
 
         Args:
             layers_spec: List of layer specification dicts
         """
-        super(LayeredNetwork, self).__init__(scope=scope, summary_level=summary_level)
+        super(LayeredNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
         self.layers_spec = layers_spec
         layer_counter = Counter()
 
@@ -176,7 +192,7 @@ class LayeredNetwork(LayerBasedNetwork):
             for layer_spec in self.layers_spec:
                 layer = Layer.from_spec(
                     spec=layer_spec,
-                    kwargs=dict(scope=scope, summary_level=summary_level)
+                    kwargs=dict(scope=scope, summary_labels=summary_labels)
                 )
 
                 name = layer_spec['type'].__class__.__name__

@@ -36,15 +36,19 @@ class Layer(object):
     Base class for network layers.
     """
 
-    def __init__(self, num_internals=0, scope='layer', summary_level=0):
+    def __init__(self, num_internals=0, scope='layer', summary_labels=None):
         self.num_internals = num_internals
-        self.summary_level = summary_level
+        self.summary_labels = set(summary_labels or ())
         self.variables = dict()
+        self.summaries = list()
 
         with tf.name_scope(name=scope):
             def custom_getter(getter, name, *args, **kwargs):
                 variable = getter(name=name, *args, **kwargs)
                 self.variables[name] = variable
+                if 'variables' in self.summary_labels:
+                    summary = tf.summary.histogram(name=name, values=variable)
+                    self.summaries.append(summary)
                 return variable
 
             self.apply = tf.make_template(
@@ -81,15 +85,6 @@ class Layer(object):
         """
         return list()
 
-    def get_variables(self):
-        """
-        Returns the TensorFlow variables used by the layer
-
-        Returns:
-            List of layer variables
-        """
-        return [self.variables[key] for key in sorted(self.variables)]
-
     def internal_inputs(self):
         """
         Returns the TensorFlow placeholders for internal state inputs.
@@ -108,6 +103,24 @@ class Layer(object):
         """
         return list()
 
+    def get_variables(self):
+        """
+        Returns the TensorFlow variables used by the layer
+
+        Returns:
+            List of variables
+        """
+        return [self.variables[key] for key in sorted(self.variables)]
+
+    def get_summaries(self):
+        """
+        Returns the TensorFlow summaries reported by the layer
+
+        Returns:
+            List of summaries
+        """
+        return self.summaries
+
     @staticmethod
     def from_spec(spec, kwargs=None):
         """
@@ -125,8 +138,8 @@ class Layer(object):
 class Flatten(Layer):
     """Flatten layer. Utility class to reshape inputs."""
 
-    def __init__(self, scope='flatten', summary_level=0):
-        super(Flatten, self).__init__(scope=scope, summary_level=summary_level)
+    def __init__(self, scope='flatten', summary_labels=()):
+        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
         return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
@@ -135,7 +148,7 @@ class Flatten(Layer):
 class Nonlinearity(Layer):
     """Non-linearity layer. Applies a non-linear transformation."""
 
-    def __init__(self, name='relu', scope='nonlinearity', summary_level=0):
+    def __init__(self, name='relu', scope='nonlinearity', summary_labels=()):
         """
         Non-linearity layer.
 
@@ -143,39 +156,49 @@ class Nonlinearity(Layer):
             name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', or 'tanh'/
         """
         self.name = name
-        super(Nonlinearity, self).__init__(scope=scope, summary_level=summary_level)
+        super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
         if self.name == 'elu':
             x = tf.nn.elu(features=x)
+
         elif self.name == 'relu':
             x = tf.nn.relu(features=x)
-            if self.summary_level >= 3:  # summary level 3: layer activations
-                non_zero_pct = (tf.cast(tf.count_nonzero(x), tf.float32) / tf.cast(tf.reduce_prod(tf.shape(x)), tf.float32))
-                tf.summary.scalar('relu-sparsity', 1.0 - non_zero_pct)
+            if 'relu' in self.summary_labels:
+                non_zero = tf.cast(x=tf.count_nonzero(input_tensor=x), dtype=tf.float32)
+                size = tf.cast(x=tf.reduce_prod(input_tensor=tf.shape(input=x)), dtype=tf.float32)
+                summary = tf.summary.scalar(name='relu', tensor=(non_zero / size))
+                self.summaries.append(summary)
+
         elif self.name == 'selu':
             # https://arxiv.org/pdf/1706.02515.pdf
             alpha = 1.6732632423543772848170429916717
             scale = 1.0507009873554804934193349852946
             negative = alpha * tf.nn.elu(features=x)
             x = scale * tf.where(condition=(x >= 0.0), x=x, y=negative)
+
         elif self.name == 'sigmoid':
             x = tf.sigmoid(x=x)
+
         elif self.name == 'softmax':
             x = tf.nn.softmax(logits=x)
+
         elif self.name == 'softplus':
             x = tf.nn.softplus(features=x)
+
         elif self.name == 'tanh':
             x = tf.nn.tanh(x=x)
+
         else:
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))
+
         return x
 
 
 class Linear(Layer):
     """Linear fully connected layer."""
 
-    def __init__(self, size, weights=None, bias=True, l2_regularization=0.0, scope='linear', summary_level=0):
+    def __init__(self, size, weights=None, bias=True, l2_regularization=0.0, scope='linear', summary_labels=()):
         """
         Linear layer.
 
@@ -189,7 +212,7 @@ class Linear(Layer):
         self.weights_init = weights
         self.bias_init = bias
         self.l2_regularization = l2_regularization
-        super(Linear, self).__init__(scope=scope, summary_level=summary_level)
+        super(Linear, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
         if util.rank(x) != 2:
@@ -279,6 +302,7 @@ class Linear(Layer):
             else:
                 self.bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=self.bias_init)
             x = tf.nn.bias_add(value=x, bias=self.bias)
+
         return x
 
     def tf_regularization_losses(self):
@@ -295,7 +319,7 @@ class Dense(Layer):
     Dense layer, i.e. linear fully connected layer with subsequent non-linearity.
     """
 
-    def __init__(self, size, bias=True, activation='tanh', l2_regularization=0.0, scope='dense', summary_level=0):
+    def __init__(self, size, bias=True, activation='tanh', l2_regularization=0.0, scope='dense', summary_labels=()):
         """
         Dense layer.
 
@@ -305,16 +329,18 @@ class Dense(Layer):
             activation: Type of nonlinearity
             l2_regularization: L2 regularization weight
         """
-        self.linear = Linear(size=size, bias=bias, l2_regularization=l2_regularization, summary_level=summary_level)
-        self.nonlinearity = Nonlinearity(name=activation, summary_level=summary_level)
-        super(Dense, self).__init__(scope=scope, summary_level=summary_level)
+        self.linear = Linear(size=size, bias=bias, l2_regularization=l2_regularization, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
         x = self.linear.apply(x=x)
         x = self.nonlinearity.apply(x=x)
 
-        if self.summary_level >= 3:
-            tf.summary.histogram('activations', x)
+        if 'activations' in self.summary_labels:
+            summary = tf.summary.histogram(name='activations', values=x)
+            self.summaries.append(summary)
+
         return x
 
     def tf_regularization_losses(self):
@@ -329,7 +355,7 @@ class Dense(Layer):
 class Conv2d(Layer):
     """A 2-dimensional convolutional layer."""
 
-    def __init__(self, size, window=3, stride=1, padding='SAME', bias=False, activation='relu', l2_regularization=0.0, scope='conv2d', summary_level=0):
+    def __init__(self, size, window=3, stride=1, padding='SAME', bias=False, activation='relu', l2_regularization=0.0, scope='conv2d', summary_labels=()):
         """
         Convolutional layer.
 
@@ -348,8 +374,8 @@ class Conv2d(Layer):
         self.padding = padding
         self.bias = bias
         self.l2_regularization = l2_regularization
-        self.nonlinearity = Nonlinearity(name=activation, summary_level=summary_level)
-        super(Conv2d, self).__init__(scope=scope, summary_level=summary_level)
+        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
         if util.rank(x) != 4:
@@ -367,8 +393,10 @@ class Conv2d(Layer):
             self.bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=bias_init)
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
-        if self.summary_level >= 3:
-            tf.summary.histogram('activations', x)
+        if 'activations' in self.summary_labels:
+            summary = tf.summary.histogram(name='activations', values=x)
+            self.summaries.append(summary)
+
         return x
 
     def tf_regularization_losses(self):
@@ -383,7 +411,7 @@ class Conv2d(Layer):
 class Lstm(Layer):
     """Long-term-short-term memory layer."""
 
-    def __init__(self, size, dropout=None, scope='lstm', summary_level=0):
+    def __init__(self, size, dropout=None, scope='lstm', summary_labels=()):
         """
         LSTM layer.
 
@@ -393,7 +421,7 @@ class Lstm(Layer):
         """
         self.size = size
         self.dropout = dropout
-        super(Lstm, self).__init__(num_internals=1, scope=scope, summary_level=summary_level)
+        super(Lstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, state):
         if util.rank(x) != 2:
@@ -409,10 +437,11 @@ class Lstm(Layer):
 
         x, state = self.lstm_cell(inputs=x, state=state)
 
-        if self.summary_level >= 3:
-            tf.summary.histogram('activations', x)
-
         internal_output = tf.stack(values=(state.c, state.h), axis=1)
+
+        if 'activations' in self.summary_labels:
+            summary = tf.summary.histogram(name='activations', values=x)
+            self.summaries.append(summary)
 
         return x, (internal_output,)
 

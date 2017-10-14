@@ -100,7 +100,28 @@ class PGLRModel(PGModel):
         return tf.reduce_mean(input_tensor=(-prob_ratio * reward), axis=0)
 
     def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
-        kwargs = super(PGLRModel, self).get_optimizer_kwargs(states, actions, terminal, reward, internals)
-        kwargs['fn_reference'] = (lambda: self.reference(states=states, actions=actions, internals=internals))
-        kwargs['fn_compare'] = (lambda reference: self.compare(states=states, actions=actions, terminal=terminal, reward=reward, internals=internals, reference=reference))
+        kwargs = super(PGLRModel, self).get_optimizer_kwargs(
+            states=states,
+            internals=internals,
+            actions=actions,
+            termina=terminal,
+            reward=reward
+        )
+        kwargs['fn_reference'] = (
+            lambda: self.reference(
+                states=states,
+                actions=actions,
+                internals=internals
+            )
+        )
+        kwargs['fn_compare'] = (
+            lambda reference: self.compare(
+                states=states,
+                actions=actions,
+                terminal=terminal,
+                reward=reward,
+                internals=internals,
+                reference=reference
+            )
+        )
         return kwargs

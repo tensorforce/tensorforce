@@ -31,10 +31,11 @@ class Optimizer(tf.train.Optimizer):
     def __init__(self):
         super(Optimizer, self).__init__(use_locking=False, name='TensorForceOptimizer')
         self._learning_rate = -1.0
-        self.step = tf.make_template(name_='step', func_=self.tf_step)
+        self.fn_step = tf.make_template(name_='step', func_=self.tf_step)
 
     def minimize(self, time, variables, **kwargs):
-        diffs = self.step(time=time, variables=variables, **kwargs)
+        diffs = self.fn_step(time=time, variables=variables, **kwargs)
+        # diffs[0] = tf.Print(diffs[0], (diffs[0],))
         with tf.control_dependencies(control_inputs=diffs):
             return tf.no_op()
 
@@ -76,9 +77,12 @@ class Optimizer(tf.train.Optimizer):
 
         vars_with_diff = [v for g, v in diffs_and_vars if g is not None]
         if not vars_with_diff:
-            raise TensorForceError("No gradients provided for any variable, check your graph for ops that do "
-                                   "not support gradients, between variables {} and loss {}".
-                                   format([str(v) for _, v in diffs_and_vars], diffs))
+            raise TensorForceError(
+                "No gradients provided for any variable, check your graph for ops that do not "
+                "support gradients, between variables {} and loss {}".format(
+                    [str(v) for _, v in diffs_and_vars], diffs
+                )
+            )
 
         return super(Optimizer, self).apply_gradients(diffs_and_vars, global_step=global_step, name=name)
 

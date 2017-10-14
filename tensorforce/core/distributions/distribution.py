@@ -28,14 +28,18 @@ class Distribution(object):
     Base class for policy distributions
     """
 
-    def __init__(self, scope='distribution', summary_level=0):
-        self.summary_level = summary_level
+    def __init__(self, scope='distribution', summary_labels=None):
+        self.summary_labels = set(summary_labels or ())
         self.variables = dict()
+        self.summaries = list()
 
         with tf.name_scope(name=scope):
             def custom_getter(getter, name, *args, **kwargs):
                 variable = getter(name=name, *args, **kwargs)
                 self.variables[name] = variable
+                if 'variables' in self.summary_labels:
+                    summary = tf.summary.histogram(name=name, values=variable)
+                    self.summaries.append(summary)
                 return variable
 
             self.parameters = tf.make_template(
@@ -137,9 +141,18 @@ class Distribution(object):
         Returns the TensorFlow variables used by the distribution
 
         Returns:
-            List of distribution variables
+            List of variables
         """
         return [self.variables[key] for key in sorted(self.variables)]
+
+    def get_summaries(self):
+        """
+        Returns the TensorFlow summaries reported by the distribution
+
+        Returns:
+            List of summaries
+        """
+        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

@@ -28,18 +28,14 @@ class QNstepModel(QModel):
     Deep Q network using Nstep rewards as decsribed in Asynchronous Methods for Reinforcement Learning.
     """
 
-    # def get_reward(self, states, terminal, reward, internals):
-    #     reward = super(PGModel, self).get_reward(states, terminal, reward, internals)
-    #     return self.fn_discounted_cumulative_reward(reward=reward, terminal=terminal, discount=self.discount, final_reward=???)
-
     def tf_q_delta(self, q_value, next_q_value, terminal, reward):
         for _ in range(util.rank(q_value) - 1):
             terminal = tf.expand_dims(input=terminal, axis=1)
             reward = tf.expand_dims(input=reward, axis=1)
 
         reward = self.fn_discounted_cumulative_reward(
-            reward=reward,
             terminal=terminal,
+            reward=reward,
             discount=self.discount,
             final_reward=next_q_value[-1]
         )

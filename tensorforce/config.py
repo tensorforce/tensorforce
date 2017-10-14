@@ -29,17 +29,16 @@ class Configuration(object):
     """Configuration class that extends dict and reads configuration files (currently only json)
     """
 
-    def __init__(self, allow_defaults=True, **kwargs):
+    def __init__(self, **kwargs):
         self._config = dict(kwargs)
         self._accessed = {key: False for key, value in kwargs.items() if not isinstance(value, Configuration)}
-        self.allow_defaults = allow_defaults
 
     def to_json(self, filename):
         with open(filename, 'w') as fp:
             fp.write(json.dumps(self.as_dict()))
 
     @staticmethod
-    def from_json(filename, absolute_path=False, allow_defaults=True):
+    def from_json(filename, absolute_path=False):
         if absolute_path:
             path = filename
         else:
@@ -47,17 +46,11 @@ class Configuration(object):
 
         with open(path, 'r') as fp:
             json_string = fp.read()
-        return Configuration.from_json_string(json_string=json_string, allow_defaults=allow_defaults)
+        return Configuration.from_json_string(json_string=json_string)
 
     @staticmethod
-    def from_json_string(json_string, allow_defaults=True):
-        config = json.loads(json_string)
-        if 'allow_defaults' in config and config['allow_defaults'] != allow_defaults:
-            raise TensorForceError('allow_defaults conflict between JSON ({}) and method call ({})'.format(
-                config['allow_defaults'],
-                allow_defaults
-            ))
-        return Configuration(allow_defaults=allow_defaults, **config)
+    def from_json_string(json_string):
+        return Configuration(**json.loads(json_string))
 
     def __str__(self):
         return '{' + ', '.join('{}={}'.format(key, value) for key, value in self._config.items()) + '}'
@@ -94,12 +87,8 @@ class Configuration(object):
             self._accessed[key] = True
         return self._config[key]
 
-    # def __getitem__(self, key):
-    #     return self.__getattr__(key)
-
     def __setattr__(self, key, value):
-        if key == '_config' or key == '_accessed' or key == 'allow_defaults':
-            # value = {k: make_config_value(v) for k, v in value.items()}
+        if key == '_config' or key == '_accessed':
             super(Configuration, self).__setattr__(key, value)
         elif key not in self._config:
             raise TensorForceError("Value {} is not defined.".format(key))
@@ -136,8 +125,6 @@ class Configuration(object):
     def default(self, default):
         for key, value in default.items():
             if key not in self._config:
-                if not self.allow_defaults:
-                    raise TensorForceError('This Configuration does not allow defaults. Attempt to default {}'.format(key))
                 self._config[key] = value
                 self._accessed[key] = False
 

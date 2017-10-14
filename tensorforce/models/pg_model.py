@@ -52,7 +52,10 @@ class PGModel(DistributionModel):
 
             else:
                 assert self.baseline_mode is not None
-                self.baseline = Baseline.from_spec(spec=config.baseline)
+                self.baseline = Baseline.from_spec(
+                    spec=config.baseline,
+                    kwargs=dict(summary_labels=config.summary_labels)
+                )
 
             # Baseline optimizer
             if config.baseline_optimizer is None:
@@ -97,7 +100,7 @@ class PGModel(DistributionModel):
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         if self.baseline_mode is None:
-            reward = self.fn_discounted_cumulative_reward(reward=reward, terminal=terminal, discount=self.discount)
+            reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
         else:
             if self.baseline_mode == 'states':
@@ -107,7 +110,7 @@ class PGModel(DistributionModel):
                 state_value = self.baseline.predict(states=embedding)
 
             if self.gae_lambda is None:
-                reward = self.fn_discounted_cumulative_reward(reward=reward, terminal=terminal, discount=self.discount)
+                reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
                 reward -= state_value
 
             else:
@@ -117,7 +120,7 @@ class PGModel(DistributionModel):
                 state_value_change = tf.where(condition=terminal, x=zeros, y=state_value_change)
                 td_residual = reward + state_value_change
                 gae_discount = self.discount * self.gae_lambda
-                self.fn_discounted_cumulative_reward(reward=td_residual, terminal=terminal, discount=gae_discount)
+                self.fn_discounted_cumulative_reward(terminal=terminal, reward=td_residual, discount=gae_discount)
 
         return self.fn_pg_loss_per_instance(
             states=states,
@@ -133,7 +136,7 @@ class PGModel(DistributionModel):
         if self.baseline_mode is None:
             return optimization
 
-        reward = self.fn_discounted_cumulative_reward(reward=reward, terminal=terminal, discount=self.discount)
+        reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
         if self.baseline_mode == 'states':
             fn_loss = (lambda: self.baseline.loss(states=states, reward=reward))
@@ -144,13 +147,19 @@ class PGModel(DistributionModel):
 
         # TODO: time as argument?
         baseline_optimization = self.baseline_optimizer.minimize(
-            time=self.time,
+            time=self.timestep,
             variables=self.baseline.get_variables(), fn_loss=fn_loss, source_variables=self.network.get_variables())
 
         return tf.group(optimization, baseline_optimization)
 
     def get_variables(self):
-        if self.baseline_mode is not None and self.baseline_optimizer is None:
-            return super(PGModel, self).get_variables() + self.baseline.get_variables()
-        else:
+        if self.baseline_mode is None or self.baseline_optimizer is not None:
             return super(PGModel, self).get_variables()
+        else:
+            return super(PGModel, self).get_variables() + self.baseline.get_variables()
+
+    def get_summaries(self):
+        if self.baseline_mode is None:
+            return super(PGModel, self).get_summaries()
+        else:
+            return super(PGModel, self).get_summaries() + self.baseline.get_summaries()

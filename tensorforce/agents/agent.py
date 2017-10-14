@@ -281,9 +281,9 @@ class Agent(object):
             reward = self.reward_preprocessing.process(reward)
         return terminal, reward
 
-    def observe_episode_reward(self, episode_reward):
-        if self.model:
-            self.model.write_episode_reward_summary(episode_reward)
+    # def observe_episode_reward(self, episode_reward):
+    #     if self.model:
+    #         self.model.write_episode_reward_summary(episode_reward)
 
     def last_observation(self):
         return dict(

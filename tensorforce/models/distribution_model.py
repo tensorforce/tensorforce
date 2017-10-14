@@ -41,23 +41,46 @@ class DistributionModel(Model):
     def __init__(self, states_spec, actions_spec, network_spec, config):
         with tf.name_scope(name=config.scope):
             # Network
-            self.network = Network.from_spec(spec=network_spec)
+            self.network = Network.from_spec(
+                spec=network_spec,
+                kwargs=dict(summary_labels=config.summary_labels)
+            )
 
             # Distributions
             self.distributions = dict()
             for name, action in actions_spec.items():
-                with tf.variable_scope(name_or_scope=(name + '-distribution')):
+                with tf.name_scope(name=(name + '-distribution')):
                     if config.distributions is not None and name in config.distributions:
-                        self.distributions[name] = Distribution.from_spec(spec=config.distributions[name], kwargs=action)
+                        kwargs = dict(action)
+                        kwargs['summary_labels'] = config.summary_labels
+                        self.distributions[name] = Distribution.from_spec(
+                            spec=config.distributions[name],
+                            kwargs=action
+                        )
                     elif action['type'] == 'bool':
-                        self.distributions[name] = Bernoulli(shape=action['shape'])
+                        self.distributions[name] = Bernoulli(
+                            shape=action['shape'],
+                            summary_labels=config.summary_labels
+                        )
                     elif action['type'] == 'int':
-                        self.distributions[name] = Categorical(shape=action['shape'], num_actions=action['num_actions'])
+                        self.distributions[name] = Categorical(
+                            shape=action['shape'],
+                            num_actions=action['num_actions'],
+                            summary_labels=config.summary_labels
+                        )
                     elif action['type'] == 'float':
                         if 'min_value' in action:
-                            self.distributions[name] = Beta(shape=action['shape'], min_value=action['min_value'], max_value=action['max_value'])
+                            self.distributions[name] = Beta(
+                                shape=action['shape'],
+                                min_value=action['min_value'],
+                                max_value=action['max_value'],
+                                summary_labels=config.summary_labels
+                            )
                         else:
-                            self.distributions[name] = Gaussian(shape=action['shape'])
+                            self.distributions[name] = Gaussian(
+                                shape=action['shape'],
+                                summary_labels=config.summary_labels
+                            )
 
         # Entropy regularization
         assert config.entropy_regularization is None or config.entropy_regularization > 0.0
@@ -125,9 +148,20 @@ class DistributionModel(Model):
         return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
 
     def get_optimizer_kwargs(self, states, internals, actions, terminal, reward):
-        kwargs = super(DistributionModel, self).get_optimizer_kwargs(states, actions, terminal, reward, internals)
+        kwargs = super(DistributionModel, self).get_optimizer_kwargs(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
         kwargs['fn_kl_divergence'] = (lambda: self.fn_kl_divergence(states=states, internals=internals))
         return kwargs
 
     def get_variables(self):
-        return super(DistributionModel, self).get_variables() + self.network.get_variables() + [variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables()]
+        return super(DistributionModel, self).get_variables() + self.network.get_variables() + \
+            [variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables()]
+
+    def get_summaries(self):
+        return super(DistributionModel, self).get_summaries() + self.network.get_summaries() + \
+            [summary for name in sorted(self.distributions) for summary in self.distributions[name].get_summaries()]

@@ -53,7 +53,7 @@ class TFOptimizer(Optimizer):
         loss = fn_loss()
 
         with tf.control_dependencies(control_inputs=(loss,)):
-            vars_before = [tf.add(x=var, y=0.0) for var in variables]
+            vars_before = [var + 0.0 for var in variables]
 
         with tf.control_dependencies(control_inputs=vars_before):
             applied = self.optimizer.minimize(loss=loss, var_list=variables)

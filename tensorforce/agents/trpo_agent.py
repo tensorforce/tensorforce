@@ -55,16 +55,18 @@ class TRPOAgent(BatchAgent):
 
     #### Logging:
 
-    * `log_level`: Logging level (default: 'info')
-        + One of 'info', 'debug', 'critical', 'warning', 'fatal'
-    * `tf_summary`: None or dict with the following values (default: none)
-        + `logdir`: Directory where TensorFlow event file will be written
-        + `level`: TensorFlow summary logging level
-            - `0`:
-            - `1`:
-            - `2`:
-            - `3`:
-        + `interval`: Number of timesteps between summaries
+    * `log_level`: Logging level, one of the following values (default: 'info')
+        + 'info', 'debug', 'critical', 'warning', 'fatal'
+
+    #### TensorFlow Summaries:
+    * `summary_logdir`: None or summary directory string (default: none)
+    * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
+        + 'total-loss'
+        + 'losses'
+        + 'variables'
+        + 'activations'
+        + 'relu'
+    * `summary_frequency`: Positive integer (default: 1)
     """
 
     default_config = dict(
@@ -92,7 +94,10 @@ class TRPOAgent(BatchAgent):
         likelihood_ratio_clipping=None,
         # Logging
         log_level='info',
-        tf_summary=None
+        # TensorFlow Summaries
+        summary_logdir=None,
+        summary_labels=['total-loss'],
+        summary_frequency=1
     )
 
     # missing: batch agent configs

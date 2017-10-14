@@ -29,15 +29,19 @@ class Baseline(object):
     Base class for baseline value functions
     """
 
-    def __init__(self, scope='baseline', summary_level=0):
-        self.summary_level = summary_level
+    def __init__(self, scope='baseline', summary_labels=None):
+        self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
+        self.summaries = list()
 
         with tf.name_scope(name=scope):
             def custom_getter(getter, name, *args, **kwargs):
                 variable = getter(name=name, *args, **kwargs)
                 self.variables[name] = variable
+                if 'variables' in self.summary_labels:
+                    summary = tf.summary.histogram(name=name, values=variable)
+                    self.summaries.append(summary)
                 return variable
 
             self.predict = tf.make_template(
@@ -78,10 +82,20 @@ class Baseline(object):
     def get_variables(self):
         """
         Returns the TensorFlow variables used by the baseline
+
         Returns:
-            List of baseline variables
+            List of variables
         """
         return [self.variables[key] for key in sorted(self.variables)]
+
+    def get_summaries(self):
+        """
+        Returns the TensorFlow summaries reported by the baseline
+
+        Returns:
+            List of summaries
+        """
+        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

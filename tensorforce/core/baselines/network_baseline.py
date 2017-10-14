@@ -29,7 +29,7 @@ class NetworkBaseline(Baseline):
     Baseline based on a TensorForce network
     """
 
-    def __init__(self, network_spec, scope='network-baseline', summary_level=0):
+    def __init__(self, network_spec, scope='network-baseline', summary_labels=()):
         """
         Network baseline
 
@@ -42,7 +42,7 @@ class NetworkBaseline(Baseline):
 
             self.linear = Linear(size=1, bias=0.0, scope='prediction')
 
-        super(NetworkBaseline, self).__init__(scope, summary_level)
+        super(NetworkBaseline, self).__init__(scope, summary_labels)
 
     def tf_predict(self, states):
         embedding = self.network.apply(x=states)

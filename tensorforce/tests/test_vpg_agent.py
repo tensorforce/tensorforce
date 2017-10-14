@@ -29,5 +29,9 @@ class TestVPGAgent(BaseAgentTest, unittest.TestCase):
     agent = VPGAgent
     deterministic = False
     config = Configuration(
-        batch_size=8
+        batch_size=8,
+        optimizer=dict(
+            type='adam',
+            learning_rate=1e-3
+        )
     )

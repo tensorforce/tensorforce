@@ -162,10 +162,11 @@ class SumTree(object):
 
 
 class PrioritizedReplay(Memory):
-    def __init__(self, capacity, states_config, actions_config, prioritization_weight=1.0):
+    def __init__(self, capacity, states_config, actions_config, prioritization_weight=1.0, prioritization_constant=0.0):
         super(PrioritizedReplay, self).__init__(
             capacity, states_config, actions_config)
         self.prioritization_weight = prioritization_weight
+        self.prioritization_constant = prioritization_constant
         self.internals_config = None
         self.batch_indices = None
 
@@ -275,11 +276,9 @@ class PrioritizedReplay(Memory):
         if len(loss_per_instance) != len(self.batch_indices):
             raise TensorForceError(
                 "For all instances a loss value has to be provided.")
-        if min(loss_per_instance) < 0:
-            raise TensorForceError(
-                "Prioritized replay required positive losses.")
 
         for index, loss in zip(self.batch_indices, loss_per_instance):
-            new_priority = loss ** self.prioritization_weight
+            # Sampling priority is proportional to the largest absolute temporal difference error
+            new_priority = (np.abs(loss) + self.prioritization_constant) ** self.prioritization_weight
             self.observations._move(index, new_priority)
             self.none_priority_index += 1

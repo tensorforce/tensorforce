@@ -30,10 +30,7 @@ class RandomModel(Model):
         actions = dict()
 
         for name, action in self.actions_spec.items():
-            print(states.values())
-            print(type(next(iter(states.values()))))
-            print(tf.shape(input=next(iter(states.values()))))
-            shape = tuple(tf.shape(input=next(iter(states.values())))[0],) + action['shape']
+            shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
 
             if action['type'] == 'bool':
                 action = tf.random_uniform(shape=shape)

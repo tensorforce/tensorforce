@@ -32,10 +32,10 @@ class ConstantModel(Model):
         actions = dict()
 
         for name, action in self.actions_spec.items():
-            actions[name] = tf.constant(
-                value=self.action_values[name],
-                dtype=tf_dtype(action['type']),
-                shape=action['shape']
+            shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
+            actions[name] = tf.fill(
+                dims=shape,
+                value=self.action_values[name]
             )
 
         return actions, internals
@@ -46,4 +46,4 @@ class ConstantModel(Model):
 
     def __init__(self, states_spec, actions_spec, config):
         self.action_values = config.action_values
-        super(ConstantModel).__init__(states_spec, actions_spec, config)
+        super(ConstantModel, self).__init__(states_spec, actions_spec, config)

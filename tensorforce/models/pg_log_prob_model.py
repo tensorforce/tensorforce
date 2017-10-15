@@ -25,7 +25,7 @@ from tensorforce.models import PGModel
 
 class PGLogProbModel(PGModel):
     """
-    Policy gradient model based on computing log likelihoods.
+    Policy gradient model based on computing log likelihoods, e.g. VPG.
     """
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):

@@ -39,8 +39,8 @@ class TestConstantAgent(BaseAgentTest, unittest.TestCase):
         )
     )
 
-    exclude_multi = True
-    exclude_int = True
     exclude_bool = True
-    exclude_lstm = True
+    exclude_int = True
     exclude_bounded = True
+    exclude_multi = True
+    exclude_lstm = True

@@ -18,8 +18,9 @@ from tensorforce.models.pg_model import PGModel
 from tensorforce.models.pg_log_prob_model import PGLogProbModel
 from tensorforce.models.pg_prob_ratio_model import PGProbRatioModel
 from tensorforce.models.q_model import QModel
-from tensorforce.models.dqfd_model import DQFDModel
 from tensorforce.models.q_nstep_model import QNstepModel
+from tensorforce.models.q_naf_model import QNAFModel
+from tensorforce.models.q_demo_model import QDemoModel
 
 
 models = dict(
@@ -27,9 +28,20 @@ models = dict(
     pg_prob_ratio_model=PGProbRatioModel,
     q_model=QModel,
     q_nstep_model=QNstepModel,
-    dqfd_model=DQFDModel
+    q_naf_model=QNAFModel,
+    q_demo_model=QDemoModel
 )
 
 
-__all__ = ['Model', 'DistributionModel', 'PGModel', 'PGProbRatioModel', 'PGLogProbModel', 'QModel',
-           'QNstepModel','DQFDModel','models']
+__all__ = [
+    'Model',
+    'DistributionModel',
+    'PGModel',
+    'PGProbRatioModel',
+    'PGLogProbModel',
+    'QModel',
+    'QNstepModel',
+    'QNAFModel',
+    'QDemoModel',
+    'models'
+]

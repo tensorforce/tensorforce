@@ -12,38 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorforce.models import Model
 import tensorflow as tf
 
-from tensorforce.util import tf_dtype
+from tensorforce.models import Model
 
 
 class ConstantModel(Model):
     """
-    Utility class to return constant actions of a desired shape
-    and with given bounds.
+    Utility class to return constant actions of a desired shape and with given bounds.
     """
+
+    def __init__(self, states_spec, actions_spec, config):
+        self.action_values = config.action_values
+
+        super(ConstantModel, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            config=config
+        )
 
     def tf_actions_and_internals(self, states, internals, deterministic):
         actions = dict()
-
         for name, action in self.actions_spec.items():
             shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
-            actions[name] = tf.fill(
-                dims=shape,
-                value=self.action_values[name]
-            )
+            actions[name] = tf.fill(dims=shape, value=self.action_values[name])
 
         return actions, internals
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         # Nothing to be done here, loss is 0.
         return tf.zeros_like(tensor=reward)
-
-    def __init__(self, states_spec, actions_spec, config):
-        self.action_values = config.action_values
-        super(ConstantModel, self).__init__(states_spec, actions_spec, config)

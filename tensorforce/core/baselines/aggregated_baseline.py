@@ -59,9 +59,32 @@ class AggregatedBaseline(Baseline):
         prediction = self.linear.apply(x=predictions)
         return tf.squeeze(input=prediction, axis=1)
 
+    def tf_regularization_loss(self):
+        if super(AggregatedBaseline, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(AggregatedBaseline, self).tf_regularization_loss()]
+
+        for baseline in self.baseline.values():
+            if baseline.regularization_loss() is not None:
+                losses.append(baseline.regularization_loss())
+
+        if self.linear.get_regularization_loss() is not None:
+            losses.append(self.linear.get_regularization_loss())
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
     def get_variables(self, include_non_trainable=False):
-        return super(AggregatedBaseline, self).get_variables(include_non_trainable=include_non_trainable) + \
-            self.linear.get_variables(include_non_trainable=include_non_trainable) + \
-            [variable for name in sorted(self.baselines) for variable in self.baselines[name].get_variables(
-                include_non_trainable=include_non_trainable
-            )]
+        baseline_variables =  super(AggregatedBaseline, self).get_variables(include_non_trainable=include_non_trainable)
+
+        baselines_variables = [
+            variable for name in sorted(self.baselines)
+            for variable in self.baselines[name].get_variables(include_non_trainable=include_non_trainable)
+        ]
+
+        linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
+
+        return baseline_variables + baselines_variables + linear_variables

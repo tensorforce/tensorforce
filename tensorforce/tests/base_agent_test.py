@@ -100,7 +100,7 @@ class BaseAgentTest(BaseTest):
         """
         Tests the case of one bounded float action, i.e. with min and max value.
         """
-        if self.__class__.exclude_float:
+        if self.__class__.exclude_bounded:
             return
 
         environment = MinimalTest(specification=[('bounded-float', ())])

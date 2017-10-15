@@ -72,6 +72,11 @@ class Distribution(object):
                 func_=self.tf_kl_divergence,
                 custom_getter_=custom_getter
             )
+            self.regularization_loss = tf.make_template(
+                name_='regularization-loss',
+                func_=self.tf_regularization_loss,
+                custom_getter_=custom_getter
+            )
 
     def tf_parameters(self, x):
         """
@@ -135,6 +140,15 @@ class Distribution(object):
             KL divergence tensor
         """
         raise NotImplementedError
+
+    def tf_regularization_loss(self):
+        """
+        Creates the TensorFlow operations for the distribution regularization loss
+
+        Returns:
+            Regularization loss tensor
+        """
+        return None
 
     def get_variables(self, include_non_trainable=False):
         """

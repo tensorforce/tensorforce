@@ -40,7 +40,7 @@ class Synchronization(Optimizer):
     def tf_step(self, time, variables, source_variables, **kwargs):
         assert all(util.shape(source) == util.shape(target) for source, target in zip(source_variables, variables))
 
-        last_sync = tf.get_variable(
+        self.last_sync = tf.get_variable(
             name='last-sync',
             dtype=tf.int32,
             initializer=(-self.sync_frequency),
@@ -54,7 +54,7 @@ class Synchronization(Optimizer):
                 diffs.append(diff)
 
             applied = self.apply_step(variables=variables, diffs=diffs)
-            last_sync_updated = last_sync.assign(value=time)
+            last_sync_updated = self.last_sync.assign(value=time)
 
             with tf.control_dependencies(control_inputs=(applied, last_sync_updated)):
                 return [diff + 0.0 for diff in diffs]
@@ -66,5 +66,8 @@ class Synchronization(Optimizer):
                 diffs.append(diff)
             return diffs
 
-        do_sync = (time - last_sync >= self.sync_frequency)
+        do_sync = (time - self.last_sync >= self.sync_frequency)
         return tf.cond(pred=do_sync, true_fn=sync, false_fn=no_sync)
+
+    def get_variables(self):
+        return super(Synchronization, self).get_variables() + [self.last_sync]

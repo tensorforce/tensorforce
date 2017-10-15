@@ -21,7 +21,7 @@ from six.moves import xrange
 
 from tensorforce.agents import MemoryAgent
 from tensorforce.core.memories import Replay
-from tensorforce.models import DQFDModel
+from tensorforce.models import QDemoModel
 
 
 class DQFDAgent(MemoryAgent):
@@ -126,11 +126,15 @@ class DQFDAgent(MemoryAgent):
                                          'demo_batch_size is positive. (Calculated {} based on current' \
                                          ' parameters)'.format(self.demo_batch_size)
 
-        super(DQFDAgent, self).__init__(states_spec, actions_spec, config)
-
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
         self.demo_memory = Replay(self.demo_memory_capacity, self.states_spec, self.actions_spec)
+
+        super(DQFDAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            config=config
+        )
 
     def observe(self, reward, terminal):
         """
@@ -194,7 +198,7 @@ class DQFDAgent(MemoryAgent):
         )
 
     def initialize_model(self, states_spec, actions_spec, config):
-        return DQFDModel(
+        return QDemoModel(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=self.network_spec,

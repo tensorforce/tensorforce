@@ -105,7 +105,28 @@ class Beta(Distribution):
         return log_norm2 - log_norm1 - tf.digamma(x=beta1) * (beta2 - beta1) - \
             tf.digamma(x=alpha1) * (alpha2 - alpha1) + tf.digamma(x=alpha_beta1) * (alpha_beta2 - alpha_beta1)
 
+    def tf_regularization_loss(self):
+        if super(Beta, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Beta, self).tf_regularization_loss()]
+
+        if self.alpha.regularization_loss() is not None:
+            losses.append(self.alpha.regularization_loss())
+
+        if self.beta.regularization_loss() is not None:
+            losses.append(self.beta.regularization_loss())
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
     def get_variables(self, include_non_trainable=False):
-        return super(Beta, self).get_variables(include_non_trainable=include_non_trainable) + \
-            self.alpha.get_variables(include_non_trainable=include_non_trainable) + \
-            self.beta.get_variables(include_non_trainable=include_non_trainable)
+        distribution_variables = super(Beta, self).get_variables(include_non_trainable=include_non_trainable)
+
+        alpha_variables = self.alpha.get_variables(include_non_trainable=include_non_trainable)
+
+        beta_variables = self.beta.get_variables(include_non_trainable=include_non_trainable)
+
+        return distribution_variables + alpha_variables + beta_variables

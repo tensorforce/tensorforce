@@ -21,10 +21,9 @@ from tensorforce import util, TensorForceError
 from tensorforce.models import QModel
 
 
-class DQFDModel(QModel):
+class QDemoModel(QModel):
     """
-    Model for deep-q learning from demonstration. Principal structure similar to double deep-q-networks
-    but uses additional loss terms for demo data.
+    Model for deep Q-learning from demonstration. Principal structure similar to double deep Q-networks but uses additional loss terms for demo data.
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
@@ -34,10 +33,15 @@ class DQFDModel(QModel):
         self.expert_margin = config.expert_margin
         self.supervised_weight = config.supervised_weight
 
-        super(DQFDModel, self).__init__(states_spec, actions_spec, network_spec, config)
+        super(QDemoModel, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=network_spec,
+            config=config
+        )
 
     def initialize(self, custom_getter):
-        super(DQFDModel, self).initialize(custom_getter=custom_getter)
+        super(QDemoModel, self).initialize(custom_getter=custom_getter)
 
         # Demonstration loss
         self.fn_demo_loss = tf.make_template(
@@ -54,7 +58,7 @@ class DQFDModel(QModel):
         )
 
     def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
-        super(DQFDModel, self).create_output_operations(
+        super(QDemoModel, self).create_output_operations(
             states=states,
             internals=internals,
             actions=actions,

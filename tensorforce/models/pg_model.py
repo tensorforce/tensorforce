@@ -68,10 +68,17 @@ class PGModel(DistributionModel):
         assert config.gae_lambda is None or (0.0 <= config.gae_lambda <= 1.0 and self.baseline_mode is not None)
         self.gae_lambda = config.gae_lambda
 
-        super(PGModel, self).__init__(states_spec, actions_spec, network_spec, config)
+        super(PGModel, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=network_spec,
+            config=config
+        )
 
     def initialize(self, custom_getter):
         super(PGModel, self).initialize(custom_getter)
+
+        # TODO: Baseline internal states !!! (see target_network q_model)
 
         # PG loss per instance function
         self.fn_pg_loss_per_instance = tf.make_template(
@@ -104,6 +111,7 @@ class PGModel(DistributionModel):
         else:
             if self.baseline_mode == 'states':
                 state_value = self.baseline.predict(states=states)
+
             elif self.baseline_mode == 'network':
                 embedding = self.network.apply(x=states, internals=internals)
                 state_value = self.baseline.predict(states=embedding)
@@ -129,6 +137,16 @@ class PGModel(DistributionModel):
             reward=reward
         )
 
+    def tf_regularization_losses(self, states, internals):
+        losses = super(PGModel, self).tf_regularization_losses(states=states, internals=internals)
+
+        if self.baseline_mode is not None and \
+                self.baseline_optimizer is None and \
+                self.baseline.regularization_loss() is not None:
+            losses['baseline'] = self.baseline.regularization_loss()
+
+        return losses
+
     def tf_optimization(self, states, internals, actions, terminal, reward):
         optimization = super(PGModel, self).tf_optimization(states, internals, actions, terminal, reward)
 
@@ -139,6 +157,7 @@ class PGModel(DistributionModel):
 
         if self.baseline_mode == 'states':
             fn_loss = (lambda: self.baseline.loss(states=states, reward=reward))
+
         elif self.baseline_mode == 'network':
             fn_loss = (
                 lambda: self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward)
@@ -155,17 +174,21 @@ class PGModel(DistributionModel):
         model_variables = super(PGModel, self).get_variables(include_non_trainable=include_non_trainable)
 
         if include_non_trainable and self.baseline_mode is not None:
-            # baseline optimizer variables only included if 'include_non_trainable' set
+            # Baseline and optimizer variables included if 'include_non_trainable' set
             baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)
+
             baseline_optimizer_variables = self.baseline_optimizer.get_variables()
+
             return model_variables + baseline_variables + baseline_optimizer_variables
 
-        elif self.baseline_mode is None or self.baseline_optimizer is not None:
-            return model_variables
+        elif self.baseline_mode is not None and self.baseline_optimizer is None:
+            # Baseline variables included if baseline_optimizer not set
+            baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)
+
+            return model_variables + baseline_variables
 
         else:
-            baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)
-            return model_variables + baseline_variables
+            return model_variables
 
     def get_summaries(self):
         if self.baseline_mode is None:

@@ -81,6 +81,15 @@ class Baseline(object):
         prediction = self.predict(states=states)
         return tf.nn.l2_loss(t=(prediction - reward))
 
+    def tf_regularization_loss(self):
+        """
+        Creates the TensorFlow operations for the baseline regularization loss
+
+        Returns:
+            Regularization loss tensor
+        """
+        return None
+
     def get_variables(self, include_non_trainable=False):
         """
         Returns the TensorFlow variables used by the baseline

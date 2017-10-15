@@ -102,6 +102,23 @@ class Bernoulli(Distribution):
         false_log_prob_ratio = false_logit1 - false_logit2
         return probability1 * true_log_prob_ratio + (1.0 - probability1) * false_log_prob_ratio
 
+    def tf_regularization_loss(self):
+        if super(Bernoulli, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Bernoulli, self).tf_regularization_loss()]
+
+        if self.logit.regularization_loss() is not None:
+            losses.append(self.logit.regularization_loss())
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
     def get_variables(self, include_non_trainable=False):
-        return super(Bernoulli, self).get_variables(include_non_trainable=include_non_trainable) + \
-            self.logit.get_variables(include_non_trainable=include_non_trainable)
+        distribution_variables = super(Bernoulli, self).get_variables(include_non_trainable=include_non_trainable)
+
+        logit_variables = self.logit.get_variables(include_non_trainable=include_non_trainable)
+
+        return distribution_variables + logit_variables

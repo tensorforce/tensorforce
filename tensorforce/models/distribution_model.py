@@ -37,6 +37,7 @@ class DistributionModel(Model):
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
+
         with tf.name_scope(name=config.scope):
             # Network
             self.network = Network.from_spec(
@@ -47,7 +48,9 @@ class DistributionModel(Model):
             # Distributions
             self.distributions = dict()
             for name, action in actions_spec.items():
+
                 with tf.name_scope(name=(name + '-distribution')):
+
                     if config.distributions is not None and name in config.distributions:
                         kwargs = dict(action)
                         kwargs['summary_labels'] = config.summary_labels
@@ -55,17 +58,20 @@ class DistributionModel(Model):
                             spec=config.distributions[name],
                             kwargs=kwargs
                         )
+
                     elif action['type'] == 'bool':
                         self.distributions[name] = Bernoulli(
                             shape=action['shape'],
                             summary_labels=config.summary_labels
                         )
+
                     elif action['type'] == 'int':
                         self.distributions[name] = Categorical(
                             shape=action['shape'],
                             num_actions=action['num_actions'],
                             summary_labels=config.summary_labels
                         )
+
                     elif action['type'] == 'float':
                         if 'min_value' in action:
                             self.distributions[name] = Beta(
@@ -74,6 +80,7 @@ class DistributionModel(Model):
                                 max_value=action['max_value'],
                                 summary_labels=config.summary_labels
                             )
+
                         else:
                             self.distributions[name] = Gaussian(
                                 shape=action['shape'],
@@ -113,29 +120,6 @@ class DistributionModel(Model):
             actions[name] = distribution.sample(distr_params=distr_params, deterministic=deterministic)
         return actions, internals
 
-    def tf_regularization_losses(self, states, internals):
-        losses = super(DistributionModel, self).tf_regularization_losses(states=states, internals=internals)
-
-        network_loss = self.network.regularization_loss()
-        if network_loss is not None:
-            losses['network'] = network_loss
-
-        if self.entropy_regularization is not None:
-            entropies = list()
-            embedding = self.network.apply(x=states, internals=internals)
-            for name, distribution in self.distributions.items():
-                distr_params = distribution.parameters(x=embedding)
-                entropy = distribution.entropy(distr_params=distr_params)
-                collapsed_size = util.prod(util.shape(entropy)[1:])
-                entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
-                entropies.append(entropy)
-
-            entropy_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
-            entropy = tf.reduce_mean(input_tensor=entropy_per_instance, axis=0)
-            losses['entropy'] = -self.entropy_regularization * entropy
-
-        return losses
-
     def tf_kl_divergence(self, states, internals):
         embedding = self.network.apply(x=states, internals=internals)
         kl_divergences = list()
@@ -162,11 +146,43 @@ class DistributionModel(Model):
         kwargs['fn_kl_divergence'] = (lambda: self.fn_kl_divergence(states=states, internals=internals))
         return kwargs
 
+    def tf_regularization_losses(self, states, internals):
+        losses = super(DistributionModel, self).tf_regularization_losses(states=states, internals=internals)
+
+        network_loss = self.network.regularization_loss()
+        if network_loss is not None:
+            losses['network'] = network_loss
+
+        if any(distribution.regularization_loss() is not None for distribution in self.distributions.values()):
+            losses['distributions'] = tf.add_n(inputs=[
+                distribution.regularization_loss() for distribution in self.distributions.values()
+                if distribution.regularization_loss() is not None
+            ])
+
+        if self.entropy_regularization is not None:
+            entropies = list()
+            embedding = self.network.apply(x=states, internals=internals)
+            for name, distribution in self.distributions.items():
+                distr_params = distribution.parameters(x=embedding)
+                entropy = distribution.entropy(distr_params=distr_params)
+                collapsed_size = util.prod(util.shape(entropy)[1:])
+                entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
+                entropies.append(entropy)
+
+            entropy_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
+            entropy = tf.reduce_mean(input_tensor=entropy_per_instance, axis=0)
+            losses['entropy'] = -self.entropy_regularization * entropy
+
+        return losses
+
     def get_variables(self, include_non_trainable=False):
         model_variables = super(DistributionModel, self).get_variables(include_non_trainable=include_non_trainable)
+
         network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
+
         distribution_variables = [
-            variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables(include_non_trainable=include_non_trainable)
+            variable for name in sorted(self.distributions)
+            for variable in self.distributions[name].get_variables(include_non_trainable=include_non_trainable)
         ]
 
         return model_variables + network_variables + distribution_variables

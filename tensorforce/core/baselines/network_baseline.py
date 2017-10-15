@@ -49,7 +49,34 @@ class NetworkBaseline(Baseline):
         prediction = self.linear.apply(x=embedding)
         return tf.squeeze(input=prediction, axis=1)
 
+    def tf_regularization_loss(self):
+        """
+        Creates the TensorFlow operations for the baseline regularization loss
+
+        Returns:
+            Regularization loss tensor
+        """
+        if super(NetworkBaseline, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(NetworkBaseline, self).tf_regularization_loss()]
+
+        if self.network.get_regularization_loss() is not None:
+            losses.append(self.network.get_regularization_loss())
+
+        if self.linear.get_regularization_loss() is not None:
+            losses.append(self.linear.get_regularization_loss())
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
     def get_variables(self, include_non_trainable=False):
-        return super(NetworkBaseline, self).get_variables(include_non_trainable=include_non_trainable) + \
-            self.network.get_variables(include_non_trainable=include_non_trainable) + \
-            self.linear.get_variables(include_non_trainable=include_non_trainable)
+        baseline_variables = super(NetworkBaseline, self).get_variables(include_non_trainable=include_non_trainable)
+
+        network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
+
+        layer_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
+
+        return baseline_variables + network_variables + layer_variables

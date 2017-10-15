@@ -63,11 +63,13 @@ class TFOptimizer(Optimizer):
             return [var - var_before for var, var_before in zip(variables, vars_before)]
 
     def get_variables(self):
-        if self.name == 'adam':
-            optimizer_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]
-        else:
-            optimizer_variables = list()
+        optimizer_variables = super(TFOptimizer, self).get_variables()
 
-        return super(TFOptimizer, self).get_variables() + \
-            [variable for slot in self.optimizer._slots.values() for variable in slot.values()] + \
-            optimizer_variables
+        slots_variables = [variable for slot in self.optimizer._slots.values() for variable in slot.values()]
+
+        if self.name == 'adam':
+            additional_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]
+        else:
+            additional_variables = list()
+
+        return optimizer_variables + slots_variables + additional_variables

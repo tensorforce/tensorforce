@@ -25,7 +25,7 @@ from tensorforce.models import PGModel
 
 class PGProbRatioModel(PGModel):
     """
-    Policy gradient model based on likelihood ratios, e.g. TRPO and PPO.
+    Policy gradient model based on computing likelihood ratios, e.g. TRPO and PPO.
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
@@ -33,7 +33,12 @@ class PGProbRatioModel(PGModel):
         assert config.likelihood_ratio_clipping is None or config.likelihood_ratio_clipping > 1.0
         self.likelihood_ratio_clipping = config.likelihood_ratio_clipping
 
-        super(PGProbRatioModel, self).__init__(states_spec, actions_spec, network_spec, config)
+        super(PGProbRatioModel, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=network_spec,
+            config=config
+        )
 
     def initialize(self, custom_getter):
         super(PGProbRatioModel, self).initialize(custom_getter)

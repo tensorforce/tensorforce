@@ -60,9 +60,9 @@ class Layer(object):
                 func_=self.tf_apply,
                 custom_getter_=custom_getter
             )
-            self.regularization_losses = tf.make_template(
-                name_='regularization-losses',
-                func_=self.tf_regularization_losses,
+            self.regularization_loss = tf.make_template(
+                name_='regularization-loss',
+                func_=self.tf_regularization_loss,
                 custom_getter_=custom_getter
             )
 
@@ -78,14 +78,14 @@ class Layer(object):
         """
         raise NotImplementedError
 
-    def tf_regularization_losses(self):
+    def tf_regularization_loss(self):
         """
-        Creates the TensorFlow operations for the layer regularization losses
+        Creates the TensorFlow operations for the layer regularization loss
 
         Returns:
-            List of layer regularization loss tensors
+            Regularization loss tensor
         """
-        return list()
+        return None
 
     def internal_inputs(self):
         """
@@ -311,12 +311,19 @@ class Linear(Layer):
         return x
 
     def tf_regularization_losses(self):
-        losses = super(Linear, self).tf_regularization_losses()
-        if self.l2_regularization > 0.0:
-            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.weights))
-            if self.bias is not None:
-                losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
-        return losses
+        if self.l2_regularization == 0.0:
+            return super(Linear, self).tf_regularization_loss()
+
+        if super(Linear, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Linear, self).tf_regularization_loss()]
+
+        losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.weights))
+        if self.bias is not None:
+            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
+
+        return tf.add_n(inputs=losses)
 
 
 class Dense(Layer):
@@ -348,15 +355,28 @@ class Dense(Layer):
 
         return x
 
-    def tf_regularization_losses(self):
-        losses = super(Dense, self).tf_regularization_losses()
-        losses.extend(self.linear.regularization_losses())
-        return losses
+    def tf_regularization_loss(self):
+        if super(Dense, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Dense, self).tf_regularization_loss()]
+
+        if self.linear.regularization_loss() is not None:
+            losses.append(self.linear.regularization_loss())
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
 
     def get_variables(self, include_non_trainable=False):
-        return super(Dense, self).get_variables(include_non_trainable=include_non_trainable) + \
-            self.linear.get_variables(include_non_trainable=include_non_trainable) + \
-            self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+        layer_variables = super(Dense, self).get_variables(include_non_trainable=include_non_trainable)
+
+        linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
+
+        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+
+        return layer_variables + linear_variables + nonlinearity_variables
 
 
 class Conv2d(Layer):
@@ -406,13 +426,20 @@ class Conv2d(Layer):
 
         return x
 
-    def tf_regularization_losses(self):
-        losses = super(Conv2d, self).tf_regularization_losses()
-        if self.l2_regularization > 0.0:
-            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
-            if self.bias is not None:
-                losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
-        return losses
+    def tf_regularization_loss(self):
+        if self.l2_regularization == 0.0:
+            return super(Conv2d, self).tf_regularization_loss()
+
+        if super(Conv2d, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Conv2d, self).tf_regularization_loss()]
+
+        losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
+        if self.bias is not None:
+            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
+
+        return tf.add_n(inputs=losses)
 
 
 class Lstm(Layer):
@@ -453,7 +480,7 @@ class Lstm(Layer):
         return x, (internal_output,)
 
     def internal_inputs(self):
-        return (tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size)),)
+        return super(Lstm, self).internal_inputs() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
 
     def internal_inits(self):
-        return (np.zeros(shape=(2, self.size)),)
+        return super(Lstm, self).internal_inits() + [np.zeros(shape=(2, self.size))]

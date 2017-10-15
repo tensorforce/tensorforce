@@ -16,14 +16,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorforce.models import Model
 import tensorflow as tf
+
+from tensorforce import util
+from tensorforce.models import Model
 
 
 class RandomModel(Model):
     """
-    Utility class to return random actions of a desired shape
-    and with given bounds.
+    Utility class to return random actions of a desired shape and with given bounds.
     """
 
     def tf_actions_and_internals(self, states, internals, deterministic):
@@ -33,11 +34,12 @@ class RandomModel(Model):
             shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
 
             if action['type'] == 'bool':
-                action = tf.random_uniform(shape=shape)
-                actions[name] = tf.less(x=action, y=0.5)
+                actions[name] = (tf.random_uniform(shape=shape) < 0.5)
+
             elif action['type'] == 'int':
-                action = tf.random_uniform(shape=shape) * action['num_actions']
-                actions[name] = tf.cast(tf.floor(action), tf.int32)
+                action = tf.floor(x=(tf.random_uniform(shape=shape) * action['num_actions']))
+                actions[name] = tf.cast(x=action, dtype=util.tf_dtype(action['type']))
+
             elif action['type'] == 'float':
                 if 'min_value' in action:
                     actions[name] = tf.random_uniform(
@@ -45,6 +47,7 @@ class RandomModel(Model):
                         minval=action['min_value'],
                         maxval=action['max_value']
                     )
+
                 else:
                     actions[name] = tf.random_normal(shape=shape)
 
@@ -53,6 +56,3 @@ class RandomModel(Model):
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         # Nothing to be done here, loss is 0.
         return tf.zeros_like(tensor=reward)
-
-    def __init__(self, states_spec, actions_spec, config):
-        super(RandomModel, self).__init__(states_spec, actions_spec, config)

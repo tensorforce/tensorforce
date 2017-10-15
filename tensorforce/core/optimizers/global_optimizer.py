@@ -31,7 +31,7 @@ class GlobalOptimizer(MetaOptimizer):
     def tf_step(self, time, variables, global_variables, **kwargs):
         assert all(util.shape(global_var) == util.shape(local_var) for global_var, local_var in zip(global_variables, variables))
 
-        local_diffs = self.optimizer.fn_step(time=time, variables=variables, **kwargs)
+        local_diffs = self.optimizer.step(time=time, variables=variables, **kwargs)
 
         with tf.control_dependencies(control_inputs=local_diffs):
             applied = self.optimizer.apply_step(variables=global_variables, diffs=local_diffs)

@@ -103,7 +103,28 @@ class Gaussian(Distribution):
 
         return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5
 
+    def tf_regularization_loss(self):
+        if super(Gaussian, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Gaussian, self).tf_regularization_loss()]
+
+        if self.mean.regularization_loss() is not None:
+            losses.append(self.mean.regularization_loss())
+
+        if self.log_stddev.regularization_loss() is not None:
+            losses.append(self.log_stddev.regularization_loss())
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
     def get_variables(self, include_non_trainable=False):
-        return super(Gaussian, self).get_variables(include_non_trainable=include_non_trainable) + \
-            self.mean.get_variables(include_non_trainable=include_non_trainable) + \
-            self.log_stddev.get_variables(include_non_trainable=include_non_trainable)
+        distribution_variables = super(Gaussian, self).get_variables(include_non_trainable=include_non_trainable)
+
+        mean_variables = self.mean.get_variables(include_non_trainable=include_non_trainable)
+
+        log_stddev_variables = self.log_stddev.get_variables(include_non_trainable=include_non_trainable)
+
+        return distribution_variables + mean_variables + log_stddev_variables

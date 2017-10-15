@@ -108,6 +108,23 @@ class Categorical(Distribution):
         log_prob_ratio = logits1 - logits2
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
 
+    def tf_regularization_loss(self):
+        if super(Categorical, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Categorical, self).tf_regularization_loss()]
+
+        if self.logits.regularization_loss() is not None:
+            losses.append(self.logits.regularization_loss())
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
     def get_variables(self, include_non_trainable=False):
-        return super(Categorical, self).get_variables(include_non_trainable=include_non_trainable) + \
-            self.logits.get_variables(include_non_trainable=include_non_trainable)
+        distribution_variables = super(Categorical, self).get_variables(include_non_trainable=include_non_trainable)
+
+        logits_variables = self.logits.get_variables(include_non_trainable=include_non_trainable)
+
+        return distribution_variables + logits_variables

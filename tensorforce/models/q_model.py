@@ -27,22 +27,30 @@ from tensorforce.core.optimizers import Synchronization
 
 class QModel(DistributionModel):
     """
-    Base class for Q-value models.
+    Q-value model.
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
-        # Target network
-        self.target_network = Network.from_spec(spec=network_spec, kwargs=dict(scope='target'))
 
-        # Target network optimizer
-        self.target_optimizer = Synchronization(
-            sync_frequency=config.target_sync_frequency,
-            update_weight=config.target_update_weight
-        )
+        with tf.name_scope(name=config.scope):
+            # Target network
+            self.target_network = Network.from_spec(spec=network_spec, kwargs=dict(scope='target'))
+
+            # Target network optimizer
+            self.target_optimizer = Synchronization(
+                sync_frequency=config.target_sync_frequency,
+                update_weight=config.target_update_weight
+            )
 
         self.double_dqn = config.double_dqn
         self.huber_loss = config.huber_loss
-        super(QModel, self).__init__(states_spec, actions_spec, network_spec, config)
+
+        super(QModel, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=network_spec,
+            config=config
+        )
 
     def initialize(self, custom_getter):
         super(QModel, self).initialize(custom_getter)
@@ -50,6 +58,10 @@ class QModel(DistributionModel):
         # Target network internals
         self.internal_inputs.extend(self.target_network.internal_inputs())
         self.internal_inits.extend(self.target_network.internal_inits())
+
+    def tf_q_value(self, embedding, distr_params, action, name):
+        # Mainly for NAF.
+        return self.distributions[name].state_action_value(distr_params=distr_params, action=action)
 
     def tf_q_delta(self, q_value, next_q_value, terminal, reward):
         """
@@ -74,21 +86,18 @@ class QModel(DistributionModel):
 
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameters(x=embedding)
-            q_value = distribution.state_action_value(distr_params=distr_params, action=actions[name][:-1])
-            # q_value = self.q_value(logits=distr_params[0], action=actions[name])  # !!! really? always [0]?
-            target_distr_params = distribution.parameters(x=target_embedding)  # requires a different distribution class?
+            target_distr_params = distribution.parameters(x=target_embedding)  # TODO: separate distribution parameters?
+
+            q_value = self.tf_q_value(embedding=embedding, distr_params=distr_params, action=actions[name][:-1], name=name)
 
             if self.double_dqn:
                 action_taken = distribution.sample(distr_params=distr_params, deterministic=True)
             else:
                 action_taken = distribution.sample(distr_params=target_distr_params, deterministic=True)
+
             next_q_value = distribution.state_action_value(distr_params=target_distr_params, action=action_taken)
-            delta = self.tf_q_delta(
-                q_value=q_value,
-                next_q_value=next_q_value,
-                terminal=terminal[:-1],
-                reward=reward[:-1]
-            )
+
+            delta = self.tf_q_delta(q_value=q_value, next_q_value=next_q_value, terminal=terminal[:-1], reward=reward[:-1])
             deltas.append(delta)
 
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
@@ -114,3 +123,20 @@ class QModel(DistributionModel):
         )
 
         return tf.group(optimization, target_optimization)
+
+    def get_variables(self, include_non_trainable=False):
+        model_variables = super(QModel, self).get_variables(include_non_trainable=include_non_trainable)
+
+        if include_non_trainable:
+            # target network and optimizer variables only included if 'include_non_trainable' set
+            target_variables = self.target_network.get_variables(include_non_trainable=include_non_trainable)
+
+            target_optimizer_variables = self.target_optimizer.get_variables()
+
+            return model_variables + target_variables + target_optimizer_variables
+
+        else:
+            return model_variables
+
+    def get_summaries(self):
+        return super(QModel, self).get_summaries() + self.target_network.get_summaries()

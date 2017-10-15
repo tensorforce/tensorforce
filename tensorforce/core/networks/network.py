@@ -81,7 +81,7 @@ class Network(object):
         Creates the TensorFlow operations for the network regularization loss
 
         Returns:
-            Network regularization loss tensor
+            Regularization loss tensor
         """
         return None
 
@@ -151,32 +151,47 @@ class LayerBasedNetwork(Network):
         self.layers.append(layer)
 
     def tf_regularization_loss(self):
-        losses = list()
+        if super(LayerBasedNetwork, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(LayerBasedNetwork, self).tf_regularization_loss()]
+
         for layer in self.layers:
-            losses.extend(layer.regularization_losses())
+            if layer.regularization_loss() is not None:
+                losses.append(layer.regularization_loss())
+
         if len(losses) > 0:
             return tf.add_n(inputs=losses)
         else:
             return None
 
     def internal_inputs(self):
-        internal_inputs = list()
+        internal_inputs = super(LayerBasedNetwork, self).internal_inputs()
         for layer in self.layers:
             internal_inputs.extend(layer.internal_inputs())
         return internal_inputs
 
     def internal_inits(self):
-        internal_inits = list()
+        internal_inits = super(LayerBasedNetwork, self).internal_inits()
         for layer in self.layers:
             internal_inits.extend(layer.internal_inits())
         return internal_inits
 
     def get_variables(self, include_non_trainable=False):
-        return super(LayerBasedNetwork, self).get_variables(include_non_trainable=include_non_trainable) + \
-            [variable for layer in self.layers for variable in layer.get_variables(include_non_trainable=include_non_trainable)]
+        network_variables = super(LayerBasedNetwork, self).get_variables(
+            include_non_trainable=include_non_trainable
+        )
+
+        layer_variables = [
+            variable for layer in self.layers
+            for variable in layer.get_variables(include_non_trainable=include_non_trainable)
+        ]
+
+        return network_variables + layer_variables
 
     def get_summaries(self):
-        return super(LayerBasedNetwork, self).get_summaries() + [summary for layer in self.layers for summary in layer.get_summaries()]
+        return super(LayerBasedNetwork, self).get_summaries() + \
+            [summary for layer in self.layers for summary in layer.get_summaries()]
 
 
 class LayeredNetwork(LayerBasedNetwork):

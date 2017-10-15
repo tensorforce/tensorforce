@@ -36,12 +36,13 @@ class Optimizer(tf.train.Optimizer):
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
+            print(name)
             assert kwargs.get('trainable', False)
             if not registered:
                 self.variables[name] = variable
             return variable
 
-        self.fn_step = tf.make_template(
+        self.step = tf.make_template(
             name_='step',
             func_=self.tf_step,
             custom_getter=custom_getter
@@ -51,7 +52,7 @@ class Optimizer(tf.train.Optimizer):
         raise NotImplementedError
 
     def minimize(self, time, variables, **kwargs):
-        diffs = self.fn_step(time=time, variables=variables, **kwargs)
+        diffs = self.step(time=time, variables=variables, **kwargs)
         # diffs[0] = tf.Print(diffs[0], (diffs[0],))
         with tf.control_dependencies(control_inputs=diffs):
             return tf.no_op()

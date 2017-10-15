@@ -110,9 +110,6 @@ class DQFDAgent(MemoryAgent):
         self.network_spec = network_spec
         config = config.copy()
         config.default(DQFDAgent.default_config)
-        config.obligatory(
-            double_dqn=True
-        )
 
         # DQFD always uses double dqn, which is a required key for a q-model.
         config.obligatory(double_dqn=True)
@@ -161,17 +158,17 @@ class DQFDAgent(MemoryAgent):
         """
         for observation in demonstrations:
             if self.unique_state:
-                state = dict(state=observation['state'])
+                state = dict(state=observation['states'])
             else:
-                state = observation['state']
+                state = observation['states']
             if self.unique_action:
-                action = dict(action=observation['action'])
+                action = dict(action=observation['actions'])
             else:
-                action = observation['action']
+                action = observation['actions']
 
             self.demo_memory.add_observation(
                 states=state,
-                internals=observation['internals'],
+                internals=observation['internal'],
                 actions=action,
                 terminal=observation['terminal'],
                 reward=observation['reward']

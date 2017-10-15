@@ -124,7 +124,11 @@ class DQFDModel(QModel):
             )
             return q_model_loss + self.supervised_weight * demo_loss
 
-        demo_optimization = self.optimizer.minimize(time=self.timestep, variables=self.get_variables(), fn_loss=fn_loss)
+        demo_optimization = self.optimizer.minimize(
+            time=self.timestep,
+            variables=self.get_variables(),
+            fn_loss=fn_loss
+        )
 
         target_optimization = self.target_optimizer.minimize(
             time=self.timestep,

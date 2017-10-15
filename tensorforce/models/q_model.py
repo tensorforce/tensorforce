@@ -83,7 +83,12 @@ class QModel(DistributionModel):
             else:
                 action_taken = distribution.sample(distr_params=target_distr_params, deterministic=True)
             next_q_value = distribution.state_action_value(distr_params=target_distr_params, action=action_taken)
-            delta = self.tf_q_delta(q_value=q_value, next_q_value=next_q_value, terminal=terminal[:-1], reward=reward[:-1])
+            delta = self.tf_q_delta(
+                q_value=q_value,
+                next_q_value=next_q_value,
+                terminal=terminal[:-1],
+                reward=reward[:-1]
+            )
             deltas.append(delta)
 
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards

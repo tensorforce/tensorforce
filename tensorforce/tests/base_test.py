@@ -24,6 +24,9 @@ from tensorforce.execution import Runner
 
 
 class BaseTest(object):
+    """
+    Base class for tests of Agent functionality.
+    """
 
     agent = None
     deterministic = None
@@ -31,9 +34,15 @@ class BaseTest(object):
     pass_threshold = 0.8
 
     def pre_run(self, agent, environment):
+        """
+        Called before `Runner.run`.
+        """
         pass
 
     def base_test(self, name, environment, network_spec, config):
+        """
+        Basic test loop, requires an Agent to achieve a certain performance on an environment.
+        """
 
         sys.stdout.write('\n{} ({}):'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()

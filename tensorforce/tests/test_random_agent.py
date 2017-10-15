@@ -26,12 +26,11 @@ from tensorforce.tests.base_agent_test import BaseAgentTest
 
 class TestRandomAgent(BaseAgentTest, unittest.TestCase):
 
-    requires_network = False
-    # Random agent is not expected to pass anything
-    pass_threshold = 0.0
-    # Not using a network so no point in testing LSTM
-    exclude_lstm = True
     agent = RandomAgent
     deterministic = False
+    requires_network = False
+    pass_threshold = 0.0  # Random agent is not expected to pass anything
+
     config = Configuration()
 
+    exclude_lstm = True  # Not using a network so no point in testing LSTM

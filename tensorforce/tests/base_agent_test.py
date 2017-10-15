@@ -23,7 +23,9 @@ from tensorforce.tests.base_test import BaseTest
 
 
 class BaseAgentTest(BaseTest):
-    #TODO describe the purpose of each test case
+    """
+    Base class for tests of fundamental Agent functionality, i.e. various action types and shapes and internal states.
+    """
 
     config = None
 
@@ -36,8 +38,12 @@ class BaseAgentTest(BaseTest):
     exclude_lstm = False
 
     def test_bool(self):
+        """
+        Tests the case of one boolean action.
+        """
         if self.__class__.exclude_bool:
             return
+
         environment = MinimalTest(specification=[('bool', ())])
 
         network_spec = [
@@ -52,8 +58,12 @@ class BaseAgentTest(BaseTest):
         )
 
     def test_int(self):
+        """
+        Tests the case of one integer action.
+        """
         if self.__class__.exclude_int:
             return
+
         environment = MinimalTest(specification=[('int', ())])
         network_spec = [
             dict(type='dense', size=32),
@@ -68,8 +78,12 @@ class BaseAgentTest(BaseTest):
         )
 
     def test_float(self):
+        """
+        Tests the case of one float action.
+        """
         if self.__class__.exclude_float:
             return
+
         environment = MinimalTest(specification=[('float', ())])
         network_spec = [
             dict(type='dense', size=32),
@@ -83,6 +97,9 @@ class BaseAgentTest(BaseTest):
         )
 
     def test_bounded_float(self):
+        """
+        Tests the case of one bounded float action, i.e. with min and max value.
+        """
         if self.__class__.exclude_float:
             return
 
@@ -99,6 +116,9 @@ class BaseAgentTest(BaseTest):
         )
 
     def test_multi(self):
+        """
+        Tests the case of multiple actions of different type and shape.
+        """
         if self.__class__.exclude_multi:
             return
 
@@ -143,6 +163,9 @@ class BaseAgentTest(BaseTest):
         )
 
     def test_lstm(self):
+        """
+        Tests the case of using internal states via an LSTM layer (for one integer action).
+        """
         if self.__class__.exclude_lstm:
             return
 

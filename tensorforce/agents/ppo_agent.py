@@ -89,7 +89,6 @@ class PPOAgent(BatchAgent):
         ),
         optimization_steps=10,
         # Model
-        scope='ppo',
         discount=0.99,
         # DistributionModel
         distributions=None,  # not documented!!!
@@ -106,10 +105,8 @@ class PPOAgent(BatchAgent):
         log_level='info',
         model_directory=None,
         save_frequency=600,  # TensorFlow default
-        # TensorFlow Summaries
-        summary_logdir=None,
         summary_labels=['total-loss'],
-        summary_frequency=1,
+        summary_frequency=120,  # TensorFlow default
         # TensorFlow distributed configuration
         cluster_spec=None,
         parameter_server=False,
@@ -117,6 +114,7 @@ class PPOAgent(BatchAgent):
         device=None,
         local_model=False,
         replica_model=False,
+        scope='ppo'
     )
 
     # missing: batch agent configs

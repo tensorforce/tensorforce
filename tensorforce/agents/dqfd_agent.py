@@ -79,7 +79,6 @@ class DQFDAgent(MemoryAgent):
         exploration=None,
         reward_preprocessing=None,
         # Model
-        scope='dqfd',
         optimizer=dict(
             type='adam',
             learning_rate=1e-3
@@ -97,19 +96,16 @@ class DQFDAgent(MemoryAgent):
         log_level='info',
         model_directory=None,
         save_frequency=600,  # TensorFlow default
-        # TensorFlow Summaries
-        summary_logdir=None,
         summary_labels=['total-loss'],
-        summary_frequency=1,
-        # Distributed
+        summary_frequency=120,  # TensorFlow default
+        # TensorFlow distributed configuration
         cluster_spec=None,
         parameter_server=False,
         task_index=0,
         device=None,
         local_model=False,
         replica_model=False,
-        supervised_weight=1.0,
-        expert_margin=0.8
+        scope='dqfd'
     )
 
     def __init__(self, states_spec, actions_spec, network_spec, config):

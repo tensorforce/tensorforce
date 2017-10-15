@@ -27,24 +27,20 @@ from tensorforce.tests.base_agent_test import BaseAgentTest
 
 class TestConstantAgent(BaseAgentTest, unittest.TestCase):
 
-    requires_network = False
-
-    # Constant agent is not expected to pass anything
-    pass_threshold = 0.0
-    # Not using a network
-    exclude_multi = True
-    exclude_int = True
-    exclude_bool = True
-    exclude_lstm = True
-    exclude_bounded = True
-
     agent = ConstantAgent
     deterministic = False
+    requires_network = False
 
     # Just testing one test, otherwise we would have to specify constant values of every type for every
     # test and override all base tests
     config = Configuration(
         action_values=dict(
-            action=0.3
+            action=1.0
         )
     )
+
+    exclude_multi = True
+    exclude_int = True
+    exclude_bool = True
+    exclude_lstm = True
+    exclude_bounded = True

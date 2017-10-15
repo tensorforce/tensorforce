@@ -198,7 +198,7 @@ def main():
     def episode_finished(r):
         if r.episode % report_episodes == 0:
             steps_per_second = r.timestep / (time.time() - r.start_time)
-            logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(r.agent.episode, r.agent.timestep, steps_per_second))
+            logger.info("Finished episode {} after overall {} timesteps. Steps Per Second {}".format(r.agent.episode, r.agent.timestep, steps_per_second))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
             logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))

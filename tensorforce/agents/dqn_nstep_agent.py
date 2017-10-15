@@ -115,7 +115,6 @@ class DQNNstepAgent(BatchAgent):
         # BatchAgent
         keep_last_timestep=True,  # not documented!
         # Model
-        scope='dqn-nstep',
         optimizer=dict(
             type='adam',
             learning_rate=1e-3
@@ -134,17 +133,16 @@ class DQNNstepAgent(BatchAgent):
         log_level='info',
         model_directory=None,
         save_frequency=600,  # TensorFlow default
-        # TensorFlow Summaries
-        summary_logdir=None,
         summary_labels=['total-loss'],
-        summary_frequency=1,
-        # Distributed
+        summary_frequency=120,  # TensorFlow default
+        # TensorFlow distributed configuration
         cluster_spec=None,
         parameter_server=False,
         task_index=0,
         device=None,
         local_model=False,
         replica_model=False,
+        scope='dqn-nstep'
     )
 
     # missing: memory agent configs

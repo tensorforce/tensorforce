@@ -79,7 +79,6 @@ class TRPOAgent(BatchAgent):
         # TRPOAgent
         learning_rate=1e-2,
         # Model
-        scope='trpo',
         discount=0.99,
         # DistributionModel
         distributions=None,  # not documented!!!
@@ -96,17 +95,16 @@ class TRPOAgent(BatchAgent):
         log_level='info',
         model_directory=None,
         save_frequency=600,  # TensorFlow default
-        # TensorFlow Summaries
-        summary_logdir=None,
         summary_labels=['total-loss'],
-        summary_frequency=1,
-        # Distributed
+        summary_frequency=120,  # TensorFlow default
+        # TensorFlow distributed configuration
         cluster_spec=None,
         parameter_server=False,
         task_index=0,
         device=None,
         local_model=False,
         replica_model=False,
+        scope='trpo'
     )
 
     # missing: batch agent configs

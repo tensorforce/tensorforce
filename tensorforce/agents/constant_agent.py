@@ -30,40 +30,42 @@ class ConstantAgent(Agent):
     """
     Constant action agent for sanity checks.
     """
+
+    # TODO: Document action_values parameter
     default_config = dict(
         # Agent
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
+        # Logging
         log_level='info',
         model_directory=None,
         save_frequency=600,  # TensorFlow default
-        # Model
-        scope='constant',
-        optimizer=None,
-        discount=0.99,
-        normalize_rewards=False,
-        # TensorFlow Summaries
-        summary_logdir=None,
         summary_labels=['total-loss'],
-        summary_frequency=1,
-        # Distributed
+        summary_frequency=120,  # TensorFlow default
+        # TensorFlow distributed configuration
         cluster_spec=None,
         parameter_server=False,
         task_index=0,
         device=None,
         local_model=False,
         replica_model=False,
+        scope='constant'
     )
 
     def __init__(self, states_spec, actions_spec, config):
         config = config.copy()
         config.default(self.__class__.default_config)
+        config.obligatory(
+            optimizer=None,
+            discount=1.0,
+            normalize_rewards=False
+        )
         super(ConstantAgent, self).__init__(states_spec, actions_spec, config)
 
     def initialize_model(self, states_spec, actions_spec, config):
         return ConstantModel(
-                states_spec=states_spec,
-                actions_spec=actions_spec,
-                config=config
-            )
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            config=config
+        )

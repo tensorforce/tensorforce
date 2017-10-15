@@ -23,8 +23,10 @@ from tensorforce import util
 from tensorforce.models import PGModel
 
 
-class PGLLModel(PGModel):
-    """Policy gradient model based on computing log likelihoods."""
+class PGLogProbModel(PGModel):
+    """
+    Policy gradient model based on computing log likelihoods.
+    """
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
         embedding = self.network.apply(x=states, internals=internals)

@@ -13,54 +13,73 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Quick start example.
-"""
-
 import numpy as np
 
 from tensorforce import Configuration
-from tensorforce.agents import TRPOAgent, PPOAgent
-from tensorforce.core.networks import layered_network_builder
+from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
 # Create an OpenAIgym environment
 env = OpenAIGym('CartPole-v0')
 
-# Create a Trust Region Policy Optimization agent
-agent = PPOAgent(
-    Configuration(
-    log_level='info',
-    batch_size=4000,
 
-    # max_kl_divergence=0.1,
-    # cg_iterations=20,
-    # cg_damping=0.001,
-    # ls_max_backtracks=10,
-    # ls_accept_ratio=0.9,
-    # ls_override=False,
-
-    learning_rate=0.001,
-    entropy_penalty=0.01,
-    epochs=5,
-    optimizer_batch_size=512,
-    loss_clipping=0.2,
-    normalize_advantage=False,
-    baseline=dict(
-        type="mlp",
-        sizes=[32, 32],
-        epochs=1,
-        update_batch_size=512,
-        learning_rate=0.01
+config = Configuration(
+    batch_size=4096,
+    # Agent
+    preprocessing=None,
+    exploration=None,
+    reward_preprocessing=None,
+    # BatchAgent
+    keep_last_timestep=True,
+    # PPOAgent
+    step_optimizer=dict(
+        type='adam',
+        learning_rate=1e-3
     ),
-    states=env.states,
-    actions=env.actions,
-    network=layered_network_builder([
-        dict(type='dense', size=32, activation='tanh'),
-        dict(type='dense', size=32, activation='tanh')
-    ])
-))
+    optimization_steps=10,
+    # Model
+    scope='ppo',
+    discount=0.99,
+    # DistributionModel
+    distributions=None,  # not documented!!!
+    entropy_regularization=0.01,
+    # PGModel
+    baseline_mode=None,
+    baseline=None,
+    baseline_optimizer=None,
+    gae_lambda=None,
+    normalize_rewards=False,
+    # PGLRModel
+    likelihood_ratio_clipping=0.2,
+    # Logging
+    log_level='info',
+    # TensorFlow Summaries
+    summary_logdir=None,
+    summary_labels=['total-loss'],
+    summary_frequency=1,
+    # Distributed
+    # TensorFlow distributed configuration
+    cluster_spec=None,
+    parameter_server=False,
+    task_index=0,
+    device=None,
+    local_model=False,
+    replica_model=False,
+)
+
+# Network as list of layers
+network_spec = [
+    dict(type='dense', size=32, activation='tanh'),
+    dict(type='dense', size=32, activation='tanh')
+]
+
+agent = PPOAgent(
+    states_spec=env.states,
+    actions_spec=env.actions,
+    network_spec=network_spec,
+    config=config
+)
 
 # Create the runner
 runner = Runner(agent=agent, environment=env)
@@ -74,10 +93,10 @@ def episode_finished(r):
 
 
 # Start learning
-runner.run(episodes=3000, max_timesteps=200, episode_finished=episode_finished)
+runner.run(episodes=3000, max_episode_timesteps=200, episode_finished=episode_finished)
 
 # Print statistics
-print("Learning finished. Total episodes: {ep}. Average reward of last 100 episodes: {ar}.".format(ep=runner.episode,
-                                                                                                   ar=np.mean(
-                                                                                                       runner.episode_rewards[
-                                                                                                       -100:])))
+print("Learning finished. Total episodes: {ep}. Average reward of last 100 episodes: {ar}.".format(
+    ep=runner.episode,
+    ar=np.mean(runner.episode_rewards[-100:]))
+)

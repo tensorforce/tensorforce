@@ -94,13 +94,19 @@ class TRPOAgent(BatchAgent):
         likelihood_ratio_clipping=None,
         # Logging
         log_level='info',
+        model_directory=None,
+        save_frequency=600,  # TensorFlow default
         # TensorFlow Summaries
         summary_logdir=None,
         summary_labels=['total-loss'],
         summary_frequency=1,
         # Distributed
-        distributed=False,
-        device=None
+        cluster_spec=None,
+        parameter_server=False,
+        task_index=0,
+        device=None,
+        local_model=False,
+        replica_model=False,
     )
 
     # missing: batch agent configs

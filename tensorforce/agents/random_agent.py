@@ -36,6 +36,8 @@ class RandomAgent(Agent):
         exploration=None,
         reward_preprocessing=None,
         log_level='info',
+        model_directory=None,
+        save_frequency=600,  # TensorFlow default
         # Model
         scope='random',
         optimizer=None,
@@ -46,8 +48,12 @@ class RandomAgent(Agent):
         summary_labels=['total-loss'],
         summary_frequency=1,
         # Distributed
-        distributed=False,
-        device=None
+        cluster_spec=None,
+        parameter_server=False,
+        task_index=0,
+        device=None,
+        local_model=False,
+        replica_model=False,
     )
 
     def __init__(self, states_spec, actions_spec, config):

@@ -27,29 +27,42 @@ class BaseTest(object):
 
     agent = None
     deterministic = None
+    requires_network = True
+    pass_threshold = 0.8
 
     def pre_run(self, agent, environment):
         pass
 
     def base_test(self, name, environment, network_spec, config):
+
         sys.stdout.write('\n{} ({}):'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()
 
         passed = 0
         for _ in xrange(5):
+            if self.__class__.requires_network:
+                agent = self.__class__.agent(
+                    states_spec=environment.states,
+                    actions_spec=environment.actions,
+                    network_spec=network_spec,
+                    config=config
+                )
+            else:
+                agent = self.__class__.agent(
+                    states_spec=environment.states,
+                    actions_spec=environment.actions,
+                    config=config
+                )
 
-            agent = self.__class__.agent(
-                states_spec=environment.states,
-                actions_spec=environment.actions,
-                network_spec=network_spec,
-                config=config
-            )
             runner = Runner(agent=agent, environment=environment)
 
             self.pre_run(agent=agent, environment=environment)
 
             def episode_finished(r):
-                return r.episode < 100 or not all(rw / ln >= 0.8 for rw, ln in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
+                return r.episode < 100 or not all(
+                    rw / ln >= self.__class__.pass_threshold
+                    for rw, ln in zip(r.episode_rewards[-100:], r.episode_lengths[-100:])
+                )
 
             runner.run(episodes=3000, deterministic=self.__class__.deterministic, episode_finished=episode_finished)
 

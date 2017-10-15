@@ -52,19 +52,19 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
             if 'type' in environment.actions:
                 if environment.actions['type'] == 'bool':
                     actions = np.full(
-                        shape=environment.actions['shape'],
+                        shape=(),
                         fill_value=True,
                         dtype=util.np_dtype(environment.actions['type'])
                     )
                 elif environment.actions['type'] == 'int':
                     actions = np.full(
-                        shape=environment.actions['shape'],
+                        shape=(),
                         fill_value=1,
                         dtype=util.np_dtype(environment.actions['type'])
                     )
                 elif environment.actions['type'] == 'float':
                     actions = np.full(
-                        shape=environment.actions['shape'],
+                        shape=(),
                         fill_value=1.0,
                         dtype=util.np_dtype(environment.actions['type'])
                     )
@@ -84,9 +84,9 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
                         )
                     elif action['type'] == 'float':
                         actions[name] = np.full(
-                            shape=environment.actions['shape'],
+                            shape=action['shape'],
                             fill_value=1.0,
-                            dtype=util.np_dtype(environment.actions['type'])
+                            dtype=util.np_dtype(action['type'])
                         )
 
             state, terminal, reward = environment.execute(action=actions)

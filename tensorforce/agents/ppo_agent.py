@@ -18,7 +18,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.agents import BatchAgent
-from tensorforce.models import PGLRModel
+from tensorforce.models import PGLogProbModel
 
 
 class PPOAgent(BatchAgent):
@@ -107,7 +107,10 @@ class PPOAgent(BatchAgent):
         # TensorFlow Summaries
         summary_logdir=None,
         summary_labels=['total-loss'],
-        summary_frequency=1
+        summary_frequency=1,
+        # Distributed
+        distributed=False,
+        device=None
     )
 
     # missing: batch agent configs
@@ -131,7 +134,7 @@ class PPOAgent(BatchAgent):
         super(PPOAgent, self).__init__(states_spec, actions_spec, config)
 
     def initialize_model(self, states_spec, actions_spec, config):
-        return PGLRModel(
+        return PGLogProbModel(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=self.network_spec,

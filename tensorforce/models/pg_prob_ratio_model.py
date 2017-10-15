@@ -23,10 +23,9 @@ from tensorforce import util
 from tensorforce.models import PGModel
 
 
-class PGLRModel(PGModel):
-    #TODO more justification of this class here and why this object is necessary.
+class PGProbRatioModel(PGModel):
     """
-        Policy gradient model based on likelihood ratios, e.g. TRPO and PPO.
+    Policy gradient model based on likelihood ratios, e.g. TRPO and PPO.
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
@@ -34,10 +33,10 @@ class PGLRModel(PGModel):
         assert config.likelihood_ratio_clipping is None or config.likelihood_ratio_clipping > 1.0
         self.likelihood_ratio_clipping = config.likelihood_ratio_clipping
 
-        super(PGLRModel, self).__init__(states_spec, actions_spec, network_spec, config)
+        super(PGProbRatioModel, self).__init__(states_spec, actions_spec, network_spec, config)
 
     def initialize(self, custom_getter):
-        super(PGLRModel, self).initialize(custom_getter)
+        super(PGProbRatioModel, self).initialize(custom_getter)
 
         # Model comparison functions
         self.reference = tf.make_template(
@@ -98,11 +97,11 @@ class PGLRModel(PGModel):
         return tf.reduce_mean(input_tensor=(-prob_ratio * reward), axis=0)
 
     def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
-        kwargs = super(PGLRModel, self).get_optimizer_kwargs(
+        kwargs = super(PGProbRatioModel, self).get_optimizer_kwargs(
             states=states,
             internals=internals,
             actions=actions,
-            termina=terminal,
+            terminal=terminal,
             reward=reward
         )
         kwargs['fn_reference'] = (

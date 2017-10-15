@@ -71,8 +71,8 @@ class MinimalTest(Environment):
                 self.state[n] = ((overall - correct) / overall, correct / overall)
             elif action_type == 'float' or action_type == 'bounded-float':
                 step = np.sum(action[n]) / util.prod(shape)
-                self.state[n] = (max(self.state[n][0] - step, 0.0), min(self.state[n][1] + step, 1.0))
-            reward += self.state[n][1] * 2 - 1.0
+                self.state[n] = max(self.state[n][0] - step, 0.0), min(self.state[n][1] + step, 1.0)
+            reward += max(min(self.state[n][1], 1.0), 0.0)
 
         terminal = random() < 0.25
         if self.single_state_action:

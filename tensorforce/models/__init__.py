@@ -15,21 +15,21 @@
 from tensorforce.models.model import Model
 from tensorforce.models.distribution_model import DistributionModel
 from tensorforce.models.pg_model import PGModel
-from tensorforce.models.pg_ll_model import PGLLModel
-from tensorforce.models.pg_lr_model import PGLRModel
+from tensorforce.models.pg_log_prob_model import PGLogProbModel
+from tensorforce.models.pg_prob_ratio_model import PGProbRatioModel
 from tensorforce.models.q_model import QModel
 from tensorforce.models.dqfd_model import DQFDModel
 from tensorforce.models.q_nstep_model import QNstepModel
 
 
 models = dict(
-    pg_ll_model=PGLLModel,
-    pg_lr_model=PGLRModel,
+    pg_log_prob_model=PGLogProbModel,
+    pg_prob_ratio_model=PGProbRatioModel,
     q_model=QModel,
     q_nstep_model=QNstepModel,
     dqfd_model=DQFDModel
 )
 
 
-__all__ = ['Model', 'DistributionModel', 'PGModel', 'PGLLModel', 'PGLRModel', 'QModel',
+__all__ = ['Model', 'DistributionModel', 'PGModel', 'PGProbRatioModel', 'PGLogProbModel', 'QModel',
            'QNstepModel','DQFDModel','models']

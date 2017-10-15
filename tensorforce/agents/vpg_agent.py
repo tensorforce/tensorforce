@@ -18,7 +18,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.agents import BatchAgent
-from tensorforce.models import PGLLModel
+from tensorforce.models import PGLogProbModel
 
 
 class VPGAgent(BatchAgent):
@@ -119,7 +119,7 @@ class VPGAgent(BatchAgent):
         super(VPGAgent, self).__init__(states_spec, actions_spec, config)
 
     def initialize_model(self, states_spec, actions_spec, config):
-        return PGLLModel(
+        return PGLogProbModel(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=self.network_spec,

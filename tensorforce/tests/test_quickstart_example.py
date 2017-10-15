@@ -24,7 +24,6 @@ from six.moves import xrange
 
 from tensorforce import Configuration
 from tensorforce.agents import PPOAgent
-from tensorforce.core.networks import layered_network_builder
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
@@ -37,25 +36,56 @@ class TestQuickstartExample(unittest.TestCase):
         for _ in xrange(3):
             # Create an OpenAIgym environment
             env = OpenAIGym('CartPole-v0')
-
-            # Create a Trust Region Policy Optimization agent
-            agent = PPOAgent(config=Configuration(
-                log_level='info',
+            config = Configuration(
                 batch_size=4096,
+                # Agent
+                preprocessing=None,
+                exploration=None,
+                reward_preprocessing=None,
+                # BatchAgent
+                keep_last_timestep=True,  # not documented!
+                # PPOAgent
+                step_optimizer=dict(
+                    type='adam',
+                    learning_rate=1e-3
+                ),
+                optimization_steps=10,
+                # Model
+                scope='ppo',
+                discount=0.99,
+                # DistributionModel
+                distributions=None,  # not documented!!!
+                entropy_regularization=0.01,
+                # PGModel
+                baseline_mode=None,
+                baseline=None,
+                baseline_optimizer=None,
+                gae_lambda=None,
+                normalize_rewards=False,
+                # PGLRModel
+                likelihood_ratio_clipping=0.2,
+                # Logging
+                log_level='info',
+                # TensorFlow Summaries
+                summary_logdir=None,
+                summary_labels=['total-loss'],
+                summary_frequency=1,
+                # Distributed
+                distributed=False,
+                device=None
+            )
 
-                gae_lambda=0.97,
-                learning_rate=0.001,
-                entropy_penalty=0.01,
-                epochs=5,
-                optimizer_batch_size=512,
-                loss_clipping=0.2,
-                states=env.states,
-                actions=env.actions,
-                network=layered_network_builder([
-                    dict(type='dense', size=32, activation='tanh'),
-                    dict(type='dense', size=32, activation='tanh')
-                ])
-            ))
+            network_spec = [
+                dict(type='dense', size=32, activation='tanh'),
+                dict(type='dense', size=32, activation='tanh')
+            ]
+            # Create a Trust Region Policy Optimization agent
+            agent = PPOAgent(
+                states_spec=env.states,
+                actions_spec=env.actions,
+                network_spec=network_spec,
+                config=config
+            )
             runner = Runner(agent=agent, environment=env)
 
             def episode_finished(r):

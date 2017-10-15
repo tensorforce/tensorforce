@@ -55,7 +55,7 @@ from tensorforce.core.optimizers import Optimizer, GlobalOptimizer
 
 class Model(object):
     """
-    Base class for all (TensorFlow-based) models
+    Base class for all (TensorFlow-based) models.
     """
 
     def __init__(self, states_spec, actions_spec, config, **kwargs):
@@ -536,32 +536,6 @@ class Model(object):
                 reward=reward
             )
             return self.optimizer.minimize(**optimizer_kwargs)
-
-                # if config.distributed and not config.replica_model:
-
-
-                # if config.distributed and not config.replica_model:
-                #     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
-                #     local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
-                #     local_gradients = [grad for grad, var in local_grads_and_vars]
-                #     global_gradients = list(zip(local_gradients, self.replica_model.variables))
-                #     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.replica_model.variables)))
-                #     self.optimize = tf.group(
-                #         self.optimizer.apply_gradients(grads_and_vars=global_gradients),
-                #         self.update_local,
-                #         self.global_timestep.assign_add(tf.shape(self.reward)[0]))
-                #     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
-
-    # def tf_summarization(self):
-    #     last_summary = tf.get_variable(name='last-summary', dtype=tf.int32, initializer=(-self.summary_frequency), trainable=False)
-
-    #     def summarize():
-    #         last_summary_updated = last_summary.assign(value=self.timestep)
-    #         with tf.control_dependencies(control_inputs=(last_summary_updated,)):
-    #             return tf.summary.merge(inputs=self.get_summaries())
-
-    #     do_summarize = (self.timestep - last_summary >= self.summary_frequency)
-    #     return tf.cond(pred=do_summarize, true_fn=summarize, false_fn=(lambda: ''))
 
     def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
         """

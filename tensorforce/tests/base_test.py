@@ -32,13 +32,6 @@ class BaseTest(object):
         pass
 
     def base_test(self, name, environment, network_spec, config):
-        self.__class__.agent(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec,
-            config=config
-        )
-
         sys.stdout.write('\n{} ({}):'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()
 

@@ -30,47 +30,46 @@ class Distribution(object):
 
     def __init__(self, scope='distribution', summary_labels=None):
         self.summary_labels = set(summary_labels or ())
+
         self.variables = dict()
+        self.all_variables = dict()
         self.summaries = list()
 
         with tf.name_scope(name=scope):
-            def custom_getter(getter, name, **kwargs):
-                variable = getter(name=name, **kwargs)
-                if kwargs.get('trainable', True):
-                    self.variables[name] = variable
-                if 'variables' in self.summary_labels:
-                    summary = tf.summary.histogram(name=name, values=variable)
-                    self.summaries.append(summary)
+            def custom_getter(getter, name, registered=False, **kwargs):
+                variable = getter(name=name, registered=True, **kwargs)
+                if not registered:
+                    self.all_variables[name] = variable
+                    if kwargs.get('trainable', True):
+                        self.variables[name] = variable
+                    if 'variables' in self.summary_labels:
+                        summary = tf.summary.histogram(name=name, values=variable)
+                        self.summaries.append(summary)
                 return variable
 
             self.parameters = tf.make_template(
                 name_='parameters',
                 func_=self.tf_parameters,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
             self.sample = tf.make_template(
                 name_='sample',
                 func_=self.tf_sample,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
             self.log_probability = tf.make_template(
                 name_='log-probability',
                 func_=self.tf_log_probability,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
             self.entropy = tf.make_template(
                 name_='entropy',
                 func_=self.tf_entropy,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
             self.kl_divergence = tf.make_template(
                 name_='kl-divergence',
                 func_=self.tf_kl_divergence,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
 
@@ -137,14 +136,17 @@ class Distribution(object):
         """
         raise NotImplementedError
 
-    def get_variables(self):
+    def get_variables(self, include_non_trainable=False):
         """
         Returns the TensorFlow variables used by the distribution
 
         Returns:
             List of variables
         """
-        return [self.variables[key] for key in sorted(self.variables)]
+        if include_non_trainable:
+            return [self.all_variables[key] for key in sorted(self.all_variables)]
+        else:
+            return [self.variables[key] for key in sorted(self.variables)]
 
     def get_summaries(self):
         """

@@ -77,7 +77,6 @@ class PGModel(DistributionModel):
         self.fn_pg_loss_per_instance = tf.make_template(
             name_='pg-loss-per-instance',
             func_=self.tf_pg_loss_per_instance,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
 
@@ -152,11 +151,23 @@ class PGModel(DistributionModel):
 
         return tf.group(optimization, baseline_optimization)
 
-    def get_variables(self):
-        if self.baseline_mode is None or self.baseline_optimizer is not None:
-            return super(PGModel, self).get_variables()
+    def get_variables(self, include_non_trainable=False):
+        model_variables = super(PGModel, self).get_variables(include_non_trainable=include_non_trainable)
+
+        print(self.baseline_mode, self.baseline_optimizer, include_non_trainable)
+
+        if include_non_trainable and self.baseline_mode is not None:
+            # baseline optimizer variables only included if 'include_non_trainable' set
+            baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)
+            baseline_optimizer_variables = self.baseline_optimizer.get_variables()
+            return model_variables + baseline_variables + baseline_optimizer_variables
+
+        elif self.baseline_mode is None or self.baseline_optimizer is not None:
+            return model_variables
+
         else:
-            return super(PGModel, self).get_variables() + self.baseline.get_variables()
+            baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)
+            return model_variables + baseline_variables
 
     def get_summaries(self):
         if self.baseline_mode is None:

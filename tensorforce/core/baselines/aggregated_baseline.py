@@ -59,5 +59,9 @@ class AggregatedBaseline(Baseline):
         prediction = self.linear.apply(x=predictions)
         return tf.squeeze(input=prediction, axis=1)
 
-    def get_variables(self):
-        return super(AggregatedBaseline, self).get_variables() + self.linear.get_variables() + [variable for name in sorted(self.baselines) for variable in self.baselines[name].get_variables()]
+    def get_variables(self, include_non_trainable=False):
+        return super(AggregatedBaseline, self).get_variables(include_non_trainable=include_non_trainable) + \
+            self.linear.get_variables(include_non_trainable=include_non_trainable) + \
+            [variable for name in sorted(self.baselines) for variable in self.baselines[name].get_variables(
+                include_non_trainable=include_non_trainable
+            )]

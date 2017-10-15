@@ -80,7 +80,6 @@ class VPGAgent(BatchAgent):
         # BatchAgent
         keep_last_timestep=True,  # not documented!
         # Model
-        scope='vpg',
         optimizer=dict(
             type='adam',
             learning_rate=1e-3
@@ -97,13 +96,18 @@ class VPGAgent(BatchAgent):
         gae_lambda=None,
         # Logging
         log_level='info',
-        # TensorFlow Summaries
-        summary_logdir=None,
+        model_directory=None,
+        save_frequency=600,  # TensorFlow default
         summary_labels=['total-loss'],
-        summary_frequency=1,
-        # Distributed
-        distributed=False,
-        device=None
+        summary_frequency=120,  # TensorFlow default
+        # TensorFlow distributed configuration
+        scope='vpg',
+        cluster_spec=None,
+        parameter_server=False,
+        task_index=0,
+        device=None,
+        local_model=False,
+        replica_model=False
     )
 
     # missing: batch agent configs

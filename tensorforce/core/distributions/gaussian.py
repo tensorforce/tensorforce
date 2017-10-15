@@ -103,5 +103,7 @@ class Gaussian(Distribution):
 
         return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5
 
-    def get_variables(self):
-        return super(Gaussian, self).get_variables() + self.mean.get_variables() + self.log_stddev.get_variables()
+    def get_variables(self, include_non_trainable=False):
+        return super(Gaussian, self).get_variables(include_non_trainable=include_non_trainable) + \
+            self.mean.get_variables(include_non_trainable=include_non_trainable) + \
+            self.log_stddev.get_variables(include_non_trainable=include_non_trainable)

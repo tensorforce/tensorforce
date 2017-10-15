@@ -47,6 +47,7 @@ class TFOptimizer(Optimizer):
     def __init__(self, optimizer, **kwargs):
         super(TFOptimizer, self).__init__()
 
+        self.name = optimizer
         self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
 
     def tf_step(self, time, variables, fn_loss, **kwargs):
@@ -60,3 +61,13 @@ class TFOptimizer(Optimizer):
 
         with tf.control_dependencies(control_inputs=(applied,)):
             return [var - var_before for var, var_before in zip(variables, vars_before)]
+
+    def get_variables(self):
+        if self.name == 'adam':
+            optimizer_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]
+        else:
+            optimizer_variables = list()
+
+        return super(TFOptimizer, self).get_variables() + \
+            [variable for slot in self.optimizer._slots.values() for variable in slot.values()] + \
+            optimizer_variables

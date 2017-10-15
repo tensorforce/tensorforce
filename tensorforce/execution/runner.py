@@ -72,51 +72,51 @@ class Runner(object):
         """
         if self.cluster_spec is not None:
             assert self.task_index is not None
-            # Redirect process output
-            # sys.stdout = open('tf_worker_' + str(self.task_index) + '.txt', 'w', 0)
-            cluster_def = self.cluster_spec.as_cluster_def()
+            # # Redirect process output
+            # # sys.stdout = open('tf_worker_' + str(self.task_index) + '.txt', 'w', 0)
+            # cluster_def = self.cluster_spec.as_cluster_def()
 
-            if self.task_index == -1:
-                server = tf.train.Server(
-                    server_or_cluster_def=cluster_def,
-                    job_name='ps',
-                    task_index=0,
-                    config=tf.ConfigProto(device_filters=["/job:ps"])
-                )
-                # Param server does nothing actively
-                server.join()
-                return
+            # if self.task_index == -1:
+            #     server = tf.train.Server(
+            #         server_or_cluster_def=cluster_def,
+            #         job_name='ps',
+            #         task_index=0,
+            #         config=tf.ConfigProto(device_filters=["/job:ps"])
+            #     )
+            #     # Param server does nothing actively
+            #     server.join()
+            #     return
 
-            # Worker creates runner for execution.
-            server = tf.train.Server(
-                server_or_cluster_def=cluster_def,
-                job_name='worker',
-                task_index=self.task_index,
-                config=tf.ConfigProto(
-                    intra_op_parallelism_threads=1,
-                    inter_op_parallelism_threads=2,
-                    log_device_placement=True
-                )
-            )
+            # # Worker creates runner for execution.
+            # server = tf.train.Server(
+            #     server_or_cluster_def=cluster_def,
+            #     job_name='worker',
+            #     task_index=self.task_index,
+            #     config=tf.ConfigProto(
+            #         intra_op_parallelism_threads=1,
+            #         inter_op_parallelism_threads=2,
+            #         log_device_placement=True
+            #     )
+            # )
 
-            config = tf.ConfigProto(device_filters=['/job:ps', '/job:worker/task:{}/cpu:0'.format(self.task_index)])
+            # config = tf.ConfigProto(device_filters=['/job:ps', '/job:worker/task:{}/cpu:0'.format(self.task_index)])
 
-            init_op = tf.global_variables_initializer()
-            supervisor = tf.train.Supervisor(
-                is_chief=(self.task_index == 0),
-                logdir='/tmp/train_logs',
-                global_step=self.agent.model.global_timestep,
-                init_op=tf.variables_initializer(self.agent.model.global_variables),
-                local_init_op=tf.variables_initializer(self.agent.model.variables),
-                init_fn=(lambda session: session.run(init_op)),
-                saver=self.agent.model.saver)
-            # summary_op=tf.summary.merge_all(),
-            # summary_writer=worker_agent.model.summary_writer)
+            # init_op = tf.global_variables_initializer()
+            # supervisor = tf.train.Supervisor(
+            #     is_chief=(self.task_index == 0),
+            #     logdir='/tmp/train_logs',
+            #     global_step=self.agent.model.global_timestep,
+            #     init_op=tf.variables_initializer(self.agent.model.global_variables),
+            #     local_init_op=tf.variables_initializer(self.agent.model.variables),
+            #     init_fn=(lambda session: session.run(init_op)),
+            #     saver=self.agent.model.saver)
+            # # summary_op=tf.summary.merge_all(),
+            # # summary_writer=worker_agent.model.summary_writer)
 
-            managed_session = supervisor.managed_session(server.target, config=config)
-            session = managed_session.__enter__()
-            self.agent.model.session = session
-            # session.run(self.agent.model.update_local)
+            # managed_session = supervisor.managed_session(server.target, config=config)
+            # session = managed_session.__enter__()
+            # self.agent.model.session = session
+            # # session.run(self.agent.model.update_local)
 
         # Keep track of episode reward and episode length for statistics.
         self.episode_rewards = []
@@ -173,6 +173,8 @@ class Runner(object):
                 return
             self.episode += 1
 
-        if self.cluster_spec is not None:
-            managed_session.__exit__(None, None, None)
-            supervisor.stop()
+        self.agent.close()
+
+        # if self.cluster_spec is not None:
+        #     managed_session.__exit__(None, None, None)
+        #     supervisor.stop()

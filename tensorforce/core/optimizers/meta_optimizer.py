@@ -30,8 +30,7 @@ class MetaOptimizer(Optimizer):
 
     def __init__(self, optimizer):
         super(MetaOptimizer, self).__init__()
-
         self.optimizer = Optimizer.from_spec(spec=optimizer)
 
-    def minimize(self, time, variables, **kwargs):
-        return super(MetaOptimizer, self).minimize(time=time, variables=variables, **kwargs)
+    def get_variables(self):
+        return super(MetaOptimizer, self).get_variables() + self.optimizer.get_variables()

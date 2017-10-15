@@ -50,7 +50,7 @@ from __future__ import division
 import tensorflow as tf
 
 from tensorforce import TensorForceError, util
-from tensorforce.core.optimizers import Optimizer, DistributedOptimizer
+from tensorforce.core.optimizers import Optimizer, GlobalOptimizer
 
 
 class Model(object):
@@ -59,6 +59,7 @@ class Model(object):
     """
 
     def __init__(self, states_spec, actions_spec, config, **kwargs):
+
         # States and actions specifications
         self.states_spec = states_spec
         self.actions_spec = actions_spec
@@ -70,69 +71,76 @@ class Model(object):
         assert isinstance(config.normalize_rewards, bool)
         self.normalize_rewards = config.normalize_rewards
 
-        # TODO: Move logging to Agent? Since Model is pure TensorFlow
-        # self.logger = logging.getLogger(self.__class__.__name__)
-        # self.logger.setLevel(util.log_levels[config.log_level])
-
         # TensorFlow summaries
         self.summary_labels = set(config.summary_labels or ())
-        self.summary_frequency = config.summary_frequency
-        self.last_summary = -self.summary_frequency
+        # self.summary_frequency = config.summary_frequency
+        # self.last_summary = -self.summary_frequency
 
-        self.distributed = config.distributed
+        if not config.local_model or not config.replica_model:
+            # If not local_model mode or not internal global model
+            self.graph = tf.Graph()
+            self.default_graph = self.graph.as_default()
+            self.default_graph.__enter__()
 
-        if config.distributed:  # Distributed model
+        if config.cluster_spec is None:
+            if config.parameter_server or config.replica_model or config.local_model:
+                raise TensorForceError("Invalid config value for distributed mode.")
+            self.device = config.device
+            self.global_model = None
+
+        elif config.parameter_server:
+            if config.replica_model or config.local_model:
+                raise TensorForceError("Invalid config value for distributed mode.")
+            self.device = config.device
+            self.global_model = None
+
+        elif config.replica_model:
+            self.device = tf.train.replica_device_setter(worker_device=config.device, cluster=config.cluster_spec)
+            self.global_model = None
+
+        elif config.local_model:
+            if config.replica_model:
+                raise TensorForceError("Invalid config value for distributed mode.")
+            self.device = config.device
+
             global_config = config.copy()
-            global_config.set(
-                key='distributed',
-                value=False
-            )
-            global_config.set(
-                key='device',
-                value=tf.train.replica_device_setter(
-                    ps_tasks=1,
-                    worker_device=config.device,
-                    cluster=config.cluster_spec
-                )
-            )
+            # global_config.set(key='scope', value=('global-' + config.scope))
+            global_config.set(key='replica_model', value=True)
 
-            # Global model for asynchronous updates
+            # with tf.variable_scope(name_or_scope='global'):
             self.global_model = self.__class__(
                 states_spec=states_spec,
                 actions_spec=actions_spec,
                 config=global_config,
                 **kwargs
             )
-            self.global_timestep = self.global_model.global_timestep
-            self.global_episode = self.global_model.episode
-            # self.global_variables = self.global_model.variables
 
         else:
-            pass
-            # No distributed model
-            # self.session = tf.Session()
-            # self.session.reset()
+            raise TensorForceError("Invalid config value for distributed mode.")
 
-        with tf.device(device_name_or_function=config.device):  # TODO: config.device!!!
+        with tf.device(device_name_or_function=self.device):
 
-            if config.distributed:
-                pass
+            # if config.distributed:
+            #     pass
                 # general self.time ???
                 # self.global_timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
                 # Problem how to record episode for MemoryAgent?
                 # self.episode = tf.get_variable(name='episode', dtype=tf.int32, initializer=0, trainable=False)
 
             self.variables = dict()
+            self.all_variables = dict()
             self.summaries = list()
 
             with tf.name_scope(name=config.scope):
-                def custom_getter(getter, name, **kwargs):
-                    variable = getter(name=name, **kwargs)
-                    if not name.startswith('optimization') and kwargs.get('trainable', True):
-                        self.variables[name] = variable
-                    if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                def custom_getter(getter, name, registered=False, **kwargs):
+                    variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
+                    if not registered and not name.startswith('optimization'):
+                        self.all_variables[name] = variable
+                        if kwargs.get('trainable', True):
+                            self.variables[name] = variable
+                        if 'variables' in self.summary_labels:
+                            summary = tf.summary.histogram(name=name, values=variable)
+                            self.summaries.append(summary)
                     return variable
 
                 # Create placeholders, tf functions, internals, etc
@@ -153,10 +161,11 @@ class Model(object):
                 # Optimizer
                 if config.optimizer is None:
                     self.optimizer = None
-                elif not config.distributed:
-                    self.optimizer = Optimizer.from_spec(spec=config.optimizer)
+                elif config.local_model and not config.replica_model:
+                    # If local_model mode and not internal global model
+                    self.optimizer = GlobalOptimizer(optimizer=config.optimizer)
                 else:
-                    self.optimizer = DistributedOptimizer(optimizer=config.optimizer)
+                    self.optimizer = Optimizer.from_spec(spec=config.optimizer)
 
                 # Create output fetch operations
                 self.create_output_operations(
@@ -167,15 +176,15 @@ class Model(object):
                     reward=reward,
                     deterministic=self.deterministic
                 )
-                # TODO: if global_config.global_model == True, then no optimization stuff
+                # TODO: if global_config.replica_model == True, then no optimization stuff
 
 
                 # if config.distributed:
                 #     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
                 #     local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
                 #     local_gradients = [grad for grad, var in local_grads_and_vars]
-                #     global_gradients = list(zip(local_gradients, self.global_model.variables))
-                #     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
+                #     global_gradients = list(zip(local_gradients, self.replica_model.variables))
+                #     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.replica_model.variables)))
                 #     self.optimize = tf.group(
                 #         self.optimizer.apply_gradients(grads_and_vars=global_gradients),
                 #         self.update_local,
@@ -185,18 +194,95 @@ class Model(object):
             # if config.distributed:
             #     scope_context.__exit__(None, None, None)
 
-        self.saver = tf.train.Saver()
+        # self.saver = tf.train.Saver()
 
-        # Initialize variables and finalize graph
-        if not config.distributed:
-            self.session = tf.Session()
-            self.session.run(tf.global_variables_initializer())
-            # self.session.graph.finalize()
+        # if config.summary_logdir is None or config.distributed:
+        #     self.summary_writer = None
+        # else:
+        #     self.summary_writer = tf.summary.FileWriter(logdir=config.summary_logdir, graph=self.session.graph)
 
-        if config.summary_logdir is None:
-            self.summary_writer = None
+        if config.local_model and config.replica_model:
+            # If local_model mode and internal global model
+            return
+
+        # Local and global initialize operations
+        if config.local_model:
+            init_op = tf.variables_initializer(
+                var_list=(self.global_model.get_variables(include_non_trainable=True))
+            )
+            local_init_op = tf.variables_initializer(
+                var_list=(self.get_variables(include_non_trainable=True))
+            )
+
         else:
-            self.summary_writer = tf.summary.FileWriter(logdir=config.summary_logdir, graph=self.session.graph)
+            init_op = tf.variables_initializer(
+                var_list=(self.get_variables(include_non_trainable=True))
+            )
+            local_init_op = None
+
+        # Summary operation
+        if len(self.get_summaries()) > 0:
+            summary_op = tf.summary.merge(inputs=self.get_summaries())
+        else:
+            summary_op = None
+
+        self.supervisor = tf.train.Supervisor(
+            is_chief=(config.task_index == 0),
+            init_op=init_op,
+            local_init_op=local_init_op,
+            logdir=config.model_directory,
+            summary_op=summary_op,
+            global_step=self.timestep,
+            save_summaries_secs=config.summary_frequency,
+            save_model_secs=config.save_frequency
+            # checkpoint_basename='model.ckpt'
+            # session_manager=None
+        )
+
+        # tf.ConfigProto(device_filters=['/job:ps', '/job:worker/task:{}/cpu:0'.format(self.task_index)])
+        if config.parameter_server:
+            self.server = tf.train.Server(
+                server_or_cluster_def=config.cluster_spec,
+                job_name='ps',
+                task_index=config.task_index,
+                # config=tf.ConfigProto(device_filters=["/job:ps"])
+                # config=tf.ConfigProto(
+                #     inter_op_parallelism_threads=2,
+                #     log_device_placement=True
+                # )
+            )
+
+            # Param server does nothing actively
+            self.server.join()
+
+        elif config.cluster_spec is not None:
+            self.server = tf.train.Server(
+                server_or_cluster_def=config.cluster_spec,
+                job_name='worker',
+                task_index=config.task_index,
+                # config=tf.ConfigProto(device_filters=["/job:ps"])
+                # config=tf.ConfigProto(
+                #     inter_op_parallelism_threads=2,
+                #     log_device_placement=True
+                # )
+            )
+
+            self.managed_session = self.supervisor.managed_session(
+                master=self.server.target,
+                start_standard_services=True
+            )
+            self.session = self.managed_session.__enter__()
+
+        else:
+            self.managed_session = self.supervisor.managed_session(
+                start_standard_services=True
+            )
+            self.session = self.managed_session.__enter__()
+
+    def close(self):
+        self.managed_session.__exit__(None, None, None)
+        self.supervisor.stop()
+        self.default_graph.__exit__(None, None, None)
 
     def initialize(self, custom_getter):
         """
@@ -239,53 +325,46 @@ class Model(object):
 
         # Timestep and episode
         # TODO: various modes !!!
-        self.timestep = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32)
+        self.timestep = tf.contrib.framework.get_or_create_global_step()  # tf.Variable(initial_value=0, trainable=False, dtype=tf.int32)
         # Problem how to record episode for MemoryAgent?
         # self.episode = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32)
 
         # TensorFlow functions
         self.fn_discounted_cumulative_reward = tf.make_template(
-            name_=('discounted-cumulative-reward'),
+            name_='discounted-cumulative-reward',
             func_=self.tf_discounted_cumulative_reward,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.fn_actions_and_internals = tf.make_template(
             name_='actions-and-internals',
             func_=self.tf_actions_and_internals,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.fn_loss_per_instance = tf.make_template(
             name_='loss-per-instance',
             func_=self.tf_loss_per_instance,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.fn_regularization_losses = tf.make_template(
             name_='regularization-losses',
             func_=self.tf_regularization_losses,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.fn_loss = tf.make_template(
             name_='loss',
             func_=self.tf_loss,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.fn_optimization = tf.make_template(
             name_='optimization',
             func_=self.tf_optimization,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
-        self.fn_summarization = tf.make_template(
-            name_='summarization',
-            func_=self.tf_summarization,
-            create_scope_now_=True,
-            custom_getter_=custom_getter
-        )
+        # self.fn_summarization = tf.make_template(
+        #     name_='summarization',
+        #     func_=self.tf_summarization,
+        #     custom_getter_=custom_getter
+        # )
 
     def get_states(self, states):
         # TODO: preprocessing could go here?
@@ -427,7 +506,7 @@ class Model(object):
         kwargs['fn_loss'] = (
             lambda: self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
         )
-        if self.distributed:  # not self.global_model?
+        if self.global_model is not None:
             kwargs['global_variables'] = self.global_model.get_variables()
         return kwargs
 
@@ -458,31 +537,31 @@ class Model(object):
             )
             return self.optimizer.minimize(**optimizer_kwargs)
 
-                # if config.distributed and not config.global_model:
+                # if config.distributed and not config.replica_model:
 
 
-                # if config.distributed and not config.global_model:
+                # if config.distributed and not config.replica_model:
                 #     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
                 #     local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
                 #     local_gradients = [grad for grad, var in local_grads_and_vars]
-                #     global_gradients = list(zip(local_gradients, self.global_model.variables))
-                #     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
+                #     global_gradients = list(zip(local_gradients, self.replica_model.variables))
+                #     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.replica_model.variables)))
                 #     self.optimize = tf.group(
                 #         self.optimizer.apply_gradients(grads_and_vars=global_gradients),
                 #         self.update_local,
                 #         self.global_timestep.assign_add(tf.shape(self.reward)[0]))
                 #     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
 
-    def tf_summarization(self):
-        last_summary = tf.get_variable(name='last-summary', dtype=tf.int32, initializer=(-self.summary_frequency), trainable=False)
+    # def tf_summarization(self):
+    #     last_summary = tf.get_variable(name='last-summary', dtype=tf.int32, initializer=(-self.summary_frequency), trainable=False)
 
-        def summarize():
-            last_summary_updated = last_summary.assign(value=self.timestep)
-            with tf.control_dependencies(control_inputs=(last_summary_updated,)):
-                return tf.summary.merge(inputs=self.get_summaries())
+    #     def summarize():
+    #         last_summary_updated = last_summary.assign(value=self.timestep)
+    #         with tf.control_dependencies(control_inputs=(last_summary_updated,)):
+    #             return tf.summary.merge(inputs=self.get_summaries())
 
-        do_summarize = (self.timestep - last_summary >= self.summary_frequency)
-        return tf.cond(pred=do_summarize, true_fn=summarize, false_fn=(lambda: ''))
+    #     do_summarize = (self.timestep - last_summary >= self.summary_frequency)
+    #     return tf.cond(pred=do_summarize, true_fn=summarize, false_fn=(lambda: ''))
 
     def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
         """
@@ -499,7 +578,8 @@ class Model(object):
         """
 
         # Tensor fetched for model.act()
-        increment_timestep = self.timestep.assign_add(delta=tf.shape(input=next(iter(states.values())))[0])  # Batch size
+        increment_timestep = tf.shape(input=next(iter(states.values())), out_type=tf.int64)[0]  # Batch size
+        increment_timestep = self.timestep.assign_add(delta=increment_timestep)
         with tf.control_dependencies(control_inputs=(increment_timestep,)):
             self.actions_and_internals = self.fn_actions_and_internals(
                 states=states,
@@ -522,16 +602,27 @@ class Model(object):
             terminal=terminal,
             reward=reward
         )
-        self.summarization = self.fn_summarization()
 
-    def get_variables(self):
+    def get_variables(self, include_non_trainable=False):
         """
-        Returns the TensorFlow variables used by the network.
+        Returns the TensorFlow variables used by the model.
 
         Returns:
-            List of network variables.
+            List of variables.
         """
-        return [self.variables[key] for key in sorted(self.variables)]
+        model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
+
+        if include_non_trainable:
+            # optimizer variables and timestep only included if 'include_non_trainable' set
+            if self.optimizer is None:
+                return model_variables + [self.timestep]
+
+            else:
+                optimizer_variables = self.optimizer.get_variables()
+                return model_variables + optimizer_variables + [self.timestep]
+
+        else:
+            return model_variables
 
     def get_summaries(self):
         """
@@ -577,9 +668,9 @@ class Model(object):
         if return_loss_per_instance:
             fetches.append(self.loss_per_instance)
 
-        # Periodically fetch summaries
-        if len(self.summary_labels) > 0:
-            fetches.append(self.summarization)
+        # # Periodically fetch summaries
+        # if len(self.summary_labels) > 0:
+        #     fetches.append(self.summarization)
 
         feed_dict = self.update_feed_dict(batch=batch)
 
@@ -588,8 +679,8 @@ class Model(object):
 
         fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
-        if self.summary_writer is not None and len(self.summary_labels) > 0 and fetched[-1] != b'':
-            self.summary_writer.add_summary(summary=fetched[-1], global_step=self.timestep)  # TODO: global_step?
+        # if self.summary_writer is not None and len(self.summary_labels) > 0 and fetched[-1] != b'':
+        #     self.summary_writer.add_summary(summary=fetched[-1], global_step=self.timestep)  # TODO: global_step?
 
         if return_loss_per_instance:
             return fetched[1]

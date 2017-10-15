@@ -49,5 +49,7 @@ class NetworkBaseline(Baseline):
         prediction = self.linear.apply(x=embedding)
         return tf.squeeze(input=prediction, axis=1)
 
-    def get_variables(self):
-        return [self.variables[key] for key in sorted(self.variables)] + self.network.get_variables() + self.linear.get_variables()
+    def get_variables(self, include_non_trainable=False):
+        return super(NetworkBaseline, self).get_variables(include_non_trainable=include_non_trainable) + \
+            self.network.get_variables(include_non_trainable=include_non_trainable) + \
+            self.linear.get_variables(include_non_trainable=include_non_trainable)

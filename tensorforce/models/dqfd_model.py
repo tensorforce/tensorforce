@@ -43,7 +43,6 @@ class DQFDModel(QModel):
         self.fn_demo_loss = tf.make_template(
             name_='demo-loss',
             func_=self.tf_demo_loss,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
 
@@ -51,7 +50,6 @@ class DQFDModel(QModel):
         self.fn_demo_optimization = tf.make_template(
             name_='demo-optimization',
             func_=self.tf_demo_optimization,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
 

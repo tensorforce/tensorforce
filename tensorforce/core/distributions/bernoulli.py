@@ -102,5 +102,6 @@ class Bernoulli(Distribution):
         false_log_prob_ratio = false_logit1 - false_logit2
         return probability1 * true_log_prob_ratio + (1.0 - probability1) * false_log_prob_ratio
 
-    def get_variables(self):
-        return super(Bernoulli, self).get_variables() + self.logit.get_variables()
+    def get_variables(self, include_non_trainable=False):
+        return super(Bernoulli, self).get_variables(include_non_trainable=include_non_trainable) + \
+            self.logit.get_variables(include_non_trainable=include_non_trainable)

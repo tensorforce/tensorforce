@@ -108,5 +108,6 @@ class Categorical(Distribution):
         log_prob_ratio = logits1 - logits2
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
 
-    def get_variables(self):
-        return super(Categorical, self).get_variables() + self.logits.get_variables()
+    def get_variables(self, include_non_trainable=False):
+        return super(Categorical, self).get_variables(include_non_trainable=include_non_trainable) + \
+            self.logits.get_variables(include_non_trainable=include_non_trainable)

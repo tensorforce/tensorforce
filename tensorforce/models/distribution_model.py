@@ -102,7 +102,6 @@ class DistributionModel(Model):
         self.fn_kl_divergence = tf.make_template(
             name_='kl-divergence',
             func_=self.tf_kl_divergence,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
 
@@ -163,11 +162,11 @@ class DistributionModel(Model):
         kwargs['fn_kl_divergence'] = (lambda: self.fn_kl_divergence(states=states, internals=internals))
         return kwargs
 
-    def get_variables(self):
-        model_variables = super(DistributionModel, self).get_variables()
-        network_variables = self.network.get_variables()
+    def get_variables(self, include_non_trainable=False):
+        model_variables = super(DistributionModel, self).get_variables(include_non_trainable=include_non_trainable)
+        network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
         distribution_variables = [
-            variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables()
+            variable for name in sorted(self.distributions) for variable in self.distributions[name].get_variables(include_non_trainable=include_non_trainable)
         ]
 
         return model_variables + network_variables + distribution_variables

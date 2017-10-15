@@ -184,6 +184,9 @@ class Agent(object):
     def __str__(self):
         return str(self.__class__.__name__)
 
+    def close(self):
+        self.model.close()
+
     def initialize_model(self, states_spec, actions_spec, config):
         raise NotImplementedError
 

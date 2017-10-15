@@ -31,7 +31,24 @@ class Optimizer(tf.train.Optimizer):
     def __init__(self):
         super(Optimizer, self).__init__(use_locking=False, name='TensorForceOptimizer')
         self._learning_rate = -1.0
-        self.fn_step = tf.make_template(name_='step', func_=self.tf_step)
+
+        self.variables = dict()
+
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            assert kwargs.get('trainable', False)
+            if not registered:
+                self.variables[name] = variable
+            return variable
+
+        self.fn_step = tf.make_template(
+            name_='step',
+            func_=self.tf_step,
+            custom_getter=custom_getter
+        )
+
+    def tf_step(self, time, variables, **kwargs):
+        raise NotImplementedError
 
     def minimize(self, time, variables, **kwargs):
         diffs = self.fn_step(time=time, variables=variables, **kwargs)
@@ -39,8 +56,14 @@ class Optimizer(tf.train.Optimizer):
         with tf.control_dependencies(control_inputs=diffs):
             return tf.no_op()
 
-    def tf_step(self, time, variables, **kwargs):
-        raise NotImplementedError
+    def get_variables(self):
+        """
+        Returns the TensorFlow variables used by the optimizer.
+
+        Returns:
+            List of variables.
+        """
+        return [self.variables[key] for key in sorted(self.variables)]
 
     @staticmethod
     def from_spec(spec, kwargs=None):

@@ -43,13 +43,11 @@ class PGLRModel(PGModel):
         self.reference = tf.make_template(
             name_='reference',
             func_=self.tf_reference,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
         self.compare = tf.make_template(
             name_='compare',
             func_=self.tf_compare,
-            create_scope_now_=True,
             custom_getter_=custom_getter
         )
 

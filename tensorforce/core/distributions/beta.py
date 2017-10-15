@@ -84,26 +84,28 @@ class Beta(Distribution):
 
         sampled = beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=util.epsilon)
 
-        return self.min_value + \
-               tf.where(condition=deterministic, x=definite, y=sampled) * (self.max_value - self.min_value)
+        return self.min_value + (self.max_value - self.min_value) * \
+            tf.where(condition=deterministic, x=definite, y=sampled)
 
     def tf_log_probability(self, distr_params, action):
         alpha, beta, _, log_norm = distr_params
         action = (action - self.min_value) / (self.max_value - self.min_value)
         action = tf.minimum(x=action, y=(1.0 - util.epsilon))
-        return (beta - 1.0) * tf.log(x=tf.maximum(x=action, y=util.epsilon)) +\
-               (alpha - 1.0) * tf.log1p(x=-action) - log_norm
+        return (beta - 1.0) * tf.log(x=tf.maximum(x=action, y=util.epsilon)) + \
+            (alpha - 1.0) * tf.log1p(x=-action) - log_norm
 
     def tf_entropy(self, distr_params):
         alpha, beta, alpha_beta, log_norm = distr_params
-        return log_norm - (beta - 1.0) * tf.digamma(x=beta) - (alpha - 1.0) * tf.digamma(x=alpha) \
-               + (alpha_beta - 2.0) * tf.digamma(x=alpha_beta)
+        return log_norm - (beta - 1.0) * tf.digamma(x=beta) - (alpha - 1.0) * tf.digamma(x=alpha) + \
+            (alpha_beta - 2.0) * tf.digamma(x=alpha_beta)
 
     def tf_kl_divergence(self, distr_params1, distr_params2):
         alpha1, beta1, alpha_beta1, log_norm1 = distr_params1
         alpha2, beta2, alpha_beta2, log_norm2 = distr_params2
         return log_norm2 - log_norm1 - tf.digamma(x=beta1) * (beta2 - beta1) - \
-               tf.digamma(x=alpha1) * (alpha2 - alpha1) + tf.digamma(x=alpha_beta1) * (alpha_beta2 - alpha_beta1)
+            tf.digamma(x=alpha1) * (alpha2 - alpha1) + tf.digamma(x=alpha_beta1) * (alpha_beta2 - alpha_beta1)
 
-    def get_variables(self):
-        return super(Beta, self).get_variables() + self.alpha.get_variables() + self.beta.get_variables()
+    def get_variables(self, include_non_trainable=False):
+        return super(Beta, self).get_variables(include_non_trainable=include_non_trainable) + \
+            self.alpha.get_variables(include_non_trainable=include_non_trainable) + \
+            self.beta.get_variables(include_non_trainable=include_non_trainable)

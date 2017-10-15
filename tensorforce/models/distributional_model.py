@@ -83,7 +83,6 @@ class DistributionalModel(Model):
         # self.fn_kl_divergence = tf.make_template(
         #     name_='kl_divergence',
         #     func_=self.tf_kl_divergence,
-        #     create_scope_now_=True,
         #     custom_getter_=custom_getter
         # )
 

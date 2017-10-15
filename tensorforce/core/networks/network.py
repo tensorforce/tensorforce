@@ -34,29 +34,31 @@ class Network(object):
 
     def __init__(self, scope='network', summary_labels=None):
         self.summary_labels = set(summary_labels or ())
+
         self.variables = dict()
+        self.all_variables = dict()
         self.summaries = list()
 
         with tf.name_scope(name=scope):
-            def custom_getter(getter, name, **kwargs):
-                variable = getter(name=name, **kwargs)
-                if kwargs.get('trainable', True):
-                    self.variables[name] = variable
-                if 'variables' in self.summary_labels:
-                    summary = tf.summary.histogram(name=name, values=variable)
-                    self.summaries.append(summary)
+            def custom_getter(getter, name, registered=False, **kwargs):
+                variable = getter(name=name, registered=True, **kwargs)
+                if not registered:
+                    self.all_variables[name] = variable
+                    if kwargs.get('trainable', True):
+                        self.variables[name] = variable
+                    if 'variables' in self.summary_labels:
+                        summary = tf.summary.histogram(name=name, values=variable)
+                        self.summaries.append(summary)
                 return variable
 
             self.apply = tf.make_template(
                 name_='apply',
                 func_=self.tf_apply,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
             self.regularization_loss = tf.make_template(
                 name_='regularization-loss',
                 func_=self.tf_regularization_loss,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
 
@@ -101,14 +103,17 @@ class Network(object):
         """
         return list()
 
-    def get_variables(self):
+    def get_variables(self, include_non_trainable=False):
         """
         Returns the TensorFlow variables used by the network
 
         Returns:
             List of variables
         """
-        return [self.variables[key] for key in sorted(self.variables)]
+        if include_non_trainable:
+            return [self.all_variables[key] for key in sorted(self.all_variables)]
+        else:
+            return [self.variables[key] for key in sorted(self.variables)]
 
     def get_summaries(self):
         """
@@ -166,8 +171,9 @@ class LayerBasedNetwork(Network):
             internal_inits.extend(layer.internal_inits())
         return internal_inits
 
-    def get_variables(self):
-        return super(LayerBasedNetwork, self).get_variables() + [variable for layer in self.layers for variable in layer.get_variables()]
+    def get_variables(self, include_non_trainable=False):
+        return super(LayerBasedNetwork, self).get_variables(include_non_trainable=include_non_trainable) + \
+            [variable for layer in self.layers for variable in layer.get_variables(include_non_trainable=include_non_trainable)]
 
     def get_summaries(self):
         return super(LayerBasedNetwork, self).get_summaries() + [summary for layer in self.layers for summary in layer.get_summaries()]

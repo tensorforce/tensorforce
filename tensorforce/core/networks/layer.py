@@ -14,8 +14,7 @@
 # ==============================================================================
 
 """
-Collection of custom layer implementations. We prefer not to use contrib-layers to retain
-full control over shapes and internal states.
+Collection of custom layer implementations. We prefer not to use contrib-layers to retain full control over shapes and internal states.
 """
 
 from __future__ import absolute_import
@@ -39,29 +38,31 @@ class Layer(object):
     def __init__(self, num_internals=0, scope='layer', summary_labels=None):
         self.num_internals = num_internals
         self.summary_labels = set(summary_labels or ())
+
         self.variables = dict()
+        self.all_variables = dict()
         self.summaries = list()
 
         with tf.name_scope(name=scope):
-            def custom_getter(getter, name, **kwargs):
-                variable = getter(name=name, **kwargs)
-                if kwargs.get('trainable', True):
-                    self.variables[name] = variable
-                if 'variables' in self.summary_labels:
-                    summary = tf.summary.histogram(name=name, values=variable)
-                    self.summaries.append(summary)
+            def custom_getter(getter, name, registered=False, **kwargs):
+                variable = getter(name=name, registered=True, **kwargs)
+                if not registered:
+                    self.all_variables[name] = variable
+                    if kwargs.get('trainable', True):
+                        self.variables[name] = variable
+                    if 'variables' in self.summary_labels:
+                        summary = tf.summary.histogram(name=name, values=variable)
+                        self.summaries.append(summary)
                 return variable
 
             self.apply = tf.make_template(
                 name_='apply',
                 func_=self.tf_apply,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
             self.regularization_losses = tf.make_template(
                 name_='regularization-losses',
                 func_=self.tf_regularization_losses,
-                create_scope_now_=True,
                 custom_getter_=custom_getter
             )
 
@@ -104,14 +105,17 @@ class Layer(object):
         """
         return list()
 
-    def get_variables(self):
+    def get_variables(self, include_non_trainable=False):
         """
         Returns the TensorFlow variables used by the layer
 
         Returns:
             List of variables
         """
-        return [self.variables[key] for key in sorted(self.variables)]
+        if include_non_trainable:
+            return [self.all_variables[key] for key in sorted(self.all_variables)]
+        else:
+            return [self.variables[key] for key in sorted(self.variables)]
 
     def get_summaries(self):
         """
@@ -349,8 +353,10 @@ class Dense(Layer):
         losses.extend(self.linear.regularization_losses())
         return losses
 
-    def get_variables(self):
-        return super(Dense, self).get_variables() + self.linear.get_variables() + self.nonlinearity.get_variables()
+    def get_variables(self, include_non_trainable=False):
+        return super(Dense, self).get_variables(include_non_trainable=include_non_trainable) + \
+            self.linear.get_variables(include_non_trainable=include_non_trainable) + \
+            self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
 
 class Conv2d(Layer):

@@ -5,7 +5,7 @@
 
   "optimizer": {
     "type": "adam",
-    "learning_rate": 0.01
+    "learning_rate": 0.001
   },
 
   "baseline_mode": "states",
@@ -17,8 +17,11 @@
     "type": "multi_step",
     "optimizer": {
       "type": "adam",
-      "learning_rate": 0.01
+      "learning_rate": 0.001
     },
     "num_steps": 5
-  }
+  },
+
+  "model_directory": "/home/aok25/tensorforce-models/vpg",
+  "summary_frequency": 20
 }

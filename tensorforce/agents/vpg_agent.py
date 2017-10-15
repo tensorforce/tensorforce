@@ -101,13 +101,13 @@ class VPGAgent(BatchAgent):
         summary_labels=['total-loss'],
         summary_frequency=120,  # TensorFlow default
         # TensorFlow distributed configuration
-        scope='vpg',
         cluster_spec=None,
         parameter_server=False,
         task_index=0,
         device=None,
         local_model=False,
-        replica_model=False
+        replica_model=False,
+        scope='vpg'
     )
 
     # missing: batch agent configs

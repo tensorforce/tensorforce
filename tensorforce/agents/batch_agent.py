@@ -69,9 +69,7 @@ class BatchAgent(Agent):
 
         Returns: void
         """
-        reward, terminal = super(BatchAgent, self).observe(reward, terminal)
-        self.current_terminal = terminal
-        self.current_reward = reward
+        super(BatchAgent, self).observe(terminal=terminal, reward=reward)
 
         for name, batch_state in self.batch['states'].items():
             batch_state.append(self.current_states[name])

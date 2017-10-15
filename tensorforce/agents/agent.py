@@ -218,7 +218,8 @@ class Agent(object):
             Scalar value of the action or dict of multiple actions the agent wants to execute.
 
         """
-        self.timestep += 1
+
+        # self.timestep += 1  TODO: SHOULD USE WHAT model.act() returns
         self.current_internals = self.next_internals
 
         if self.unique_state:
@@ -230,8 +231,8 @@ class Agent(object):
         for name, preprocessing in self.preprocessing.items():
             self.current_states[name] = preprocessing.process(state=self.current_state[name])
 
-        # Podel action
-        self.current_actions, self.next_internals = self.model.act(
+        # Retrieve action
+        self.current_actions, self.next_internals, self.timestep = self.model.act(
             states=self.current_states,
             internals=self.current_internals,
             deterministic=deterministic
@@ -240,15 +241,18 @@ class Agent(object):
         # Exploration
         if not deterministic:
             for name, exploration in self.exploration.items():
+
                 if self.actions_spec[name]['type'] == 'bool':
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
                         shape = self.actions_spec[name].shape
                         self.current_actions[name] = (np.random.random_sample(size=shape) < 0.5)
+
                 elif self.actions_spec[name]['type'] == 'int':
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
                         shape = self.actions_spec[name].shape
                         num_actions = self.actions_spec[name].num_actions
                         self.current_actions[name] = np.random.randint(low=num_actions, size=shape)
+
                 elif self.actions_spec[name]['type'] == 'float':
                     explore = (lambda: exploration(episode=self.episode, timestep=self.timestep))
                     shape = self.actions_spec[name]['shape']
@@ -277,18 +281,15 @@ class Agent(object):
         Args:
             terminal: boolean indicating if the episode terminated after the observation.
             reward: scalar reward that resulted from executing the action.
-
-        Returns:
-            processed_reward
-            terminal
         """
-        if self.reward_preprocessing is not None:
-            reward = self.reward_preprocessing.process(reward)
-        return terminal, reward
+        self.episode = self.model.observe(terminal=terminal, reward=reward)
 
-    # def observe_episode_reward(self, episode_reward):
-    #     if self.model:
-    #         self.model.write_episode_reward_summary(episode_reward)
+        self.current_terminal = terminal
+
+        if self.reward_preprocessing is None:
+            self.current_reward = reward
+        else:
+            self.current_reward = self.reward_preprocessing.process(reward)
 
     def last_observation(self):
         return dict(

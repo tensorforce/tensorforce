@@ -61,14 +61,14 @@ class BaseTest(object):
             def episode_finished(r):
                 return r.episode < 100 or not all(
                     rw / ln >= self.__class__.pass_threshold
-                    for rw, ln in zip(r.episode_rewards[-100:], r.episode_lengths[-100:])
+                    for rw, ln in zip(r.episode_rewards[-100:], r.episode_timesteps[-100:])
                 )
 
             runner.run(episodes=3000, deterministic=self.__class__.deterministic, episode_finished=episode_finished)
 
             sys.stdout.write(' ' + str(runner.episode))
             sys.stdout.flush()
-            if runner.episode < 3000:
+            if agent.episode < 3000:
                 passed += 1
 
         sys.stdout.write('\n==> passed: {}\n'.format(passed))

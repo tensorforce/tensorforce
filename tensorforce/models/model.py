@@ -73,14 +73,16 @@ class Model(object):
 
         # TensorFlow summaries
         self.summary_labels = set(config.summary_labels or ())
-        # self.summary_frequency = config.summary_frequency
-        # self.last_summary = -self.summary_frequency
+
+        # Variables and summaries
+        self.variables = dict()
+        self.all_variables = dict()
+        self.summaries = list()
 
         if not config.local_model or not config.replica_model:
             # If not local_model mode or not internal global model
-            self.graph = tf.Graph()
-            self.default_graph = self.graph.as_default()
-            self.default_graph.__enter__()
+            self.default_graph = tf.Graph().as_default()
+            self.graph = self.default_graph.__enter__()
 
         if config.cluster_spec is None:
             if config.parameter_server or config.replica_model or config.local_model:
@@ -104,10 +106,8 @@ class Model(object):
             self.device = config.device
 
             global_config = config.copy()
-            # global_config.set(key='scope', value=('global-' + config.scope))
             global_config.set(key='replica_model', value=True)
 
-            # with tf.variable_scope(name_or_scope='global'):
             self.global_model = self.__class__(
                 states_spec=states_spec,
                 actions_spec=actions_spec,
@@ -120,18 +120,18 @@ class Model(object):
 
         with tf.device(device_name_or_function=self.device):
 
-            # if config.distributed:
-            #     pass
-                # general self.time ???
-                # self.global_timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
-                # Problem how to record episode for MemoryAgent?
-                # self.episode = tf.get_variable(name='episode', dtype=tf.int32, initializer=0, trainable=False)
-
-            self.variables = dict()
-            self.all_variables = dict()
-            self.summaries = list()
+            # Timestep and episode
+            # TODO: various modes !!!
+            if self.global_model is None:
+                # TODO: Variables seem to re-initialize in the beginning every time a runner starts
+                self.timestep = tf.get_variable(name='timestep', dtype=tf.int32, initializer=0, trainable=False)
+                self.episode = tf.get_variable(name='episode', dtype=tf.int32, initializer=0, trainable=False)
+            else:
+                self.timestep = self.global_model.timestep
+                self.episode = self.global_model.episode
 
             with tf.name_scope(name=config.scope):
+
                 def custom_getter(getter, name, registered=False, **kwargs):
                     variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
                     if not registered and not name.startswith('optimization'):
@@ -176,30 +176,6 @@ class Model(object):
                     reward=reward,
                     deterministic=self.deterministic
                 )
-                # TODO: if global_config.replica_model == True, then no optimization stuff
-
-
-                # if config.distributed:
-                #     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
-                #     local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
-                #     local_gradients = [grad for grad, var in local_grads_and_vars]
-                #     global_gradients = list(zip(local_gradients, self.replica_model.variables))
-                #     self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.replica_model.variables)))
-                #     self.optimize = tf.group(
-                #         self.optimizer.apply_gradients(grads_and_vars=global_gradients),
-                #         self.update_local,
-                #         self.global_timestep.assign_add(tf.shape(self.reward)[0]))
-                #     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
-
-            # if config.distributed:
-            #     scope_context.__exit__(None, None, None)
-
-        # self.saver = tf.train.Saver()
-
-        # if config.summary_logdir is None or config.distributed:
-        #     self.summary_writer = None
-        # else:
-        #     self.summary_writer = tf.summary.FileWriter(logdir=config.summary_logdir, graph=self.session.graph)
 
         if config.local_model and config.replica_model:
             # If local_model mode and internal global model
@@ -226,6 +202,7 @@ class Model(object):
         else:
             summary_op = None
 
+        # TODO: MonitoredSession or so?
         self.supervisor = tf.train.Supervisor(
             is_chief=(config.task_index == 0),
             init_op=init_op,
@@ -322,12 +299,6 @@ class Model(object):
 
         # Deterministic action flag
         self.deterministic = tf.placeholder(dtype=tf.bool, shape=(), name='deterministic')
-
-        # Timestep and episode
-        # TODO: various modes !!!
-        self.timestep = tf.contrib.framework.get_or_create_global_step()  # tf.Variable(initial_value=0, trainable=False, dtype=tf.int32)
-        # Problem how to record episode for MemoryAgent?
-        # self.episode = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32)
 
         # TensorFlow functions
         self.fn_discounted_cumulative_reward = tf.make_template(
@@ -552,7 +523,7 @@ class Model(object):
         """
 
         # Tensor fetched for model.act()
-        increment_timestep = tf.shape(input=next(iter(states.values())), out_type=tf.int64)[0]  # Batch size
+        increment_timestep = tf.shape(input=next(iter(states.values())))[0]
         increment_timestep = self.timestep.assign_add(delta=increment_timestep)
         with tf.control_dependencies(control_inputs=(increment_timestep,)):
             self.actions_and_internals = self.fn_actions_and_internals(
@@ -560,6 +531,13 @@ class Model(object):
                 internals=internals,
                 deterministic=deterministic
             )
+
+        # Tensor fetched for model.observe()
+        increment_episode = tf.count_nonzero(input_tensor=terminal, dtype=tf.int32)
+        increment_episode = self.episode.assign_add(delta=increment_episode)
+        # TODO: add up rewards per episode and add summary_label 'episode-reward'
+        with tf.control_dependencies(control_inputs=(increment_episode,)):
+            self.episode_increment = tf.no_op()
 
         # Tensor(s) fetched for model.update()
         self.loss_per_instance = self.fn_loss_per_instance(
@@ -584,19 +562,20 @@ class Model(object):
         Returns:
             List of variables.
         """
-        model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
 
         if include_non_trainable:
-            # optimizer variables and timestep only included if 'include_non_trainable' set
+                # optimizer variables and timestep/episode only included if 'include_non_trainable' set
+            model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
+
             if self.optimizer is None:
-                return model_variables + [self.timestep]
+                return model_variables + [self.timestep, self.episode]
 
             else:
                 optimizer_variables = self.optimizer.get_variables()
-                return model_variables + optimizer_variables + [self.timestep]
+                return model_variables + optimizer_variables + [self.timestep, self.episode]
 
         else:
-            return model_variables
+            return [self.variables[key] for key in sorted(self.variables)]
 
     def get_summaries(self):
         """
@@ -616,50 +595,46 @@ class Model(object):
         """
         return list(self.internal_inits)
 
-    def act(self, states, internals, deterministic=False):
-        feed_dict = {state_input: (states[name],) for name, state_input in self.state_inputs.items()}
-        feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internal_inputs)})
+    def act(self, states, internals, deterministic=False, batched=False):
+        fetches = list(self.actions_and_internals)
+        fetches.append(self.timestep)
+
+        if batched:
+            feed_dict = {state_input: states[name] for name, state_input in self.state_inputs.items()}
+            feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internal_inputs)})
+
+        else:
+            feed_dict = {state_input: (states[name],) for name, state_input in self.state_inputs.items()}
+            feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internal_inputs)})
+
         feed_dict[self.deterministic] = deterministic
 
-        actions, internals = self.session.run(fetches=self.actions_and_internals, feed_dict=feed_dict)
+        actions, internals, timestep = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
         actions = {name: action[0] for name, action in actions.items()}
         internals = [internal[0] for internal in internals]
-        return actions, internals
+
+        return actions, internals, timestep
+
+    def observe(self, terminal, reward, batched=False):
+        fetches = [self.episode_increment, self.episode]
+
+        if batched:
+            feed_dict = {self.terminal_input: terminal, self.reward_input: reward}
+        else:
+            feed_dict = {self.terminal_input: (terminal,), self.reward_input: (reward,)}
+
+        _, episode = self.session.run(fetches=fetches, feed_dict=feed_dict)
+
+        return episode
 
     def update(self, batch, return_loss_per_instance=False):
-        """Generic batch update operation for Q-learning and policy gradient algorithms.
-
-        Args:
-            batch: Batch of experiences.
-
-        Returns:
-
-        """
         fetches = [self.optimization]
 
         # Optionally fetch loss per instance
         if return_loss_per_instance:
             fetches.append(self.loss_per_instance)
 
-        # # Periodically fetch summaries
-        # if len(self.summary_labels) > 0:
-        #     fetches.append(self.summarization)
-
-        feed_dict = self.update_feed_dict(batch=batch)
-
-        # if self.distributed:
-        #     fetches.extend(self.increment_global_episode for terminal in batch['terminals'] if terminal)
-
-        fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
-
-        # if self.summary_writer is not None and len(self.summary_labels) > 0 and fetched[-1] != b'':
-        #     self.summary_writer.add_summary(summary=fetched[-1], global_step=self.timestep)  # TODO: global_step?
-
-        if return_loss_per_instance:
-            return fetched[1]
-
-    def update_feed_dict(self, batch):
         feed_dict = {state_input: batch['states'][name] for name, state_input in self.state_inputs.items()}
         feed_dict.update(
             {internal_input: batch['internals'][n]
@@ -671,7 +646,14 @@ class Model(object):
         )
         feed_dict[self.terminal_input] = batch['terminal']
         feed_dict[self.reward_input] = batch['reward']
-        return feed_dict
+
+        # if self.distributed:
+        #     fetches.extend(self.increment_global_episode for terminal in batch['terminals'] if terminal)
+
+        fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
+
+        if return_loss_per_instance:
+            return fetched[1]
 
     def load_model(self, path):
         """

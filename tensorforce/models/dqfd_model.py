@@ -138,7 +138,18 @@ class DQFDModel(QModel):
 
     def demonstration_update(self, batch):
         fetches = self.demo_optimization
-        feed_dict = self.update_feed_dict(batch=batch)
+
+        feed_dict = {state_input: batch['states'][name] for name, state_input in self.state_inputs.items()}
+        feed_dict.update(
+            {internal_input: batch['internals'][n]
+                for n, internal_input in enumerate(self.internal_inputs)}
+        )
+        feed_dict.update(
+            {action_input: batch['actions'][name]
+                for name, action_input in self.action_inputs.items()}
+        )
+        feed_dict[self.terminal_input] = batch['terminal']
+        feed_dict[self.reward_input] = batch['reward']
 
         # TODO: summaries? distributed?
 

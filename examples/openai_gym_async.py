@@ -164,8 +164,6 @@ def main():
         local_model=(not args.parameter_server)
     )
 
-    # config.default(dict(distributed=True, cluster_spec=cluster_spec, global_model=(args.task_index == -1), device=('/job:ps' if args.task_index == -1 else '/job:worker/task:{}/cpu:0'.format(args.task_index))))
-
     if args.network_spec:
         with open(args.network_spec, 'r') as fp:
             network_spec = json.load(fp=fp)
@@ -190,9 +188,7 @@ def main():
     runner = Runner(
         agent=agent,
         environment=environment,
-        repeat_actions=1,
-        # cluster_spec=cluster_spec,
-        # task_index=args.task_index
+        repeat_actions=1
     )
 
     report_episodes = args.episodes // 1000
@@ -201,8 +197,8 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            sps = r.total_timesteps / (time.time() - r.start_time)
-            logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep, sps=sps))
+            steps_per_second = r.timestep / (time.time() - r.start_time)
+            logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(r.agent.episode, r.agent.timestep, steps_per_second))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
             logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))

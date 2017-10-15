@@ -40,14 +40,13 @@ def main():
     parser.add_argument('-a', '--agent', help='Agent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-spec', help="Network specification file")
-    parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
-    parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
+    parser.add_argument('-e', '--episodes', type=int, default=None, help="Number of episodes")
+    parser.add_argument('-t', '--timesteps', type=int, default=None, help="Number of timesteps")
+    parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None, help="Maximum number of timesteps per episode")
     parser.add_argument('-d', '--deterministic', action='store_true', default=False, help="Choose actions deterministically")
-    parser.add_argument('-m', '--monitor', help="Save results to this directory")
-    parser.add_argument('-ms', '--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
-    parser.add_argument('-mv', '--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
-    parser.add_argument('-s', '--save', help="Save agent to this dir")
-    parser.add_argument('-se', '--save-episodes', type=int, default=100, help="Save agent every x episodes")
+    parser.add_argument('--monitor', help="Save results to this directory")
+    parser.add_argument('--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
+    parser.add_argument('--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
     parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
@@ -92,42 +91,47 @@ def main():
         logger.info("Configuration:")
         logger.info(config)
 
-    if args.save:
-        save_dir = os.path.dirname(args.save)
-        if not os.path.isdir(save_dir):
-            try:
-                os.mkdir(save_dir, 0o755)
-            except OSError:
-                raise OSError("Cannot save agent to dir {} ()".format(save_dir))
+    # if args.save:
+    #     save_dir = os.path.dirname(args.save)
+    #     if not os.path.isdir(save_dir):
+    #         try:
+    #             os.mkdir(save_dir, 0o755)
+    #         except OSError:
+    #             raise OSError("Cannot save agent to dir {} ()".format(save_dir))
 
     runner = Runner(
         agent=agent,
         environment=environment,
-        repeat_actions=1,
-        save_path=args.save,
-        save_episodes=args.save_episodes
+        repeat_actions=1
     )
 
-    report_episodes = args.episodes // 1000
-    if args.debug:
+    if args.debug:  # TODO: report per timestep?
         report_episodes = 1
+    else:
+        report_episodes = 100
+
+    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            sps = r.total_timesteps / (time.time() - r.start_time)
-            logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep, sps=sps))
+            steps_per_second = r.timestep / (time.time() - r.start_time)
+            logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(
+                r.agent.episode, r.agent.timestep, steps_per_second
+            ))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
             logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
         return True
 
-    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
-    runner.run(episodes=args.episodes, max_timesteps=args.max_timesteps, deterministic=args.deterministic, episode_finished=episode_finished)
-    logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
+    runner.run(
+        timesteps=args.timesteps,
+        episodes=args.episodes,
+        max_episode_timesteps=args.max_episode_timesteps,
+        deterministic=args.deterministic,
+        episode_finished=episode_finished
+    )
 
-    if args.monitor:
-        environment.gym.monitor.close()
-    environment.close()
+    logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
 
 if __name__ == '__main__':

@@ -154,8 +154,6 @@ class PGModel(DistributionModel):
     def get_variables(self, include_non_trainable=False):
         model_variables = super(PGModel, self).get_variables(include_non_trainable=include_non_trainable)
 
-        print(self.baseline_mode, self.baseline_optimizer, include_non_trainable)
-
         if include_non_trainable and self.baseline_mode is not None:
             # baseline optimizer variables only included if 'include_non_trainable' set
             baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)

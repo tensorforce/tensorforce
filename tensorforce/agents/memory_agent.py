@@ -60,9 +60,7 @@ class MemoryAgent(Agent):
         )
 
     def observe(self, terminal, reward):
-        terminal, reward = super(MemoryAgent, self).observe(terminal, reward)
-        self.current_terminal = terminal
-        self.current_reward = reward
+        super(MemoryAgent, self).observe(terminal=terminal, reward=reward)
 
         self.memory.add_observation(
             states=self.current_states,

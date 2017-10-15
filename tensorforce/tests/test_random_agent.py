@@ -27,6 +27,7 @@ from tensorforce.tests.base_agent_test import BaseAgentTest
 class TestRandomAgent(BaseAgentTest, unittest.TestCase):
 
     #TODO we expect this to fail, need flag to indicate this in base tests
+    requires_network = False
     agent = RandomAgent
     deterministic = False
     config = Configuration()

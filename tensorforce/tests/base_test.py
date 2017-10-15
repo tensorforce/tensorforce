@@ -27,30 +27,32 @@ class BaseTest(object):
 
     agent = None
     deterministic = None
+    requires_network = True
 
     def pre_run(self, agent, environment):
         pass
 
     def base_test(self, name, environment, network_spec, config):
-        self.__class__.agent(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec,
-            config=config
-        )
 
         sys.stdout.write('\n{} ({}):'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()
 
         passed = 0
         for _ in xrange(5):
+            if self.__class__.requires_network:
+                agent = self.__class__.agent(
+                    states_spec=environment.states,
+                    actions_spec=environment.actions,
+                    network_spec=network_spec,
+                    config=config
+                )
+            else:
+                agent = self.__class__.agent(
+                    states_spec=environment.states,
+                    actions_spec=environment.actions,
+                    config=config
+                )
 
-            agent = self.__class__.agent(
-                states_spec=environment.states,
-                actions_spec=environment.actions,
-                network_spec=network_spec,
-                config=config
-            )
             runner = Runner(agent=agent, environment=environment)
 
             self.pre_run(agent=agent, environment=environment)

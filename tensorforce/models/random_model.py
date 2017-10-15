@@ -22,7 +22,7 @@ import tensorflow as tf
 
 class RandomModel(Model):
     """
-    Utility class to return (uniform) random actions of a desired shape
+    Utility class to return random actions of a desired shape
     and with given bounds.
     """
 
@@ -30,21 +30,26 @@ class RandomModel(Model):
         actions = dict()
 
         for name, action in self.actions_spec.items():
+            print(states.values())
+            print(type(next(iter(states.values()))))
+            print(tf.shape(input=next(iter(states.values()))))
+            shape = tuple(tf.shape(input=next(iter(states.values())))[0],) + action['shape']
+
             if action['type'] == 'bool':
-                action = tf.random_uniform(shape=action.shape)
+                action = tf.random_uniform(shape=shape)
                 actions[name] = tf.less(x=action, y=0.5)
             elif action['type'] == 'int':
-                action = tf.random_uniform(shape=action.shape) * action['num_actions']
+                action = tf.random_uniform(shape=shape) * action['num_actions']
                 actions[name] = tf.cast(tf.floor(action), tf.int32)
             elif action['type'] == 'float':
                 if 'min_value' in action:
                     actions[name] = tf.random_uniform(
-                        shape=action.shape,
-                        minval=action.min_value,
-                        maxval=action.max_value,
+                        shape=shape,
+                        minval=action['min_value'],
+                        maxval=action['max_value']
                     )
                 else:
-                    actions[name] = tf.random_normal(shape=action.shape, name='random-action')
+                    actions[name] = tf.random_normal(shape=shape)
 
         return actions, internals
 
@@ -53,4 +58,4 @@ class RandomModel(Model):
         return tf.zeros_like(tensor=reward)
 
     def __init__(self, states_spec, actions_spec, config):
-        super(RandomModel).__init__(states_spec, actions_spec, config)
+        super(RandomModel, self).__init__(states_spec, actions_spec, config)

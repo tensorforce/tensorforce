@@ -34,7 +34,8 @@ class ConstantModel(Model):
         for name, action in self.actions_spec.items():
             actions[name] = tf.constant(
                 value=self.action_values[name],
-                dtype=tf_dtype(action['type'])
+                dtype=tf_dtype(action['type']),
+                shape=action['shape']
             )
 
         return actions, internals

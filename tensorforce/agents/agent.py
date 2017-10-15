@@ -87,7 +87,8 @@ class Agent(object):
     """
 
     def __init__(self, states_spec, actions_spec, config):
-        """Initializes the reinforcement learning agent.
+        """
+        Initializes the reinforcement learning agent.
 
         Args:
             model (Model): optional model instance. If not supplied, a new model is created.
@@ -127,7 +128,7 @@ class Agent(object):
                     self.preprocessing[name] = preprocessing
                     state['shape'] = preprocessing.processed_shape(shape=state['shape'])
 
-        # actions config and exploration
+        # Actions config and exploration
         self.exploration = dict()
 
         if 'type' in actions_spec:  # Single-action
@@ -200,7 +201,8 @@ class Agent(object):
             preprocessing.reset()
 
     def act(self, state, deterministic=False):
-        """Return action(s) for given state(s). First, the states are preprocessed using the given preprocessing
+        """
+        Return action(s) for given state(s). First, the states are preprocessed using the given preprocessing
         configuration. Then, the states are passed to the model to calculate the desired action(s) to execute.
 
         After obtaining the actions, exploration might be added by the agent, depending on the exploration

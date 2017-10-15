@@ -55,7 +55,7 @@ from tensorforce.core.optimizers import Optimizer, DistributedOptimizer
 
 class Model(object):
     """
-    Base class for all (TensorFlow-based) models
+    Base class for all (TensorFlow-based) models.
     """
 
     def __init__(self, states_spec, actions_spec, config, **kwargs):
@@ -479,9 +479,13 @@ class Model(object):
         def summarize():
             last_summary_updated = last_summary.assign(value=self.timestep)
             with tf.control_dependencies(control_inputs=(last_summary_updated,)):
-                return tf.summary.merge(inputs=self.get_summaries())
+                if len(self.get_summaries()) > 0:
+                    return tf.summary.merge(inputs=self.get_summaries())
+                else:
+                    return ''
 
         do_summarize = (self.timestep - last_summary >= self.summary_frequency)
+
         return tf.cond(pred=do_summarize, true_fn=summarize, false_fn=(lambda: ''))
 
     def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
@@ -558,6 +562,7 @@ class Model(object):
 
         actions, internals = self.session.run(fetches=self.actions_and_internals, feed_dict=feed_dict)
 
+        print(actions)
         actions = {name: action[0] for name, action in actions.items()}
         internals = [internal[0] for internal in internals]
         return actions, internals

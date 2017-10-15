@@ -103,7 +103,7 @@ class PGProbRatioModel(PGModel):
             states=states,
             internals=internals,
             actions=actions,
-            termina=terminal,
+            terminal=terminal,
             reward=reward
         )
         kwargs['fn_reference'] = (

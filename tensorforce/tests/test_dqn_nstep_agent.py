@@ -28,6 +28,8 @@ class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQNNstepAgent
     deterministic = True
+    exclude_bounded = True
+
     config = Configuration(
         batch_size=8
     )

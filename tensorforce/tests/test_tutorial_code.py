@@ -49,17 +49,18 @@ class TestTutorialCode(unittest.TestCase):
 
         from tensorforce import Configuration
         from tensorforce.agents import TRPOAgent
-        from tensorforce.core.networks import layered_network_builder
 
         config = Configuration(
             batch_size=100,
-            states=dict(shape=(10,), type='float'),
-            actions=dict(continuous=False, num_actions=2),
-            network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
         )
 
         # Create a Trust Region Policy Optimization agent
-        agent = TRPOAgent(config=config)
+        agent = TRPOAgent(
+            states_spec=dict(shape=(10,), type='float'),
+            actions_spec=dict(continuous=False, num_actions=2),
+            network_spec = [dict(type='dense', size=50), dict(type='dense', size=50)],
+            config=config
+        )
 
         # Get new data from somewhere, e.g. a client to a web app
         client = TestTutorialCode.MyClient('http://127.0.0.1', 8080)
@@ -85,19 +86,6 @@ class TestTutorialCode(unittest.TestCase):
 
         from tensorforce import Configuration
         from tensorforce.agents import DQNAgent
-        from tensorforce.core.networks import layered_network_builder
-
-        # Define a network builder from an ordered list of layers
-        layers = [dict(type='dense', size=32),
-                  dict(type='dense', size=32)]
-        network = layered_network_builder(layers_config=layers)
-
-        # Define a state
-        states = dict(shape=(10,), type='float')
-
-        # Define an action (models internally assert whether
-        # they support continuous and/or discrete control)
-        actions = dict(continuous=False, num_actions=5)
 
         # The agent is configured with a single configuration object
         agent_config = Configuration(
@@ -106,31 +94,32 @@ class TestTutorialCode(unittest.TestCase):
             memory_capacity=800,
             first_update=80,
             repeat_update=4,
-            target_update_frequency=20,
-            states=states,
-            actions=actions,
-            network=network
+            target_update_frequency=20
         )
-        agent = DQNAgent(config=agent_config)
+
+        # Network is an ordered list of layers
+        network_spec = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        # Define a state
+        states = dict(shape=(10,), type='float')
+
+        # Define an action (models internally assert whether
+        # they support continuous and/or discrete control)
+        actions = dict(continuous=False, num_actions=5)
+
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_spec,
+            config=agent_config
+        )
 
         ### Code block: multiple states
-
         states = dict(
             image=dict(shape=(64, 64, 3), type='float'),
             caption=dict(shape=(20,), type='int')
         )
 
-        agent_config = Configuration(
-            batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20,
-            states=states,
-            actions=actions,
-            network=network
-        )
         # DQN does not support multiple states. Omit test for now.
         # agent = DQNAgent(config=agent_config)
 
@@ -172,11 +161,6 @@ class TestTutorialCode(unittest.TestCase):
 
         import json
         network_config = json.loads(network_json)
-        network = layered_network_builder(network_config)
-
-        ### Test from_json import
-
-        from tensorforce.core.networks import from_json
 
         ### Code block: Modified dense layer
 
@@ -193,24 +177,27 @@ class TestTutorialCode(unittest.TestCase):
         """
 
         ### Test json
-
-        network_config = json.loads(network_json)
-        network = layered_network_builder(network_config)
+        network_spec = json.load(fp=modified_dense)
 
         ### Code block: Own layer type
 
         def batch_normalization(x, variance_epsilon=1e-6, **kwargs):
             mean, variance = tf.nn.moments(x, axes=tuple(range(x.shape.ndims - 1)))
-            x = tf.nn.batch_normalization(x, mean=mean, variance=variance, offset=None, scale=None,
-                                          variance_epsilon=variance_epsilon)
+            x = tf.nn.batch_normalization(
+                x=x,
+                mean=mean,
+                variance=variance,
+                offset=None,
+                scale=None,
+                variance_epsilon=variance_epsilon
+            )
             return x
 
         ### Test own layer
 
         states = dict(shape=(10,), type='float')
-        network_config = [{"type": batch_normalization,
+        network_spec = [{"type": batch_normalization,
                            "variance_epsilon": 1e-9}]
-        network = layered_network_builder(network_config)
         agent_config = Configuration(
             batch_size=8,
             learning_rate=0.001,
@@ -218,11 +205,13 @@ class TestTutorialCode(unittest.TestCase):
             first_update=80,
             repeat_update=4,
             target_update_frequency=20,
-            states=states,
-            actions=actions,
-            network=network
         )
-        agent = DQNAgent(config=agent_config)
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_spec,
+            config=agent_config
+        )
 
         ### Code block: Own network builder
 
@@ -289,7 +278,6 @@ class TestTutorialCode(unittest.TestCase):
 
         states = dict(shape=(10,), type='float')
         network_config = [{"type": 'flatten'}, {"type": lstm}]
-        network = layered_network_builder(network_config)
         agent_config = Configuration(
             batch_size=8,
             learning_rate=0.001,
@@ -297,14 +285,16 @@ class TestTutorialCode(unittest.TestCase):
             first_update=80,
             repeat_update=4,
             target_update_frequency=20,
-            states=states,
-            actions=actions,
-            network=network
         )
-        agent = DQNAgent(config=agent_config)
+
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_config,
+            config=agent_config
+        )
 
         ### Preprocessing configuration
-
         states = dict(shape=(84, 84, 3), type='float')
         preprocessing = [
             dict(
@@ -331,15 +321,16 @@ class TestTutorialCode(unittest.TestCase):
             repeat_update=4,
             target_update_frequency=20,
             preprocessing=preprocessing,
-            states=states,
-            actions=actions,
-            network=network
         )
 
         ### Test preprocessing configuration
 
-        agent = DQNAgent(config=agent_config)
-
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_config,
+            config=agent_config
+        )
         #agent_config.actions = dict(continuous=False, num_actions=5)
 
         ### Code block: Continuous action exploration
@@ -357,16 +348,17 @@ class TestTutorialCode(unittest.TestCase):
             first_update=80,
             repeat_update=4,
             target_update_frequency=20,
-            exploration=exploration,
-            states=states,
-            actions=actions,
-            network=network
+            exploration=exploration
         )
 
         ### Test continuous action exploration
 
-        agent = DQNAgent(config=agent_config)
-
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_config,
+            config=agent_config
+        )
         ### Code block: Discrete action exploration
 
         exploration = dict(
@@ -382,24 +374,24 @@ class TestTutorialCode(unittest.TestCase):
             first_update=80,
             repeat_update=4,
             target_update_frequency=20,
-            exploration=exploration,
-            states=states,
-            actions=actions,
-            network=network
+            exploration=exploration
         )
 
         ### Test discrete action exploration
-
-        agent = DQNAgent(config=agent_config)
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_config,
+            config=agent_config
+        )
 
     def test_blogpost_introduction_runner(self):
         from tensorforce.config import Configuration
-        from tensorforce.core.networks import layered_network_builder
         from tensorforce.environments.minimal_test import MinimalTest
         from tensorforce.agents import DQNAgent
         from tensorforce.execution import Runner
 
-        environment = MinimalTest(definition=False)
+        environment = MinimalTest(specification=[('int', ())])
 
         network_config = [
             dict(type='dense', size=32)
@@ -410,13 +402,15 @@ class TestTutorialCode(unittest.TestCase):
             memory_capacity=800,
             first_update=80,
             repeat_update=4,
-            target_update_frequency=20,
-            states=environment.states,
-            actions=environment.actions,
-            network=layered_network_builder(network_config)
+            target_update_frequency=20
         )
 
-        agent = DQNAgent(config=agent_config)
+        agent = DQNAgent(
+            states_spec=environment.states,
+            actions_spec=environment.actions,
+            network_spec=network_config,
+            config=agent_config
+        )
         runner = Runner(agent=agent, environment=environment)
 
         def episode_finished(runner):

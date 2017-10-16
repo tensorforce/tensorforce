@@ -80,6 +80,7 @@ class TRPOAgent(BatchAgent):
         learning_rate=1e-2,
         # Model
         discount=0.99,
+        normalize_rewards=False,
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,
@@ -88,7 +89,6 @@ class TRPOAgent(BatchAgent):
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        normalize_rewards=False,
         # PGLRModel
         likelihood_ratio_clipping=None,
         # Logging

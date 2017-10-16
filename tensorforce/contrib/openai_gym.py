@@ -54,7 +54,7 @@ class OpenAIGym(Environment):
         return 'OpenAIGym({})'.format(self.gym_id)
 
     def close(self):
-        self.gym.monitor.close()
+        self.gym.close()
         self.gym = None
 
     def reset(self):

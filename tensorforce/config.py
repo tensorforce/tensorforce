@@ -88,7 +88,7 @@ class Configuration(object):
 
     def __getattr__(self, key):
         if key not in self._config:
-            raise TensorForceError('Value for `{}` is not defined.'.format(key))
+            raise TensorForceError("Value '{}' is not defined.".format(key))
         if key in self._accessed:
             self._accessed[key] = True
         return self._config[key]
@@ -97,9 +97,9 @@ class Configuration(object):
         if key == '_config' or key == '_accessed':
             super(Configuration, self).__setattr__(key, value)
         elif key not in self._config:
-            raise TensorForceError("Value {} is not defined.".format(key))
+            raise TensorForceError("Value '{}' is not defined.".format(key))
         else:
-            raise TensorForceError("Setting config attributes not allowed!")
+            raise TensorForceError("Setting config attributes not allowed.")
             # self._config[key] = value
 
     def set(self, key, value):
@@ -109,7 +109,7 @@ class Configuration(object):
     def obligatory(self, **kwargs):
         for key, value in kwargs.items():
             if key in self._config:
-                raise TensorForceError("The value {} is already set, but should be free.".format(key))
+                raise TensorForceError("Value '{}' should not be defined externally.".format(key))
             self._config[key] = value
             self._accessed[key] = False
 

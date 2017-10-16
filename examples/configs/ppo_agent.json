@@ -1,14 +1,16 @@
 {
     "batch_size": 4000,
-    "optimizer": {
+    "step_optimizer": {
         "type": "adam",
-        "learning_rate´": 1e-2
-    },
+        "learning_rate": 1e-2
+        },
+    "optimization_steps": 5,
 
     "discount": 0.99,
     "normalize_rewards": false,
     "entropy_regularization": null,
     "gae_lambda": null,
+    "likelihood_ratio_clipping": 0.2,
 
     "baseline_mode": null,
     "baseline":  null,

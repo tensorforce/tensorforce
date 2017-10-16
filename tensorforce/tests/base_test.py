@@ -49,6 +49,7 @@ class BaseTest(object):
 
         passed = 0
         for _ in xrange(5):
+
             if self.__class__.requires_network:
                 agent = self.__class__.agent(
                     states_spec=environment.states,

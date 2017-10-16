@@ -171,11 +171,14 @@ class Agent(object):
         else:
             self.reward_preprocessing = Preprocessing.from_config(config=config.reward_preprocessing)
 
-        self.model = self.initialize_model(states_spec=self.states_spec, actions_spec=self.actions_spec, config=config)
+        self.model = self.initialize_model(
+            states_spec=self.states_spec,
+            actions_spec=self.actions_spec,
+            config=config
+        )
 
         not_accessed = config.not_accessed()
         if not_accessed:
-            print("Configuration values not accessed: {}".format(', '.join(not_accessed)))
             self.logger.warning("Configuration values not accessed: {}".format(', '.join(not_accessed)))
 
         self.episode = -1

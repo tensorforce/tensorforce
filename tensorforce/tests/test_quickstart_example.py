@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 import unittest
 
 import numpy as np
@@ -31,72 +32,76 @@ from tensorforce.contrib.openai_gym import OpenAIGym
 class TestQuickstartExample(unittest.TestCase):
 
     def test_example(self):
-        passed = 0
+        sys.stdout.write('\nQuickstart:\n')
+        sys.stdout.flush()
 
+        passed = 0
         for _ in xrange(3):
-            # Create an OpenAIgym environment
-            env = OpenAIGym('CartPole-v0')
+
+            # Create an OpenAI-Gym environment
+            environment = OpenAIGym('CartPole-v0')
+
+            # Agent hyperparameters
             config = Configuration(
-                batch_size=4096,
-                # Agent
-                preprocessing=None,
-                exploration=None,
-                reward_preprocessing=None,
-                # BatchAgent
-                keep_last_timestep=True,  # not documented!
-                # PPOAgent
+                batch_size=4000,
                 step_optimizer=dict(
                     type='adam',
-                    learning_rate=1e-3
+                    learning_rate=1e-2
                 ),
-                optimization_steps=10,
-                # Model
-                scope='ppo',
+                optimization_steps=5,
                 discount=0.99,
-                # DistributionModel
-                distributions=None,  # not documented!!!
-                entropy_regularization=0.01,
-                # PGModel
-                baseline_mode=None,
-                baseline=None,
-                baseline_optimizer=None,
-                gae_lambda=None,
                 normalize_rewards=False,
-                # PGLRModel
-                likelihood_ratio_clipping=0.2,
-                # Logging
-                log_level='info',
-                # TensorFlow Summaries
-                summary_logdir=None,
-                summary_labels=['total-loss'],
-                summary_frequency=1,
-                # Distributed
-                distributed=False,
-                device=None
+                entropy_regularization=0.01,
+                # baseline_mode='states',
+                # baseline=dict(
+                #     type='mlp',
+                #     sizes=[32, 32]
+                # ),
+                # baseline_optimizer=dict(
+                #     type='multi_step',
+                #     optimizer=dict(
+                #         type='adam',
+                #         learning_rate=1e-2
+                #     ),
+                #     num_steps=5
+                # ),
+                # gae_lambda=0.95,
+                likelihood_ratio_clipping=0.2
             )
 
+            # Network specification for the model
             network_spec = [
-                dict(type='dense', size=32, activation='tanh'),
-                dict(type='dense', size=32, activation='tanh')
+                dict(type='dense', size=32),
+                dict(type='dense', size=32)
             ]
-            # Create a Trust Region Policy Optimization agent
+
+            # Create the agent
             agent = PPOAgent(
-                states_spec=env.states,
-                actions_spec=env.actions,
+                states_spec=environment.states,
+                actions_spec=environment.actions,
                 network_spec=network_spec,
                 config=config
             )
-            runner = Runner(agent=agent, environment=env)
 
+            # Initialize the runner
+            runner = Runner(agent=agent, environment=environment)
+
+            # Function handle called after each finished episode
             def episode_finished(r):
                 # Test if mean reward over 50 should ensure that learning took off
-                avg_reward = np.mean(r.episode_rewards[-50:])
-                return r.episode < 100 or avg_reward < 50.0
+                mean_reward = np.mean(r.episode_rewards[-50:])
+                return r.episode < 100 or mean_reward < 50.0
 
-            runner.run(episodes=2000, max_timesteps=200, episode_finished=episode_finished)
+            # Start the runner
+            runner.run(episodes=2000, max_episode_timesteps=200, episode_finished=episode_finished)
 
+            sys.stdout.write('episodes: {}\n'.format(runner.episode))
+            sys.stdout.flush()
+
+            # Test passed if episode_finished handle evaluated to False
             if runner.episode < 2000:
                 passed += 1
 
-        print('Quick start example passed = {}'.format(passed))
+        sys.stdout.write('==> passed: {}\n'.format(passed))
+        sys.stdout.flush()
         self.assertTrue(passed >= 2)

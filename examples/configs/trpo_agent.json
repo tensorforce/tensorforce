@@ -1,20 +1,14 @@
 {
-  "log_level": "info",
+    "batch_size": 4000,
+    "learning_rate": 1e-2,
 
-  "batch_size": 1000,
-  "discount": 0.97,
-  "max_kl_divergence": 0.1,
-  "cg_iterations" : 20,
-  "cg_damping" : 0.001,
-  "ls_max_backtracks" : 10,
-  "ls_accept_ratio": 0.9,
-  "ls_override": false,
+    "discount": 0.99,
+    "normalize_rewards": false,
+    "entropy_regularization": null,
+    "gae_lambda": null,
+    "likelihood_ratio_clipping": null,
 
-  "baseline": {
-    "type": "mlp",
-    "sizes": [32, 32],
-    "epochs": 1,
-    "update_batch_size" : 250,
-    "learning_rate": 0.01
-  }
+    "baseline_mode": null,
+    "baseline":  null,
+    "baseline_optimizer": null,
 }

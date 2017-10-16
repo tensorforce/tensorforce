@@ -18,7 +18,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.agents import BatchAgent
-from tensorforce.models import PGLogProbModel
+from tensorforce.models import PGProbRatioModel
 
 
 class PPOAgent(BatchAgent):
@@ -90,15 +90,15 @@ class PPOAgent(BatchAgent):
         optimization_steps=10,
         # Model
         discount=0.99,
+        normalize_rewards=False,
         # DistributionModel
         distributions=None,  # not documented!!!
-        entropy_regularization=0.01,
+        entropy_regularization=1e-2,
         # PGModel
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        normalize_rewards=False,
         # PGLRModel
         likelihood_ratio_clipping=0.2,
         # Logging
@@ -138,7 +138,7 @@ class PPOAgent(BatchAgent):
         super(PPOAgent, self).__init__(states_spec, actions_spec, config)
 
     def initialize_model(self, states_spec, actions_spec, config):
-        return PGLogProbModel(
+        return PGProbRatioModel(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=self.network_spec,

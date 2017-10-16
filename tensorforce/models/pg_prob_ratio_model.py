@@ -30,7 +30,7 @@ class PGProbRatioModel(PGModel):
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         # Likelihood ratio clipping
-        assert config.likelihood_ratio_clipping is None or config.likelihood_ratio_clipping > 1.0
+        assert config.likelihood_ratio_clipping is None or config.likelihood_ratio_clipping > 0.0
         self.likelihood_ratio_clipping = config.likelihood_ratio_clipping
 
         super(PGProbRatioModel, self).__init__(
@@ -73,8 +73,11 @@ class PGProbRatioModel(PGModel):
         if self.likelihood_ratio_clipping is None:
             return -prob_ratio * reward
         else:
-            clipped_prob_ratio = tf.clip_by_value(t=prob_ratio, clip_value_min=(1.0 / self.likelihood_ratio_clipping),
-                                                  clip_value_max=self.likelihood_ratio_clipping)
+            clipped_prob_ratio = tf.clip_by_value(
+                t=prob_ratio,
+                clip_value_min=(1.0 / (1.0 + self.likelihood_ratio_clipping)),
+                clip_value_max=(1.0 + self.likelihood_ratio_clipping)
+            )
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
     def tf_reference(self, states, internals, actions):

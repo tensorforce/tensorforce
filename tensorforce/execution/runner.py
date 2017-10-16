@@ -97,8 +97,6 @@ class Runner(object):
             self.episode_timesteps.append(self.episode_timestep)
             self.episode_times.append(time_passed)
 
-            self.episode += 1
-
             if (timesteps is not None and self.agent.timestep >= timesteps) or \
                     (episodes is not None and self.agent.episode >= episodes):
                 # agent.episode / agent.timestep are globally updated
@@ -106,6 +104,8 @@ class Runner(object):
 
             if episode_finished and not episode_finished(self):
                 break
+
+            self.episode += 1
 
         self.agent.close()
         self.environment.close()

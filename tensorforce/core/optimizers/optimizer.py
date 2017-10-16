@@ -23,14 +23,15 @@ from tensorforce import util, TensorForceError
 import tensorforce.core.optimizers
 
 
-class Optimizer(tf.train.Optimizer):
+class Optimizer(tf.train.GradientDescentOptimizer):
     """
     Generic optimizer extending the tf.train.Optimizer class.
     """
 
     def __init__(self):
-        super(Optimizer, self).__init__(use_locking=False, name='TensorForceOptimizer')
         self._learning_rate = -1.0
+
+        super(Optimizer, self).__init__(self._learning_rate, use_locking=False, name='TensorForceOptimizer')
 
         self.variables = dict()
 
@@ -151,20 +152,3 @@ class Optimizer(tf.train.Optimizer):
         self._assert_valid_dtypes([v for g, v in diffs_and_vars if g is not None and v.dtype != tf.resource])
         return diffs_and_vars
 
-    # Below, we just pass through tf optimizers
-    def _prepare(self):
-        return tf.train.GradientDescentOptimizer._prepare(self=self)
-
-    def _apply_dense(self, grad, var):
-        return tf.train.GradientDescentOptimizer._apply_dense(self=self, grad=grad, var=var)
-
-    def _apply_sparse_duplicate_indices(self, grad, var):
-        return tf.train.GradientDescentOptimizer._apply_sparse_duplicate_indices(self=self, grad=grad, var=var)
-
-    def _resource_apply_dense(self, grad, handle):
-        return tf.train.GradientDescentOptimizer._resource_apply_dense(self=self, grad=grad, handle=handle)
-
-    def _resource_apply_sparse_duplicate_indices(self, grad, handle, indices):
-        return tf.train.GradientDescentOptimizer._resource_apply_sparse_duplicate_indices(self=self,
-                                                                                          grad=grad,
-                                                                                          handle=handle)

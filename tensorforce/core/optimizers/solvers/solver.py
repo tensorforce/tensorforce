@@ -20,26 +20,35 @@ import tensorforce.core.optimizers.solvers
 
 class Solver(object):
     """
-    Generic TensorFlow solver. Solves optimisation problems in pure TensorFlow.
+    Generic TensorFlow solver which solves a (not yet further specified) equation/optimization  
+    problem.
     """
 
     def __init__(self):
+        """
+        Creates a new solver instance.
+        """
+        # TensorFlow function
         self.solve = tf.make_template(name_='solver', func_=self.tf_solve)
 
     def tf_solve(self, fn_x, *args):
         """
+        Solves an equation/optimization for $x$ involving an expression $f(x)$.
 
         Args:
-            fn_x:
-            *args:
+            fn_x: A callable returning an expression $f(x)$ given $x$.
+            *args: Further solver-specific arguments.
 
         Returns:
-
+            A solution $x$ to the problem as given by the solver.
         """
         raise NotImplementedError
 
     @staticmethod
     def from_config(config, kwargs=None):
+        """
+        Creates a solver from a specification dict.
+        """
         return util.get_object(
             obj=config,
             predefined=tensorforce.core.optimizers.solvers.solvers,

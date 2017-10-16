@@ -32,16 +32,16 @@ class MultiStep(MetaOptimizer):
         self.num_steps = num_steps
 
     def tf_step(self, time, variables, fn_loss, **kwargs):
-        overall_diffs = None
-        diffs = ()
+        overall_deltas = None
+        deltas = ()
         for _ in xrange(self.num_steps):
 
-            with tf.control_dependencies(control_inputs=diffs):
-                diffs = self.optimizer.step(time=time, variables=variables, fn_loss=fn_loss, **kwargs)
+            with tf.control_dependencies(control_inputs=deltas):
+                deltas = self.optimizer.step(time=time, variables=variables, fn_loss=fn_loss, **kwargs)
 
-                if overall_diffs is None:
-                    overall_diffs = diffs
+                if overall_deltas is None:
+                    overall_deltas = deltas
                 else:
-                    overall_diffs = [diff1 + diff2 for diff1, diff2 in zip(overall_diffs, diffs)]
+                    overall_deltas = [delta1 + delta2 for delta1, delta2 in zip(overall_deltas, deltas)]
 
-        return overall_diffs
+        return overall_deltas

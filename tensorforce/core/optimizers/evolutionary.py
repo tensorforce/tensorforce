@@ -45,20 +45,20 @@ class Evolutionary(Optimizer):
         :return:
         """
         unperturbed_loss = fn_loss()
-        diffs = variables
-        diffs_list = list()
+        deltas = variables
+        deltas_list = list()
         previous_perturbations = None
 
         for sample in xrange(self.samples):
 
-            with tf.control_dependencies(control_inputs=diffs):
-                perturbations = [tf.random_normal(shape=util.shape(t)) * self.learning_rate for t in diffs]
+            with tf.control_dependencies(control_inputs=deltas):
+                perturbations = [tf.random_normal(shape=util.shape(t)) * self.learning_rate for t in deltas]
                 if previous_perturbations is None:
-                    applied = self.apply_step(variables=variables, diffs=perturbations)
+                    applied = self.apply_step(variables=variables, deltas=perturbations)
                 else:
-                    perturbation_diffs = [pert - prev_pert for pert, prev_pert
+                    perturbation_deltas = [pert - prev_pert for pert, prev_pert
                                           in zip(perturbations, previous_perturbations)]
-                    applied = self.apply_step(variables=variables, diffs=perturbation_diffs)
+                    applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
                 previous_perturbations = perturbations
 
             with tf.control_dependencies(control_inputs=(applied,)):
@@ -66,14 +66,14 @@ class Evolutionary(Optimizer):
                 direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
 
             with tf.control_dependencies(control_inputs=(direction,)):
-                diffs = [direction * perturbation for perturbation in perturbations]
-                diffs_list.append(diffs)
+                deltas = [direction * perturbation for perturbation in perturbations]
+                deltas_list.append(deltas)
 
-        with tf.control_dependencies(control_inputs=diffs):
-            diffs = [tf.add_n(inputs=[diffs[n] for diffs in diffs_list]) /
-                     self.samples for n in range(len(diffs_list[0]))]
-            perturbation_diffs = [diff - pert for diff, pert in zip(diffs, previous_perturbations)]
-            applied = self.apply_step(variables=variables, diffs=perturbation_diffs)
+        with tf.control_dependencies(control_inputs=deltas):
+            deltas = [tf.add_n(inputs=[deltas[n] for deltas in deltas_list]) /
+                     self.samples for n in range(len(deltas_list[0]))]
+            perturbation_deltas = [delta - pert for delta, pert in zip(deltas, previous_perturbations)]
+            applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [diff + 0.0 for diff in diffs]
+            return [delta + 0.0 for delta in deltas]

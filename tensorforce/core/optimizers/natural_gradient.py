@@ -37,6 +37,9 @@ class NaturalGradient(Optimizer):
         self.solver = ConjugateGradient(max_iterations=cg_max_iterations, damping=cg_damping)
 
     def tf_step(self, time, variables, fn_loss, fn_kl_divergence, **kwargs):
+
+        # TODO: Comments will be cleaned up.
+
         # Optimize: argmin(delta) loss(theta + delta) s.t. kldiv = c
         # Approximate:
         # - kldiv = 0.5 * delta^T * F * delta
@@ -60,11 +63,11 @@ class NaturalGradient(Optimizer):
         fisher_matrix_product = tf.make_template(name_='fisher_matrix_product', func_=fisher_matrix_product)
 
         # [F*[delta*lambda]] * [delta*lambda] = -grad(loss)
-        diffs = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradient])
-        fisher = fisher_matrix_product(x=diffs)
+        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradient])
+        fisher = fisher_matrix_product(x=deltas)
 
         # [c*lambda^2] = 0.5 * [F*[delta*lambda]] * [delta*lambda]
-        constant = 0.5 * tf.add_n(inputs=[tf.reduce_sum(input_tensor=(diff * f)) for diff, f in zip(diffs, fisher)])
+        constant = 0.5 * tf.add_n(inputs=[tf.reduce_sum(input_tensor=(delta * f)) for delta, f in zip(deltas, fisher)])
 
 
         # why constant sometimes negative?
@@ -74,18 +77,18 @@ class NaturalGradient(Optimizer):
             # lambda = sqrt([c*lambda^2] / c)
             lagrange_multiplier = tf.sqrt(x=(constant / self.kl_divergence))
             # [delta*lambda] / lambda
-            estimated_diffs = [diff / lagrange_multiplier for diff in diffs]
+            estimated_deltas = [delta / lagrange_multiplier for delta in deltas]
             # deriv(loss)^T * sum(delta)
-            estimated_improvement = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(grad * diff))
-                                                     for grad, diff in zip(loss_gradient, estimated_diffs)])
+            estimated_improvement = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(grad * delta))
+                                                     for grad, delta in zip(loss_gradient, estimated_deltas)])
 
-            applied = self.apply_step(variables=variables, diffs=estimated_diffs)
+            applied = self.apply_step(variables=variables, deltas=estimated_deltas)
 
             with tf.control_dependencies(control_inputs=(applied,)):
-                return [estimated_diff + 0.0 for estimated_diff in estimated_diffs]
+                return [estimated_delta + 0.0 for estimated_delta in estimated_deltas]
 
         def false_fn():
-            return [tf.zeros_like(tensor=diff) for diff in diffs]
+            return [tf.zeros_like(tensor=delta) for delta in deltas]
 
         # NOTE: line search doesn't use estimated_improvement !!!
 

@@ -52,9 +52,9 @@ class Optimizer(tf.train.Optimizer):
         raise NotImplementedError
 
     def minimize(self, time, variables, **kwargs):
-        diffs = self.step(time=time, variables=variables, **kwargs)
-        # diffs[0] = tf.Print(diffs[0], (diffs[0],))
-        with tf.control_dependencies(control_inputs=diffs):
+        deltas = self.step(time=time, variables=variables, **kwargs)
+        # deltas[0] = tf.Print(deltas[0], (deltas[0],))
+        with tf.control_dependencies(control_inputs=deltas):
             return tf.no_op()
 
     def get_variables(self):
@@ -82,7 +82,7 @@ class Optimizer(tf.train.Optimizer):
     # modified minimize
     def apply_step(self,
                    variables,
-                   diffs,
+                   deltas,
                    global_step=None,
                    gate_gradients=None,
                    aggregation_method=None,
@@ -90,8 +90,8 @@ class Optimizer(tf.train.Optimizer):
                    name=None,
                    grad_loss=None):
 
-        diffs_and_vars = self.compute_diffs(
-            diffs=diffs,
+        deltas_and_vars = self.compute_deltas(
+            deltas=deltas,
             var_list=variables,
             gate_gradients=gate_gradients,
             aggregation_method=aggregation_method,
@@ -99,16 +99,16 @@ class Optimizer(tf.train.Optimizer):
             grad_loss=grad_loss
         )
 
-        vars_with_diff = [v for g, v in diffs_and_vars if g is not None]
-        if not vars_with_diff:
+        vars_with_delta = [v for g, v in deltas_and_vars if g is not None]
+        if not vars_with_delta:
             raise TensorForceError(
                 "No gradients provided for any variable, check your graph for ops that do not "
                 "support gradients, between variables {} and loss {}".format(
-                    [str(v) for _, v in diffs_and_vars], diffs
+                    [str(v) for _, v in deltas_and_vars], deltas
                 )
             )
 
-        return super(Optimizer, self).apply_gradients(diffs_and_vars, global_step=global_step, name=name)
+        return super(Optimizer, self).apply_gradients(deltas_and_vars, global_step=global_step, name=name)
 
     def compute_gradients(self, *args, **kwargs):
         raise NotImplementedError
@@ -117,8 +117,8 @@ class Optimizer(tf.train.Optimizer):
         raise NotImplementedError
 
     # Modified compute_gradients
-    def compute_diffs(self,
-                      diffs,
+    def compute_deltas(self,
+                      deltas,
                       var_list=None,
                       gate_gradients=None,
                       aggregation_method=None,
@@ -146,10 +146,10 @@ class Optimizer(tf.train.Optimizer):
         # grads = gradients.gradients(loss, var_refs, grad_ys=grad_loss, gate_gradients=(gate_gradients == Optimizer.GATE_OP), aggregation_method=aggregation_method, colocate_gradients_with_ops=colocate_gradients_with_ops)
 
         if gate_gradients == Optimizer.GATE_GRAPH:
-            diffs = tf.tuple(diffs)
-        diffs_and_vars = list(zip(diffs, var_list))
-        self._assert_valid_dtypes([v for g, v in diffs_and_vars if g is not None and v.dtype != tf.resource])
-        return diffs_and_vars
+            deltas = tf.tuple(deltas)
+        deltas_and_vars = list(zip(deltas, var_list))
+        self._assert_valid_dtypes([v for g, v in deltas_and_vars if g is not None and v.dtype != tf.resource])
+        return deltas_and_vars
 
     # Below, we just pass through tf optimizers
     def _prepare(self):
@@ -159,12 +159,16 @@ class Optimizer(tf.train.Optimizer):
         return tf.train.GradientDescentOptimizer._apply_dense(self=self, grad=grad, var=var)
 
     def _apply_sparse_duplicate_indices(self, grad, var):
-        return tf.train.GradientDescentOptimizer._apply_sparse_duplicate_indices(self=self, grad=grad, var=var)
+        return tf.train.GradientDescentOptimizer._apply_sparse_duplicate_indices(
+            self=self, grad=grad, var=var
+        )
 
     def _resource_apply_dense(self, grad, handle):
-        return tf.train.GradientDescentOptimizer._resource_apply_dense(self=self, grad=grad, handle=handle)
+        return tf.train.GradientDescentOptimizer._resource_apply_dense(
+            self=self, grad=grad, handle=handle
+        )
 
     def _resource_apply_sparse_duplicate_indices(self, grad, handle, indices):
-        return tf.train.GradientDescentOptimizer._resource_apply_sparse_duplicate_indices(self=self,
-                                                                                          grad=grad,
-                                                                                          handle=handle)
+        return tf.train.GradientDescentOptimizer._resource_apply_sparse_duplicate_indices(
+            self=self, grad=grad, handle=handle
+        )

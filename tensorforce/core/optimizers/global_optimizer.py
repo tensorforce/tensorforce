@@ -31,20 +31,20 @@ class GlobalOptimizer(MetaOptimizer):
     def tf_step(self, time, variables, global_variables, **kwargs):
         assert all(util.shape(global_var) == util.shape(local_var) for global_var, local_var in zip(global_variables, variables))
 
-        local_diffs = self.optimizer.step(time=time, variables=variables, **kwargs)
+        local_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
 
-        with tf.control_dependencies(control_inputs=local_diffs):
-            applied = self.optimizer.apply_step(variables=global_variables, diffs=local_diffs)
+        with tf.control_dependencies(control_inputs=local_deltas):
+            applied = self.optimizer.apply_step(variables=global_variables, deltas=local_deltas)
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            update_diffs = list()
+            update_deltas = list()
             for global_var, local_var in zip(global_variables, variables):
-                diff = global_var - local_var
-                update_diffs.append(diff)
+                delta = global_var - local_var
+                update_deltas.append(delta)
 
-            applied = self.apply_step(variables=variables, diffs=update_diffs)
+            applied = self.apply_step(variables=variables, deltas=update_deltas)
 
             # TODO: Update time, episode, etc (like in Synchronization)?
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [local_diff + update_diff for local_diff, update_diff in zip(local_diffs, update_diffs)]
+            return [local_delta + update_delta for local_delta, update_delta in zip(local_deltas, update_deltas)]

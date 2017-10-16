@@ -19,43 +19,91 @@ from tensorforce.core.optimizers.solvers import Solver
 
 
 class Iterative(Solver):
+    """
+    Generic solver which *iteratively* solves an equation/optimization problem. Involves an  
+    initialization step, the iteration loop body and the termination condition.
+    """
 
     def __init__(self, max_iterations):
+        """
+        Creates a new solver instance.
+
+        Args:
+            max_iterations: Maximum number of iterations before termination.
+        """
         assert max_iterations >= 0
         self.max_iterations = max_iterations
 
         super(Iterative, self).__init__()
 
-        self.initialize = tf.make_template(name_='solver-initialize', func_=self.tf_initialize)
-        self.step = tf.make_template(name_='solver-step', func_=self.tf_step)
-        self.next_step = tf.make_template(name_='solver-next_step', func_=self.tf_next_step)
+        # TensorFlow functions
+        self.initialize = tf.make_template(name_='initialize', func_=self.tf_initialize)
+        self.step = tf.make_template(name_='step', func_=self.tf_step)
+        self.next_step = tf.make_template(name_='next-step', func_=self.tf_next_step)
 
     def tf_solve(self, fn_x, x_init, *args):
+        """
+        Iteratively solves an equation/optimization for $x$ involving an expression $f(x)$.
+
+        Args:
+            fn_x: A callable returning an expression $f(x)$ given $x$.
+            x_init: Initial solution guess $x_0$.
+            *args: Further solver-specific arguments.
+
+        Returns:
+            A solution $x$ to the problem as given by the solver.
+        """
         self.fn_x = fn_x
 
+        # Initialization step
         initial_args = self.initialize(x_init, *args)
 
+        # Iteration loop with termination condition
         final_args = tf.while_loop(cond=self.next_step, body=self.step, loop_vars=initial_args)
 
-        # Return first argument containing solution
+        # First argument contains solution
         return final_args[0]
 
     def tf_initialize(self, x_init, *args):
         """
-        First step of iterative solver.
+        Initialization step preparing the arguments for the first iteration of the loop body  
+        (default: initial solution guess and iteration counter).
 
         Args:
-            x_init:
-            *args:
+            x_init: Initial solution guess $x_0$.
+            *args: Further solver-specific arguments.
 
-        Returns: Initial value, iteration count
-
+        Returns:
+            Initial arguments for tf_step.
         """
         return x_init, 0
 
     def tf_step(self, x, iteration, *args):
-        iteration += 1
-        return (x, iteration) + args
+        """
+        Iteration loop body of the iterative solver (default: increment iteration step). The  
+        first two loop arguments have to be the current solution estimate and the iteration step.
+
+        Args:
+            x: Current solution estimate.
+            iteration: Current iteration counter.
+            *args: Further solver-specific arguments.
+
+        Returns:
+            Updated arguments for next iteration.
+        """
+        next_iteration = iteration + 1
+        return (x, next_iteration) + args
 
     def tf_next_step(self, x, iteration, *args):
+        """
+        Termination condition (default: max number of iterations).
+
+        Args:
+            x: Current solution estimate.
+            iteration: Current iteration counter.
+            *args: Further solver-specific arguments.
+
+        Returns:
+            True if another iteration should be performed.
+        """
         return iteration < self.max_iterations

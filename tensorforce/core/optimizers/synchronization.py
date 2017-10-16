@@ -48,23 +48,23 @@ class Synchronization(Optimizer):
         )
 
         def sync():
-            diffs = list()
+            deltas = list()
             for source, target in zip(source_variables, variables):
-                diff = self.update_weight * (source - target)
-                diffs.append(diff)
+                delta = self.update_weight * (source - target)
+                deltas.append(delta)
 
-            applied = self.apply_step(variables=variables, diffs=diffs)
+            applied = self.apply_step(variables=variables, deltas=deltas)
             last_sync_updated = self.last_sync.assign(value=time)
 
             with tf.control_dependencies(control_inputs=(applied, last_sync_updated)):
-                return [diff + 0.0 for diff in diffs]
+                return [delta + 0.0 for delta in deltas]
 
         def no_sync():
-            diffs = list()
+            deltas = list()
             for variable in variables:
-                diff = tf.zeros(shape=util.shape(variable))
-                diffs.append(diff)
-            return diffs
+                delta = tf.zeros(shape=util.shape(variable))
+                deltas.append(delta)
+            return deltas
 
         do_sync = (time - self.last_sync >= self.sync_frequency)
         return tf.cond(pred=do_sync, true_fn=sync, false_fn=no_sync)

@@ -23,14 +23,15 @@ from tensorforce import util, TensorForceError
 import tensorforce.core.optimizers
 
 
-class Optimizer(tf.train.Optimizer):
+class Optimizer(tf.train.GradientDescentOptimizer):
     """
     Generic optimizer extending the tf.train.Optimizer class.
     """
 
     def __init__(self):
-        super(Optimizer, self).__init__(use_locking=False, name='TensorForceOptimizer')
         self._learning_rate = -1.0
+
+        super(Optimizer, self).__init__(self._learning_rate, use_locking=False, name='TensorForceOptimizer')
 
         self.variables = dict()
 
@@ -80,15 +81,17 @@ class Optimizer(tf.train.Optimizer):
         return optimizer
 
     # modified minimize
-    def apply_step(self,
-                   variables,
-                   deltas,
-                   global_step=None,
-                   gate_gradients=None,
-                   aggregation_method=None,
-                   colocate_gradients_with_ops=False,
-                   name=None,
-                   grad_loss=None):
+    def apply_step(
+        self,
+        variables,
+        deltas,
+        global_step=None,
+        gate_gradients=None,
+        aggregation_method=None,
+        colocate_gradients_with_ops=False,
+        name=None,
+        grad_loss=None
+    ):
 
         deltas_and_vars = self.compute_deltas(
             deltas=deltas,
@@ -117,13 +120,15 @@ class Optimizer(tf.train.Optimizer):
         raise NotImplementedError
 
     # Modified compute_gradients
-    def compute_deltas(self,
-                      deltas,
-                      var_list=None,
-                      gate_gradients=None,
-                      aggregation_method=None,
-                      colocate_gradients_with_ops=False,
-                      grad_loss=None):
+    def compute_deltas(
+        self,
+        deltas,
+        var_list=None,
+        gate_gradients=None,
+        aggregation_method=None,
+        colocate_gradients_with_ops=False,
+        grad_loss=None
+    ):
         if aggregation_method is not None or colocate_gradients_with_ops or grad_loss is not None:
             raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments are not supported.")
         if gate_gradients is None:

@@ -26,7 +26,7 @@ class Runner(object):
     Simple runner for non-realtime single-process execution.
     """
 
-    def __init__(self, agent, environment, repeat_actions=1):
+    def __init__(self, agent, environment, repeat_actions=1, history=None):
         """
         Initialize a Runner object.
 
@@ -38,6 +38,20 @@ class Runner(object):
         self.agent = agent
         self.environment = environment
         self.repeat_actions = repeat_actions
+
+        self.reset(history)
+
+    def reset(self, history=None):
+        # If history is empty, use default values in history.get().
+        if not history:
+            history = dict()
+
+        self.episode = history.get('episode', 1)
+        self.timestep = history.get('timestep', 0)
+
+        self.episode_rewards = history.get('episode_rewards', list())
+        self.episode_timesteps = history.get('episode_timesteps', list())
+        self.episode_times = history.get('episode_times', list())
 
     def run(self, timesteps=None, episodes=None, max_episode_timesteps=None, deterministic=False, episode_finished=None):
         """
@@ -52,12 +66,6 @@ class Runner(object):
         """
 
         # Keep track of episode reward and episode length for statistics.
-        self.episode_rewards = []
-        self.episode_timesteps = []
-        self.episode_times = []
-
-        self.timestep = 0
-        self.episode = 1
         self.start_time = time.time()
 
         while True:

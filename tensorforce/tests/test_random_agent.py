@@ -29,8 +29,10 @@ class TestRandomAgent(BaseAgentTest, unittest.TestCase):
     agent = RandomAgent
     deterministic = False
     requires_network = False
-    pass_threshold = 0.0  # Random agent is not expected to pass anything
+    # Random agent is not expected to pass anything
+    pass_threshold = 0.0
 
     config = Configuration()
 
-    exclude_lstm = True  # Not using a network so no point in testing LSTM
+    # Not using a network so no point in testing LSTM
+    exclude_lstm = True

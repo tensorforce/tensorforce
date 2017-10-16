@@ -87,7 +87,7 @@ runner = Runner(agent=agent, environment=env)
 
 # Callback function printing episode statistics
 def episode_finished(r):
-    print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.timestep,
+    print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.episode_timestep,
                                                                                  reward=r.episode_rewards[-1]))
     return True
 

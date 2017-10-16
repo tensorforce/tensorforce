@@ -2,7 +2,7 @@
     "batch_size": 4000,
     "optimizer": {
         "type": "adam",
-        "learning_rate´": 1e-2
+        "learning_rate": 1e-2
     },
 
     "discount": 0.99,

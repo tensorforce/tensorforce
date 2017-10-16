@@ -24,6 +24,11 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 
 class GlobalOptimizer(MetaOptimizer):
+    """
+    Global optimizer enabling distributed asynchronous execution (A3C) semantics.
+    Note: This will change in the next release as there are various distributed semantics,
+    this is just a placeholder to continue offering A3C functionality.
+    """
 
     def __init__(self, optimizer):
         super(GlobalOptimizer, self).__init__(optimizer=optimizer)

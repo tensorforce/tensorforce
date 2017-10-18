@@ -34,6 +34,7 @@ class PPOAgent(BatchAgent):
             actions_spec,
             network_spec,
             device=None,
+            session_config=None,
             scope='ppo',
             saver_spec=None,
             summary_spec=None,
@@ -73,6 +74,7 @@ class PPOAgent(BatchAgent):
             network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
                 such as activation or regularisation. Full examples are in the examples/configs folder.
             device: Device string specifying model device.
+            session_config: optional tf.ConfigProto with additional desired session configurations
             scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
             saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
@@ -117,6 +119,7 @@ class PPOAgent(BatchAgent):
 
         self.network_spec = network_spec
         self.device = device
+        self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
@@ -161,6 +164,7 @@ class PPOAgent(BatchAgent):
             actions_spec=actions_spec,
             network_spec=self.network_spec,
             device=self.device,
+            session_config=self.session_config,
             scope=self.scope,
             saver_spec=self.saver_spec,
             summary_spec=self.summary_spec,

@@ -167,6 +167,7 @@ def WorkerAgentGenerator(agent_class):
             super(WorkerAgent, self).__init__(
                 states_spec,
                 actions_spec,
+                network_spec,
                 **kwargs
             )
 

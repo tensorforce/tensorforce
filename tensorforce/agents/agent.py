@@ -247,13 +247,13 @@ class Agent(object):
 
                 if self.actions_spec[name]['type'] == 'bool':
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        shape = self.actions_spec[name].shape
+                        shape = self.actions_spec[name]['shape']
                         self.current_actions[name] = (np.random.random_sample(size=shape) < 0.5)
 
                 elif self.actions_spec[name]['type'] == 'int':
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        shape = self.actions_spec[name].shape
-                        num_actions = self.actions_spec[name].num_actions
+                        shape = self.actions_spec[name]['shape']
+                        num_actions = self.actions_spec[name]['num_actions']
                         self.current_actions[name] = np.random.randint(low=num_actions, size=shape)
 
                 elif self.actions_spec[name]['type'] == 'float':

@@ -29,6 +29,7 @@ optimizers = dict(
     adadelta=TFOptimizer.get_wrapper(optimizer='adadelta'),
     adagrad=TFOptimizer.get_wrapper(optimizer='adagrad'),
     adam=TFOptimizer.get_wrapper(optimizer='adam'),
+    nadam=TFOptimizer.get_wrapper(optimizer='nadam'),
     gradient_descent=TFOptimizer.get_wrapper(optimizer='gradient_descent'),
     momentum=TFOptimizer.get_wrapper(optimizer='momentum'),
     rmsprop=TFOptimizer.get_wrapper(optimizer='rmsprop'),

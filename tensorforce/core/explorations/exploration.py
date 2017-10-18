@@ -29,7 +29,18 @@ class Exploration(object):
         """
         exploration = util.get_object(
             obj=spec,
-            predefined=tensorforce.core.explorations.explorations
+            predefined_objects=tensorforce.core.explorations.explorations
         )
         assert isinstance(exploration, Exploration)
         return exploration
+
+    @staticmethod
+    def from_config(config, kwargs=None):
+        """
+        Creates an exploration object from a specification dict.
+        """
+        return util.get_object(
+            obj=config,
+            predefined_objects=tensorforce.core.explorations.explorations,
+            kwargs=kwargs
+        )

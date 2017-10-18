@@ -66,6 +66,7 @@ class Model(object):
         states_spec,
         actions_spec,
         device,
+        session_config,
         scope,
         saver_spec,
         summary_spec,
@@ -82,6 +83,7 @@ class Model(object):
 
         # TensorFlow device and scope
         self.device = device
+        self.session_config = session_config
         self.scope = scope
 
         # Saver/summary/distributed specifications
@@ -391,7 +393,7 @@ class Model(object):
                 hooks=hooks,
                 scaffold=self.scaffold,
                 master='',  # Default value.
-                config=None,  # always the same?
+                config=self.session_config,  # always the same?
                 checkpoint_dir=None
             )
 
@@ -401,7 +403,7 @@ class Model(object):
                 job_name='worker',
                 task_index=self.distributed_spec['task_index'],
                 protocol=self.distributed_spec.get('protocol'),
-                config=None,
+                config=self.session_config,
                 start=True
             )
 
@@ -410,7 +412,7 @@ class Model(object):
                 session_creator = tf.train.ChiefSessionCreator(
                     scaffold=self.scaffold,
                     master=server.target,
-                    config=None,
+                    config=self.session_config,
                     checkpoint_dir=None,
                     checkpoint_filename_with_path=None
                 )
@@ -419,7 +421,7 @@ class Model(object):
                 session_creator = tf.train.WorkerSessionCreator(
                     scaffold=self.scaffold,
                     master=server.target,
-                    config=None
+                    config=self.session_config,
                 )
 
             # TensorFlow monitored session object

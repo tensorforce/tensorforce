@@ -37,6 +37,7 @@ class ConstantAgent(Agent):
         states_spec,
         actions_spec,
         device=None,
+        session_config=None,
         scope='constant',
         saver_spec=None,
         summary_spec=None,
@@ -60,6 +61,7 @@ class ConstantAgent(Agent):
             actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
                 for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
             device: Device string specifying model device.
+            session_config: optional tf.ConfigProto with additional desired session configurations
             scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
             saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
@@ -85,6 +87,7 @@ class ConstantAgent(Agent):
 
         self.optimizer = None
         self.device = device
+        self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
@@ -108,6 +111,7 @@ class ConstantAgent(Agent):
             states_spec=states_spec,
             actions_spec=actions_spec,
             device=self.device,
+            session_config=self.session_config,
             scope=self.scope,
             saver_spec=self.saver_spec,
             summary_spec=self.summary_spec,

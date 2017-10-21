@@ -29,7 +29,7 @@ from tensorforce.core.networks import Layer
 
 class Network(object):
     """
-    Base class for networks
+    Base class for neural networks.
     """
 
     def __init__(self, scope='network', summary_labels=None):
@@ -64,7 +64,7 @@ class Network(object):
 
     def tf_apply(self, x, internals=(), return_internals=False):
         """
-        Creates the TensorFlow operations for applying the network to the given input
+        Creates the TensorFlow operations for applying the network to the given input.
 
         Args:
             x: Network input tensor or dict of input tensors
@@ -78,7 +78,7 @@ class Network(object):
 
     def tf_regularization_loss(self):
         """
-        Creates the TensorFlow operations for the network regularization loss
+        Creates the TensorFlow operations for the network regularization loss.
 
         Returns:
             Regularization loss tensor
@@ -87,7 +87,7 @@ class Network(object):
 
     def internal_inputs(self):
         """
-        Returns the TensorFlow placeholders for internal state inputs
+        Returns the TensorFlow placeholders for internal state inputs.
 
         Returns:
             List of internal state input placeholders
@@ -96,7 +96,7 @@ class Network(object):
 
     def internal_inits(self):
         """
-        Returns the TensorFlow tensors for internal state initializations
+        Returns the TensorFlow tensors for internal state initializations.
 
         Returns:
             List of internal state initialization tensors
@@ -105,7 +105,7 @@ class Network(object):
 
     def get_variables(self, include_non_trainable=False):
         """
-        Returns the TensorFlow variables used by the network
+        Returns the TensorFlow variables used by the network.
 
         Returns:
             List of variables
@@ -117,7 +117,7 @@ class Network(object):
 
     def get_summaries(self):
         """
-        Returns the TensorFlow summaries reported by the network
+        Returns the TensorFlow summaries reported by the network.
 
         Returns:
             List of summaries
@@ -140,7 +140,7 @@ class Network(object):
 
 class LayerBasedNetwork(Network):
     """
-    Base class for networks using TensorForce layers
+    Base class for networks using TensorForce layers.
     """
 
     def __init__(self, scope='layerbased-network', summary_labels=()):
@@ -201,7 +201,7 @@ class LayeredNetwork(LayerBasedNetwork):
 
     def __init__(self, layers_spec, scope='layered-network', summary_labels=()):
         """
-        Layered network
+        Layered network.
 
         Args:
             layers_spec: List of layer specification dicts
@@ -247,13 +247,13 @@ class LayeredNetwork(LayerBasedNetwork):
 
     @staticmethod
     def from_json(filename):
-        """Creates a layer_networkd_builder from a JSON.
+        """
+        Creates a layer_networkd_builder from a JSON.
 
         Args:
             filename: Path to configuration
 
         Returns: A layered_network_builder function with layers generated from the JSON
-
         """
         path = os.path.join(os.getcwd(), filename)
         with open(path, 'r') as fp:

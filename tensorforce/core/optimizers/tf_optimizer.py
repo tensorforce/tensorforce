@@ -33,6 +33,7 @@ class TFOptimizer(Optimizer):
         adadelta=tf.train.AdadeltaOptimizer,
         adagrad=tf.train.AdagradOptimizer,
         adam=tf.train.AdamOptimizer,
+        nadam=tf.contrib.opt.NadamOptimizer,
         gradient_descent=tf.train.GradientDescentOptimizer,
         momentum=tf.train.MomentumOptimizer,
         rmsprop=tf.train.RMSPropOptimizer
@@ -88,7 +89,7 @@ class TFOptimizer(Optimizer):
 
         slots_variables = [variable for slot in self.optimizer._slots.values() for variable in slot.values()]
 
-        if self.name == 'adam':
+        if self.name in ('adam', 'nadam'):
             additional_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]
         else:
             additional_variables = list()

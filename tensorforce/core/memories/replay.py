@@ -13,9 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Replay memory to store observations and sample mini batches for training from.
-"""
+
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -29,7 +27,9 @@ from tensorforce.core.memories import Memory
 
 
 class Replay(Memory):
-
+    """
+    Replay memory to store observations and sample mini batches for training from.
+    """
     def __init__(self, capacity, states_spec, actions_spec, random_sampling=False):
         super(Replay, self).__init__(capacity, states_spec, actions_spec)
         self.states = {name: np.zeros((capacity,) + tuple(state['shape']), dtype=util.np_dtype(state['type'])) for name, state in states_spec.items()}
@@ -62,7 +62,7 @@ class Replay(Memory):
     def get_batch(self, batch_size, next_states=False):
         """
         Samples a batch of the specified size by selecting a random start/end point and returning
-        the contained sequence or random indices depending on the field 'random_sampling'
+        the contained sequence or random indices depending on the field 'random_sampling'.
         
         Args:
             batch_size: The batch size

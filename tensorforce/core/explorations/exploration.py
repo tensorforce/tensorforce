@@ -29,7 +29,7 @@ class Exploration(object):
         """
         exploration = util.get_object(
             obj=spec,
-            predefined=tensorforce.core.explorations.explorations
+            predefined_objects=tensorforce.core.explorations.explorations
         )
         assert isinstance(exploration, Exploration)
         return exploration

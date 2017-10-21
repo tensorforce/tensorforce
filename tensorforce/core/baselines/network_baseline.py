@@ -26,12 +26,13 @@ from tensorforce.core.baselines import Baseline
 
 class NetworkBaseline(Baseline):
     """
-    Baseline based on a TensorForce network
+    Baseline based on a TensorForce network, used when parameters are shared between
+    the value function and the baseline.
     """
 
     def __init__(self, network_spec, scope='network-baseline', summary_labels=()):
         """
-        Network baseline
+        Network baseline.
 
         Args:
             network_spec: Network specification dict
@@ -51,7 +52,7 @@ class NetworkBaseline(Baseline):
 
     def tf_regularization_loss(self):
         """
-        Creates the TensorFlow operations for the baseline regularization loss
+        Creates the TensorFlow operations for the baseline regularization loss.
 
         Returns:
             Regularization loss tensor
@@ -73,7 +74,9 @@ class NetworkBaseline(Baseline):
             return None
 
     def get_variables(self, include_non_trainable=False):
-        baseline_variables = super(NetworkBaseline, self).get_variables(include_non_trainable=include_non_trainable)
+        baseline_variables = super(NetworkBaseline, self).get_variables(
+            include_non_trainable=include_non_trainable
+        )
 
         network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
 

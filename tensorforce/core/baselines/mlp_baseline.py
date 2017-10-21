@@ -22,12 +22,12 @@ from tensorforce.core.baselines import NetworkBaseline
 
 class MLPBaseline(NetworkBaseline):
     """
-    Multi-layer perceptron baseline (single-state) consisting of dense layers
+    Multi-layer perceptron baseline (single-state) consisting of dense layers.
     """
 
     def __init__(self, sizes, scope='mlp-baseline', summary_labels=()):
         """
-        Multi-layer perceptron baseline
+        Multi-layer perceptron baseline.
 
         Args:
             sizes: List of dense layer sizes

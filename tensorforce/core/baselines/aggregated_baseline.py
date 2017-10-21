@@ -26,12 +26,12 @@ from tensorforce.core.baselines import Baseline
 
 class AggregatedBaseline(Baseline):
     """
-    Baseline which aggregates per-state baselines
+    Baseline which aggregates per-state baselines.
     """
 
     def __init__(self, baselines, scope='aggregated-baseline', summary_labels=()):
         """
-        Aggregated baseline
+        Aggregated baseline.
 
         Args:
             baselines: Dict of per-state baseline specification dicts
@@ -78,7 +78,9 @@ class AggregatedBaseline(Baseline):
             return None
 
     def get_variables(self, include_non_trainable=False):
-        baseline_variables =  super(AggregatedBaseline, self).get_variables(include_non_trainable=include_non_trainable)
+        baseline_variables = super(AggregatedBaseline, self).get_variables(
+            include_non_trainable=include_non_trainable
+        )
 
         baselines_variables = [
             variable for name in sorted(self.baselines)

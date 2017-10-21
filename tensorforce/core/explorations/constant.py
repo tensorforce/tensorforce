@@ -17,6 +17,9 @@ from tensorforce.core.explorations import Exploration
 
 
 class Constant(Exploration):
+    """
+    Explore via adding a constant term.
+    """
 
     def __init__(self, constant=0.0):
         self.constant = constant

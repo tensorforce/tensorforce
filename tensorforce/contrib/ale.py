@@ -88,12 +88,12 @@ class ALE(Environment):
         self.gamescreen = np.empty(self.gamescreen.shape, dtype=np.uint8)
         return self.current_state
 
-    def execute(self, action):
+    def execute(self, actions):
         # convert action to ale action
-        ale_action = self.action_inds[action]
+        ale_actions = self.action_inds[actions]
 
         # get reward and process terminal & next state
-        rew = self.ale.act(ale_action)
+        rew = self.ale.act(ale_actions)
         if self.loss_of_life_termination or self.loss_of_life_reward != 0:
             new_lives = self.ale.lives()
             if new_lives < self.cur_lives:

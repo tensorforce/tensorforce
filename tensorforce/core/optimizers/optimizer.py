@@ -23,7 +23,7 @@ from tensorforce import util, TensorForceError
 import tensorforce.core.optimizers
 
 
-class Optimizer(tf.train.GradientDescentOptimizer):
+class Optimizer(object):
     """
     Generic TensorFlow optimizer which minimizes a not yet further specified expression, usually  
     some kind of loss function. More generally, an optimizer can be considered as some method of  
@@ -34,10 +34,6 @@ class Optimizer(tf.train.GradientDescentOptimizer):
         """
         Creates a new optimizer instance.
         """
-        super(Optimizer, self).__init__(self._learning_rate, use_locking=False, name='TensorForceOptimizer')
-
-        self._learning_rate = -1.0
-
         self.variables = dict()
 
         def custom_getter(getter, name, registered=False, **kwargs):
@@ -109,100 +105,17 @@ class Optimizer(tf.train.GradientDescentOptimizer):
         assert isinstance(optimizer, Optimizer)
         return optimizer
 
-    # modified minimize
-    def apply_step(
-        self,
-        variables,
-        deltas,
-        global_step=None,
-        gate_gradients=None,
-        aggregation_method=None,
-        colocate_gradients_with_ops=False,
-        name=None,
-        grad_loss=None
-    ):
+    def apply_step(self, variables, deltas):
+        """
+        Applies step deltas to variable values.
 
-        deltas_and_vars = self.compute_deltas(
-            deltas=deltas,
-            var_list=variables,
-            gate_gradients=gate_gradients,
-            aggregation_method=aggregation_method,
-            colocate_gradients_with_ops=colocate_gradients_with_ops,
-            grad_loss=grad_loss
-        )
+        Args:
+            variables: List of variables.
+            deltas: List of deltas of same length.
 
-        vars_with_delta = [v for g, v in deltas_and_vars if g is not None]
-        if not vars_with_delta:
-            raise TensorForceError(
-                "No gradients provided for any variable, check your graph for ops that do not "
-                "support gradients, between variables {} and loss {}".format(
-                    [str(v) for _, v in deltas_and_vars], deltas
-                )
-            )
-
-        return super(Optimizer, self).apply_gradients(deltas_and_vars, global_step=global_step, name=name)
-
-    def compute_gradients(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def apply_gradients(self, *args, **kwargs):
-        raise NotImplementedError
-
-    # Modified compute_gradients
-    def compute_deltas(
-        self,
-        deltas,
-        var_list=None,
-        gate_gradients=None,
-        aggregation_method=None,
-        colocate_gradients_with_ops=False,
-        grad_loss=None
-    ):
-        if aggregation_method is not None or colocate_gradients_with_ops or grad_loss is not None:
-            raise TensorForceError("'aggregation_method', colocate_gradients_with_ops' and 'grad_loss' arguments are not supported.")
-        if gate_gradients is None:
-            gate_gradients = Optimizer.GATE_OP
-        if gate_gradients not in (Optimizer.GATE_NONE, Optimizer.GATE_OP, Optimizer.GATE_GRAPH):
-            raise TensorForceError("'gate_gradients' must be one of: Optimizer.GATE_NONE, Optimizer.GATE_OP, Optimizer.GATE_GRAPH. Not {}".format(gate_gradients))
-        # if isinstance(loss, tf.Tensor):
-        #     self._assert_valid_dtypes([loss])
-        # else:
-        #     self._assert_valid_dtypes(loss)
-        # if var_list is None:
-        #     var_list = tf.trainable_variables() + tf.get_collection(tf.GraphKeys.TRAINABLE_RESOURCE_VARIABLES)
-        # else:
-        #     var_list = tf.python.util.nest.flatten(var_list)
-        var_list += tf.get_collection(tf.GraphKeys._STREAMING_MODEL_PORTS)
-        if not var_list:
-            raise TensorForceError("No variables to optimize.")
-        # processors = [tf.train.Optimizer._get_processor(v) for v in var_list]
-        # var_refs = [p.target() for p in processors]
-        # grads = gradients.gradients(loss, var_refs, grad_ys=grad_loss, gate_gradients=(gate_gradients == Optimizer.GATE_OP), aggregation_method=aggregation_method, colocate_gradients_with_ops=colocate_gradients_with_ops)
-
-        if gate_gradients == Optimizer.GATE_GRAPH:
-            deltas = tf.tuple(deltas)
-        deltas_and_vars = list(zip(deltas, var_list))
-        self._assert_valid_dtypes([v for g, v in deltas_and_vars if g is not None and v.dtype != tf.resource])
-        return deltas_and_vars
-
-    # Below, we just pass through tf optimizers
-    def _prepare(self):
-        return tf.train.GradientDescentOptimizer._prepare(self=self)
-
-    def _apply_dense(self, grad, var):
-        return tf.train.GradientDescentOptimizer._apply_dense(self=self, grad=grad, var=var)
-
-    def _apply_sparse_duplicate_indices(self, grad, var):
-        return tf.train.GradientDescentOptimizer._apply_sparse_duplicate_indices(
-            self=self, grad=grad, var=var
-        )
-
-    def _resource_apply_dense(self, grad, handle):
-        return tf.train.GradientDescentOptimizer._resource_apply_dense(
-            self=self, grad=grad, handle=handle
-        )
-
-    def _resource_apply_sparse_duplicate_indices(self, grad, handle, indices):
-        return tf.train.GradientDescentOptimizer._resource_apply_sparse_duplicate_indices(
-            self=self, grad=grad, handle=handle
-        )
+        Returns:
+            The step-applied operation.
+        """
+        if len(variables) != len(deltas):
+            raise TensorForceError("Invalid variables and deltas lists.")
+        return tf.group(*(variable.assign_add(delta=delta) for variable, delta in zip(variables, deltas)))

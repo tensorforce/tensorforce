@@ -58,25 +58,25 @@ class OpenAIUniverse(Environment):
 
         return state[0]
 
-    def execute(self, action):
-        state, terminal, reward = self._execute(action)
+    def execute(self, actions):
+        state, terminal, reward = self._execute(actions)
         return self._wait_state(state, terminal, reward)
 
-    def _execute(self, action):
+    def _execute(self, actions):
         pass_actions = []
-        for action_name, value in action.items():
+        for action_name, value in actions.items():
             if action_name == 'key':
                 key_event = self._int_to_key(value)
                 pass_actions.append(key_event)
             elif action_name == 'button':
                 btn_event = self._int_to_btn(value)
-                x, y = self._int_to_pos(action.get('position', 0))
+                x, y = self._int_to_pos(actions.get('position', 0))
                 pass_actions.append(universe.spaces.PointerEvent(x, y, btn_event))
 
         state, reward, terminal, _ = self.env.step([pass_actions])
 
         if isinstance(state[0], dict):
-            state[0].pop('text', None) # We can't handle string states right now, so omit the text state for now
+            state[0].pop('text', None)  # We can't handle string states right now, so omit the text state for now
 
         return state[0], terminal[0], reward[0]
 

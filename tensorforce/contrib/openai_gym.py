@@ -60,8 +60,8 @@ class OpenAIGym(Environment):
     def reset(self):
         return self.gym.reset()
 
-    def execute(self, action):
-        state, reward, terminal, _ = self.gym.step(action)
+    def execute(self, actions):
+        state, reward, terminal, _ = self.gym.step(actions)
         return state, terminal, reward
 
     @property

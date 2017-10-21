@@ -72,6 +72,9 @@ class PrioritizedReplay(Memory):
         Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
 
         """
+        if batch_size > len(self.observations):
+            raise TensorForceError("Batch size is larger than number of observations in memory.")
+
         states = {name: np.zeros((batch_size,) + tuple(state['shape']), dtype=util.np_dtype(state['type'])) for name, state in self.states_spec.items()}
         internals = [np.zeros((batch_size,) + shape, dtype) for shape, dtype in self.internals_config]
         actions = {name: np.zeros((batch_size,) + tuple(action['shape']), dtype=util.np_dtype(action['type'])) for name, action in self.actions_spec.items()}
@@ -93,6 +96,7 @@ class PrioritizedReplay(Memory):
                 index = randrange(self.none_priority_index)
                 while index in self.batch_indices:
                     index = randrange(self.none_priority_index)
+                _, observation = self.observations[index]
             else:
                 while True:
                     sample = random()

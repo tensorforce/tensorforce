@@ -111,7 +111,7 @@ class Agent(object):
             if 'type' not in state:  # Type: default to float
                 state['type'] = 'float'
             if config.preprocessing is not None:
-                preprocessing = Preprocessing.from_config(config=config.preprocessing)
+                preprocessing = Preprocessing.from_spec(spec=config.preprocessing)
                 self.preprocessing['state'] = preprocessing
                 state['shape'] = preprocessing.processed_shape(shape=state['shape'])
 

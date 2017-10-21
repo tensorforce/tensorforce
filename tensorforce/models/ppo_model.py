@@ -26,8 +26,8 @@ import tensorflow as tf
 from six.moves import xrange
 import numpy as np
 
-from tensorforce import util
-from tensorforce.core.memories import Replay, PrioritizedReplay, Memory
+from tensorforce import util, TensorForceError
+from tensorforce.core.memories import Replay
 from tensorforce.models import PolicyGradientModel
 
 
@@ -49,7 +49,8 @@ class PPOModel(PolicyGradientModel):
         self.optimizer_batch_size = config.optimizer_batch_size
         self.batch_size = config.batch_size
         self.updates = int(config.batch_size / self.optimizer_batch_size) * config.epochs
-
+        if self.batch_size % self.optimizer_batch_size != 0:
+            raise TensorForceError('batch_size must be a multiple of optimizer_batch_size')
         # Use replay memory as a cache so it can be used to sample minibatches
         self.memory = Replay(config.batch_size, config.states, config.actions, config.random_sampling)
 
@@ -157,7 +158,7 @@ class PPOModel(PolicyGradientModel):
         # PPO takes multiple passes over the on-policy batch.
         # We use a memory sampling random ranges (as opposed to keeping
         # track of indices and e.g. first taking elems 0-15, then 16-32, etc).
-        for i in xrange(self.updates):
+        for i in xrange(self.updates - 1):
             self.logger.debug('Optimising PPO, update = {}'.format(i))
             minibatch = self.memory.get_batch(self.optimizer_batch_size)
 
@@ -179,9 +180,9 @@ class PPOModel(PolicyGradientModel):
 
         # For the last epoch, fetch return and diagnostics values for each instance
         # by sampling on seqential non-random ranges e.g 0-15, 16-32 etc
-        losses = []
+        losses = 0
+        kl_divergences = 0
         losses_per_instance = []
-        kl_divergences = []
         prev_distribution_tensors = {placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items() for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])}
         for i in range(int(self.batch_size / self.optimizer_batch_size)):
             start, end = i * self.optimizer_batch_size, (i + 1) * self.optimizer_batch_size
@@ -203,14 +204,11 @@ class PPOModel(PolicyGradientModel):
             feed_dict.update(prev_distribution_tensors)
             _, loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
-            losses.append(loss)
+            losses += loss
+            kl_divergences += kl_divergence
             losses_per_instance.append(loss_per_instance)
-            kl_divergences.append(kl_divergence)
 
         loss_per_instance = np.concatenate(losses_per_instance)
-        # FIXME should I sum these?
-        loss = np.sum(losses)
-        kl_divergence = np.sum(kl_divergences)
 
         self.logger.debug('Loss = {}'.format(loss))
         self.logger.debug('KL divergence = {}'.format(kl_divergence))

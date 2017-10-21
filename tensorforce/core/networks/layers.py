@@ -278,7 +278,7 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
     Args:
         x: Input tensor. Must be rank 4
         size: Neurons
-        window: Filter window size
+        window: Filter window size. Could be integer or tuple. Integer assumes square filter size (window, window).
         stride: Filter stride
         padding: One of [VALID, SAME]
         bias: Bool, indicates whether bias is used
@@ -292,8 +292,18 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
     if input_rank != 4:
         raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 4'.format(input_rank))
 
+    if isinstance(window, int):
+        filter_width = window
+        filter_height = window
+    elif isinstance(window, tuple):
+        if len(window) != 2:
+            raise TensorForceError('Invalid window for conv2d layer: {}, must be tuple of size 2'.format(window))
+
+        filter_width = window[0]
+        filter_height = window[1]
+
     with tf.variable_scope(scope):
-        filters_shape = (window, window, x.shape[3].value, size)
+        filters_shape = (filter_width, filter_height, x.shape[3].value, size)
         stddev = min(0.1, sqrt(2.0 / size))
         filters_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
         filters = tf.get_variable(name='W', shape=filters_shape, dtype=tf.float32, initializer=filters_init)

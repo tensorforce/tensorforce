@@ -25,24 +25,29 @@ import tensorforce.core.optimizers
 
 class Optimizer(tf.train.GradientDescentOptimizer):
     """
-    Generic optimizer extending the tf.train.Optimizer class.
+    Generic TensorFlow optimizer which minimizes a not yet further specified expression, usually  
+    some kind of loss function. More generally, an optimizer can be considered as some method of  
+    *updating* a set of variables.
     """
 
     def __init__(self):
-        self._learning_rate = -1.0
-
+        """
+        Creates a new optimizer instance.
+        """
         super(Optimizer, self).__init__(self._learning_rate, use_locking=False, name='TensorForceOptimizer')
+
+        self._learning_rate = -1.0
 
         self.variables = dict()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
-            print(name)
             assert kwargs.get('trainable', False)
             if not registered:
                 self.variables[name] = variable
             return variable
 
+        # TensorFlow function
         self.step = tf.make_template(
             name_='step',
             func_=self.tf_step,
@@ -50,9 +55,33 @@ class Optimizer(tf.train.GradientDescentOptimizer):
         )
 
     def tf_step(self, time, variables, **kwargs):
+        """
+        Creates the TensorFlow operations for performing an optimization step.
+
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            **kwargs: Additional arguments depending on the specific optimizer implementation.  
+            For instance, often includes `fn_loss` if a loss function is optimized.
+
+        Returns:
+            List of delta tensors corresponding to the updates for each optimized variable.
+        """
         raise NotImplementedError
 
     def minimize(self, time, variables, **kwargs):
+        """
+        Performs an optimization step.
+
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            **kwargs: Additional optimizer-specific arguments. For instance, often includes  
+            `fn_loss` if a loss function is optimized.
+
+        Returns:
+            The optimization operation.
+        """
         deltas = self.step(time=time, variables=variables, **kwargs)
         # deltas[0] = tf.Print(deltas[0], (deltas[0],))
         with tf.control_dependencies(control_inputs=deltas):

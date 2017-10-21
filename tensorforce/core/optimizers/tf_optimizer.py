@@ -45,15 +45,36 @@ class TFOptimizer(Optimizer):
         return wrapper
 
     def __init__(self, optimizer, **kwargs):
+        """
+        Creates a new optimizer instance of a TensorFlow optimizer.
+
+        Args:
+            optimizer: The name of the optimizer, one of 'adadelta', 'adagrad', 'adam',  
+            'gradient_descent', 'momentum', 'rmsprop'.
+            **kwargs: Additional arguments passed on to the TensorFlow optimizer constructor.
+        """
         super(TFOptimizer, self).__init__()
 
         self.name = optimizer
         self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
 
     def tf_step(self, time, variables, fn_loss, **kwargs):
+        """
+        Creates the TensorFlow operations for performing an optimization step.
+
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            fn_loss: A callable returning the loss of the current model.
+            **kwargs: Additional arguments, not used.
+
+        Returns:
+            List of delta tensors corresponding to the updates for each optimized variable.
+        """
         loss = fn_loss()
 
         with tf.control_dependencies(control_inputs=(loss,)):
+            # Trivial operation to enforce control dependency
             vars_before = [var + 0.0 for var in variables]
 
         with tf.control_dependencies(control_inputs=vars_before):

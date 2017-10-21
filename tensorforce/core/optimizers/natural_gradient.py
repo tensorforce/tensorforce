@@ -29,67 +29,100 @@ class NaturalGradient(Optimizer):
     """
 
     def __init__(self, learning_rate, cg_max_iterations=20, cg_damping=1e-3):
+        """
+        Creates a new natural gradient optimizer instance.
+
+        Args:
+            learning_rate: Learning rate, i.e. KL-divergence of distributions between optimization steps.
+            cg_max_iterations: Conjugate gradient solver max iterations.
+            cg_damping: Conjugate gradient solver damping factor.
+        """
         super(NaturalGradient, self).__init__()
 
         assert learning_rate > 0.0
-        self.kl_divergence = learning_rate
+        self.learning_rate = learning_rate
 
         self.solver = ConjugateGradient(max_iterations=cg_max_iterations, damping=cg_damping)
 
     def tf_step(self, time, variables, fn_loss, fn_kl_divergence, **kwargs):
+        """
+        Creates the TensorFlow operations for performing an optimization step.
 
-        # TODO: Comments will be cleaned up.
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            fn_loss: A callable returning the loss of the current model.
+            fn_kl_divergence: A callable returning the KL-divergence relative to the current model.
+            **kwargs: Additional arguments, not used.
 
-        # Optimize: argmin(delta) loss(theta + delta) s.t. kldiv = c
-        # Approximate:
-        # - kldiv = 0.5 * delta^T * F * delta
-        # - loss(theta + delta) = loss + grad(loss) * delta
+        Returns:
+            List of delta tensors corresponding to the updates for each optimized variable.
+        """
 
+        # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
+        # For more details, see our blogpost: [LINK]
+
+        # grad(kldiv)
+        kldiv_gradients = tf.gradients(ys=fn_kl_divergence(), xs=variables)
+
+        # Calculates the product x * F of a given vector x with the fisher matrix F.
+        # Incorporating the product prevents having to actually calculate the entire matrix explicitly.
+        def fisher_matrix_products(x):
+            # Gradient is not propagated through solver.
+            x = [tf.stop_gradient(input=delta) for delta in x]
+
+            # delta' * grad(kldiv)
+            x_kldiv_gradients = tf.add_n(inputs=[
+                tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(x, kldiv_gradients)
+            ])
+
+            # [delta' * F] = grad(delta' * grad(kldiv))
+            return tf.gradients(ys=x_kldiv_gradients, xs=variables)
+
+        # grad(loss)
         loss = fn_loss()
-        loss_gradient = tf.gradients(ys=loss, xs=variables)  # grad(loss)
-        kl_gradient = tf.gradients(ys=fn_kl_divergence(), xs=variables)  # grad(kl_div)
+        loss_gradients = tf.gradients(ys=loss, xs=variables)
 
-        # Approximate search direction
-        def fisher_matrix_product(x):
-            # Gradient is not propagated through solver
-            x = [tf.stop_gradient(input=t) for t in x]
+        # Solve the following system for delta' via the conjugate gradient solver.
+        # [delta' * F] * delta' = -grad(loss)
+        # --> delta'  (= lambda * delta)
+        deltas = self.solver.solve(fn_x=fisher_matrix_products, x_init=None, b=[-grad for grad in loss_gradients])
 
-            # grad(kl_div) * x
-            kl_gradient_x = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(grad * t)) for grad, t in zip(kl_gradient, x)])
+        # delta' * F
+        delta_fisher_matrix_products = fisher_matrix_products(x=deltas)
 
-            # F*x = grad(grad(kl_div) * x)
-            return tf.gradients(ys=kl_gradient_x, xs=variables)
+        # c' = 0.5 * delta' * F * delta'  (= lambda * c)
+        # TODO: Why constant and hence KL-divergence sometimes negative?
+        constant = 0.5 * tf.add_n(inputs=[
+            tf.reduce_sum(input_tensor=(delta_F * delta))
+            for delta_F, delta in zip(delta_fisher_matrix_products, deltas)
+        ])
 
-        fisher_matrix_product = tf.make_template(name_='fisher_matrix_product', func_=fisher_matrix_product)
+        # Natural gradient step if constant > 0
+        def natural_gradient_step():
+            # lambda = sqrt(c' / c)
+            lagrange_multiplier = tf.sqrt(x=(constant / self.learning_rate))
 
-        # [F*[delta*lambda]] * [delta*lambda] = -grad(loss)
-        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradient])
-        fisher = fisher_matrix_product(x=deltas)
-
-        # [c*lambda^2] = 0.5 * [F*[delta*lambda]] * [delta*lambda]
-        constant = 0.5 * tf.add_n(inputs=[tf.reduce_sum(input_tensor=(delta * f)) for delta, f in zip(deltas, fisher)])
-
-
-        # why constant sometimes negative?
-        # with tf.control_dependencies((tf.assert_greater(x=constant, y=0.0, message='constant <= epsilon!'),)):
-
-        def true_fn():
-            # lambda = sqrt([c*lambda^2] / c)
-            lagrange_multiplier = tf.sqrt(x=(constant / self.kl_divergence))
-            # [delta*lambda] / lambda
+            # delta = delta' / lambda
             estimated_deltas = [delta / lagrange_multiplier for delta in deltas]
-            # deriv(loss)^T * sum(delta)
-            estimated_improvement = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(grad * delta))
-                                                     for grad, delta in zip(loss_gradient, estimated_deltas)])
 
+            # improvement = grad(loss) * delta  (= loss_new - loss_old)
+            # TODO: line search doesn't use estimated_improvement !!!
+            estimated_improvement = tf.add_n(inputs=[
+                tf.reduce_sum(input_tensor=(grad * delta))
+                for grad, delta in zip(loss_gradients, estimated_deltas)
+            ])
+
+            # Apply natural gradient improvement.
             applied = self.apply_step(variables=variables, deltas=estimated_deltas)
 
             with tf.control_dependencies(control_inputs=(applied,)):
+                # Trivial operation to enforce control dependency
                 return [estimated_delta + 0.0 for estimated_delta in estimated_deltas]
 
-        def false_fn():
+        # Zero step if constant <= 0
+        def zero_step():
             return [tf.zeros_like(tensor=delta) for delta in deltas]
 
-        # NOTE: line search doesn't use estimated_improvement !!!
-
-        return tf.cond(pred=(constant > 0.0), true_fn=true_fn, false_fn=false_fn)
+        # Natural gradient step only works if constant > 0
+        return tf.cond(pred=(constant > 0.0), true_fn=natural_gradient_step, false_fn=zero_step)

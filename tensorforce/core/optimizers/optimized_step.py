@@ -25,8 +25,22 @@ from tensorforce.core.optimizers.solvers import LineSearch
 
 
 class OptimizedStep(MetaOptimizer):
+    """
+    The optimized-shep meta optimizer applies line search to the proposed optimization step of  
+    another optimizer to find a more optimal step size.
+    """
 
     def __init__(self, optimizer, max_iterations=10, accept_ratio=0.1, ls_mode='exponential', ls_parameter=0.5):
+        """
+        Creates a new optimized step meta optimizer instance.
+
+        Args:
+            optimizer: The optimizer which is modified by this meta optimizer.
+            max_iterations: Maximum number of line search iterations.
+            accept ratio: Trust-region ???????????????? acceptance ratio. ????????????????
+            ls_mode: Line search mode, see LineSearch solver.
+            ls_parameter: Line search parameter, see LineSearch solver.
+        """
         super(OptimizedStep, self).__init__(optimizer=optimizer)
 
         self.solver = LineSearch(
@@ -37,6 +51,20 @@ class OptimizedStep(MetaOptimizer):
         )
 
     def tf_step(self, time, variables, fn_loss, fn_reference=None, fn_compare=None, **kwargs):
+        """
+        Creates the TensorFlow operations for performing an optimization step.
+
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            fn_loss: A callable returning the loss of the current model.
+            fn_reference: ??? coming soon ????????????????
+            fn_compare: ??? coming soon ????????????????
+            **kwargs: Additional arguments, not used.
+
+        Returns:
+            List of delta tensors corresponding to the updates for each optimized variable.
+        """
         if (fn_reference is None) != (fn_compare is None):
             raise TensorForceError("Requires both arguments 'fn_reference' and 'fn_compare'!")
 

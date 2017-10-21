@@ -52,7 +52,7 @@ class ConjugateGradient(Iterative):
 
     def __init__(self, max_iterations, damping):
         """
-        Creates a new solver instance.
+        Creates a new conjugate gradient solver instance.
 
         Args:
             max_iterations: Maximum number of iterations before termination.

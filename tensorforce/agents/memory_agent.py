@@ -30,7 +30,7 @@ class MemoryAgent(Agent):
 
     default_config = dict(
         batch_size=1,
-        memory_capacity=1e6,
+        memory_capacity=1e5,
         memory=dict(
             type='replay',
             random_sampling=True

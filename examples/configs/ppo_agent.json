@@ -3,12 +3,12 @@
     "step_optimizer": {
         "type": "adam",
         "learning_rate": 1e-2
-        },
+    },
     "optimization_steps": 5,
 
     "discount": 0.99,
     "normalize_rewards": false,
-    "entropy_regularization": null,
+    "entropy_regularization": 1e-2,
     "gae_lambda": null,
     "likelihood_ratio_clipping": 0.2,
 

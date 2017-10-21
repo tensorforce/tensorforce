@@ -26,7 +26,7 @@ class Iterative(Solver):
 
     def __init__(self, max_iterations):
         """
-        Creates a new solver instance.
+        Creates a new iterative solver instance.
 
         Args:
             max_iterations: Maximum number of iterations before termination.
@@ -48,7 +48,7 @@ class Iterative(Solver):
         Args:
             fn_x: A callable returning an expression $f(x)$ given $x$.
             x_init: Initial solution guess $x_0$.
-            *args: Further solver-specific arguments.
+            *args: Additional solver-specific arguments.
 
         Returns:
             A solution $x$ to the problem as given by the solver.
@@ -71,7 +71,7 @@ class Iterative(Solver):
 
         Args:
             x_init: Initial solution guess $x_0$.
-            *args: Further solver-specific arguments.
+            *args: Additional solver-specific arguments.
 
         Returns:
             Initial arguments for tf_step.
@@ -86,7 +86,7 @@ class Iterative(Solver):
         Args:
             x: Current solution estimate.
             iteration: Current iteration counter.
-            *args: Further solver-specific arguments.
+            *args: Additional solver-specific arguments.
 
         Returns:
             Updated arguments for next iteration.
@@ -101,7 +101,7 @@ class Iterative(Solver):
         Args:
             x: Current solution estimate.
             iteration: Current iteration counter.
-            *args: Further solver-specific arguments.
+            *args: Additional solver-specific arguments.
 
         Returns:
             True if another iteration should be performed.

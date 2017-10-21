@@ -25,10 +25,20 @@ from tensorforce.core.optimizers import Optimizer
 
 class Synchronization(Optimizer):
     """
-    Synchronization optimizer updating variables periodically to the value of a set of source variables.
+    Synchronization optimizer updating variables periodically to the value of a corresponding set  
+    of source variables.
     """
 
     def __init__(self, sync_frequency=1, update_weight=1.0):
+        """
+        Creates a new synchronization optimizer instance.
+
+        Args:
+            sync_frequency: The interval between optimization calls actually performing a  
+            synchronization step.
+            update_weight: The update weight, 1.0 meaning a full assignment of the source  
+            variables values.
+        """
         super(Synchronization, self).__init__()
 
         assert isinstance(sync_frequency, int) and sync_frequency > 0
@@ -38,6 +48,18 @@ class Synchronization(Optimizer):
         self.update_weight = update_weight
 
     def tf_step(self, time, variables, source_variables, **kwargs):
+        """
+        Creates the TensorFlow operations for performing an optimization step.
+
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            source_variables: List of source variables to synchronize with.
+            **kwargs: Additional arguments, not used.
+
+        Returns:
+            List of delta tensors corresponding to the updates for each optimized variable.
+        """
         assert all(util.shape(source) == util.shape(target) for source, target in zip(source_variables, variables))
 
         self.last_sync = tf.get_variable(
@@ -57,6 +79,7 @@ class Synchronization(Optimizer):
             last_sync_updated = self.last_sync.assign(value=time)
 
             with tf.control_dependencies(control_inputs=(applied, last_sync_updated)):
+                # Trivial operation to enforce control dependency
                 return [delta + 0.0 for delta in deltas]
 
         def no_sync():

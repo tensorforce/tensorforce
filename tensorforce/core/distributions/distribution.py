@@ -25,7 +25,7 @@ import tensorforce.core.distributions
 
 class Distribution(object):
     """
-    Base class for policy distributions
+    Base class for policy distributions.
     """
 
     def __init__(self, scope='distribution', summary_labels=None):
@@ -80,82 +80,86 @@ class Distribution(object):
 
     def tf_parameters(self, x):
         """
-        Creates the TensorFlow operations for parameterizing a distribution conditioned on the given input
+        Creates the TensorFlow operations for parameterizing a distribution conditioned on the  
+        given input.
 
         Args:
-            x: Input tensor which the distribution is conditioned on
+            x: Input tensor which the distribution is conditioned on.
 
         Returns:
-            Tuple of distribution parameter tensors
+            Tuple of distribution parameter tensors.
         """
         raise NotImplementedError
 
     def tf_sample(self, distr_params, deterministic):
         """
-        Creates the TensorFlow operations for sampling an action based on a distribution
+        Creates the TensorFlow operations for sampling an action based on a distribution.
 
         Args:
-            distr_params: Tuple of distribution parameter tensors
-            deterministic: Boolean input tensor indicating whether the maximum likelihood action should be returned
+            distr_params: Tuple of distribution parameter tensors.
+            deterministic: Boolean input tensor indicating whether the maximum likelihood action  
+            should be returned.
 
         Returns:
-            Sampled action tensor
+            Sampled action tensor.
         """
         raise NotImplementedError
 
     def tf_log_probability(self, distr_params, action):
         """
-        Creates the TensorFlow operations for calculating the log probability of an action for a distribution
+        Creates the TensorFlow operations for calculating the log probability of an action for a  
+        distribution.
 
         Args:
-            distr_params: Tuple of distribution parameter tensors
-            action: Action tensor
+            distr_params: Tuple of distribution parameter tensors.
+            action: Action tensor.
 
         Returns:
-            KL divergence tensor
+            KL divergence tensor.
         """
         raise NotImplementedError
 
     def tf_entropy(self, distr_params):
         """
-        Creates the TensorFlow operations for calculating the entropy of a distribution
+        Creates the TensorFlow operations for calculating the entropy of a distribution.
 
         Args:
-            distr_params: Tuple of distribution parameter tensors
+            distr_params: Tuple of distribution parameter tensors.
 
         Returns:
-            Entropy tensor
+            Entropy tensor.
         """
         raise NotImplementedError
 
     def tf_kl_divergence(self, distr_params1, distr_params2):
         """
-        Creates the TensorFlow operations for calculating the KL divergence between two distributions
+        Creates the TensorFlow operations for calculating the KL divergence between two  
+        distributions.
 
         Args:
-            distr_params1: Tuple of parameter tensors for first distribution
-            distr_params2: Tuple of parameter tensors for second distribution
+            distr_params1: Tuple of parameter tensors for first distribution.
+            distr_params2: Tuple of parameter tensors for second distribution.
 
         Returns:
-            KL divergence tensor
+            KL divergence tensor.
         """
         raise NotImplementedError
 
     def tf_regularization_loss(self):
         """
-        Creates the TensorFlow operations for the distribution regularization loss
+        Creates the TensorFlow operations for the distribution regularization loss.
 
         Returns:
-            Regularization loss tensor
+            Regularization loss tensor.
         """
         return None
 
     def get_variables(self, include_non_trainable=False):
         """
-        Returns the TensorFlow variables used by the distribution
+        Returns the TensorFlow variables used by the distribution.
 
         Returns:
-            List of variables
+            List of variables.
         """
         if include_non_trainable:
             return [self.all_variables[key] for key in sorted(self.all_variables)]
@@ -164,10 +168,10 @@ class Distribution(object):
 
     def get_summaries(self):
         """
-        Returns the TensorFlow summaries reported by the distribution
+        Returns the TensorFlow summaries reported by the distribution.
 
         Returns:
-            List of summaries
+            List of summaries.
         """
         return self.summaries
 

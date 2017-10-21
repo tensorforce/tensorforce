@@ -31,9 +31,27 @@ class GlobalOptimizer(MetaOptimizer):
     """
 
     def __init__(self, optimizer):
+        """
+        Creates a new ??? optimizer instance.
+
+        Args:
+            optimizer: The optimizer which is modified by this meta optimizer.
+        """
         super(GlobalOptimizer, self).__init__(optimizer=optimizer)
 
     def tf_step(self, time, variables, global_variables, **kwargs):
+        """
+        Creates the TensorFlow operations for performing an optimization step.
+
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            global_variables: List of global variables to apply the proposed optimization step to.
+            **kwargs: ??? coming soon
+
+        Returns:
+            List of delta tensors corresponding to the updates for each optimized variable.
+        """
         assert all(util.shape(global_var) == util.shape(local_var) for global_var, local_var in zip(global_variables, variables))
 
         local_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)

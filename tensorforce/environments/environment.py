@@ -29,24 +29,26 @@ class Environment(object):
         """
         Close environment. No other method calls possible afterwards.
         """
-        raise NotImplementedError
+        pass
 
     def reset(self):
         """
         Reset environment and setup for new episode.
 
-        Returns: initial state of resetted environment.
+        Returns:
+            initial state of resetted environment.
         """
         raise NotImplementedError
 
     def execute(self, action):
         """
-        Executes action, observes next state and reward.
+        Executes action, observes next state(s) and reward.
 
         Args:
             action: Action to execute.
 
-        Returns: tuple of state (tuple), terminal_state (bool), and reward (float).
+        Returns:
+            (Dict of) next state(s), boolean indicating terminal, and reward signal.
         """
         raise NotImplementedError
 

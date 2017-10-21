@@ -20,8 +20,8 @@ import tensorforce.core.optimizers.solvers
 
 class Solver(object):
     """
-    Generic TensorFlow solver which solves a (not yet further specified) equation/optimization  
-    problem.
+    Generic TensorFlow-based solver which solves a not yet further specified  
+    equation/optimization problem.
     """
 
     def __init__(self):
@@ -37,7 +37,7 @@ class Solver(object):
 
         Args:
             fn_x: A callable returning an expression $f(x)$ given $x$.
-            *args: Further solver-specific arguments.
+            *args: Additional solver-specific arguments.
 
         Returns:
             A solution $x$ to the problem as given by the solver.

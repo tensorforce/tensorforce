@@ -28,7 +28,7 @@ class LineSearch(Iterative):
 
     def __init__(self, max_iterations, accept_ratio, mode, parameter):
         """
-        Creates a new solver instance.
+        Creates a new line search solver instance.
 
         Args:
             max_iterations: Maximum number of iterations before termination.

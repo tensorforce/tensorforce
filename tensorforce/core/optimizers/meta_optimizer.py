@@ -22,13 +22,18 @@ from tensorforce.core.optimizers import Optimizer
 
 class MetaOptimizer(Optimizer):
     """
-    A 'meta optimizer' receives an optimizer, obtains an optimization result,
-    and then modifies the result using further heuristics. For example, the natural gradient
-    optimizer obtains a result using a conjugate gradient solver, then refines the result
-    using line search.
+    A meta optimizer takes the optimization implemented by another optimizer and  
+    modifies/optimizes its proposed result. For example, line search might be applied to find a  
+    more optimal step size.
     """
 
     def __init__(self, optimizer):
+        """
+        Creates a new meta optimizer instance.
+
+        Args:
+            optimizer: The optimizer which is modified by this meta optimizer.
+        """
         super(MetaOptimizer, self).__init__()
         self.optimizer = Optimizer.from_spec(spec=optimizer)
 

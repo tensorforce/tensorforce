@@ -33,3 +33,14 @@ class Exploration(object):
         )
         assert isinstance(exploration, Exploration)
         return exploration
+
+    @staticmethod
+    def from_config(config, kwargs=None):
+        """
+        Creates an exploration object from a specification dict.
+        """
+        return util.get_object(
+            obj=config,
+            predefined_objects=tensorforce.core.explorations.explorations,
+            kwargs=kwargs
+        )

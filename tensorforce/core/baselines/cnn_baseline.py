@@ -22,12 +22,12 @@ from tensorforce.core.baselines import NetworkBaseline
 
 class CNNBaseline(NetworkBaseline):
     """
-    CNN baseline (single-state) consisting of convolutional layers followed by dense layers
+    CNN baseline (single-state) consisting of convolutional layers followed by dense layers.
     """
 
     def __init__(self, conv_sizes, dense_sizes, scope='cnn-baseline', summary_labels=()):
         """
-        CNN baseline
+        CNN baseline.
 
         Args:
             conv_sizes: List of convolutional layer sizes
@@ -37,7 +37,8 @@ class CNNBaseline(NetworkBaseline):
         layers_spec = []
         for size in conv_sizes:
             layers_spec.append({'type': 'conv2d', 'size': size, 'stride': 1, 'window': 3})
-        # First layer has larger window
+
+        # First layer has a larger window by convention.
         layers_spec[0]['window'] = 5
 
         layers_spec.append({'type': 'flatten'})  # TODO: change to max pooling!

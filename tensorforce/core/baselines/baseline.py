@@ -26,7 +26,7 @@ import tensorforce.core.baselines
 
 class Baseline(object):
     """
-    Base class for baseline value functions
+    Base class for baseline value functions.
     """
 
     def __init__(self, scope='baseline', summary_labels=None):
@@ -61,7 +61,7 @@ class Baseline(object):
 
     def tf_predict(self, states):
         """
-        Creates the TensorFlow operations for predicting the value function of given states
+        Creates the TensorFlow operations for predicting the value function of given states.
         Args:
             states: State tensors
         Returns:
@@ -71,7 +71,9 @@ class Baseline(object):
 
     def tf_loss(self, states, reward):
         """
-        Creates the TensorFlow operations for calculating the L2 loss between predicted state values and actual rewards
+        Creates the TensorFlow operations for calculating the L2 loss between predicted
+        state values and actual rewards.
+
         Args:
             states: State tensors
             reward: Reward tensor
@@ -83,7 +85,7 @@ class Baseline(object):
 
     def tf_regularization_loss(self):
         """
-        Creates the TensorFlow operations for the baseline regularization loss
+        Creates the TensorFlow operations for the baseline regularization loss/
 
         Returns:
             Regularization loss tensor
@@ -92,7 +94,7 @@ class Baseline(object):
 
     def get_variables(self, include_non_trainable=False):
         """
-        Returns the TensorFlow variables used by the baseline
+        Returns the TensorFlow variables used by the baseline.
 
         Returns:
             List of variables

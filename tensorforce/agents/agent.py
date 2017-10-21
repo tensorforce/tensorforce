@@ -206,7 +206,7 @@ class Agent(object):
         for preprocessing in self.preprocessing.values():
             preprocessing.reset()
 
-    def act(self, state, deterministic=False):
+    def act(self, states, deterministic=False):
         """
         Return action(s) for given state(s). First, the states are preprocessed using the given preprocessing
         configuration. Then, the states are passed to the model to calculate the desired action(s) to execute.
@@ -215,7 +215,7 @@ class Agent(object):
         configuration.
 
         Args:
-            state: One state (usually a value tuple) or dict of states if multiple states are expected.
+            states: One state (usually a value tuple) or dict of states if multiple states are expected.
             deterministic: If true, no exploration and sampling is applied.
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
@@ -226,13 +226,13 @@ class Agent(object):
         self.current_internals = self.next_internals
 
         if self.unique_state:
-            self.current_states = dict(state=state)
+            self.current_states = dict(state=np.asarray(states))
         else:
-            self.current_states = state
+            self.current_states = {name: np.asarray(state) for name, state in states.items()}
 
         # Preprocessing
         for name, preprocessing in self.preprocessing.items():
-            self.current_states[name] = preprocessing.process(state=self.current_state[name])
+            self.current_states[name] = preprocessing.process(state=self.current_states[name])
 
         # Retrieve action
         self.current_actions, self.next_internals, self.timestep = self.model.act(

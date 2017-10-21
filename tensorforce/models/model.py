@@ -595,14 +595,16 @@ class Model(object):
         """
         return list(self.internal_inits)
 
-    def act(self, states, internals, deterministic=False, batched=False):
+    def act(self, states, internals, deterministic=False):
+        name = next(iter(self.states_spec))
+        batched = (states[name].ndim != len(self.states_spec[name]['shape']))
+
         fetches = list(self.actions_and_internals)
         fetches.append(self.timestep)
 
         if batched:
             feed_dict = {state_input: states[name] for name, state_input in self.state_inputs.items()}
             feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internal_inputs)})
-
         else:
             feed_dict = {state_input: (states[name],) for name, state_input in self.state_inputs.items()}
             feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internal_inputs)})
@@ -611,8 +613,9 @@ class Model(object):
 
         actions, internals, timestep = self.session.run(fetches=fetches, feed_dict=feed_dict)
 
-        actions = {name: action[0] for name, action in actions.items()}
-        internals = [internal[0] for internal in internals]
+        if not batched:
+            actions = {name: action[0] for name, action in actions.items()}
+            internals = [internal[0] for internal in internals]
 
         return actions, internals, timestep
 

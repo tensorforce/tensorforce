@@ -57,7 +57,7 @@ class MinimalTest(Environment):
         else:
             return {'state{}'.format(n): state for n, state in enumerate(self.state)}
 
-    def execute(self, action):
+    def execute(self, actions):
         if self.single_state_action:
             action = (action,)
         else:

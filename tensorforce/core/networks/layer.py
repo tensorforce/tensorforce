@@ -68,22 +68,22 @@ class Layer(object):
 
     def tf_apply(self, x):
         """
-        Creates the TensorFlow operations for applying the layer to the given input
+        Creates the TensorFlow operations for applying the layer to the given input.
 
         Args:
-            x: Layer input tensor
+            x: Layer input tensor.
 
         Returns:
-            Layer output tensor
+            Layer output tensor.
         """
         raise NotImplementedError
 
     def tf_regularization_loss(self):
         """
-        Creates the TensorFlow operations for the layer regularization loss
+        Creates the TensorFlow operations for the layer regularization loss.
 
         Returns:
-            Regularization loss tensor
+            Regularization loss tensor.
         """
         return None
 
@@ -101,16 +101,16 @@ class Layer(object):
         Returns the TensorFlow tensors for internal state initializations.
 
         Returns:
-            List of internal state initialization tensors
+            List of internal state initialization tensors.
         """
         return list()
 
     def get_variables(self, include_non_trainable=False):
         """
-        Returns the TensorFlow variables used by the layer
+        Returns the TensorFlow variables used by the layer.
 
         Returns:
-            List of variables
+            List of variables.
         """
         if include_non_trainable:
             return [self.all_variables[key] for key in sorted(self.all_variables)]
@@ -119,10 +119,10 @@ class Layer(object):
 
     def get_summaries(self):
         """
-        Returns the TensorFlow summaries reported by the layer
+        Returns the TensorFlow summaries reported by the layer.
 
         Returns:
-            List of summaries
+            List of summaries.
         """
         return self.summaries
 
@@ -141,7 +141,9 @@ class Layer(object):
 
 
 class Flatten(Layer):
-    """Flatten layer. Utility class to reshape inputs."""
+    """
+    Flatten layer reshaping the input.
+    """
 
     def __init__(self, scope='flatten', summary_labels=()):
         super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
@@ -151,14 +153,16 @@ class Flatten(Layer):
 
 
 class Nonlinearity(Layer):
-    """Non-linearity layer. Applies a non-linear transformation."""
+    """
+    Non-linearity layer applying a non-linear transformation.
+    """
 
     def __init__(self, name='relu', scope='nonlinearity', summary_labels=()):
         """
         Non-linearity layer.
 
         Args:
-            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', or 'tanh'/
+            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', or 'tanh'.
         """
         self.name = name
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
@@ -201,22 +205,26 @@ class Nonlinearity(Layer):
 
 
 class Linear(Layer):
-    """Linear fully connected layer."""
+    """
+    Linear fully-connected layer.
+    """
 
-    def __init__(self, size, weights=None, bias=True, l2_regularization=0.0, scope='linear', summary_labels=()):
+    def __init__(self, size, weights=None, bias=True, l2_regularization=0.0, l1_regularization=0.0, scope='linear', summary_labels=()):
         """
         Linear layer.
 
         Args:
-            size: Layer size
-            weights: Weight initialization, random if None
-            bias: Bias initialization, random if True, no bias added if False
-            l2_regularization: L2 regularization weight
+            size: Layer size.
+            weights: Weight initialization, random if None.
+            bias: Bias initialization, random if True, no bias added if False.
+            l2_regularization: L2 regularization weight.
+            l1_regularization: L1 regularization weight.
         """
         self.size = size
         self.weights_init = weights
         self.bias_init = bias
         self.l2_regularization = l2_regularization
+        self.l1_regularization = l1_regularization
         super(Linear, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
@@ -311,19 +319,25 @@ class Linear(Layer):
         return x
 
     def tf_regularization_losses(self):
-        if self.l2_regularization == 0.0:
-            return super(Linear, self).tf_regularization_loss()
-
         if super(Linear, self).tf_regularization_loss() is None:
             losses = list()
         else:
             losses = [super(Linear, self).tf_regularization_loss()]
 
-        losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.weights))
-        if self.bias is not None:
-            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
+        if self.l2_regularization > 0.0:
+            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.weights))
+            if self.bias is not None:
+                losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
 
-        return tf.add_n(inputs=losses)
+        if self.l1_regularization > 0.0:
+            losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.weights)))
+            if self.bias is not None:
+                losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.bias)))
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
 
 
 class Dense(Layer):
@@ -331,17 +345,27 @@ class Dense(Layer):
     Dense layer, i.e. linear fully connected layer with subsequent non-linearity.
     """
 
-    def __init__(self, size, bias=True, activation='tanh', l2_regularization=0.0, scope='dense', summary_labels=()):
+    def __init__(
+        self,
+        size,
+        bias=True,
+        activation='tanh',
+        l2_regularization=0.0,
+        l1_regularization=0.0,
+        scope='dense',
+        summary_labels=()
+    ):
         """
         Dense layer.
 
         Args:
-            size: Layer size
-            bias: If true, bias is added
-            activation: Type of nonlinearity
-            l2_regularization: L2 regularization weight
+            size: Layer size.
+            bias: If true, bias is added.
+            activation: Type of nonlinearity.
+            l2_regularization: L2 regularization weight.
+            l1_regularization: L1 regularization weight.
         """
-        self.linear = Linear(size=size, bias=bias, l2_regularization=l2_regularization, summary_labels=summary_labels)
+        self.linear = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
@@ -379,12 +403,26 @@ class Dense(Layer):
         return layer_variables + linear_variables + nonlinearity_variables
 
 
-class Conv2d(Layer):
-    """A 2-dimensional convolutional layer."""
+class Conv1d(Layer):
+    """
+    1-dimensional convolutional layer.
+    """
 
-    def __init__(self, size, window=3, stride=1, padding='SAME', bias=False, activation='relu', l2_regularization=0.0, scope='conv2d', summary_labels=()):
+    def __init__(
+        self,
+        size,
+        window=3,
+        stride=1,
+        padding='SAME',
+        bias=True,
+        activation='relu',
+        l2_regularization=0.0,
+        l1_regularization=0.0,
+        scope='conv1d',
+        summary_labels=()
+    ):
         """
-        Convolutional layer.
+        1D convolutional layer.
 
         Args:
             size: Number of filters
@@ -394,6 +432,7 @@ class Conv2d(Layer):
             bias: If true, a bias is added
             activation: Type of nonlinearity
             l2_regularization: L2 regularization weight
+            l1_regularization: L1 regularization weight
         """
         self.size = size
         self.window = window
@@ -401,6 +440,101 @@ class Conv2d(Layer):
         self.padding = padding
         self.bias = bias
         self.l2_regularization = l2_regularization
+        self.l1_regularization = l1_regularization
+        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        super(Conv1d, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x):
+        if util.rank(x) != 3:
+            raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 3'.format(util.rank(x)))
+
+        filters_shape = (self.window, x.shape[2].value, self.size)
+        stddev = min(0.1, sqrt(2.0 / self.size))
+        filters_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
+        self.filters = tf.get_variable(name='W', shape=filters_shape, dtype=tf.float32, initializer=filters_init)
+        x = tf.nn.conv2d(input=x, filter=self.filters, strides=self.stride, padding=self.padding)
+
+        if self.bias:
+            bias_shape = (self.size,)
+            bias_init = tf.zeros_initializer(dtype=tf.float32)
+            self.bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=bias_init)
+            x = tf.nn.bias_add(value=x, bias=self.bias)
+
+        x = self.nonlinearity.apply(x=x)
+
+        if 'activations' in self.summary_labels:
+            summary = tf.summary.histogram(name='activations', values=x)
+            self.summaries.append(summary)
+
+        return x
+
+    def tf_regularization_loss(self):
+        if super(Conv1d, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Conv2d, self).tf_regularization_loss()]
+
+        if self.l2_regularization > 0.0:
+            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
+            if self.bias is not None:
+                losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
+
+        if self.l1_regularization > 0.0:
+            losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.filters)))
+            if self.bias is not None:
+                losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.bias)))
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
+    def get_variables(self, include_non_trainable=False):
+        layer_variables = super(Conv1d, self).get_variables(include_non_trainable=include_non_trainable)
+
+        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+
+        return layer_variables + nonlinearity_variables
+
+
+class Conv2d(Layer):
+    """
+    2-dimensional convolutional layer.
+    """
+
+    def __init__(
+        self,
+        size,
+        window=3,
+        stride=1,
+        padding='SAME',
+        bias=True,
+        activation='relu',
+        l2_regularization=0.0,
+        l1_regularization=0.0,
+        scope='conv2d',
+        summary_labels=()
+    ):
+        """
+        2D convolutional layer.
+
+        Args:
+            size: Number of filters
+            window: Convolution window size
+            stride: Convolution stride
+            padding: Convolution padding, one of 'VALID' or 'SAME'
+            bias: If true, a bias is added
+            activation: Type of nonlinearity
+            l2_regularization: L2 regularization weight
+            l1_regularization: L1 regularization weight
+        """
+        self.size = size
+        self.window = window
+        self.stride = stride
+        self.padding = padding
+        self.bias = bias
+        self.l2_regularization = l2_regularization
+        self.l1_regularization = l1_regularization
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
 
@@ -420,6 +554,8 @@ class Conv2d(Layer):
             self.bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=bias_init)
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
+        x = self.nonlinearity.apply(x=x)
+
         if 'activations' in self.summary_labels:
             summary = tf.summary.histogram(name='activations', values=x)
             self.summaries.append(summary)
@@ -427,31 +563,46 @@ class Conv2d(Layer):
         return x
 
     def tf_regularization_loss(self):
-        if self.l2_regularization == 0.0:
-            return super(Conv2d, self).tf_regularization_loss()
-
         if super(Conv2d, self).tf_regularization_loss() is None:
             losses = list()
         else:
             losses = [super(Conv2d, self).tf_regularization_loss()]
 
-        losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
-        if self.bias is not None:
-            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
+        if self.l2_regularization > 0.0:
+            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
+            if self.bias is not None:
+                losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.bias))
 
-        return tf.add_n(inputs=losses)
+        if self.l1_regularization > 0.0:
+            losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.filters)))
+            if self.bias is not None:
+                losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.bias)))
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
+    def get_variables(self, include_non_trainable=False):
+        layer_variables = super(Conv2d, self).get_variables(include_non_trainable=include_non_trainable)
+
+        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+
+        return layer_variables + nonlinearity_variables
 
 
 class Lstm(Layer):
-    """Long-term-short-term memory layer."""
+    """
+    Long short-term memory layer.
+    """
 
     def __init__(self, size, dropout=None, scope='lstm', summary_labels=()):
         """
         LSTM layer.
 
         Args:
-            size: LSTM size
-            dropout: Dropout rate
+            size: LSTM size.
+            dropout: Dropout rate.
         """
         self.size = size
         self.dropout = dropout

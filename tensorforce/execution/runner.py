@@ -78,17 +78,17 @@ class Runner(object):
 
             while True:
 
-                action = self.agent.act(state=state, deterministic=deterministic)
+                action = self.agent.act(states=state, deterministic=deterministic)
 
                 if self.repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(self.repeat_actions):
-                        state, terminal, step_reward = self.environment.execute(action=action)
+                        state, terminal, step_reward = self.environment.execute(actions=action)
                         reward += step_reward
                         if terminal:
                             break
                 else:
-                    state, terminal, reward = self.environment.execute(action=action)
+                    state, terminal, reward = self.environment.execute(actions=action)
 
                 self.agent.observe(terminal=terminal, reward=reward)
 

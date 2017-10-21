@@ -40,12 +40,12 @@ class Environment(object):
         """
         raise NotImplementedError
 
-    def execute(self, action):
+    def execute(self, actions):
         """
         Executes action, observes next state(s) and reward.
 
         Args:
-            action: Action to execute.
+            actions: Actions to execute.
 
         Returns:
             (Dict of) next state(s), boolean indicating terminal, and reward signal.

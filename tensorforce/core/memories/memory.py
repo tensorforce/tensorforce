@@ -21,11 +21,15 @@ from tensorforce import util
 import tensorforce.core.memories
 
 
+#TODO implement in TensorFlow
 class Memory(object):
-    """Abstract memory class."""
+    """
+    Abstract memory class.
+    """
 
     def __init__(self, capacity, states_spec, actions_spec):
         """
+        Generic memory without sampling strategy implemented.
 
         Args:
             capacity: Maximum size of memory
@@ -72,8 +76,6 @@ class Memory(object):
         Args:
             loss_per_instance:
 
-        Returns:
-
         """
         raise NotImplementedError
 
@@ -88,14 +90,14 @@ class Memory(object):
             terminals:
             rewards:
 
-        Returns:
-
         """
         raise NotImplementedError
 
     @staticmethod
     def from_spec(spec, kwargs=None):
-        """Creates a memory from a specification dict."""
+        """
+        Creates a memory from a specification dict.
+        """
         memory = util.get_object(
             obj=spec,
             predefined_objects=tensorforce.core.memories.memories,

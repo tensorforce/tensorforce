@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Replay memory implementing priotised experience replay.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -29,16 +25,23 @@ from tensorforce import util, TensorForceError
 from tensorforce.core.memories import Memory
 
 
+#TODO update samping strategy
+#TODO implement in TF
 class PrioritizedReplay(Memory):
+    """
+    Prioritised replay sampling based on loss per experience.
+    """
 
     def __init__(self, capacity, states_spec, actions_spec, prioritization_weight=1.0):
         super(PrioritizedReplay, self).__init__(capacity, states_spec, actions_spec)
         self.prioritization_weight = prioritization_weight
         self.internals_config = None
-        self.observations = list()  # stores (priority, observation) pairs in reverse priority order
+        # Stores (priority, observation) pairs in reverse priority order.
+        self.observations = list()
         self.none_priority_index = 0
         self.batch_indices = None
-        self.last_observation = None  # stores last observation until next_state value is known
+        # Stores last observation until next_state value is known.
+        self.last_observation = None
 
     def add_observation(self, states, internals, actions, terminal, reward):
         if self.internals_config is None and internals is not None:
@@ -126,8 +129,6 @@ class PrioritizedReplay(Memory):
         
         Args:
             loss_per_instance: 
-
-        Returns:
 
         """
         if self.batch_indices is None:

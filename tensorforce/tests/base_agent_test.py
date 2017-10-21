@@ -122,38 +122,64 @@ class BaseAgentTest(BaseTest):
         if self.__class__.exclude_multi:
             return
 
+        exclude_bool = self.__class__.exclude_bool
+        exclude_int = self.__class__.exclude_int
+        exclude_float = self.__class__.exclude_float
+        exclude_bounded = self.__class__.exclude_bounded
+
         class CustomNetwork(LayerBasedNetwork):
+
             def tf_apply(self, x, internals, return_internals=False):
-                layer01 = Dense(size=32, scope='state0-1')
-                self.add_layer(layer=layer01)
-                layer02 = Dense(size=32, scope='state0-2')
-                self.add_layer(layer=layer02)
-                x0 = layer02.apply(x=layer01.apply(x=x['state0']))
+                if exclude_bool:
+                    x0 = 1.0
+                else:
+                    layer01 = Dense(size=32, scope='state0-1')
+                    self.add_layer(layer=layer01)
+                    layer02 = Dense(size=32, scope='state0-2')
+                    self.add_layer(layer=layer02)
+                    x0 = layer02.apply(x=layer01.apply(x=x['state0']))
 
-                layer11 = Dense(size=32, scope='state1-1')
-                self.add_layer(layer=layer11)
-                layer12 = Dense(size=32, scope='state1-2')
-                self.add_layer(layer=layer12)
-                x1 = layer12.apply(x=layer11.apply(x=x['state1']))
+                if exclude_int:
+                    x1 = 1.0
+                else:
+                    layer11 = Dense(size=32, scope='state1-1')
+                    self.add_layer(layer=layer11)
+                    layer12 = Dense(size=32, scope='state1-2')
+                    self.add_layer(layer=layer12)
+                    x1 = layer12.apply(x=layer11.apply(x=x['state1']))
 
-                layer21 = Dense(size=32, scope='state2-1')
-                self.add_layer(layer=layer21)
-                layer22 = Dense(size=32, scope='state2-2')
-                self.add_layer(layer=layer22)
-                x2 = layer22.apply(x=layer21.apply(x=x['state2']))
+                if exclude_float:
+                    x2 = 1.0
+                else:
+                    layer21 = Dense(size=32, scope='state2-1')
+                    self.add_layer(layer=layer21)
+                    layer22 = Dense(size=32, scope='state2-2')
+                    self.add_layer(layer=layer22)
+                    x2 = layer22.apply(x=layer21.apply(x=x['state2']))
 
-                layer31 = Dense(size=32, scope='state3-1')
-                self.add_layer(layer=layer31)
-                layer32 = Dense(size=32, scope='state3-2')
-                self.add_layer(layer=layer32)
-                x3 = layer32.apply(x=layer31.apply(x=x['state3']))
+                if exclude_bounded:
+                    x3 = 1.0
+                else:
+                    layer31 = Dense(size=32, scope='state3-1')
+                    self.add_layer(layer=layer31)
+                    layer32 = Dense(size=32, scope='state3-2')
+                    self.add_layer(layer=layer32)
+                    x3 = layer32.apply(x=layer31.apply(x=x['state3']))
 
                 x = x0 * x1 * x2 * x3
                 return (x, list()) if return_internals else x
 
-        environment = MinimalTest(
-            specification=[('bool', ()), ('int', (2,)), ('float', (1,)), ('bounded-float', (1, 1))]
-        )
+        specification = list()
+        if not exclude_bool:
+            specification.append(('bool', ()))
+        if not exclude_int:
+            specification.append(('int', (2,)))
+        if not exclude_float:
+            specification.append(('float', (1,)))
+        if not exclude_bounded:
+            specification.append(('bounded-float', (1, 1)))
+
+        environment = MinimalTest(specification=specification)
 
         self.base_test(
             name='multi',

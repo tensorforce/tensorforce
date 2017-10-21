@@ -30,6 +30,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQFDAgent
     deterministic = True
+
     config = Configuration(
         batch_size=8,
         memory_capacity=800,
@@ -38,6 +39,8 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
         demo_memory_capacity=100,
         demo_sampling_ratio=0.2
     )
+
+    exclude_bounded = True
 
     def pre_run(self, agent, environment):
         demonstrations = list()

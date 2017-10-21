@@ -57,7 +57,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             batch_size=8,
             optimizer=dict(
                 type='evolutionary',
-                learning_rate=1e-4
+                learning_rate=1e-2
             )
         )
         self.base_test(name='evolutionary', environment=environment, network_spec=network_spec, config=config)

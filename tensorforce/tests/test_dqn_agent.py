@@ -28,9 +28,12 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQNAgent
     deterministic = True
+
     config = Configuration(
         batch_size=8,
         memory_capacity=800,
         first_update=80,
         target_update_frequency=20
     )
+
+    exclude_bounded = True

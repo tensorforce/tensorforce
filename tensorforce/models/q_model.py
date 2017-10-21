@@ -42,7 +42,7 @@ class QModel(DistributionModel):
                 update_weight=config.target_update_weight
             )
 
-        self.double_dqn = config.double_dqn
+        self.double_q_model = config.double_q_model
         self.huber_loss = config.huber_loss
 
         super(QModel, self).__init__(
@@ -51,13 +51,6 @@ class QModel(DistributionModel):
             network_spec=network_spec,
             config=config
         )
-
-    def initialize(self, custom_getter):
-        super(QModel, self).initialize(custom_getter)
-
-        # Target network internals
-        self.internal_inputs.extend(self.target_network.internal_inputs())
-        self.internal_inits.extend(self.target_network.internal_inits())
 
     def tf_q_value(self, embedding, distr_params, action, name):
         # Mainly for NAF.
@@ -77,20 +70,26 @@ class QModel(DistributionModel):
         return tf.reshape(tensor=delta, shape=(-1, collapsed_size))
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
-        embedding = self.network.apply(x={name: state[:-1] for name, state in states.items()}, internals=internals[:-1])
+        embedding = self.network.apply(
+            x={name: state[:-1] for name, state in states.items()},
+            internals=[internal[:-1] for internal in internals])
+
+        # Both networks can use the same internals, could that be a problem?
+        # Otherwise need to handle internals indices correctly everywhere
         target_embedding = self.target_network.apply(
             x={name: state[1:] for name, state in states.items()},
-            internals=internals[1:]
+            internals=[internal[1:] for internal in internals]
         )
-        deltas = list()
 
+        deltas = list()
         for name, distribution in self.distributions.items():
+
             distr_params = distribution.parameters(x=embedding)
             target_distr_params = distribution.parameters(x=target_embedding)  # TODO: separate distribution parameters?
 
             q_value = self.tf_q_value(embedding=embedding, distr_params=distr_params, action=actions[name][:-1], name=name)
 
-            if self.double_dqn:
+            if self.double_q_model:
                 action_taken = distribution.sample(distr_params=distr_params, deterministic=True)
             else:
                 action_taken = distribution.sample(distr_params=target_distr_params, deterministic=True)

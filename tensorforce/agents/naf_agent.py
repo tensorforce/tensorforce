@@ -85,7 +85,7 @@ class NAFAgent(MemoryAgent):
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
-        double_dqn=False,  # not documented!!!
+        double_q_model=False,  # not documented!!!
         huber_loss=0.0,  # not documented!!!
         # Logging
         log_level='info',

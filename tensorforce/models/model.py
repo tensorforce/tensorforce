@@ -369,17 +369,20 @@ class Model(object):
 
         # TODO: n-step cumulative reward (particularly for envs without terminal)
 
-        def fn_scan(cumulative, reward_and_terminal):
+        def cumulate(cumulative, reward_and_terminal):
             rew, term = reward_and_terminal
-            return tf.cond(
-                pred=term,
-                true_fn=(lambda: rew),
-                false_fn=(lambda: rew + cumulative * discount)
+            return tf.where(
+                condition=term,
+                x=rew,
+                y=(rew + cumulative * discount)
             )
 
+        # Reverse since reward cumulation is calculated right-to-left, but tf.scan only works left-to-right
         reward = tf.reverse(tensor=reward, axis=(0,))
         terminal = tf.reverse(tensor=terminal, axis=(0,))
-        reward = tf.scan(fn=fn_scan, elems=(reward, terminal), initializer=final_reward)
+
+        reward = tf.scan(fn=cumulate, elems=(reward, terminal), initializer=final_reward)
+
         return tf.reverse(tensor=reward, axis=(0,))
 
     def tf_actions_and_internals(self, states, internals, deterministic):

@@ -79,7 +79,6 @@ class Optimizer(object):
             The optimization operation.
         """
         deltas = self.step(time=time, variables=variables, **kwargs)
-        # deltas[0] = tf.Print(deltas[0], (deltas[0],))
         with tf.control_dependencies(control_inputs=deltas):
             return tf.no_op()
 

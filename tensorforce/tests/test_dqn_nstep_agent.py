@@ -28,8 +28,13 @@ class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQNNstepAgent
     deterministic = True
-    exclude_bounded = True
 
     config = Configuration(
-        batch_size=8
+        batch_size=8,
+        optimizer=dict(
+            type='adam',
+            learning_rate=1e-2
+        )
     )
+
+    exclude_bounded = True

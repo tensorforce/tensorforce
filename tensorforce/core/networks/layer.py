@@ -388,8 +388,8 @@ class Conv2d(Layer):
 
         Args:
             size: Number of filters
-            window: Convolution window size
-            stride: Convolution stride
+            window: Convolution window size. Either an int or tuple(int,int)
+            stride: Convolution stride. Either an int or tuple(int,int)
             padding: Convolution padding, one of 'VALID' or 'SAME'
             bias: If true, a bias is added
             activation: Type of nonlinearity
@@ -408,11 +408,13 @@ class Conv2d(Layer):
         if util.rank(x) != 4:
             raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 4'.format(util.rank(x)))
 
-        filters_shape = (self.window, self.window, x.shape[3].value, self.size)
+        win_h, win_w = self.window if type(self.window) is tuple else (self.window, self.window)
+        filters_shape = (win_h, win_w, x.shape[3].value, self.size)
         stddev = min(0.1, sqrt(2.0 / self.size))
         filters_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
         self.filters = tf.get_variable(name='W', shape=filters_shape, dtype=tf.float32, initializer=filters_init)
-        x = tf.nn.conv2d(input=x, filter=self.filters, strides=(1, self.stride, self.stride, 1), padding=self.padding)
+        stride_h, stride_w = self.stride if type(self.stride) is tuple else (self.stride, self.stride)
+        x = tf.nn.conv2d(input=x, filter=self.filters, strides=(1, stride_h, stride_w, 1), padding=self.padding)
 
         if self.bias:
             bias_shape = (self.size,)

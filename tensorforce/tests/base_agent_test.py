@@ -24,7 +24,8 @@ from tensorforce.tests.base_test import BaseTest
 
 class BaseAgentTest(BaseTest):
     """
-    Base class for tests of fundamental Agent functionality, i.e. various action types and shapes and internal states.
+    Base class for tests of fundamental Agent functionality, i.e. various action types
+    and shapes and internal states.
     """
 
     config = None

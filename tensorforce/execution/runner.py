@@ -53,7 +53,14 @@ class Runner(object):
         self.episode_timesteps = history.get('episode_timesteps', list())
         self.episode_times = history.get('episode_times', list())
 
-    def run(self, timesteps=None, episodes=None, max_episode_timesteps=None, deterministic=False, episode_finished=None):
+    def run(
+        self,
+        timesteps=None,
+        episodes=None,
+        max_episode_timesteps=None,
+        deterministic=False,
+        episode_finished=None
+    ):
         """
         Runs the agent on the environment.
 
@@ -62,7 +69,9 @@ class Runner(object):
             episodes: Number of episodes
             max_episode_timesteps: Max number of timesteps per episode
             deterministic: Deterministic flag
-            episode_finished: Function handler taking a `Runner` argument and returning a boolean indicating whether to continue execution. For instance, useful for reporting intermediate performance or integrating termination conditions.
+            episode_finished: Function handler taking a `Runner` argument and returning a boolean indicating
+                whether to continue execution. For instance, useful for reporting intermediate performance or
+                integrating termination conditions.
         """
 
         # Keep track of episode reward and episode length for statistics.

@@ -16,10 +16,9 @@ TensorForce is built on top of TensorFlow and compatible with Python 2.7
 and &gt;3.5 and supports multiple state inputs and multi-dimensional
 actions to be compatible with Gym, Universe, and DeepMind lab.
 
-NOTE: We are currently in a code freeze as we are preparing the role-out
-of 0.3.0. The dev branch for the new release is available [here](https://github.com/reinforceio/tensorforce/compare/dev)
-and will be merged by end October latest. A new blogpost explaining
-the new architecture will be coming soon. 
+NOTE: We have just rolled out a major update introducing our new optimizers,
+which enable things such as natural gradients in pure TensorFlow. A new
+blog post will be available shortly.
 
 An introductory blog post can also be found [on our blog.](https://reinforce.io/blog/introduction-to-tensorforce)
 
@@ -120,13 +119,73 @@ provided configurations, e.g. to run the TRPO agent on CartPole, execute
 from the examples folder:
 
 ```bash
-python examples/openai_gym.py CartPole-v0 -a PPOAgent -c examples/configs/ppo_cartpole.json -n examples/configs/ppo_cartpole_network.json
+python examples/openai_gym.py CartPole-v0 -a ppo_agent -c examples/configs/ppo_agent.json -n examples/configs/ppo_network.json
 ```
 
 Documentation is available at
 [ReadTheDocs](http://tensorforce.readthedocs.io). We also have tests
 validating models on minimal environments which can be run from the main
 directory by executing `pytest`{.sourceCode}.
+
+Create and use agents
+---------------------
+
+To use TensorForce as a library without using the pre-defined simulation
+runners, simply install and import the library, then create an agent and
+use it as seen below (see documentation for all optional parameters):
+
+```python
+from tensorforce import Configuration
+from tensorforce.agents import PPOAgent
+
+config = Configuration(
+    batch_size=1000,
+    step_optimizer=dict(
+        type='adam',
+        learning_rate=1e-4
+    )
+)
+
+# Create a Proximal Policy Optimization agent
+agent = PPOAgent(
+    states_spec=dict(type='float', shape=(10,)),
+    actions_spec=dict(type='int', num_actions=10),
+    network_spec=[
+        dict(type='dense', size=64),
+        dict(type='dense', size=64)
+    ],
+    config=config
+)
+
+# Get new data from somewhere, e.g. a client to a web app
+client = MyClient('http://127.0.0.1', 8080)
+
+# Poll new state from client
+state = client.get_state()
+
+# Get prediction from agent, execute
+action = agent.act(state)
+reward = client.execute(action)
+
+# Add experience, agent automatically updates model according to batch size
+agent.observe(reward=reward, terminal=False)
+```
+
+Benchmarks
+----------
+
+We provide a seperate repository for benchmarking our algorithm implementations at
+[reinforceio/tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark).
+
+Docker containers for benchmarking (CPU and GPU) are available.
+
+This is a sample output for `CartPole-v0`, comparing VPG, TRPO and PPO:
+
+![example output](https://user-images.githubusercontent.com/14904111/29328011-52778284-81f1-11e7-8f70-6554ca9388ed.png)
+
+Please refer to the [tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark) repository
+for more information.
+
 
 Use with DeepMind lab
 ---------------------
@@ -159,57 +218,6 @@ Please note that we have not tried to reproduce any lab results yet, and
 these instructions just explain connectivity in case someone wants to
 get started there.
 
-Create and use agents
----------------------
-
-To use TensorForce as a library without using the pre-defined simulation
-runners, simply install and import the library, then create an agent and
-use it as seen below (see documentation for all optional parameters):
-
-```python
-from tensorforce import Configuration
-from tensorforce.agents import TRPOAgent
-from tensorforce.core.networks import layered_network_builder
-
-config = Configuration(
-    batch_size=100,
-    states=dict(shape=(10,), type='float'),
-    actions=dict(continuous=False, num_actions=2),
-    network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
-)
-
-# Create a Trust Region Policy Optimization agent
-agent = TRPOAgent(config=config)
-
-# Get new data from somewhere, e.g. a client to a web app
-client = MyClient('http://127.0.0.1', 8080)
-
-# Poll new state from client
-state = client.get_state()
-
-# Get prediction from agent, execute
-action = agent.act(state=state)
-reward = client.execute(action)
-
-# Add experience, agent automatically updates model according to batch size
-agent.observe(reward=reward, terminal=False)
-```
-
-Benchmarks
-----------
-
-We provide a seperate repository for benchmarking our algorithm implementations at
-[reinforceio/tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark).
-
-Docker containers for benchmarking (CPU and GPU) are available.
-
-This is a sample output for `CartPole-v0`, comparing VPG, TRPO and PPO:
-
-![example output](https://user-images.githubusercontent.com/14904111/29328011-52778284-81f1-11e7-8f70-6554ca9388ed.png)
-
-Please refer to the [tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark) repository
-for more information.
-
 
 Support and contact
 -------------------
@@ -239,5 +247,5 @@ If you use TensorForce in your academic research, we would be grateful if you co
 }
 ```
 
-We are also very grateful for our open source contributors (listed according to github): Islandman93, mryellow, beflix,
-trickmeyer, AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.
+We are also very grateful for our open source contributors (listed according to github): Islandman93, wassname, 
+trickmeyer, lefnire, mryellow, beflix,AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.

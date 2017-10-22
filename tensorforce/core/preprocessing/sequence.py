@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Comment
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -30,7 +26,6 @@ class Sequence(Preprocessor):
     """
     Concatenate `length` state vectors. Example: Used in Atari
     problems to create the Markov property.
-
     """
 
     def __init__(self, length=2):

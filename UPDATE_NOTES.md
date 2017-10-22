@@ -5,6 +5,13 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+22nd October 2017
+
+- BREAKING: We released a complete redesign including our new optimization module. Optimizers
+  which previously were only available in Python (natural gradients) are now available in pure
+  TensorFlow. 
+- Models are now heavily making use of templated graph construction. 
+
 2nd September 2017
 
 - Added multi-LSTM support

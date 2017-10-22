@@ -97,9 +97,7 @@ def main():
     runner = Runner(
         agent=agent,
         environment=environment,
-        repeat_actions=1,
-        save_path=args.save,
-        save_episodes=args.save_episodes
+        repeat_actions=1
     )
     if args.load:
         load_dir = os.path.dirname(args.load)

@@ -13,11 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-OpenAI Universe Integration: https://universe.openai.com/.
-Contains OpenAI Gym: https://gym.openai.com/.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -32,6 +27,11 @@ from tensorforce.environments.environment import Environment
 
 
 class OpenAIUniverse(Environment):
+    """
+    OpenAI Universe Integration: https://universe.openai.com/.
+    Contains OpenAI Gym: https://gym.openai.com/.
+    """
+
     def __init__(self, env_id):
         """
         Initialize OpenAI universe environment.
@@ -54,7 +54,8 @@ class OpenAIUniverse(Environment):
             state, r, t = self._wait_state(state, None, None)
 
         if isinstance(state[0], dict):
-            state[0].pop('text', None) # We can't handle string states right now, so omit the text state for now
+            # We can't handle string states right now, so omit the text state for now
+            state[0].pop('text', None)
 
         return state[0]
 
@@ -76,12 +77,13 @@ class OpenAIUniverse(Environment):
         state, reward, terminal, _ = self.env.step([pass_actions])
 
         if isinstance(state[0], dict):
-            state[0].pop('text', None)  # We can't handle string states right now, so omit the text state for now
+            # We can't handle string states right now, so omit the text state for now
+            state[0].pop('text', None)
 
         return state[0], terminal[0], reward[0]
 
     def _int_to_pos(self, flat_position):
-        """return x, y from flat_position integer
+        """Returns x, y from flat_position integer.
 
         Args:
             flat_position: flattened position integer
@@ -89,7 +91,8 @@ class OpenAIUniverse(Environment):
         Returns: x, y
 
         """
-        return flat_position % self.env.action_space.screen_shape[0], flat_position % self.env.action_space.screen_shape[1]
+        return flat_position % self.env.action_space.screen_shape[0],\
+            flat_position % self.env.action_space.screen_shape[1]
 
     def _key_to_int(self, key_event):
         return self.env.action_space.keys.index(key_event)
@@ -104,7 +107,8 @@ class OpenAIUniverse(Environment):
         return self.env.action_space.buttonmasks[btn_value]
 
     def _wait_state(self, state, reward, terminal):
-        """Wait until there is a state
+        """
+        Wait until there is a state.
         """
         while state == [None] or not state:
              state, terminal, reward = self._execute(dict(key=0))
@@ -122,7 +126,8 @@ class OpenAIUniverse(Environment):
         print(self.env.observation_space)
         if isinstance(self.env.observation_space, VNCObservationSpace):
             return dict(
-                vision=dict(type='float', shape=(768, 1024, 3)) # VNCObeservationSpace seems to be hardcoded to 1024x768
+                # VNCObeservationSpace seems to be hardcoded to 1024x768
+                vision=dict(type='float', shape=(768, 1024, 3))
                 # vision = dict(type=float, shape=(self.env.action_space.screen_shape[1], self.env.action_space.screen_shape[0], 3))
                 # text=dict(type=str, shape=(1,)) # TODO: implement string states
             )
@@ -137,7 +142,10 @@ class OpenAIUniverse(Environment):
             return dict(
                 key=dict(type='int', num_actions=len(self.env.action_space.keys)),
                 button=dict(type='int', num_actions=len(self.env.action_space.buttonmasks)),
-                position=dict(type='int', num_actions=self.env.action_space.screen_shape[0] * self.env.action_space.screen_shape[1])
+                position=dict(
+                    type='int',
+                    num_actions=self.env.action_space.screen_shape[0] * self.env.action_space.screen_shape[1]
+                )
             )
         elif isinstance(self.env.action_space, Discrete):
             return dict(type='int', num_actions=self.env.action_space.n)

@@ -32,7 +32,6 @@
   ],
 
   "batch_size": 6,
-  "repeat_update": 1,
   "keep_last": true,
   "target_update_frequency": 10000,
 

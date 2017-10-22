@@ -79,6 +79,9 @@ class Model(object):
         self.discount = config.discount
         self.distributed = config.distributed
         self.session = None
+        self.supervisor = None
+        self.summaries_enabled = config.tf_summary is not None
+        self.summary_writer = None
 
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(util.log_levels[config.log_level])
@@ -90,13 +93,17 @@ class Model(object):
         if config.distributed and not config.global_model:
             # Global and local model for asynchronous updates
             global_config = config.copy()
-            global_config.optimizer = None
             global_config.global_model = True
+            # create no summaries for the global model
+            global_config.tf_summary = None
+            global_config.tf_summary_level = -1
             global_config.device = tf.train.replica_device_setter(1, worker_device=config.device, cluster=config.cluster_spec)
             self.global_model = self.__class__(config=global_config)
             self.global_timestep = self.global_model.global_timestep
             self.global_episode = self.global_model.episode
             self.global_variables = self.global_model.variables
+            self.global_optimizer = self.global_model.optimizer
+            config.optimizer = None
 
         self.optimizer_args = None
         with tf.device(config.device):
@@ -114,37 +121,48 @@ class Model(object):
             if config.distributed:
                 self.variables = tf.contrib.framework.get_variables(scope=scope)
 
-            assert self.optimizer or (not config.distributed or config.global_model)
-            if self.optimizer:
-                if config.distributed and not config.global_model:
+            # set up optimization op for distributed models
+            if not config.global_model:
+                if config.distributed:
+                    # the global model creates the shared optimizer, we just pass our gradients to it
                     self.loss = tf.add_n(inputs=tf.losses.get_losses(scope=scope.name))
-                    local_grads_and_vars = self.optimizer.compute_gradients(loss=self.loss, var_list=self.variables)
-                    local_gradients = [grad for grad, var in local_grads_and_vars]
-                    global_gradients = list(zip(local_gradients, self.global_model.variables))
-                    self.update_local = tf.group(*(v1.assign(v2) for v1, v2 in zip(self.variables, self.global_model.variables)))
-                    self.optimize = tf.group(
-                        self.optimizer.apply_gradients(grads_and_vars=global_gradients),
-                        self.update_local,
-                        self.global_timestep.assign_add(tf.shape(self.reward)[0]))
+                    local_gradients = tf.gradients(self.loss, self.variables)
+                    global_gradients = list(zip(local_gradients, self.global_variables))
+                    self.update_local = self._create_local_var_update_ops(self.variables, self.global_variables)
+
+                    # control_dependencies make sure gradients are applied before copying to local
+                    apply_grads = self.global_optimizer.apply_gradients(grads_and_vars=global_gradients)
+                    with tf.control_dependencies([apply_grads]):
+                        # we must recreate the local var update ops under the control dependencies context
+                        self.optimize = tf.group(
+                            apply_grads,
+                            self._create_local_var_update_ops(self.variables, self.global_variables),
+                            self.global_timestep.assign_add(self.get_global_increment_value()))
                     self.increment_global_episode = self.global_episode.assign_add(tf.count_nonzero(input_tensor=self.terminal, dtype=tf.int32))
-                else:
+                # not distributed and not global model just minimize the loss
+                elif self.optimizer is not None:
                     self.loss = tf.losses.get_total_loss()
                     if self.optimizer_args is not None:
                         self.optimizer_args['loss'] = self.loss
                         self.optimize = self.optimizer.minimize(self.optimizer_args)
                     else:
                         self.optimize = self.optimizer.minimize(self.loss)
+                else:
+                    raise TensorForceError("An optimizer must be specified")
 
             if config.distributed:
                 scope_context.__exit__(None, None, None)
 
         self.saver = tf.train.Saver()
-        if config.tf_summary is not None:
+        # only create summaries if requested
+        if self.summaries_enabled:
             # create a summary for total loss
             tf.summary.scalar('total-loss', self.loss)
 
-            # create summary writer
-            self.writer = tf.summary.FileWriter(config.tf_summary, graph=tf.get_default_graph())
+            if not self.distributed:
+                self.summary_writer = tf.summary.FileWriter(config.tf_summary, graph=tf.get_default_graph())
+            else:
+                self.summary_writer = None
             self.last_summary_step = -float('inf')
 
             # create summaries based on summary level
@@ -159,9 +177,8 @@ class Model(object):
             self.tf_episode_reward = tf.placeholder(tf.float32, name='episode-reward-placeholder')
             self.episode_reward_summary = tf.summary.scalar('episode-reward', self.tf_episode_reward)
         else:
-            self.writer = None
+            self.summary_writer = None
             config.tf_summary_level
-            config.tf_summary_interval
 
         self.timestep = 0
         self.summary_interval = config.tf_summary_interval
@@ -224,9 +241,15 @@ class Model(object):
         else:
             self.optimizer = None
 
-    def set_session(self, session):
+    @staticmethod
+    def _create_local_var_update_ops(local_vars, global_vars):
+        # read_value is a MUST here otherwise it's a cached copy https://www.tensorflow.org/api_docs/python/tf/Variable#read_value
+        return tf.group(*(v1.assign(v2.read_value()) for v1, v2 in zip(local_vars, global_vars)))
+
+    def set_session(self, session, supervisor=None):
         assert self.session is None
         self.session = session
+        self.supervisor = supervisor
 
     def reset(self):
         """
@@ -234,6 +257,9 @@ class Model(object):
         Returns: A list containing the internal_inits field.
 
         """
+        # sync local vars if distributed
+        if self.distributed and self.session is not None:
+            self.session.run(self.update_local)
         return list(self.internal_inits)
 
     def get_action(self, state, internal, deterministic=False):
@@ -261,9 +287,6 @@ class Model(object):
         Returns:
 
         """
-        if self.optimizer is None:
-            return
-
         fetches = [self.optimize, self.loss, self.loss_per_instance]
         feed_dict = self.update_feed_dict(batch=batch)
 
@@ -323,14 +346,23 @@ class Model(object):
         else:
             self.saver.save(self.session, path)
 
-
     def should_write_summaries(self, num_updates):
-        return self.writer is not None and self.timestep > self.last_summary_step + self.summary_interval
+        return self.summaries_enabled and self.timestep > self.last_summary_step + self.summary_interval
 
-    def write_summaries(self, summaries):
-        self.writer.add_summary(summaries, global_step=self.timestep)
+    def write_summaries(self, summaries, global_step=None):
+        if self.supervisor is not None:
+            # supervisor takes care of global step
+            self.supervisor.summary_computed(self.session, summaries)
+        elif self.summary_writer is not None:
+            self.summary_writer.add_summary(summaries, global_step=self.timestep)
 
     def write_episode_reward_summary(self, episode_reward):
-        if self.writer is not None:
+        if self.summaries_enabled:
             reward_summary = self.session.run(self.episode_reward_summary, feed_dict={self.tf_episode_reward: episode_reward})
-            self.writer.add_summary(reward_summary, global_step=self.timestep)
+            self.write_summaries(reward_summary)
+
+    def get_global_increment_value(self):
+        """
+            The amount to increment the global timestep. Should be a constant or tensorflow value
+        """
+        return tf.shape(self.reward)[0]

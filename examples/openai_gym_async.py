@@ -157,6 +157,11 @@ def main():
     logger = logging.getLogger(__name__)
     logger.setLevel(log_levels[agent_config.log_level])
 
+    # don't write summaries for tasks other than chief (0)
+    if args.task_index != 0:
+        agent_config.tf_summary = None
+        agent_config.tf_summary_level = -1
+        logger.info("Summaries disabled for agent {}".format(args.task_index))
     agent = agents[args.agent](config=agent_config)
 
     logger.info("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
@@ -168,7 +173,8 @@ def main():
         environment=environment,
         repeat_actions=1,
         cluster_spec=cluster_spec,
-        task_index=args.task_index
+        task_index=args.task_index,
+        save_path=args.logdir
     )
 
     report_episodes = args.episodes // 1000

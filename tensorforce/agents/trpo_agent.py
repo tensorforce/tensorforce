@@ -78,6 +78,14 @@ class TRPOAgent(BatchAgent):
         keep_last_timestep=True,  # not documented!
         # TRPOAgent
         learning_rate=1e-2,
+        cg_max_iterations=20,  # not documented
+        cg_damping=1e-3,  # not documented
+        cg_unroll_loop=False,  # not documented
+        ls_max_iterations=10,  # not documented
+        ls_accept_ratio=0.1,  # not documented
+        ls_mode='exponential',  # not documented
+        ls_parameter=0.5,  # not documented
+        ls_unroll_loop=False,  # not documented
         # Model
         discount=0.99,
         normalize_rewards=False,
@@ -119,8 +127,16 @@ class TRPOAgent(BatchAgent):
                 type='optimized_step',
                 optimizer=dict(
                     type='natural_gradient',
-                    learning_rate=config.learning_rate
-                )
+                    learning_rate=config.learning_rate,
+                    cg_max_iterations=config.cg_max_iterations,
+                    cg_damping=config.cg_damping,
+                    cg_unroll_loop=config.cg_unroll_loop
+                ),
+                ls_max_iterations=config.ls_max_iterations,
+                ls_accept_ratio=config.ls_accept_ratio,
+                ls_mode=config.ls_mode,
+                ls_parameter=config.ls_parameter,
+                ls_unroll_loop=config.ls_unroll_loop
             )
         )
         super(TRPOAgent, self).__init__(states_spec, actions_spec, config)

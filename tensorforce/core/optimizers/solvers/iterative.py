@@ -24,15 +24,19 @@ class Iterative(Solver):
     initialization step, the iteration loop body and the termination condition.
     """
 
-    def __init__(self, max_iterations):
+    def __init__(self, max_iterations, unroll_loop=False):
         """
         Creates a new iterative solver instance.
 
         Args:
             max_iterations: Maximum number of iterations before termination.
+            unroll_loop: Unrolls the TensorFlow while loop if true.
         """
         assert max_iterations >= 0
         self.max_iterations = max_iterations
+
+        assert isinstance(unroll_loop, bool)
+        self.unroll_loop = unroll_loop
 
         super(Iterative, self).__init__()
 
@@ -56,13 +60,22 @@ class Iterative(Solver):
         self.fn_x = fn_x
 
         # Initialization step
-        initial_args = self.initialize(x_init, *args)
+        args = self.initialize(x_init, *args)
 
         # Iteration loop with termination condition
-        final_args = tf.while_loop(cond=self.next_step, body=self.step, loop_vars=initial_args)
+        if self.unroll_loop:
+            # Unrolled for loop
+            for _ in range(self.max_iterations):
+                next_step = self.next_step(*args)
+                step = (lambda: self.step(*args))
+                do_nothing = (lambda: args)
+                args = tf.cond(pred=next_step, true_fn=step, false_fn=do_nothing)
+        else:
+            # TensorFlow while loop
+            args = tf.while_loop(cond=self.next_step, body=self.step, loop_vars=args)
 
         # First argument contains solution
-        return final_args[0]
+        return args[0]
 
     def tf_initialize(self, x_init, *args):
         """

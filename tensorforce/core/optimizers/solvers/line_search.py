@@ -26,7 +26,7 @@ class LineSearch(Iterative):
     moving towards $0$.
     """
 
-    def __init__(self, max_iterations, accept_ratio, mode, parameter):
+    def __init__(self, max_iterations, accept_ratio, mode, parameter, unroll_loop=False):
         """
         Creates a new line search solver instance.
 
@@ -35,6 +35,7 @@ class LineSearch(Iterative):
             accept_ratio: Lower limit of what improvement ratio over $x = x'$ is acceptable.
             mode: Mode of movement between $x_0$ and $x'$, either 'linear' or 'exponential'.
             parameter: Movement mode parameter, additive or multiplicative, respectively.
+            unroll_loop: Unrolls the TensorFlow while loop if true.
         """
         assert accept_ratio >= 0.0
         self.accept_ratio = accept_ratio
@@ -45,7 +46,7 @@ class LineSearch(Iterative):
         self.mode = mode
         self.parameter = parameter
 
-        super(LineSearch, self).__init__(max_iterations=max_iterations)
+        super(LineSearch, self).__init__(max_iterations=max_iterations, unroll_loop=unroll_loop)
 
     def tf_solve(self, fn_x, x_init, base_value, target_value, estimated_value=None):
         """

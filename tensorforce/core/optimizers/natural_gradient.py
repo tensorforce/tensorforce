@@ -28,7 +28,7 @@ class NaturalGradient(Optimizer):
     Natural gradient optimizer.
     """
 
-    def __init__(self, learning_rate, cg_max_iterations=20, cg_damping=1e-3):
+    def __init__(self, learning_rate, cg_max_iterations=20, cg_damping=1e-3, cg_unroll_loop=False):
         """
         Creates a new natural gradient optimizer instance.
 
@@ -36,13 +36,18 @@ class NaturalGradient(Optimizer):
             learning_rate: Learning rate, i.e. KL-divergence of distributions between optimization steps.
             cg_max_iterations: Conjugate gradient solver max iterations.
             cg_damping: Conjugate gradient solver damping factor.
+            cg_unroll_loop: Unroll conjugate gradient loop if true.
         """
         super(NaturalGradient, self).__init__()
 
         assert learning_rate > 0.0
         self.learning_rate = learning_rate
 
-        self.solver = ConjugateGradient(max_iterations=cg_max_iterations, damping=cg_damping)
+        self.solver = ConjugateGradient(
+            max_iterations=cg_max_iterations,
+            damping=cg_damping,
+            unroll_loop=cg_unroll_loop
+        )
 
     def tf_step(self, time, variables, fn_loss, fn_kl_divergence, **kwargs):
         """

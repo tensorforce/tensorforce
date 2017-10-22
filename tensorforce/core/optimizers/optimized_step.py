@@ -30,24 +30,34 @@ class OptimizedStep(MetaOptimizer):
     another optimizer to find a more optimal step size.
     """
 
-    def __init__(self, optimizer, max_iterations=10, accept_ratio=0.1, ls_mode='exponential', ls_parameter=0.5):
+    def __init__(
+        self,
+        optimizer,
+        ls_max_iterations=10,
+        ls_accept_ratio=0.1,
+        ls_mode='exponential',
+        ls_parameter=0.5,
+        ls_unroll_loop=False
+    ):
         """
         Creates a new optimized step meta optimizer instance.
 
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.
-            max_iterations: Maximum number of line search iterations.
-            accept ratio: Trust-region ???????????????? acceptance ratio. ????????????????
+            ls_max_iterations: Maximum number of line search iterations.
+            ls_accept_ratio: Trust-region ???????????????? acceptance ratio. ????????????????
             ls_mode: Line search mode, see LineSearch solver.
             ls_parameter: Line search parameter, see LineSearch solver.
+            ls_unroll_loop: Unroll line search loop if true.
         """
         super(OptimizedStep, self).__init__(optimizer=optimizer)
 
         self.solver = LineSearch(
-            max_iterations=max_iterations,
-            accept_ratio=accept_ratio,
+            max_iterations=ls_max_iterations,
+            accept_ratio=ls_accept_ratio,
             mode=ls_mode,
-            parameter=ls_parameter
+            parameter=ls_parameter,
+            unroll_loop=ls_unroll_loop
         )
 
     def tf_step(self, time, variables, fn_loss, fn_reference=None, fn_compare=None, **kwargs):

@@ -50,18 +50,19 @@ class ConjugateGradient(Iterative):
     ```
     """
 
-    def __init__(self, max_iterations, damping):
+    def __init__(self, max_iterations, damping, unroll_loop=False):
         """
         Creates a new conjugate gradient solver instance.
 
         Args:
             max_iterations: Maximum number of iterations before termination.
             damping: Damping factor.
+            unroll_loop: Unrolls the TensorFlow while loop if true.
         """
         assert damping >= 0.0
         self.damping = damping
 
-        super(ConjugateGradient, self).__init__(max_iterations=max_iterations)
+        super(ConjugateGradient, self).__init__(max_iterations=max_iterations, unroll_loop=unroll_loop)
 
     def tf_solve(self, fn_x, x_init, b):
         """

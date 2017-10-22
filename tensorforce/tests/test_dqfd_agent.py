@@ -40,6 +40,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
         demo_sampling_ratio=0.2
     )
 
+    exclude_float = True
     exclude_bounded = True
 
     def pre_run(self, agent, environment):

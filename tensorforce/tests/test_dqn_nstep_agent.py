@@ -37,4 +37,5 @@ class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
         )
     )
 
+    exclude_float = True
     exclude_bounded = True

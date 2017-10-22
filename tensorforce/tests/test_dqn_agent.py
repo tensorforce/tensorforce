@@ -36,4 +36,5 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
         target_update_frequency=20
     )
 
+    exclude_float = True
     exclude_bounded = True

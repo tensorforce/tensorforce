@@ -16,6 +16,11 @@ TensorForce is built on top of TensorFlow and compatible with Python 2.7
 and &gt;3.5 and supports multiple state inputs and multi-dimensional
 actions to be compatible with Gym, Universe, and DeepMind lab.
 
+NOTE: We are currently in a code freeze as we are preparing the role-out
+of 0.3.0. The dev branch for the new release is available [here](https://github.com/reinforceio/tensorforce/compare/dev)
+and will be merged by end October latest. A new blogpost explaining
+the new architecture will be coming soon. 
+
 An introductory blog post can also be found [on our blog.](https://reinforce.io/blog/introduction-to-tensorforce)
 
 Please do read the latest update notes (UPDATE_NOTES.md) for an idea of how the project is evolving, especially
@@ -60,7 +65,14 @@ policy methods both continuous/discrete and using a Beta distribution for bounde
 Installation
 ------------
 
-For the most straight-forward install via pip, execute:
+We uploaded the latest stable version of TensorForce to PyPI. To install, just execute:
+
+```bash
+pip install tensorforce
+```
+
+If you want to use the latest version from GitHub, use:
+
 
 ```bash
 git clone git@github.com:reinforceio/tensorforce.git
@@ -76,16 +88,26 @@ Alternatively, you can use the following commands to install the tensorflow depe
 To install TensorForce with `tensorflow` (cpu), use:
 
 ```bash
+# PyPI install
+pip install tensorforce[tf]
+
+# Local install
 pip install -e .[tf]
 ```
 
 To install TensorForce with `tensorflow-gpu` (gpu), use:
 
 ```bash
+# PyPI install
+pip install tensorforce[tf_gpu]
+
+# Local install
 pip install -e .[tf_gpu]
 ```
 
-To update TensorForce, just run `git pull` in the tensorforce directory.
+To update TensorForce, use `pip install --upgrade tensorforce` for the PyPI
+version, or run `git pull` in the tensorforce directory if you cloned the 
+GitHub repository.
 Please note that we did not include OpenAI Gym/Universe/DeepMind lab in
 the default install script because not everyone will want to use these.
 Please install them as required, usually via pip.

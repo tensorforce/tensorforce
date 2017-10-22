@@ -42,10 +42,8 @@
     "decay": 0.99,
     "epsilon": 0.1
   },
-  "tf_saver": false,
   "tf_summary": null,
   "log_level": "info",
-
   "update_target_weight": 1.0,
   "double_dqn": false,
   "clip_loss": 1.0

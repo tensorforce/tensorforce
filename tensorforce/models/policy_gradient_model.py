@@ -179,7 +179,13 @@ class PolicyGradientModel(Model):
         else:
             rewards = discounted_rewards
 
+        mean = rewards.mean()
+        stddev = rewards.std()
+        self.logger.debug('Reward mean {} and variance {}.'.format(mean, stddev * stddev))
+
         if self.normalize_rewards:
-            rewards = (rewards - rewards.mean()) / max(rewards.std(), util.epsilon)
+            rewards = (rewards - mean) / max(stddev, util.epsilon)
+
+        self.logger.debug('First ten rewards: {}.'.format(rewards[:10]))
 
         return rewards, discounted_rewards

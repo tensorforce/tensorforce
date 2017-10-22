@@ -54,5 +54,5 @@
   "repeat_actions": 1,
   "alpha": 0.00025,
   "gamma": 0.99,
-  "tau": 1.0
+  "update_target_weight": 1.0
 }

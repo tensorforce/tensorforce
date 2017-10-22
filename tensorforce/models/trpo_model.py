@@ -216,10 +216,10 @@ class TRPOModel(PolicyGradientModel):
         # Use line search results, otherwise take full step
         # N.B. some implementations don't use the line search
         if new_parameters is not None:
-            self.logger.debug('Updating with line search result..')
+            self.logger.debug('Updating with line search result.')
             self.flat_variable_helper.set(new_parameters)
         elif self.ls_override:
-            self.logger.debug('Updating with full step..')
+            self.logger.debug('Updating with full step.')
             self.flat_variable_helper.set(parameters + natural_gradient_step)
         else:
             self.logger.debug('Failed to find line search solution, skipping update.')
@@ -265,7 +265,7 @@ class TRPOModel(PolicyGradientModel):
         estimated_improvement = max(estimated_improvement, util.epsilon)
 
         step_fraction = 1.0
-        for _ in range(self.ls_max_backtracks):
+        for backtrack in range(self.ls_max_backtracks):
             new_parameters = parameters + step_fraction * natural_gradient_step
             new_log_prob = self.compute_log_prob(new_parameters)
 
@@ -274,6 +274,7 @@ class TRPOModel(PolicyGradientModel):
 
             improvement_ratio = (new_value - old_value) / estimated_improvement
             if improvement_ratio > self.ls_accept_ratio:
+                self.logger.debug('Line search successful after {} backtracking steps.'.format(backtrack))
                 return new_parameters
 
             step_fraction /= 2.0

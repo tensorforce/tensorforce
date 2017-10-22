@@ -225,6 +225,52 @@ def dense(x, size, bias=True, activation='relu', l2_regularization=0.0, l1_regul
     return x
 
 
+def conv1d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='relu',
+           l2_regularization=0.0, scope='conv1d', summary_level=0):
+    """A 1d convolutional layer.
+    Args:
+        x: Input tensor. Must be rank 3
+        size: Neurons
+        window: Filter window size
+        stride: Filter stride
+        padding: One of [VALID, SAME]
+        bias: Bool, indicates whether bias is used
+        activation: Non-linearity type, defaults to relu
+        l2_regularization: L2-regularisation value
+    Returns:
+    """
+    input_rank = util.rank(x)
+    if input_rank != 3:
+        raise TensorForceError('Invalid input rank for conv1d layer: {}, must be 3'.format(input_rank))
+
+    with tf.variable_scope(scope):
+        filters_shape = (window, x.shape[2].value, size)
+        stddev = min(0.1, sqrt(2.0 / size))
+        filters_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
+        filters = tf.get_variable(name='W', shape=filters_shape, dtype=tf.float32, initializer=filters_init)
+
+        if l2_regularization > 0.0:
+            tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=filters))
+
+        x = tf.nn.conv1d(value=x, filters=filters, stride=stride, padding=padding)
+
+        if bias:
+            bias_shape = (size,)
+            bias_init = tf.zeros_initializer(dtype=tf.float32)
+            bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=bias_init)
+
+            if l2_regularization > 0.0:
+                tf.losses.add_loss(l2_regularization * tf.nn.l2_loss(t=bias))
+
+            x = tf.nn.bias_add(value=x, bias=bias)
+
+        x = nonlinearity(x=x, name=activation, summary_level=summary_level)
+
+        if summary_level >= 3:
+            tf.summary.histogram('activations', x)
+    return x
+
+
 def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='relu',
            l2_regularization=0.0, scope='conv2d', summary_level=0):
     """A 2d convolutional layer.
@@ -232,7 +278,7 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
     Args:
         x: Input tensor. Must be rank 4
         size: Neurons
-        window: Filter window size
+        window: Filter window size. Could be integer or tuple. Integer assumes square filter size (window, window).
         stride: Filter stride
         padding: One of [VALID, SAME]
         bias: Bool, indicates whether bias is used
@@ -246,8 +292,18 @@ def conv2d(x, size, window=3, stride=1, padding='SAME', bias=False, activation='
     if input_rank != 4:
         raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 4'.format(input_rank))
 
+    if isinstance(window, int):
+        filter_width = window
+        filter_height = window
+    elif isinstance(window, tuple):
+        if len(window) != 2:
+            raise TensorForceError('Invalid window for conv2d layer: {}, must be tuple of size 2'.format(window))
+
+        filter_width = window[0]
+        filter_height = window[1]
+
     with tf.variable_scope(scope):
-        filters_shape = (window, window, x.shape[3].value, size)
+        filters_shape = (filter_width, filter_height, x.shape[3].value, size)
         stddev = min(0.1, sqrt(2.0 / size))
         filters_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
         filters = tf.get_variable(name='W', shape=filters_shape, dtype=tf.float32, initializer=filters_init)
@@ -315,6 +371,7 @@ layers = {
     'nonlinearity': nonlinearity,
     'linear': linear,
     'dense': dense,
+    'conv1d': conv1d,
     'conv2d': conv2d,
     'lstm': lstm
 }

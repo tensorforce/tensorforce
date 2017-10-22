@@ -33,6 +33,10 @@ class Configuration(object):
         self._accessed = {key: False for key, value in kwargs.items() if not isinstance(value, Configuration)}
         self.allow_defaults = allow_defaults
 
+    def to_json(self, filename):
+        with open(filename, 'w') as fp:
+            fp.write(json.dumps(self.as_dict()))
+
     @staticmethod
     def from_json(filename, absolute_path=False, allow_defaults=True):
         if absolute_path:
@@ -104,6 +108,15 @@ class Configuration(object):
 
     def copy(self):
         return Configuration(**self._config)
+
+    def as_dict(self):
+        d = dict()
+        for key, value in self._config.items():
+            if isinstance(value, Configuration):
+                d[key] = value.as_dict()
+            else:
+                d[key] = value
+        return d
 
     def default(self, default):
         for key, value in default.items():

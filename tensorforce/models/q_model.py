@@ -89,7 +89,8 @@ class QModel(Model):
 
             # If loss clipping is used, calculate the huber loss
             if config.clip_loss > 0.0:
-                huber_loss = tf.where(condition=(tf.abs(delta) < config.clip_loss), x=(0.5 * self.loss_per_instance), y=(tf.abs(delta) - 0.5))
+                huber_loss = tf.where(condition=(tf.abs(delta) < config.clip_loss), x=(0.5 * self.loss_per_instance),
+                                      y=config.clip_loss * tf.abs(delta) - 0.5 * config.clip_loss ** 2)
                 self.q_loss = tf.reduce_mean(input_tensor=huber_loss, axis=0)
             else:
                 self.q_loss = tf.reduce_mean(input_tensor=self.loss_per_instance, axis=0)

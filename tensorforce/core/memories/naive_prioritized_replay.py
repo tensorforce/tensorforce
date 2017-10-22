@@ -25,7 +25,6 @@ from tensorforce import util, TensorForceError
 from tensorforce.core.memories import Memory
 
 
-#TODO update samping strategy
 #TODO implement in TF
 class NaivePrioritizedReplay(Memory):
     """

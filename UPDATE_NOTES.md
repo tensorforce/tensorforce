@@ -18,8 +18,8 @@ be tracked here in detail but through github issues.
 - Q-models are now implemented as distributional models, which enables the use of natural
   gradients in Q-models. A blogpost on the practical implications is also on the way.
 - Baselines: It is now possible to share parameters between main networks and baselines via
-  the baseline option (```NetworkBaseline``).
-- Actions now support booleans types.
+  the baseline option (```NetworkBaseline```).
+- Actions now support boolean types.
 
 2nd September 2017
 

@@ -31,12 +31,12 @@ from tensorforce.core.memories import Memory
 
 _SumRow = namedtuple('SumRow', ['item', 'priority'])
 
-
+#TODO move to util/rename methods to conform to naming scheme
 class SumTree(object):
     """
     Sum tree data structure where data is stored in leaves and each node on the
     tree contains a sum of the children.
-            # For prioritized replay, 'sum-tree' data structure is used.
+
     Items and priorities are stored in leaf nodes, while internal nodes store
     the sum of priorities from all its descendants. Internally a single list
     stores the internal nodes followed by leaf nodes.
@@ -57,16 +57,16 @@ class SumTree(object):
     def __init__(self, capacity):
         self._capacity = capacity
 
-        # initializes all internal nodes to have value 0.
+        # Initializes all internal nodes to have value 0.
         self._memory = [0] * (capacity - 1)
         self._position = 0
         self._actual_capacity = 2 * self._capacity - 1
 
     def put(self, item, priority=None):
         """
-        Store a transition in replay memory.
+        Stores a transition in replay memory.
 
-        If the memory is full, the oldest one gets overwritten.
+        If the memory is full, the oldest entry is replaced.
         """
         if not self._isfull():
             self._memory.append(None)
@@ -79,12 +79,16 @@ class SumTree(object):
             position, (row.priority or 0) - old_priority)
 
     def move(self, external_index, new_priority):
-        """Change the priority of a leaf node"""
+        """
+        Change the priority of a leaf node
+        """
         index = external_index + (self._capacity - 1)
         return self._move(index, new_priority)
 
     def _move(self, index, new_priority):
-        """Change the priority of a leaf node"""
+        """
+        Change the priority of a leaf node.
+        """
         item, old_priority = self._memory[index]
         old_priority = old_priority or 0
         self._memory[index] = _SumRow(item, new_priority)
@@ -97,7 +101,7 @@ class SumTree(object):
             index: leaf node index
             delta: change in priority
         """
-        # move up tree, increasing position, updating sum
+        # Move up tree, increasing position, updating sum
         while index > 0:
             index = (index - 1) // 2
             self._memory[index] += delta
@@ -106,14 +110,18 @@ class SumTree(object):
         return len(self) == self._capacity
 
     def _next_position_then_increment(self):
-        """Similar to position++."""
+        """
+        Similar to position++.
+        """
         start = self._capacity - 1
         position = start + self._position
         self._position = (self._position + 1) % self._capacity
         return position
 
     def _sample_with_priority(self, p):
-        """Sample random element with priority greater than p"""
+        """
+        Sample random element with priority greater than p.
+        """
         parent = 0
         while True:
             left = 2 * parent + 1
@@ -132,7 +140,9 @@ class SumTree(object):
                 parent = left + 1
 
     def sample_minibatch(self, batch_size):
-        """Sample minibatch of size batch_size."""
+        """
+        Sample minibatch of size batch_size.
+        """
         pool_size = len(self)
         if pool_size == 0:
             return []
@@ -151,7 +161,9 @@ class SumTree(object):
         return [(i, self._memory[i]) for i in chosen_idx]
 
     def __len__(self):
-        """Return the current number of transitions."""
+        """
+        Return the current number of transitions.
+        """
         return len(self._memory) - (self._capacity - 1)
 
     def __getitem__(self, index):
@@ -175,13 +187,13 @@ class PrioritizedReplay(Memory):
         self.internals_config = None
         self.batch_indices = None
 
-        # stores (priority, observation) pairs
+        # Stores (priority, observation) pairs
         self.observations = SumTree(capacity)
 
-        # queue index where seen observations end and unseen ones begin
+        # Queue index where seen observations end and unseen ones begin.
         self.none_priority_index = 0
 
-        # stores last observation until next_state value is known
+        # Stores last observation until next_state value is known.
         self.last_observation = None
 
     def add_observation(self, state, action, reward, terminal, internal):
@@ -191,7 +203,7 @@ class PrioritizedReplay(Memory):
         if self.last_observation is not None:
             observation = self.last_observation + (state, internal)
 
-            # we we are above capacity and have some seen observations
+            # We are above capacity and have some seen observations
             if self.observations._isfull():
                 if self.none_priority_index <= 0:
                     raise TensorForceError(
@@ -217,7 +229,7 @@ class PrioritizedReplay(Memory):
             raise TensorForceError(
                 "Requested batch size is larger than observations in memory: increase config.first_update.")
 
-        # init empty states etc
+        # Init empty states
         states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(
             state.type)) for name, state in self.states_config.items()}
         actions = {name: np.zeros((batch_size,) + tuple(action.shape), dtype=util.np_dtype(
@@ -232,22 +244,24 @@ class PrioritizedReplay(Memory):
             next_internals = [np.zeros((batch_size,) + shape, dtype)
                               for shape, dtype in self.internals_config]
 
-        # start with unseen observations
-        unseen_indices = list(
-            xrange(self.none_priority_index + self.observations._capacity - 1, len(self.observations) + self.observations._capacity - 1))
+        # Start with unseen observations
+        unseen_indices = list(xrange(
+            self.none_priority_index + self.observations._capacity - 1,
+            len(self.observations) + self.observations._capacity - 1)
+        )
         self.batch_indices = unseen_indices[:batch_size]
 
-        # get remaining observations using weighted sampling
+        # Get remaining observations using weighted sampling
         remaining = batch_size - len(self.batch_indices)
         if remaining:
             samples = self.observations.sample_minibatch(remaining)
             sample_indices = [i for i, o in samples]
             self.batch_indices += sample_indices
 
-        # shuffle
+        # Shuffle
         np.random.shuffle(self.batch_indices)
 
-        # collect observations
+        # Collect observations
         for n, index in enumerate(self.batch_indices):
             observation, _ = self.observations._memory[index]
 
@@ -266,7 +280,15 @@ class PrioritizedReplay(Memory):
                     next_internal[n] = observation[6][k]
 
         if next_states:
-            return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals, next_states=next_states, next_internals=next_internals)
+            return dict(
+                states=states,
+                actions=actions,
+                rewards=rewards,
+                terminals=terminals,
+                internals=internals,
+                next_states=next_states,
+                next_internals=next_internals
+            )
         else:
             return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
 
@@ -286,7 +308,7 @@ class PrioritizedReplay(Memory):
                 "For all instances a loss value has to be provided.")
 
         for index, loss in zip(self.batch_indices, loss_per_instance):
-            # Sampling priority is proportional to the largest absolute temporal difference error
+            # Sampling priority is proportional to the largest absolute temporal difference error.
             new_priority = (np.abs(loss) + self.prioritization_constant) ** self.prioritization_weight
             self.observations._move(index, new_priority)
             self.none_priority_index += 1

@@ -55,7 +55,12 @@ def main():
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    environment = OpenAIGym(gym_id=args.gym_id, monitor=args.monitor, monitor_safe=args.monitor_safe, monitor_video=args.monitor_video)
+    environment = OpenAIGym(
+        gym_id=args.gym_id,
+        monitor=args.monitor,
+        monitor_safe=args.monitor_safe,
+        monitor_video=args.monitor_video
+    )
 
     if args.agent_config:
         config = Configuration.from_json(args.agent_config)

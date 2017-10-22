@@ -13,11 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Random agent that always returns a random action. Useful to be able to get random
-agents with specific shapes.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division

@@ -57,8 +57,10 @@ class DeepMindLab(Environment):
         Args:
             level_id: string with id/descriptor of the level, e.g. 'seekavoid_arena_01'.
             repeat_action: number of frames the environment is advanced, executing the given action during every frame.
-            state_attribute: Attributes which represents the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id).
-            settings: dict specifying additional settings as key-value string pairs. The following options are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
+            state_attribute: Attributes which represents the state for this environment, should adhere to the
+                specification given in DeepMindLabEnvironment.state_spec(level_id).
+            settings: dict specifying additional settings as key-value string pairs. The following options
+                are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
 
         """
         self.level_id = level_id
@@ -78,7 +80,8 @@ class DeepMindLab(Environment):
 
     def reset(self):
         """
-        Resets the environment to its initialization state. This method needs to be called to start a new episode after the last episode ended.
+        Resets the environment to its initialization state. This method needs to be called to start a
+        new episode after the last episode ended.
 
         :return: initial state
         """
@@ -89,8 +92,10 @@ class DeepMindLab(Environment):
         """
         Pass action to universe environment, return reward, next step, terminal state and additional info.
 
-        :param action: action to execute as numpy array, should have dtype np.intc and should adhere to the specification given in DeepMindLabEnvironment.action_spec(level_id)
-        :return: dict containing the next state, the reward, and a boolean indicating if the next state is a terminal state
+        :param action: action to execute as numpy array, should have dtype np.intc and should adhere to
+            the specification given in DeepMindLabEnvironment.action_spec(level_id)
+        :return: dict containing the next state, the reward, and a boolean indicating if the
+            next state is a terminal state
         """
         adjusted_actions = list()
         for action_spec in self.level.action_spec():
@@ -140,6 +145,7 @@ class DeepMindLab(Environment):
     @property
     def fps(self):
         """
-        An advisory metric that correlates discrete environment steps ("frames") with real (wallclock) time: the number of frames per (real) second.
+        An advisory metric that correlates discrete environment steps ("frames") with real
+        (wallclock) time: the number of frames per (real) second.
         """
         return self.level.fps()

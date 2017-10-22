@@ -13,166 +13,107 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Simple runner for non-realtime single process execution, appropriate for
-OpenAI gym.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
 import time
-
 from six.moves import xrange
-import tensorflow as tf
-
-from tensorforce import TensorForceError
 
 
 class Runner(object):
+    """
+    Simple runner for non-realtime single-process execution.
+    """
 
-    # These agents can be used in an A3C fashion
-    async_supported = ('VPGAgent', 'PPOAgent')  # And potentially TRPOAgent, needs to be checked...
-
-    def __init__(self, agent, environment, repeat_actions=1, cluster_spec=None, task_index=None, save_path=None, save_episodes=None):
+    def __init__(self, agent, environment, repeat_actions=1, history=None):
         """
         Initialize a Runner object.
 
         Args:
-            agent: `Agent` object containing the reinforcement learning agent
-            environment: `../../environments/Environment` object containing
+            agent:
+            environment:
             repeat_actions:
-            cluster_spec:
-            task_index:
-            save_path:
-            save_episodes:
         """
-        if cluster_spec is not None and str(agent) not in Runner.async_supported:
-            raise TensorForceError('Agent type not supported for distributed runner.')
         self.agent = agent
         self.environment = environment
         self.repeat_actions = repeat_actions
-        self.cluster_spec = cluster_spec
-        self.task_index = task_index
-        self.save_path = save_path
-        self.save_episodes = save_episodes
 
-    def run(self, episodes=-1, max_timesteps=-1, episode_finished=None):
+        self.reset(history)
+
+    def reset(self, history=None):
+        # If history is empty, use default values in history.get().
+        if not history:
+            history = dict()
+
+        self.episode = history.get('episode', 1)
+        self.timestep = history.get('timestep', 0)
+
+        self.episode_rewards = history.get('episode_rewards', list())
+        self.episode_timesteps = history.get('episode_timesteps', list())
+        self.episode_times = history.get('episode_times', list())
+
+    def run(self, timesteps=None, episodes=None, max_episode_timesteps=None, deterministic=False, episode_finished=None):
         """
-        Runs an environments for the specified number of episodes and time steps per episode.
+        Runs the agent on the environment.
 
         Args:
-            episodes: Number of episodes to execute
-            max_timesteps: Max timesteps in a given episode
-            episode_finished: Optional termination condition, e.g. a particular mean reward threshold
-
-        Returns:
-
+            timesteps: Number of timesteps
+            episodes: Number of episodes
+            max_episode_timesteps: Max number of timesteps per episode
+            deterministic: Deterministic flag
+            episode_finished: Function handler taking a `Runner` argument and returning a boolean indicating whether to continue execution. For instance, useful for reporting intermediate performance or integrating termination conditions.
         """
-        if self.cluster_spec is not None:
-            assert self.task_index is not None
-            # Redirect process output
-            # sys.stdout = open('tf_worker_' + str(self.task_index) + '.txt', 'w', 0)
-            cluster_def = self.cluster_spec.as_cluster_def()
 
-            if self.task_index == -1:
-                server = tf.train.Server(
-                    server_or_cluster_def=cluster_def,
-                    job_name='ps',
-                    task_index=0,
-                    config=tf.ConfigProto(device_filters=["/job:ps"])
-                )
-                # Param server does nothing actively
-                server.join()
-                return
-
-            # Worker creates runner for execution
-            server = tf.train.Server(
-                server_or_cluster_def=cluster_def,
-                job_name='worker',
-                task_index=self.task_index,
-                config=tf.ConfigProto(
-                    intra_op_parallelism_threads=1,
-                    inter_op_parallelism_threads=2,
-                    log_device_placement=True
-                )
-            )
-
-            config = tf.ConfigProto(device_filters=['/job:ps', '/job:worker/task:{}/cpu:0'.format(self.task_index)])
-
-            init_op = tf.global_variables_initializer()
-            supervisor = tf.train.Supervisor(
-                is_chief=(self.task_index == 0),
-                logdir='/tmp/train_logs',
-                global_step=self.agent.model.global_timestep,
-                init_op=tf.variables_initializer(self.agent.model.global_variables),
-                local_init_op=tf.variables_initializer(self.agent.model.variables),
-                init_fn=(lambda session: session.run(init_op)),
-                saver=self.agent.model.saver)
-            # summary_op=tf.summary.merge_all(),
-            # summary_writer=worker_agent.model.summary_writer)
-
-            managed_session = supervisor.managed_session(server.target, config=config)
-            session = managed_session.__enter__()
-            self.agent.model.set_session(session)
-            # session.run(self.agent.model.update_local)
-
-        # save episode reward and length for statistics
-        self.episode_rewards = []
-        self.episode_lengths = []
-        self.episode_times = []
-
-        self.total_timesteps = 0
-        self.episode = 1
+        # Keep track of episode reward and episode length for statistics.
         self.start_time = time.time()
+
         while True:
+
             state = self.environment.reset()
             self.agent.reset()
             episode_reward = 0
-
-            self.timestep = 0
+            self.episode_timestep = 0
             episode_start_time = time.time()
+
             while True:
-                action = self.agent.act(state=state)
+
+                action = self.agent.act(states=state, deterministic=deterministic)
+
                 if self.repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(self.repeat_actions):
-                        state, step_reward, terminal = self.environment.execute(action=action)
+                        state, terminal, step_reward = self.environment.execute(actions=action)
                         reward += step_reward
                         if terminal:
                             break
                 else:
-                    state, reward, terminal = self.environment.execute(action=action)
+                    state, terminal, reward = self.environment.execute(actions=action)
 
-                self.agent.observe(reward=reward, terminal=terminal)
+                self.agent.observe(terminal=terminal, reward=reward)
 
+                self.episode_timestep += 1
                 self.timestep += 1
-                self.total_timesteps += 1
                 episode_reward += reward
 
-                if terminal or self.timestep == max_timesteps:
+                if terminal or (max_episode_timesteps is not None and self.episode_timestep == max_episode_timesteps):
                     break
 
-            self.agent.observe_episode_reward(episode_reward)
             time_passed = time.time() - episode_start_time
+
             self.episode_rewards.append(episode_reward)
-            self.episode_lengths.append(self.timestep)
+            self.episode_timesteps.append(self.episode_timestep)
             self.episode_times.append(time_passed)
 
-            if self.save_path and self.save_episodes is not None and self.episode % self.save_episodes == 0:
-                print("Saving agent after episode {}".format(self.episode))
-                self.agent.save_model(self.save_path)
+            if (timesteps is not None and self.agent.timestep >= timesteps) or \
+                    (episodes is not None and self.agent.episode >= episodes):
+                # agent.episode / agent.timestep are globally updated
+                break
 
             if episode_finished and not episode_finished(self):
-                return
-            if self.cluster_spec is None:
-                if self.episode >= episodes:
-                    return
-            elif session.run(self.agent.model.global_episode) >= episodes:
-                return
+                break
+
             self.episode += 1
 
-        if self.cluster_spec is not None:
-            managed_session.__exit__(None, None, None)
-            supervisor.stop()
+        self.agent.close()
+        self.environment.close()

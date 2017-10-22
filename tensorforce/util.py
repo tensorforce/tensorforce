@@ -18,7 +18,7 @@ import logging
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorForceError, Configuration
+from tensorforce import TensorForceError
 
 
 epsilon = 1e-6
@@ -95,11 +95,11 @@ def np_dtype(dtype):
     Returns: Numpy data type
 
     """
-    if dtype == 'float' or dtype == float:
+    if dtype == 'float' or dtype == float or dtype == np.float32 or dtype == tf.float32:
         return np.float32
-    elif dtype == 'int' or dtype == int:
+    elif dtype == 'int' or dtype == int or dtype == np.int32 or dtype == tf.int32:
         return np.int32
-    elif dtype == 'bool' or dtype == bool:
+    elif dtype == 'bool' or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
         return np.bool_
     else:
         raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
@@ -114,60 +114,54 @@ def tf_dtype(dtype):
        Returns: TensorFlow data type
 
        """
-    if dtype == 'float' or dtype == float or dtype == np.float32:
+    if dtype == 'float' or dtype == float or dtype == np.float32 or dtype == tf.float32:
         return tf.float32
-    elif dtype == 'int' or dtype == int or dtype == np.int32:
+    elif dtype == 'int' or dtype == int or dtype == np.int32 or dtype == tf.int32:
         return tf.int32
+    elif dtype == 'bool' or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
+        return tf.bool
     else:
         raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
 
 
-def get_function(fct, predefined=None):
+def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
     """
-    Turn a function specification from a configuration to a function, e.g.
-    by importing it from the respective module.
-    Args:
-        fct:
-        predefined:
-
-    Returns:
-
-    """
-    if predefined is not None and fct in predefined:
-        return predefined[fct]
-    elif isinstance(fct, str):
-        module_name, function_name = fct.rsplit('.', 1)
-        module = importlib.import_module(module_name)
-        return getattr(module, function_name)
-    elif callable(fct):
-        return fct
-    else:
-        raise TensorForceError("Argument {} cannot be turned into a function.".format(fct))
-
-
-def get_object(obj, predefined=None, kwargs=None):
-    """
-    Utility method to map Configuration objects to their contents, e.g. optimisers, baselines
-    to the respective classes.
+    Utility method to map some kind of object specification to its content,
+    e.g. optimizer or baseline specifications to the respective classes.
 
     Args:
-        obj: Configuration object or dict
-        predefined: Default value
-        kwargs: Parameters for the configuration
+        obj: A specification dict (value for key 'type' optionally specifies
+                the object, options as follows), a module path (e.g.,
+                my_module.MyClass), a key in predefined_objects, or a callable
+                (e.g., the class type object).
+        predefined_objects: Dict containing predefined set of objects,
+                accessible via their key
+        default_object: Default object is no other is specified
+        kwargs: Arguments for object creation
 
     Returns: The retrieved object
 
     """
-    if isinstance(obj, Configuration):
-        fct = obj.type
-        full_kwargs = {key: value for key, value in obj if key != 'type'}
-    elif isinstance(obj, dict):
-        fct = obj['type']
-        full_kwargs = {key: value for key, value in obj.items() if key != 'type'}
+    args = ()
+    kwargs = dict() if kwargs is None else kwargs
+
+    if isinstance(obj, dict):
+        kwargs.update(obj)
+        obj = kwargs.pop('type', None)
+
+    if predefined_objects is not None and obj in predefined_objects:
+        obj = predefined_objects[obj]
+    elif isinstance(obj, str):
+        module_name, function_name = obj.rsplit('.', 1)
+        module = importlib.import_module(module_name)
+        obj = getattr(module, function_name)
+    elif callable(obj):
+        pass
+    elif default_object is not None:
+        args = (obj,)
+        obj = default_object
     else:
-        fct = obj
-        full_kwargs = dict()
-    obj = get_function(fct=fct, predefined=predefined)
-    if kwargs is not None:
-        full_kwargs.update(kwargs)
-    return obj(**full_kwargs)
+        # assumes the object is already instantiated
+        return obj
+
+    return obj(*args, **kwargs)

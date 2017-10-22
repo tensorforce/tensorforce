@@ -13,56 +13,138 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Trust Region Policy Optimization agent.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
 from tensorforce.agents import BatchAgent
-from tensorforce.models import TRPOModel
+from tensorforce.models import PGProbRatioModel
 
 
 class TRPOAgent(BatchAgent):
     """
     Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
 
-    Configuration:
+    ### Configuration options
 
-    Each agent requires the following ``Configuration`` parameters:
+    #### General:
 
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
+    * `scope`: TensorFlow variable scope name (default: 'trpo')
 
-    The `BatchAgent` class additionally requires the following parameters:
+    #### Hyperparameters:
 
-    * `batch_size`: integer of the batch size.
-    * `keep_last`: bool optionally keep the last observation for use in the next batch
+    * `batch_size`: Positive integer (**mandatory**)
+    * `learning_rate`: Max KL divergence, positive float (default: 1e-2)
+    * `discount`: Positive float, at most 1.0 (default: 0.99)
+    * `entropy_regularization`: None or positive float (default: none)
+    * `gae_lambda`: None or float between 0.0 and 1.0 (default: none)
+    * `normalize_rewards`: Boolean (default: false)
+    * `likelihood_ratio_clipping`: None or positive float (default: none)
 
-    A Policy Gradient Model expects the following additional configuration parameters:
+    #### Baseline:
 
-    * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp').
-    * `gae_rewards`: boolean indicating whether to use GAE reward estimation.
-    * `gae_lambda`: GAE lambda.
-    * `normalize_rewards`: boolean indicating whether to normalize rewards.
+    * `baseline_mode`: None, or one of 'states' or 'network' specifying the network input (default: none)
+    * `baseline`: None or specification dict, or per-state specification for aggregated baseline (default: none)
+    * `baseline_optimizer`: None or specification dict (default: none)
 
+    #### Pre-/post-processing:
 
-    The TRPO agent expects the following additional configuration parameters:
+    * `state_preprocessing`: None or dict with (default: none)
+    * `exploration`: None or dict with (default: none)
+    * `reward_preprocessing`: None or dict with (default: none)
 
-    * `learning_rate`: float of learning rate (alpha).
-    * `optimizer`: string of optimizer to use (e.g. 'adam').
-    * `cg_damping`: float of the damping factor for the conjugate gradient method.
-    * `line_search_steps`: int of how many steps to take during line search.
-    * `max_kl_divergence`: float indicating the maximum kl divergence to allow for updates.
-    * `cg_iterations`: int of count of conjugate gradient iterations.
+    #### Logging:
 
+    * `log_level`: Logging level, one of the following values (default: 'info')
+        + 'info', 'debug', 'critical', 'warning', 'fatal'
 
+    #### TensorFlow Summaries:
+    * `summary_logdir`: None or summary directory string (default: none)
+    * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
+        + 'total-loss'
+        + 'losses'
+        + 'variables'
+        + 'activations'
+        + 'relu'
+    * `summary_frequency`: Positive integer (default: 1)
     """
 
+    default_config = dict(
+        # Agent
+        preprocessing=None,
+        exploration=None,
+        reward_preprocessing=None,
+        # BatchAgent
+        keep_last_timestep=True,  # not documented!
+        # TRPOAgent
+        learning_rate=1e-2,
+        cg_max_iterations=20,  # not documented
+        cg_damping=1e-3,  # not documented
+        cg_unroll_loop=False,  # not documented
+        ls_max_iterations=10,  # not documented
+        ls_accept_ratio=0.1,  # not documented
+        ls_mode='exponential',  # not documented
+        ls_parameter=0.5,  # not documented
+        ls_unroll_loop=False,  # not documented
+        # Model
+        discount=0.99,
+        normalize_rewards=False,
+        # DistributionModel
+        distributions=None,  # not documented!!!
+        entropy_regularization=None,
+        # PGModel
+        baseline_mode=None,
+        baseline=None,
+        baseline_optimizer=None,
+        gae_lambda=None,
+        # PGProbRatioModel
+        likelihood_ratio_clipping=None,
+        # Logging
+        log_level='info',
+        model_directory=None,
+        save_frequency=600,  # TensorFlow default
+        summary_labels=['total-loss'],
+        summary_frequency=120,  # TensorFlow default
+        # TensorFlow distributed configuration
+        cluster_spec=None,
+        parameter_server=False,
+        task_index=0,
+        device=None,
+        local_model=False,
+        replica_model=False,
+        scope='trpo'
+    )
 
-    name = 'TRPOAgent'
-    model = TRPOModel
+    # missing: batch agent configs
+    # missing: ls_override, ls_accept_ratio, ls_max_backtracks, cg_damping, cg_iterations
+
+    def __init__(self, states_spec, actions_spec, network_spec, config):
+        self.network_spec = network_spec
+        config = config.copy()
+        config.default(self.__class__.default_config)
+        config.obligatory(
+            optimizer=dict(
+                type='optimized_step',
+                optimizer=dict(
+                    type='natural_gradient',
+                    learning_rate=config.learning_rate,
+                    cg_max_iterations=config.cg_max_iterations,
+                    cg_damping=config.cg_damping,
+                    cg_unroll_loop=config.cg_unroll_loop
+                ),
+                ls_max_iterations=config.ls_max_iterations,
+                ls_accept_ratio=config.ls_accept_ratio,
+                ls_mode=config.ls_mode,
+                ls_parameter=config.ls_parameter,
+                ls_unroll_loop=config.ls_unroll_loop
+            )
+        )
+        super(TRPOAgent, self).__init__(states_spec, actions_spec, config)
+
+    def initialize_model(self, states_spec, actions_spec, config):
+        return PGProbRatioModel(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=self.network_spec,
+            config=config
+        )

@@ -146,7 +146,7 @@ class Agent(object):
             if isinstance(action['shape'], int):  # Shape: int to unary tuple
                 action['shape'] = (action['shape'],)
             if config.exploration is not None:
-                self.exploration['action'] = Exploration.from_config(config=config.exploration)
+                self.exploration['action'] = Exploration.from_spec(config.exploration)
 
         else:  # Multi-action
             self.unique_action = False
@@ -163,7 +163,7 @@ class Agent(object):
                 if isinstance(action['shape'], int):  # Shape: int to unary tuple
                     action['shape'] = (action['shape'],)
                 if config.exploration is not None and name in config.exploration:
-                    self.exploration[name] = Exploration.from_config(config=config.exploration[name])
+                    self.exploration[name] = Exploration.from_spec(config.exploration[name])
 
         # reward preprocessing config
         if config.reward_preprocessing is None:

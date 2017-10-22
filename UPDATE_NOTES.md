@@ -9,8 +9,17 @@ be tracked here in detail but through github issues.
 
 - BREAKING: We released a complete redesign including our new optimization module. Optimizers
   which previously were only available in Python (natural gradients) are now available in pure
-  TensorFlow. 
-- Models are now heavily making use of templated graph construction. 
+  TensorFlow. A blogpost on this will appear soon.
+- Agent configurations are now decomposed in (```action_spec```, ```states_spec```,```network_spec```, and config). 
+  This facilitates a more clear separation between hyperparameters of the model and describing the problem.
+- Models are now heavily making use of templated graph construction.
+- Policy gradient models have been decomposed in models using likelihood ratios and log
+  likelihood (```pg_prob_ratio_model```) and (```pg_log_prob_model```)
+- Q-models are now implemented as distributional models, which enables the use of natural
+  gradients in Q-models. A blogpost on the practical implications is also on the way.
+- Baselines: It is now possible to share parameters between main networks and baselines via
+  the baseline option (```NetworkBaseline``).
+- Actions now support booleans types.
 
 2nd September 2017
 

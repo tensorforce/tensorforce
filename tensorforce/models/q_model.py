@@ -127,7 +127,7 @@ class QModel(DistributionModel):
         model_variables = super(QModel, self).get_variables(include_non_trainable=include_non_trainable)
 
         if include_non_trainable:
-            # target network and optimizer variables only included if 'include_non_trainable' set
+            # Target network and optimizer variables only included if 'include_non_trainable' set
             target_variables = self.target_network.get_variables(include_non_trainable=include_non_trainable)
 
             target_optimizer_variables = self.target_optimizer.get_variables()

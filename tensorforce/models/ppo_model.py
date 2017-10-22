@@ -27,6 +27,7 @@ from six.moves import xrange
 from tensorforce import util
 from tensorforce.core.memories import Replay
 from tensorforce.models import PolicyGradientModel
+from tensorforce.util import SummarySessionWrapper
 
 
 class PPOModel(PolicyGradientModel):
@@ -47,6 +48,9 @@ class PPOModel(PolicyGradientModel):
         self.optimizer_batch_size = config.optimizer_batch_size
         # Use replay memory so memory logic can be used to sample batches
 
+        if self.optimizer_batch_size > config.batch_size:
+            raise Exception("optimizer_batch_size > batch_size ({}, {})".format(self.optimizer_batch_size,
+                                                                                config.batch_size))
         self.updates = int(config.batch_size / self.optimizer_batch_size) * config.epochs
         self.memory = Replay(config.batch_size, config.states, config.actions, config.random_sampling)
 
@@ -173,10 +177,11 @@ class PPOModel(PolicyGradientModel):
                 prev_distribution_tensors.pop('optimize')
 
             elif i == self.updates - 1:  # Last update, fetch return and diagnostics values
-                fetches = (self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy)
+                fetches = [self.optimize, self.loss, self.loss_per_instance, self.kl_divergence, self.entropy]
                 prev_distribution_tensors = {placeholder: tensor for name, placeholders in self.prev_distribution_tensors.items() for placeholder, tensor in zip(placeholders, prev_distribution_tensors[name])}
                 feed_dict.update(prev_distribution_tensors)
-                loss, loss_per_instance, kl_divergence, entropy = self.session.run(fetches=fetches, feed_dict=feed_dict)[1:]
+                with SummarySessionWrapper(self, fetches, feed_dict) as session:
+                    _, loss, loss_per_instance, kl_divergence, entropy = session.run()
 
             else:  # Otherwise just optimize
                 self.session.run(fetches=self.optimize, feed_dict=feed_dict)

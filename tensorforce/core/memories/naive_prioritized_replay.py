@@ -27,13 +27,13 @@ from tensorforce.core.memories import Memory
 
 #TODO update samping strategy
 #TODO implement in TF
-class PrioritizedReplay(Memory):
+class NaivePrioritizedReplay(Memory):
     """
     Prioritised replay sampling based on loss per experience.
     """
 
     def __init__(self, capacity, states_spec, actions_spec, prioritization_weight=1.0):
-        super(PrioritizedReplay, self).__init__(capacity, states_spec, actions_spec)
+        super(NaivePrioritizedReplay, self).__init__(capacity, states_spec, actions_spec)
         self.prioritization_weight = prioritization_weight
         self.internals_config = None
         # Stores (priority, observation) pairs in reverse priority order.
@@ -130,9 +130,9 @@ class PrioritizedReplay(Memory):
     def update_batch(self, loss_per_instance):
         """
         Computes priorities according to loss.
-        
+
         Args:
-            loss_per_instance: 
+            loss_per_instance:
 
         """
         if self.batch_indices is None:

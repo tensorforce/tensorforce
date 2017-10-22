@@ -18,12 +18,14 @@ from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
+
 from tensorforce.core.optimizers import Optimizer
 
 
-class TensorFlowOptimizer(Optimizer):
+class TFOptimizer(Optimizer):
     """
-    Wrapper class for native TensorFlow optimizers.
+    Wrapper class for TensorFlow optimizers. This maps
+    native TensorFlow optimizers to the TensorForce optimization interface.
 
     """
 
@@ -31,31 +33,65 @@ class TensorFlowOptimizer(Optimizer):
         adadelta=tf.train.AdadeltaOptimizer,
         adagrad=tf.train.AdagradOptimizer,
         adam=tf.train.AdamOptimizer,
+        nadam=tf.contrib.opt.NadamOptimizer,
         gradient_descent=tf.train.GradientDescentOptimizer,
         momentum=tf.train.MomentumOptimizer,
-        rmsprop=tf.train.RMSPropOptimizer,
-        nadam=tf.contrib.opt.NadamOptimizer
+        rmsprop=tf.train.RMSPropOptimizer
     )
 
-    @classmethod
-    def get_wrapper(cls, optimizer, variables=None):
+    @staticmethod
+    def get_wrapper(optimizer):
         def wrapper(**kwargs):
-            return cls(optimizer=optimizer, variables=variables, **kwargs)
+            return TFOptimizer(optimizer=optimizer, **kwargs)
         return wrapper
 
-    def __init__(self, optimizer, variables=None, **kwargs):
-        super(TensorFlowOptimizer, self).__init__(variables=variables)
-        self.optimizer = TensorFlowOptimizer.tf_optimizers[optimizer](**kwargs)
+    def __init__(self, optimizer, **kwargs):
+        """
+        Creates a new optimizer instance of a TensorFlow optimizer.
 
-    def minimize(self, fn_loss, fn_kl_divergence=None):
-        if isinstance(fn_loss, tf.Tensor):  # TEMPORARY !!!!!!!!
-            _loss = fn_loss
-            fn_loss = (lambda: _loss)
-        loss = super(TensorFlowOptimizer, self).minimize(fn_loss=fn_loss, fn_kl_divergence=fn_kl_divergence)
-        return self.optimizer.minimize(loss=loss, var_list=self.variables)
+        Args:
+            optimizer: The name of the optimizer, one of 'adadelta', 'adagrad', 'adam',  
+            'gradient_descent', 'momentum', 'rmsprop'.
+            **kwargs: Additional arguments passed on to the TensorFlow optimizer constructor.
+        """
+        super(TFOptimizer, self).__init__()
 
-    def compute_gradients(self, *args, **kwargs):
-        return self.optimizer.compute_gradients(*args, **kwargs)
+        self.name = optimizer
+        self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
 
-    def apply_gradients(self, *args, **kwargs):
-        return self.optimizer.apply_gradients(*args, **kwargs)
+    def tf_step(self, time, variables, fn_loss, **kwargs):
+        """
+        Creates the TensorFlow operations for performing an optimization step.
+
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            fn_loss: A callable returning the loss of the current model.
+            **kwargs: Additional arguments, not used.
+
+        Returns:
+            List of delta tensors corresponding to the updates for each optimized variable.
+        """
+        loss = fn_loss()
+
+        with tf.control_dependencies(control_inputs=(loss,)):
+            # Trivial operation to enforce control dependency
+            vars_before = [var + 0.0 for var in variables]
+
+        with tf.control_dependencies(control_inputs=vars_before):
+            applied = self.optimizer.minimize(loss=loss, var_list=variables)
+
+        with tf.control_dependencies(control_inputs=(applied,)):
+            return [var - var_before for var, var_before in zip(variables, vars_before)]
+
+    def get_variables(self):
+        optimizer_variables = super(TFOptimizer, self).get_variables()
+
+        slots_variables = [variable for slot in self.optimizer._slots.values() for variable in slot.values()]
+
+        if self.name in ('adam', 'nadam'):
+            additional_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]
+        else:
+            additional_variables = list()
+
+        return optimizer_variables + slots_variables + additional_variables

@@ -13,16 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Proximal Policy Optimization agent.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
 from tensorforce.agents import BatchAgent
-from tensorforce.models.ppo_model import PPOModel
+from tensorforce.models import PGProbRatioModel
 
 
 class PPOAgent(BatchAgent):
@@ -30,37 +26,121 @@ class PPOAgent(BatchAgent):
     Proximal Policy Optimization agent ([Schulman et al., 2017]
     (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
 
-    Configuration:
+    ### Configuration options
 
-    Each agent requires the following ``Configuration`` parameters:
+    #### General:
 
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
+    * `scope`: TensorFlow variable scope name (default: 'ppo')
 
-    The `BatchAgent` class additionally requires the following parameters:
+    #### Hyperparameters:
 
-    * `batch_size`: integer of the batch size.
-    * `keep_last`: bool optionally keep the last observation for use in the next batch
+    * `batch_size`: Positive integer (**mandatory**)
+    * `learning_rate`: positive float (default: 1e-4)
+    * `discount`: Positive float, at most 1.0 (default: 0.99)
+    * `entropy_regularization`: None or positive float (default: 0.01)
+    * `gae_lambda`: None or float between 0.0 and 1.0 (default: none)
+    * `normalize_rewards`: Boolean (default: false)
+    * `likelihood_ratio_clipping`: None or positive float (default: 0.2)
 
-    A Policy Gradient Model expects the following additional configuration parameters:
+    #### Multi-step optimizer:
 
-    * `baseline`: string indicating the baseline value function (currently 'linear' or 'mlp').
-    * `baseline_args`: list of arguments for the baseline value function.
-    * `baseline_kwargs`: dict of keyword arguments for the baseline value function.
-    * `gae_rewards`: boolean indicating whether to use GAE reward estimation.
-    * `gae_lambda`: GAE lambda.
-    * `normalize_rewards`: boolean indicating whether to normalize rewards.
+    * `step_optimizer`: Specification dict (default: Adam with learning rate 1e-4)
+    * `optimization_steps`: positive integer (default: 10)
 
+    #### Baseline:
 
-    The TRPO agent expects the following additional configuration parameters:
+    * `baseline_mode`: None or 'states' or 'network' (default: none)
+    * `baseline`: None or specification dict, or per-state specification for aggregated baseline (default: none)
+    * `baseline_optimizer`: None or specification dict (default: none)
 
-    * `learning_rate`: float of learning rate (alpha).
-    * `optimizer`: string of optimizer to use (e.g. 'adam').
+    #### Pre-/post-processing:
 
+    * `state_preprocessing`: None or dict with (default: none)
+    * `exploration`: None or dict with (default: none)
+    * `reward_preprocessing`: None or dict with (default: none)
 
+    #### Logging:
+
+    * `log_level`: Logging level, one of the following values (default: 'info')
+        + 'info', 'debug', 'critical', 'warning', 'fatal'
+
+    #### TensorFlow Summaries:
+    * `summary_logdir`: None or summary directory string (default: none)
+    * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
+        + 'total-loss'
+        + 'losses'
+        + 'variables'
+        + 'activations'
+        + 'relu'
+    * `summary_frequency`: Positive integer (default: 1)
     """
 
-    name = 'PPOAgent'
-    model = PPOModel
+    default_config = dict(
+        # Agent
+        preprocessing=None,
+        exploration=None,
+        reward_preprocessing=None,
+        # BatchAgent
+        keep_last_timestep=True,  # not documented!
+        # PPOAgent
+        step_optimizer=dict(
+            type='adam',
+            learning_rate=1e-4
+        ),
+        optimization_steps=10,
+        # Model
+        discount=0.99,
+        normalize_rewards=False,
+        # DistributionModel
+        distributions=None,  # not documented!!!
+        entropy_regularization=1e-2,
+        # PGModel
+        baseline_mode=None,
+        baseline=None,
+        baseline_optimizer=None,
+        gae_lambda=None,
+        # PGProbRatioModel
+        likelihood_ratio_clipping=0.2,
+        # Logging
+        log_level='info',
+        model_directory=None,
+        save_frequency=600,  # TensorFlow default
+        summary_labels=['total-loss'],
+        summary_frequency=120,  # TensorFlow default
+        # TensorFlow distributed configuration
+        cluster_spec=None,
+        parameter_server=False,
+        task_index=0,
+        device=None,
+        local_model=False,
+        replica_model=False,
+        scope='ppo'
+    )
+
+    # missing: batch agent configs
+        # entropy_penalty=0.01,
+        # loss_clipping=0.2,  # Trust region clipping
+        # epochs=10,  # Number of training epochs for SGD,
+        # optimizer_batch_size=128,  # Batch size for optimiser
+        # random_sampling=True  # Sampling strategy for replay memory
+
+    def __init__(self, states_spec, actions_spec, network_spec, config):
+        self.network_spec = network_spec
+        config = config.copy()
+        config.default(self.__class__.default_config)
+        config.obligatory(
+            optimizer=dict(
+                type='multi_step',
+                optimizer=config.step_optimizer,
+                num_steps=config.optimization_steps
+            )
+        )
+        super(PPOAgent, self).__init__(states_spec, actions_spec, config)
+
+    def initialize_model(self, states_spec, actions_spec, config):
+        return PGProbRatioModel(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            network_spec=self.network_spec,
+            config=config
+        )

@@ -12,28 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
 from tensorforce.models.model import Model
-from tensorforce.models.policy_gradient_model import PolicyGradientModel
+from tensorforce.models.distribution_model import DistributionModel
+from tensorforce.models.pg_model import PGModel
+from tensorforce.models.pg_log_prob_model import PGLogProbModel
+from tensorforce.models.pg_prob_ratio_model import PGProbRatioModel
 from tensorforce.models.q_model import QModel
-from tensorforce.models.vpg_model import VPGModel
-from tensorforce.models.trpo_model import TRPOModel
-from tensorforce.models.dqn_model import DQNModel
-from tensorforce.models.naf_model import NAFModel
-from tensorforce.models.dqfd_model import DQFDModel
-from tensorforce.models.categorical_dqn_model import CategoricalDQNModel
-from tensorforce.models.dqn_nstep_model import DQNNstepModel
+from tensorforce.models.q_nstep_model import QNstepModel
+from tensorforce.models.q_naf_model import QNAFModel
+from tensorforce.models.q_demo_model import QDemoModel
 
 
 models = dict(
-    VPGModel=VPGModel,
-    TRPOModel=TRPOModel,
-    DQNModel=DQNModel,
-    NAFModel=NAFModel,
-    DQFDModel=DQFDModel,
-    CategoricalDQNModel=CategoricalDQNModel,
-    DQNNstepModel=DQNNstepModel,
+    pg_log_prob_model=PGLogProbModel,
+    pg_prob_ratio_model=PGProbRatioModel,
+    q_model=QModel,
+    q_nstep_model=QNstepModel,
+    q_naf_model=QNAFModel,
+    q_demo_model=QDemoModel
 )
 
-__all__ = ['Model', 'PolicyGradientModel', 'QModel', 'VPGModel', 'TRPOModel', 'DQNModel', 'NAFModel', 'DQFDModel',
-           'CategoricalDQNModel', 'DQNNstepModel', 'models']
+
+__all__ = [
+    'Model',
+    'DistributionModel',
+    'PGModel',
+    'PGProbRatioModel',
+    'PGLogProbModel',
+    'QModel',
+    'QNstepModel',
+    'QNAFModel',
+    'QDemoModel',
+    'models'
+]

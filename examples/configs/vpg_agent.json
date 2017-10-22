@@ -1,21 +1,16 @@
 {
-  "log_level": "info",
-  "preprocessing": null,
-  "exploration": null,
-  "batch_size": 4000,
-  "discount": 0.97,
-  "learning_rate": 0.01,
-  "optimizer": "adam",
-  "tf_summary": null,
+    "batch_size": 4000,
+    "optimizer": {
+        "type": "adam",
+        "learning_rate": 1e-2
+    },
 
-  "baseline": {
-    "type": "mlp",
-    "sizes": [32, 32],
-    "epochs": 1,
-    "update_batch_size" : 512,
-    "learning_rate": 0.01
-  },
+    "discount": 0.99,
+    "normalize_rewards": false,
+    "entropy_regularization": null,
+    "gae_lambda": null,
 
-  "gae_rewards": false,
-  "normalize_rewards": true
+    "baseline_mode": null,
+    "baseline":  null,
+    "baseline_optimizer": null
 }

@@ -15,7 +15,7 @@
 
 """
 Categorical Deep Q network. Implements training and update logic as described
-in the paper A Distributional Perspective on Reinforcement Learning. https://arxiv.org/abs/1707.06887
+in the paper A Distributional Perspective on Reinforcement Learning. https://arxiv.org/abs/1707.06887.
 """
 
 from __future__ import absolute_import
@@ -27,7 +27,7 @@ import tensorflow as tf
 
 from tensorforce import util
 from tensorforce.models import Model
-from tensorforce.core.networks import NeuralNetwork, layers
+from tensorforce.core.networks import Network, layers
 
 
 class CategoricalDQNModel(Model):
@@ -43,7 +43,7 @@ class CategoricalDQNModel(Model):
         num_atoms=51,
     )
 
-    def __init__(self, config):
+    def __init__(self, config, states_config, actions_config):
         """Training logic for Categorical DQN.
 
         Args:
@@ -56,7 +56,7 @@ class CategoricalDQNModel(Model):
         self.num_atoms = config.num_atoms
         self.last_target_update = 0
         self.target_update_frequency = config.target_update_frequency
-        super(CategoricalDQNModel, self).__init__(config)
+        super(CategoricalDQNModel, self).__init__(config, states_config, actions_config)
 
         # Synchronise target with training network
         self.possible_update_target(force=True)
@@ -67,16 +67,16 @@ class CategoricalDQNModel(Model):
         # Placeholders
         with tf.variable_scope('placeholder'):
             self.next_state = dict()
-            for name, state in config.states.items():
-                self.next_state[name] = tf.placeholder(dtype=util.tf_dtype(state.type), shape=(None,) + tuple(state.shape), name=name)
+            for name, state in self.states_config.items():
+                self.next_state[name] = tf.placeholder(dtype=util.tf_dtype(state['type']), shape=(None,) + tuple(state['shape']), name=name)
 
         # setup constants delta_z and z. z represents the discretized scaling over vmin -> vmax
         scaling_increment = (self.distribution_max - self.distribution_min) / (self.num_atoms - 1)  # delta_z in the paper
         quantized_steps = self.distribution_min + np.arange(self.num_atoms) * scaling_increment  # z in the paper
 
-        num_actions = {name: action.num_actions for name, action in config.actions}
+        num_actions = {name: action['num_actions'] for name, action in self.actions_config.items()}
 
-        # creating networks
+        # Creating networks
         network_builder = util.get_function(fct=config.network)
 
         # Training network
@@ -87,16 +87,16 @@ class CategoricalDQNModel(Model):
             self.internal_outputs.extend(self.training_network.internal_outputs)
             self.internal_inits.extend(self.training_network.internal_inits)
             training_output_logits, training_output_probabilities, training_qval, action_taken = self._create_action_outputs(
-                self.training_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
+                self.training_network.output, quantized_steps, self.num_atoms, self.actions_config, self.action, num_actions
             )
-            # stack to preserve action_taken shape like (batch_size, num_actions)
+            # Stack to preserve action_taken shape like (batch_size, num_actions)
             for action in self.action:
                 if len(action_taken[action]) > 1:
                     self.action_taken[action] = tf.stack(action_taken[action], axis=1)
                 else:
                     self.action_taken[action] = action_taken[action][0]
 
-                # summarize expected reward histogram
+                # Summarize expected reward histogram
                 if config.tf_summary_level >= 1:
                     for action_shaped in range(len(action_taken[action])):
                         for action_ind in range(num_actions[action]):
@@ -110,7 +110,7 @@ class CategoricalDQNModel(Model):
             self.target_network = NeuralNetwork(network_builder=network_builder, inputs=self.next_state)
             self.next_internal_inputs = list(self.target_network.internal_inputs)
             _, target_output_probabilities, target_qval, target_action = self._create_action_outputs(
-                self.target_network.output, quantized_steps, self.num_atoms, config, self.action, num_actions
+                self.target_network.output, quantized_steps, self.num_atoms, self.actions_config, self.action, num_actions
             )
 
             self.target_variables = tf.contrib.framework.get_variables(scope=target_scope)
@@ -140,7 +140,7 @@ class CategoricalDQNModel(Model):
             # create loss for each action
             for action in self.action:
                 # if shape of action != () we need to process each action head separately
-                for action_ind in range(max([util.prod(config.actions[action].shape), 1])):
+                for action_ind in range(max([util.prod(self.actions_config[action]['shape']), 1])):
                     # project onto the supports
                     # tensorflow indexing is still not great, we stack these two and use gather_nd later
                     target_batch_action_selection = tf.stack((batch_selection, target_action[action][action_ind]), axis=1)
@@ -220,7 +220,7 @@ class CategoricalDQNModel(Model):
             self.session.run(self.target_network_update)
 
     @staticmethod
-    def _create_action_outputs(network_output, quantized_steps, num_atoms, config, actions, num_actions):
+    def _create_action_outputs(network_output, quantized_steps, num_atoms, actions_config, actions, num_actions):
         action_logits = dict()
         action_probabilities = dict()
         action_qvals = dict()
@@ -232,7 +232,7 @@ class CategoricalDQNModel(Model):
             argmax = []
             # if shape of action != () we need to create another network head for each
             # but always create at least 1
-            for shaped_action in range(max([util.prod(config.actions[action].shape), 1])):
+            for shaped_action in range(max([util.prod(actions_config[action]['shape']), 1])):
                 # for each action create an output of length num_atoms
                 # this results in an array of output shape (batch_size, num_actions, num_atoms)
                 # tensors are immutable so we must use lists then stack later

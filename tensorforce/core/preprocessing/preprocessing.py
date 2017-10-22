@@ -22,6 +22,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce import util
+from tensorforce.core.preprocessing import Preprocessor
 import tensorforce.core.preprocessing
 
 
@@ -65,15 +66,19 @@ class Preprocessing(object):
             processor.reset()
 
     @staticmethod
-    def from_config(config):
-        if not isinstance(config, list):
-            config = [config]
+    def from_spec(spec):
+        """
+        Creates a preprocessing stack from a specification dict.
+        """
+        if not isinstance(spec, list):
+            spec = [spec]
 
         preprocessing = Preprocessing()
-        for config in config:
+        for spec in spec:
             preprocessor = util.get_object(
-                obj=config,
+                obj=spec,
                 predefined=tensorforce.core.preprocessing.preprocessors
             )
+            assert isinstance(preprocessor, Preprocessor)
             preprocessing.add(preprocessor=preprocessor)
         return preprocessing

@@ -52,7 +52,7 @@ class ThreadedRunner(object):
     def _run_single(self, thread_id, agent, environment, repeat_actions=1, max_timesteps=-1, episode_finished=None):
         """
         The target function for a thread, runs an agent and environment until signaled to stop.
-        Adds rewards to shared episode rewards list
+        Adds rewards to shared episode rewards list.
 
         Args:
             max_timesteps: Max timesteps in a given episode
@@ -104,7 +104,7 @@ class ThreadedRunner(object):
             self.global_episode += 1
 
     def run(self, episodes=-1, max_timesteps=-1, episode_finished=None, summary_report=None, summary_interval=0):
-        # save episode reward and length for statistics
+        # Save episode reward and length for statistics.
         self.episode_rewards = []
         self.episode_lengths = []
 
@@ -119,7 +119,7 @@ class ThreadedRunner(object):
                                             "episode_finished": episode_finished})
                    for t in range(len(self.agents))]
 
-        # start threads
+        # Start threads
         self.start_time = time.time()
         [t.start() for t in threads]
 
@@ -140,6 +140,6 @@ class ThreadedRunner(object):
 
         self.global_should_stop = True
 
-        # join threads
+        # Join threads
         [t.join() for t in threads]
         print('All threads stopped')

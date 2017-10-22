@@ -1,38 +1,46 @@
 {
-  "preprocessing": [
-    {
-      "type": "image_resize",
-      "width": 84,
-      "height": 84
+    "preprocessing": [
+        {
+            "type": "image_resize",
+            "width": 84,
+            "height": 84
+        },
+        {
+            "type": "grayscale"
+        },
+        {
+            "type": "center"
+        },
+        {
+            "type": "sequence",
+            "length": 4
+        }
+    ],
+    "exploration": null,
+
+
+    "batch_size": 4000,
+    "optimizer": {
+        "type": "adam",
+        "learning_rate´": 1e-2
     },
-    {
-      "type": "grayscale"
+
+    "discount": 0.99,
+    "normalize_rewards": false,
+    "entropy_regularization": null,
+    "gae_lambda": 0.97,
+
+    "baseline_mode": "states",
+    "baseline": {
+        "type": "mlp",
+        "sizes": [32, 32]
     },
-    {
-      "type": "center"
-    },
-    {
-      "type": "sequence",
-      "length": 4
+    "baseline_optimizer": {
+        "type": "multi_step",
+        "optimizer": {
+            "type": "adam",
+            "learning_rate": 0.001
+        },
+        "num_steps": 5
     }
-  ],
-  "exploration": null,
-
-  "batch_size": 4000,
-
-  "discount": 0.97,
-  "learning_rate": 0.01,
-  "optimizer": "adam",
-  "tf_summary": null,
-  "log_level": "info",
-
-  "baseline": {
-    "type": "mlp",
-    "size": 100,
-    "epochs": 5,
-    "update_batch_size" : 128
-  },
-  "gae_rewards": false,
-  "gae_lambda": 0.97,
-  "normalize_rewards": false
 }

@@ -127,8 +127,10 @@ def main():
 
     def episode_finished(stats):
         if args.debug:
-            logger.info("Thread {t}. Finished episode {ep} after {ts} timesteps. Reward {r}".
-                        format(t=stats['thread_id'], ep=stats['episode'], ts=stats['timestep'], r=stats['episode_reward']))
+            logger.info(
+                "Thread {t}. Finished episode {ep} after {ts} timesteps. Reward {r}".
+                format(t=stats['thread_id'], ep=stats['episode'], ts=stats['timestep'], r=stats['episode_reward'])
+            )
         return True
 
     def summary_report(r):

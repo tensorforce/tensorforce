@@ -19,8 +19,15 @@ from tensorforce.core.explorations import Exploration
 
 
 class OrnsteinUhlenbeckProcess(Exploration):
+    """
+    Explore via an Ornstein-Uhlenbeck process.
+    """
 
     def __init__(self, sigma=0.3, mu=0, theta=0.15):
+        """
+        Initializes an Ornstein-Uhlenbeck process which is a mean reverting stochastic process
+        introducing time-correlated noise.
+        """
         self.sigma = sigma
         self.mu = self.state = mu
         self.theta = theta

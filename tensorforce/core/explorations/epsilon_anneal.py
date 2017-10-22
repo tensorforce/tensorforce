@@ -33,7 +33,7 @@ class EpsilonAnneal(Exploration):
 
         offset = self.start_after
 
-        self.epsilon = min(1.0, max(
+        self.epsilon = min(self.epsilon, max(
             self.epsilon_final,
             1.0 - (timestep - offset) / (self.epsilon_timesteps - offset)
         ))

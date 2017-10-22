@@ -28,39 +28,37 @@ from tensorforce.contrib.openai_gym import OpenAIGym
 # Create an OpenAIgym environment
 env = OpenAIGym('CartPole-v0')
 
-# Create a Trust Region Policy Optimization agent
+# Create a Proximal Policy Optimization agent
 agent = PPOAgent(
     Configuration(
-    log_level='info',
-    batch_size=4000,
+        log_level='info',
+        batch_size=256,
 
-    # max_kl_divergence=0.1,
-    # cg_iterations=20,
-    # cg_damping=0.001,
-    # ls_max_backtracks=10,
-    # ls_accept_ratio=0.9,
-    # ls_override=False,
+        memory=dict(
+            type='prioritized_replay',
+        ),
+        update_frequency=256,
+        first_update=512,
 
-    learning_rate=0.001,
-    entropy_penalty=0.01,
-    epochs=5,
-    optimizer_batch_size=512,
-    loss_clipping=0.2,
-    normalize_advantage=False,
-    baseline=dict(
-        type="mlp",
-        sizes=[32, 32],
-        epochs=1,
-        update_batch_size=512,
-        learning_rate=0.01
-    ),
-    states=env.states,
-    actions=env.actions,
-    network=layered_network_builder([
-        dict(type='dense', size=32, activation='tanh'),
-        dict(type='dense', size=32, activation='tanh')
-    ])
-))
+        learning_rate=0.0001,
+        optimizer_batch_size=64,
+        normalize_rewards=False,
+        gae_rewards=False,
+        baseline=dict(
+            type="mlp",
+            sizes=[32, 32],
+            epochs=1,
+            update_batch_size=64,
+            learning_rate=0.001
+        ),
+        states=env.states,
+        actions=env.actions,
+        network=layered_network_builder([
+            dict(type='dense', size=32, activation='tanh'),
+            dict(type='dense', size=32, activation='tanh')
+        ])
+    )
+)
 
 # Create the runner
 runner = Runner(agent=agent, environment=env)

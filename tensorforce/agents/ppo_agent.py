@@ -99,7 +99,7 @@ class PPOAgent(BatchAgent):
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        # PGLRModel
+        # PGProbRatioModel
         likelihood_ratio_clipping=0.2,
         # Logging
         log_level='info',

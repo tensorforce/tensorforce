@@ -70,6 +70,7 @@ class Iterative(Solver):
                 step = (lambda: self.step(*args))
                 do_nothing = (lambda: args)
                 args = tf.cond(pred=next_step, true_fn=step, false_fn=do_nothing)
+
         else:
             # TensorFlow while loop
             args = tf.while_loop(cond=self.next_step, body=self.step, loop_vars=args)

@@ -53,15 +53,16 @@ class Beta(Distribution):
 
     def tf_parameters(self, x):
         # Softplus to ensure alpha and beta >= 1
-        log_eps = log(util.epsilon)  # epsilon < 1.0, hence negative
+        # epsilon < 1.0, hence negative
+        log_eps = log(util.epsilon)
 
         alpha = self.alpha.apply(x=x)
         alpha = tf.clip_by_value(t=alpha, clip_value_min=log_eps, clip_value_max=-log_eps)
-        alpha = tf.log(x=(tf.exp(x=alpha) + 1.0))  # tf.nn.softplus(features=self.alpha)
+        alpha = tf.log(x=(tf.exp(x=alpha) + 1.0)) + 1.0
 
         beta = self.beta.apply(x=x)
         beta = tf.clip_by_value(t=beta, clip_value_min=log_eps, clip_value_max=-log_eps)
-        beta = tf.log(x=(tf.exp(x=beta) + 1.0))  # tf.nn.softplus(features=self.beta)
+        beta = tf.log(x=(tf.exp(x=beta) + 1.0)) + 1.0
 
         shape = (-1,) + self.shape
         alpha = tf.reshape(tensor=alpha, shape=shape)

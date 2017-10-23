@@ -146,7 +146,7 @@ class Agent(object):
             if isinstance(action['shape'], int):  # Shape: int to unary tuple
                 action['shape'] = (action['shape'],)
             if config.exploration is not None:
-                self.exploration['action'] = Exploration.from_config(config=config.exploration)
+                self.exploration['action'] = Exploration.from_spec(config.exploration)
 
         else:  # Multi-action
             self.unique_action = False
@@ -163,7 +163,7 @@ class Agent(object):
                 if isinstance(action['shape'], int):  # Shape: int to unary tuple
                     action['shape'] = (action['shape'],)
                 if config.exploration is not None and name in config.exploration:
-                    self.exploration[name] = Exploration.from_config(config=config.exploration[name])
+                    self.exploration[name] = Exploration.from_spec(config.exploration[name])
 
         # reward preprocessing config
         if config.reward_preprocessing is None:
@@ -247,13 +247,13 @@ class Agent(object):
 
                 if self.actions_spec[name]['type'] == 'bool':
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        shape = self.actions_spec[name].shape
+                        shape = self.actions_spec[name]['shape']
                         self.current_actions[name] = (np.random.random_sample(size=shape) < 0.5)
 
                 elif self.actions_spec[name]['type'] == 'int':
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        shape = self.actions_spec[name].shape
-                        num_actions = self.actions_spec[name].num_actions
+                        shape = self.actions_spec[name]['shape']
+                        num_actions = self.actions_spec[name]['num_actions']
                         self.current_actions[name] = np.random.randint(low=num_actions, size=shape)
 
                 elif self.actions_spec[name]['type'] == 'float':

@@ -84,7 +84,7 @@ preprocessing_config = [
     }
 ]
 
-stack = Preprocessing.from_config(preprocessing_config)
+stack = Preprocessing.from_spec(preprocessing_config)
 config.state_shape = stack.shape(config.state_shape)
 ```
 

@@ -403,6 +403,83 @@ class Dense(Layer):
         return layer_variables + linear_variables + nonlinearity_variables
 
 
+class Dueling(Layer):
+    """
+    Dueling layer, i.e. linear fully connected layer with subsequent non-linearity.
+    """
+
+    def __init__(
+        self,
+        size,
+        bias=False,
+        activation=None,
+        l2_regularization=0.0,
+        l1_regularization=0.0,
+        scope='dueling',
+        summary_labels=()
+    ):
+        """
+        Dueling layer.
+
+        Implement Y = Expectaion[x] + (Advantage[x] - Mean(Advantage[x]))
+
+        Args:
+            size: Layer size.
+            bias: If true, bias is added.
+            activation: Type of nonlinearity.
+            l2_regularization: L2 regularization weight.
+            l1_regularization: L1 regularization weight.
+        """
+        self.linear_exp = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        self.linear_adv = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        if activation is None:
+            self.nonlinearity = None
+        else:
+            self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x):
+        expectation = self.linear_exp.apply(x=x)
+        advantage   = self.linear_adv.apply(x=x)
+
+        x = expectation + advantage - tf.reduce_mean(advantage,axis=1,keep_dims=True)
+        
+        if self.nonlinearity is not None:
+            x = self.nonlinearity.apply(x=x)
+
+        if 'activations' in self.summary_labels:
+            summary = tf.summary.histogram(name='activations', values=x)
+            self.summaries.append(summary)
+
+        return x
+
+    def tf_regularization_loss(self):
+        if super(Dense, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Dense, self).tf_regularization_loss()]
+
+        if self.linear_exp.regularization_loss() is not None:
+            losses.append(self.linear_exp.regularization_loss())
+
+        if self.linear_adv.regularization_loss() is not None:
+            losses.append(self.linear_adv.regularization_loss())            
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
+    def get_variables(self, include_non_trainable=False):
+        layer_variables = super(Dense, self).get_variables(include_non_trainable=include_non_trainable)
+
+        linear_variables_exp = self.linear_exp.get_variables(include_non_trainable=include_non_trainable)
+        linear_variables_adv = self.linear_adv.get_variables(include_non_trainable=include_non_trainable)
+
+        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+
+        return linear_variables_exp + linear_variables_adv + linear_variables + nonlinearity_variables
+
 class Conv1d(Layer):
     """
     1-dimensional convolutional layer.

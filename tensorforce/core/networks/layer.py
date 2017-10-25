@@ -421,6 +421,7 @@ class Dueling(Layer):
         """
         Dueling layer.
 
+        [Dueling Networks] (https://arxiv.org/pdf/1511.06581.pdf)
         Implement Y = Expectaion[x] + (Advantage[x] - Mean(Advantage[x]))
 
         Args:

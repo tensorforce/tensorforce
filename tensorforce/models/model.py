@@ -460,6 +460,9 @@ class Model(object):
         # Update flag
         self.update_input = tf.placeholder(dtype=tf.bool, shape=(), name='update')
 
+        # Is-training flag
+        self.training = tf.placeholder_with_default(False, shape=(), name='is-training')
+
         # TensorFlow functions
         self.fn_discounted_cumulative_reward = tf.make_template(
             name_='discounted-cumulative-reward',
@@ -868,6 +871,7 @@ class Model(object):
             )
             feed_dict[self.terminal_input] = (terminal,)
             feed_dict[self.reward_input] = (reward,)
+            feed_dict[self.training] = True
 
         feed_dict[self.deterministic_input] = True
         feed_dict[self.update_input] = True

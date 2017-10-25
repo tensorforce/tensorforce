@@ -29,7 +29,7 @@ class PGLogProbModel(PGModel):
     """
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         log_probs = list()
 
         for name, distribution in self.distributions.items():

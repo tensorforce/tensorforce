@@ -148,8 +148,22 @@ class Flatten(Layer):
     def __init__(self, scope='flatten', summary_labels=()):
         super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, training=None):
         return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
+
+
+class Dropout(Layer):
+    """
+    Dropout layer. If using dropout, add this layer after inputs and after dense layers. For LSTM, dropout is handled
+    independently as an argument. Not available for Conv2d yet.
+    """
+
+    def __init__(self, rate=0., scope='dropout', summary_labels=()):
+        self.rate = rate
+        super(Dropout, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, training=None):
+        return tf.layers.dropout(x, rate=self.rate, training=training)
 
 
 class Nonlinearity(Layer):
@@ -167,7 +181,7 @@ class Nonlinearity(Layer):
         self.name = name
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, training=None):
         if self.name == 'elu':
             x = tf.nn.elu(features=x)
 
@@ -230,7 +244,7 @@ class Linear(Layer):
         self.l1_regularization = l1_regularization
         super(Linear, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, training=None):
         if util.rank(x) != 2:
             raise TensorForceError('Invalid input rank for linear layer: {},'
                                    ' must be 2.'.format(util.rank(x)))
@@ -387,7 +401,7 @@ class Dense(Layer):
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, training=None):
         xl1 = self.linear.apply(x=x)
         xl1 = self.nonlinearity.apply(x=xl1)
         if self.skip:
@@ -680,7 +694,7 @@ class Conv2d(Layer):
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, training=None):
         if util.rank(x) != 4:
             raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 4'.format(util.rank(x)))
 
@@ -761,7 +775,7 @@ class Lstm(Layer):
         self.dropout = dropout
         super(Lstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x, state):
+    def tf_apply(self, x, state, training=None):
         if util.rank(x) != 2:
             raise TensorForceError('Invalid input rank for lstm layer: {}, must be 2.'.format(util.rank(x)))
 
@@ -771,7 +785,8 @@ class Lstm(Layer):
 
         self.lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
         if self.dropout is not None:
-            self.lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=self.lstm_cell, output_keep_prob=(1.0 - self.dropout))
+            keep_prob = tf.cond(training, lambda: 1. - self.dropout, lambda: 1.)
+            self.lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=self.lstm_cell, output_keep_prob=keep_prob)
 
         x, state = self.lstm_cell(inputs=x, state=state)
 

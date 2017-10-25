@@ -84,13 +84,15 @@ class QModel(DistributionModel):
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         embedding = self.network.apply(
             x={name: state[:-1] for name, state in states.items()},
-            internals=[internal[:-1] for internal in internals])
+            internals=[internal[:-1] for internal in internals],
+            training=self.training)
 
         # Both networks can use the same internals, could that be a problem?
         # Otherwise need to handle internals indices correctly everywhere
         target_embedding = self.target_network.apply(
             x={name: state[1:] for name, state in states.items()},
-            internals=[internal[1:] for internal in internals]
+            internals=[internal[1:] for internal in internals],
+            training=self.training
         )
 
         deltas = list()

@@ -122,7 +122,7 @@ class PGModel(DistributionModel):
                 state_value = self.baseline.predict(states=states)
 
             elif self.baseline_mode == 'network':
-                embedding = self.network.apply(x=states, internals=internals)
+                embedding = self.network.apply(x=states, internals=internals, training=self.training)
                 state_value = self.baseline.predict(states=embedding)
 
             if self.gae_lambda is None:
@@ -186,7 +186,7 @@ class PGModel(DistributionModel):
 
         elif self.baseline_mode == 'network':
             def fn_loss():
-                loss = self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward)
+                loss = self.baseline.loss(states=self.network.apply(x=states, internals=internals, training=self.training), reward=reward)
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
                     return loss

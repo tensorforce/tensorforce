@@ -56,7 +56,7 @@ class PGProbRatioModel(PGModel):
         )
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         prob_ratios = list()
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameterize(x=embedding)
@@ -81,7 +81,7 @@ class PGProbRatioModel(PGModel):
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
     def tf_reference(self, states, internals, actions):
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         log_probs = list()
         for name in sorted(self.distributions):
             distribution = self.distributions[name]
@@ -99,7 +99,7 @@ class PGProbRatioModel(PGModel):
             terminal=terminal,
             reward=reward
         )
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         log_probs = list()
         for name in sorted(self.distributions):
             distribution = self.distributions[name]

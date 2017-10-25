@@ -46,7 +46,7 @@ class NetworkBaseline(Baseline):
         super(NetworkBaseline, self).__init__(scope, summary_labels)
 
     def tf_predict(self, states):
-        embedding = self.network.apply(x=states)
+        embedding = self.network.apply(x=states, training=False)
         prediction = self.linear.apply(x=embedding)
         return tf.squeeze(input=prediction, axis=1)
 

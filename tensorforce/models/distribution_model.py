@@ -113,7 +113,7 @@ class DistributionModel(Model):
         )
 
     def tf_actions_and_internals(self, states, internals, deterministic):
-        embedding, internals = self.network.apply(x=states, internals=internals, return_internals=True)
+        embedding, internals = self.network.apply(x=states, internals=internals, return_internals=True, training=self.training)
         actions = dict()
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameterize(x=embedding)
@@ -121,7 +121,7 @@ class DistributionModel(Model):
         return actions, internals
 
     def tf_kl_divergence(self, states, internals):
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         kl_divergences = list()
 
         for name, distribution in self.distributions.items():
@@ -163,7 +163,7 @@ class DistributionModel(Model):
 
         if self.entropy_regularization is not None and self.entropy_regularization > 0.0:
             entropies = list()
-            embedding = self.network.apply(x=states, internals=internals)
+            embedding = self.network.apply(x=states, internals=internals, training=self.training)
             for name, distribution in self.distributions.items():
                 distr_params = distribution.parameterize(x=embedding)
                 entropy = distribution.entropy(distr_params=distr_params)

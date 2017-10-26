@@ -59,7 +59,8 @@ class ConstantAgent(Agent):
         config.obligatory(
             optimizer=None,
             discount=1.0,
-            normalize_rewards=False
+            normalize_rewards=False,
+            variable_noise=None
         )
         super(ConstantAgent, self).__init__(states_spec, actions_spec, config)
 

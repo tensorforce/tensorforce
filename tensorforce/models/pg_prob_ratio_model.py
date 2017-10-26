@@ -102,7 +102,7 @@ class PGProbRatioModel(PGModel):
             log_probs.append(log_prob)
         log_prob = tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
         prob_ratio = tf.exp(x=(log_prob - reference))
-        return tf.reduce_mean(input_tensor=(-prob_ratio * reward), axis=0)
+        return tf.reduce_mean(input_tensor=(prob_ratio * reward), axis=0)
 
     def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
         kwargs = super(PGProbRatioModel, self).get_optimizer_kwargs(

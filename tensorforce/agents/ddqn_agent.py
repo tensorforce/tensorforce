@@ -121,10 +121,10 @@ class DDQNAgent(MemoryAgent):
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,
+        variable_noise=None,  # not documented!!!
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
-        double_q_model=True,  # not documented!!!
         huber_loss=0.0,  # not documented!!!
         # Logging
         log_level='info',
@@ -146,6 +146,9 @@ class DDQNAgent(MemoryAgent):
         self.network_spec = network_spec
         config = config.copy()
         config.default(self.__class__.default_config)
+        config.obligatory(
+            double_q_model=True
+        )
         super(DDQNAgent, self).__init__(states_spec, actions_spec, config)
 
     def initialize_model(self, states_spec, actions_spec, config):

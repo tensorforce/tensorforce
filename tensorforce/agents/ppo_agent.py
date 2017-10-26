@@ -91,6 +91,7 @@ class PPOAgent(BatchAgent):
         # Model
         discount=0.99,
         normalize_rewards=False,
+        variable_noise=None,  # not documented!!!
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=1e-2,

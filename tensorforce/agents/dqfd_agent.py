@@ -85,6 +85,7 @@ class DQFDAgent(MemoryAgent):
         ),
         discount=0.99,
         normalize_rewards=False,
+        variable_noise=None,  # not documented!!!
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,

@@ -88,7 +88,7 @@ class DistributionModel(Model):
                             )
 
         # Entropy regularization
-        assert config.entropy_regularization is None or config.entropy_regularization > 0.0
+        assert config.entropy_regularization is None or config.entropy_regularization >= 0.0
         self.entropy_regularization = config.entropy_regularization
 
         super(DistributionModel, self).__init__(
@@ -159,7 +159,7 @@ class DistributionModel(Model):
                 if distribution.regularization_loss() is not None
             ])
 
-        if self.entropy_regularization is not None:
+        if self.entropy_regularization is not None and self.entropy_regularization > 0.0:
             entropies = list()
             embedding = self.network.apply(x=states, internals=internals)
             for name, distribution in self.distributions.items():

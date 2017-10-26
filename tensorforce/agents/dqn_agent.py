@@ -124,6 +124,7 @@ class DQNAgent(MemoryAgent):
         ),
         discount=0.99,
         normalize_rewards=False,
+        variable_noise=None,  # not documented!!!
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,
@@ -131,7 +132,7 @@ class DQNAgent(MemoryAgent):
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
         double_q_model=False,  # not documented!!!
-        huber_loss=0.0,  # not documented!!!
+        huber_loss=None,  # not documented!!!
         # Logging
         log_level='info',
         model_directory=None,

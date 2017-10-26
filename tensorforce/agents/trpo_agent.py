@@ -77,18 +77,19 @@ class TRPOAgent(BatchAgent):
         # BatchAgent
         keep_last_timestep=True,  # not documented!
         # TRPOAgent
-        learning_rate=1e-2,
+        learning_rate=1e-3,
         cg_max_iterations=20,  # not documented
         cg_damping=1e-3,  # not documented
         cg_unroll_loop=False,  # not documented
         ls_max_iterations=10,  # not documented
-        ls_accept_ratio=0.1,  # not documented
+        ls_accept_ratio=0.9,  # not documented
         ls_mode='exponential',  # not documented
         ls_parameter=0.5,  # not documented
         ls_unroll_loop=False,  # not documented
         # Model
         discount=0.99,
         normalize_rewards=False,
+        variable_noise=None,  # not documented!!!
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,

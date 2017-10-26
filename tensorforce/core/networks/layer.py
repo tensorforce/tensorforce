@@ -425,7 +425,7 @@ class Dueling(Layer):
         Dueling layer.
 
         [Dueling Networks] (https://arxiv.org/pdf/1511.06581.pdf)
-        Implement Y = Expectaion[x] + (Advantage[x] - Mean(Advantage[x]))
+        Implement Y = Expectation[x] + (Advantage[x] - Mean(Advantage[x]))
 
         Args:
             size: Layer size.
@@ -434,7 +434,8 @@ class Dueling(Layer):
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
         """
-        self.linear_exp = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        # Expectation is broadcast back over advantage values so output is of size 1 
+        self.linear_exp = Linear(size=1, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.linear_adv = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)

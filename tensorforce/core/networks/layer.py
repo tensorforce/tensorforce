@@ -408,7 +408,7 @@ class Dense(Layer):
 
 class Dueling(Layer):
     """
-    Dueling layer, i.e. linear fully connected layer with subsequent non-linearity.
+    Dueling layer, i.e. Duel pipelines for Exp & Adv to help with stability
     """
 
     def __init__(

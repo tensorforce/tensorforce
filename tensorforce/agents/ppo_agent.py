@@ -125,6 +125,9 @@ class PPOAgent(BatchAgent):
         # random_sampling=True  # Sampling strategy for replay memory
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
+        if config['exploration']:
+            self.logger.warning("PPO implicitly explores via sampling (deterministic policy gradient), we recommend "
+                                "setting `exploration` to `None`")
         self.network_spec = network_spec
         config = config.copy()
         config.default(self.__class__.default_config)

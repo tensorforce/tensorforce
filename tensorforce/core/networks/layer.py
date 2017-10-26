@@ -454,10 +454,10 @@ class Dueling(Layer):
         return x
 
     def tf_regularization_loss(self):
-        if super(Dense, self).tf_regularization_loss() is None:
+        if super(Dueling, self).tf_regularization_loss() is None:
             losses = list()
         else:
-            losses = [super(Dense, self).tf_regularization_loss()]
+            losses = [super(Dueling, self).tf_regularization_loss()]
 
         if self.linear_exp.regularization_loss() is not None:
             losses.append(self.linear_exp.regularization_loss())
@@ -471,14 +471,14 @@ class Dueling(Layer):
             return None
 
     def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Dense, self).get_variables(include_non_trainable=include_non_trainable)
+        layer_variables = super(Dueling, self).get_variables(include_non_trainable=include_non_trainable)
 
         linear_variables_exp = self.linear_exp.get_variables(include_non_trainable=include_non_trainable)
         linear_variables_adv = self.linear_adv.get_variables(include_non_trainable=include_non_trainable)
 
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
-        return linear_variables_exp + linear_variables_adv + linear_variables + nonlinearity_variables
+        return layer_variables + linear_variables_exp + linear_variables_adv + nonlinearity_variables
 
 class Conv1d(Layer):
     """

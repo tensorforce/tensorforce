@@ -437,7 +437,7 @@ class Dueling(Layer):
         self.linear_exp = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.linear_adv = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
-        super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
         expectation = self.linear_exp.apply(x=x)

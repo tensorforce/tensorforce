@@ -162,7 +162,7 @@ class Nonlinearity(Layer):
         Non-linearity layer.
 
         Args:
-            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', or 'tanh'.
+            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', 'tanh' or 'none'.
         """
         self.name = name
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
@@ -197,6 +197,9 @@ class Nonlinearity(Layer):
 
         elif self.name == 'tanh':
             x = tf.nn.tanh(x=x)
+
+        elif self.name == 'none':
+            x = tf.identity(input=x)            
 
         else:
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))
@@ -412,7 +415,7 @@ class Dueling(Layer):
         self,
         size,
         bias=False,
-        activation=None,
+        activation='none',
         l2_regularization=0.0,
         l1_regularization=0.0,
         scope='dueling',
@@ -433,10 +436,7 @@ class Dueling(Layer):
         """
         self.linear_exp = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.linear_adv = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
-        if activation is None:
-            self.nonlinearity = None
-        else:
-            self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
@@ -444,9 +444,8 @@ class Dueling(Layer):
         advantage   = self.linear_adv.apply(x=x)
 
         x = expectation + advantage - tf.reduce_mean(advantage,axis=1,keep_dims=True)
-        
-        if self.nonlinearity is not None:
-            x = self.nonlinearity.apply(x=x)
+
+        x = self.nonlinearity.apply(x=x)
 
         if 'activations' in self.summary_labels:
             summary = tf.summary.histogram(name='activations', values=x)

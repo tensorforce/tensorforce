@@ -127,7 +127,7 @@ class PGModel(DistributionModel):
                 state_value_change = tf.where(condition=terminal, x=zeros, y=state_value_change)
                 td_residual = reward + state_value_change
                 gae_discount = self.discount * self.gae_lambda
-                self.fn_discounted_cumulative_reward(terminal=terminal, reward=td_residual, discount=gae_discount)
+                reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=td_residual, discount=gae_discount)
 
         return self.fn_pg_loss_per_instance(
             states=states,

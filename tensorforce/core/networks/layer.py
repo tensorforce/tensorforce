@@ -162,7 +162,7 @@ class Nonlinearity(Layer):
         Non-linearity layer.
 
         Args:
-            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', or 'tanh'.
+            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', 'tanh' or 'none'.
         """
         self.name = name
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
@@ -197,6 +197,9 @@ class Nonlinearity(Layer):
 
         elif self.name == 'tanh':
             x = tf.nn.tanh(x=x)
+
+        elif self.name == 'none':
+            x = tf.identity(input=x)            
 
         else:
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))
@@ -402,6 +405,81 @@ class Dense(Layer):
 
         return layer_variables + linear_variables + nonlinearity_variables
 
+
+class Dueling(Layer):
+    """
+    Dueling layer, i.e. Duel pipelines for Exp & Adv to help with stability
+    """
+
+    def __init__(
+        self,
+        size,
+        bias=False,
+        activation='none',
+        l2_regularization=0.0,
+        l1_regularization=0.0,
+        scope='dueling',
+        summary_labels=()
+    ):
+        """
+        Dueling layer.
+
+        [Dueling Networks] (https://arxiv.org/pdf/1511.06581.pdf)
+        Implement Y = Expectation[x] + (Advantage[x] - Mean(Advantage[x]))
+
+        Args:
+            size: Layer size.
+            bias: If true, bias is added.
+            activation: Type of nonlinearity.
+            l2_regularization: L2 regularization weight.
+            l1_regularization: L1 regularization weight.
+        """
+        # Expectation is broadcast back over advantage values so output is of size 1 
+        self.linear_exp = Linear(size=1, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        self.linear_adv = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x):
+        expectation = self.linear_exp.apply(x=x)
+        advantage   = self.linear_adv.apply(x=x)
+
+        x = expectation + advantage - tf.reduce_mean(advantage,axis=1,keep_dims=True)
+
+        x = self.nonlinearity.apply(x=x)
+
+        if 'activations' in self.summary_labels:
+            summary = tf.summary.histogram(name='activations', values=x)
+            self.summaries.append(summary)
+
+        return x
+
+    def tf_regularization_loss(self):
+        if super(Dueling, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Dueling, self).tf_regularization_loss()]
+
+        if self.linear_exp.regularization_loss() is not None:
+            losses.append(self.linear_exp.regularization_loss())
+
+        if self.linear_adv.regularization_loss() is not None:
+            losses.append(self.linear_adv.regularization_loss())            
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
+    def get_variables(self, include_non_trainable=False):
+        layer_variables = super(Dueling, self).get_variables(include_non_trainable=include_non_trainable)
+
+        linear_variables_exp = self.linear_exp.get_variables(include_non_trainable=include_non_trainable)
+        linear_variables_adv = self.linear_adv.get_variables(include_non_trainable=include_non_trainable)
+
+        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+
+        return layer_variables + linear_variables_exp + linear_variables_adv + nonlinearity_variables
 
 class Conv1d(Layer):
     """

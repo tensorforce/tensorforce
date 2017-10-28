@@ -138,9 +138,9 @@ class Model(object):
 
                 def custom_getter(getter, name, registered=False, **kwargs):
                     variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
-                    if not registered and not name.startswith('optimization'):
+                    if not registered:
                         self.all_variables[name] = variable
-                        if kwargs.get('trainable', True):
+                        if kwargs.get('trainable', True) and not name.startswith('optimization'):
                             self.variables[name] = variable
                         if 'variables' in self.summary_labels:
                             summary = tf.summary.histogram(name=name, values=variable)
@@ -188,15 +188,15 @@ class Model(object):
         # Local and global initialize operations
         if config.local_model:
             init_op = tf.variables_initializer(
-                var_list=(self.global_model.get_variables(include_non_trainable=True))
+                var_list=self.global_model.get_variables(include_non_trainable=True)
             )
             local_init_op = tf.variables_initializer(
-                var_list=(self.get_variables(include_non_trainable=True))
+                var_list=self.get_variables(include_non_trainable=True)
             )
 
         else:
             init_op = tf.variables_initializer(
-                var_list=(self.get_variables(include_non_trainable=True))
+                var_list=self.get_variables(include_non_trainable=True)
             )
             local_init_op = None
 
@@ -250,13 +250,13 @@ class Model(object):
 
             self.managed_session = self.supervisor.managed_session(
                 master=self.server.target,
-                start_standard_services=True
+                start_standard_services=(config.model_directory is not None)
             )
             self.session = self.managed_session.__enter__()
 
         else:
             self.managed_session = self.supervisor.managed_session(
-                start_standard_services=True
+                start_standard_services=(config.model_directory is not None)
             )
             self.session = self.managed_session.__enter__()
 
@@ -536,7 +536,7 @@ class Model(object):
             internals=internals,
             deterministic=deterministic
         )
-        self.fn_optimization(
+        self.fn_loss_per_instance(
             states=states,
             internals=internals,
             actions=actions,

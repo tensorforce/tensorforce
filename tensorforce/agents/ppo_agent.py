@@ -49,7 +49,7 @@ class PPOAgent(BatchAgent):
 
     #### Baseline:
 
-    * `baseline_mode`: None or 'states' or 'network' (default: none)
+    * `baseline_mode`: None, or one of 'states' or 'network' specifying the baseline input (default: none)
     * `baseline`: None or specification dict, or per-state specification for aggregated baseline (default: none)
     * `baseline_optimizer`: None or specification dict (default: none)
 

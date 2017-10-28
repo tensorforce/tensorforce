@@ -71,7 +71,14 @@ class NAFAgent(MemoryAgent):
         exploration=None,
         reward_preprocessing=None,
         # MemoryAgent
-        # missing, not documented!
+        # batch_size !!!
+        memory=dict(  # not documented!!!
+            type='replay',
+            capacity=100000
+        ),
+        first_update=10000,  # not documented!!!
+        update_frequency=4,  # not documented!!!
+        repeat_update=1,  # not documented!!!
         # Model
         optimizer=dict(
             type='adam',

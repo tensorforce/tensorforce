@@ -88,13 +88,14 @@ class TestTutorialCode(unittest.TestCase):
         from tensorforce.agents import DQNAgent
 
         # The agent is configured with a single configuration object
-        agent_config = Configuration(
+        config = Configuration(
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
             batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20
+            first_update=100,
+            target_sync_frequency=10
         )
 
         # Network is an ordered list of layers
@@ -110,7 +111,7 @@ class TestTutorialCode(unittest.TestCase):
             states_spec=states,
             actions_spec=actions,
             network_spec=network_spec,
-            config=agent_config
+            config=config
         )
 
         ### Code block: multiple states
@@ -120,7 +121,7 @@ class TestTutorialCode(unittest.TestCase):
         )
 
         # DQN does not support multiple states. Omit test for now.
-        # agent = DQNAgent(config=agent_config)
+        # agent = DQNAgent(config=config)
 
         ### Code block: DQN observer function
 
@@ -159,7 +160,7 @@ class TestTutorialCode(unittest.TestCase):
         ### Test json
 
         import json
-        network_config = json.loads(network_json)
+        network_spec = json.loads(network_json)
 
         ### Code block: Modified dense layer
 
@@ -205,19 +206,18 @@ class TestTutorialCode(unittest.TestCase):
             {'type': 'dense', 'size': 32},
             {'type': BatchNormalization, 'variance_epsilon': 1e-9}
         ]
-        agent_config = Configuration(
-            batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20,
+        config = Configuration(
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
+            batch_size=8
         )
         agent = DQNAgent(
             states_spec=states,
             actions_spec=actions,
             network_spec=network_spec,
-            config=agent_config
+            config=config
         )
 
         ### Code block: Own network builder
@@ -263,19 +263,18 @@ class TestTutorialCode(unittest.TestCase):
             image=dict(shape=(64, 64, 3), type='float'),
             caption=dict(shape=(20,), type='int')
         )
-        agent_config = Configuration(
-            batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20
+        config = Configuration(
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
+            batch_size=8
         )
         agent = DQNAgent(
             states_spec=states,
             actions_spec=actions,
             network_spec=CustomNetwork,
-            config=agent_config
+            config=config
         )
 
         ### Code block: LSTM function
@@ -304,21 +303,23 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Test LSTM
         states = dict(shape=(10,), type='float')
-        network_config = [{'type': 'flatten'}, {'type': Lstm, 'size': 10}]
-        agent_config = Configuration(
-            batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20,
+        network_spec = [
+            {'type': 'flatten'},
+            {'type': Lstm, 'size': 10}
+        ]
+        config = Configuration(
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
+            batch_size=8
         )
 
         agent = DQNAgent(
             states_spec=states,
             actions_spec=actions,
-            network_spec=network_config,
-            config=agent_config
+            network_spec=network_spec,
+            config=config
         )
 
         ### Preprocessing configuration
@@ -340,14 +341,15 @@ class TestTutorialCode(unittest.TestCase):
                 length=4
             )
         ]
-        agent_config = Configuration(
+        config = Configuration(
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
             batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20,
-            preprocessing=preprocessing,
+            first_update=100,
+            target_sync_frequency=50,
+            preprocessing=preprocessing
         )
 
         ### Test preprocessing configuration
@@ -355,10 +357,10 @@ class TestTutorialCode(unittest.TestCase):
         agent = DQNAgent(
             states_spec=states,
             actions_spec=actions,
-            network_spec=network_config,
-            config=agent_config
+            network_spec=network_spec,
+            config=config
         )
-        #agent_config.actions = dict(continuous=False, num_actions=5)
+        #config.actions = dict(continuous=False, num_actions=5)
 
         ### Code block: Continuous action exploration
 
@@ -368,13 +370,12 @@ class TestTutorialCode(unittest.TestCase):
             mu=0,
             theta=0.1
         )
-        agent_config = Configuration(
+        config = Configuration(
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
             batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20,
             exploration=exploration
         )
 
@@ -383,8 +384,8 @@ class TestTutorialCode(unittest.TestCase):
         agent = DQNAgent(
             states_spec=states,
             actions_spec=actions,
-            network_spec=network_config,
-            config=agent_config
+            network_spec=network_spec,
+            config=config
         )
         ### Code block: Discrete action exploration
 
@@ -394,13 +395,12 @@ class TestTutorialCode(unittest.TestCase):
             epsilon_final=0.01,
             epsilon_timesteps=1e6
         )
-        agent_config = Configuration(
+        config = Configuration(
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
             batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20,
             exploration=exploration
         )
 
@@ -408,8 +408,8 @@ class TestTutorialCode(unittest.TestCase):
         agent = DQNAgent(
             states_spec=states,
             actions_spec=actions,
-            network_spec=network_config,
-            config=agent_config
+            network_spec=network_spec,
+            config=config
         )
 
     def test_blogpost_introduction_runner(self):
@@ -420,23 +420,24 @@ class TestTutorialCode(unittest.TestCase):
 
         environment = MinimalTest(specification=[('int', ())])
 
-        network_config = [
+        network_spec = [
             dict(type='dense', size=32)
         ]
-        agent_config = Configuration(
+        config = Configuration(
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
             batch_size=8,
-            learning_rate=0.001,
-            memory_capacity=800,
-            first_update=80,
-            repeat_update=4,
-            target_update_frequency=20
+            first_update=100,
+            target_sync_frequency=50
         )
 
         agent = DQNAgent(
             states_spec=environment.states,
             actions_spec=environment.actions,
-            network_spec=network_config,
-            config=agent_config
+            network_spec=network_spec,
+            config=config
         )
         runner = Runner(agent=agent, environment=environment)
 
@@ -453,8 +454,8 @@ class TestTutorialCode(unittest.TestCase):
         agent = DQNAgent(
             states_spec=environment.states,
             actions_spec=environment.actions,
-            network_spec=network_config,
-            config=agent_config
+            network_spec=network_spec,
+            config=config
         )
 
         # max_episodes = 1000

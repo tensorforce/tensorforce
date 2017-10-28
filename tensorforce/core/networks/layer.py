@@ -48,7 +48,7 @@ class Layer(object):
                 variable = getter(name=name, registered=True, **kwargs)
                 if not registered:
                     self.all_variables[name] = variable
-                    if kwargs.get('trainable', True):
+                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
                         self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -322,10 +322,11 @@ class Linear(Layer):
         return x
 
     def tf_regularization_losses(self):
-        if super(Linear, self).tf_regularization_loss() is None:
+        regularization_loss = super(Linear, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Linear, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
         if self.l2_regularization > 0.0:
             losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.weights))
@@ -383,13 +384,19 @@ class Dense(Layer):
         return x
 
     def tf_regularization_loss(self):
-        if super(Dense, self).tf_regularization_loss() is None:
+        regularization_loss = super(Dense, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Dense, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        if self.linear.regularization_loss() is not None:
-            losses.append(self.linear.regularization_loss())
+        regularization_loss = self.linear.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
+
+        regularization_loss = self.nonlinearity.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)
@@ -547,10 +554,11 @@ class Conv1d(Layer):
         return x
 
     def tf_regularization_loss(self):
-        if super(Conv1d, self).tf_regularization_loss() is None:
+        regularization_loss = super(Conv1d, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Conv1d, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
         if self.l2_regularization > 0.0:
             losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
@@ -561,6 +569,10 @@ class Conv1d(Layer):
             losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.filters)))
             if self.bias is not None:
                 losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.bias)))
+
+        regularization_loss = self.nonlinearity.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)
@@ -647,10 +659,11 @@ class Conv2d(Layer):
         return x
 
     def tf_regularization_loss(self):
-        if super(Conv2d, self).tf_regularization_loss() is None:
+        regularization_loss = super(Conv2d, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Conv2d, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
         if self.l2_regularization > 0.0:
             losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
@@ -661,6 +674,10 @@ class Conv2d(Layer):
             losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.filters)))
             if self.bias is not None:
                 losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.bias)))
+
+        regularization_loss = self.nonlinearity.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

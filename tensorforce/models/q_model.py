@@ -43,6 +43,8 @@ class QModel(DistributionModel):
             )
 
         self.double_q_model = config.double_q_model
+
+        assert config.huber_loss is None or config.huber_loss > 0.0
         self.huber_loss = config.huber_loss
 
         super(QModel, self).__init__(
@@ -62,12 +64,18 @@ class QModel(DistributionModel):
 
         :return: A list of deltas per action
         """
+        for _ in range(util.rank(q_value) - 1):
+            terminal = tf.expand_dims(input=terminal, axis=1)
+            reward = tf.expand_dims(input=reward, axis=1)
+
+        multiples = (1,) + util.shape(q_value)[1:]
+        terminal = tf.tile(input=terminal, multiples=multiples)
+        reward = tf.tile(input=reward, multiples=multiples)
+
         zeros = tf.zeros_like(tensor=next_q_value)
         next_q_value = tf.where(condition=terminal, x=zeros, y=(self.discount * next_q_value))
 
-        delta = reward + next_q_value - q_value  # tf.stop_gradient(q_target)
-        collapsed_size = util.prod(util.shape(delta)[1:])
-        return tf.reshape(tensor=delta, shape=(-1, collapsed_size))
+        return reward + next_q_value - q_value  # tf.stop_gradient(q_target)
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
         embedding = self.network.apply(
@@ -97,6 +105,10 @@ class QModel(DistributionModel):
             next_q_value = distribution.state_action_value(distr_params=target_distr_params, action=action_taken)
 
             delta = self.tf_q_delta(q_value=q_value, next_q_value=next_q_value, terminal=terminal[:-1], reward=reward[:-1])
+
+            collapsed_size = util.prod(util.shape(delta)[1:])
+            delta = tf.reshape(tensor=delta, shape=(-1, collapsed_size))
+
             deltas.append(delta)
 
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards

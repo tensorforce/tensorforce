@@ -93,17 +93,21 @@ class QNAFModel(QModel):
     def tf_regularization_losses(self, states, internals):
         losses = super(QNAFModel, self).tf_regularization_losses(states=states, internals=internals)
 
-        if any(state_value.regularization_loss() is not None for state_value in self.state_values.values()):
-            losses['state-values'] = tf.add_n(inputs=[
-                state_value.regularization_loss() for state_value in self.state_values.values()
-                if state_value.regularization_loss() is not None
-            ])
+        for state_value in self.state_values.values():
+            regularization_loss = state_value.regularization_loss()
+            if regularization_loss is not None:
+                if 'state-values' in losses:
+                    losses['state-values'] += regularization_loss
+                else:
+                    losses['state-values'] = regularization_loss
 
-        if any(l_entries.regularization_loss() is not None for l_entries in self.l_entries.values()):
-            losses['l-entries'] = tf.add_n(inputs=[
-                l_entries.regularization_loss() for l_entries in self.l_entries.values()
-                if l_entries.regularization_loss() is not None
-            ])
+        for l_entries in self.l_entries.values():
+            regularization_loss = l_entries.regularization_loss()
+            if regularization_loss is not None:
+                if 'l-entries' in losses:
+                    losses['l-entries'] += regularization_loss
+                else:
+                    losses['l-entries'] = regularization_loss
 
         return losses
 

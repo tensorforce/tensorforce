@@ -32,10 +32,13 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
     deterministic = True
 
     config = Configuration(
+        memory=dict(
+            type='replay',
+            capacity=1000
+        ),
         batch_size=8,
-        memory_capacity=800,
-        first_update=80,
-        target_update_frequency=20,
+        first_update=10,
+        target_sync_frequency=10,
         demo_memory_capacity=100,
         demo_sampling_ratio=0.2
     )

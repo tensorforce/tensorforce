@@ -73,7 +73,7 @@ class Preprocessing(object):
         for spec in spec:
             preprocessor = util.get_object(
                 obj=spec,
-                predefined=tensorforce.core.preprocessing.preprocessors
+                predefined_objects=tensorforce.core.preprocessing.preprocessors
             )
             assert isinstance(preprocessor, Preprocessor)
             preprocessing.add(preprocessor=preprocessor)

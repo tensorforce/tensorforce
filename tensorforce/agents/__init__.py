@@ -18,11 +18,11 @@ from tensorforce.agents.batch_agent import BatchAgent
 from tensorforce.agents.constant_agent import ConstantAgent
 from tensorforce.agents.memory_agent import MemoryAgent
 from tensorforce.agents.random_agent import RandomAgent
-from tensorforce.agents.ddqn_agent import DDQNAgent
 from tensorforce.agents.vpg_agent import VPGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
 from tensorforce.agents.ppo_agent import PPOAgent
 from tensorforce.agents.dqn_agent import DQNAgent
+from tensorforce.agents.ddqn_agent import DDQNAgent
 from tensorforce.agents.dqn_nstep_agent import DQNNstepAgent
 from tensorforce.agents.naf_agent import NAFAgent
 from tensorforce.agents.dqfd_agent import DQFDAgent

@@ -49,6 +49,4 @@ class QNstepModel(QModel):
 
             # reward = self.nstep_rewards[name]
             # delta = reward - self.q_values[name]
-        delta = reward - q_value  # + next_q_value - q_value
-        delta_size = util.prod(util.shape(delta)[1:])
-        return tf.reshape(tensor=delta, shape=(-1, delta_size))
+        return reward - q_value  # + next_q_value - q_value

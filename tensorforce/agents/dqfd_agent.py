@@ -78,6 +78,17 @@ class DQFDAgent(MemoryAgent):
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
+        # MemoryAgent
+        # batch_size !!!
+        memory=dict(  # not documented!!!
+            type='replay',
+            capacity=100000
+        ),
+        first_update=10000,  # not documented!!!
+        update_frequency=4,  # not documented!!!
+        repeat_update=1,  # not documented!!!
+        # DQFDAgent
+        # missing!!!
         # Model
         optimizer=dict(
             type='adam',
@@ -85,6 +96,7 @@ class DQFDAgent(MemoryAgent):
         ),
         discount=0.99,
         normalize_rewards=False,
+        variable_noise=None,  # not documented!!!
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,

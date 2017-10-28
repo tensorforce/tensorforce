@@ -127,7 +127,7 @@ class PGModel(DistributionModel):
                 state_value_change = tf.where(condition=terminal, x=zeros, y=state_value_change)
                 td_residual = reward + state_value_change
                 gae_discount = self.discount * self.gae_lambda
-                self.fn_discounted_cumulative_reward(terminal=terminal, reward=td_residual, discount=gae_discount)
+                reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=td_residual, discount=gae_discount)
 
         return self.fn_pg_loss_per_instance(
             states=states,
@@ -140,40 +140,53 @@ class PGModel(DistributionModel):
     def tf_regularization_losses(self, states, internals):
         losses = super(PGModel, self).tf_regularization_losses(states=states, internals=internals)
 
-        if self.baseline_mode is not None and \
-                self.baseline_optimizer is None and \
-                self.baseline.regularization_loss() is not None:
-            losses['baseline'] = self.baseline.regularization_loss()
+        if self.baseline_mode is not None and self.baseline_optimizer is None:
+            baseline_regularization_loss = self.baseline.regularization_loss()
+            if baseline_regularization_loss is not None:
+                losses['baseline'] = baseline_regularization_loss
 
         return losses
 
     def tf_optimization(self, states, internals, actions, terminal, reward):
         optimization = super(PGModel, self).tf_optimization(states, internals, actions, terminal, reward)
 
-        if self.baseline_mode is None:
+        if self.baseline_optimizer is None:
             return optimization
 
         reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
         if self.baseline_mode == 'states':
-            fn_loss = (lambda: self.baseline.loss(states=states, reward=reward))
+            def fn_loss():
+                loss = self.baseline.loss(states=states, reward=reward)
+                regularization_loss = self.baseline.regularization_loss()
+                if regularization_loss is None:
+                    return loss
+                else:
+                    return loss + regularization_loss
 
         elif self.baseline_mode == 'network':
-            fn_loss = (
-                lambda: self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward)
-            )
+            def fn_loss():
+                loss = self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward)
+                regularization_loss = self.baseline.regularization_loss()
+                if regularization_loss is None:
+                    return loss
+                else:
+                    return loss + regularization_loss
 
         # TODO: time as argument?
         baseline_optimization = self.baseline_optimizer.minimize(
             time=self.timestep,
-            variables=self.baseline.get_variables(), fn_loss=fn_loss, source_variables=self.network.get_variables())
+            variables=self.baseline.get_variables(),
+            fn_loss=fn_loss,
+            source_variables=self.network.get_variables()
+        )
 
         return tf.group(optimization, baseline_optimization)
 
     def get_variables(self, include_non_trainable=False):
         model_variables = super(PGModel, self).get_variables(include_non_trainable=include_non_trainable)
 
-        if include_non_trainable and self.baseline_mode is not None:
+        if include_non_trainable and self.baseline_optimizer is not None:
             # Baseline and optimizer variables included if 'include_non_trainable' set
             baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)
 

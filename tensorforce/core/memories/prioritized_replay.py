@@ -13,9 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Replay memory implementing prioritized experience replay.
-"""
 
 from __future__ import absolute_import
 from __future__ import print_function

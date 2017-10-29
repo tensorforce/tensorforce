@@ -26,7 +26,7 @@ import unittest
 
 import numpy as np
 
-from tensorforce.core.preprocessing import Sequence, Normalize, Center, Grayscale, ImageResize, Divide
+from tensorforce.core.preprocessing import Sequence, Standardize, Normalize, Grayscale, ImageResize, Divide
 
 
 class TestPreprocessing(unittest.TestCase):
@@ -61,7 +61,7 @@ class TestPreprocessing(unittest.TestCase):
         self.assertTrue(np.all(processed_state4 == np.concatenate((state2, state3, state4), -1)))
 
     def test_preprocessing_normalize(self):
-        normalize = Normalize()
+        normalize = Standardize()
         shape = (randint(1, 64), randint(1, 64), 3)
         state = np.random.randint(0, 256, shape)
 
@@ -80,7 +80,7 @@ class TestPreprocessing(unittest.TestCase):
 
 
     def test_preprocessing_center(self):
-        center = Center()
+        center = Normalize()
         shape = (randint(1, 64), randint(1, 64), 3)
         state = np.random.randint(0, 256, shape)
 

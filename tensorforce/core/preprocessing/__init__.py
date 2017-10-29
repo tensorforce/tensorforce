@@ -26,8 +26,8 @@ from tensorforce.core.preprocessing.preprocessing import Preprocessing
 
 preprocessors = dict(
     sequence=Sequence,
-    normalize=Standardize,
-    center=Normalize,
+    standardize=Standardize,
+    normalize=Normalize,
     grayscale=Grayscale,
     image_resize=ImageResize,
     divide=Divide,

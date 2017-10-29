@@ -70,7 +70,6 @@ Other heuristics and their respective config key that can be turned on where sen
 - Baseline modes: Shared parameters (```custom```), non-shared mlp (```mlp```), non-shared cnn (```cnn```), 
   multi-state aggregate (```aggregated```)
 - Generic pure TensorFlow optimizers, most models can be used with natural gradient and evolutionary optimizers
-- Exploration modes: 
 - Preprocessing modes: ```normalize```, ```standardize```, ```grayscale```, ```sequence```, ```clip```,
   ```divide```, ```image_resize```
 - Exploration modes: ```constant```,```linear_decay```, ```epsilon_anneal```, ```epsilon_decay```,

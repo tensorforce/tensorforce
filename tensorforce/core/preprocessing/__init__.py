@@ -15,8 +15,8 @@
 
 from tensorforce.core.preprocessing.preprocessor import Preprocessor
 from tensorforce.core.preprocessing.sequence import Sequence
-from tensorforce.core.preprocessing.normalize import Standardize
-from tensorforce.core.preprocessing.center import Normalize
+from tensorforce.core.preprocessing.standardize import Standardize
+from tensorforce.core.preprocessing.normalize import Normalize
 from tensorforce.core.preprocessing.grayscale import Grayscale
 from tensorforce.core.preprocessing.image_resize import ImageResize
 from tensorforce.core.preprocessing.divide import Divide

@@ -103,7 +103,7 @@ class DQFDAgent(MemoryAgent):
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
-        huber_loss=0.0,  # not documented!!!
+        huber_loss=None,  # not documented!!!
         # Logging
         log_level='info',
         model_directory=None,
@@ -127,7 +127,7 @@ class DQFDAgent(MemoryAgent):
 
         # DQFD always uses double dqn, which is a required key for a q-model.
         config.obligatory(double_dqn=True)
-        self.target_update_frequency = config.target_update_frequency
+        self.target_sync_frequency = config.target_sync_frequency
         self.demo_memory_capacity = config.demo_memory_capacity
 
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples

@@ -78,6 +78,17 @@ class DQFDAgent(MemoryAgent):
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
+        # MemoryAgent
+        # batch_size !!!
+        memory=dict(  # not documented!!!
+            type='replay',
+            capacity=100000
+        ),
+        first_update=10000,  # not documented!!!
+        update_frequency=4,  # not documented!!!
+        repeat_update=1,  # not documented!!!
+        # DQFDAgent
+        # missing!!!
         # Model
         optimizer=dict(
             type='adam',
@@ -85,13 +96,14 @@ class DQFDAgent(MemoryAgent):
         ),
         discount=0.99,
         normalize_rewards=False,
+        variable_noise=None,  # not documented!!!
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
-        huber_loss=0.0,  # not documented!!!
+        huber_loss=None,  # not documented!!!
         # Logging
         log_level='info',
         model_directory=None,
@@ -115,7 +127,7 @@ class DQFDAgent(MemoryAgent):
 
         # DQFD always uses double dqn, which is a required key for a q-model.
         config.obligatory(double_dqn=True)
-        self.target_update_frequency = config.target_update_frequency
+        self.target_sync_frequency = config.target_sync_frequency
         self.demo_memory_capacity = config.demo_memory_capacity
 
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples

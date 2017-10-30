@@ -79,6 +79,22 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         )
         self.base_test(name='network-baseline', environment=environment, network_spec=network_spec, config=config)
 
+    def test_baseline_no_optimizer(self):
+        environment = MinimalTest(specification=[('int', ())])
+        network_spec = [
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
+        ]
+        config = Configuration(
+            batch_size=8,
+            baseline_mode='states',
+            baseline=dict(
+                type='mlp',
+                sizes=[32, 32]
+            )
+        )
+        self.base_test(name='baseline-no-optimizer', environment=environment, network_spec=network_spec, config=config)
+
     def test_gae_baseline(self):
         environment = MinimalTest(specification=[('int', ())])
         network_spec = [

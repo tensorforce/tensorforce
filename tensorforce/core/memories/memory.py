@@ -21,22 +21,21 @@ from tensorforce import util
 import tensorforce.core.memories
 
 
-#TODO implement in TensorFlow
+# TODO: implement in TensorFlow
+
 class Memory(object):
     """
     Abstract memory class.
     """
 
-    def __init__(self, capacity, states_spec, actions_spec):
+    def __init__(self, states_spec, actions_spec):
         """
         Generic memory without sampling strategy implemented.
 
         Args:
-            capacity: Maximum size of memory
             states_spec: State specifiction
             actions_spec: Action specification
         """
-        self.capacity = capacity
         self.states_spec = states_spec
         self.actions_spec = actions_spec
 

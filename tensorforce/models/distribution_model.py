@@ -88,7 +88,7 @@ class DistributionModel(Model):
                             )
 
         # Entropy regularization
-        assert config.entropy_regularization is None or config.entropy_regularization > 0.0
+        assert config.entropy_regularization is None or config.entropy_regularization >= 0.0
         self.entropy_regularization = config.entropy_regularization
 
         super(DistributionModel, self).__init__(
@@ -153,13 +153,15 @@ class DistributionModel(Model):
         if network_loss is not None:
             losses['network'] = network_loss
 
-        if any(distribution.regularization_loss() is not None for distribution in self.distributions.values()):
-            losses['distributions'] = tf.add_n(inputs=[
-                distribution.regularization_loss() for distribution in self.distributions.values()
-                if distribution.regularization_loss() is not None
-            ])
+        for distribution in self.distributions.values():
+            regularization_loss = distribution.regularization_loss()
+            if regularization_loss is not None:
+                if 'distributions' in losses:
+                    losses['distributions'] += regularization_loss
+                else:
+                    losses['distributions'] = regularization_loss
 
-        if self.entropy_regularization is not None:
+        if self.entropy_regularization is not None and self.entropy_regularization > 0.0:
             entropies = list()
             embedding = self.network.apply(x=states, internals=internals)
             for name, distribution in self.distributions.items():

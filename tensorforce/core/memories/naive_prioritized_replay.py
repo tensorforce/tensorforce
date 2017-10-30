@@ -31,8 +31,9 @@ class NaivePrioritizedReplay(Memory):
     Prioritised replay sampling based on loss per experience.
     """
 
-    def __init__(self, capacity, states_spec, actions_spec, prioritization_weight=1.0):
-        super(NaivePrioritizedReplay, self).__init__(capacity, states_spec, actions_spec)
+    def __init__(self, states_spec, actions_spec, capacity, prioritization_weight=1.0):
+        super(NaivePrioritizedReplay, self).__init__(states_spec=states_spec, actions_spec=actions_spec)
+        self.capacity = capacity
         self.prioritization_weight = prioritization_weight
         self.internals_config = None
         # Stores (priority, observation) pairs in reverse priority order.
@@ -109,11 +110,11 @@ class NaivePrioritizedReplay(Memory):
             for name, state in states.items():
                 state[n] = observation[0][name]
             for k, internal in enumerate(internals):
-                internal[n] = observation[4][k]
+                internal[n] = observation[1][k]
             for name, action in actions.items():
-                action[n] = observation[1][name]
-            terminal[n] = observation[2]
-            reward[n] = observation[3]
+                action[n] = observation[2][name]
+            terminal[n] = observation[3]
+            reward[n] = observation[4]
             if next_states:
                 for name, next_state in next_states.items():
                     next_state[n] = observation[5][name]
@@ -136,8 +137,8 @@ class NaivePrioritizedReplay(Memory):
         """
         if self.batch_indices is None:
             raise TensorForceError("Need to call get_batch before each update_batch call.")
-        if len(loss_per_instance) != len(self.batch_indices):
-            raise TensorForceError("For all instances a loss value has to be provided.")
+        # if len(loss_per_instance) != len(self.batch_indices):
+        #     raise TensorForceError("For all instances a loss value has to be provided.")
 
         updated = list()
         for index, loss in zip(self.batch_indices, loss_per_instance):

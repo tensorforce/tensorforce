@@ -13,9 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Replay memory implementing prioritized experience replay.
-"""
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -179,12 +176,12 @@ class PrioritizedReplay(Memory):
     Prioritised replay sampling based on loss per experience.
     """
 
-    def __init__(self, capacity, states_config, actions_config, prioritization_weight=1.0, prioritization_constant=0.0):
-        super(PrioritizedReplay, self).__init__(
-            capacity, states_config, actions_config)
+    def __init__(self, states_spec, actions_spec, capacity, prioritization_weight=1.0, prioritization_constant=0.0):
+        super(PrioritizedReplay, self).__init__(states_spec=states_spec, actions_spec=actions_spec)
+        self.capacity = capacity
         self.prioritization_weight = prioritization_weight
         self.prioritization_constant = prioritization_constant
-        self.internals_config = None
+        self.internals_spec = None
         self.batch_indices = None
 
         # Stores (priority, observation) pairs
@@ -196,12 +193,12 @@ class PrioritizedReplay(Memory):
         # Stores last observation until next_state value is known.
         self.last_observation = None
 
-    def add_observation(self, state, action, reward, terminal, internal):
-        if self.internals_config is None and internal is not None:
-            self.internals_config = [(i.shape, i.dtype) for i in internal]
+    def add_observation(self, states, internals, actions, terminal, reward):
+        if self.internals_spec is None and internals is not None:
+            self.internals_spec = [(internal.shape, internal.dtype) for internal in internals]
 
         if self.last_observation is not None:
-            observation = self.last_observation + (state, internal)
+            observation = self.last_observation + (states, internals)
 
             # We are above capacity and have some seen observations
             if self.observations._isfull():
@@ -212,7 +209,7 @@ class PrioritizedReplay(Memory):
 
             self.observations.put(observation, None)
 
-        self.last_observation = (state, action, reward, terminal, internal)
+        self.last_observation = (states, internals, actions, terminal, reward)
 
     def get_batch(self, batch_size, next_states=False):
         """
@@ -230,19 +227,18 @@ class PrioritizedReplay(Memory):
                 "Requested batch size is larger than observations in memory: increase config.first_update.")
 
         # Init empty states
-        states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(
-            state.type)) for name, state in self.states_config.items()}
-        actions = {name: np.zeros((batch_size,) + tuple(action.shape), dtype=util.np_dtype(
-            'float' if action.continuous else 'int')) for name, action in self.actions_config.items()}
-        rewards = np.zeros((batch_size,), dtype=util.np_dtype('float'))
-        terminals = np.zeros((batch_size,), dtype=util.np_dtype('bool'))
+        states = {name: np.zeros((batch_size,) + tuple(state['shape']), dtype=util.np_dtype(
+            state['type'])) for name, state in self.states_spec.items()}
         internals = [np.zeros((batch_size,) + shape, dtype)
-                     for shape, dtype in self.internals_config]
+                     for shape, dtype in self.internals_spec]
+        actions = {name: np.zeros((batch_size,) + tuple(action['shape']), dtype=util.np_dtype(action['type'])) for name, action in self.actions_spec.items()}
+        terminal = np.zeros((batch_size,), dtype=util.np_dtype('bool'))
+        reward = np.zeros((batch_size,), dtype=util.np_dtype('float'))
         if next_states:
-            next_states = {name: np.zeros((batch_size,) + tuple(state.shape), dtype=util.np_dtype(
-                state.type)) for name, state in self.states_config.items()}
+            next_states = {name: np.zeros((batch_size,) + tuple(state['shape']), dtype=util.np_dtype(
+                state['type'])) for name, state in self.states_spec.items()}
             next_internals = [np.zeros((batch_size,) + shape, dtype)
-                              for shape, dtype in self.internals_config]
+                              for shape, dtype in self.internals_spec]
 
         # Start with unseen observations
         unseen_indices = list(xrange(
@@ -267,12 +263,12 @@ class PrioritizedReplay(Memory):
 
             for name, state in states.items():
                 state[n] = observation[0][name]
-            for name, action in actions.items():
-                action[n] = observation[1][name]
-            rewards[n] = observation[2]
-            terminals[n] = observation[3]
             for k, internal in enumerate(internals):
-                internal[n] = observation[4][k]
+                internal[n] = observation[1][k]
+            for name, action in actions.items():
+                action[n] = observation[2][name]
+            terminal[n] = observation[3]
+            reward[n] = observation[4]
             if next_states:
                 for name, next_state in next_states.items():
                     next_state[n] = observation[5][name]
@@ -282,15 +278,21 @@ class PrioritizedReplay(Memory):
         if next_states:
             return dict(
                 states=states,
-                actions=actions,
-                rewards=rewards,
-                terminals=terminals,
                 internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward,
                 next_states=next_states,
                 next_internals=next_internals
             )
         else:
-            return dict(states=states, actions=actions, rewards=rewards, terminals=terminals, internals=internals)
+            return dict(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
+            )
 
     def update_batch(self, loss_per_instance):
         """
@@ -301,11 +303,9 @@ class PrioritizedReplay(Memory):
 
         """
         if self.batch_indices is None:
-            raise TensorForceError(
-                "Need to call get_batch before each update_batch call.")
-        if len(loss_per_instance) != len(self.batch_indices):
-            raise TensorForceError(
-                "For all instances a loss value has to be provided.")
+            raise TensorForceError("Need to call get_batch before each update_batch call.")
+        # if len(loss_per_instance) != len(self.batch_indices):
+        #     raise TensorForceError("For all instances a loss value has to be provided.")
 
         for index, loss in zip(self.batch_indices, loss_per_instance):
             # Sampling priority is proportional to the largest absolute temporal difference error.

@@ -71,6 +71,10 @@ class Model(object):
         assert isinstance(config.normalize_rewards, bool)
         self.normalize_rewards = config.normalize_rewards
 
+        # Variable noise
+        assert config.variable_noise is None or config.variable_noise > 0.0
+        self.variable_noise = config.variable_noise
+
         # TensorFlow summaries
         self.summary_labels = set(config.summary_labels or ())
 
@@ -134,9 +138,9 @@ class Model(object):
 
                 def custom_getter(getter, name, registered=False, **kwargs):
                     variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
-                    if not registered and not name.startswith('optimization'):
+                    if not registered:
                         self.all_variables[name] = variable
-                        if kwargs.get('trainable', True):
+                        if kwargs.get('trainable', True) and not name.startswith('optimization'):
                             self.variables[name] = variable
                         if 'variables' in self.summary_labels:
                             summary = tf.summary.histogram(name=name, values=variable)
@@ -184,15 +188,15 @@ class Model(object):
         # Local and global initialize operations
         if config.local_model:
             init_op = tf.variables_initializer(
-                var_list=(self.global_model.get_variables(include_non_trainable=True))
+                var_list=self.global_model.get_variables(include_non_trainable=True)
             )
             local_init_op = tf.variables_initializer(
-                var_list=(self.get_variables(include_non_trainable=True))
+                var_list=self.get_variables(include_non_trainable=True)
             )
 
         else:
             init_op = tf.variables_initializer(
-                var_list=(self.get_variables(include_non_trainable=True))
+                var_list=self.get_variables(include_non_trainable=True)
             )
             local_init_op = None
 
@@ -246,13 +250,13 @@ class Model(object):
 
             self.managed_session = self.supervisor.managed_session(
                 master=self.server.target,
-                start_standard_services=True
+                start_standard_services=(config.model_directory is not None)
             )
             self.session = self.managed_session.__enter__()
 
         else:
             self.managed_session = self.supervisor.managed_session(
-                start_standard_services=True
+                start_standard_services=(config.model_directory is not None)
             )
             self.session = self.managed_session.__enter__()
 
@@ -525,15 +529,52 @@ class Model(object):
             deterministic: If true, the action is chosen deterministically.
         """
 
+        # Create graph by calling the functions corresponding to model.act() / model.update(), to initialize variables.
+        # TODO: Could call reset here, but would have to move other methods below reset.
+        self.fn_actions_and_internals(
+            states=states,
+            internals=internals,
+            deterministic=deterministic
+        )
+        self.fn_loss_per_instance(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
+
         # Tensor fetched for model.act()
-        increment_timestep = tf.shape(input=next(iter(states.values())))[0]
-        increment_timestep = self.timestep.assign_add(delta=increment_timestep)
-        with tf.control_dependencies(control_inputs=(increment_timestep,)):
-            self.actions_and_internals = self.fn_actions_and_internals(
+        operations = list()
+        if self.variable_noise is not None and self.variable_noise > 0.0:
+            # Add variable noise
+            noise_deltas = list()
+            for variable in self.get_variables():
+                noise_delta = tf.random_normal(shape=util.shape(variable), mean=0.0, stddev=self.variable_noise)
+                noise_deltas.append(noise_delta)
+                operations.append(variable.assign_add(delta=noise_delta))
+
+        # Retrieve actions and internals
+        with tf.control_dependencies(control_inputs=operations):
+            self.actions_internals_timestep = self.fn_actions_and_internals(
                 states=states,
                 internals=internals,
                 deterministic=deterministic
             )
+
+        # Increment timestep
+        increment_timestep = tf.shape(input=next(iter(states.values())))[0]
+        increment_timestep = self.timestep.assign_add(delta=increment_timestep)
+        operations = [increment_timestep]
+
+        # Subtract variable noise
+        if self.variable_noise is not None and self.variable_noise > 0.0:
+            for variable, noise_delta in zip(self.get_variables(), noise_deltas):
+                operations.append(variable.assign_sub(delta=noise_delta))
+
+        with tf.control_dependencies(control_inputs=operations):
+            # Trivial operation to enforce control dependency
+            self.actions_internals_timestep += (self.timestep + 0,)
 
         # Tensor fetched for model.observe()
         increment_episode = tf.count_nonzero(input_tensor=terminal, dtype=tf.int32)
@@ -543,14 +584,14 @@ class Model(object):
             self.episode_increment = tf.no_op()
 
         # Tensor(s) fetched for model.update()
-        self.loss_per_instance = self.fn_loss_per_instance(
+        self.optimization = self.fn_optimization(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
             reward=reward
         )
-        self.optimization = self.fn_optimization(
+        self.loss_per_instance = self.fn_loss_per_instance(
             states=states,
             internals=internals,
             actions=actions,
@@ -602,8 +643,7 @@ class Model(object):
         name = next(iter(self.states_spec))
         batched = (states[name].ndim != len(self.states_spec[name]['shape']))
 
-        fetches = list(self.actions_and_internals)
-        fetches.append(self.timestep)
+        fetches = list(self.actions_internals_timestep)
 
         if batched:
             feed_dict = {state_input: states[name] for name, state_input in self.state_inputs.items()}

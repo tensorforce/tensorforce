@@ -57,16 +57,19 @@ class NetworkBaseline(Baseline):
         Returns:
             Regularization loss tensor
         """
-        if super(NetworkBaseline, self).tf_regularization_loss() is None:
+        regularization_loss = super(NetworkBaseline, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(NetworkBaseline, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        if self.network.get_regularization_loss() is not None:
-            losses.append(self.network.get_regularization_loss())
+        regularization_loss = self.network.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
-        if self.linear.get_regularization_loss() is not None:
-            losses.append(self.linear.get_regularization_loss())
+        regularization_loss = self.linear.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

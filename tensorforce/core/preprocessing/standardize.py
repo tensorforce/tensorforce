@@ -14,30 +14,20 @@
 # ==============================================================================
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
-import unittest
+import numpy as np
 
-from tensorforce import Configuration
-from tensorforce.agents import DQNAgent
-from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce import util
+from tensorforce.core.preprocessing import Preprocessor
 
 
-class TestDQNAgent(BaseAgentTest, unittest.TestCase):
+class Standardize(Preprocessor):
+    """
+    Standardize state. Subtract mean and divide by standard deviation.
+    """
 
-    agent = DQNAgent
-    deterministic = True
-
-    config = Configuration(
-        memory=dict(
-            type='replay',
-            capacity=1000
-        ),
-        batch_size=8,
-        first_update=10,
-        target_sync_frequency=10
-    )
-
-    exclude_float = True
-    exclude_bounded = True
+    def process(self, state):
+        state = state.astype(np.float32)
+        return (state - state.mean()) / (state.std() + util.epsilon)

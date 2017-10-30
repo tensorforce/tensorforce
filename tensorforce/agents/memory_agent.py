@@ -28,32 +28,18 @@ class MemoryAgent(Agent):
     The `MemoryAgent` class implements a replay memory, from which it samples batches to update the value function.
     """
 
-    default_config = dict(
-        batch_size=1,
-        memory_capacity=1e5,
-        memory=dict(
-            type='replay',
-            random_sampling=True
-        ),
-        update_frequency=4,
-        first_update=10000,
-        repeat_update=1
-    )
-
     def __init__(self, states_spec, actions_spec, config):
-        config.default(MemoryAgent.default_config)
+        self.memory_spec = config.memory
         self.batch_size = config.batch_size
-        self.memory_capacity = config.memory_capacity
-        self.update_frequency = config.update_frequency
         self.first_update = config.first_update
+        self.update_frequency = config.update_frequency
         self.repeat_update = config.repeat_update
 
-        super(MemoryAgent, self).__init__(states_spec, actions_spec, config)
+        super(MemoryAgent, self).__init__(states_spec=states_spec, actions_spec=actions_spec, config=config)
 
         self.memory = Memory.from_spec(
-            spec=config.memory,
+            spec=self.memory_spec,
             kwargs=dict(
-                capacity=self.memory_capacity,
                 states_spec=self.states_spec,
                 actions_spec=self.actions_spec
             )

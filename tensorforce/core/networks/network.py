@@ -44,7 +44,7 @@ class Network(object):
                 variable = getter(name=name, registered=True, **kwargs)
                 if not registered:
                     self.all_variables[name] = variable
-                    if kwargs.get('trainable', True):
+                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
                         self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -151,14 +151,16 @@ class LayerBasedNetwork(Network):
         self.layers.append(layer)
 
     def tf_regularization_loss(self):
-        if super(LayerBasedNetwork, self).tf_regularization_loss() is None:
+        regularization_loss = super(LayerBasedNetwork, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(LayerBasedNetwork, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
         for layer in self.layers:
-            if layer.regularization_loss() is not None:
-                losses.append(layer.regularization_loss())
+            regularization_loss = layer.regularization_loss()
+            if regularization_loss is not None:
+                losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

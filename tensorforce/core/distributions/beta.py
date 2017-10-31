@@ -107,16 +107,19 @@ class Beta(Distribution):
             tf.digamma(x=alpha1) * (alpha2 - alpha1) + tf.digamma(x=alpha_beta1) * (alpha_beta2 - alpha_beta1)
 
     def tf_regularization_loss(self):
-        if super(Beta, self).tf_regularization_loss() is None:
+        regularization_loss = super(Beta, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Beta, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        if self.alpha.regularization_loss() is not None:
-            losses.append(self.alpha.regularization_loss())
+        regularization_loss = self.alpha.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
-        if self.beta.regularization_loss() is not None:
-            losses.append(self.beta.regularization_loss())
+        regularization_loss = self.beta.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

@@ -109,13 +109,15 @@ class Categorical(Distribution):
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
 
     def tf_regularization_loss(self):
-        if super(Categorical, self).tf_regularization_loss() is None:
+        regularization_loss = super(Categorical, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Categorical, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        if self.logits.regularization_loss() is not None:
-            losses.append(self.logits.regularization_loss())
+        regularization_loss = self.logits.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

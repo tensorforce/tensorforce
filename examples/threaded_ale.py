@@ -106,21 +106,22 @@ def main():
         agent_configs.append(agent_config)
 
     # Let the first agent create the model
+    # Manually assign model
+    logger.info(agent_configs[0])
     agent = AgentsDictionary[args.agent](
         states_spec=environments[0].states,
         actions_spec=environments[0].actions,
         network_spec=network_spec,
-        config=agent_configs[-1]
+        config=agent_configs[0]
     )
     agents = [agent]
-    # Manually assign model
     for i in xrange(args.workers - 1):
         worker = AgentsDictionary[args.agent](
-                    states_spec=environments[0].states,
-                    actions_spec=environments[0].actions,
-                    network_spec=network_spec,
-                    config=agent_configs[-1]
-                )
+            states_spec=environments[0].states,
+            actions_spec=environments[0].actions,
+            network_spec=network_spec,
+            config=agent_configs[i]
+        )
         worker.model = agent.model
         agents.append(worker)
 
@@ -147,7 +148,7 @@ def main():
         if args.debug:
             logger.info(
                 "Thread {t}. Finished episode {ep} after {ts} timesteps. Reward {r}".
-                format(t=stats['thread_id'], ep=stats['episode'], ts=stats['timestep'], r=stats['episode_reward'])
+                    format(t=stats['thread_id'], ep=stats['episode'], ts=stats['timestep'], r=stats['episode_reward'])
             )
         return True
 

@@ -62,8 +62,8 @@ class PGProbRatioModel(PGModel):
             distr_params = distribution.parameters(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             # works the same?
-            # fixed_distr = tuple(tf.stop_gradient(input=x) for x in distr)
-            # fixed_log_prob = distribution.log_probability(distr_params=fixed_distr, action=a)
+            # fixed_distr_params = tuple(tf.stop_gradient(input=x) for x in distr_params)
+            # fixed_log_prob = distribution.log_probability(distr_params=fixed_distr_params, action=actions[name])
             fixed_log_prob = tf.stop_gradient(input=log_prob)
             prob_ratio = tf.exp(x=(log_prob - fixed_log_prob))
             collapsed_size = util.prod(util.shape(prob_ratio)[1:])
@@ -83,7 +83,8 @@ class PGProbRatioModel(PGModel):
     def tf_reference(self, states, internals, actions):
         embedding = self.network.apply(x=states, internals=internals)
         log_probs = list()
-        for name, distribution in self.distributions.items():
+        for name in sorted(self.distributions):
+            distribution = self.distributions[name]
             distr_params = distribution.parameters(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])
@@ -92,9 +93,16 @@ class PGProbRatioModel(PGModel):
         return tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
 
     def tf_compare(self, states, internals, actions, terminal, reward, reference):
+        reward = self.fn_reward_estimation(
+            states=states,
+            internals=internals,
+            terminal=terminal,
+            reward=reward
+        )
         embedding = self.network.apply(x=states, internals=internals)
         log_probs = list()
-        for name, distribution in self.distributions.items():
+        for name in sorted(self.distributions):
+            distribution = self.distributions[name]
             distr_params = distribution.parameters(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])
@@ -102,7 +110,20 @@ class PGProbRatioModel(PGModel):
             log_probs.append(log_prob)
         log_prob = tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
         prob_ratio = tf.exp(x=(log_prob - reference))
-        return tf.reduce_mean(input_tensor=(prob_ratio * reward), axis=0)
+        if self.likelihood_ratio_clipping is None:
+            gain_per_instance = prob_ratio * reward
+        else:
+            clipped_prob_ratio = tf.clip_by_value(
+                t=prob_ratio,
+                clip_value_min=(1.0 / (1.0 + self.likelihood_ratio_clipping)),
+                clip_value_max=(1.0 + self.likelihood_ratio_clipping)
+            )
+            gain_per_instance = tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
+        gain = tf.reduce_mean(input_tensor=gain_per_instance, axis=0)
+        losses = self.fn_regularization_losses(states=states, internals=internals)
+        if len(losses) > 0:
+            gain -= tf.add_n(inputs=list(losses.values()))
+        return gain
 
     def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
         kwargs = super(PGProbRatioModel, self).get_optimizer_kwargs(
@@ -115,17 +136,17 @@ class PGProbRatioModel(PGModel):
         kwargs['fn_reference'] = (
             lambda: self.reference(
                 states=states,
-                actions=actions,
-                internals=internals
+                internals=internals,
+                actions=actions
             )
         )
         kwargs['fn_compare'] = (
             lambda reference: self.compare(
                 states=states,
+                internals=internals,
                 actions=actions,
                 terminal=terminal,
                 reward=reward,
-                internals=internals,
                 reference=reference
             )
         )

@@ -25,14 +25,16 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class GlobalOptimizer(MetaOptimizer):
     """
-    Global optimizer enabling distributed asynchronous execution (A3C) semantics.
-    Note: This will change in the next release as there are various distributed semantics,
-    this is just a placeholder to continue offering A3C functionality.
+    The global optimizer applies an optimizer to the local variables. In addition, it also  
+    applies the update a corresponding set of global variables and subsequently updates the local  
+    variables to the value of these global variables.
+    Note: This is used for the current distributed mode, and will likely change with the next  
+    major version update.
     """
 
     def __init__(self, optimizer):
         """
-        Creates a new ??? optimizer instance.
+        Creates a new global optimizer instance.
 
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.

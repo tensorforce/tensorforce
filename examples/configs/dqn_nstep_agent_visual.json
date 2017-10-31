@@ -40,8 +40,8 @@
   "learning_rate": 0.004,
   "optimizer": {
     "type": "rmsprop",
-    "decay": 0.99,
-    "epsilon": 0.1
+    "momentum": 0.95,
+    "epsilon": 0.01
   },
   "tf_summary": null,
   "log_level": "info",

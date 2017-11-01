@@ -14,7 +14,7 @@
 # ==============================================================================
 
 
-from tensorforce.core.networks.layer import Layer, Flatten, Nonlinearity, Linear, Dense, Dueling, Conv2d, Lstm
+from tensorforce.core.networks.layer import Layer, Flatten, Nonlinearity, Linear, Dense, Dueling, Conv2d, Lstm, Conv1d
 from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
 
 
@@ -25,8 +25,23 @@ layers = dict(
     dense=Dense,
     dueling=Dueling,
     conv2d=Conv2d,
+    conv1d=Conv1d,
     lstm=Lstm
 )
 
 
-__all__ = ['layers', 'Layer', 'Flatten', 'Nonlinearity', 'Linear', 'Dense', 'Dueling', 'Conv2d', 'Lstm', 'Network', 'LayerBasedNetwork', 'LayeredNetwork']
+__all__ = [
+    'layers',
+    'Layer',
+    'Flatten',
+    'Nonlinearity',
+    'Linear',
+    'Dense',
+    'Dueling',
+    'Conv2d',
+    'Conv1d',
+    'Lstm',
+    'Network',
+    'LayerBasedNetwork',
+    'LayeredNetwork'
+]

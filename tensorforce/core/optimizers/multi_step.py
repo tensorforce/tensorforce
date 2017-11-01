@@ -43,6 +43,17 @@ class MultiStep(MetaOptimizer):
         self.num_steps = num_steps
 
     def tf_step(self, time, variables, **kwargs):
+        """
+        Creates the TensorFlow operations for performing an optimization step.
+
+        Args:
+            time: Time tensor.
+            variables: List of variables to optimize.
+            **kwargs: Additional arguments passed on to the internal optimizer.
+
+        Returns:
+            List of delta tensors corresponding to the updates for each optimized variable.
+        """
         overall_deltas = None
         deltas = ()
         for _ in xrange(self.num_steps):

@@ -24,7 +24,7 @@ from __future__ import division
 import time
 import threading
 from six.moves import xrange
-
+from tensorforce.agents.agent import Agent
 from tensorforce import TensorForceError
 
 
@@ -69,16 +69,16 @@ class ThreadedRunner(object):
 
             timestep = 0
             while True:
-                action = agent.act(state=state)
+                action = agent.act(states=state)
                 if repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(repeat_actions):
-                        state, step_reward, terminal = environment.execute(action=action)
+                        state, terminal, step_reward = environment.execute(actions=action)
                         reward += step_reward
                         if terminal:
                             break
                 else:
-                    state, reward, terminal = environment.execute(action=action)
+                    state, terminal, reward = environment.execute(actions=action)
 
                 agent.observe(reward=reward, terminal=terminal)
 
@@ -92,7 +92,7 @@ class ThreadedRunner(object):
                 if self.global_should_stop:
                     return
 
-            agent.observe_episode_reward(episode_reward)
+            #agent.observe_episode_reward(episode_reward)
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(timestep)
 
@@ -112,7 +112,7 @@ class ThreadedRunner(object):
         self.global_episode = 1
         self.global_should_stop = False
 
-        # create threads
+        # Create threads
         threads = [threading.Thread(target=self._run_single, args=(t, self.agents[t], self.environments[t],),
                                     kwargs={"repeat_actions": self.repeat_actions,
                                             "max_timesteps": max_timesteps,
@@ -143,3 +143,18 @@ class ThreadedRunner(object):
         # Join threads
         [t.join() for t in threads]
         print('All threads stopped')
+
+
+class WorkerAgent(Agent):
+    """
+    Worker agent receiving a shared model to avoid creating multiple models.
+    """
+
+    def __init__(self, states_spec, actions_spec, network_spec, config, model=None):
+        self.network_spec = network_spec
+        self.model = model
+        config = config.copy()
+        super(WorkerAgent, self).__init__(states_spec, actions_spec, config)
+
+    def initialize_model(self, states_spec, actions_spec, config):
+        return self.model

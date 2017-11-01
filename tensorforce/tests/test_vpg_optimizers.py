@@ -30,7 +30,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
     agent = VPGAgent
     deterministic = False
 
-    # TODO: Tests for other TensorFlow optimizers
+    # TODO: Tests for other TensorFlow optimizers, necessary?
 
     def test_adam(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -72,7 +72,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             batch_size=8,
             optimizer=dict(
                 type='natural_gradient',
-                learning_rate=1e-2
+                learning_rate=1e-3
             )
         )
         self.base_test(name='natural-gradient', environment=environment, network_spec=network_spec, config=config)

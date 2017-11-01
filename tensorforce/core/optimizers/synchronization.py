@@ -25,8 +25,8 @@ from tensorforce.core.optimizers import Optimizer
 
 class Synchronization(Optimizer):
     """
-    Synchronization optimizer updating variables periodically to the value of a corresponding set  
-    of source variables.
+    The synchronization optimizer updates variables periodically to the value of a corresponding  
+    set of source variables.
     """
 
     def __init__(self, sync_frequency=1, update_weight=1.0):

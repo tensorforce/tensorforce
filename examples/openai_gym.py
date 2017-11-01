@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-OpenAI gym execution
+OpenAI gym execution.
 """
 
 from __future__ import absolute_import
@@ -95,14 +95,6 @@ def main():
         logger.info("-" * 16)
         logger.info("Configuration:")
         logger.info(config)
-
-    # if args.save:
-    #     save_dir = os.path.dirname(args.save)
-    #     if not os.path.isdir(save_dir):
-    #         try:
-    #             os.mkdir(save_dir, 0o755)
-    #         except OSError:
-    #             raise OSError("Cannot save agent to dir {} ()".format(save_dir))
 
     runner = Runner(
         agent=agent,

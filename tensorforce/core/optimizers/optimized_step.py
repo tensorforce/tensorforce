@@ -26,7 +26,7 @@ from tensorforce.core.optimizers.solvers import LineSearch
 
 class OptimizedStep(MetaOptimizer):
     """
-    The optimized-shep meta optimizer applies line search to the proposed optimization step of  
+    The optimized-step meta optimizer applies line search to the proposed optimization step of  
     another optimizer to find a more optimal step size.
     """
 
@@ -34,7 +34,7 @@ class OptimizedStep(MetaOptimizer):
         self,
         optimizer,
         ls_max_iterations=10,
-        ls_accept_ratio=0.1,
+        ls_accept_ratio=0.9,
         ls_mode='exponential',
         ls_parameter=0.5,
         ls_unroll_loop=False
@@ -45,7 +45,7 @@ class OptimizedStep(MetaOptimizer):
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.
             ls_max_iterations: Maximum number of line search iterations.
-            ls_accept_ratio: Trust-region ???????????????? acceptance ratio. ????????????????
+            ls_accept_ratio: Line search acceptance ratio.
             ls_mode: Line search mode, see LineSearch solver.
             ls_parameter: Line search parameter, see LineSearch solver.
             ls_unroll_loop: Unroll line search loop if true.
@@ -68,9 +68,10 @@ class OptimizedStep(MetaOptimizer):
             time: Time tensor.
             variables: List of variables to optimize.
             fn_loss: A callable returning the loss of the current model.
-            fn_reference: ??? coming soon ????????????????
-            fn_compare: ??? coming soon ????????????????
-            **kwargs: Additional arguments, not used.
+            fn_reference: A callable returning the reference values necessary for comparison.
+            fn_compare: A callable comparing the current model to the reference model given by  
+                its values.
+            **kwargs: Additional arguments passed on to the internal optimizer.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
@@ -79,17 +80,37 @@ class OptimizedStep(MetaOptimizer):
             raise TensorForceError("Requires both arguments 'fn_reference' and 'fn_compare'!")
 
         if fn_reference is None:
-            loss_before = fn_loss()
+            # Negative value since line search maximizes.
+            loss_before = -fn_loss()
         else:
             reference = fn_reference()
             loss_before = fn_compare(reference=reference)
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
-            deltas = self.optimizer.step(time=time, variables=variables, fn_loss=fn_loss, **kwargs)
+            deltas = self.optimizer.step(
+                time=time,
+                variables=variables,
+                fn_loss=fn_loss,
+                fn_reference=fn_reference,
+                fn_compare=fn_compare,
+                return_estimated_improvement=True,
+                **kwargs
+            )
+
+            if isinstance(deltas, tuple):
+                # If 'return_estimated_improvement' argument exists.
+                if len(deltas) != 2:
+                    raise TensorForceError("Unexpected output of internal optimizer.")
+                deltas, estimated_improvement = deltas
+                # Negative value since line search maximizes.
+                estimated_improvement = -estimated_improvement
+            else:
+                estimated_improvement = None
 
         with tf.control_dependencies(control_inputs=deltas):
             if fn_reference is None:
-                loss_step = fn_loss()
+                # Negative value since line search maximizes.
+                loss_step = -fn_loss()
             else:
                 loss_step = fn_compare(reference=reference)
 
@@ -100,9 +121,15 @@ class OptimizedStep(MetaOptimizer):
                     applied = self.apply_step(variables=variables, deltas=x)
                 with tf.control_dependencies(control_inputs=(applied,)):
                     if fn_compare is None:
-                        return fn_loss()
+                        # Negative value since line search maximizes.
+                        return -fn_loss()
                     else:
                         return fn_compare(reference=reference)
 
-            return self.solver.solve(fn_x=evaluate_step, x_init=deltas, base_value=loss_before, target_value=loss_step)
-            # estimated_improvement=estimated_improvement)
+            return self.solver.solve(
+                fn_x=evaluate_step,
+                x_init=deltas,
+                base_value=loss_before,
+                target_value=loss_step,
+                estimated_improvement=estimated_improvement
+            )

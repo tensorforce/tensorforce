@@ -104,16 +104,19 @@ class Gaussian(Distribution):
         return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5
 
     def tf_regularization_loss(self):
-        if super(Gaussian, self).tf_regularization_loss() is None:
+        regularization_loss = super(Gaussian, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Gaussian, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        if self.mean.regularization_loss() is not None:
-            losses.append(self.mean.regularization_loss())
+        regularization_loss = self.mean.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
-        if self.log_stddev.regularization_loss() is not None:
-            losses.append(self.log_stddev.regularization_loss())
+        regularization_loss = self.log_stddev.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

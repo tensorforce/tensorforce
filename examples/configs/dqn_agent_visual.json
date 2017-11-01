@@ -37,10 +37,10 @@
   "target_update_frequency": 10000,
 
   "discount": 0.99,
-  "learning_rate": 0.00025,
   "optimizer": {
     "type": "rmsprop",
-    "decay": 0.99,
+    "learning_rate": 0.00025,
+    "momentum": 0.99,
     "epsilon": 1e-6
   },
   "tf_summary": null,

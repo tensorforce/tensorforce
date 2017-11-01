@@ -23,11 +23,11 @@ from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
 
-class Center(Preprocessor):
+class Standardize(Preprocessor):
     """
-    Center/standardize state. Subtract minimal value and divide by range.
+    Standardize state. Subtract mean and divide by standard deviation.
     """
 
     def process(self, state):
         state = state.astype(np.float32)
-        return (state - state.min()) / (state.max() - state.min() + util.epsilon)
+        return (state - state.mean()) / (state.std() + util.epsilon)

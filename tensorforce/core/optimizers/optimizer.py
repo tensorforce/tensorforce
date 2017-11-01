@@ -27,7 +27,7 @@ class Optimizer(object):
     """
     Generic TensorFlow optimizer which minimizes a not yet further specified expression, usually  
     some kind of loss function. More generally, an optimizer can be considered as some method of  
-    *updating* a set of variables.
+    updating a set of variables.
     """
 
     def __init__(self):
@@ -72,8 +72,19 @@ class Optimizer(object):
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
-            **kwargs: Additional optimizer-specific arguments. For instance, often includes  
-            `fn_loss` if a loss function is optimized.
+            **kwargs: Additional optimizer-specific arguments. The following arguments are used  
+                by some optimizers:
+                - fn_loss: A callable returning the loss of the current model.
+                - fn_kl_divergence: A callable returning the KL-divergence relative to the  
+                    current model.
+                - return_estimated_improvement: Returns the estimated improvement resulting from  
+                    the natural gradient calculation if true.
+                - fn_reference: A callable returning the reference values necessary for comparison.
+                - fn_compare: A callable comparing the current model to the reference model given  
+                    by its values.
+                - source_variables: List of source variables to synchronize with.
+                - global_variables: List of global variables to apply the proposed optimization  
+                    step to.
 
         Returns:
             The optimization operation.

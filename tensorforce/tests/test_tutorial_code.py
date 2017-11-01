@@ -75,6 +75,8 @@ class TestTutorialCode(unittest.TestCase):
         # Add experience, agent automatically updates model according to batch size
         agent.observe(reward=reward, terminal=False)
 
+        agent.close()
+
     def test_blogpost_introduction(self):
         """
         Test of introduction blog post examples.
@@ -113,6 +115,8 @@ class TestTutorialCode(unittest.TestCase):
             network_spec=network_spec,
             config=config
         )
+
+        agent.close()
 
         ### Code block: multiple states
         states = dict(
@@ -220,6 +224,8 @@ class TestTutorialCode(unittest.TestCase):
             config=config
         )
 
+        agent.close()
+
         ### Code block: Own network builder
         from tensorforce.core.networks import Network
 
@@ -277,6 +283,8 @@ class TestTutorialCode(unittest.TestCase):
             config=config
         )
 
+        agent.close()
+
         ### Code block: LSTM function
         from tensorforce.core.networks import Layer
 
@@ -322,6 +330,8 @@ class TestTutorialCode(unittest.TestCase):
             config=config
         )
 
+        agent.close()
+
         ### Preprocessing configuration
         states = dict(shape=(84, 84, 3), type='float')
         preprocessing = [
@@ -360,7 +370,8 @@ class TestTutorialCode(unittest.TestCase):
             network_spec=network_spec,
             config=config
         )
-        #config.actions = dict(continuous=False, num_actions=5)
+
+        agent.close()
 
         ### Code block: Continuous action exploration
 
@@ -387,6 +398,9 @@ class TestTutorialCode(unittest.TestCase):
             network_spec=network_spec,
             config=config
         )
+
+        agent.close()
+
         ### Code block: Discrete action exploration
 
         exploration = dict(
@@ -411,6 +425,8 @@ class TestTutorialCode(unittest.TestCase):
             network_spec=network_spec,
             config=config
         )
+
+        agent.close()
 
     def test_blogpost_introduction_runner(self):
         from tensorforce.config import Configuration
@@ -473,8 +489,8 @@ class TestTutorialCode(unittest.TestCase):
             episode_reward = 0
             while True:
                 action = agent.act(states=state)
-                state, reward, terminal = environment.execute(actions=action)
-                agent.observe(reward=reward, terminal=terminal)
+                state, terminal, reward = environment.execute(actions=action)
+                agent.observe(terminal=terminal, reward=reward)
 
                 timestep += 1
                 episode_reward += reward
@@ -485,6 +501,8 @@ class TestTutorialCode(unittest.TestCase):
             episode += 1
             episode_rewards.append(episode_reward)
 
-            if all(reward >= 1.0 for reward in episode_rewards[-100:]) \
-                    or episode == max_episodes:
+            if all(reward >= 1.0 for reward in episode_rewards[-100:]) or episode == max_episodes:
                 break
+
+        agent.close()
+        environment.close()

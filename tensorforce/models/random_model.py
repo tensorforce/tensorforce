@@ -37,8 +37,8 @@ class RandomModel(Model):
                 actions[name] = (tf.random_uniform(shape=shape) < 0.5)
 
             elif action['type'] == 'int':
-                action = tf.floor(x=(tf.random_uniform(shape=shape) * action['num_actions']))
-                actions[name] = tf.cast(x=action, dtype=util.tf_dtype(action['type']))
+                sampled_action = tf.floor(x=(tf.random_uniform(shape=shape) * action['num_actions']))
+                actions[name] = tf.cast(x=sampled_action, dtype=util.tf_dtype(action['type']))
 
             elif action['type'] == 'float':
                 if 'min_value' in action:

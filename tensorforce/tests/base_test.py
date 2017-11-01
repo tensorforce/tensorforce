@@ -82,6 +82,6 @@ class BaseTest(object):
             if agent.episode < 3000:
                 passed += 1
 
-        sys.stdout.write('\n==> passed: {}\n'.format(passed))
+        sys.stdout.write(' ==> {} passed\n'.format(passed))
         sys.stdout.flush()
         self.assertTrue(passed >= 4)

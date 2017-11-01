@@ -49,7 +49,7 @@ class NaturalGradient(Optimizer):
             unroll_loop=cg_unroll_loop
         )
 
-    def tf_step(self, time, variables, fn_loss, fn_kl_divergence, **kwargs):
+    def tf_step(self, time, variables, fn_loss, fn_kl_divergence, return_estimated_improvement=False, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
@@ -58,6 +58,8 @@ class NaturalGradient(Optimizer):
             variables: List of variables to optimize.
             fn_loss: A callable returning the loss of the current model.
             fn_kl_divergence: A callable returning the KL-divergence relative to the current model.
+            return_estimated_improvement: Returns the estimated improvement resulting from the  
+                natural gradient calculation if true.
             **kwargs: Additional arguments, not used.
 
         Returns:
@@ -72,7 +74,7 @@ class NaturalGradient(Optimizer):
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to actually calculate the entire matrix explicitly.
-        def fisher_matrix_products(x):
+        def fisher_matrix_product(x):
             # Gradient is not propagated through solver.
             x = [tf.stop_gradient(input=delta) for delta in x]
 
@@ -85,22 +87,21 @@ class NaturalGradient(Optimizer):
             return tf.gradients(ys=x_kldiv_gradients, xs=variables)
 
         # grad(loss)
-        loss = fn_loss()
-        loss_gradients = tf.gradients(ys=loss, xs=variables)
+        loss_gradients = tf.gradients(ys=fn_loss(), xs=variables)
 
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
-        deltas = self.solver.solve(fn_x=fisher_matrix_products, x_init=None, b=[-grad for grad in loss_gradients])
+        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients])
 
         # delta' * F
-        delta_fisher_matrix_products = fisher_matrix_products(x=deltas)
+        delta_fisher_matrix_product = fisher_matrix_product(x=deltas)
 
         # c' = 0.5 * delta' * F * delta'  (= lambda * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?
         constant = 0.5 * tf.add_n(inputs=[
             tf.reduce_sum(input_tensor=(delta_F * delta))
-            for delta_F, delta in zip(delta_fisher_matrix_products, deltas)
+            for delta_F, delta in zip(delta_fisher_matrix_product, deltas)
         ])
 
         # Natural gradient step if constant > 0
@@ -112,7 +113,6 @@ class NaturalGradient(Optimizer):
             estimated_deltas = [delta / lagrange_multiplier for delta in deltas]
 
             # improvement = grad(loss) * delta  (= loss_new - loss_old)
-            # TODO: line search doesn't use estimated_improvement !!!
             estimated_improvement = tf.add_n(inputs=[
                 tf.reduce_sum(input_tensor=(grad * delta))
                 for grad, delta in zip(loss_gradients, estimated_deltas)
@@ -123,11 +123,17 @@ class NaturalGradient(Optimizer):
 
             with tf.control_dependencies(control_inputs=(applied,)):
                 # Trivial operation to enforce control dependency
-                return [estimated_delta + 0.0 for estimated_delta in estimated_deltas]
+                if return_estimated_improvement:
+                    return [estimated_delta + 0.0 for estimated_delta in estimated_deltas], estimated_improvement
+                else:
+                    return [estimated_delta + 0.0 for estimated_delta in estimated_deltas]
 
         # Zero step if constant <= 0
         def zero_step():
-            return [tf.zeros_like(tensor=delta) for delta in deltas]
+            if return_estimated_improvement:
+                return [tf.zeros_like(tensor=delta) for delta in deltas], 0.0
+            else:
+                return [tf.zeros_like(tensor=delta) for delta in deltas]
 
         # Natural gradient step only works if constant > 0
         return tf.cond(pred=(constant > 0.0), true_fn=natural_gradient_step, false_fn=zero_step)

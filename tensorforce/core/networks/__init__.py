@@ -14,6 +14,7 @@
 # ==============================================================================
 
 
+
 from tensorforce.core.networks.layer import Layer, Flatten, Nonlinearity, Linear, Dense, Dueling, Conv2d, Lstm, Conv1d
 from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
 

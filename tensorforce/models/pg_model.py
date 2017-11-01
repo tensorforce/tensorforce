@@ -80,6 +80,12 @@ class PGModel(DistributionModel):
 
         # TODO: Baseline internal states !!! (see target_network q_model)
 
+        # Reward estimation
+        self.fn_reward_estimation = tf.make_template(
+            name_='reward-estimation',
+            func_=self.tf_reward_estimation,
+            custom_getter_=custom_getter
+        )
         # PG loss per instance function
         self.fn_pg_loss_per_instance = tf.make_template(
             name_='pg-loss-per-instance',
@@ -87,24 +93,23 @@ class PGModel(DistributionModel):
             custom_getter_=custom_getter
         )
 
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
-        """
-        Creates the TensorFlow operations for calculating the (policy-gradient-specific) loss per batch
-        instance of the given input states and actions, after the specified reward/advantage calculations.
-
-        Args:
-            states: Dict of state tensors.
-            internals: List of prior internal state tensors.
-            actions: Dict of action tensors.
-            terminal: Terminal boolean tensor.
-            reward: Reward tensor.
-
-        Returns:
-            Loss tensor.
-        """
-        raise NotImplementedError
-
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
+        reward = self.fn_reward_estimation(
+            states=states,
+            internals=internals,
+            terminal=terminal,
+            reward=reward
+        )
+
+        return self.fn_pg_loss_per_instance(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
+
+    def tf_reward_estimation(self, states, internals, terminal, reward):
         if self.baseline_mode is None:
             reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
@@ -129,13 +134,24 @@ class PGModel(DistributionModel):
                 gae_discount = self.discount * self.gae_lambda
                 reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=td_residual, discount=gae_discount)
 
-        return self.fn_pg_loss_per_instance(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward
-        )
+        return reward
+
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
+        """
+        Creates the TensorFlow operations for calculating the (policy-gradient-specific) loss per batch
+        instance of the given input states and actions, after the specified reward/advantage calculations.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+
+        Returns:
+            Loss tensor.
+        """
+        raise NotImplementedError
 
     def tf_regularization_losses(self, states, internals):
         losses = super(PGModel, self).tf_regularization_losses(states=states, internals=internals)

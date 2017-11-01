@@ -50,16 +50,30 @@ Universe, DeepMind lab, ALE and Maze explorer. The following algorithms are avai
 policy methods both continuous/discrete and using a Beta distribution for bounded actions). 
 
 -  A3C using distributed TensorFlow or a multithreaded runner - now as part of our generic Model
-    usable with different agents.
--  Trust Region Policy Optimization (TRPO) with generalised advantage
-    estimation (GAE)
--  Normalised Advantage functions (NAFs)
--  DQN/Double-DQN, N-step DQN
--  Vanilla Policy Gradients (VPG)
--  Deep Q-learning from Demonstration (DQFD) -
+    usable with different agents. - [paper](https://arxiv.org/pdf/1602.01783.pdf)
+- Trust Region Policy Optimization (TRPO) - ```trpo_agent``` - [paper](https://arxiv.org/abs/1502.05477)
+- Normalised Advantage functions (NAFs) - ```naf_agent``` - [paper](https://arxiv.org/pdf/1603.00748.pdf)
+- DQN - [paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
+- Double-DQN - ```ddqn_agent``` - [paper](https://arxiv.org/abs/1509.06461)
+- N-step DQN - ```dqn_nstep_agent```
+- Vanilla Policy Gradients (VPG/ REINFORCE) - ```vpg_agent```- [paper]()
+- Deep Q-learning from Demonstration (DQFD) -
     [paper](https://arxiv.org/abs/1704.03732)
--  Proximal Policy Optimisation (PPO) - [paper](https://arxiv.org/abs/1707.06347)
--  Categorical DQN - [paper](https://arxiv.org/abs/1707.06887) 
+- Proximal Policy Optimisation (PPO) - ```ppp_agent``` - [paper](https://arxiv.org/abs/1707.06347)
+- Random and constant agents for sanity checking: ```random_agent```, ```constant_agent```
+ 
+Other heuristics and their respective config key that can be turned on where sensible:
+
+- Generalized advantage estimation - ```gae_lambda```  - [paper](https://arxiv.org/abs/1506.02438)
+- Prioritizied experience replay - memory type ```prioritized_replay``` - [paper](https://arxiv.org/abs/1511.05952)
+- Bounded continuous actions are mapped to Beta distributions instead of Gaussians - [paper](http://proceedings.mlr.press/v70/chou17a/chou17a.pdf)
+- Baseline modes: Shared parameters (```custom```), non-shared mlp (```mlp```), non-shared cnn (```cnn```), 
+  multi-state aggregate (```aggregated```)
+- Generic pure TensorFlow optimizers, most models can be used with natural gradient and evolutionary optimizers
+- Preprocessing modes: ```normalize```, ```standardize```, ```grayscale```, ```sequence```, ```clip```,
+  ```divide```, ```image_resize```
+- Exploration modes: ```constant```,```linear_decay```, ```epsilon_anneal```, ```epsilon_decay```,
+  ```ornstein_uhlenbeck```
 
 Installation
 ------------

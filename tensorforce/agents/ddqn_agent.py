@@ -132,7 +132,7 @@ class DDQNAgent(MemoryAgent):
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
-        huber_loss=0.0,  # not documented!!!
+        huber_loss=None,  # not documented!!!
         # Logging
         log_level='info',
         model_directory=None,

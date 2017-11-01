@@ -73,12 +73,12 @@ class ThreadedRunner(object):
                 if repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(repeat_actions):
-                        state, step_reward, terminal = environment.execute(actions=action)
+                        state, terminal, step_reward = environment.execute(actions=action)
                         reward += step_reward
                         if terminal:
                             break
                 else:
-                    state, reward, terminal = environment.execute(actions=action)
+                    state, terminal, reward = environment.execute(actions=action)
 
                 agent.observe(reward=reward, terminal=terminal)
 

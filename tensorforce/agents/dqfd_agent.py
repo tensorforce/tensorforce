@@ -25,6 +25,55 @@ from tensorforce.models import QDemoModel
 
 
 class DQFDAgent(MemoryAgent):
+    default_config = dict(
+        # Agent
+        preprocessing=None,
+        exploration=None,
+        reward_preprocessing=None,
+        # MemoryAgent
+        # batch_size !!!
+        memory=dict(  # not documented!!!
+            type='replay',
+            capacity=100000
+        ),
+        first_update=10000,  # not documented!!!
+        update_frequency=4,  # not documented!!!
+        repeat_update=1,  # not documented!!!
+        # DQFDAgent
+        expert_margin=0.5,
+        supervised_weight=0.1,
+        demo_memory_capacity=10000,
+        demo_sampling_ratio=0.2,
+        # Model
+        optimizer=dict(
+            type='adam',
+            learning_rate=1e-3
+        ),
+        discount=0.99,
+        normalize_rewards=False,
+        variable_noise=None,  # not documented!!!
+        # DistributionModel
+        distributions=None,  # not documented!!!
+        entropy_regularization=None,
+        # QModel
+        target_sync_frequency=10000,  # not documented!!!
+        target_update_weight=1.0,  # not documented!!!
+        huber_loss=None,  # not documented!!!
+        # Logging
+        log_level='info',
+        model_directory=None,
+        save_frequency=600,  # TensorFlow default
+        summary_labels=['total-loss'],
+        summary_frequency=120,  # TensorFlow default
+        # TensorFlow distributed configuration
+        cluster_spec=None,
+        parameter_server=False,
+        task_index=0,
+        device=None,
+        local_model=False,
+        replica_model=False,
+        scope='dqfd'
+    )
     """
     Deep Q-learning from demonstration (DQFD) agent ([Hester et al., 2017](https://arxiv.org/abs/1704.03732)).
     This agent uses DQN to pre-train from demonstration data.
@@ -73,52 +122,6 @@ class DQFDAgent(MemoryAgent):
 
 
     """
-    default_config = dict(
-        # Agent
-        preprocessing=None,
-        exploration=None,
-        reward_preprocessing=None,
-        # MemoryAgent
-        # batch_size !!!
-        memory=dict(  # not documented!!!
-            type='replay',
-            capacity=100000
-        ),
-        first_update=10000,  # not documented!!!
-        update_frequency=4,  # not documented!!!
-        repeat_update=1,  # not documented!!!
-        # DQFDAgent
-        # missing!!!
-        # Model
-        optimizer=dict(
-            type='adam',
-            learning_rate=1e-3
-        ),
-        discount=0.99,
-        normalize_rewards=False,
-        variable_noise=None,  # not documented!!!
-        # DistributionModel
-        distributions=None,  # not documented!!!
-        entropy_regularization=None,
-        # QModel
-        target_sync_frequency=10000,  # not documented!!!
-        target_update_weight=1.0,  # not documented!!!
-        huber_loss=None,  # not documented!!!
-        # Logging
-        log_level='info',
-        model_directory=None,
-        save_frequency=600,  # TensorFlow default
-        summary_labels=['total-loss'],
-        summary_frequency=120,  # TensorFlow default
-        # TensorFlow distributed configuration
-        cluster_spec=None,
-        parameter_server=False,
-        task_index=0,
-        device=None,
-        local_model=False,
-        replica_model=False,
-        scope='dqfd'
-    )
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         self.network_spec = network_spec
@@ -126,7 +129,7 @@ class DQFDAgent(MemoryAgent):
         config.default(DQFDAgent.default_config)
 
         # DQFD always uses double dqn, which is a required key for a q-model.
-        config.obligatory(double_dqn=True)
+        config.obligatory(double_q_model=True)
         self.target_sync_frequency = config.target_sync_frequency
         self.demo_memory_capacity = config.demo_memory_capacity
 
@@ -140,13 +143,14 @@ class DQFDAgent(MemoryAgent):
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
-        self.demo_memory = Replay(self.demo_memory_capacity, self.states_spec, self.actions_spec)
 
         super(DQFDAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             config=config
         )
+        self.demo_memory = Replay(self.states_spec, self.actions_spec, self.demo_memory_capacity)
+
 
     def observe(self, reward, terminal):
         """

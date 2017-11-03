@@ -96,7 +96,12 @@ class ThreadedRunner(object):
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(timestep)
 
-            summary_data = {"thread_id": thread_id, "episode": episode, "timestep": timestep, "episode_reward": episode_reward}
+            summary_data = {
+                "thread_id": thread_id,
+                "episode": episode,
+                "timestep": timestep,
+                "episode_reward": episode_reward
+            }
             if episode_finished and not episode_finished(summary_data):
                 return
 

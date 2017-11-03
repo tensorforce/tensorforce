@@ -96,7 +96,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
                             dtype=util.np_dtype(action['type'])
                         )
 
-            state, terminal, reward = environment.execute(action=actions)
+            state, terminal, reward = environment.execute(actions=actions)
 
             demonstration = dict(states=state, internal=[], actions=actions, terminal=terminal, reward=reward)
             demonstrations.append(demonstration)

@@ -235,6 +235,9 @@ class Linear(Layer):
             raise TensorForceError('Invalid input rank for linear layer: {},'
                                    ' must be 2.'.format(util.rank(x)))
 
+        if self.size is None:   # If size is None than Output Matches Input, required for Skip Connections
+            self.size = x.shape[1].value
+
         weights_shape = (x.shape[1].value, self.size)
 
         if self.weights_init is None:
@@ -351,11 +354,12 @@ class Dense(Layer):
 
     def __init__(
         self,
-        size,
+        size=None,
         bias=True,
         activation='tanh',
         l2_regularization=0.0,
         l1_regularization=0.0,
+        skip=False,
         scope='dense',
         summary_labels=()
     ):
@@ -363,25 +367,38 @@ class Dense(Layer):
         Dense layer.
 
         Args:
-            size: Layer size.
+            size: Layer size, if None than input size matches the output size of the layer
             bias: If true, bias is added.
             activation: Type of nonlinearity.
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
+            skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf), doubles layers and ShortCut from Input to output
         """
+        self.skip = skip
+        if self.skip and size is not None:
+            raise TensorForceError(
+                    'Dense Layer SKIP connection needs Size=None, uses input shape sizes to create skip connection network, please delete "size" parameter')         
         self.linear = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        if self.skip:
+            print("SKIP ENABLED")
+            self.linear_skip = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
-        x = self.linear.apply(x=x)
-        x = self.nonlinearity.apply(x=x)
+        xl1 = self.linear.apply(x=x)
+        xl1 = self.nonlinearity.apply(x=xl1)
+        if self.skip:
+            xl2 = self.linear_skip.apply(x=xl1)
+            xl2 = self.nonlinearity.apply(x=xl2+x)  #add input back in as skip connection per paper
+        else:
+            xl2 = xl1
 
         if 'activations' in self.summary_labels:
-            summary = tf.summary.histogram(name='activations', values=x)
+            summary = tf.summary.histogram(name='activations', values=xl2)
             self.summaries.append(summary)
 
-        return x
+        return xl2
 
     def tf_regularization_loss(self):
         regularization_loss = super(Dense, self).tf_regularization_loss()
@@ -398,6 +415,11 @@ class Dense(Layer):
         if regularization_loss is not None:
             losses.append(regularization_loss)
 
+        if self.skip:
+            regularization_loss = self.linear_skip.regularization_loss()
+            if regularization_loss is not None:
+                losses.append(regularization_loss)          
+
         if len(losses) > 0:
             return tf.add_n(inputs=losses)
         else:
@@ -407,6 +429,9 @@ class Dense(Layer):
         layer_variables = super(Dense, self).get_variables(include_non_trainable=include_non_trainable)
 
         linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
+
+        if self.skip:
+            linear_variables = linear_variables + self.linear_skip.get_variables(include_non_trainable=include_non_trainable)
 
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 

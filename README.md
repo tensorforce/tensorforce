@@ -2,7 +2,7 @@ TensorForce: A TensorFlow library for applied reinforcement learning
 ====================================================================
 
 [![Docs](https://readthedocs.org/projects/tensorforce/badge)](http://tensorforce.readthedocs.io/en/latest/)
-[![Gitter](https://badges.gitter.im/reinforceio/TensorForce.svg)](https://gitter.im/reinforceio/TensorForce?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/reinforceio/TensorForce.svg)](https://docs.google.com/forms/d/1_UD5Pb5LaPVUviD0pO0fFcEnx_vwenvuc00jmP2rRIc/)
 [![Build Status](https://travis-ci.org/reinforceio/tensorforce.svg?branch=master)](https://travis-ci.org/reinforceio/tensorforce)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/reinforceio/tensorforce/blob/master/LICENSE)
 
@@ -233,18 +233,20 @@ these instructions just explain connectivity in case someone wants to
 get started there.
 
 
-Support and contact
--------------------
+Community and contributions
+---------------------------
 
-TensorForce is maintained by [reinforce.io](https://reinforce.io), a new
+TensorForce is developed by [reinforce.io](https://reinforce.io), a new
 project focused on providing reinforcement learning software
-infrastructure. For any questions or support, get in touch at
+infrastructure. For any questions, get in touch at
 <contact@reinforce.io>.
 
-You are also welcome to join our Gitter channel for help with using
-TensorForce, bugs or contributions:
-[<https://gitter.im/reinforceio/TensorForce>](https://gitter.im/reinforceio/TensorForce)
+Please file bug reports and feature discussions as GitHub issues in first instance.
 
+There is also a developer chat you are welcome to join. For joining, we ask to provide
+some basic details how you are using TensorForce so we can learn more about applications and our
+community. Please fill in [this short form](https://docs.google.com/forms/d/1_UD5Pb5LaPVUviD0pO0fFcEnx_vwenvuc00jmP2rRIc/) which will take
+ you to the chat after.
 
 Cite
 ----

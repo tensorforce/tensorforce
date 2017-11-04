@@ -35,11 +35,9 @@ import logging
 import os
 import time
 
-import numpy as np
-from tensorforce.util import log_levels
-
-from tensorforce import Configuration, TensorForceError
-from tensorforce.agents import create_agent
+from tensorforce.agents import Agent
+import json
+from tensorforce import Configuration
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_universe import OpenAIUniverse
 
@@ -50,7 +48,7 @@ def main():
     parser.add_argument('gym_id', help="ID of the gym environment")
     parser.add_argument('-a', '--agent', default='DQNAgent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-config', help="Network configuration file")
+    parser.add_argument('-n', '--network-spec', help="Network configuration file")
     parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000*60, help="Maximum number of timesteps per episode")
     # parser.add_argument('-m', '--monitor', help="Save results to this directory")
@@ -63,41 +61,33 @@ def main():
 
     args = parser.parse_args()
 
-    env = OpenAIUniverse(args.gym_id)
-    env.configure(remotes=1)
-
-    default = dict(
-        repeat_actions=1,
-        actions=env.actions,
-        states=env.states,
-        max_episode_length=args.max_timesteps
-    )
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    environment = OpenAIUniverse(args.gym_id)
+    environment.configure(remotes=1)
 
     if args.agent_config:
         config = Configuration.from_json(args.agent_config)
     else:
         config = Configuration()
+        logger.info("No agent configuration provided.")
 
-    config.default(default)
-
-    if args.network_config:
-        network_config = Configuration.from_json(args.network_config).network_layers
+    if args.network_spec:
+        with open(args.network_spec, 'r') as fp:
+            network_spec = json.load(fp=fp)
     else:
-        if config.network_layers:
-            network_config = config.network_layers
-        else:
-            raise TensorForceError("Error: No network configuration provided.")
+        network_spec = None
+        logger.info("No network configuration provided.")
 
-    if args.debug:
-        print("Configuration:")
-        print(config)
-
-    logger = logging.getLogger(__name__)
-    logger.setLevel(log_levels[config.log_level])
-
-    stack = None
-
-    agent = create_agent(args.agent, config, network_config)
+    agent = Agent.from_spec(
+        spec=args.agent,
+        kwargs=dict(
+            states_spec=environment.states,
+            actions_spec=environment.actions,
+            network_spec=network_spec,
+            config=config
+        )
+    )
 
     if args.load:
         load_dir = os.path.dirname(args.load)
@@ -110,41 +100,33 @@ def main():
         logger.info("Configuration:")
         logger.info(config)
 
-    runner = Runner(agent, env, preprocessor=stack, repeat_actions=config.repeat_actions)
-
-    if args.save:
-        save_dir = os.path.dirname(args.save)
-        if not os.path.isdir(save_dir):
-            try:
-                os.mkdir(save_dir, 0o755)
-            except OSError:
-                raise OSError("Cannot save agent to dir {} ()".format(save_dir))
-        runner.save_model(args.save, args.save_episodes)
+    runner = Runner(
+        agent=agent,
+        environment=environment,
+        repeat_actions=1
+    )
 
     report_episodes = args.episodes // 1000
     if args.debug:
         report_episodes = 1
-
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            sps = r.total_timesteps / (time.time() - r.start_time)
-            logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(
-                ep=r.episode,
-                ts=r.timestep,
-                sps=sps)
-            )
+            steps_per_second = r.timestep / (time.time() - r.start_time)
+            logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(
+                r.episode, r.episode_timestep, steps_per_second
+            ))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
-            logger.info("Average of last 500 rewards: {}".format(np.mean(r.episode_rewards[-500:])))
-            logger.info("Average of last 100 rewards: {}".format(np.mean(r.episode_rewards[-100:])))
+            logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
+            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
         return True
 
-    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
+    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
-    if args.monitor:
-        env.gym.monitor.close()
-    env.close()
+    # if args.monitor:
+    #     environment.gym.monitor.close()
+    environment.close()
 
 
 if __name__ == '__main__':

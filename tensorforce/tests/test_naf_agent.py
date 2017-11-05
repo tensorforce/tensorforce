@@ -19,8 +19,13 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
             type='replay',
             capacity=1000
         ),
-        batch_size=8,
-        first_update=10,
+        optimizer=dict(
+            type='adam',
+            learning_rate=0.001
+        ),
+        repeat_update=4,
+        batch_size=64,
+        first_update=64,
         target_sync_frequency=10
     )
 

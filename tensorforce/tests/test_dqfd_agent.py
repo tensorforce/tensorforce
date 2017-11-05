@@ -83,7 +83,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
                             fill_value=True,
                             dtype=util.np_dtype(action['type'])
                         )
-                    elif actions['type'] == 'int':
+                    elif action['type'] == 'int':
                         actions[name] = np.full(
                             shape=action['shape'],
                             fill_value=1,

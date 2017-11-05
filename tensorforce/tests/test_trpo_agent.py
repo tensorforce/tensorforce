@@ -29,5 +29,6 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
     agent = TRPOAgent
     deterministic = False
     config = Configuration(
-        batch_size=8
+        batch_size=64,
+        normalize_rewards=True
     )

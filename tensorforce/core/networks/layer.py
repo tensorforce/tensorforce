@@ -248,7 +248,7 @@ class Linear(Layer):
             if self.weights_init == 0.0:
                 self.weights_init = tf.zeros_initializer(dtype=tf.float32)
             else:
-                self.weights_init = tf.constant_initializer(value=self.weights, dtype=tf.float32)
+                self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 
         elif isinstance(self.weights_init, list):
             self.weights_init = np.asarray(self.weights_init, dtype=np.float32)

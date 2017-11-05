@@ -252,23 +252,23 @@ class Linear(Layer):
 
         elif isinstance(self.weights_init, list):
             self.weights_init = np.asarray(self.weights_init, dtype=np.float32)
-            if self.weights.shape != weights_shape:
+            if self.weights_init.shape != weights_shape:
                 raise TensorForceError(
-                    'Weights shape {} does not match expected shape {} '.format(self.weights.shape, weights_shape)
+                    'Weights shape {} does not match expected shape {} '.format(self.weights_init.shape, weights_shape)
                 )
             self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 
         elif isinstance(self.weights_init, np.ndarray):
-            if self.weights.shape != weights_shape:
+            if self.weights_init.shape != weights_shape:
                 raise TensorForceError(
-                    'Weights shape {} does not match expected shape {} '.format(self.weights.shape, weights_shape)
+                    'Weights shape {} does not match expected shape {} '.format(self.weights_init.shape, weights_shape)
                 )
             self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 
         elif isinstance(self.weights_init, tf.Tensor):
             if util.shape(self.weights_init) != weights_shape:
                 raise TensorForceError(
-                    'Weights shape {} does not match expected shape {} '.format(self.weights.shape, weights_shape)
+                    'Weights shape {} does not match expected shape {} '.format(self.weights_init.shape, weights_shape)
                 )
 
         bias_shape = (self.size,)

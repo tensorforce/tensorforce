@@ -245,7 +245,7 @@ class Linear(Layer):
             self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
 
         elif isinstance(self.weights_init, float):
-            if self.weights == 0.0:
+            if self.weights_init == 0.0:
                 self.weights_init = tf.zeros_initializer(dtype=tf.float32)
             else:
                 self.weights_init = tf.constant_initializer(value=self.weights, dtype=tf.float32)

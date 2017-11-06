@@ -285,25 +285,25 @@ class Linear(Layer):
             else:
                 self.bias_init = tf.constant_initializer(value=self.bias_init, dtype=tf.float32)
 
-        elif isinstance(self.bias, list):
+        elif isinstance(self.bias_init, list):
             self.bias_init = np.asarray(self.bias_init, dtype=np.float32)
             if self.bias_init.shape != bias_shape:
                 raise TensorForceError(
-                    'Bias shape {} does not match expected shape {} '.format(self.bias.shape, bias_shape)
+                    'Bias shape {} does not match expected shape {} '.format(self.bias_init.shape, bias_shape)
                 )
             self.bias_init = tf.constant_initializer(value=self.bias_init, dtype=tf.float32)
 
-        elif isinstance(self.bias, np.ndarray):
+        elif isinstance(self.bias_init, np.ndarray):
             if self.bias_init.shape != bias_shape:
                 raise TensorForceError(
-                    'Bias shape {} does not match expected shape {} '.format(self.bias.shape, bias_shape)
+                    'Bias shape {} does not match expected shape {} '.format(self.bias_init.shape, bias_shape)
                 )
             self.bias_init = tf.constant_initializer(value=self.bias_init, dtype=tf.float32)
 
         elif isinstance(self.bias_init, tf.Tensor):
             if util.shape(self.bias_init) != bias_shape:
                 raise TensorForceError(
-                    'Bias shape {} does not match expected shape {} '.format(self.bias.shape, bias_shape)
+                    'Bias shape {} does not match expected shape {} '.format(self.bias_init.shape, bias_shape)
                 )
 
         if isinstance(self.weights_init, tf.Tensor):

@@ -79,7 +79,8 @@ class BaseTest(object):
 
             sys.stdout.write(' ' + str(runner.episode))
             sys.stdout.flush()
-            if agent.episode < 3000:
+            if all(rw / ln >= self.__class__.pass_threshold
+                   for rw, ln in zip(runner.episode_rewards[-100:], runner.episode_timesteps[-100:])):
                 passed += 1
 
         sys.stdout.write(' ==> {} passed\n'.format(passed))

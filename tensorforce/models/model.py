@@ -323,8 +323,8 @@ class Model(object):
             )
             self.summary_writer_hook = util.UpdateSummarySaverHook(
                 update_input=self.update_input,
-                save_steps=summary_spec.get('steps', None if 'seconds' in summary_spec else 100),
-                save_secs=summary_spec.get('seconds'),  # Either one or the other has to be set.
+                save_steps=summary_spec.get('steps'),  # Either one or the other has to be set.
+                save_secs=summary_spec.get('seconds', None if 'steps' in summary_spec else 120),
                 output_dir=None,  # None since given via 'summary_writer' argument.
                 summary_writer=summary_writer,
                 scaffold=self.scaffold,
@@ -352,7 +352,6 @@ class Model(object):
         # tf.train.LoggingTensorHook(tensors, every_n_iter=None, every_n_secs=None)
         # tf.train.NanTensorHook(loss_tensor, fail_on_nan_loss=True)
         # tf.train.ProfilerHook(save_steps=None, save_secs=None, output_dir='', show_dataflow=True, show_memory=False)
-
 
         if distributed_spec is None:
             # TensorFlow non-distributed monitored session object
@@ -736,9 +735,11 @@ class Model(object):
             self.actions_internals_timestep += (self.timestep + 0,)
 
         # Tensor fetched for model.observe()
-        self.increment_episode = self.episode.assign_add(
+        increment_episode = self.episode.assign_add(
             delta=tf.count_nonzero(input_tensor=terminal, dtype=tf.int32)
         )
+        with tf.control_dependencies(control_inputs=(increment_episode,)):
+            self.increment_episode = self.episode + 0
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
         # Tensor(s) fetched for model.update()
@@ -796,7 +797,7 @@ class Model(object):
             Current episode and timestep counter, and a list containing the internal states  
             initializations.
         """
-        episode, timestep = self.session.run(fetches=(self.episode, self.timestep))
+        episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
         return episode, timestep, list(self.internal_inits)
 
     def act(self, states, internals, deterministic=False):
@@ -814,7 +815,7 @@ class Model(object):
         feed_dict[self.deterministic_input] = deterministic
         feed_dict[self.update_input] = False
 
-        actions, internals, timestep = self.session.run(fetches=fetches, feed_dict=feed_dict)
+        actions, internals, timestep = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
         if not batched:
             actions = {name: action[0] for name, action in actions.items()}
@@ -823,7 +824,7 @@ class Model(object):
         return actions, internals, timestep
 
     def observe(self, terminal, reward):
-        fetches = [self.increment_episode, self.episode]
+        fetches = self.increment_episode
 
         terminal = np.asarray(terminal)
         batched = (terminal.ndim == 1)
@@ -834,7 +835,7 @@ class Model(object):
 
         feed_dict[self.update_input] = False
 
-        _, episode = self.session.run(fetches=fetches, feed_dict=feed_dict)
+        episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
         return episode
 
@@ -876,7 +877,7 @@ class Model(object):
         feed_dict[self.deterministic_input] = True
         feed_dict[self.update_input] = True
 
-        fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
+        fetched = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
         if return_loss_per_instance:
             return fetched[1]

@@ -174,7 +174,8 @@ class UpdateSummarySaverHook(tf.train.SummarySaverHook):
         self.update_input = update_input
 
     def before_run(self, run_context):
-        self._request_summary = run_context.original_args[1].get(self.update_input, False) and \
+        self._request_summary = run_context.original_args[1] is not None and \
+            run_context.original_args[1].get(self.update_input, False) and \
             (self._next_step is None or self._timer.should_trigger_for_step(self._next_step))
         requests = {'global_step': self._global_step_tensor}
         if self._request_summary:

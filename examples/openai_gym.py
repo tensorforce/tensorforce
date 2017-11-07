@@ -114,7 +114,7 @@ def main():
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
 
     def episode_finished(r):
-        if r.episode % report_episodes == 0:
+        if (r.episode + 1) % report_episodes == 0:
             steps_per_second = r.timestep / (time.time() - r.start_time)
             logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(
                 r.agent.episode, r.episode_timestep, steps_per_second
@@ -132,7 +132,7 @@ def main():
         episode_finished=episode_finished
     )
 
-    logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
+    logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.agent.episode))
 
 
 if __name__ == '__main__':

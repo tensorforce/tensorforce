@@ -344,7 +344,7 @@ class TestTutorialCode(unittest.TestCase):
                 type='grayscale'
             ),
             dict(
-                type='center'
+                type='normalize'
             ),
             dict(
                 type='sequence',

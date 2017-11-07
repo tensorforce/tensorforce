@@ -32,20 +32,22 @@ class QNAFModel(QModel):
         if any(action['type'] != 'float' or 'min_value' in action or 'max_value' in action for action in actions_spec.values()):
             raise TensorForceError("Only unconstrained float actions valid for NAFModel.")
 
-        with tf.name_scope(name=config.scope):
-            self.state_values = dict()
-            self.l_entries = dict()
-            for name, action in actions_spec.items():
-                num_action = util.prod(action['shape'])
-                self.state_values[name] = Linear(size=num_action, scope=(name + 'state-value'))
-                self.l_entries[name] = Linear(size=(num_action * (num_action - 1) // 2), scope=(name + '-l-entries'))
-
         super(QNAFModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
             config=config
         )
+
+    def initialize(self, custom_getter):
+        super(QNAFModel, self).initialize(custom_getter)
+
+        self.state_values = dict()
+        self.l_entries = dict()
+        for name, action in self.actions_spec.items():
+            num_action = util.prod(action['shape'])
+            self.state_values[name] = Linear(size=num_action, scope=(name + 'state-value'))
+            self.l_entries[name] = Linear(size=(num_action * (num_action - 1) // 2), scope=(name + '-l-entries'))
 
     def tf_q_value(self, embedding, distr_params, action, name):
         num_action = util.prod(self.actions_spec[name]['shape'])

@@ -112,6 +112,7 @@ class DQNNstepAgent(BatchAgent):
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
+        batched_observe=1000,
         # BatchAgent
         keep_last_timestep=True,  # not documented!
         # Model
@@ -123,27 +124,20 @@ class DQNNstepAgent(BatchAgent):
         normalize_rewards=False,
         variable_noise=None,  # not documented!!!
         # DistributionModel
-        distributions=None,  # not documented!!!
+        distributions_spec=None,  # not documented!!!
         entropy_regularization=None,
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
         double_q_model=True,  # not documented!!!
         huber_loss=None,  # not documented!!!
-        # Logging
+        # General
         log_level='info',
-        model_directory=None,
-        save_frequency=600,  # TensorFlow default
-        summary_labels=['total-loss'],
-        summary_frequency=120,  # TensorFlow default
-        # TensorFlow distributed configuration
-        cluster_spec=None,
-        parameter_server=False,
-        task_index=0,
         device=None,
-        local_model=False,
-        replica_model=False,
-        scope='dqn-nstep'
+        scope='dqn-nstep',
+        saver_spec=None,
+        summary_spec=None,
+        distributed_spec=None
     )
 
     # missing: memory agent configs

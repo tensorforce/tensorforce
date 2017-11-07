@@ -33,10 +33,15 @@ from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
 
+# python examples/openai_gym.py Pong-ram-v0 -a vpg_agent -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 50000 -m 2000
+
+# python examples/openai_gym.py CartPole-v0 -a vpg_agent -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 2000 -m 200
+
+
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('gym_id', help="ID of the gym environment")
+    parser.add_argument('gym_id', help="Id of the Gym environment")
     parser.add_argument('-a', '--agent', help='Agent')
     parser.add_argument('-c', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-spec', help="Network specification file")
@@ -47,7 +52,6 @@ def main():
     parser.add_argument('--monitor', help="Save results to this directory")
     parser.add_argument('--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
     parser.add_argument('--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
-    parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
 
     args = parser.parse_args()
@@ -85,11 +89,11 @@ def main():
         )
     )
 
-    if args.load:
-        load_dir = os.path.dirname(args.load)
-        if not os.path.isdir(load_dir):
-            raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
-        agent.load_model(args.load)
+    # if args.load:
+    #     load_dir = os.path.dirname(args.load)
+    #     if not os.path.isdir(load_dir):
+    #         raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
+    #     agent.load_model(args.load)
 
     if args.debug:
         logger.info("-" * 16)
@@ -102,7 +106,7 @@ def main():
         repeat_actions=1
     )
 
-    if args.debug:  # TODO: report per timestep?
+    if args.debug:  # TODO: Timestep-based reporting
         report_episodes = 1
     else:
         report_episodes = 100
@@ -113,11 +117,11 @@ def main():
         if r.episode % report_episodes == 0:
             steps_per_second = r.timestep / (time.time() - r.start_time)
             logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(
-                r.episode, r.episode_timestep, steps_per_second
+                r.agent.episode, r.episode_timestep, steps_per_second
             ))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
-            logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
-            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
+            logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / min(500, len(r.episode_rewards))))
+            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / min(100, len(r.episode_rewards))))
         return True
 
     runner.run(

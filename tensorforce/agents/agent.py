@@ -177,12 +177,16 @@ class Agent(object):
             config=config
         )
 
+        # Batched observe for better performance with Python.
+        self.batched_observe = config.batched_observe
+        if self.batched_observe is not None:
+            self.observe_terminal = list()
+            self.observe_reward = list()
+
         not_accessed = config.not_accessed()
         if not_accessed:
             self.logger.warning("Configuration values not accessed: {}".format(', '.join(not_accessed)))
 
-        self.episode = -1
-        self.timestep = 0
         self.reset()
 
     def __str__(self):
@@ -195,14 +199,13 @@ class Agent(object):
         raise NotImplementedError
 
     def reset(self):
-        """Reset agent after episode. Increments internal episode count, internal states and preprocessors.
-
-        Returns:
-            void
-
         """
-        self.episode += 1
-        self.current_internals = self.next_internals = self.model.reset()
+        Reset the agent to its initial state on episode start. Updates internal episode and  
+        timestep counter, internal states,  and resets preprocessors.
+        """
+        self.episode, self.timestep, self.next_internals = self.model.reset()
+        self.current_internals = self.next_internals
+
         for preprocessing in self.preprocessing.values():
             preprocessing.reset()
 
@@ -222,7 +225,6 @@ class Agent(object):
 
         """
 
-        # self.timestep += 1  TODO: SHOULD USE WHAT model.act() returns
         self.current_internals = self.next_internals
 
         if self.unique_state:
@@ -285,14 +287,33 @@ class Agent(object):
             terminal: boolean indicating if the episode terminated after the observation.
             reward: scalar reward that resulted from executing the action.
         """
-        self.episode = self.model.observe(terminal=terminal, reward=reward)
-
         self.current_terminal = terminal
-
         if self.reward_preprocessing is None:
             self.current_reward = reward
         else:
             self.current_reward = self.reward_preprocessing.process(reward)
+
+        if self.batched_observe > 0:
+            # Batched observe for better performance with Python.
+            self.observe_terminal.append(self.current_terminal)
+            self.observe_reward.append(self.current_reward)
+
+            if self.current_terminal or len(self.observe_terminal) >= self.batched_observe:
+                self.episode = self.model.observe(
+                    terminal=self.observe_terminal,
+                    reward=self.observe_reward
+                )
+                self.observe_terminal = list()
+                self.observe_reward = list()
+
+        else:
+            self.episode = self.model.observe(
+                terminal=self.current_terminal,
+                reward=self.current_reward
+            )
+
+    def should_stop(self):
+        return self.model.monitored_session.should_stop()
 
     def last_observation(self):
         return dict(
@@ -303,20 +324,7 @@ class Agent(object):
             reward=self.current_reward
         )
 
-    def load_model(self, path):
-        """
-        Loads model from from checkpoint file. Consult the save model documentation to understand how
-        checkpoint paths are created.
-
-        Args:
-            path: Path to .ckpt file
-
-        Returns:
-
-        """
-        self.model.load_model(path)
-
-    def save_model(self, path, use_global_step=True):
+    def save_model(self, path=None, append_timestep=True):
         """
         Stores model in path.
 
@@ -332,7 +340,20 @@ class Agent(object):
         Returns:
 
         """
-        self.model.save_model(path, use_global_step)
+        self.model.save(path=path, append_timestep=append_timestep)
+
+    def restore_model(self, path=None):
+        """
+        Loads model from from checkpoint file. Consult the save model documentation to understand how
+        checkpoint paths are created.
+
+        Args:
+            path: Path to .ckpt file
+
+        Returns:
+
+        """
+        self.model.restore(path=path)
 
     @staticmethod
     def from_spec(spec, kwargs):

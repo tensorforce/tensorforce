@@ -37,20 +37,14 @@ class ConstantAgent(Agent):
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
-        # Logging
+        batched_observe=1000,
+        # General
         log_level='info',
-        model_directory=None,
-        save_frequency=600,  # TensorFlow default
-        summary_labels=['total-loss'],
-        summary_frequency=120,  # TensorFlow default
-        # TensorFlow distributed configuration
-        cluster_spec=None,
-        parameter_server=False,
-        task_index=0,
         device=None,
-        local_model=False,
-        replica_model=False,
-        scope='constant'
+        scope='constant',
+        saver_spec=None,
+        summary_spec=None,
+        distributed_spec=None
     )
 
     def __init__(self, states_spec, actions_spec, config):

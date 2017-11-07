@@ -42,14 +42,14 @@ class Distribution(object):
                     self.all_variables[name] = variable
                     if kwargs.get('trainable', True) and not name.startswith('optimization'):
                         self.variables[name] = variable
-                    if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                        if 'variables' in self.summary_labels:
+                            summary = tf.summary.histogram(name=name, values=variable)
+                            self.summaries.append(summary)
                 return variable
 
-            self.parameters = tf.make_template(
-                name_='parameters',
-                func_=self.tf_parameters,
+            self.parameterize = tf.make_template(
+                name_='parameterize',
+                func_=self.tf_parameterize,
                 custom_getter_=custom_getter
             )
             self.sample = tf.make_template(
@@ -78,7 +78,7 @@ class Distribution(object):
                 custom_getter_=custom_getter
             )
 
-    def tf_parameters(self, x):
+    def tf_parameterize(self, x):
         """
         Creates the TensorFlow operations for parameterizing a distribution conditioned on the  
         given input.

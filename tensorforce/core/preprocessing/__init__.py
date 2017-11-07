@@ -35,5 +35,15 @@ preprocessors = dict(
 )
 
 
-__all__ = ['Preprocessor', 'Sequence', 'Standardize', 'Normalize', 'Grayscale', 'ImageResize', 'Preprocessing', 'Divide',
-           'Clip', 'preprocessors']
+__all__ = [
+    'Preprocessor',
+    'Sequence',
+    'Standardize',
+    'Normalize',
+    'Grayscale',
+    'ImageResize',
+    'Preprocessing',
+    'Divide',
+    'Clip',
+    'preprocessors'
+]

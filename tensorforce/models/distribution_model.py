@@ -37,55 +37,8 @@ class DistributionModel(Model):
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
-
-        with tf.name_scope(name=config.scope):
-            # Network
-            self.network = Network.from_spec(
-                spec=network_spec,
-                kwargs=dict(summary_labels=config.summary_labels)
-            )
-
-            # Distributions
-            self.distributions = dict()
-            for name, action in actions_spec.items():
-
-                with tf.name_scope(name=(name + '-distribution')):
-
-                    if config.distributions is not None and name in config.distributions:
-                        kwargs = dict(action)
-                        kwargs['summary_labels'] = config.summary_labels
-                        self.distributions[name] = Distribution.from_spec(
-                            spec=config.distributions[name],
-                            kwargs=kwargs
-                        )
-
-                    elif action['type'] == 'bool':
-                        self.distributions[name] = Bernoulli(
-                            shape=action['shape'],
-                            summary_labels=config.summary_labels
-                        )
-
-                    elif action['type'] == 'int':
-                        self.distributions[name] = Categorical(
-                            shape=action['shape'],
-                            num_actions=action['num_actions'],
-                            summary_labels=config.summary_labels
-                        )
-
-                    elif action['type'] == 'float':
-                        if 'min_value' in action:
-                            self.distributions[name] = Beta(
-                                shape=action['shape'],
-                                min_value=action['min_value'],
-                                max_value=action['max_value'],
-                                summary_labels=config.summary_labels
-                            )
-
-                        else:
-                            self.distributions[name] = Gaussian(
-                                shape=action['shape'],
-                                summary_labels=config.summary_labels
-                            )
+        self.network_spec = network_spec
+        self.distributions_spec = config.distributions_spec
 
         # Entropy regularization
         assert config.entropy_regularization is None or config.entropy_regularization >= 0.0
@@ -100,6 +53,53 @@ class DistributionModel(Model):
 
     def initialize(self, custom_getter):
         super(DistributionModel, self).initialize(custom_getter)
+
+        # Network
+        self.network = Network.from_spec(
+            spec=self.network_spec,
+            kwargs=dict(summary_labels=self.summary_labels)
+        )
+
+        # Distributions
+        self.distributions = dict()
+        for name, action in self.actions_spec.items():
+            with tf.name_scope(name=(name + '-distribution')):
+
+                if self.distributions_spec is not None and name in self.distributions_spec:
+                    kwargs = dict(action)
+                    kwargs['summary_labels'] = self.summary_labels
+                    self.distributions[name] = Distribution.from_spec(
+                        spec=self.distributions_spec[name],
+                        kwargs=kwargs
+                    )
+
+                elif action['type'] == 'bool':
+                    self.distributions[name] = Bernoulli(
+                        shape=action['shape'],
+                        summary_labels=self.summary_labels
+                    )
+
+                elif action['type'] == 'int':
+                    self.distributions[name] = Categorical(
+                        shape=action['shape'],
+                        num_actions=action['num_actions'],
+                        summary_labels=self.summary_labels
+                    )
+
+                elif action['type'] == 'float':
+                    if 'min_value' in action:
+                        self.distributions[name] = Beta(
+                            shape=action['shape'],
+                            min_value=action['min_value'],
+                            max_value=action['max_value'],
+                            summary_labels=self.summary_labels
+                        )
+
+                    else:
+                        self.distributions[name] = Gaussian(
+                            shape=action['shape'],
+                            summary_labels=self.summary_labels
+                        )
 
         # Network internals
         self.internal_inputs.extend(self.network.internal_inputs())
@@ -116,7 +116,7 @@ class DistributionModel(Model):
         embedding, internals = self.network.apply(x=states, internals=internals, return_internals=True)
         actions = dict()
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             actions[name] = distribution.sample(distr_params=distr_params, deterministic=deterministic)
         return actions, internals
 
@@ -125,7 +125,7 @@ class DistributionModel(Model):
         kl_divergences = list()
 
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
             kl_divergence = distribution.kl_divergence(distr_params1=fixed_distr_params, distr_params2=distr_params)
             collapsed_size = util.prod(util.shape(kl_divergence)[1:])
@@ -165,7 +165,7 @@ class DistributionModel(Model):
             entropies = list()
             embedding = self.network.apply(x=states, internals=internals)
             for name, distribution in self.distributions.items():
-                distr_params = distribution.parameters(x=embedding)
+                distr_params = distribution.parameterize(x=embedding)
                 entropy = distribution.entropy(distr_params=distr_params)
                 collapsed_size = util.prod(util.shape(entropy)[1:])
                 entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
@@ -179,9 +179,7 @@ class DistributionModel(Model):
 
     def get_variables(self, include_non_trainable=False):
         model_variables = super(DistributionModel, self).get_variables(include_non_trainable=include_non_trainable)
-
         network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
-
         distribution_variables = [
             variable for name in sorted(self.distributions)
             for variable in self.distributions[name].get_variables(include_non_trainable=include_non_trainable)
@@ -193,7 +191,8 @@ class DistributionModel(Model):
         model_summaries = super(DistributionModel, self).get_summaries()
         network_summaries = self.network.get_summaries()
         distribution_summaries = [
-            summary for name in sorted(self.distributions) for summary in self.distributions[name].get_summaries()
+            summary for name in sorted(self.distributions)
+            for summary in self.distributions[name].get_summaries()
         ]
 
         return model_summaries + network_summaries + distribution_summaries

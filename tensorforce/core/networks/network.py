@@ -46,9 +46,9 @@ class Network(object):
                     self.all_variables[name] = variable
                     if kwargs.get('trainable', True) and not name.startswith('optimization'):
                         self.variables[name] = variable
-                    if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                        if 'variables' in self.summary_labels:
+                            summary = tf.summary.histogram(name=name, values=variable)
+                            self.summaries.append(summary)
                 return variable
 
             self.apply = tf.make_template(
@@ -183,7 +183,6 @@ class LayerBasedNetwork(Network):
         network_variables = super(LayerBasedNetwork, self).get_variables(
             include_non_trainable=include_non_trainable
         )
-
         layer_variables = [
             variable for layer in self.layers
             for variable in layer.get_variables(include_non_trainable=include_non_trainable)
@@ -192,8 +191,10 @@ class LayerBasedNetwork(Network):
         return network_variables + layer_variables
 
     def get_summaries(self):
-        return super(LayerBasedNetwork, self).get_summaries() + \
-            [summary for layer in self.layers for summary in layer.get_summaries()]
+        network_summaries = super(LayerBasedNetwork, self).get_summaries()
+        layer_summaries = [summary for layer in self.layers for summary in layer.get_summaries()]
+
+        return network_summaries + layer_summaries
 
 
 class LayeredNetwork(LayerBasedNetwork):

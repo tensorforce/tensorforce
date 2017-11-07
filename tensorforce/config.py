@@ -108,7 +108,7 @@ class Configuration(object):
 
     def obligatory(self, **kwargs):
         for key, value in kwargs.items():
-            if key in self._config:
+            if self._config.get(key) is not None:
                 raise TensorForceError("Value '{}' should not be defined externally.".format(key))
             self._config[key] = value
             self._accessed[key] = False

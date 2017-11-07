@@ -57,9 +57,18 @@ class MemoryAgent(Agent):
         )
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
+
             for _ in xrange(self.repeat_update):
+                # TODO: Should be states, internals, actions, terminal, reward = ...
                 batch = self.memory.get_batch(batch_size=self.batch_size, next_states=True)
-                loss_per_instance = self.model.update(batch=batch, return_loss_per_instance=True)
+                loss_per_instance = self.model.update(
+                    states=batch['states'],
+                    internals=batch['internals'],
+                    actions=batch['actions'],
+                    terminal=batch['terminal'],
+                    reward=batch['reward'],
+                    return_loss_per_instance=True
+                )
                 self.memory.update_batch(loss_per_instance=loss_per_instance)
 
     def import_observations(self, observations):

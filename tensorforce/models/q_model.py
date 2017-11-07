@@ -31,16 +31,8 @@ class QModel(DistributionModel):
     """
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
-
-        with tf.name_scope(name=config.scope):
-            # Target network
-            self.target_network = Network.from_spec(spec=network_spec, kwargs=dict(scope='target'))
-
-            # Target network optimizer
-            self.target_optimizer = Synchronization(
-                sync_frequency=config.target_sync_frequency,
-                update_weight=config.target_update_weight
-            )
+        self.target_sync_frequency = config.target_sync_frequency
+        self.target_update_weight = config.target_update_weight
 
         self.double_q_model = config.double_q_model
 
@@ -52,6 +44,18 @@ class QModel(DistributionModel):
             actions_spec=actions_spec,
             network_spec=network_spec,
             config=config
+        )
+
+    def initialize(self, custom_getter):
+        super(QModel, self).initialize(custom_getter)
+
+        # Target network
+        self.target_network = Network.from_spec(spec=self.network_spec, kwargs=dict(scope='target'))
+
+        # Target network optimizer
+        self.target_optimizer = Synchronization(
+            sync_frequency=self.target_sync_frequency,
+            update_weight=self.target_update_weight
         )
 
     def tf_q_value(self, embedding, distr_params, action, name):
@@ -92,8 +96,8 @@ class QModel(DistributionModel):
         deltas = list()
         for name, distribution in self.distributions.items():
 
-            distr_params = distribution.parameters(x=embedding)
-            target_distr_params = distribution.parameters(x=target_embedding)  # TODO: separate distribution parameters?
+            distr_params = distribution.parameterize(x=embedding)
+            target_distr_params = distribution.parameterize(x=target_embedding)  # TODO: separate distribution parameters?
 
             q_value = self.tf_q_value(embedding=embedding, distr_params=distr_params, action=actions[name][:-1], name=name)
 

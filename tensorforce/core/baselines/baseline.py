@@ -43,9 +43,9 @@ class Baseline(object):
                     self.all_variables[name] = variable
                     if kwargs.get('trainable', True) and not name.startswith('optimization'):
                         self.variables[name] = variable
-                    if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                        if 'variables' in self.summary_labels:
+                            summary = tf.summary.histogram(name=name, values=variable)
+                            self.summaries.append(summary)
                 return variable
 
             self.predict = tf.make_template(

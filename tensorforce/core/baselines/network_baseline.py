@@ -77,12 +77,15 @@ class NetworkBaseline(Baseline):
             return None
 
     def get_variables(self, include_non_trainable=False):
-        baseline_variables = super(NetworkBaseline, self).get_variables(
-            include_non_trainable=include_non_trainable
-        )
-
+        baseline_variables = super(NetworkBaseline, self).get_variables(include_non_trainable=include_non_trainable)
         network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
-
         layer_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
 
         return baseline_variables + network_variables + layer_variables
+
+    def get_summaries(self):
+        baseline_summaries = super(NetworkBaseline, self).get_summaries()
+        network_summaries = self.network.get_summaries()
+        layer_summaries = self.linear.get_summaries()
+
+        return baseline_summaries + network_summaries + layer_summaries

@@ -53,7 +53,8 @@ class RandomAgent(Agent):
         config.obligatory(
             optimizer=None,
             discount=1.0,
-            normalize_rewards=False
+            normalize_rewards=False,
+            variable_noise=None
         )
         super(RandomAgent, self).__init__(states_spec, actions_spec, config)
 

@@ -14,20 +14,35 @@
 # ==============================================================================
 
 from __future__ import absolute_import
-from __future__ import division
 from __future__ import print_function
+from __future__ import division
 
-import numpy as np
+import unittest
 
-from tensorforce import util
-from tensorforce.core.preprocessing import Preprocessor
+from tensorforce import Configuration
+from tensorforce.agents import DDQNAgent
+from tensorforce.tests.base_agent_test import BaseAgentTest
 
 
-class Center(Preprocessor):
-    """
-    Center/standardize state. Subtract minimal value and divide by range.
-    """
+class TestDDQNAgent(BaseAgentTest, unittest.TestCase):
 
-    def process(self, state):
-        state = state.astype(np.float32)
-        return (state - state.min()) / (state.max() - state.min() + util.epsilon)
+    agent = DDQNAgent
+    deterministic = True
+
+    config = Configuration(
+        memory=dict(
+            type='replay',
+            capacity=1000
+        ),
+        optimizer=dict(
+            type="adam",
+            learning_rate=0.002
+        ),
+        repeat_update=4,
+        batch_size=32,
+        first_update=64,
+        target_sync_frequency=10
+    )
+
+    exclude_float = True
+    exclude_bounded = True

@@ -30,10 +30,18 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
     deterministic = True
 
     config = Configuration(
-        batch_size=8,
-        memory_capacity=800,
-        first_update=80,
-        target_update_frequency=20
+        memory=dict(
+            type='replay',
+            capacity=1000
+        ),
+        optimizer=dict(
+            type="adam",
+            learning_rate=0.002
+        ),
+        repeat_update=4,
+        batch_size=32,
+        first_update=64,
+        target_sync_frequency=10
     )
 
     exclude_float = True

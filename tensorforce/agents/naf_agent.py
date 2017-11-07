@@ -71,7 +71,14 @@ class NAFAgent(MemoryAgent):
         exploration=None,
         reward_preprocessing=None,
         # MemoryAgent
-        # missing, not documented!
+        # batch_size !!!
+        memory=dict(  # not documented!!!
+            type='replay',
+            capacity=100000
+        ),
+        first_update=10000,  # not documented!!!
+        update_frequency=4,  # not documented!!!
+        repeat_update=1,  # not documented!!!
         # Model
         optimizer=dict(
             type='adam',
@@ -79,6 +86,7 @@ class NAFAgent(MemoryAgent):
         ),
         discount=0.99,
         normalize_rewards=False,
+        variable_noise=None,  # not documented!!!
         # DistributionModel
         distributions=None,  # not documented!!!
         entropy_regularization=None,
@@ -86,7 +94,7 @@ class NAFAgent(MemoryAgent):
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
         double_q_model=False,  # not documented!!!
-        huber_loss=0.0,  # not documented!!!
+        huber_loss=None,  # not documented!!!
         # Logging
         log_level='info',
         model_directory=None,

@@ -48,7 +48,7 @@ class Layer(object):
                 variable = getter(name=name, registered=True, **kwargs)
                 if not registered:
                     self.all_variables[name] = variable
-                    if kwargs.get('trainable', True):
+                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
                         self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -162,7 +162,7 @@ class Nonlinearity(Layer):
         Non-linearity layer.
 
         Args:
-            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', or 'tanh'.
+            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', 'tanh' or 'none'.
         """
         self.name = name
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
@@ -198,6 +198,9 @@ class Nonlinearity(Layer):
         elif self.name == 'tanh':
             x = tf.nn.tanh(x=x)
 
+        elif self.name == 'none':
+            x = tf.identity(input=x)            
+
         else:
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))
 
@@ -232,6 +235,9 @@ class Linear(Layer):
             raise TensorForceError('Invalid input rank for linear layer: {},'
                                    ' must be 2.'.format(util.rank(x)))
 
+        if self.size is None:   # If size is None than Output Matches Input, required for Skip Connections
+            self.size = x.shape[1].value
+
         weights_shape = (x.shape[1].value, self.size)
 
         if self.weights_init is None:
@@ -239,30 +245,30 @@ class Linear(Layer):
             self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
 
         elif isinstance(self.weights_init, float):
-            if self.weights == 0.0:
+            if self.weights_init == 0.0:
                 self.weights_init = tf.zeros_initializer(dtype=tf.float32)
             else:
-                self.weights_init = tf.constant_initializer(value=self.weights, dtype=tf.float32)
+                self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 
         elif isinstance(self.weights_init, list):
             self.weights_init = np.asarray(self.weights_init, dtype=np.float32)
-            if self.weights.shape != weights_shape:
+            if self.weights_init.shape != weights_shape:
                 raise TensorForceError(
-                    'Weights shape {} does not match expected shape {} '.format(self.weights.shape, weights_shape)
+                    'Weights shape {} does not match expected shape {} '.format(self.weights_init.shape, weights_shape)
                 )
             self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 
         elif isinstance(self.weights_init, np.ndarray):
-            if self.weights.shape != weights_shape:
+            if self.weights_init.shape != weights_shape:
                 raise TensorForceError(
-                    'Weights shape {} does not match expected shape {} '.format(self.weights.shape, weights_shape)
+                    'Weights shape {} does not match expected shape {} '.format(self.weights_init.shape, weights_shape)
                 )
             self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 
         elif isinstance(self.weights_init, tf.Tensor):
             if util.shape(self.weights_init) != weights_shape:
                 raise TensorForceError(
-                    'Weights shape {} does not match expected shape {} '.format(self.weights.shape, weights_shape)
+                    'Weights shape {} does not match expected shape {} '.format(self.weights_init.shape, weights_shape)
                 )
 
         bias_shape = (self.size,)
@@ -279,25 +285,25 @@ class Linear(Layer):
             else:
                 self.bias_init = tf.constant_initializer(value=self.bias_init, dtype=tf.float32)
 
-        elif isinstance(self.bias, list):
+        elif isinstance(self.bias_init, list):
             self.bias_init = np.asarray(self.bias_init, dtype=np.float32)
             if self.bias_init.shape != bias_shape:
                 raise TensorForceError(
-                    'Bias shape {} does not match expected shape {} '.format(self.bias.shape, bias_shape)
+                    'Bias shape {} does not match expected shape {} '.format(self.bias_init.shape, bias_shape)
                 )
             self.bias_init = tf.constant_initializer(value=self.bias_init, dtype=tf.float32)
 
-        elif isinstance(self.bias, np.ndarray):
+        elif isinstance(self.bias_init, np.ndarray):
             if self.bias_init.shape != bias_shape:
                 raise TensorForceError(
-                    'Bias shape {} does not match expected shape {} '.format(self.bias.shape, bias_shape)
+                    'Bias shape {} does not match expected shape {} '.format(self.bias_init.shape, bias_shape)
                 )
             self.bias_init = tf.constant_initializer(value=self.bias_init, dtype=tf.float32)
 
         elif isinstance(self.bias_init, tf.Tensor):
             if util.shape(self.bias_init) != bias_shape:
                 raise TensorForceError(
-                    'Bias shape {} does not match expected shape {} '.format(self.bias.shape, bias_shape)
+                    'Bias shape {} does not match expected shape {} '.format(self.bias_init.shape, bias_shape)
                 )
 
         if isinstance(self.weights_init, tf.Tensor):
@@ -319,10 +325,11 @@ class Linear(Layer):
         return x
 
     def tf_regularization_losses(self):
-        if super(Linear, self).tf_regularization_loss() is None:
+        regularization_loss = super(Linear, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Linear, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
         if self.l2_regularization > 0.0:
             losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.weights))
@@ -347,11 +354,12 @@ class Dense(Layer):
 
     def __init__(
         self,
-        size,
+        size=None,
         bias=True,
         activation='tanh',
         l2_regularization=0.0,
         l1_regularization=0.0,
+        skip=False,
         scope='dense',
         summary_labels=()
     ):
@@ -359,34 +367,58 @@ class Dense(Layer):
         Dense layer.
 
         Args:
-            size: Layer size.
+            size: Layer size, if None than input size matches the output size of the layer
             bias: If true, bias is added.
             activation: Type of nonlinearity.
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
+            skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf), doubles layers and ShortCut from Input to output
         """
+        self.skip = skip
+        if self.skip and size is not None:
+            raise TensorForceError(
+                    'Dense Layer SKIP connection needs Size=None, uses input shape sizes to create skip connection network, please delete "size" parameter')         
         self.linear = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        if self.skip:
+            print("SKIP ENABLED")
+            self.linear_skip = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x):
-        x = self.linear.apply(x=x)
-        x = self.nonlinearity.apply(x=x)
+        xl1 = self.linear.apply(x=x)
+        xl1 = self.nonlinearity.apply(x=xl1)
+        if self.skip:
+            xl2 = self.linear_skip.apply(x=xl1)
+            xl2 = self.nonlinearity.apply(x=xl2+x)  #add input back in as skip connection per paper
+        else:
+            xl2 = xl1
 
         if 'activations' in self.summary_labels:
-            summary = tf.summary.histogram(name='activations', values=x)
+            summary = tf.summary.histogram(name='activations', values=xl2)
             self.summaries.append(summary)
 
-        return x
+        return xl2
 
     def tf_regularization_loss(self):
-        if super(Dense, self).tf_regularization_loss() is None:
+        regularization_loss = super(Dense, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Dense, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        if self.linear.regularization_loss() is not None:
-            losses.append(self.linear.regularization_loss())
+        regularization_loss = self.linear.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
+
+        regularization_loss = self.nonlinearity.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
+
+        if self.skip:
+            regularization_loss = self.linear_skip.regularization_loss()
+            if regularization_loss is not None:
+                losses.append(regularization_loss)          
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)
@@ -398,10 +430,88 @@ class Dense(Layer):
 
         linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
 
+        if self.skip:
+            linear_variables = linear_variables + self.linear_skip.get_variables(include_non_trainable=include_non_trainable)
+
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
         return layer_variables + linear_variables + nonlinearity_variables
 
+
+class Dueling(Layer):
+    """
+    Dueling layer, i.e. Duel pipelines for Exp & Adv to help with stability
+    """
+
+    def __init__(
+        self,
+        size,
+        bias=False,
+        activation='none',
+        l2_regularization=0.0,
+        l1_regularization=0.0,
+        scope='dueling',
+        summary_labels=()
+    ):
+        """
+        Dueling layer.
+
+        [Dueling Networks] (https://arxiv.org/pdf/1511.06581.pdf)
+        Implement Y = Expectation[x] + (Advantage[x] - Mean(Advantage[x]))
+
+        Args:
+            size: Layer size.
+            bias: If true, bias is added.
+            activation: Type of nonlinearity.
+            l2_regularization: L2 regularization weight.
+            l1_regularization: L1 regularization weight.
+        """
+        # Expectation is broadcast back over advantage values so output is of size 1 
+        self.linear_exp = Linear(size=1, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        self.linear_adv = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x):
+        expectation = self.linear_exp.apply(x=x)
+        advantage   = self.linear_adv.apply(x=x)
+
+        x = expectation + advantage - tf.reduce_mean(advantage,axis=1,keep_dims=True)
+
+        x = self.nonlinearity.apply(x=x)
+
+        if 'activations' in self.summary_labels:
+            summary = tf.summary.histogram(name='activations', values=x)
+            self.summaries.append(summary)
+
+        return x
+
+    def tf_regularization_loss(self):
+        if super(Dueling, self).tf_regularization_loss() is None:
+            losses = list()
+        else:
+            losses = [super(Dueling, self).tf_regularization_loss()]
+
+        if self.linear_exp.regularization_loss() is not None:
+            losses.append(self.linear_exp.regularization_loss())
+
+        if self.linear_adv.regularization_loss() is not None:
+            losses.append(self.linear_adv.regularization_loss())            
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
+    def get_variables(self, include_non_trainable=False):
+        layer_variables = super(Dueling, self).get_variables(include_non_trainable=include_non_trainable)
+
+        linear_variables_exp = self.linear_exp.get_variables(include_non_trainable=include_non_trainable)
+        linear_variables_adv = self.linear_adv.get_variables(include_non_trainable=include_non_trainable)
+
+        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+
+        return layer_variables + linear_variables_exp + linear_variables_adv + nonlinearity_variables
 
 class Conv1d(Layer):
     """
@@ -469,10 +579,11 @@ class Conv1d(Layer):
         return x
 
     def tf_regularization_loss(self):
-        if super(Conv1d, self).tf_regularization_loss() is None:
+        regularization_loss = super(Conv1d, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Conv1d, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
         if self.l2_regularization > 0.0:
             losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
@@ -483,6 +594,10 @@ class Conv1d(Layer):
             losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.filters)))
             if self.bias is not None:
                 losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.bias)))
+
+        regularization_loss = self.nonlinearity.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)
@@ -569,10 +684,11 @@ class Conv2d(Layer):
         return x
 
     def tf_regularization_loss(self):
-        if super(Conv2d, self).tf_regularization_loss() is None:
+        regularization_loss = super(Conv2d, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Conv2d, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
         if self.l2_regularization > 0.0:
             losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.filters))
@@ -583,6 +699,10 @@ class Conv2d(Layer):
             losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.filters)))
             if self.bias is not None:
                 losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.bias)))
+
+        regularization_loss = self.nonlinearity.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

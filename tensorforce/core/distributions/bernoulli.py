@@ -103,13 +103,15 @@ class Bernoulli(Distribution):
         return probability1 * true_log_prob_ratio + (1.0 - probability1) * false_log_prob_ratio
 
     def tf_regularization_loss(self):
+        regularization_loss = super(Bernoulli, self).tf_regularization_loss()
         if super(Bernoulli, self).tf_regularization_loss() is None:
             losses = list()
         else:
-            losses = [super(Bernoulli, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        if self.logit.regularization_loss() is not None:
-            losses.append(self.logit.regularization_loss())
+        regularization_loss = self.logit.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

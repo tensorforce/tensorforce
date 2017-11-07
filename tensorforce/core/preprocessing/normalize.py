@@ -25,9 +25,9 @@ from tensorforce.core.preprocessing import Preprocessor
 
 class Normalize(Preprocessor):
     """
-    Normalize state. Subtract mean and divide by standard deviation.
+    Normalize state. Subtract minimal value and divide by range.
     """
 
     def process(self, state):
         state = state.astype(np.float32)
-        return (state - state.mean()) / (state.std() + util.epsilon)
+        return (state - state.min()) / (state.max() - state.min() + util.epsilon)

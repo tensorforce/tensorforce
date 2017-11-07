@@ -41,7 +41,7 @@ class Baseline(object):
                 variable = getter(name=name, registered=True, **kwargs)
                 if not registered:
                     self.all_variables[name] = variable
-                    if kwargs.get('trainable', True):
+                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
                         self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -56,6 +56,11 @@ class Baseline(object):
             self.loss = tf.make_template(
                 name_='loss',
                 func_=self.tf_loss,
+                custom_getter_=custom_getter
+            )
+            self.regularization_loss = tf.make_template(
+                name_='regularization-loss',
+                func_=self.tf_regularization_loss,
                 custom_getter_=custom_getter
             )
 

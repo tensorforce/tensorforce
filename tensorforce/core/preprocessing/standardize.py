@@ -13,26 +13,21 @@
 # limitations under the License.
 # ==============================================================================
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-from tensorforce.exception import TensorForceError
-from tensorforce.config import Configuration
+import numpy as np
+
+from tensorforce import util
+from tensorforce.core.preprocessing import Preprocessor
 
 
-__version__ = '0.3.0'
+class Standardize(Preprocessor):
+    """
+    Standardize state. Subtract mean and divide by standard deviation.
+    """
 
-
-# Libraries shoulld add NullHandler() by default, as its the application code's
-# responsibility to configure log handlers.
-# https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
-
-import logging
-try:
-    from logging import NullHandler
-except ImportError:
-    class NullHandler(logging.Handler):
-        def emit(self, record):
-            pass
-
-logging.getLogger(__name__).addHandler(NullHandler())
-
-__all__ = ['TensorForceError', 'Configuration']
+    def process(self, state):
+        state = state.astype(np.float32)
+        return (state - state.mean()) / (state.std() + util.epsilon)

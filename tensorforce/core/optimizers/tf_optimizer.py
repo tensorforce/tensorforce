@@ -24,9 +24,7 @@ from tensorforce.core.optimizers import Optimizer
 
 class TFOptimizer(Optimizer):
     """
-    Wrapper class for TensorFlow optimizers. This maps
-    native TensorFlow optimizers to the TensorForce optimization interface.
-
+    Wrapper class for TensorFlow optimizers.
     """
 
     tf_optimizers = dict(
@@ -41,6 +39,16 @@ class TFOptimizer(Optimizer):
 
     @staticmethod
     def get_wrapper(optimizer):
+        """
+        Returns a TFOptimizer constructor callable for the given optimizer name.
+
+        Args:
+            optimizer: The name of the optimizer, one of 'adadelta', 'adagrad', 'adam', 'nadam',  
+            'gradient_descent', 'momentum', 'rmsprop'.
+
+        Returns:
+            The TFOptimizer constructor callable.
+        """
         def wrapper(**kwargs):
             return TFOptimizer(optimizer=optimizer, **kwargs)
         return wrapper
@@ -50,7 +58,7 @@ class TFOptimizer(Optimizer):
         Creates a new optimizer instance of a TensorFlow optimizer.
 
         Args:
-            optimizer: The name of the optimizer, one of 'adadelta', 'adagrad', 'adam',  
+            optimizer: The name of the optimizer, one of 'adadelta', 'adagrad', 'adam', 'nadam',  
             'gradient_descent', 'momentum', 'rmsprop'.
             **kwargs: Additional arguments passed on to the TensorFlow optimizer constructor.
         """

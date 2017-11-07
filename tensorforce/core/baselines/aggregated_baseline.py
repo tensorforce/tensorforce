@@ -60,17 +60,20 @@ class AggregatedBaseline(Baseline):
         return tf.squeeze(input=prediction, axis=1)
 
     def tf_regularization_loss(self):
-        if super(AggregatedBaseline, self).tf_regularization_loss() is None:
+        regularization_loss = super(AggregatedBaseline, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(AggregatedBaseline, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        for baseline in self.baseline.values():
-            if baseline.regularization_loss() is not None:
-                losses.append(baseline.regularization_loss())
+        for baseline in self.baselines.values():
+            regularization_loss = baseline.regularization_loss()
+            if regularization_loss is not None:
+                losses.append(regularization_loss)
 
-        if self.linear.get_regularization_loss() is not None:
-            losses.append(self.linear.get_regularization_loss())
+        regularization_loss = self.linear.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

@@ -492,7 +492,7 @@ class Dueling(Layer):
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, training=False):
         expectation = self.expectation_layer.apply(x=x)
         advantage = self.advantage_layer.apply(x=x)
         mean_advantage = tf.reduce_mean(input_tensor=advantage, axis=1, keep_dims=True)
@@ -514,11 +514,11 @@ class Dueling(Layer):
         else:
             losses = [regularization_loss]
 
-        regularization_loss = self.linear_exp.regularization_loss()
+        regularization_loss = self.expectation_layer.regularization_loss()
         if regularization_loss is not None:
             losses.append(regularization_loss)
 
-        regularization_loss = self.linear_adv.regularization_loss()
+        regularization_loss = self.advantage_layer.regularization_loss()
         if regularization_loss is not None:
             losses.append(regularization_loss)
 
@@ -529,16 +529,16 @@ class Dueling(Layer):
 
     def get_variables(self, include_non_trainable=False):
         layer_variables = super(Dueling, self).get_variables(include_non_trainable=include_non_trainable)
-        expectation_layer_variables = self.linear_exp.get_variables(include_non_trainable=include_non_trainable)
-        advantage_layer_variables = self.linear_adv.get_variables(include_non_trainable=include_non_trainable)
+        expectation_layer_variables = self.expectation_layer.get_variables(include_non_trainable=include_non_trainable)
+        advantage_layer_variables = self.advantage_layer.get_variables(include_non_trainable=include_non_trainable)
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
         return layer_variables + expectation_layer_variables + advantage_layer_variables + nonlinearity_variables
 
     def get_summaries(self):
-        layer_summaries = super(Conv1d, self).get_summaries()
-        expectation_layer_summaries = self.linear_exp.get_summaries()
-        advantage_layer_summaries = self.linear_adv.get_summaries()
+        layer_summaries = super(Dueling, self).get_summaries()
+        expectation_layer_summaries = self.expectation_layer.get_summaries()
+        advantage_layer_summaries = self.advantage_layer.get_summaries()
         nonlinearity_summaries = self.nonlinearity.get_summaries()
 
         return layer_summaries + expectation_layer_summaries + advantage_layer_summaries + nonlinearity_summaries

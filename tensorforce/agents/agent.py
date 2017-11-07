@@ -324,36 +324,39 @@ class Agent(object):
             reward=self.current_reward
         )
 
-    def save_model(self, path=None, append_timestep=True):
+    def save_model(self, directory=None, append_timestep=True):
         """
-        Stores model in path.
+        Save TensorFlow model. If no checkpoint directory is given, the model's default saver  
+        directory is used. Optionally appends current timestep to prevent overwriting previous  
+        checkpoint files. Turn off to be able to load model from the same given path argument as  
+        given here.
 
         Args:
-            path: Path to checkpoint file
-            use_global_step:  Whether to append the current timestep to the checkpoint path. If this is
-            set to True, the load path must include the checkpoint id. For example, if we store to
-            models/model.ckpt and set global step to true, the exported file will be of the form models/model.ckpt-X
-            where X is the last step saved. The load path must precisely match this file name. If this option
-            is turned off, the checkpoint will always overwrite the file specified in path and the model
-            can always be loaded under this path.
+            directory: Optional checkpoint directory.
+            use_global_step:  Appends the current timestep to the checkpoint file if true.
+            If this is set to True, the load path must include the checkpoint timestep suffix.  
+            For example, if stored to models/ and set to true, the exported file will be of the  
+            form models/model.ckpt-X where X is the last timestep saved. The load path must  
+            precisely match this file name. If this option is turned off, the checkpoint will  
+            always overwrite the file specified in path and the model can always be loaded under  
+            this path.
 
         Returns:
-
+            Checkpoint path were the model was saved.
         """
-        self.model.save(path=path, append_timestep=append_timestep)
+        return self.model.save(directory=directory, append_timestep=append_timestep)
 
-    def restore_model(self, path=None):
+    def restore_model(self, directory=None, file=None):
         """
-        Loads model from from checkpoint file. Consult the save model documentation to understand how
-        checkpoint paths are created.
+        Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is  
+        restored. If no checkpoint directory is given, the model's default saver directory is  
+        used (unless file specifies the entire path).
 
         Args:
-            path: Path to .ckpt file
-
-        Returns:
-
+            directory: Optional checkpoint directory.
+            file: Optional checkpoint file, or path if directory not given.
         """
-        self.model.restore(path=path)
+        self.model.restore(directory=None, file=None)
 
     @staticmethod
     def from_spec(spec, kwargs):

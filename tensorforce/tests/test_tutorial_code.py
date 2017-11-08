@@ -432,6 +432,7 @@ class TestTutorialCode(unittest.TestCase):
 
         # runner.run(episodes=1000, episode_finished=episode_finished)
         runner.run(episodes=10, episode_finished=episode_finished)  # Only 10 episodes for this test
+        runner.close()
 
         ### Code block: next
         agent = DQNAgent(

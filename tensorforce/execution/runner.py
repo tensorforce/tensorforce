@@ -64,6 +64,10 @@ class Runner(object):
         self.episode_timesteps = history.get('episode_timesteps', list())
         self.episode_times = history.get('episode_times', list())
 
+    def close(self):
+        self.agent.close()
+        self.environment.close()
+
     def run(
         self,
         timesteps=None,
@@ -147,6 +151,3 @@ class Runner(object):
                     self.agent.should_stop():
                 # agent.episode / agent.timestep are globally updated
                 break
-
-        self.agent.close()
-        self.environment.close()

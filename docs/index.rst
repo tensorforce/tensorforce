@@ -82,6 +82,7 @@ In python, it could look like this:
 
    # Start learning
    runner.run(episodes=3000, max_episode_timesteps=200, episode_finished=episode_finished)
+   runner.close()
 
    # Print statistics
    print("Learning finished. Total episodes: {ep}. Average reward of last 100 episodes: {ar}.".format(

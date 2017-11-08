@@ -78,6 +78,7 @@ class TestQuickstartExample(unittest.TestCase):
 
             # Start the runner
             runner.run(episodes=2000, max_episode_timesteps=200, episode_finished=episode_finished)
+            runner.close()
 
             sys.stdout.write('episodes: {}\n'.format(runner.episode))
             sys.stdout.flush()

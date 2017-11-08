@@ -129,6 +129,7 @@ def main():
         deterministic=args.deterministic,
         episode_finished=episode_finished
     )
+    runner.close()
 
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.agent.episode))
 

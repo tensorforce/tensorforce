@@ -47,6 +47,7 @@ runner.run(
     max_timesteps = int,  # maximum timesteps per episode
     episode_finished = object,  # callback function called when episode is finished
 )
+runner.close()
 ```
 
 You can use the episode\_finished callback for printing performance
@@ -104,6 +105,7 @@ def main():
     print("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))
 
     runner.run(max_episodes, max_timesteps, episode_finished=episode_finished)
+    runner.close()
 
     print("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 

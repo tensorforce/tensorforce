@@ -46,9 +46,9 @@ class Network(object):
                     self.all_variables[name] = variable
                     if kwargs.get('trainable', True) and not name.startswith('optimization'):
                         self.variables[name] = variable
-                    if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                        if 'variables' in self.summary_labels:
+                            summary = tf.summary.histogram(name=name, values=variable)
+                            self.summaries.append(summary)
                 return variable
 
             self.apply = tf.make_template(
@@ -62,7 +62,7 @@ class Network(object):
                 custom_getter_=custom_getter
             )
 
-    def tf_apply(self, x, internals=(), return_internals=False):
+    def tf_apply(self, x, internals=(), return_internals=False, training=None):
         """
         Creates the TensorFlow operations for applying the network to the given input.
 
@@ -70,6 +70,7 @@ class Network(object):
             x: Network input tensor or dict of input tensors
             internals: List of prior internal state tensors
             return_internals: If true, also returns posterior internal state tensors
+            training: Is currently training? `True` during update() `False` otherwise (eg. for Dropout)
 
         Returns:
             Network output tensor, plus optionally list of posterior internal state tensors
@@ -183,7 +184,6 @@ class LayerBasedNetwork(Network):
         network_variables = super(LayerBasedNetwork, self).get_variables(
             include_non_trainable=include_non_trainable
         )
-
         layer_variables = [
             variable for layer in self.layers
             for variable in layer.get_variables(include_non_trainable=include_non_trainable)
@@ -192,8 +192,10 @@ class LayerBasedNetwork(Network):
         return network_variables + layer_variables
 
     def get_summaries(self):
-        return super(LayerBasedNetwork, self).get_summaries() + \
-            [summary for layer in self.layers for summary in layer.get_summaries()]
+        network_summaries = super(LayerBasedNetwork, self).get_summaries()
+        layer_summaries = [summary for layer in self.layers for summary in layer.get_summaries()]
+
+        return network_summaries + layer_summaries
 
 
 class LayeredNetwork(LayerBasedNetwork):
@@ -225,7 +227,7 @@ class LayeredNetwork(LayerBasedNetwork):
 
                 self.add_layer(layer=layer)
 
-    def tf_apply(self, x, internals=(), return_internals=False):
+    def tf_apply(self, x, internals=(), return_internals=False, training=None):
         if isinstance(x, dict):
             if len(x) != 1:
                 raise TensorForceError('Layered network must have only one input, but {} given.'.format(len(x)))
@@ -236,7 +238,7 @@ class LayeredNetwork(LayerBasedNetwork):
         for layer in self.layers:
             layer_internals = [internals[index + n] for n in range(layer.num_internals)]
             index += layer.num_internals
-            x = layer.apply(x, *layer_internals)
+            x = layer.apply(x, *layer_internals, training=training)
 
             if not isinstance(x, tf.Tensor):
                 internal_outputs.extend(x[1])

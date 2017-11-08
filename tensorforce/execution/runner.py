@@ -46,9 +46,6 @@ class Runner(object):
         if not history:
             history = dict()
 
-        self.episode = history.get('episode', 1)
-        self.timestep = history.get('timestep', 0)
-
         self.episode_rewards = history.get('episode_rewards', list())
         self.episode_timesteps = history.get('episode_timesteps', list())
         self.episode_times = history.get('episode_times', list())
@@ -77,16 +74,25 @@ class Runner(object):
         # Keep track of episode reward and episode length for statistics.
         self.start_time = time.time()
 
-        while True:
+        self.agent.reset()
 
-            state = self.environment.reset()
-            self.agent.reset()
-            episode_reward = 0
-            self.episode_timestep = 0
+        self.episode = self.agent.episode
+        if episodes is not None:
+            episodes += self.agent.episode
+
+        self.timestep = self.agent.timestep
+        if timesteps is not None:
+            timesteps += self.agent.timestep
+
+        while True:
             episode_start_time = time.time()
 
-            while True:
+            self.agent.reset()
+            state = self.environment.reset()
+            episode_reward = 0
+            self.episode_timestep = 0
 
+            while True:
                 action = self.agent.act(states=state, deterministic=deterministic)
 
                 if self.repeat_actions > 1:
@@ -99,13 +105,16 @@ class Runner(object):
                 else:
                     state, terminal, reward = self.environment.execute(actions=action)
 
+                if max_episode_timesteps is not None and self.episode_timestep >= max_episode_timesteps:
+                    terminal = True
+
                 self.agent.observe(terminal=terminal, reward=reward)
 
                 self.episode_timestep += 1
                 self.timestep += 1
                 episode_reward += reward
 
-                if terminal or (max_episode_timesteps is not None and self.episode_timestep == max_episode_timesteps):
+                if terminal or self.agent.should_stop():  # TODO: should_stop also termina?
                     break
 
             time_passed = time.time() - episode_start_time
@@ -114,12 +123,11 @@ class Runner(object):
             self.episode_timesteps.append(self.episode_timestep)
             self.episode_times.append(time_passed)
 
-            if (timesteps is not None and self.agent.timestep >= timesteps) or \
-                    (episodes is not None and self.agent.episode >= episodes):
+            if episode_finished and not episode_finished(self) or \
+                    (episodes is not None and self.agent.episode >= episodes) or \
+                    (timesteps is not None and self.agent.timestep >= timesteps) or \
+                    self.agent.should_stop():
                 # agent.episode / agent.timestep are globally updated
-                break
-
-            if episode_finished and not episode_finished(self):
                 break
 
             self.episode += 1

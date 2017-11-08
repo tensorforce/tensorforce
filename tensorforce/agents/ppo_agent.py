@@ -80,6 +80,7 @@ class PPOAgent(BatchAgent):
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
+        batched_observe=1000,
         # BatchAgent
         keep_last_timestep=True,  # not documented!
         # PPOAgent
@@ -93,7 +94,7 @@ class PPOAgent(BatchAgent):
         normalize_rewards=False,
         variable_noise=None,  # not documented!!!
         # DistributionModel
-        distributions=None,  # not documented!!!
+        distributions_spec=None,  # not documented!!!
         entropy_regularization=1e-2,
         # PGModel
         baseline_mode=None,
@@ -102,20 +103,13 @@ class PPOAgent(BatchAgent):
         gae_lambda=None,
         # PGProbRatioModel
         likelihood_ratio_clipping=0.2,
-        # Logging
+        # General
         log_level='info',
-        model_directory=None,
-        save_frequency=600,  # TensorFlow default
-        summary_labels=['total-loss'],
-        summary_frequency=120,  # TensorFlow default
-        # TensorFlow distributed configuration
-        cluster_spec=None,
-        parameter_server=False,
-        task_index=0,
         device=None,
-        local_model=False,
-        replica_model=False,
-        scope='ppo'
+        scope='ppo',
+        saver_spec=None,
+        summary_spec=None,
+        distributed_spec=None
     )
 
     # missing: batch agent configs

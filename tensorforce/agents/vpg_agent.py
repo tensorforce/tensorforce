@@ -77,6 +77,7 @@ class VPGAgent(BatchAgent):
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
+        batched_observe=1000,
         # BatchAgent
         keep_last_timestep=True,  # not documented!
         # Model
@@ -88,27 +89,20 @@ class VPGAgent(BatchAgent):
         normalize_rewards=False,
         variable_noise=None,  # not documented!!!
         # DistributionModel
-        distributions=None,  # not documented!!!
+        distributions_spec=None,  # not documented!!!
         entropy_regularization=None,
         # PGModel
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        # Logging
+        # General
         log_level='info',
-        model_directory=None,
-        save_frequency=600,  # TensorFlow default
-        summary_labels=['total-loss'],
-        summary_frequency=120,  # TensorFlow default
-        # TensorFlow distributed configuration
-        cluster_spec=None,
-        parameter_server=False,
-        task_index=0,
         device=None,
-        local_model=False,
-        replica_model=False,
-        scope='vpg'
+        scope='vpg',
+        saver_spec=None,
+        summary_spec=None,
+        distributed_spec=None
     )
 
     # missing: batch agent configs

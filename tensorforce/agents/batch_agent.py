@@ -48,7 +48,7 @@ class BatchAgent(Agent):
 
         super(BatchAgent, self).__init__(states_spec, actions_spec, config)
 
-        self.batch = None
+        self.batch_count = None
         self.reset_batch()
 
     def observe(self, terminal, reward):
@@ -68,37 +68,40 @@ class BatchAgent(Agent):
         """
         super(BatchAgent, self).observe(terminal=terminal, reward=reward)
 
-        for name, batch_state in self.batch['states'].items():
+        for name, batch_state in self.batch_states.items():
             batch_state.append(self.current_states[name])
-        for batch_internal, internal in zip(self.batch['internals'], self.current_internals):
+        for batch_internal, internal in zip(self.batch_internals, self.current_internals):
             batch_internal.append(internal)
-        for name, batch_action in self.batch['actions'].items():
+        for name, batch_action in self.batch_actions.items():
             batch_action.append(self.current_actions[name])
-        self.batch['terminal'].append(self.current_terminal)
-        self.batch['reward'].append(self.current_reward)
+        self.batch_terminal.append(self.current_terminal)
+        self.batch_reward.append(self.current_reward)
 
         self.batch_count += 1
+
         if self.batch_count == self.batch_size:
-            self.model.update(batch=self.batch)
+            self.model.update(
+                states=self.batch_states,
+                internals=self.batch_internals,
+                actions=self.batch_actions,
+                terminal=self.batch_terminal,
+                reward=self.batch_reward
+            )
             self.reset_batch()
 
     def reset_batch(self):
-        if self.batch is None or not self.keep_last_timestep:
-            self.batch = dict(
-                states={name: [] for name in self.states_spec},
-                internals=[[] for _ in range(len(self.current_internals))],
-                actions={name: [] for name in self.actions_spec},
-                terminal=[],
-                reward=[]
-            )
+        if self.batch_count is None or not self.keep_last_timestep:
+            self.batch_states = {name: list() for name in self.states_spec}
+            self.batch_internals = [list() for _ in range(len(self.current_internals))]
+            self.batch_actions = {name: list() for name in self.actions_spec}
+            self.batch_terminal = list()
+            self.batch_reward = list()
             self.batch_count = 0
 
         else:
-            self.batch = dict(
-                states={name: [self.batch['states'][name][-1]] for name in self.states_spec},
-                internals=[[self.batch['internals'][i][-1]] for i in range(len(self.current_internals))],
-                actions={name: [self.batch['actions'][name][-1]] for name in self.actions_spec},
-                terminal=[self.batch['terminal'][-1]],
-                reward=[self.batch['reward'][-1]]
-            )
+            self.batch_states = {name: [self.batch_states[name][-1]] for name in self.states_spec}
+            self.batch_internals = [[self.batch_internals[i][-1]] for i in range(len(self.current_internals))]
+            self.batch_actions = {name: [self.batch_actions[name][-1]] for name in self.actions_spec}
+            self.batch_terminal = [self.batch_terminal[-1]]
+            self.batch_reward = [self.batch_reward[-1]]
             self.batch_count = 1

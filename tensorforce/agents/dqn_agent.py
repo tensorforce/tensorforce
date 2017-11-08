@@ -115,6 +115,7 @@ class DQNAgent(MemoryAgent):
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
+        batched_observe=1000,
         # MemoryAgent
         # batch_size !!!
         memory=dict(  # not documented!!!
@@ -133,27 +134,20 @@ class DQNAgent(MemoryAgent):
         normalize_rewards=False,
         variable_noise=None,  # not documented!!!
         # DistributionModel
-        distributions=None,  # not documented!!!
+        distributions_spec=None,  # not documented!!!
         entropy_regularization=None,
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
         double_q_model=False,  # not documented!!!
         huber_loss=None,  # not documented!!!
-        # Logging
+        # General
         log_level='info',
-        model_directory=None,
-        save_frequency=600,  # TensorFlow default
-        summary_labels=['total-loss'],
-        summary_frequency=120,  # TensorFlow default
-        # TensorFlow distributed configuration
-        cluster_spec=None,
-        parameter_server=False,
-        task_index=0,
         device=None,
-        local_model=False,
-        replica_model=False,
-        scope='dqn'
+        scope='dqn',
+        saver_spec=None,
+        summary_spec=None,
+        distributed_spec=None
     )
 
     # missing: memory agent configs

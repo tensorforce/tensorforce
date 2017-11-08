@@ -76,7 +76,7 @@ class QDemoModel(QModel):
         )
 
     def tf_demo_loss(self, states, actions, terminal, reward, internals):
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         deltas = list()
 
         for name, distribution in self.distributions.items():

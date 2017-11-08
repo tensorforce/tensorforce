@@ -109,6 +109,7 @@ class DDQNAgent(MemoryAgent):
         preprocessing=None,
         exploration=None,
         reward_preprocessing=None,
+        batched_observe=1000,
         # MemoryAgent
         # batch_size !!!
         memory=dict(  # not documented!!!
@@ -126,27 +127,20 @@ class DDQNAgent(MemoryAgent):
         discount=0.99,
         normalize_rewards=False,
         # DistributionModel
-        distributions=None,  # not documented!!!
+        distributions_spec=None,  # not documented!!!
         entropy_regularization=None,
         variable_noise=None,  # not documented!!!
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
         huber_loss=None,  # not documented!!!
-        # Logging
+        # General
         log_level='info',
-        model_directory=None,
-        save_frequency=600,  # TensorFlow default
-        summary_labels=['total-loss'],
-        summary_frequency=120,  # TensorFlow default
-        # TensorFlow distributed configuration
-        cluster_spec=None,
-        parameter_server=False,
-        task_index=0,
         device=None,
-        local_model=False,
-        replica_model=False,
-        scope='dqn'
+        scope='dqn',
+        saver_spec=None,
+        summary_spec=None,
+        distributed_spec=None
     )
 
     def __init__(self, states_spec, actions_spec, network_spec, config):

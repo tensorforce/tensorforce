@@ -5,6 +5,12 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+7th November 2017
+
+- New saver/summary/distributed config interface via entries `saver_spec`, `summary_spec`, `distributed_spec`.
+- The first two require at least a `directory` value.
+- Automatically periodically saves model/summaries with `seconds` in respective `_spec` set.
+
 22nd October 2017
 
 - BREAKING: We released a complete redesign including our new optimization module. Optimizers

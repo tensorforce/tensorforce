@@ -56,10 +56,10 @@ class PGProbRatioModel(PGModel):
         )
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         prob_ratios = list()
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             # works the same?
             # fixed_distr_params = tuple(tf.stop_gradient(input=x) for x in distr_params)
@@ -81,11 +81,11 @@ class PGProbRatioModel(PGModel):
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
     def tf_reference(self, states, internals, actions):
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         log_probs = list()
         for name in sorted(self.distributions):
             distribution = self.distributions[name]
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))
@@ -99,11 +99,11 @@ class PGProbRatioModel(PGModel):
             terminal=terminal,
             reward=reward
         )
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         log_probs = list()
         for name in sorted(self.distributions):
             distribution = self.distributions[name]
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))

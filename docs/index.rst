@@ -15,10 +15,10 @@ from the examples folder:
 
 .. code:: bash
 
-    python examples/openai_gym.py CartPole-v0 -a PPOAgent -c examples/configs/ppo_cartpole.json -n examples/configs/ppo_cartpole_network.json
-    
+    python examples/openai_gym.py CartPole-v0 -a ppo_agent -c examples/configs/ppo_agent.json -n examples/configs/ppo_network.json
+
 In python, it could look like this:
-    
+
 .. code:: python
 
     # examples/quickstart.py

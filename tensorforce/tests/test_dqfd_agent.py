@@ -48,6 +48,9 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
     def pre_run(self, agent, environment):
         demonstrations = list()
+
+        agent.reset()
+        internals = agent.current_internals
         terminal = True
 
         for n in xrange(50):
@@ -98,7 +101,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
             state, terminal, reward = environment.execute(actions=actions)
 
-            demonstration = dict(states=state, internal=[], actions=actions, terminal=terminal, reward=reward)
+            demonstration = dict(states=state, internals=internals, actions=actions, terminal=terminal, reward=reward)
             demonstrations.append(demonstration)
 
         agent.import_demonstrations(demonstrations)

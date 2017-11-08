@@ -39,30 +39,8 @@ class PGModel(DistributionModel):
         assert config.baseline_mode is None or config.baseline_mode in ('states', 'network')
         self.baseline_mode = config.baseline_mode
 
-        with tf.name_scope(name=config.scope):
-            # Baseline
-            if config.baseline is None:
-                assert self.baseline_mode is None
-                self.baseline = None
-
-            elif all(name in states_spec for name in config.baseline):
-                # Implies AggregatedBaseline
-                assert self.baseline_mode == 'states'
-                self.baseline = AggregatedBaseline(baselines=config.baseline)
-
-            else:
-                assert self.baseline_mode is not None
-                self.baseline = Baseline.from_spec(
-                    spec=config.baseline,
-                    kwargs=dict(summary_labels=config.summary_labels)
-                )
-
-            # Baseline optimizer
-            if config.baseline_optimizer is None:
-                self.baseline_optimizer = None
-            else:
-                assert self.baseline_mode is not None
-                self.baseline_optimizer = Optimizer.from_spec(spec=config.baseline_optimizer)
+        self.baseline = config.baseline
+        self.baseline_optimizer = config.baseline_optimizer
 
         # Generalized advantage function
         assert config.gae_lambda is None or (0.0 <= config.gae_lambda <= 1.0 and self.baseline_mode is not None)
@@ -77,6 +55,32 @@ class PGModel(DistributionModel):
 
     def initialize(self, custom_getter):
         super(PGModel, self).initialize(custom_getter)
+
+        # Baseline
+        if self.baseline is None:
+            assert self.baseline_mode is None
+            self.baseline = None
+
+        elif all(name in self.states_spec for name in self.baseline):
+            # Implies AggregatedBaseline.
+            assert self.baseline_mode == 'states'
+            self.baseline = AggregatedBaseline(baselines=self.baseline)
+
+        else:
+            assert self.baseline_mode is not None
+            self.baseline = Baseline.from_spec(
+                spec=self.baseline,
+                kwargs=dict(
+                    summary_labels=self.summary_labels
+                )
+            )
+
+        # Baseline optimizer
+        if self.baseline_optimizer is None:
+            self.baseline_optimizer = None
+        else:
+            assert self.baseline_mode is not None
+            self.baseline_optimizer = Optimizer.from_spec(spec=self.baseline_optimizer)
 
         # TODO: Baseline internal states !!! (see target_network q_model)
 
@@ -118,7 +122,7 @@ class PGModel(DistributionModel):
                 state_value = self.baseline.predict(states=states)
 
             elif self.baseline_mode == 'network':
-                embedding = self.network.apply(x=states, internals=internals)
+                embedding = self.network.apply(x=states, internals=internals, training=self.training)
                 state_value = self.baseline.predict(states=embedding)
 
             if self.gae_lambda is None:
@@ -182,7 +186,7 @@ class PGModel(DistributionModel):
 
         elif self.baseline_mode == 'network':
             def fn_loss():
-                loss = self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward)
+                loss = self.baseline.loss(states=self.network.apply(x=states, internals=internals, training=self.training), reward=reward)
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
                     return loss

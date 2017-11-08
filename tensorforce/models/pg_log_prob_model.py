@@ -29,11 +29,11 @@ class PGLogProbModel(PGModel):
     """
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, training=self.training)
         log_probs = list()
 
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))

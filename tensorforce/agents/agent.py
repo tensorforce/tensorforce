@@ -177,12 +177,16 @@ class Agent(object):
             config=config
         )
 
+        # Batched observe for better performance with Python.
+        self.batched_observe = config.batched_observe
+        if self.batched_observe is not None:
+            self.observe_terminal = list()
+            self.observe_reward = list()
+
         not_accessed = config.not_accessed()
         if not_accessed:
             self.logger.warning("Configuration values not accessed: {}".format(', '.join(not_accessed)))
 
-        self.episode = -1
-        self.timestep = 0
         self.reset()
 
     def __str__(self):
@@ -195,14 +199,13 @@ class Agent(object):
         raise NotImplementedError
 
     def reset(self):
-        """Reset agent after episode. Increments internal episode count, internal states and preprocessors.
-
-        Returns:
-            void
-
         """
-        self.episode += 1
-        self.current_internals = self.next_internals = self.model.reset()
+        Reset the agent to its initial state on episode start. Updates internal episode and  
+        timestep counter, internal states,  and resets preprocessors.
+        """
+        self.episode, self.timestep, self.next_internals = self.model.reset()
+        self.current_internals = self.next_internals
+
         for preprocessing in self.preprocessing.values():
             preprocessing.reset()
 
@@ -222,7 +225,6 @@ class Agent(object):
 
         """
 
-        # self.timestep += 1  TODO: SHOULD USE WHAT model.act() returns
         self.current_internals = self.next_internals
 
         if self.unique_state:
@@ -285,14 +287,33 @@ class Agent(object):
             terminal: boolean indicating if the episode terminated after the observation.
             reward: scalar reward that resulted from executing the action.
         """
-        self.episode = self.model.observe(terminal=terminal, reward=reward)
-
         self.current_terminal = terminal
-
         if self.reward_preprocessing is None:
             self.current_reward = reward
         else:
             self.current_reward = self.reward_preprocessing.process(reward)
+
+        if self.batched_observe > 0:
+            # Batched observe for better performance with Python.
+            self.observe_terminal.append(self.current_terminal)
+            self.observe_reward.append(self.current_reward)
+
+            if self.current_terminal or len(self.observe_terminal) >= self.batched_observe:
+                self.episode = self.model.observe(
+                    terminal=self.observe_terminal,
+                    reward=self.observe_reward
+                )
+                self.observe_terminal = list()
+                self.observe_reward = list()
+
+        else:
+            self.episode = self.model.observe(
+                terminal=self.current_terminal,
+                reward=self.current_reward
+            )
+
+    def should_stop(self):
+        return self.model.monitored_session.should_stop()
 
     def last_observation(self):
         return dict(
@@ -303,36 +324,39 @@ class Agent(object):
             reward=self.current_reward
         )
 
-    def load_model(self, path):
+    def save_model(self, directory=None, append_timestep=True):
         """
-        Loads model from from checkpoint file. Consult the save model documentation to understand how
-        checkpoint paths are created.
+        Save TensorFlow model. If no checkpoint directory is given, the model's default saver  
+        directory is used. Optionally appends current timestep to prevent overwriting previous  
+        checkpoint files. Turn off to be able to load model from the same given path argument as  
+        given here.
 
         Args:
-            path: Path to .ckpt file
+            directory: Optional checkpoint directory.
+            use_global_step:  Appends the current timestep to the checkpoint file if true.
+            If this is set to True, the load path must include the checkpoint timestep suffix.  
+            For example, if stored to models/ and set to true, the exported file will be of the  
+            form models/model.ckpt-X where X is the last timestep saved. The load path must  
+            precisely match this file name. If this option is turned off, the checkpoint will  
+            always overwrite the file specified in path and the model can always be loaded under  
+            this path.
 
         Returns:
-
+            Checkpoint path were the model was saved.
         """
-        self.model.load_model(path)
+        return self.model.save(directory=directory, append_timestep=append_timestep)
 
-    def save_model(self, path, use_global_step=True):
+    def restore_model(self, directory=None, file=None):
         """
-        Stores model in path.
+        Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is  
+        restored. If no checkpoint directory is given, the model's default saver directory is  
+        used (unless file specifies the entire path).
 
         Args:
-            path: Path to checkpoint file
-            use_global_step:  Whether to append the current timestep to the checkpoint path. If this is
-            set to True, the load path must include the checkpoint id. For example, if we store to
-            models/model.ckpt and set global step to true, the exported file will be of the form models/model.ckpt-X
-            where X is the last step saved. The load path must precisely match this file name. If this option
-            is turned off, the checkpoint will always overwrite the file specified in path and the model
-            can always be loaded under this path.
-
-        Returns:
-
+            directory: Optional checkpoint directory.
+            file: Optional checkpoint file, or path if directory not given.
         """
-        self.model.save_model(path, use_global_step)
+        self.model.restore(directory=None, file=None)
 
     @staticmethod
     def from_spec(spec, kwargs):

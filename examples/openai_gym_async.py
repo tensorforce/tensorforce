@@ -213,7 +213,7 @@ def main():
         report_episodes = 100
 
     def episode_finished(r):
-        if (r.episode + 1) % report_episodes == 0:
+        if r.episode % report_episodes == 0:
             steps_per_second = r.timestep / (time.time() - r.start_time)
             logger.info("Finished episode {} after overall {} timesteps. Steps Per Second {}".format(
                 r.agent.episode,

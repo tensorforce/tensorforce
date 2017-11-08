@@ -55,8 +55,8 @@ class PGProbRatioModel(PGModel):
             custom_getter_=custom_getter
         )
 
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
-        embedding = self.network.apply(x=states, internals=internals, training=self.training)
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         prob_ratios = list()
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameterize(x=embedding)
@@ -80,8 +80,8 @@ class PGProbRatioModel(PGModel):
             )
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
-    def tf_reference(self, states, internals, actions):
-        embedding = self.network.apply(x=states, internals=internals, training=self.training)
+    def tf_reference(self, states, internals, actions, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
         for name in sorted(self.distributions):
             distribution = self.distributions[name]
@@ -92,14 +92,15 @@ class PGProbRatioModel(PGModel):
             log_probs.append(log_prob)
         return tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
 
-    def tf_compare(self, states, internals, actions, terminal, reward, reference):
+    def tf_compare(self, states, internals, actions, terminal, reward, update, reference):
         reward = self.fn_reward_estimation(
             states=states,
             internals=internals,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
-        embedding = self.network.apply(x=states, internals=internals, training=self.training)
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
         for name in sorted(self.distributions):
             distribution = self.distributions[name]
@@ -120,24 +121,26 @@ class PGProbRatioModel(PGModel):
             )
             gain_per_instance = tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
         gain = tf.reduce_mean(input_tensor=gain_per_instance, axis=0)
-        losses = self.fn_regularization_losses(states=states, internals=internals)
+        losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
         if len(losses) > 0:
             gain -= tf.add_n(inputs=list(losses.values()))
         return gain
 
-    def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
+    def get_optimizer_kwargs(self, states, actions, terminal, reward, internals, update):
         kwargs = super(PGProbRatioModel, self).get_optimizer_kwargs(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
         kwargs['fn_reference'] = (
             lambda: self.reference(
                 states=states,
                 internals=internals,
-                actions=actions
+                actions=actions,
+                update=update
             )
         )
         kwargs['fn_compare'] = (
@@ -147,6 +150,7 @@ class PGProbRatioModel(PGModel):
                 actions=actions,
                 terminal=terminal,
                 reward=reward,
+                update=update,
                 reference=reference
             )
         )

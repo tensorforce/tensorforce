@@ -24,7 +24,6 @@ from __future__ import print_function
 import argparse
 import json
 import logging
-import os
 import time
 
 from tensorforce import Configuration
@@ -114,7 +113,7 @@ def main():
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
 
     def episode_finished(r):
-        if (r.episode + 1) % report_episodes == 0:
+        if r.episode % report_episodes == 0:
             steps_per_second = r.timestep / (time.time() - r.start_time)
             logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(
                 r.agent.episode, r.episode_timestep, steps_per_second

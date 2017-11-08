@@ -130,7 +130,7 @@ class BaseAgentTest(BaseTest):
 
         class CustomNetwork(LayerBasedNetwork):
 
-            def tf_apply(self, x, internals, return_internals=False):
+            def tf_apply(self, x, internals, update, return_internals=False):
                 if exclude_bool:
                     x0 = 1.0
                 else:
@@ -138,7 +138,7 @@ class BaseAgentTest(BaseTest):
                     self.add_layer(layer=layer01)
                     layer02 = Dense(size=32, scope='state0-2')
                     self.add_layer(layer=layer02)
-                    x0 = layer02.apply(x=layer01.apply(x=x['state0']))
+                    x0 = layer02.apply(x=layer01.apply(x=x['state0'], update=update), update=update)
 
                 if exclude_int:
                     x1 = 1.0
@@ -147,7 +147,7 @@ class BaseAgentTest(BaseTest):
                     self.add_layer(layer=layer11)
                     layer12 = Dense(size=32, scope='state1-2')
                     self.add_layer(layer=layer12)
-                    x1 = layer12.apply(x=layer11.apply(x=x['state1']))
+                    x1 = layer12.apply(x=layer11.apply(x=x['state1'], update=update), update=update)
 
                 if exclude_float:
                     x2 = 1.0
@@ -156,7 +156,7 @@ class BaseAgentTest(BaseTest):
                     self.add_layer(layer=layer21)
                     layer22 = Dense(size=32, scope='state2-2')
                     self.add_layer(layer=layer22)
-                    x2 = layer22.apply(x=layer21.apply(x=x['state2']))
+                    x2 = layer22.apply(x=layer21.apply(x=x['state2'], update=update), update=update)
 
                 if exclude_bounded:
                     x3 = 1.0
@@ -165,7 +165,7 @@ class BaseAgentTest(BaseTest):
                     self.add_layer(layer=layer31)
                     layer32 = Dense(size=32, scope='state3-2')
                     self.add_layer(layer=layer32)
-                    x3 = layer32.apply(x=layer31.apply(x=x['state3']))
+                    x3 = layer32.apply(x=layer31.apply(x=x['state3'], update=update), update=update)
 
                 x = x0 * x1 * x2 * x3
                 return (x, list()) if return_internals else x
@@ -176,9 +176,9 @@ class BaseAgentTest(BaseTest):
         if not exclude_int:
             specification.append(('int', (2,)))
         if not exclude_float:
-            specification.append(('float', (1,)))
+            specification.append(('float', (1, 1)))
         if not exclude_bounded:
-            specification.append(('bounded-float', (1, 1)))
+            specification.append(('bounded-float', (1,)))
 
         environment = MinimalTest(specification=specification)
 

@@ -112,16 +112,16 @@ class DistributionModel(Model):
             custom_getter_=custom_getter
         )
 
-    def tf_actions_and_internals(self, states, internals, deterministic):
-        embedding, internals = self.network.apply(x=states, internals=internals, return_internals=True, training=self.training)
+    def tf_actions_and_internals(self, states, internals, update, deterministic):
+        embedding, internals = self.network.apply(x=states, internals=internals, update=update, return_internals=True)
         actions = dict()
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameterize(x=embedding)
             actions[name] = distribution.sample(distr_params=distr_params, deterministic=deterministic)
         return actions, internals
 
-    def tf_kl_divergence(self, states, internals):
-        embedding = self.network.apply(x=states, internals=internals, training=self.training)
+    def tf_kl_divergence(self, states, internals, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         kl_divergences = list()
 
         for name, distribution in self.distributions.items():
@@ -135,19 +135,30 @@ class DistributionModel(Model):
         kl_divergence_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
         return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
 
-    def get_optimizer_kwargs(self, states, internals, actions, terminal, reward):
+    def get_optimizer_kwargs(self, states, internals, actions, terminal, reward, update):
         kwargs = super(DistributionModel, self).get_optimizer_kwargs(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
-        kwargs['fn_kl_divergence'] = (lambda: self.fn_kl_divergence(states=states, internals=internals))
+        kwargs['fn_kl_divergence'] = (
+            lambda: self.fn_kl_divergence(
+                states=states,
+                internals=internals,
+                update=update
+            )
+        )
         return kwargs
 
-    def tf_regularization_losses(self, states, internals):
-        losses = super(DistributionModel, self).tf_regularization_losses(states=states, internals=internals)
+    def tf_regularization_losses(self, states, internals, update):
+        losses = super(DistributionModel, self).tf_regularization_losses(
+            states=states,
+            internals=internals,
+            update=update
+        )
 
         network_loss = self.network.regularization_loss()
         if network_loss is not None:
@@ -163,7 +174,7 @@ class DistributionModel(Model):
 
         if self.entropy_regularization is not None and self.entropy_regularization > 0.0:
             entropies = list()
-            embedding = self.network.apply(x=states, internals=internals, training=self.training)
+            embedding = self.network.apply(x=states, internals=internals, update=update)
             for name, distribution in self.distributions.items():
                 distr_params = distribution.parameterize(x=embedding)
                 entropy = distribution.entropy(distr_params=distr_params)

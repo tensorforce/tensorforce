@@ -57,13 +57,14 @@ class QDemoModel(QModel):
             custom_getter_=custom_getter
         )
 
-    def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
+    def create_output_operations(self, states, internals, actions, terminal, reward, update, deterministic):
         super(QDemoModel, self).create_output_operations(
             states=states,
             internals=internals,
             actions=actions,
             reward=reward,
             terminal=terminal,
+            update=update,
             deterministic=deterministic
         )
 
@@ -72,11 +73,12 @@ class QDemoModel(QModel):
             internals=internals,
             actions=actions,
             reward=reward,
-            terminal=terminal
+            terminal=terminal,
+            update=update
         )
 
-    def tf_demo_loss(self, states, actions, terminal, reward, internals):
-        embedding = self.network.apply(x=states, internals=internals, training=self.training)
+    def tf_demo_loss(self, states, actions, terminal, reward, internals, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         deltas = list()
 
         for name, distribution in self.distributions.items():
@@ -106,7 +108,7 @@ class QDemoModel(QModel):
         loss_per_instance = tf.square(x=loss_per_instance)
         return tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
-    def tf_demo_optimization(self, states, internals, actions, terminal, reward):
+    def tf_demo_optimization(self, states, internals, actions, terminal, reward, update):
 
         def fn_loss():
             # Combining q-loss with demonstration loss
@@ -115,14 +117,16 @@ class QDemoModel(QModel):
                 internals=internals,
                 actions=actions,
                 terminal=terminal,
-                reward=reward
+                reward=reward,
+                update=update
             )
             demo_loss = self.fn_demo_loss(
                 states=states,
                 internals=internals,
                 actions=actions,
                 terminal=terminal,
-                reward=reward
+                reward=reward,
+                update=update
             )
             return q_model_loss + self.supervised_weight * demo_loss
 

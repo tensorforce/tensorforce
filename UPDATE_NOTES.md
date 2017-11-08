@@ -5,6 +5,10 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+8th November 2017
+
+- Layers/networks/etc now take an additional argument `update` in `tf_apply`, a boolean tensor indicating whether the call happens during an update.
+
 7th November 2017
 
 - New saver/summary/distributed config interface via entries `saver_spec`, `summary_spec`, `distributed_spec`.

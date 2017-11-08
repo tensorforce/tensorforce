@@ -50,7 +50,10 @@ class QModel(DistributionModel):
         super(QModel, self).initialize(custom_getter)
 
         # Target network
-        self.target_network = Network.from_spec(spec=self.network_spec, kwargs=dict(scope='target'))
+        self.target_network = Network.from_spec(
+            spec=self.network_spec,
+            kwargs=dict(scope='target', summary_labels=self.summary_labels)
+        )
 
         # Target network optimizer
         self.target_optimizer = Synchronization(
@@ -81,18 +84,19 @@ class QModel(DistributionModel):
 
         return reward + next_q_value - q_value  # tf.stop_gradient(q_target)
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
         embedding = self.network.apply(
             x={name: state[:-1] for name, state in states.items()},
             internals=[internal[:-1] for internal in internals],
-            training=self.training)
+            update=update
+        )
 
         # Both networks can use the same internals, could that be a problem?
         # Otherwise need to handle internals indices correctly everywhere
         target_embedding = self.target_network.apply(
             x={name: state[1:] for name, state in states.items()},
             internals=[internal[1:] for internal in internals],
-            training=self.training
+            update=update
         )
 
         deltas = list()
@@ -130,8 +134,15 @@ class QModel(DistributionModel):
         else:
             return tf.square(x=loss_per_instance)
 
-    def tf_optimization(self, states, internals, actions, terminal, reward):
-        optimization = super(QModel, self).tf_optimization(states, internals, actions, terminal, reward)
+    def tf_optimization(self, states, internals, actions, terminal, reward, update):
+        optimization = super(QModel, self).tf_optimization(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            update=update
+        )
 
         target_optimization = self.target_optimizer.minimize(
             time=self.timestep,

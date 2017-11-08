@@ -92,8 +92,12 @@ class QNAFModel(QModel):
 
         return tf.reshape(tensor=q_value, shape=((-1,) + self.actions_spec[name]['shape']))
 
-    def tf_regularization_losses(self, states, internals):
-        losses = super(QNAFModel, self).tf_regularization_losses(states=states, internals=internals)
+    def tf_regularization_losses(self, states, internals, update):
+        losses = super(QNAFModel, self).tf_regularization_losses(
+            states=states,
+            internals=internals,
+            update=update
+        )
 
         for state_value in self.state_values.values():
             regularization_loss = state_value.regularization_loss()

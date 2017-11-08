@@ -192,7 +192,7 @@ class TestTutorialCode(unittest.TestCase):
                 super(BatchNormalization, self).__init__(scope=scope, summary_labels=summary_labels)
                 self.variance_epsilon = variance_epsilon
 
-            def tf_apply(self, x):
+            def tf_apply(self, x, update):
                 mean, variance = tf.nn.moments(x, axes=tuple(range(x.shape.ndims - 1)))
                 return tf.nn.batch_normalization(
                     x=x,
@@ -231,7 +231,7 @@ class TestTutorialCode(unittest.TestCase):
 
         class CustomNetwork(Network):
 
-            def tf_apply(self, x, internals, return_internals=False):
+            def tf_apply(self, x, internals, update, return_internals=False):
                 image = x['image']  # 64x64x3-dim, float
                 caption = x['caption']  # 20-dim, int
                 initializer = tf.random_normal_initializer(mean=0.0, stddev=0.01, dtype=tf.float32)
@@ -294,7 +294,7 @@ class TestTutorialCode(unittest.TestCase):
                 self.size = size
                 super(Lstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
 
-            def tf_apply(self, x, state):
+            def tf_apply(self, x, update, state):
                 state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
                 self.lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
 

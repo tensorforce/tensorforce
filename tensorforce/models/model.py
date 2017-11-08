@@ -98,16 +98,18 @@ class Model(object):
         if distributed_spec is None:
             self.device = config.device
             self.global_model = None
-            self.default_graph = tf.Graph().as_default()
-            self.graph = self.default_graph.__enter__()
+            self.graph = tf.Graph()
+            default_graph = self.graph.as_default()
+            default_graph.__enter__()
 
         elif distributed_spec.get('parameter_server'):
             if distributed_spec.get('replica_model'):
                 raise TensorForceError("Invalid config value for distributed mode.")
             self.device = config.device
             self.global_model = None
-            self.default_graph = tf.Graph().as_default()
-            self.graph = self.default_graph.__enter__()
+            self.graph = tf.Graph()
+            default_graph = self.graph.as_default()
+            default_graph.__enter__()
 
         elif distributed_spec.get('replica_model'):
             self.device = tf.train.replica_device_setter(
@@ -120,8 +122,9 @@ class Model(object):
 
         else:
             self.device = config.device
-            self.default_graph = tf.Graph().as_default()
-            self.graph = self.default_graph.__enter__()
+            self.graph = tf.Graph()
+            default_graph = self.graph.as_default()
+            default_graph.__enter__()
 
             # Global model.
             global_config = config.copy()
@@ -203,6 +206,7 @@ class Model(object):
                     actions=actions,
                     terminal=terminal,
                     reward=reward,
+                    update=self.update_input,
                     deterministic=self.deterministic_input
                 )
 
@@ -295,9 +299,7 @@ class Model(object):
         hooks = list()
 
         # Checkpoint saver hook
-        if saver_spec is None:
-            self.saver_directory = None
-        elif distributed_spec is None or distributed_spec['task_index'] == 0:
+        if saver_spec is not None and (distributed_spec is None or distributed_spec['task_index'] == 0):
             self.saver_directory = saver_spec['directory']
             hooks.append(tf.train.CheckpointSaverHook(
                 checkpoint_dir=self.saver_directory,
@@ -308,6 +310,8 @@ class Model(object):
                 scaffold=self.scaffold,
                 listeners=None
             ))
+        else:
+            self.saver_directory = None
 
         # Summary saver hook
         if summary_spec is None:
@@ -362,9 +366,6 @@ class Model(object):
                 config=None,  # always the same?
                 checkpoint_dir=None
             )
-            # self.graph.finalize()
-            # self.monitored_session.__enter__()
-            # self.session = self.monitored_session.raw_session()
 
         else:
             server = tf.train.Server(
@@ -400,6 +401,7 @@ class Model(object):
                 stop_grace_period_secs=120  # Default value.
             )
 
+        default_graph.__exit__(None, None, None)
         self.graph.finalize()
         self.monitored_session.__enter__()
         self.session = self.monitored_session._tf_sess()
@@ -415,7 +417,6 @@ class Model(object):
         if self.saver_directory is not None:
             self.save(append_timestep=True)
         self.monitored_session.close()
-        self.default_graph.__exit__(None, None, None)
 
     def initialize(self, custom_getter):
         """
@@ -458,9 +459,6 @@ class Model(object):
 
         # Update flag
         self.update_input = tf.placeholder(dtype=tf.bool, shape=(), name='update')
-
-        # Is-training flag
-        self.training = tf.placeholder_with_default(False, shape=(), name='is-training')
 
         # TensorFlow functions
         self.fn_discounted_cumulative_reward = tf.make_template(
@@ -547,7 +545,7 @@ class Model(object):
 
         return tf.reverse(tensor=reward, axis=(0,))
 
-    def tf_actions_and_internals(self, states, internals, deterministic):
+    def tf_actions_and_internals(self, states, internals, update, deterministic):
         """
         Creates the TensorFlow operations for retrieving the actions (and posterior internal states)
         in reaction to the given input states (and prior internal states).
@@ -555,14 +553,16 @@ class Model(object):
         Args:
             states: Dict of state tensors.
             internals: List of prior internal state tensors.
-            deterministic: If true, the action is chosen deterministically.
+            update: Boolean tensor indicating whether this call happens during an update.
+            deterministic: Boolean tensor indicating whether action should be chosen  
+                deterministically.
 
         Returns:
             Actions and list of posterior internal state tensors.
         """
         raise NotImplementedError
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
         """
         Creates the TensorFlow operations for calculating the loss per batch instance
         of the given input states and actions.
@@ -573,33 +573,36 @@ class Model(object):
             actions: Dict of action tensors.
             terminal: Terminal boolean tensor.
             reward: Reward tensor.
+            update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:
             Loss tensor.
         """
         raise NotImplementedError
 
-    def tf_regularization_losses(self, states, internals):
+    def tf_regularization_losses(self, states, internals, update):
         """
         Creates the TensorFlow operations for calculating the regularization losses for the given input states.
 
         Args:
             states: Dict of state tensors.
             internals: List of prior internal state tensors.
+            update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:
             Dict of regularization loss tensors.
         """
         return dict()
 
-    def tf_loss(self, states, internals, actions, terminal, reward):
+    def tf_loss(self, states, internals, actions, terminal, reward, update):
         # Mean loss per instance
         loss_per_instance = self.fn_loss_per_instance(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
         loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
@@ -609,7 +612,7 @@ class Model(object):
             self.summaries.append(summary)
 
         # Regularization losses
-        losses = self.fn_regularization_losses(states=states, internals=internals)
+        losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
         if len(losses) > 0:
             loss += tf.add_n(inputs=list(losses.values()))
 
@@ -620,7 +623,7 @@ class Model(object):
 
         return loss
 
-    def get_optimizer_kwargs(self, states, internals, actions, terminal, reward):
+    def get_optimizer_kwargs(self, states, internals, actions, terminal, reward, update):
         """
         Returns the optimizer arguments including the time, the list of variables to optimize,
         and various argument-free functions (in particular `fn_loss` returning the combined
@@ -632,6 +635,7 @@ class Model(object):
             actions: Dict of action tensors.
             terminal: Terminal boolean tensor.
             reward: Reward tensor.
+            update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:
             Loss tensor of the size of the batch.
@@ -640,13 +644,13 @@ class Model(object):
         kwargs['time'] = self.timestep
         kwargs['variables'] = self.get_variables()
         kwargs['fn_loss'] = (
-            lambda: self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+            lambda: self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward, update=update)
         )
         if self.global_model is not None:
             kwargs['global_variables'] = self.global_model.get_variables()
         return kwargs
 
-    def tf_optimization(self, states, internals, actions, terminal, reward):
+    def tf_optimization(self, states, internals, actions, terminal, reward, update):
         """
         Creates the TensorFlow operations for performing an optimization update step based
         on the given input states and actions batch.
@@ -657,6 +661,7 @@ class Model(object):
             actions: Dict of action tensors.
             terminal: Terminal boolean tensor.
             reward: Reward tensor.
+            update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:
             The optimization operation.
@@ -669,11 +674,12 @@ class Model(object):
                 internals=internals,
                 actions=actions,
                 terminal=terminal,
-                reward=reward
+                reward=reward,
+                update=update
             )
             return self.optimizer.minimize(**optimizer_kwargs)
 
-    def create_output_operations(self, states, internals, actions, terminal, reward, deterministic):
+    def create_output_operations(self, states, internals, actions, terminal, reward, update, deterministic):
         """
         Calls all the relevant TensorFlow functions for this model and hence creates all the
         TensorFlow operations involved.
@@ -684,7 +690,9 @@ class Model(object):
             actions: Dict of action tensors.
             terminal: Terminal boolean tensor.
             reward: Reward tensor.
-            deterministic: If true, the action is chosen deterministically.
+            update: Boolean tensor indicating whether this call happens during an update.
+            deterministic: Boolean tensor indicating whether action should be chosen  
+                deterministically.
         """
 
         # Create graph by calling the functions corresponding to model.act() / model.update(), to initialize variables.
@@ -692,6 +700,7 @@ class Model(object):
         self.fn_actions_and_internals(
             states=states,
             internals=internals,
+            update=update,
             deterministic=deterministic
         )
         self.fn_loss_per_instance(
@@ -699,7 +708,8 @@ class Model(object):
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
 
         # Tensor fetched for model.act()
@@ -717,6 +727,7 @@ class Model(object):
             self.actions_internals_timestep = self.fn_actions_and_internals(
                 states=states,
                 internals=internals,
+                update=update,
                 deterministic=deterministic
             )
 
@@ -748,14 +759,16 @@ class Model(object):
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
         self.loss_per_instance = self.fn_loss_per_instance(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
 
     def get_variables(self, include_non_trainable=False):
@@ -872,7 +885,6 @@ class Model(object):
             )
             feed_dict[self.terminal_input] = (terminal,)
             feed_dict[self.reward_input] = (reward,)
-            feed_dict[self.training] = True
 
         feed_dict[self.deterministic_input] = True
         feed_dict[self.update_input] = True
@@ -897,7 +909,7 @@ class Model(object):
             Checkpoint path were the model was saved.
         """
         if self.summary_writer_hook is not None:
-            self.summary_writer_hook._summary_writer.summary_writer.flush()
+            self.summary_writer_hook._summary_writer.flush()
 
         return self.scaffold.saver.save(
             sess=self.session,

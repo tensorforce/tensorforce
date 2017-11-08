@@ -62,15 +62,15 @@ class Network(object):
                 custom_getter_=custom_getter
             )
 
-    def tf_apply(self, x, internals=(), return_internals=False, training=None):
+    def tf_apply(self, x, internals, update, return_internals=False):
         """
         Creates the TensorFlow operations for applying the network to the given input.
 
         Args:
-            x: Network input tensor or dict of input tensors
+            x: Network input tensor or dict of input tensors.
             internals: List of prior internal state tensors
+            update: Boolean tensor indicating whether this call happens during an update.
             return_internals: If true, also returns posterior internal state tensors
-            training: Is currently training? `True` during update() `False` otherwise (eg. for Dropout)
 
         Returns:
             Network output tensor, plus optionally list of posterior internal state tensors
@@ -227,7 +227,7 @@ class LayeredNetwork(LayerBasedNetwork):
 
                 self.add_layer(layer=layer)
 
-    def tf_apply(self, x, internals=(), return_internals=False, training=None):
+    def tf_apply(self, x, internals, update, return_internals=False):
         if isinstance(x, dict):
             if len(x) != 1:
                 raise TensorForceError('Layered network must have only one input, but {} given.'.format(len(x)))
@@ -238,7 +238,7 @@ class LayeredNetwork(LayerBasedNetwork):
         for layer in self.layers:
             layer_internals = [internals[index + n] for n in range(layer.num_internals)]
             index += layer.num_internals
-            x = layer.apply(x, *layer_internals, training=training)
+            x = layer.apply(x, update, *layer_internals)
 
             if not isinstance(x, tf.Tensor):
                 internal_outputs.extend(x[1])

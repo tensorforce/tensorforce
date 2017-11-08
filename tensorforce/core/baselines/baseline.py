@@ -64,17 +64,18 @@ class Baseline(object):
                 custom_getter_=custom_getter
             )
 
-    def tf_predict(self, states):
+    def tf_predict(self, states, update):
         """
         Creates the TensorFlow operations for predicting the value function of given states.
         Args:
             states: State tensors
+            update: Boolean tensor indicating whether this call happens during an update.
         Returns:
             State value tensor
         """
         raise NotImplementedError
 
-    def tf_loss(self, states, reward):
+    def tf_loss(self, states, reward, update):
         """
         Creates the TensorFlow operations for calculating the L2 loss between predicted
         state values and actual rewards.
@@ -82,10 +83,11 @@ class Baseline(object):
         Args:
             states: State tensors
             reward: Reward tensor
+            update: Boolean tensor indicating whether this call happens during an update.
         Returns:
             Loss tensor
         """
-        prediction = self.predict(states=states)
+        prediction = self.predict(states=states, update=update)
         return tf.nn.l2_loss(t=(prediction - reward))
 
     def tf_regularization_loss(self):

@@ -356,7 +356,7 @@ class Agent(object):
             directory: Optional checkpoint directory.
             file: Optional checkpoint file, or path if directory not given.
         """
-        self.model.restore(directory=None, file=None)
+        self.model.restore(directory=directory, file=file)
 
     @staticmethod
     def from_spec(spec, kwargs):

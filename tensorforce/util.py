@@ -152,9 +152,13 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
     if predefined_objects is not None and obj in predefined_objects:
         obj = predefined_objects[obj]
     elif isinstance(obj, str):
-        module_name, function_name = obj.rsplit('.', 1)
-        module = importlib.import_module(module_name)
-        obj = getattr(module, function_name)
+        if obj.find('.') != -1:
+            module_name, function_name = obj.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            obj = getattr(module, function_name)
+        else:
+            predef_obj_keys = list(predefined_objects.keys())
+            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(obj,predef_obj_keys))
     elif callable(obj):
         pass
     elif default_object is not None:

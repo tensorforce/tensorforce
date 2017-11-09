@@ -210,6 +210,16 @@ class Model(object):
                     deterministic=self.deterministic_input
                 )
 
+            if 'inputs' in self.summary_labels:
+                for name, state in states.items():
+                    summary = tf.summary.histogram(name='/input/states/'+name, values=state)
+                    self.summaries.append(summary)
+                for name, action in actions.items():                        
+                    summary = tf.summary.histogram(name='/input/actions/'+name, values=action)
+                    self.summaries.append(summary)
+                summary = tf.summary.histogram(name='/input/reward', values=reward)
+                self.summaries.append(summary)                           
+
         if distributed_spec is not None:
             if distributed_spec.get('replica_model'):
                 # If internal global model

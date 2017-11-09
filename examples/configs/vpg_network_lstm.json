@@ -8,6 +8,7 @@
         "size": 32
     },
     {
-        "type": "lstm"
+        "type": "lstm",
+        "size": 32
     }
 ]

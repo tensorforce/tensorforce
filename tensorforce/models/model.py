@@ -625,6 +625,10 @@ class Model(object):
         losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
         if len(losses) > 0:
             loss += tf.add_n(inputs=list(losses.values()))
+            if 'regularization' in self.summary_labels:
+                for name, loss_val in losses.items():
+                    summary = tf.summary.histogram(name="regularization/"+name, values=loss_val)
+                    self.summaries.append(summary)
 
         # Total loss summary
         if 'losses' in self.summary_labels or 'total-loss' in self.summary_labels:

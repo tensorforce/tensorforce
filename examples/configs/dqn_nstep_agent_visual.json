@@ -23,31 +23,29 @@
     "epsilon_final": 0.1,
     "epsilon_timesteps": 1e6
   },
+  "reward_preprocessing": [
+    {
+      "type": "clip",
+      "min": -1,
+      "max": 1
+    }
+  ],
 
-  "batch_size": 32,
-  "memory_capacity": 100000,
-  "memory": {
-      "type": "replay",
-      "random_sampling": true
-  },
-  "update_frequency": 4,
-  "first_update": 50000,
-  "repeat_update": 1,
-
-  "target_update_frequency": 10000,
+  "batch_size": 6,
+  "keep_last_timestep": true,
 
   "discount": 0.99,
   "optimizer": {
     "type": "rmsprop",
-    "learning_rate": 0.00025,
-    "momentum": 0.99,
-    "epsilon": 1e-6
+    "learning_rate": 0.004,
+    "decay": 0.99,
+    "epsilon": 0.1
   },
-  "tf_summary": null,
   "log_level": "info",
 
-  "update_target_weight": 1.0,
-  "double_dqn": false,
-  "clip_loss": 1.0
+  "target_update_weight": 1.0,
+  "target_sync_frequency": 10000,
+  "double_q_model": false,
+  "huber_loss": 1.0
 }
 

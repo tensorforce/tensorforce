@@ -61,6 +61,9 @@ class QModel(DistributionModel):
             update_weight=self.target_update_weight
         )
 
+        # Target network distributions
+        self.target_distributions = self.generate_distributions(self.actions_spec, self.distributions_spec, self.summary_labels)
+
     def tf_q_value(self, embedding, distr_params, action, name):
         # Mainly for NAF.
         return self.distributions[name].state_action_value(distr_params=distr_params, action=action)
@@ -101,18 +104,19 @@ class QModel(DistributionModel):
 
         deltas = list()
         for name, distribution in self.distributions.items():
+            target_distribution = self.target_distributions[name]
 
             distr_params = distribution.parameterize(x=embedding)
-            target_distr_params = distribution.parameterize(x=target_embedding)  # TODO: separate distribution parameters?
+            target_distr_params = target_distribution.parameterize(x=target_embedding)
 
             q_value = self.tf_q_value(embedding=embedding, distr_params=distr_params, action=actions[name][:-1], name=name)
 
             if self.double_q_model:
                 action_taken = distribution.sample(distr_params=distr_params, deterministic=True)
             else:
-                action_taken = distribution.sample(distr_params=target_distr_params, deterministic=True)
+                action_taken = target_distribution.sample(distr_params=target_distr_params, deterministic=True)
 
-            next_q_value = distribution.state_action_value(distr_params=target_distr_params, action=action_taken)
+            next_q_value = target_distribution.state_action_value(distr_params=target_distr_params, action=action_taken)
 
             delta = self.tf_q_delta(q_value=q_value, next_q_value=next_q_value, terminal=terminal[:-1], reward=reward[:-1])
 
@@ -144,10 +148,13 @@ class QModel(DistributionModel):
             update=update
         )
 
+        network_distributions_variables = self.get_distributions_variables(self.distributions)
+        target_distributions_variables = self.get_distributions_variables(self.target_distributions)
+
         target_optimization = self.target_optimizer.minimize(
             time=self.timestep,
-            variables=self.target_network.get_variables(),
-            source_variables=self.network.get_variables()
+            variables=self.target_network.get_variables() + target_distributions_variables,
+            source_variables=self.network.get_variables() + network_distributions_variables
         )
 
         return tf.group(optimization, target_optimization)
@@ -158,13 +165,14 @@ class QModel(DistributionModel):
         if include_non_trainable:
             # Target network and optimizer variables only included if 'include_non_trainable' set
             target_variables = self.target_network.get_variables(include_non_trainable=include_non_trainable)
-
+            target_distributions_variables = self.get_distributions_variables(self.target_distributions)
             target_optimizer_variables = self.target_optimizer.get_variables()
 
-            return model_variables + target_variables + target_optimizer_variables
+            return model_variables + target_variables + target_optimizer_variables + target_distributions_variables
 
         else:
             return model_variables
 
     def get_summaries(self):
-        return super(QModel, self).get_summaries() + self.target_network.get_summaries()
+        target_distributions_summaries = self.get_distributions_summaries(self.target_distributions)
+        return super(QModel, self).get_summaries() + self.target_network.get_summaries() + target_distributions_summaries

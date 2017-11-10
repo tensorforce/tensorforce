@@ -5,7 +5,8 @@
         "window": 8,
         "stride": 4,
         "bias": true,
-        "padding": "VALID"
+        "padding": "VALID",
+        "activation": "relu"
     },
     {
         "type": "conv2d",
@@ -13,7 +14,8 @@
         "window": 4,
         "stride": 2,
         "bias": true,
-        "padding": "VALID"
+        "padding": "VALID",
+        "activation": "relu"
     },
     {
         "type": "flatten"
@@ -21,6 +23,7 @@
     {
         "type": "dense",
         "size": 256,
-        "bias": true
+        "bias": true,
+        "activation": "relu"
     }
 ]

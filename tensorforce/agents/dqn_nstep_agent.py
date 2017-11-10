@@ -129,8 +129,8 @@ class DQNNstepAgent(BatchAgent):
         # QModel
         target_sync_frequency=10000,  # not documented!!!
         target_update_weight=1.0,  # not documented!!!
-        double_q_model=True,  # not documented!!!
-        huber_loss=None,  # not documented!!!
+        double_q_model=False,  # not documented!!!
+        huber_loss=1.0,  # not documented!!!
         # General
         log_level='info',
         device=None,
@@ -139,8 +139,6 @@ class DQNNstepAgent(BatchAgent):
         summary_spec=None,
         distributed_spec=None
     )
-
-    # missing: memory agent configs
 
     def __init__(self, states_spec, actions_spec, network_spec, config):
         self.network_spec = network_spec

@@ -61,45 +61,7 @@ class DistributionModel(Model):
         )
 
         # Distributions
-        self.distributions = dict()
-        for name, action in self.actions_spec.items():
-            with tf.name_scope(name=(name + '-distribution')):
-
-                if self.distributions_spec is not None and name in self.distributions_spec:
-                    kwargs = dict(action)
-                    kwargs['summary_labels'] = self.summary_labels
-                    self.distributions[name] = Distribution.from_spec(
-                        spec=self.distributions_spec[name],
-                        kwargs=kwargs
-                    )
-
-                elif action['type'] == 'bool':
-                    self.distributions[name] = Bernoulli(
-                        shape=action['shape'],
-                        summary_labels=self.summary_labels
-                    )
-
-                elif action['type'] == 'int':
-                    self.distributions[name] = Categorical(
-                        shape=action['shape'],
-                        num_actions=action['num_actions'],
-                        summary_labels=self.summary_labels
-                    )
-
-                elif action['type'] == 'float':
-                    if 'min_value' in action:
-                        self.distributions[name] = Beta(
-                            shape=action['shape'],
-                            min_value=action['min_value'],
-                            max_value=action['max_value'],
-                            summary_labels=self.summary_labels
-                        )
-
-                    else:
-                        self.distributions[name] = Gaussian(
-                            shape=action['shape'],
-                            summary_labels=self.summary_labels
-                        )
+        self.distributions = self.generate_distributions(self.actions_spec, self.distributions_spec, self.summary_labels)
 
         # Network internals
         self.internal_inputs.extend(self.network.internal_inputs())
@@ -111,6 +73,50 @@ class DistributionModel(Model):
             func_=self.tf_kl_divergence,
             custom_getter_=custom_getter
         )
+
+    @staticmethod
+    def generate_distributions(actions_spec, distributions_spec, summary_labels):
+        distributions = dict()
+        for name, action in actions_spec.items():
+            with tf.name_scope(name=(name + '-distribution')):
+
+                if distributions_spec is not None and name in distributions_spec:
+                    kwargs = dict(action)
+                    kwargs['summary_labels'] = summary_labels
+                    distributions[name] = Distribution.from_spec(
+                        spec=distributions_spec[name],
+                        kwargs=kwargs
+                    )
+
+                elif action['type'] == 'bool':
+                    distributions[name] = Bernoulli(
+                        shape=action['shape'],
+                        summary_labels=summary_labels
+                    )
+
+                elif action['type'] == 'int':
+                    distributions[name] = Categorical(
+                        shape=action['shape'],
+                        num_actions=action['num_actions'],
+                        summary_labels=summary_labels
+                    )
+
+                elif action['type'] == 'float':
+                    if 'min_value' in action:
+                        distributions[name] = Beta(
+                            shape=action['shape'],
+                            min_value=action['min_value'],
+                            max_value=action['max_value'],
+                            summary_labels=summary_labels
+                        )
+
+                    else:
+                        distributions[name] = Gaussian(
+                            shape=action['shape'],
+                            summary_labels=summary_labels
+                        )
+
+        return distributions
 
     def tf_actions_and_internals(self, states, internals, update, deterministic):
         embedding, internals = self.network.apply(x=states, internals=internals, update=update, return_internals=True)
@@ -191,19 +197,29 @@ class DistributionModel(Model):
     def get_variables(self, include_non_trainable=False):
         model_variables = super(DistributionModel, self).get_variables(include_non_trainable=include_non_trainable)
         network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
-        distribution_variables = [
-            variable for name in sorted(self.distributions)
-            for variable in self.distributions[name].get_variables(include_non_trainable=include_non_trainable)
-        ]
+        distribution_variables = self.get_distributions_variables(self.distributions, include_non_trainable=include_non_trainable)
 
         return model_variables + network_variables + distribution_variables
 
     def get_summaries(self):
         model_summaries = super(DistributionModel, self).get_summaries()
         network_summaries = self.network.get_summaries()
-        distribution_summaries = [
-            summary for name in sorted(self.distributions)
-            for summary in self.distributions[name].get_summaries()
-        ]
+        distribution_summaries = self.get_distributions_summaries(self.distributions)
 
         return model_summaries + network_summaries + distribution_summaries
+
+    @staticmethod
+    def get_distributions_variables(distributions, include_non_trainable=False):
+        distribution_variables = [
+            variable for name in sorted(distributions)
+            for variable in distributions[name].get_variables(include_non_trainable=include_non_trainable)
+        ]
+        return distribution_variables
+
+    @staticmethod
+    def get_distributions_summaries(distributions):
+        distribution_summaries = [
+            summary for name in sorted(distributions)
+            for summary in distributions[name].get_summaries()
+        ]
+        return distribution_summaries

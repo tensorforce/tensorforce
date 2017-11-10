@@ -34,7 +34,7 @@ from tensorforce.agents import agents as AgentsDictionary
 import json
 from tensorforce.execution import ThreadedRunner
 from tensorforce.contrib.ale import ALE
-from tensorforce.execution.threaded_runner import WorkerAgent
+from tensorforce.execution.threaded_runner import WorkerAgentGenerator
 
 """
 To replicate the Asynchronous Methods for Deep Reinforcement Learning paper (https://arxiv.org/abs/1602.01783)
@@ -79,7 +79,6 @@ def main():
                         loss_of_life_reward=args.loss_of_life_reward,
                         display_screen=args.display_screen) for t in range(args.workers)]
 
-
     if args.network_spec:
         with open(args.network_spec, 'r') as fp:
             network_spec = json.load(fp=fp)
@@ -87,21 +86,16 @@ def main():
         network_spec = None
         logger.info("No network configuration provided.")
 
-
     agent_configs = []
     for i in range(args.workers):
         agent_config = Configuration.from_json(args.agent_config)
 
         # Optionally overwrite epsilon final values
         if "exploration" in agent_config and agent_config.exploration["type"] == "epsilon_anneal":
-            # epsilon annealing is based on the global step so divide by the total workers
-            epsilon_timesteps = agent_config.exploration["epsilon_timesteps"] // args.workers
-            agent_config.exploration["epsilon_timesteps"] = epsilon_timesteps
             if args.epsilon_annealing:
                 # epsilon final values are [0.5, 0.1, 0.01] with probabilities [0.3, 0.4, 0.3]
                 epsilon_final = np.random.choice([0.5, 0.1, 0.01], p=[0.3, 0.4, 0.3])
                 agent_config.exploration["epsilon_final"] = epsilon_final
-
 
         agent_configs.append(agent_config)
 
@@ -121,7 +115,7 @@ def main():
         # Use default config from first agent
         config.default(agent.default_config)
 
-        worker = WorkerAgent(
+        worker = WorkerAgentGenerator(AgentsDictionary[args.agent])(
             states_spec=environments[0].states,
             actions_spec=environments[0].actions,
             network_spec=network_spec,
@@ -153,7 +147,7 @@ def main():
         if args.debug:
             logger.info(
                 "Thread {t}. Finished episode {ep} after {ts} timesteps. Reward {r}".
-                    format(t=stats['thread_id'], ep=stats['episode'], ts=stats['timestep'], r=stats['episode_reward'])
+                format(t=stats['thread_id'], ep=stats['episode'], ts=stats['timestep'], r=stats['episode_reward'])
             )
         return True
 
@@ -182,4 +176,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

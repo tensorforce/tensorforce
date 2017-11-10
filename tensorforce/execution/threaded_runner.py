@@ -150,16 +150,22 @@ class ThreadedRunner(object):
         print('All threads stopped')
 
 
-class WorkerAgent(Agent):
+def WorkerAgentGenerator(agent_class):
     """
-    Worker agent receiving a shared model to avoid creating multiple models.
+    Worker Agent generator, recieves an Agent class and creates a Worker Agent class that inherits from that Agent.
     """
+    class WorkerAgent(agent_class):
+        """
+        Worker agent receiving a shared model to avoid creating multiple models.
+        """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config, model=None):
-        self.network_spec = network_spec
-        self.model = model
-        config = config.copy()
-        super(WorkerAgent, self).__init__(states_spec, actions_spec, config)
+        def __init__(self, states_spec, actions_spec, network_spec, config, model=None):
+            self.network_spec = network_spec
+            self.model = model
+            config = config.copy()
+            super(WorkerAgent, self).__init__(states_spec, actions_spec, network_spec, config)
 
-    def initialize_model(self, states_spec, actions_spec, config):
-        return self.model
+        def initialize_model(self, states_spec, actions_spec, config):
+            return self.model
+
+    return WorkerAgent

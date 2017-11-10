@@ -58,6 +58,8 @@ class OpenAIGym(Environment):
         self.gym = None
 
     def reset(self):
+        if isinstance(self.gym, gym.wrappers.Monitor):
+            self.gym.stats_recorder.done = True
         return self.gym.reset()
 
     def execute(self, actions):

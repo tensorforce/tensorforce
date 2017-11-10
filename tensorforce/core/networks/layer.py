@@ -345,7 +345,7 @@ class Linear(Layer):
 
         return x
 
-    def tf_regularization_losses(self):
+    def tf_regularization_loss(self):
         regularization_loss = super(Linear, self).tf_regularization_loss()
         if regularization_loss is None:
             losses = list()

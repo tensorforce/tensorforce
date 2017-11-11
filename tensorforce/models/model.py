@@ -188,6 +188,16 @@ class Model(object):
                 actions = {name: tf.stop_gradient(input=action) for name, action in actions.items()}
                 reward = tf.stop_gradient(input=reward)
 
+                if 'inputs' in self.summary_labels:
+                    for name, state in states.items():
+                        summary = tf.summary.histogram(name=('/input/states/' + name), values=state)
+                        self.summaries.append(summary)
+                    for name, action in actions.items():
+                        summary = tf.summary.histogram(name=('/input/actions/' + name), values=action)
+                        self.summaries.append(summary)
+                    summary = tf.summary.histogram(name='/input/reward', values=reward)
+                    self.summaries.append(summary)
+
                 # Optimizer
                 if config.optimizer is None:
                     self.optimizer = None
@@ -209,16 +219,6 @@ class Model(object):
                     update=self.update_input,
                     deterministic=self.deterministic_input
                 )
-
-            if 'inputs' in self.summary_labels:
-                for name, state in states.items():
-                    summary = tf.summary.histogram(name='/input/states/'+name, values=state)
-                    self.summaries.append(summary)
-                for name, action in actions.items():                        
-                    summary = tf.summary.histogram(name='/input/actions/'+name, values=action)
-                    self.summaries.append(summary)
-                summary = tf.summary.histogram(name='/input/reward', values=reward)
-                self.summaries.append(summary)                           
 
         if distributed_spec is not None:
             if distributed_spec.get('replica_model'):
@@ -626,8 +626,8 @@ class Model(object):
         if len(losses) > 0:
             loss += tf.add_n(inputs=list(losses.values()))
             if 'regularization' in self.summary_labels:
-                for name, loss_val in losses.items():
-                    summary = tf.summary.scalar(name="regularization/"+name, tensor=loss_val)
+                for name, reg_loss in losses.items():
+                    summary = tf.summary.scalar(name=('regularization/' + name), tensor=reg_loss)
                     self.summaries.append(summary)
 
         # Total loss summary

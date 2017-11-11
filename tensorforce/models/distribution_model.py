@@ -13,12 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
-"""
-The `DistributionModel` class defines a neural network and policy distributions parameterized by its output. It implements the `tf_actions_and_internals` function, adds KL divergence to `get_optimizer_kwargs`, and optionally adds entropy regularization to `tf_regularization_losses`.
-"""
-
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -36,19 +30,43 @@ class DistributionModel(Model):
     Base class for models using distributions parameterized by a neural network
     """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        distributions_spec,
+        entropy_regularization
+    ):
         self.network_spec = network_spec
-        self.distributions_spec = config.distributions_spec
+        self.distributions_spec = distributions_spec
 
         # Entropy regularization
-        assert config.entropy_regularization is None or config.entropy_regularization >= 0.0
-        self.entropy_regularization = config.entropy_regularization
+        assert entropy_regularization is None or entropy_regularization >= 0.0
+        self.entropy_regularization = entropy_regularization
 
         super(DistributionModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise
         )
 
     def initialize(self, custom_getter):

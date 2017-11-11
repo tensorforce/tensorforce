@@ -19,6 +19,7 @@ from __future__ import division
 
 from six.moves import xrange
 
+from tensorforce import TensorForceError
 from tensorforce.agents import MemoryAgent
 from tensorforce.core.memories import Replay
 from tensorforce.models import QDemoModel
@@ -55,7 +56,6 @@ class DQFDAgent(MemoryAgent):
 
     The `DQFDAgent` class additionally requires the following parameters:
 
-
     * `batch_size`: integer of the batch size.
     * `memory_capacity`: integer of maximum experiences to store.
     * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
@@ -73,63 +73,121 @@ class DQFDAgent(MemoryAgent):
 
 
     """
-    default_config = dict(
-        # Agent
-        preprocessing=None,
-        exploration=None,
-        reward_preprocessing=None,
-        batched_observe=1000,
-        # MemoryAgent
-        # batch_size !!!
-        memory=dict(  # not documented!!!
-            type='replay',
-            capacity=100000
-        ),
-        first_update=10000,  # not documented!!!
-        update_frequency=4,  # not documented!!!
-        repeat_update=1,  # not documented!!!
-        # DQFDAgent
-        expert_margin=0.5,
-        supervised_weight=0.1,
-        demo_memory_capacity=10000,
-        demo_sampling_ratio=0.2,
-        # Model
-        optimizer=dict(
-            type='adam',
-            learning_rate=1e-3
-        ),
-        discount=0.99,
-        normalize_rewards=False,
-        variable_noise=None,  # not documented!!!
-        # DistributionModel
-        distributions_spec=None,  # not documented!!!
-        entropy_regularization=None,
-        # QModel
-        target_sync_frequency=10000,  # not documented!!!
-        target_update_weight=1.0,  # not documented!!!
-        huber_loss=None,  # not documented!!!
-        # General
-        log_level='info',
+
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
         device=None,
         scope='dqfd',
         saver_spec=None,
         summary_spec=None,
-        distributed_spec=None
-    )
+        distributed_spec=None,
+        optimizer=None,
+        discount=0.99,
+        normalize_rewards=False,
+        variable_noise=None,
+        distributions_spec=None,
+        entropy_regularization=None,
+        target_sync_frequency=10000,
+        target_update_weight=1.0,
+        huber_loss=None,
+        preprocessing=None,
+        exploration=None,
+        reward_preprocessing=None,
+        batched_observe=1000,
+        batch_size=32,
+        memory=None,
+        first_update=10000,
+        update_frequency=4,
+        repeat_update=1,
+        expert_margin=0.5,
+        supervised_weight=0.1,
+        demo_memory_capacity=10000,
+        demo_sampling_ratio=0.2
+    ):
+        """
+        Deep Q-learning from demonstration (DQFD) agent ([Hester et al., 2017](https://arxiv.org/abs/1704.03732)).
+        This agent uses DQN to pre-train from demonstration data in combination with a supervised loss.
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+        Args:
+            states_spec:
+            actions_spec:
+            network_spec:
+            device:
+            scope:
+            saver_spec:
+            summary_spec:
+            distributed_spec:
+            optimizer:
+            discount:
+            normalize_rewards:
+            variable_noise:
+            distributions_spec:
+            entropy_regularization:
+            target_sync_frequency:
+            target_update_weight:
+            double_q_model:
+            huber_loss:
+            preprocessing:
+            exploration:
+            reward_preprocessing:
+            batched_observe:
+            batch_size:
+            memory:
+            first_update:
+            update_frequency:
+            repeat_update:
+            expert_margin:
+            supervised_weight:
+            demo_memory_capacity:
+            demo_sampling_ratio:
+        """
+        if network_spec is None:
+            raise TensorForceError("No network_spec provided.")
+
+        if optimizer is None:
+            self.optimizer = dict(
+                type='adam',
+                learning_rate=1e-3
+            )
+        else:
+            self.optimizer = optimizer
+        if memory is None:
+            memory = dict(
+                type='replay',
+                capacity=100000
+            )
+        else:
+            self.memory = memory
+
         self.network_spec = network_spec
-        config = config.copy()
-        config.default(DQFDAgent.default_config)
+        self.device = device
+        self.scope = scope
+        self.saver_spec = saver_spec
+        self.summary_spec = summary_spec
+        self.distributed_spec = distributed_spec
+        self.discount = discount
+        self.normalize_rewards = normalize_rewards
+        self.variable_noise = variable_noise
+        self.distributions_spec = distributions_spec
+        self.entropy_regularization = entropy_regularization
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
+        self.double_q_model = double_q_model
+        self.huber_loss = huber_loss
 
         # DQFD always uses double dqn, which is a required key for a q-model.
-        config.obligatory(double_q_model=True)
-        self.target_sync_frequency = config.target_sync_frequency
-        self.demo_memory_capacity = config.demo_memory_capacity
+        self.double_q_model = True
+        self.target_sync_frequency = target_sync_frequency
+        self.demo_memory_capacity = demo_memory_capacity
+        self.expert_margin = expert_margin
+        self.supervised_weight = supervised_weight
 
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
-        self.demo_batch_size = int(config.demo_sampling_ratio * config.batch_size / (1.0 - config.demo_sampling_ratio))
+        self.demo_batch_size = int(demo_sampling_ratio * batch_size / (1.0 - demo_sampling_ratio))
 
         assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to ensure ' \
                                          'demo_batch_size is positive. (Calculated {} based on current' \
@@ -137,20 +195,43 @@ class DQFDAgent(MemoryAgent):
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
-
         super(DQFDAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            config=config
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing,
+            batched_observe=batched_observe,
+            batch_size=batch_size,
+            memory=memory,
+            first_update=first_update,
+            update_frequency=update_frequency,
+            repeat_update=repeat_update
         )
         self.demo_memory = Replay(self.states_spec, self.actions_spec, self.demo_memory_capacity)
 
-    def initialize_model(self, states_spec, actions_spec, config):
+    def initialize_model(self, states_spec, actions_spec):
         return QDemoModel(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=self.network_spec,
-            config=config
+            device=self.device,
+            scope=self.scope,
+            saver_spec=self.saver_spec,
+            summary_spec=self.summary_spec,
+            distributed_spec=self.distributed_spec,
+            optimizer=self.optimizer,
+            discount=self.discount,
+            normalize_rewards=self.normalize_rewards,
+            variable_noise=self.variable_noise,
+            distributions_spec=self.distributions_spec,
+            entropy_regularization=self.entropy_regularization,
+            target_sync_frequency=self.target_sync_frequency,
+            target_update_weight=self.target_update_weight,
+            double_q_model=self.double_q_model,
+            huber_loss=self.huber_loss,
+            expert_margin=self.expert_margin,
+            supervised_weight=self.supervised_weight
         )
 
     def observe(self, reward, terminal):

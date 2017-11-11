@@ -27,13 +27,35 @@ class ConstantModel(Model):
     Utility class to return constant actions of a desired shape and with given bounds.
     """
 
-    def __init__(self, states_spec, actions_spec, config):
-        self.action_values = config.action_values
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        action_values
+    ):
+        self.action_values = action_values
 
         super(ConstantModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise
         )
 
     def tf_actions_and_internals(self, states, internals, update, deterministic):

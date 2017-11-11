@@ -38,7 +38,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='adam',
@@ -53,7 +53,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='evolutionary',
@@ -68,7 +68,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='natural_gradient',
@@ -83,7 +83,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='multi_step',
@@ -101,7 +101,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='optimized_step',

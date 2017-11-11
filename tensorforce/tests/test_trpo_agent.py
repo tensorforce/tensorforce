@@ -19,7 +19,6 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
 from tensorforce.agents import TRPOAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
@@ -28,7 +27,8 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
 
     agent = TRPOAgent
     deterministic = False
-    config = Configuration(
+
+    kwargs = dict(
         batch_size=64,
         normalize_rewards=True
     )

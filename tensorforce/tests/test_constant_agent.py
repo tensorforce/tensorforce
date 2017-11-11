@@ -20,7 +20,6 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
 from tensorforce.agents import ConstantAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
@@ -33,7 +32,7 @@ class TestConstantAgent(BaseAgentTest, unittest.TestCase):
 
     # Just testing one test, otherwise we would have to specify constant values of every type for every
     # test and override all base tests
-    config = Configuration(
+    kwargs = dict(
         action_values=dict(
             action=1.0
         )

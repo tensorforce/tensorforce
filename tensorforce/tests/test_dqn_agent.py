@@ -19,7 +19,6 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
 from tensorforce.agents import DQNAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
@@ -29,7 +28,7 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
     agent = DQNAgent
     deterministic = True
 
-    config = Configuration(
+    kwargs = dict(
         memory=dict(
             type='replay',
             capacity=1000

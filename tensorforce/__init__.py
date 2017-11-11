@@ -15,7 +15,6 @@
 
 
 from tensorforce.exception import TensorForceError
-from tensorforce.config import Configuration
 
 
 __version__ = '0.3.1'

@@ -148,16 +148,7 @@ runners, simply install and import the library, then create an agent and
 use it as seen below (see documentation for all optional parameters):
 
 ```python
-from tensorforce import Configuration
 from tensorforce.agents import PPOAgent
-
-config = Configuration(
-    batch_size=1000,
-    step_optimizer=dict(
-        type='adam',
-        learning_rate=1e-4
-    )
-)
 
 # Create a Proximal Policy Optimization agent
 agent = PPOAgent(
@@ -167,7 +158,11 @@ agent = PPOAgent(
         dict(type='dense', size=64),
         dict(type='dense', size=64)
     ],
-    config=config
+    batch_size=1000,
+    step_optimizer=dict(
+        type='adam',
+        learning_rate=1e-4
+    )
 )
 
 # Get new data from somewhere, e.g. a client to a web app

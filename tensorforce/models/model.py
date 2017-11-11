@@ -47,6 +47,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from copy import deepcopy
 import os
 
 import numpy as np
@@ -61,29 +62,33 @@ class Model(object):
     Base class for all (TensorFlow-based) models.
     """
 
-    def __init__(self, states_spec, actions_spec, config, **kwargs):
-
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        **kwargs
+    ):
         # States and actions specifications
         self.states_spec = states_spec
         self.actions_spec = actions_spec
 
-        # Discount factor
-        self.discount = config.discount
-
-        # Reward normalization
-        assert isinstance(config.normalize_rewards, bool)
-        self.normalize_rewards = config.normalize_rewards
-
-        # Variable noise
-        assert config.variable_noise is None or config.variable_noise > 0.0
-        self.variable_noise = config.variable_noise
-
-        self.scope = config.scope
+        # TensorFlow device and scope
+        self.device = device
+        self.scope = scope
 
         # Saver/summary/distributed specifications
-        saver_spec = config.saver_spec
-        summary_spec = config.summary_spec
-        distributed_spec = config.distributed_spec
+        self.saver_spec = saver_spec
+        self.summary_spec = summary_spec
+        self.distributed_spec = distributed_spec
 
         # TensorFlow summaries
         if summary_spec is None:
@@ -91,52 +96,59 @@ class Model(object):
         else:
             self.summary_labels = set(summary_spec.get('labels', ()))
 
-        # Variables and summaries
-        self.variables = dict()
-        self.all_variables = dict()
-        self.registered_variables = set()
-        self.summaries = list()
+        # Optimizer
+        self.optimizer = optimizer
 
-        if distributed_spec is None:
-            self.device = config.device
+        # Discount factor
+        self.discount = discount
+
+        # Reward normalization
+        assert isinstance(normalize_rewards, bool)
+        self.normalize_rewards = normalize_rewards
+
+        # Variable noise
+        assert variable_noise is None or variable_noise > 0.0
+        self.variable_noise = variable_noise
+
+        # Setup TensorFlow graph and session
+        self.setup()
+
+    def setup(self):
+        """
+        Sets up the TensorFlow model graph and initializes the TensorFlow session.
+        """
+        if self.distributed_spec is None:
             self.global_model = None
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
 
-        elif distributed_spec.get('parameter_server'):
-            if distributed_spec.get('replica_model'):
+        elif self.distributed_spec.get('parameter_server'):
+            if self.distributed_spec.get('replica_model'):
                 raise TensorForceError("Invalid config value for distributed mode.")
-            self.device = config.device
             self.global_model = None
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
 
-        elif distributed_spec.get('replica_model'):
+        elif self.distributed_spec.get('replica_model'):
             self.device = tf.train.replica_device_setter(
-                worker_device=config.device,
-                cluster=distributed_spec['cluster_spec']
+                worker_device=self.device,
+                cluster=self.distributed_spec['cluster_spec']
             )
             self.global_model = None
             # Replica model is part of its parent model's graph, hence no new graph here.
             self.graph = tf.get_default_graph()
 
         else:
-            self.device = config.device
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
 
             # Global model.
-            global_config = config.copy()
-            global_config.distributed_spec['replica_model'] = True
-            self.global_model = self.__class__(
-                states_spec=states_spec,
-                actions_spec=actions_spec,
-                config=global_config,
-                **kwargs
-            )
+            self.global_model = deepcopy(self)
+            self.global_model.distributed_spec['replica_model'] = True
+            self.global_model.setup()
 
         with tf.device(device_name_or_function=self.device):
             # Episode
@@ -157,6 +169,12 @@ class Model(object):
             else:
                 assert len(collection) == 1
                 self.timestep = collection[0]
+
+            # Variables and summaries
+            self.variables = dict()
+            self.all_variables = dict()
+            self.registered_variables = set()
+            self.summaries = list()
 
             def custom_getter(getter, name, registered=False, second=False, **kwargs):
                 if registered:
@@ -188,26 +206,16 @@ class Model(object):
             actions = {name: tf.stop_gradient(input=action) for name, action in actions.items()}
             reward = tf.stop_gradient(input=reward)
 
-            if 'inputs' in self.summary_labels:
-                for name, state in states.items():
-                    summary = tf.summary.histogram(name=('/input/states/' + name), values=state)
-                    self.summaries.append(summary)
-                for name, action in actions.items():
-                    summary = tf.summary.histogram(name=('/input/actions/' + name), values=action)
-                    self.summaries.append(summary)
-                summary = tf.summary.histogram(name='/input/reward', values=reward)
-                self.summaries.append(summary)
-
             # Optimizer
-            if config.optimizer is None:
-                self.optimizer = None
-            elif distributed_spec is not None and \
-                    not distributed_spec.get('parameter_server') and \
-                    not distributed_spec.get('replica_model'):
+            if self.optimizer is None:
+                pass
+            elif self.distributed_spec is not None and \
+                    not self.distributed_spec.get('parameter_server') and \
+                    not self.distributed_spec.get('replica_model'):
                 # If not internal global model
-                self.optimizer = GlobalOptimizer(optimizer=config.optimizer)
+                self.optimizer = GlobalOptimizer(optimizer=self.optimizer)
             else:
-                self.optimizer = Optimizer.from_spec(spec=config.optimizer)
+                self.optimizer = Optimizer.from_spec(spec=self.optimizer)
 
             # Create output fetch operations
             self.create_output_operations(
@@ -220,17 +228,27 @@ class Model(object):
                 deterministic=self.deterministic_input
             )
 
-        if distributed_spec is not None:
-            if distributed_spec.get('replica_model'):
+            if 'inputs' in self.summary_labels:
+                for name, state in states.items():
+                    summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=state)
+                    self.summaries.append(summary)
+                for name, action in actions.items():
+                    summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=action)
+                    self.summaries.append(summary)
+                summary = tf.summary.histogram(name=(self.scope + '/inputs/reward'), values=reward)
+                self.summaries.append(summary)
+
+        if self.distributed_spec is not None:
+            if self.distributed_spec.get('replica_model'):
                 # If internal global model
                 return
 
-            elif distributed_spec.get('parameter_server'):
+            elif self.distributed_spec.get('parameter_server'):
                 server = tf.train.Server(
-                    server_or_cluster_def=distributed_spec['cluster_spec'],
+                    server_or_cluster_def=self.distributed_spec['cluster_spec'],
                     job_name='ps',
-                    task_index=distributed_spec['task_index'],
-                    protocol=distributed_spec.get('protocol'),
+                    task_index=self.distributed_spec['task_index'],
+                    protocol=self.distributed_spec.get('protocol'),
                     config=None,
                     start=True
                 )
@@ -239,7 +257,7 @@ class Model(object):
                 return
 
         # Global and local variables initialize operations
-        if distributed_spec is None:
+        if self.distributed_spec is None:
             global_variables = self.get_variables(include_non_trainable=True)
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
@@ -254,9 +272,9 @@ class Model(object):
             local_init_op = tf.group(*(local_var.assign(value=global_var) for local_var, global_var in zip(local_variables, global_variables)))
 
         def init_fn(scaffold, session):
-            if saver_spec is not None and saver_spec.get('load', True):
-                directory = saver_spec['directory']
-                file = saver_spec.get('file')
+            if self.saver_spec is not None and self.saver_spec.get('load', True):
+                directory = self.saver_spec['directory']
+                file = self.saver_spec.get('file')
                 if file is None:
                     file = tf.train.latest_checkpoint(
                         checkpoint_dir=directory,
@@ -289,8 +307,8 @@ class Model(object):
             allow_empty=True,
             write_version=tf.train.SaverDef.V2,
             pad_step_number=False,
-            save_relative_paths=True,
-            filename=None
+            save_relative_paths=True
+            #filename=None
         )
 
         # TensorFlow scaffold object
@@ -309,14 +327,14 @@ class Model(object):
         hooks = list()
 
         # Checkpoint saver hook
-        if saver_spec is not None and (distributed_spec is None or distributed_spec['task_index'] == 0):
-            self.saver_directory = saver_spec['directory']
+        if self.saver_spec is not None and (self.distributed_spec is None or self.distributed_spec['task_index'] == 0):
+            self.saver_directory = self.saver_spec['directory']
             hooks.append(tf.train.CheckpointSaverHook(
                 checkpoint_dir=self.saver_directory,
-                save_secs=saver_spec.get('seconds', None if 'steps' in saver_spec else 600),
-                save_steps=saver_spec.get('steps'),  # Either one or the other has to be set.
+                save_secs=self.saver_spec.get('seconds', None if 'steps' in self.saver_spec else 600),
+                save_steps=self.saver_spec.get('steps'),  # Either one or the other has to be set.
                 saver=None,  # None since given via 'scaffold' argument.
-                checkpoint_basename=saver_spec.get('basename', 'model.ckpt'),
+                checkpoint_basename=self.saver_spec.get('basename', 'model.ckpt'),
                 scaffold=self.scaffold,
                 listeners=None
             ))
@@ -324,12 +342,12 @@ class Model(object):
             self.saver_directory = None
 
         # Summary saver hook
-        if summary_spec is None:
+        if self.summary_spec is None:
             self.summary_writer_hook = None
         else:
             # TensorFlow summary writer object
             summary_writer = tf.summary.FileWriter(
-                logdir=summary_spec['directory'],
+                logdir=self.summary_spec['directory'],
                 graph=self.graph,
                 max_queue=10,
                 flush_secs=120,
@@ -337,8 +355,8 @@ class Model(object):
             )
             self.summary_writer_hook = util.UpdateSummarySaverHook(
                 update_input=self.update_input,
-                save_steps=summary_spec.get('steps'),  # Either one or the other has to be set.
-                save_secs=summary_spec.get('seconds', None if 'steps' in summary_spec else 120),
+                save_steps=self.summary_spec.get('steps'),  # Either one or the other has to be set.
+                save_secs=self.summary_spec.get('seconds', None if 'steps' in self.summary_spec else 120),
                 output_dir=None,  # None since given via 'summary_writer' argument.
                 summary_writer=summary_writer,
                 scaffold=self.scaffold,
@@ -367,7 +385,7 @@ class Model(object):
         # tf.train.NanTensorHook(loss_tensor, fail_on_nan_loss=True)
         # tf.train.ProfilerHook(save_steps=None, save_secs=None, output_dir='', show_dataflow=True, show_memory=False)
 
-        if distributed_spec is None:
+        if self.distributed_spec is None:
             # TensorFlow non-distributed monitored session object
             self.monitored_session = tf.train.SingularMonitoredSession(
                 hooks=hooks,
@@ -379,15 +397,15 @@ class Model(object):
 
         else:
             server = tf.train.Server(
-                server_or_cluster_def=distributed_spec['cluster_spec'],
+                server_or_cluster_def=self.distributed_spec['cluster_spec'],
                 job_name='worker',
-                task_index=distributed_spec['task_index'],
-                protocol=distributed_spec.get('protocol'),
+                task_index=self.distributed_spec['task_index'],
+                protocol=self.distributed_spec.get('protocol'),
                 config=None,
                 start=True
             )
 
-            if distributed_spec['task_index'] == 0:
+            if self.distributed_spec['task_index'] == 0:
                 # TensorFlow chief session creator object
                 session_creator = tf.train.ChiefSessionCreator(
                     scaffold=self.scaffold,
@@ -626,8 +644,8 @@ class Model(object):
         if len(losses) > 0:
             loss += tf.add_n(inputs=list(losses.values()))
             if 'regularization' in self.summary_labels:
-                for name, reg_loss in losses.items():
-                    summary = tf.summary.scalar(name=('regularization/' + name), tensor=reg_loss)
+                for name, loss_val in losses.items():
+                    summary = tf.summary.scalar(name="regularization/"+name, tensor=loss_val)
                     self.summaries.append(summary)
 
         # Total loss summary

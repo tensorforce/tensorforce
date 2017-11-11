@@ -1,4 +1,5 @@
 {
+    "type": "dqn_agent",
     "batch_size": 64,
     "memory": {
         "type": "replay",

@@ -46,8 +46,8 @@ class QNAFModel(QModel):
         self.l_entries = dict()
         for name, action in self.actions_spec.items():
             num_action = util.prod(action['shape'])
-            self.state_values[name] = Linear(size=num_action, scope=(name + 'state-value'))
-            self.l_entries[name] = Linear(size=(num_action * (num_action - 1) // 2), scope=(name + '-l-entries'))
+            self.state_values[name] = Linear(size=num_action, scope='state-value')
+            self.l_entries[name] = Linear(size=(num_action * (num_action - 1) // 2), scope='l-entries')
 
     def tf_q_value(self, embedding, distr_params, action, name):
         num_action = util.prod(self.actions_spec[name]['shape'])

@@ -63,43 +63,42 @@ class DistributionModel(Model):
         # Distributions
         self.distributions = dict()
         for name, action in self.actions_spec.items():
-            with tf.name_scope(name=(name + '-distribution')):
 
-                if self.distributions_spec is not None and name in self.distributions_spec:
-                    kwargs = dict(action)
-                    kwargs['summary_labels'] = self.summary_labels
-                    self.distributions[name] = Distribution.from_spec(
-                        spec=self.distributions_spec[name],
-                        kwargs=kwargs
-                    )
+            if self.distributions_spec is not None and name in self.distributions_spec:
+                kwargs = dict(action)
+                kwargs['summary_labels'] = self.summary_labels
+                self.distributions[name] = Distribution.from_spec(
+                    spec=self.distributions_spec[name],
+                    kwargs=kwargs
+                )
 
-                elif action['type'] == 'bool':
-                    self.distributions[name] = Bernoulli(
+            elif action['type'] == 'bool':
+                self.distributions[name] = Bernoulli(
+                    shape=action['shape'],
+                    summary_labels=self.summary_labels
+                )
+
+            elif action['type'] == 'int':
+                self.distributions[name] = Categorical(
+                    shape=action['shape'],
+                    num_actions=action['num_actions'],
+                    summary_labels=self.summary_labels
+                )
+
+            elif action['type'] == 'float':
+                if 'min_value' in action:
+                    self.distributions[name] = Beta(
                         shape=action['shape'],
+                        min_value=action['min_value'],
+                        max_value=action['max_value'],
                         summary_labels=self.summary_labels
                     )
 
-                elif action['type'] == 'int':
-                    self.distributions[name] = Categorical(
+                else:
+                    self.distributions[name] = Gaussian(
                         shape=action['shape'],
-                        num_actions=action['num_actions'],
                         summary_labels=self.summary_labels
                     )
-
-                elif action['type'] == 'float':
-                    if 'min_value' in action:
-                        self.distributions[name] = Beta(
-                            shape=action['shape'],
-                            min_value=action['min_value'],
-                            max_value=action['max_value'],
-                            summary_labels=self.summary_labels
-                        )
-
-                    else:
-                        self.distributions[name] = Gaussian(
-                            shape=action['shape'],
-                            summary_labels=self.summary_labels
-                        )
 
         # Network internals
         self.internal_inputs.extend(self.network.internal_inputs())
@@ -107,7 +106,7 @@ class DistributionModel(Model):
 
         # KL divergence function
         self.fn_kl_divergence = tf.make_template(
-            name_='kl-divergence',
+            name_=(self.scope + '/kl-divergence'),
             func_=self.tf_kl_divergence,
             custom_getter_=custom_getter
         )

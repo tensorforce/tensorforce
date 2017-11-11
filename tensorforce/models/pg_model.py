@@ -86,13 +86,13 @@ class PGModel(DistributionModel):
 
         # Reward estimation
         self.fn_reward_estimation = tf.make_template(
-            name_='reward-estimation',
+            name_=(self.scope + '/reward-estimation'),
             func_=self.tf_reward_estimation,
             custom_getter_=custom_getter
         )
         # PG loss per instance function
         self.fn_pg_loss_per_instance = tf.make_template(
-            name_='pg-loss-per-instance',
+            name_=(self.scope + '/pg-loss-per-instance'),
             func_=self.tf_pg_loss_per_instance,
             custom_getter_=custom_getter
         )

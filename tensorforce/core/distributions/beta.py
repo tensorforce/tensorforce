@@ -45,9 +45,8 @@ class Beta(Distribution):
         self.max_value = max_value
         action_size = util.prod(self.shape)
 
-        with tf.name_scope(name=scope):
-            self.alpha = Linear(size=action_size, bias=alpha, scope='alpha')
-            self.beta = Linear(size=action_size, bias=beta, scope='beta')
+        self.alpha = Linear(size=action_size, bias=alpha, scope='alpha')
+        self.beta = Linear(size=action_size, bias=beta, scope='beta')
 
         super(Beta, self).__init__(scope, summary_labels)
 

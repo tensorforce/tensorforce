@@ -64,6 +64,8 @@ class BaseTest(object):
                     config=config
                 )
 
+            print(agent.model.get_variables())
+
             runner = Runner(agent=agent, environment=environment)
 
             self.pre_run(agent=agent, environment=environment)

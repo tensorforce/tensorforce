@@ -34,9 +34,8 @@ class Gaussian(Distribution):
         self.shape = shape
         action_size = util.prod(self.shape)
 
-        with tf.name_scope(name=scope):
-            self.mean = Linear(size=action_size, bias=mean, scope='mean')
-            self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev')
+        self.mean = Linear(size=action_size, bias=mean, scope='mean')
+        self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev')
 
         super(Gaussian, self).__init__(scope, summary_labels)
 

@@ -37,11 +37,13 @@ class NetworkBaseline(Baseline):
         Args:
             network_spec: Network specification dict
         """
-        with tf.name_scope(name=scope):
-            self.network = Network.from_spec(spec=network_spec)
-            assert len(self.network.internal_inputs()) == 0
+        self.network = Network.from_spec(
+            spec=network_spec,
+            kwargs=dict(summary_labels=summary_labels)
+        )
+        assert len(self.network.internal_inputs()) == 0
 
-            self.linear = Linear(size=1, bias=0.0, scope='prediction')
+        self.linear = Linear(size=1, bias=0.0, scope='prediction')
 
         super(NetworkBaseline, self).__init__(scope, summary_labels)
 

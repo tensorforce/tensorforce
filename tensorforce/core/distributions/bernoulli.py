@@ -34,8 +34,7 @@ class Bernoulli(Distribution):
         self.shape = shape
         action_size = util.prod(self.shape)
 
-        with tf.name_scope(name=scope):
-            self.logit = Linear(size=action_size, bias=log(probability), scope='logit')
+        self.logit = Linear(size=action_size, bias=log(probability), scope='logit')
 
         super(Bernoulli, self).__init__(scope, summary_labels)
 

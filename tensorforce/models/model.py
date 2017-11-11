@@ -176,59 +176,57 @@ class Model(object):
             self.registered_variables = set()
             self.summaries = list()
 
-            with tf.name_scope(name=self.scope):
+            def custom_getter(getter, name, registered=False, second=False, **kwargs):
+                if registered:
+                    self.registered_variables.add(name)
+                elif name in self.registered_variables:
+                    registered = True
+                variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
+                if not registered:
+                    self.all_variables[name] = variable
+                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                        self.variables[name] = variable
+                        if 'variables' in self.summary_labels:
+                            summary = tf.summary.histogram(name=name, values=variable)
+                            self.summaries.append(summary)
+                return variable
 
-                def custom_getter(getter, name, registered=False, second=False, **kwargs):
-                    if registered:
-                        self.registered_variables.add(name)
-                    elif name in self.registered_variables:
-                        registered = True
-                    variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
-                    if not registered:
-                        self.all_variables[name] = variable
-                        if kwargs.get('trainable', True) and not name.startswith('optimization'):
-                            self.variables[name] = variable
-                            if 'variables' in self.summary_labels:
-                                summary = tf.summary.histogram(name=name, values=variable)
-                                self.summaries.append(summary)
-                    return variable
+            # Create placeholders, tf functions, internals, etc
+            self.initialize(custom_getter=custom_getter)
 
-                # Create placeholders, tf functions, internals, etc
-                self.initialize(custom_getter=custom_getter)
+            # Input tensors
+            states = self.get_states(states=self.state_inputs)
+            internals = [tf.identity(input=internal) for internal in self.internal_inputs]
+            actions = self.get_actions(actions=self.action_inputs)
+            terminal = tf.identity(input=self.terminal_input)
+            reward = self.get_reward(states=states, internals=internals, terminal=terminal, reward=self.reward_input)
 
-                # Input tensors
-                states = self.get_states(states=self.state_inputs)
-                internals = [tf.identity(input=internal) for internal in self.internal_inputs]
-                actions = self.get_actions(actions=self.action_inputs)
-                terminal = tf.identity(input=self.terminal_input)
-                reward = self.get_reward(states=states, internals=internals, terminal=terminal, reward=self.reward_input)
+            # Stop gradients for input preprocessing
+            states = {name: tf.stop_gradient(input=state) for name, state in states.items()}
+            actions = {name: tf.stop_gradient(input=action) for name, action in actions.items()}
+            reward = tf.stop_gradient(input=reward)
 
-                # Stop gradients for input preprocessing
-                states = {name: tf.stop_gradient(input=state) for name, state in states.items()}
-                actions = {name: tf.stop_gradient(input=action) for name, action in actions.items()}
-                reward = tf.stop_gradient(input=reward)
+            # Optimizer
+            if self.optimizer is None:
+                pass
+            elif self.distributed_spec is not None and \
+                    not self.distributed_spec.get('parameter_server') and \
+                    not self.distributed_spec.get('replica_model'):
+                # If not internal global model
+                self.optimizer = GlobalOptimizer(optimizer=self.optimizer)
+            else:
+                self.optimizer = Optimizer.from_spec(spec=self.optimizer)
 
-                # Optimizer
-                if self.optimizer is None:
-                    pass
-                elif self.distributed_spec is not None and \
-                        not self.distributed_spec.get('parameter_server') and \
-                        not self.distributed_spec.get('replica_model'):
-                    # If not internal global model
-                    self.optimizer = GlobalOptimizer(optimizer=self.optimizer)
-                else:
-                    self.optimizer = Optimizer.from_spec(spec=self.optimizer)
-
-                # Create output fetch operations
-                self.create_output_operations(
-                    states=states,
-                    internals=internals,
-                    actions=actions,
-                    terminal=terminal,
-                    reward=reward,
-                    update=self.update_input,
-                    deterministic=self.deterministic_input
-                )
+            # Create output fetch operations
+            self.create_output_operations(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward,
+                update=self.update_input,
+                deterministic=self.deterministic_input
+            )
 
             if 'inputs' in self.summary_labels:
                 for name, state in states.items():
@@ -492,32 +490,32 @@ class Model(object):
 
         # TensorFlow functions
         self.fn_discounted_cumulative_reward = tf.make_template(
-            name_='discounted-cumulative-reward',
+            name_=(self.scope + '/discounted-cumulative-reward'),
             func_=self.tf_discounted_cumulative_reward,
             custom_getter_=custom_getter
         )
         self.fn_actions_and_internals = tf.make_template(
-            name_='actions-and-internals',
+            name_=(self.scope + '/actions-and-internals'),
             func_=self.tf_actions_and_internals,
             custom_getter_=custom_getter
         )
         self.fn_loss_per_instance = tf.make_template(
-            name_='loss-per-instance',
+            name_=(self.scope + '/loss-per-instance'),
             func_=self.tf_loss_per_instance,
             custom_getter_=custom_getter
         )
         self.fn_regularization_losses = tf.make_template(
-            name_='regularization-losses',
+            name_=(self.scope + '/regularization-losses'),
             func_=self.tf_regularization_losses,
             custom_getter_=custom_getter
         )
         self.fn_loss = tf.make_template(
-            name_='loss',
+            name_=(self.scope + '/loss'),
             func_=self.tf_loss,
             custom_getter_=custom_getter
         )
         self.fn_optimization = tf.make_template(
-            name_='optimization',
+            name_=(self.scope + '/optimization'),
             func_=self.tf_optimization,
             custom_getter_=custom_getter
         )

@@ -39,8 +39,7 @@ class Categorical(Distribution):
             logits = [log(prob) for _ in range(util.prod(shape)) for prob in probabilities]
         action_size = util.prod(self.shape) * self.num_actions
 
-        with tf.name_scope(name=scope):
-            self.logits = Linear(size=action_size, bias=logits, scope='logits')
+        self.logits = Linear(size=action_size, bias=logits, scope='logits')
 
         super(Categorical, self).__init__(scope, summary_labels)
 

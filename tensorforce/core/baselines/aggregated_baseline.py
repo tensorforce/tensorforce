@@ -37,16 +37,13 @@ class AggregatedBaseline(Baseline):
             baselines: Dict of per-state baseline specification dicts
         """
 
-        with tf.name_scope(name=scope):
-            self.baselines = dict()
-            for name, baseline_spec in baselines.items():
-                with tf.name_scope(name=(name + '-baseline')):
-                    self.baselines[name] = Baseline.from_spec(
-                        spec=baseline_spec,
-                        kwargs=dict(summary_labels=summary_labels)
-                    )
+        self.baselines = dict()
+        for name, baseline_spec in baselines.items():
+            self.baselines[name] = Baseline.from_spec(
+                spec=baseline_spec,
+                kwargs=dict(summary_labels=summary_labels))
 
-            self.linear = Linear(size=1, bias=0.0, scope='prediction')
+        self.linear = Linear(size=1, bias=0.0, scope='prediction')
 
         super(AggregatedBaseline, self).__init__(scope, summary_labels)
 

@@ -43,28 +43,27 @@ class Layer(object):
         self.all_variables = dict()
         self.summaries = list()
 
-        with tf.name_scope(name=scope):
-            def custom_getter(getter, name, registered=False, **kwargs):
-                variable = getter(name=name, registered=True, **kwargs)
-                if not registered:
-                    self.all_variables[name] = variable
-                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
-                        self.variables[name] = variable
-                        if 'variables' in self.summary_labels:
-                            summary = tf.summary.histogram(name=name, values=variable)
-                            self.summaries.append(summary)
-                return variable
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.all_variables[name] = variable
+                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                    self.variables[name] = variable
+                    if 'variables' in self.summary_labels:
+                        summary = tf.summary.histogram(name=name, values=variable)
+                        self.summaries.append(summary)
+            return variable
 
-            self.apply = tf.make_template(
-                name_='apply',
-                func_=self.tf_apply,
-                custom_getter_=custom_getter
-            )
-            self.regularization_loss = tf.make_template(
-                name_='regularization-loss',
-                func_=self.tf_regularization_loss,
-                custom_getter_=custom_getter
-            )
+        self.apply = tf.make_template(
+            name_=(scope + '/apply'),
+            func_=self.tf_apply,
+            custom_getter_=custom_getter
+        )
+        self.regularization_loss = tf.make_template(
+            name_=(scope + '/regularization-loss'),
+            func_=self.tf_regularization_loss,
+            custom_getter_=custom_getter
+        )
 
     def tf_apply(self, x, update):
         """
@@ -345,7 +344,7 @@ class Linear(Layer):
 
         return x
 
-    def tf_regularization_losses(self):
+    def tf_regularization_loss(self):
         regularization_loss = super(Linear, self).tf_regularization_loss()
         if regularization_loss is None:
             losses = list()

@@ -19,7 +19,7 @@
   ],
   "exploration": {
     "type": "epsilon_anneal",
-    "epsilon": 1.0,
+    "epsilon_start": 1.0,
     "epsilon_final": 0.1,
     "epsilon_timesteps": 1e6
   },

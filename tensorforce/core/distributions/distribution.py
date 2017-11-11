@@ -35,48 +35,47 @@ class Distribution(object):
         self.all_variables = dict()
         self.summaries = list()
 
-        with tf.name_scope(name=scope):
-            def custom_getter(getter, name, registered=False, **kwargs):
-                variable = getter(name=name, registered=True, **kwargs)
-                if not registered:
-                    self.all_variables[name] = variable
-                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
-                        self.variables[name] = variable
-                        if 'variables' in self.summary_labels:
-                            summary = tf.summary.histogram(name=name, values=variable)
-                            self.summaries.append(summary)
-                return variable
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.all_variables[name] = variable
+                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                    self.variables[name] = variable
+                    if 'variables' in self.summary_labels:
+                        summary = tf.summary.histogram(name=name, values=variable)
+                        self.summaries.append(summary)
+            return variable
 
-            self.parameterize = tf.make_template(
-                name_='parameterize',
-                func_=self.tf_parameterize,
-                custom_getter_=custom_getter
-            )
-            self.sample = tf.make_template(
-                name_='sample',
-                func_=self.tf_sample,
-                custom_getter_=custom_getter
-            )
-            self.log_probability = tf.make_template(
-                name_='log-probability',
-                func_=self.tf_log_probability,
-                custom_getter_=custom_getter
-            )
-            self.entropy = tf.make_template(
-                name_='entropy',
-                func_=self.tf_entropy,
-                custom_getter_=custom_getter
-            )
-            self.kl_divergence = tf.make_template(
-                name_='kl-divergence',
-                func_=self.tf_kl_divergence,
-                custom_getter_=custom_getter
-            )
-            self.regularization_loss = tf.make_template(
-                name_='regularization-loss',
-                func_=self.tf_regularization_loss,
-                custom_getter_=custom_getter
-            )
+        self.parameterize = tf.make_template(
+            name_=(scope + '/parameterize'),
+            func_=self.tf_parameterize,
+            custom_getter_=custom_getter
+        )
+        self.sample = tf.make_template(
+            name_=(scope + '/sample'),
+            func_=self.tf_sample,
+            custom_getter_=custom_getter
+        )
+        self.log_probability = tf.make_template(
+            name_=(scope + '/log-probability'),
+            func_=self.tf_log_probability,
+            custom_getter_=custom_getter
+        )
+        self.entropy = tf.make_template(
+            name_=(scope + '/entropy'),
+            func_=self.tf_entropy,
+            custom_getter_=custom_getter
+        )
+        self.kl_divergence = tf.make_template(
+            name_=(scope + '/kl-divergence'),
+            func_=self.tf_kl_divergence,
+            custom_getter_=custom_getter
+        )
+        self.regularization_loss = tf.make_template(
+            name_=(scope + '/regularization-loss'),
+            func_=self.tf_regularization_loss,
+            custom_getter_=custom_getter
+        )
 
     def tf_parameterize(self, x):
         """

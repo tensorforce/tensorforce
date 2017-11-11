@@ -124,27 +124,35 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
     def test_multi_baseline(self):
 
         class CustomNetwork(LayerBasedNetwork):
+
+            def __init__(self, scope='layerbased-network', summary_labels=()):
+                super(CustomNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
+
+                self.layer01 = Dense(size=32, scope='state0-1')
+                self.add_layer(layer=self.layer01)
+                self.layer02 = Dense(size=32, scope='state0-2')
+                self.add_layer(layer=self.layer02)
+
+                self.layer11 = Dense(size=32, scope='state1-1')
+                self.add_layer(layer=self.layer11)
+                self.layer12 = Dense(size=32, scope='state1-2')
+                self.add_layer(layer=self.layer12)
+
+                self.layer21 = Dense(size=32, scope='state2-1')
+                self.add_layer(layer=self.layer21)
+                self.layer22 = Dense(size=32, scope='state2-2')
+                self.add_layer(layer=self.layer22)
+
+                self.layer31 = Dense(size=32, scope='state3-1')
+                self.add_layer(layer=self.layer31)
+                self.layer32 = Dense(size=32, scope='state3-2')
+                self.add_layer(layer=self.layer32)
+
             def tf_apply(self, x, internals, update, return_internals=False):
-                layer01 = Dense(size=32, scope='state0-1')
-                self.add_layer(layer=layer01)
-                layer02 = Dense(size=32, scope='state0-2')
-                self.add_layer(layer=layer02)
-                x0 = layer02.apply(x=layer01.apply(x=x['state0'], update=update), update=update)
-                layer11 = Dense(size=32, scope='state1-1')
-                self.add_layer(layer=layer11)
-                layer12 = Dense(size=32, scope='state1-2')
-                self.add_layer(layer=layer12)
-                x1 = layer12.apply(x=layer11.apply(x=x['state1'], update=update), update=update)
-                layer21 = Dense(size=32, scope='state2-1')
-                self.add_layer(layer=layer21)
-                layer22 = Dense(size=32, scope='state2-2')
-                self.add_layer(layer=layer22)
-                x2 = layer22.apply(x=layer21.apply(x=x['state2'], update=update), update=update)
-                layer31 = Dense(size=32, scope='state3-1')
-                self.add_layer(layer=layer31)
-                layer32 = Dense(size=32, scope='state3-2')
-                self.add_layer(layer=layer32)
-                x3 = layer32.apply(x=layer31.apply(x=x['state3'], update=update), update=update)
+                x0 = self.layer02.apply(x=self.layer01.apply(x=x['state0'], update=update), update=update)
+                x1 = self.layer12.apply(x=self.layer11.apply(x=x['state1'], update=update), update=update)
+                x2 = self.layer22.apply(x=self.layer21.apply(x=x['state2'], update=update), update=update)
+                x3 = self.layer32.apply(x=self.layer31.apply(x=x['state3'], update=update), update=update)
                 x = x0 * x1 * x2 * x3
                 return (x, list()) if return_internals else x
 

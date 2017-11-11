@@ -4,18 +4,14 @@
         "size": 16,
         "window": 8,
         "stride": 4,
-        "bias": true,
-        "padding": "VALID",
-        "activation": "relu"
+        "padding": "VALID"
     },
     {
         "type": "conv2d",
         "size": 32,
         "window": 4,
         "stride": 2,
-        "bias": true,
-        "padding": "VALID",
-        "activation": "relu"
+        "padding": "VALID"
     },
     {
         "type": "flatten"
@@ -23,7 +19,6 @@
     {
         "type": "dense",
         "size": 256,
-        "bias": true,
         "activation": "relu"
     }
 ]

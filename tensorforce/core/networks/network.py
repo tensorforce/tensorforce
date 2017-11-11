@@ -39,28 +39,27 @@ class Network(object):
         self.all_variables = dict()
         self.summaries = list()
 
-        with tf.name_scope(name=scope):
-            def custom_getter(getter, name, registered=False, **kwargs):
-                variable = getter(name=name, registered=True, **kwargs)
-                if not registered:
-                    self.all_variables[name] = variable
-                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
-                        self.variables[name] = variable
-                        if 'variables' in self.summary_labels:
-                            summary = tf.summary.histogram(name=name, values=variable)
-                            self.summaries.append(summary)
-                return variable
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.all_variables[name] = variable
+                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                    self.variables[name] = variable
+                    if 'variables' in self.summary_labels:
+                        summary = tf.summary.histogram(name=name, values=variable)
+                        self.summaries.append(summary)
+            return variable
 
-            self.apply = tf.make_template(
-                name_='apply',
-                func_=self.tf_apply,
-                custom_getter_=custom_getter
-            )
-            self.regularization_loss = tf.make_template(
-                name_='regularization-loss',
-                func_=self.tf_regularization_loss,
-                custom_getter_=custom_getter
-            )
+        self.apply = tf.make_template(
+            name_=(scope + '/apply'),
+            func_=self.tf_apply,
+            custom_getter_=custom_getter
+        )
+        self.regularization_loss = tf.make_template(
+            name_=(scope + '/regularization-loss'),
+            func_=self.tf_regularization_loss,
+            custom_getter_=custom_getter
+        )
 
     def tf_apply(self, x, internals, update, return_internals=False):
         """
@@ -214,18 +213,19 @@ class LayeredNetwork(LayerBasedNetwork):
         self.layers_spec = layers_spec
         layer_counter = Counter()
 
-        with tf.name_scope(name=scope):
-            for layer_spec in self.layers_spec:
-                layer = Layer.from_spec(
-                    spec=layer_spec,
-                    kwargs=dict(scope=scope, summary_labels=summary_labels)
-                )
+        for layer_spec in self.layers_spec:
+            if isinstance(layer_spec['type'], str):
+                name = layer_spec['type']
+            else:
+                name = 'layer'
+            scope = name + str(layer_counter[name])
+            layer_counter[name] += 1
 
-                name = layer_spec['type'].__class__.__name__
-                scope = name + str(layer_counter[name])
-                layer_counter[name] += 1
-
-                self.add_layer(layer=layer)
+            layer = Layer.from_spec(
+                spec=layer_spec,
+                kwargs=dict(scope=scope, summary_labels=summary_labels)
+            )
+            self.add_layer(layer=layer)
 
     def tf_apply(self, x, internals, update, return_internals=False):
         if isinstance(x, dict):

@@ -1,0 +1,21 @@
+{
+    "batch_size": 64,
+    "memory": {
+        "type": "replay",
+        "capacity": 10000,
+        "random_sampling": false
+    },
+    "optimizer": {
+      "type": "adam",
+      "learning_rate": 1e-3
+    },
+
+    "discount": 0.97,
+
+    "exploration": {
+        "type": "ornstein_uhlenbeck",
+        "sigma": 0.2,
+        "mu": 0.0,
+        "theta": 0.15
+    }
+}

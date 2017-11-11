@@ -69,7 +69,7 @@ class DistributionModel(Model):
 
         # KL divergence function
         self.fn_kl_divergence = tf.make_template(
-            name_='kl-divergence',
+            name_=(self.scope + '/kl-divergence'),
             func_=self.tf_kl_divergence,
             custom_getter_=custom_getter
         )

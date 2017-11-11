@@ -167,6 +167,7 @@ class DQNNstepAgent(BatchAgent):
         )
         else:
             self.optimizer = optimizer
+
         self.network_spec = network_spec
         self.device = device
         self.scope = scope

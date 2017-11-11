@@ -18,6 +18,7 @@
     },
     {
         "type": "dense",
-        "size": 256
+        "size": 256,
+        "activation": "relu"
     }
 ]

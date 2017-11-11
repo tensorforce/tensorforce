@@ -17,6 +17,7 @@ import importlib
 import logging
 import numpy as np
 import tensorflow as tf
+from tensorflow.core.util.event_pb2 import SessionLog
 
 from tensorforce import TensorForceError
 
@@ -186,3 +187,22 @@ class UpdateSummarySaverHook(tf.train.SummarySaverHook):
             if self._get_summary_op() is not None:
                 requests['summary'] = self._get_summary_op()
         return tf.train.SessionRunArgs(requests)
+
+    def after_run(self, run_context, run_values):
+        if not self._summary_writer:
+            return
+
+        stale_global_step = run_values.results["global_step"]
+        global_step = stale_global_step + 1
+        if self._next_step is None or self._request_summary:
+            global_step = run_context.session.run(self._global_step_tensor)
+
+        if self._next_step is None:
+            self._summary_writer.add_session_log(SessionLog(status=SessionLog.START), global_step)
+
+        if "summary" in run_values.results:
+            self._timer.update_last_triggered_step(global_step)
+            for summary in run_values.results["summary"]:
+                self._summary_writer.add_summary(summary, global_step)
+
+        self._next_step = global_step + 1

@@ -1,0 +1,51 @@
+{
+  "preprocessing": [
+    {
+      "type": "image_resize",
+      "width": 84,
+      "height": 84
+    },
+    {
+      "type": "grayscale"
+    },
+    {
+      "type": "divide",
+      "scale": 255
+    },
+    {
+      "type": "sequence",
+      "length": 4
+    }
+  ],
+  "exploration": {
+    "type": "epsilon_anneal",
+    "epsilon_start": 1.0,
+    "epsilon_final": 0.1,
+    "epsilon_timesteps": 1e6
+  },
+  "reward_preprocessing": [
+    {
+      "type": "clip",
+      "min": -1,
+      "max": 1
+    }
+  ],
+
+  "batch_size": 6,
+  "keep_last_timestep": true,
+
+  "discount": 0.99,
+  "optimizer": {
+    "type": "rmsprop",
+    "learning_rate": 0.004,
+    "decay": 0.99,
+    "epsilon": 0.1
+  },
+  "log_level": "info",
+
+  "target_update_weight": 1.0,
+  "target_sync_frequency": 10000,
+  "double_q_model": false,
+  "huber_loss": 1.0
+}
+

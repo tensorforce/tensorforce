@@ -39,7 +39,7 @@ class BaseTest(object):
         """
         pass
 
-    def base_test(self, name, environment, network_spec, config):
+    def base_test(self, name, environment, network_spec, **kwargs):
         """
         Basic test loop, requires an Agent to achieve a certain performance on an environment.
         """
@@ -55,13 +55,13 @@ class BaseTest(object):
                     states_spec=environment.states,
                     actions_spec=environment.actions,
                     network_spec=network_spec,
-                    config=config
+                    **kwargs
                 )
             else:
                 agent = self.__class__.agent(
                     states_spec=environment.states,
                     actions_spec=environment.actions,
-                    config=config
+                    **kwargs
                 )
 
             runner = Runner(agent=agent, environment=environment)

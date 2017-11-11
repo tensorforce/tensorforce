@@ -26,18 +26,54 @@ class QDemoModel(QModel):
     Model for deep Q-learning from demonstration. Principal structure similar to double deep Q-networks but uses additional loss terms for demo data.
     """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        network_spec,
+        distributions_spec,
+        entropy_regularization,
+        target_sync_frequency,
+        target_update_weight,
+        double_q_model,
+        huber_loss,
+        expert_margin,
+        supervised_weight
+    ):
         if any(action['type'] not in ('bool', 'int') for action in actions_spec.values()):
             raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")
 
-        self.expert_margin = config.expert_margin
-        self.supervised_weight = config.supervised_weight
+        self.expert_margin = expert_margin
+        self.supervised_weight = supervised_weight
 
         super(QDemoModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            target_sync_frequency=target_sync_frequency,
+            target_update_weight=target_update_weight,
+            double_q_model=double_q_model,
+            huber_loss=huber_loss,
         )
 
     def initialize(self, custom_getter):

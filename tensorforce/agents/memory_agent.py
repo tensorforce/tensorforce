@@ -28,14 +28,34 @@ class MemoryAgent(Agent):
     The `MemoryAgent` class implements a replay memory, from which it samples batches to update the value function.
     """
 
-    def __init__(self, states_spec, actions_spec, config):
-        self.memory_spec = config.memory
-        self.batch_size = config.batch_size
-        self.first_update = config.first_update
-        self.update_frequency = config.update_frequency
-        self.repeat_update = config.repeat_update
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
+        batched_observe,
+        batch_size,
+        memory,
+        first_update,
+        update_frequency,
+        repeat_update
+    ):
+        self.memory_spec = memory
+        self.batch_size = batch_size
+        self.first_update = first_update
+        self.update_frequency = update_frequency
+        self.repeat_update = repeat_update
 
-        super(MemoryAgent, self).__init__(states_spec=states_spec, actions_spec=actions_spec, config=config)
+        super(MemoryAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing,
+            batched_observe=batched_observe
+        )
 
         self.memory = Memory.from_spec(
             spec=self.memory_spec,
@@ -59,7 +79,6 @@ class MemoryAgent(Agent):
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
 
             for _ in xrange(self.repeat_update):
-                # TODO: Should be states, internals, actions, terminal, reward = ...
                 batch = self.memory.get_batch(batch_size=self.batch_size, next_states=True)
                 loss_per_instance = self.model.update(
                     states=batch['states'],

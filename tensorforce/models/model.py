@@ -61,27 +61,41 @@ class Model(object):
     Base class for all (TensorFlow-based) models.
     """
 
-    def __init__(self, states_spec, actions_spec, config, **kwargs):
+    def __init__(
+            self,
+            states_spec,
+            actions_spec,
+            device,
+            scope,
+            saver_spec,
+            summary_spec,
+            distributed_spec,
+            optimizer,
+            discount,
+            normalize_rewards,
+            variable_noise,
+            **kwargs
+        ):
 
         # States and actions specifications
         self.states_spec = states_spec
         self.actions_spec = actions_spec
 
         # Discount factor
-        self.discount = config.discount
+        self.discount = discount
 
         # Reward normalization
-        assert isinstance(config.normalize_rewards, bool)
-        self.normalize_rewards = config.normalize_rewards
+        assert isinstance(normalize_rewards, bool)
+        self.normalize_rewards = normalize_rewards
 
         # Variable noise
-        assert config.variable_noise is None or config.variable_noise > 0.0
-        self.variable_noise = config.variable_noise
+        assert variable_noise is None or variable_noise > 0.0
+        self.variable_noise = variable_noise
 
         # Saver/summary/distributed specifications
-        saver_spec = config.saver_spec
-        summary_spec = config.summary_spec
-        distributed_spec = config.distributed_spec
+        saver_spec = saver_spec
+        summary_spec = summary_spec
+        distributed_spec = distributed_spec
 
         # TensorFlow summaries
         if summary_spec is None:
@@ -96,7 +110,7 @@ class Model(object):
         self.summaries = list()
 
         if distributed_spec is None:
-            self.device = config.device
+            self.device = device
             self.global_model = None
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
@@ -105,7 +119,7 @@ class Model(object):
         elif distributed_spec.get('parameter_server'):
             if distributed_spec.get('replica_model'):
                 raise TensorForceError("Invalid config value for distributed mode.")
-            self.device = config.device
+            self.device = device
             self.global_model = None
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
@@ -113,7 +127,7 @@ class Model(object):
 
         elif distributed_spec.get('replica_model'):
             self.device = tf.train.replica_device_setter(
-                worker_device=config.device,
+                worker_device=device,
                 cluster=distributed_spec['cluster_spec']
             )
             self.global_model = None
@@ -121,7 +135,7 @@ class Model(object):
             self.graph = tf.get_default_graph()
 
         else:
-            self.device = config.device
+            self.device = device
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
@@ -156,7 +170,8 @@ class Model(object):
                 assert len(collection) == 1
                 self.timestep = collection[0]
 
-            with tf.name_scope(name=config.scope):
+            print(scope)
+            with tf.name_scope(name=scope):
 
                 def custom_getter(getter, name, registered=False, second=False, **kwargs):
                     if registered:
@@ -189,15 +204,15 @@ class Model(object):
                 reward = tf.stop_gradient(input=reward)
 
                 # Optimizer
-                if config.optimizer is None:
+                if optimizer is None:
                     self.optimizer = None
                 elif distributed_spec is not None and \
                         not distributed_spec.get('parameter_server') and \
                         not distributed_spec.get('replica_model'):
                     # If not internal global model
-                    self.optimizer = GlobalOptimizer(optimizer=config.optimizer)
+                    self.optimizer = GlobalOptimizer(optimizer=optimizer)
                 else:
-                    self.optimizer = Optimizer.from_spec(spec=config.optimizer)
+                    self.optimizer = Optimizer.from_spec(spec=optimizer)
 
                 # Create output fetch operations
                 self.create_output_operations(

@@ -39,14 +39,31 @@ class BatchAgent(Agent):
 
     """
 
-    def __init__(self, states_spec, actions_spec, config):
-        assert isinstance(config.batch_size, int) and config.batch_size > 0
-        self.batch_size = config.batch_size
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
+        batched_observe,
+        batch_size,
+        keep_last_timestep
+    ):
+        assert isinstance(batch_size, int) and batch_size > 0
+        self.batch_size = batch_size
 
-        assert isinstance(config.keep_last_timestep, bool)
-        self.keep_last_timestep = config.keep_last_timestep
+        assert isinstance(keep_last_timestep, bool)
+        self.keep_last_timestep = keep_last_timestep
 
-        super(BatchAgent, self).__init__(states_spec, actions_spec, config)
+        super(BatchAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing,
+            batched_observe=batched_observe
+        )
 
         self.batch_count = None
         self.reset_batch()

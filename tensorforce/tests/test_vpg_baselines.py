@@ -37,7 +37,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwags = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -61,7 +61,8 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+
+        kwargs = dict(
             batch_size=8,
             baseline_mode='network',
             baseline=dict(
@@ -85,7 +86,8 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+
+        kwargs = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -101,7 +103,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -151,7 +153,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         environment = MinimalTest(
             specification=[('bool', ()), ('int', (2,)), ('float', (1, 1)), ('bounded-float', (1,))]
         )
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -184,4 +186,10 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 num_steps=5
             )
         )
-        self.base_test(name='multi-baseline', environment=environment, network_spec=CustomNetwork, config=config)
+
+        self.base_test(
+            name='multi-baseline',
+            environment=environment,
+            network_spec=CustomNetwork,
+            **kwargs
+        )

@@ -28,7 +28,27 @@ from tensorforce.core.networks import Linear
 
 class QNAFModel(QModel):
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        distributions_spec,
+        entropy_regularization,
+        target_sync_frequency,
+        target_update_weight,
+        double_q_model,
+        huber_loss,
+    ):
         if any(action['type'] != 'float' or 'min_value' in action or 'max_value' in action for action in actions_spec.values()):
             raise TensorForceError("Only unconstrained float actions valid for NAFModel.")
 
@@ -36,7 +56,21 @@ class QNAFModel(QModel):
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            target_sync_frequency=target_sync_frequency,
+            target_update_weight=target_update_weight,
+            double_q_model=double_q_model,
+            huber_loss=huber_loss,
         )
 
     def initialize(self, custom_getter):

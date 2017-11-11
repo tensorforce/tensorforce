@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from tensorforce import TensorForceError
 from tensorforce.agents import BatchAgent
 from tensorforce.models import PGLogProbModel
 
@@ -122,6 +123,9 @@ class VPGAgent(BatchAgent):
             batch_size:
             keep_last_timestep:
         """
+        if network_spec is None:
+            raise TensorForceError("No network_spec provided.")
+
         if optimizer is None:
             self.optimizer = dict(
                 type='adam',

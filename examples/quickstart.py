@@ -23,8 +23,16 @@ from tensorforce.contrib.openai_gym import OpenAIGym
 # Create an OpenAIgym environment
 env = OpenAIGym('CartPole-v0')
 
+# Network as list of layers
+network_spec = [
+    dict(type='dense', size=32, activation='tanh'),
+    dict(type='dense', size=32, activation='tanh')
+]
 
-config = Configuration(
+agent = PPOAgent(
+    states_spec=env.states,
+    actions_spec=env.actions,
+    network_spec=network_spec,
     batch_size=4096,
     # Agent
     preprocessing=None,
@@ -42,7 +50,7 @@ config = Configuration(
     scope='ppo',
     discount=0.99,
     # DistributionModel
-    distributions=None,  # not documented!!!
+    distributions_spec=None,
     entropy_regularization=0.01,
     # PGModel
     baseline_mode=None,
@@ -52,33 +60,8 @@ config = Configuration(
     normalize_rewards=False,
     # PGLRModel
     likelihood_ratio_clipping=0.2,
-    # Logging
-    log_level='info',
-    # TensorFlow Summaries
-    summary_logdir=None,
-    summary_labels=['total-loss'],
-    summary_frequency=1,
-    # Distributed
-    # TensorFlow distributed configuration
-    cluster_spec=None,
-    parameter_server=False,
-    task_index=0,
-    device=None,
-    local_model=False,
-    replica_model=False,
-)
-
-# Network as list of layers
-network_spec = [
-    dict(type='dense', size=32, activation='tanh'),
-    dict(type='dense', size=32, activation='tanh')
-]
-
-agent = PPOAgent(
-    states_spec=env.states,
-    actions_spec=env.actions,
-    network_spec=network_spec,
-    config=config
+    summary_spec=None,
+    distributed_spec=None
 )
 
 # Create the runner

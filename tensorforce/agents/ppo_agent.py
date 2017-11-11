@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from tensorforce import TensorForceError
 from tensorforce.agents import BatchAgent
 from tensorforce.models import PGProbRatioModel
 
@@ -75,67 +76,132 @@ class PPOAgent(BatchAgent):
     * `summary_frequency`: Positive integer (default: 1)
     """
 
-    default_config = dict(
-        # Agent
-        preprocessing=None,
-        exploration=None,
-        reward_preprocessing=None,
-        batched_observe=1000,
-        # BatchAgent
-        keep_last_timestep=True,  # not documented!
-        # PPOAgent
-        step_optimizer=dict(
-            type='adam',
-            learning_rate=1e-4
-        ),
-        optimization_steps=10,
-        # Model
-        discount=0.99,
-        normalize_rewards=False,
-        variable_noise=None,  # not documented!!!
-        # DistributionModel
-        distributions_spec=None,  # not documented!!!
-        entropy_regularization=1e-2,
-        # PGModel
-        baseline_mode=None,
-        baseline=None,
-        baseline_optimizer=None,
-        gae_lambda=None,
-        # PGProbRatioModel
-        likelihood_ratio_clipping=0.2,
-        # General
-        log_level='info',
-        device=None,
-        scope='ppo',
-        saver_spec=None,
-        summary_spec=None,
-        distributed_spec=None
-    )
+    def __init__(
+            self,
+            states_spec,
+            actions_spec,
+            network_spec,
+            device=None,
+            scope='ppo',
+            saver_spec=None,
+            summary_spec=None,
+            distributed_spec=None,
+            discount=0.99,
+            normalize_rewards=False,
+            variable_noise=None,
+            distributions_spec=None,
+            entropy_regularization=1e-2,
+            baseline_mode=None,
+            baseline=None,
+            baseline_optimizer=None,
+            gae_lambda=None,
+            preprocessing=None,
+            exploration=None,
+            reward_preprocessing=None,
+            batched_observe=1000,
+            batch_size=1000,
+            keep_last_timestep=True,
+            likelihood_ratio_clipping=None,
+            step_optimizer=None,
+            optimization_steps=10
+    ):
 
-    # missing: batch agent configs
-        # entropy_penalty=0.01,
-        # loss_clipping=0.2,  # Trust region clipping
-        # epochs=10,  # Number of training epochs for SGD,
-        # optimizer_batch_size=128,  # Batch size for optimiser
         # random_sampling=True  # Sampling strategy for replay memory
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
-        self.network_spec = network_spec
-        config = config.copy()
-        config.default(self.__class__.default_config)
-        config.obligatory(
-            optimizer=dict(
-                type='multi_step',
-                optimizer=config.step_optimizer,
-                num_steps=config.optimization_steps
-            )
-        )
-        super(PPOAgent, self).__init__(states_spec, actions_spec, config)
+        """
+        Creates a proximal policy optimization agent (PPO), ([Schulman et al., 2017]
+        (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
 
-    def initialize_model(self, states_spec, actions_spec, config):
+        Args:
+            states_spec:
+            actions_spec:
+            network_spec:
+            device:
+            scope:
+            saver_spec:
+            summary_spec:
+            distributed_spec:
+            discount:
+            normalize_rewards:
+            variable_noise:
+            distributions_spec:
+            entropy_regularization:
+            baseline_mode:
+            baseline:
+            baseline_optimizer:
+            gae_lambda:
+            preprocessing:
+            exploration:
+            reward_preprocessing:
+            batched_observe:
+            batch_size:
+            keep_last_timestep:
+            likelihood_ratio_clipping:
+            step_optimizer:
+            optimization_steps:
+        """
+        if network_spec is None:
+            raise TensorForceError("No network_spec provided.")
+
+        self.network_spec = network_spec
+        self.device = device
+        self.scope = scope
+        self.saver_spec = saver_spec
+        self.summary_spec = summary_spec
+        self.distributed_spec = distributed_spec
+        self.discount = discount
+        self.normalize_rewards = normalize_rewards
+        self.variable_noise = variable_noise
+        self.distributions_spec = distributions_spec
+        self.entropy_regularization = entropy_regularization
+        self.baseline_mode = baseline_mode
+        self.baseline = baseline
+        self.baseline_optimizer = baseline_optimizer
+        self.gae_lambda = gae_lambda
+        self.likelihood_ratio_clipping = likelihood_ratio_clipping
+
+        if step_optimizer is None:
+            step_optimizer = dict(
+                type='adam',
+                learning_rate=1e-4
+            )
+
+        self.optimizer =dict(
+            type='multi_step',
+            optimizer=step_optimizer,
+            num_steps=optimization_steps
+        )
+
+        super(PPOAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing,
+            batched_observe=batched_observe,
+            batch_size=batch_size,
+            keep_last_timestep=keep_last_timestep
+        )
+
+    def initialize_model(self, states_spec, actions_spec):
         return PGProbRatioModel(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=self.network_spec,
-            config=config
+            device=self.device,
+            scope=self.scope,
+            saver_spec=self.saver_spec,
+            summary_spec=self.summary_spec,
+            distributed_spec=self.distributed_spec,
+            optimizer=self.optimizer,
+            discount=self.discount,
+            normalize_rewards=self.normalize_rewards,
+            variable_noise=self.variable_noise,
+            distributions_spec=self.distributions_spec,
+            entropy_regularization=self.entropy_regularization,
+            baseline_mode=self.baseline_mode,
+            baseline=self.baseline,
+            baseline_optimizer=self.baseline_optimizer,
+            gae_lambda=self.gae_lambda,
+            likelihood_ratio_clipping=self.likelihood_ratio_clipping
         )

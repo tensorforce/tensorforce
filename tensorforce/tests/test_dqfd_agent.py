@@ -21,7 +21,7 @@ from six.moves import xrange
 import unittest
 import numpy as np
 
-from tensorforce import Configuration, util
+from tensorforce import util
 from tensorforce.agents import DQFDAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
@@ -31,7 +31,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
     agent = DQFDAgent
     deterministic = True
 
-    config = Configuration(
+    kwargs = dict(
         memory=dict(
             type='replay',
             capacity=1000

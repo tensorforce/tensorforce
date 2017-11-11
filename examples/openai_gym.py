@@ -84,15 +84,9 @@ def main():
             states_spec=environment.states,
             actions_spec=environment.actions,
             network_spec=network_spec,
-            config=config
+            kwargs=json.loads(args.agent_config)
         )
     )
-
-    # if args.load:
-    #     load_dir = os.path.dirname(args.load)
-    #     if not os.path.isdir(load_dir):
-    #         raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
-    #     agent.load_model(args.load)
 
     if args.debug:
         logger.info("-" * 16)

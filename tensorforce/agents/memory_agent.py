@@ -25,7 +25,8 @@ from tensorforce.core.memories import Memory
 
 class MemoryAgent(Agent):
     """
-    The `MemoryAgent` class implements a replay memory, from which it samples batches to update the value function.
+    The `MemoryAgent` class implements a replay memory from
+    which it samples batches to update the value function.
     """
 
     def __init__(

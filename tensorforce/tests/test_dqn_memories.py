@@ -19,7 +19,6 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
 from tensorforce.agents import DQNAgent
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.tests.base_test import BaseTest
@@ -36,7 +35,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             memory=dict(
                 type='replay',
                 capacity=1000
@@ -45,7 +44,13 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             first_update=10,
             target_sync_frequency=10
         )
-        self.base_test(name='replay', environment=environment, network_spec=network_spec, config=config)
+
+        self.base_test(
+            name='replay',
+            environment=environment,
+            network_spec=network_spec,
+            **kwargs
+        )
 
     def test_prioritized_replay(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -53,7 +58,8 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+
+        kwargs = dict(
             memory=dict(
                 type='prioritized_replay',
                 capacity=1000
@@ -62,7 +68,13 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             first_update=10,
             target_sync_frequency=10
         )
-        self.base_test(name='prioritized-replay', environment=environment, network_spec=network_spec, config=config)
+
+        self.base_test(
+            name='prioritized-replay',
+            environment=environment,
+            network_spec=network_spec,
+            **kwargs
+        )
 
     def test_naive_prioritized_replay(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -70,7 +82,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             memory=dict(
                 type='naive_prioritized_replay',
                 capacity=1000
@@ -79,4 +91,10 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             first_update=10,
             target_sync_frequency=10
         )
-        self.base_test(name='naive-prioritized-replay', environment=environment, network_spec=network_spec, config=config)
+
+        self.base_test(
+            name='naive-prioritized-replay',
+            environment=environment,
+            network_spec=network_spec,
+            **kwargs
+        )

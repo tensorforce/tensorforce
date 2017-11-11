@@ -249,7 +249,7 @@ class Agent(object):
         else:
             self.current_reward = self.reward_preprocessing.process(reward)
 
-        if self.batched_observe > 0:
+        if self.batched_observe is not None and self.batched_observe > 0:
             # Batched observe for better performance with Python.
             self.observe_terminal.append(self.current_terminal)
             self.observe_reward.append(self.current_reward)

@@ -131,6 +131,8 @@ class VPGAgent(BatchAgent):
                 type='adam',
                 learning_rate=1e-3
             )
+        else:
+            self.optimizer = optimizer
 
         # Model arguments
         self.network_spec = network_spec

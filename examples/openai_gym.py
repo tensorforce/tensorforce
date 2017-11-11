@@ -26,7 +26,7 @@ import json
 import logging
 import time
 
-from tensorforce import Configuration
+from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
@@ -41,9 +41,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="Id of the Gym environment")
-    parser.add_argument('-a', '--agent', help='Agent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-spec', help="Network specification file")
+    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
     parser.add_argument('-e', '--episodes', type=int, default=None, help="Number of episodes")
     parser.add_argument('-t', '--timesteps', type=int, default=None, help="Number of timesteps")
     parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None, help="Maximum number of timesteps per episode")
@@ -65,13 +64,13 @@ def main():
         monitor_video=args.monitor_video
     )
 
-    if args.agent_config:
-        config = Configuration.from_json(args.agent_config)
+    if args.agent_config is not None:
+        with open(args.agent_config, 'r') as fp:
+            agent_config = json.load(fp=fp)
     else:
-        config = Configuration()
-        logger.info("No agent configuration provided.")
+        raise TensorForceError("No agent configuration provided.")
 
-    if args.network_spec:
+    if args.network_spec is not None:
         with open(args.network_spec, 'r') as fp:
             network_spec = json.load(fp=fp)
     else:
@@ -79,19 +78,18 @@ def main():
         logger.info("No network configuration provided.")
 
     agent = Agent.from_spec(
-        spec=args.agent,
+        spec=agent_config,
         kwargs=dict(
             states_spec=environment.states,
             actions_spec=environment.actions,
-            network_spec=network_spec,
-            kwargs=json.loads(args.agent_config)
+            network_spec=network_spec
         )
     )
 
     if args.debug:
         logger.info("-" * 16)
         logger.info("Configuration:")
-        logger.info(config)
+        logger.info(agent_config)
 
     runner = Runner(
         agent=agent,

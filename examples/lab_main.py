@@ -71,6 +71,7 @@ def main():
         agent_config = json.load(path + args.agent_config)
     else:
         raise TensorForceError("No agent configuration provided.")
+
     if not args.network_spec:
         raise TensorForceError("No network configuration provided.")
     else:

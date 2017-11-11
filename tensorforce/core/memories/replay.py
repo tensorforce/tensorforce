@@ -29,7 +29,7 @@ class Replay(Memory):
     Replay memory to store observations and sample mini batches for training from.
     """
 
-    def __init__(self, states_spec, actions_spec, capacity, random_sampling=False):
+    def __init__(self, states_spec, actions_spec, capacity, random_sampling=True):
         super(Replay, self).__init__(states_spec=states_spec, actions_spec=actions_spec)
         self.capacity = capacity
         self.states = {name: np.zeros((capacity,) + tuple(state['shape']), dtype=util.np_dtype(state['type'])) for name, state in states_spec.items()}

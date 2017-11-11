@@ -17,10 +17,10 @@
 OpenAI gym execution
 
 To run this script with 3 workers on Pong-ram-v0:
-$ python examples/openai_gym_async.py Pong-ram-v0 -a examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 50000 -m 2000 -W 3
+$ python examples/openai_gym_async.py Pong-ram-v0 -a examples/configs/vpg.json -n examples/configs/mlp2_network.json -e 50000 -m 2000 -W 3
 
 Or on CartPole-v0:
-$ python examples/openai_gym_async.py CartPole-v0 -a examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 10000 -m 200 -W 3
+$ python examples/openai_gym_async.py CartPole-v0 -a examples/configs/vpg.json -n examples/configs/mlp2_network.json -e 10000 -m 200 -W 3
 
 You can check what the workers are doing:
 $ tmux a -t OpenAI  # `ctrl+b d` to exit tmux
@@ -176,11 +176,11 @@ def main():
         network_spec = None
         logger.info("No network configuration provided.")
 
-    agent_config['distributed_spec'] =dict(
-            cluster_spec=cluster_spec,
-            task_index=args.task_index,
-            parameter_server=args.parameter_server,
-            device=('/job:{}/task:{}'.format('ps' if args.parameter_server else 'worker', args.task_index)),  # '/cpu:0'
+    agent_config['distributed_spec'] = dict(
+        cluster_spec=cluster_spec,
+        task_index=args.task_index,
+        parameter_server=args.parameter_server,
+        device=('/job:{}/task:{}'.format('ps' if args.parameter_server else 'worker', args.task_index)),  # '/cpu:0'
     )
 
     agent = Agent.from_spec(

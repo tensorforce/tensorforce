@@ -19,6 +19,8 @@ from __future__ import division
 
 from six.moves import xrange
 
+import numpy as np
+
 from tensorforce.agents import Agent
 from tensorforce.core.memories import Memory
 
@@ -82,7 +84,8 @@ class MemoryAgent(Agent):
             for _ in xrange(self.repeat_update):
                 batch = self.memory.get_batch(batch_size=self.batch_size, next_states=True)
                 loss_per_instance = self.model.update(
-                    states=batch['states'],
+                    # TEMP: Random sampling fix
+                    states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
                     internals=batch['internals'],
                     actions=batch['actions'],
                     terminal=batch['terminal'],

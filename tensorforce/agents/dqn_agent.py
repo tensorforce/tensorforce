@@ -176,9 +176,10 @@ class DQNAgent(MemoryAgent):
             self.optimizer = dict(
                 type='adam',
                 learning_rate=1e-3
-        )
+            )
         else:
             self.optimizer = optimizer
+
         if memory is None:
             memory = dict(
                 type='replay',
@@ -236,5 +237,7 @@ class DQNAgent(MemoryAgent):
             target_sync_frequency=self.target_sync_frequency,
             target_update_weight=self.target_update_weight,
             double_q_model=self.double_q_model,
-            huber_loss=self.huber_loss
+            huber_loss=self.huber_loss,
+            # TEMP: Random sampling fix
+            random_sampling_fix=True
         )

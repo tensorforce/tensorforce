@@ -230,6 +230,8 @@ class DQFDAgent(MemoryAgent):
             target_update_weight=self.target_update_weight,
             double_q_model=self.double_q_model,
             huber_loss=self.huber_loss,
+            # TEMP: Random sampling fix
+            random_sampling_fix=True,
             expert_margin=self.expert_margin,
             supervised_weight=self.supervised_weight
         )

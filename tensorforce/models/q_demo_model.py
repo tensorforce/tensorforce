@@ -46,6 +46,8 @@ class QDemoModel(QModel):
         target_update_weight,
         double_q_model,
         huber_loss,
+        # TEMP: Random sampling fix
+        random_sampling_fix,
         expert_margin,
         supervised_weight
     ):
@@ -74,6 +76,8 @@ class QDemoModel(QModel):
             target_update_weight=target_update_weight,
             double_q_model=double_q_model,
             huber_loss=huber_loss,
+            # TEMP: Random sampling fix
+            random_sampling_fix=random_sampling_fix
         )
 
     def initialize(self, custom_getter):

@@ -42,7 +42,6 @@ Finally, the following TensorFlow functions can be useful in some cases:
 * `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations (like the baseline update in a `PGModel` or the target network update in a `QModel`), returning a single grouped optimization operation.
 """
 
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -141,14 +140,14 @@ class Model(object):
             self.graph = tf.get_default_graph()
 
         else:
-            self.graph = tf.Graph()
-            default_graph = self.graph.as_default()
+            graph = tf.Graph()
+            default_graph = graph.as_default()
             default_graph.__enter__()
-
             # Global model.
             self.global_model = deepcopy(self)
             self.global_model.distributed_spec['replica_model'] = True
             self.global_model.setup()
+            self.graph = graph
 
         with tf.device(device_name_or_function=self.device):
             # Episode
@@ -454,6 +453,7 @@ class Model(object):
         Args:
             custom_getter: The `custom_getter_` object to use for `tf.make_template` when creating TensorFlow functions.
         """
+
         # States
         self.state_inputs = dict()
         for name, state in self.states_spec.items():

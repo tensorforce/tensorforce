@@ -214,5 +214,7 @@ class DQNNstepAgent(BatchAgent):
             target_sync_frequency=self.target_sync_frequency,
             target_update_weight=self.target_update_weight,
             double_q_model=self.double_q_model,
-            huber_loss=self.huber_loss
+            huber_loss=self.huber_loss,
+            # TEMP: Random sampling fix
+            random_sampling_fix=False
         )

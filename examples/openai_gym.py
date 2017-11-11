@@ -33,9 +33,9 @@ from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
 
-# python examples/openai_gym.py Pong-ram-v0 -a vpg_agent -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 50000 -m 2000
+# python examples/openai_gym.py Pong-ram-v0 -a examples/configs/vpg.json -n examples/configs/mlp2_network.json -e 50000 -m 2000
 
-# python examples/openai_gym.py CartPole-v0 -a vpg_agent -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 2000 -m 200
+# python examples/openai_gym.py CartPole-v0 -a examples/configs/vpg.json -n examples/configs/mlp2_network.json -e 2000 -m 200
 
 
 def main():

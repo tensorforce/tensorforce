@@ -47,7 +47,9 @@ class QNAFModel(QModel):
         target_sync_frequency,
         target_update_weight,
         double_q_model,
-        huber_loss
+        huber_loss,
+        # TEMP: Random sampling fix
+        random_sampling_fix
     ):
         if any(action['type'] != 'float' or 'min_value' in action or 'max_value' in action for action in actions_spec.values()):
             raise TensorForceError("Only unconstrained float actions valid for NAFModel.")
@@ -71,6 +73,8 @@ class QNAFModel(QModel):
             target_update_weight=target_update_weight,
             double_q_model=double_q_model,
             huber_loss=huber_loss,
+            # TEMP: Random sampling fix
+            random_sampling_fix=random_sampling_fix
         )
 
     def initialize(self, custom_getter):

@@ -55,7 +55,7 @@ class BaseAgentTest(BaseTest):
             name='bool',
             environment=environment,
             network_spec=network_spec,
-            config=self.__class__.config
+            **self.__class__.kwargs
         )
 
     def test_int(self):
@@ -75,7 +75,7 @@ class BaseAgentTest(BaseTest):
             name='int',
             environment=environment,
             network_spec=network_spec,
-            config=self.__class__.config
+            **self.__class__.kwargs
         )
 
     def test_float(self):
@@ -94,7 +94,7 @@ class BaseAgentTest(BaseTest):
             name='float',
             environment=environment,
             network_spec=network_spec,
-            config=self.__class__.config
+            **self.__class__.kwargs
         )
 
     def test_bounded_float(self):
@@ -113,7 +113,7 @@ class BaseAgentTest(BaseTest):
             name='bounded-float',
             environment=environment,
             network_spec=network_spec,
-            config=self.__class__.config
+            **self.__class__.kwargs
         )
 
     def test_multi(self):
@@ -193,7 +193,7 @@ class BaseAgentTest(BaseTest):
             name='multi',
             environment=environment,
             network_spec=CustomNetwork,
-            config=self.__class__.config
+            **self.__class__.kwargs
         )
 
     def test_lstm(self):
@@ -214,5 +214,5 @@ class BaseAgentTest(BaseTest):
             name='lstm',
             environment=environment,
             network_spec=network_spec,
-            config=self.__class__.config
+            **self.__class__.kwargs
         )

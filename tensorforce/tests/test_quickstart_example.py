@@ -23,7 +23,6 @@ import unittest
 import numpy as np
 from six.moves import xrange
 
-from tensorforce import Configuration
 from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
@@ -41,34 +40,6 @@ class TestQuickstartExample(unittest.TestCase):
             # Create an OpenAI-Gym environment
             environment = OpenAIGym('CartPole-v0')
 
-            # Agent hyperparameters
-            config = Configuration(
-                batch_size=4000,
-                step_optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-2
-                ),
-                optimization_steps=5,
-                discount=0.99,
-                normalize_rewards=False,
-                entropy_regularization=0.01,
-                # baseline_mode='states',
-                # baseline=dict(
-                #     type='mlp',
-                #     sizes=[32, 32]
-                # ),
-                # baseline_optimizer=dict(
-                #     type='multi_step',
-                #     optimizer=dict(
-                #         type='adam',
-                #         learning_rate=1e-2
-                #     ),
-                #     num_steps=5
-                # ),
-                # gae_lambda=0.95,
-                likelihood_ratio_clipping=0.2
-            )
-
             # Network specification for the model
             network_spec = [
                 dict(type='dense', size=32),
@@ -80,7 +51,16 @@ class TestQuickstartExample(unittest.TestCase):
                 states_spec=environment.states,
                 actions_spec=environment.actions,
                 network_spec=network_spec,
-                config=config
+                batch_size=4000,
+                step_optimizer=dict(
+                    type='adam',
+                    learning_rate=1e-2
+                ),
+                optimization_steps=5,
+                discount=0.99,
+                normalize_rewards=False,
+                entropy_regularization=0.01,
+                likelihood_ratio_clipping = 0.2
             )
 
             # Initialize the runner

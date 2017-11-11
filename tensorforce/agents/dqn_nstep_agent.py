@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from tensorforce import TensorForceError
 from tensorforce.agents import BatchAgent
 from tensorforce.models import QNstepModel
 
@@ -64,9 +65,6 @@ class DQNNstepAgent(BatchAgent):
     * `double_q_model`: boolean indicating whether to use double q-model.
     * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
 
-
-
-
     ### Configuration options
 
     #### General:
@@ -91,11 +89,6 @@ class DQNNstepAgent(BatchAgent):
     * `exploration`: None or dict with (default: none)
     * `reward_preprocessing`: None or dict with (default: none)
 
-    #### Logging:
-
-    * `log_level`: Logging level, one of the following values (default: 'info')
-        + 'info', 'debug', 'critical', 'warning', 'fatal'
-
     #### TensorFlow Summaries:
     * `summary_logdir`: None or summary directory string (default: none)
     * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
@@ -107,51 +100,118 @@ class DQNNstepAgent(BatchAgent):
     * `summary_frequency`: Positive integer (default: 1)
     """
 
-    default_config = dict(
-        # Agent
-        preprocessing=None,
-        exploration=None,
-        reward_preprocessing=None,
-        batched_observe=1000,
-        # BatchAgent
-        keep_last_timestep=True,  # not documented!
-        # Model
-        optimizer=dict(
-            type='adam',
-            learning_rate=1e-3
-        ),
-        discount=0.99,
-        normalize_rewards=False,
-        variable_noise=None,  # not documented!!!
-        # DistributionModel
-        distributions_spec=None,  # not documented!!!
-        entropy_regularization=None,
-        # QModel
-        target_sync_frequency=10000,  # not documented!!!
-        target_update_weight=1.0,  # not documented!!!
-        double_q_model=True,  # not documented!!!
-        huber_loss=None,  # not documented!!!
-        # General
-        log_level='info',
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
         device=None,
         scope='dqn-nstep',
         saver_spec=None,
         summary_spec=None,
-        distributed_spec=None
-    )
+        distributed_spec=None,
+        optimizer=None,
+        discount=0.99,
+        normalize_rewards=False,
+        variable_noise=None,
+        distributions_spec=None,
+        entropy_regularization=None,
+        target_sync_frequency=10000,
+        target_update_weight=1.0,
+        double_q_model=False,
+        huber_loss=None,
+        preprocessing=None,
+        exploration=None,
+        reward_preprocessing=None,
+        batched_observe=1000,
+        batch_size=32,
+        keep_last_timestep=True
+    ):
+        """
+        Creates a DQN n-step agent.
 
-    # missing: memory agent configs
+        Args:
+            states_spec:
+            actions_spec:
+            network_spec:
+            device:
+            scope:
+            saver_spec:
+            summary_spec:
+            distributed_spec:
+            optimizer:
+            discount:
+            normalize_rewards:
+            variable_noise:
+            distributions_spec:
+            entropy_regularization:
+            target_sync_frequency:
+            target_update_weight:
+            double_q_model:
+            huber_loss:
+            preprocessing:
+            exploration:
+            reward_preprocessing:
+            batched_observe:
+            batch_size:
+            keep_last_timestep:
+        """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+        if network_spec is None:
+            raise TensorForceError("No network_spec provided.")
+
+        if optimizer is None:
+            self.optimizer = dict(
+                type='adam',
+                learning_rate=1e-3
+        )
+        else:
+            self.optimizer = optimizer
         self.network_spec = network_spec
-        config = config.copy()
-        config.default(self.__class__.default_config)
-        super(DQNNstepAgent, self).__init__(states_spec, actions_spec, config)
+        self.device = device
+        self.scope = scope
+        self.saver_spec = saver_spec
+        self.summary_spec = summary_spec
+        self.distributed_spec = distributed_spec
+        self.discount = discount
+        self.normalize_rewards = normalize_rewards
+        self.variable_noise = variable_noise
+        self.distributions_spec = distributions_spec
+        self.entropy_regularization = entropy_regularization
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
+        self.double_q_model = double_q_model
+        self.huber_loss = huber_loss
 
-    def initialize_model(self, states_spec, actions_spec, config):
+        super(DQNNstepAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing,
+            batched_observe=batched_observe,
+            batch_size=batch_size,
+            keep_last_timestep=keep_last_timestep
+     )
+
+    def initialize_model(self, states_spec, actions_spec):
         return QNstepModel(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=self.network_spec,
-            config=config
+            device=self.device,
+            scope=self.scope,
+            saver_spec=self.saver_spec,
+            summary_spec=self.summary_spec,
+            distributed_spec=self.distributed_spec,
+            optimizer=self.optimizer,
+            discount=self.discount,
+            normalize_rewards=self.normalize_rewards,
+            variable_noise=self.variable_noise,
+            distributions_spec=self.distributions_spec,
+            entropy_regularization=self.entropy_regularization,
+            target_sync_frequency=self.target_sync_frequency,
+            target_update_weight=self.target_update_weight,
+            double_q_model=self.double_q_model,
+            huber_loss=self.huber_loss
         )

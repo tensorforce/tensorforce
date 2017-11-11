@@ -13,13 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
-"""
-The `PGModel` class implements the specified reward estimation. It optionally defines a baseline
-and handles its optimization. It implements the `tf_loss_per_instance` function, but requires
-subclasses to implement `tf_pg_loss_per_instance`.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -32,25 +25,59 @@ from tensorforce.models import DistributionModel
 
 
 class PGModel(DistributionModel):
-    """Base class for policy gradient models."""
+    """
+    Base class for policy gradient models. It optionally defines a baseline
+    and handles its optimization. It implements the `tf_loss_per_instance` function, but requires
+    subclasses to implement `tf_pg_loss_per_instance`.
+    """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        distributions_spec,
+        entropy_regularization,
+        baseline_mode,
+        baseline,
+        baseline_optimizer,
+        gae_lambda
+    ):
         # Baseline mode
-        assert config.baseline_mode is None or config.baseline_mode in ('states', 'network')
-        self.baseline_mode = config.baseline_mode
+        assert baseline_mode is None or baseline_mode in ('states', 'network')
+        self.baseline_mode = baseline_mode
 
-        self.baseline = config.baseline
-        self.baseline_optimizer = config.baseline_optimizer
+        self.baseline = baseline
+        self.baseline_optimizer = baseline_optimizer
 
         # Generalized advantage function
-        assert config.gae_lambda is None or (0.0 <= config.gae_lambda <= 1.0 and self.baseline_mode is not None)
-        self.gae_lambda = config.gae_lambda
+        assert gae_lambda is None or (0.0 <= gae_lambda <= 1.0 and self.baseline_mode is not None)
+        self.gae_lambda = gae_lambda
 
         super(PGModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
         )
 
     def initialize(self, custom_getter):

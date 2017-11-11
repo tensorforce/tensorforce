@@ -30,20 +30,50 @@ class QModel(DistributionModel):
     Q-value model.
     """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
-        self.target_sync_frequency = config.target_sync_frequency
-        self.target_update_weight = config.target_update_weight
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        distributions_spec,
+        entropy_regularization,
+        target_sync_frequency,
+        target_update_weight,
+        double_q_model,
+        huber_loss
+    ):
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
 
-        self.double_q_model = config.double_q_model
+        self.double_q_model = double_q_model
 
-        assert config.huber_loss is None or config.huber_loss > 0.0
-        self.huber_loss = config.huber_loss
+        assert huber_loss is None or huber_loss > 0.0
+        self.huber_loss = huber_loss
 
         super(QModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
         )
 
     def initialize(self, custom_getter):

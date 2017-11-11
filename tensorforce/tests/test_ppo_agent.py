@@ -19,7 +19,6 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
 from tensorforce.agents import PPOAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
@@ -28,6 +27,6 @@ class TestPPOAgent(BaseAgentTest, unittest.TestCase):
 
     agent = PPOAgent
     deterministic = False
-    config = Configuration(
+    kwargs = dict(
         batch_size=8
     )

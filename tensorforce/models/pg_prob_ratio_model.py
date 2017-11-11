@@ -28,16 +28,51 @@ class PGProbRatioModel(PGModel):
     Policy gradient model based on computing likelihood ratios, e.g. TRPO and PPO.
     """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        distributions_spec,
+        entropy_regularization,
+        baseline_mode,
+        baseline,
+        baseline_optimizer,
+        gae_lambda,
+        likelihood_ratio_clipping
+    ):
         # Likelihood ratio clipping
-        assert config.likelihood_ratio_clipping is None or config.likelihood_ratio_clipping > 0.0
-        self.likelihood_ratio_clipping = config.likelihood_ratio_clipping
+        assert likelihood_ratio_clipping is None or likelihood_ratio_clipping > 0.0
+        self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
         super(PGProbRatioModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            baseline_mode=baseline_mode,
+            baseline=baseline,
+            baseline_optimizer=baseline_optimizer,
+            gae_lambda=gae_lambda,
         )
 
     def initialize(self, custom_getter):

@@ -37,7 +37,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -53,7 +53,12 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 num_steps=5
             )
         )
-        self.base_test(name='states-baseline', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(
+            name='states-baseline',
+            environment=environment,
+            network_spec=network_spec,
+            **kwargs
+        )
 
     def test_network_baseline(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -61,7 +66,8 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+
+        kwargs = dict(
             batch_size=8,
             baseline_mode='network',
             baseline=dict(
@@ -77,7 +83,12 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 num_steps=5
             )
         )
-        self.base_test(name='network-baseline', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(
+            name='network-baseline',
+            environment=environment,
+            network_spec=network_spec,
+            **kwargs
+        )
 
     def test_baseline_no_optimizer(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -85,7 +96,8 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+
+        kwargs = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -93,7 +105,12 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 sizes=[32, 32]
             )
         )
-        self.base_test(name='baseline-no-optimizer', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(
+            name='baseline-no-optimizer',
+            environment=environment,
+            network_spec=network_spec,
+            **kwargs
+        )
 
     def test_gae_baseline(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -101,7 +118,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -119,7 +136,12 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             gae_lambda=0.95,
             normalize_rewards=True
         )
-        self.base_test(name='gae-baseline', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(
+            name='gae-baseline',
+            environment=environment,
+            network_spec=network_spec,
+            **kwargs
+        )
 
     def test_multi_baseline(self):
 
@@ -159,7 +181,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         environment = MinimalTest(
             specification=[('bool', ()), ('int', (2,)), ('float', (1, 1)), ('bounded-float', (1,))]
         )
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -192,4 +214,10 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 num_steps=5
             )
         )
-        self.base_test(name='multi-baseline', environment=environment, network_spec=CustomNetwork, config=config)
+
+        self.base_test(
+            name='multi-baseline',
+            environment=environment,
+            network_spec=CustomNetwork,
+            **kwargs
+        )

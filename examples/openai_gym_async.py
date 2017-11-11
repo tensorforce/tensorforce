@@ -17,10 +17,10 @@
 OpenAI gym execution
 
 To run this script with 3 workers on Pong-ram-v0:
-$ python examples/openai_gym_async.py Pong-ram-v0 -a vpg_agent -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 50000 -m 2000 -W 3
+$ python examples/openai_gym_async.py Pong-ram-v0 -a examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 50000 -m 2000 -W 3
 
 Or on CartPole-v0:
-$ python examples/openai_gym_async.py CartPole-v0 -a vpg_agent -c examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 10000 -m 200 -W 3
+$ python examples/openai_gym_async.py CartPole-v0 -a examples/configs/vpg_agent.json -n examples/configs/vpg_network.json -e 10000 -m 200 -W 3
 
 You can check what the workers are doing:
 $ tmux a -t OpenAI  # `ctrl+b d` to exit tmux
@@ -44,7 +44,7 @@ import time
 import tensorflow as tf
 from six.moves import xrange, shlex_quote
 
-from tensorforce import Configuration
+from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
@@ -54,9 +54,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="Id of the Gym environment")
-    parser.add_argument('-a', '--agent', help='Agent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-spec', help="Network specification file")
+    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
     parser.add_argument('-e', '--episodes', type=int, default=None, help="Number of episodes")
     parser.add_argument('-t', '--timesteps', type=int, default=None, help="Number of timesteps")
     parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None, help="Maximum number of timesteps per episode")
@@ -102,7 +101,6 @@ def main():
                 'CUDA_VISIBLE_DEVICES=',
                 sys.executable, target_script,
                 args.gym_id,
-                '--agent', args.agent,
                 '--agent-config', os.path.join(os.getcwd(), args.agent_config),
                 '--network-spec', os.path.join(os.getcwd(), args.network_spec),
                 '--num-workers', args.num_workers,
@@ -165,41 +163,38 @@ def main():
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)  # log_levels[agent_config.log_level])
 
-    if args.agent_config:
-        config = Configuration.from_json(args.agent_config)
+    if args.agent_config is not None:
+        with open(args.agent_config, 'r') as fp:
+            agent_config = json.load(fp=fp)
     else:
-        config = Configuration()
-        logger.info("No agent configuration provided.")
+        raise TensorForceError("No agent configuration provided.")
 
-    config.obligatory(
-        distributed_spec=dict(
-            cluster_spec=cluster_spec,
-            task_index=args.task_index,
-            parameter_server=args.parameter_server,
-            device=('/job:{}/task:{}'.format('ps' if args.parameter_server else 'worker', args.task_index)),  # '/cpu:0'
-        )
-    )
-
-    if args.network_spec:
+    if args.network_spec is not None:
         with open(args.network_spec, 'r') as fp:
             network_spec = json.load(fp=fp)
     else:
         network_spec = None
         logger.info("No network configuration provided.")
 
+    agent_config['distributed_spec'] =dict(
+            cluster_spec=cluster_spec,
+            task_index=args.task_index,
+            parameter_server=args.parameter_server,
+            device=('/job:{}/task:{}'.format('ps' if args.parameter_server else 'worker', args.task_index)),  # '/cpu:0'
+    )
+
     agent = Agent.from_spec(
-        spec=args.agent,
+        spec=agent_config,
         kwargs=dict(
             states_spec=environment.states,
             actions_spec=environment.actions,
-            network_spec=network_spec,
-            config=config
+            network_spec=network_spec
         )
     )
 
     logger.info("Starting distributed agent for OpenAI Gym '{gym_id}'".format(gym_id=args.gym_id))
     logger.info("Config:")
-    logger.info(config)
+    logger.info(agent_config)
 
     runner = Runner(
         agent=agent,

@@ -17,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import logging
 from six.moves import xrange
 from random import random
 import numpy as np
@@ -86,18 +85,26 @@ class Agent(object):
         ```
     """
 
-    def __init__(self, states_spec, actions_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
+        batched_observe
+    ):
         """
         Initializes the reinforcement learning agent.
 
         Args:
-            model (Model): optional model instance. If not supplied, a new model is created.
-            config (Configuration): configuration object containing at least `states`, `actions`, `preprocessing` and
-                'exploration`.
-
+            states_spec:
+            actions_spec:
+            preprocessing:
+            exploration:
+            reward_preprocessing:
+            batched_observe:
         """
-        self.logger = logging.getLogger(self.__class__.__name__)  # other name?
-        self.logger.setLevel(util.log_levels[config.log_level])
 
         # States config and preprocessing
         self.preprocessing = dict()
@@ -110,8 +117,8 @@ class Agent(object):
                 state['shape'] = (state['shape'],)
             if 'type' not in state:  # Type: default to float
                 state['type'] = 'float'
-            if config.preprocessing is not None:
-                preprocessing = Preprocessing.from_spec(spec=config.preprocessing)
+            if preprocessing is not None:
+                preprocessing = Preprocessing.from_spec(spec=preprocessing)
                 self.preprocessing['state'] = preprocessing
                 state['shape'] = preprocessing.processed_shape(shape=state['shape'])
 
@@ -123,8 +130,8 @@ class Agent(object):
                     state['shape'] = (state['shape'],)
                 if 'type' not in state:  # Type: default to float
                     state['type'] = 'float'
-                if config.preprocessing is not None and name in config.preprocessing:
-                    preprocessing = Preprocessing.from_spec(config.preprocessing[name])
+                if preprocessing is not None and name in preprocessing:
+                    preprocessing = Preprocessing.from_spec(preprocessing[name])
                     self.preprocessing[name] = preprocessing
                     state['shape'] = preprocessing.processed_shape(shape=state['shape'])
 
@@ -145,8 +152,8 @@ class Agent(object):
                 action['shape'] = ()
             if isinstance(action['shape'], int):  # Shape: int to unary tuple
                 action['shape'] = (action['shape'],)
-            if config.exploration is not None:
-                self.exploration['action'] = Exploration.from_spec(config.exploration)
+            if exploration is not None:
+                self.exploration['action'] = Exploration.from_spec(exploration)
 
         else:  # Multi-action
             self.unique_action = False
@@ -162,30 +169,25 @@ class Agent(object):
                     action['shape'] = ()
                 if isinstance(action['shape'], int):  # Shape: int to unary tuple
                     action['shape'] = (action['shape'],)
-                if config.exploration is not None and name in config.exploration:
-                    self.exploration[name] = Exploration.from_spec(config.exploration[name])
+                if exploration is not None and name in exploration:
+                    self.exploration[name] = Exploration.from_spec(exploration[name])
 
         # reward preprocessing config
-        if config.reward_preprocessing is None:
+        if reward_preprocessing is None:
             self.reward_preprocessing = None
         else:
-            self.reward_preprocessing = Preprocessing.from_spec(config.reward_preprocessing)
+            self.reward_preprocessing = Preprocessing.from_spec(reward_preprocessing)
 
         self.model = self.initialize_model(
             states_spec=self.states_spec,
             actions_spec=self.actions_spec,
-            config=config
         )
 
         # Batched observe for better performance with Python.
-        self.batched_observe = config.batched_observe
+        self.batched_observe = batched_observe
         if self.batched_observe is not None:
             self.observe_terminal = list()
             self.observe_reward = list()
-
-        not_accessed = config.not_accessed()
-        if not_accessed:
-            self.logger.warning("Configuration values not accessed: {}".format(', '.join(not_accessed)))
 
         self.reset()
 
@@ -195,7 +197,7 @@ class Agent(object):
     def close(self):
         self.model.close()
 
-    def initialize_model(self, states_spec, actions_spec, config):
+    def initialize_model(self, states_spec, actions_spec):
         raise NotImplementedError
 
     def reset(self):

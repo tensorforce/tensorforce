@@ -22,24 +22,20 @@ class EpsilonDecay(Exploration):
     difference between current and final epsilon to total timesteps.
     """
 
-    def __init__(self, epsilon=1.0, epsilon_final=0.1, epsilon_timesteps=10000, start_after=0, half_lives=10):
-        self.epsilon = epsilon
-        self.epsilon_final = epsilon_final
-        self.epsilon_timesteps = epsilon_timesteps
-        self.start_after = start_after
-        self.half_life = self.epsilon_timesteps / half_lives
+    def __init__(self, initial_epsilon=1.0, final_epsilon=0.1, timesteps=10000, start_timestep=0, half_lives=10):
+        self.initial_epsilon = initial_epsilon
+        self.final_epsilon = final_epsilon
+        self.timesteps = timesteps
+        self.start_timestep = start_timestep
+        self.half_life = self.timesteps / half_lives
 
     def __call__(self, episode=0, timestep=0):
-        if timestep < self.start_after:
-            return self.epsilon
+        if timestep < self.start_timestep:
+            return self.initial_epsilon
 
-        offset = self.start_after
+        elif timestep > self.start_timestep + self.timesteps:
+            return self.final_epsilon
 
-        if timestep > self.epsilon_timesteps:
-            epsilon = self.epsilon_final
         else:
-            epsilon = self.epsilon_final + \
-                (self.epsilon - self.epsilon_final) * \
-                2 ** (- (timestep - offset) / self.half_life)
-
-        return epsilon
+            half_life_ratio = (timestep - self.start_timestep) / self.half_life
+            return self.final_epsilon + (2 ** (-half_life_ratio)) * (self.initial_epsilon - self.final_epsilon)

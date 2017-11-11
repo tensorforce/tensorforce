@@ -405,9 +405,9 @@ class TestTutorialCode(unittest.TestCase):
 
         exploration = dict(
             type='epsilon_decay',
-            epsilon=1,
-            epsilon_final=0.01,
-            epsilon_timesteps=1e6
+            initial_epsilon=1.0,
+            final_epsilon=0.01,
+            timesteps=1e6
         )
         config = Configuration(
             memory=dict(

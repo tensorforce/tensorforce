@@ -24,8 +24,6 @@ In python, it could look like this:
     # examples/quickstart.py
 
     import numpy as np
-
-    from tensorforce import Configuration
     from tensorforce.agents import PPOAgent
     from tensorforce.core.networks import layered_network_builder
     from tensorforce.execution import Runner
@@ -35,7 +33,7 @@ In python, it could look like this:
     env = OpenAIGym('CartPole-v0')
 
     # Create a Trust Region Policy Optimization agent
-    agent = PPOAgent(config=Configuration(
+    agent = PPOAgent(
         log_level='info',
         batch_size=4096,
 
@@ -52,7 +50,7 @@ In python, it could look like this:
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ])
-    ))
+    )
 
     # Create the runner
     runner = Runner(agent=agent, environment=env)

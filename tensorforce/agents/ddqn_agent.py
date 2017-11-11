@@ -129,6 +129,37 @@ class DDQNAgent(MemoryAgent):
             update_frequency=4,
             repeat_update=1
     ):
+        """
+        Double Q-lerning agent where double-dqn loss is default  enabled.
+
+        Args:
+            states_spec:
+            actions_spec:
+            network_spec:
+            device:
+            scope:
+            saver_spec:
+            summary_spec:
+            distributed_spec:
+            optimizer:
+            discount:
+            normalize_rewards:
+            variable_noise:
+            distributions_spec:
+            entropy_regularization:
+            target_sync_frequency:
+            target_update_weight:
+            huber_loss:
+            preprocessing:
+            exploration:
+            reward_preprocessing:
+            batched_observe:
+            batch_size:
+            memory:
+            first_update:
+            update_frequency:
+            repeat_update:
+        """
         if network_spec is None:
             raise TensorForceError("No network_spec provided.")
 

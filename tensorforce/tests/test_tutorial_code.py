@@ -44,16 +44,12 @@ class TestTutorialCode(unittest.TestCase):
 
         from tensorforce.agents import TRPOAgent
 
-        kwargs = dict(
-            batch_size=100,
-        )
-
         # Create a Trust Region Policy Optimization agent
         agent = TRPOAgent(
             states_spec=dict(shape=(10,), type='float'),
             actions_spec=dict(type='int', num_actions=2),
             network_spec=[dict(type='dense', size=50), dict(type='dense', size=50)],
-            **kwargs
+            batch_size=100,
         )
 
         # Get new data from somewhere, e.g. a client to a web app
@@ -78,8 +74,6 @@ class TestTutorialCode(unittest.TestCase):
         import numpy as np
 
         ### DQN agent example
-
-        from tensorforce import Configuration
         from tensorforce.agents import DQNAgent
 
         # Network is an ordered list of layers

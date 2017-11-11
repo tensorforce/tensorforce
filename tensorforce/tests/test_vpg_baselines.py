@@ -18,8 +18,6 @@ from __future__ import print_function
 from __future__ import division
 
 import unittest
-
-from tensorforce import Configuration
 from tensorforce.agents import VPGAgent
 from tensorforce.core.networks import Dense, LayerBasedNetwork
 from tensorforce.environments.minimal_test import MinimalTest

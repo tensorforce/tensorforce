@@ -43,7 +43,8 @@ class RandomAgent(Agent):
         batched_observe=1000
     ):
         """
-        Initializes a random agent.
+        Initializes a random agent. Returns random actions based of the shape
+        provided in the 'actions_spec'.
 
         Args:
             states_spec:

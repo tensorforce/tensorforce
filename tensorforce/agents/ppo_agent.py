@@ -166,7 +166,7 @@ class PPOAgent(BatchAgent):
                 learning_rate=1e-4
             )
 
-        self.optimizer =dict(
+        self.optimizer = dict(
             type='multi_step',
             optimizer=step_optimizer,
             num_steps=optimization_steps

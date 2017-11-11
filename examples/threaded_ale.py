@@ -30,7 +30,7 @@ import time
 import numpy as np
 
 from tensorforce import Configuration
-from tensorforce.agents import agents as AgentsDictionary
+from tensorforce.agents import agents as AgentsDictionary, Agent
 import json
 from tensorforce.execution import ThreadedRunner
 from tensorforce.contrib.ale import ALE
@@ -50,9 +50,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('rom', help="File path of the rom")
-    parser.add_argument('-a', '--agent', help='Agent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-spec', help="Network configuration file")
+    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
     parser.add_argument('-w', '--workers', help="Number of threads to run where the model is shared", type=int, default=16)
     parser.add_argument('-fs', '--frame-skip', help="Number of frames to repeat action", type=int, default=1)
     parser.add_argument('-rap', '--repeat-action-probability', help="Repeat action probability", type=float, default=0.0)
@@ -77,7 +76,7 @@ def main():
                         repeat_action_probability=args.repeat_action_probability,
                         loss_of_life_termination=args.loss_of_life_termination,
                         loss_of_life_reward=args.loss_of_life_reward,
-                        display_screen=args.display_screen) for t in range(args.workers)]
+                        display_screen=args.display_screen) for _ in range(args.workers)]
 
 
     if args.network_spec:
@@ -87,10 +86,9 @@ def main():
         network_spec = None
         logger.info("No network configuration provided.")
 
-
     agent_configs = []
     for i in range(args.workers):
-        agent_config = Configuration.from_json(args.agent_config)
+        agent_config = json.loads(args.agent_config)
 
         # Optionally overwrite epsilon final values
         if "exploration" in agent_config and agent_config.exploration["type"] == "epsilon_anneal":
@@ -102,18 +100,21 @@ def main():
                 epsilon_final = np.random.choice([0.5, 0.1, 0.01], p=[0.3, 0.4, 0.3])
                 agent_config.exploration["epsilon_final"] = epsilon_final
 
-
         agent_configs.append(agent_config)
 
     # Let the first agent create the model
     # Manually assign model
     logger.info(agent_configs[0])
-    agent = AgentsDictionary[args.agent](
-        states_spec=environments[0].states,
-        actions_spec=environments[0].actions,
-        network_spec=network_spec,
-        config=agent_configs[0]
+
+    agent = Agent.from_spec(
+        spec=agent_configs[0],
+        kwargs=dict(
+            states_spec=environments[0].states,
+            actions_spec=environments[0].actions,
+            network_spec=network_spec
+        )
     )
+
     agents = [agent]
 
     for i in xrange(args.workers - 1):
@@ -125,8 +126,8 @@ def main():
             states_spec=environments[0].states,
             actions_spec=environments[0].actions,
             network_spec=network_spec,
-            config=config,
-            model=agent.model
+            model=agent.model,
+            kwargs=config
         )
         agents.append(worker)
 
@@ -134,12 +135,12 @@ def main():
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):
             raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
-        agent.load_model(args.load)
+        agent.restore_model(args.load)
 
     if args.debug:
         logger.info("-" * 16)
         logger.info("Configuration:")
-        logger.info(agent_config)
+        logger.info(agent_configs[0])
 
     if args.save:
         save_dir = os.path.dirname(args.save)

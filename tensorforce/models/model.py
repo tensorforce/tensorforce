@@ -309,8 +309,8 @@ class Model(object):
             allow_empty=True,
             write_version=tf.train.SaverDef.V2,
             pad_step_number=False,
-            save_relative_paths=True,
-            filename=None
+            save_relative_paths=True
+            #filename=None
         )
 
         # TensorFlow scaffold object

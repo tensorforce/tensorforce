@@ -24,6 +24,7 @@ from __future__ import print_function
 import argparse
 import json
 import logging
+import os
 import time
 
 from tensorforce import TensorForceError
@@ -47,6 +48,7 @@ def main():
     parser.add_argument('-t', '--timesteps', type=int, default=None, help="Number of timesteps")
     parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None, help="Maximum number of timesteps per episode")
     parser.add_argument('-d', '--deterministic', action='store_true', default=False, help="Choose actions deterministically")
+    parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('--monitor', help="Save results to this directory")
     parser.add_argument('--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
     parser.add_argument('--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
@@ -85,6 +87,11 @@ def main():
             network_spec=network_spec
         )
     )
+    if args.load:
+        load_dir = os.path.dirname(args.load)
+        if not os.path.isdir(load_dir):
+            raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
+        agent.restore_model(args.load)
 
     if args.debug:
         logger.info("-" * 16)

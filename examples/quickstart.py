@@ -15,7 +15,6 @@
 
 import numpy as np
 
-from tensorforce import Configuration
 from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym

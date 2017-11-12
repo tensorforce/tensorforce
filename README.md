@@ -16,11 +16,7 @@ TensorForce is built on top of TensorFlow and compatible with Python 2.7
 and &gt;3.5 and supports multiple state inputs and multi-dimensional
 actions to be compatible with Gym, Universe, and DeepMind lab.
 
-NOTE: We have just rolled out a major update introducing our new optimizers,
-which enable things such as natural gradients in pure TensorFlow. A new
-blog post will be available shortly.
-
-An introductory blog post can also be found [on our blog.](https://reinforce.io/blog/introduction-to-tensorforce)
+More information on architecture can also be found [on our blog.](https://reinforce.io/blog/)
 
 Please do read the latest update notes (UPDATE_NOTES.md) for an idea of how the project is evolving, especially
 concerning majorAPI breaking updates.
@@ -132,7 +128,7 @@ provided configurations, e.g. to run the TRPO agent on CartPole, execute
 from the examples folder:
 
 ```bash
-python examples/openai_gym.py CartPole-v0 -a ppo_agent -c examples/configs/ppo_agent.json -n examples/configs/ppo_network.json
+python examples/openai_gym.py CartPole-v0 -a examples/configs/ppo.json -n examples/configs/mlp2_network.json
 ```
 
 Documentation is available at

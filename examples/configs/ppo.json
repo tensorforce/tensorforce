@@ -1,5 +1,5 @@
 {
-    "type": "vpg_agent",
+    "type": "ppo_agent",
     "batch_size": 4000,
     "step_optimizer": {
         "type": "adam",

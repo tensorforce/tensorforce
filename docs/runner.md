@@ -77,14 +77,17 @@ def main():
     max_timesteps = 1000
 
     env = OpenAIGym(gym_id)
+    network_spec = [
+        dict(type='dense', size=32, activation='tanh'),
+        dict(type='dense', size=32, activation='tanh')
+    ]
 
-    config = Configuration({
-        'actions': env.actions,
-        'states': env.states
-        # ...
-    })
-
-    agent = DQNAgent(config)
+    agent = DQNAgent(
+        states_spec=env.states,
+        actions_spec=env.actions,
+        network_spec=network_spec,
+        batch_size=64
+    )
 
     runner = Runner(agent, env)
 
@@ -115,7 +118,7 @@ resulting observation to the agent.
 
 ```python
 # Get action
-action = agent.act(state, self.episode)
+action = agent.act(state)
 
 # Execute action in the environment
 state, reward, terminal_state = environment.execute(action)

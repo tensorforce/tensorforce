@@ -15,7 +15,8 @@ from the examples folder:
 
 .. code:: bash
 
-    python examples/openai_gym.py CartPole-v0 -a ppo_agent -c examples/configs/ppo_agent.json -n examples/configs/ppo_network.json
+    python examples/openai_gym.py CartPole-v0 -a examples/configs/ppo.json -n examples/configs/mlp2_network.json
+
 
 In python, it could look like this:
 

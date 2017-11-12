@@ -25,7 +25,7 @@ from tensorforce.models import QModel
 
 class QNstepModel(QModel):
     """
-    Deep Q network using n-step rewards as decsribed in Asynchronous Methods for Reinforcement Learning.
+    Deep Q network using n-step rewards as described in Asynchronous Methods for Reinforcement Learning.
     """
 
     def tf_q_delta(self, q_value, next_q_value, terminal, reward):

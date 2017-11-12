@@ -123,7 +123,7 @@ def main():
             actions_spec=environments[0].actions,
             network_spec=network_spec,
             model=agent.model,
-            kwargs=config
+            **config
         )
         agents.append(worker)
 
@@ -167,8 +167,12 @@ def main():
         logger.info('=' * 40)
 
     # Create runners
-    threaded_runner = ThreadedRunner(agents, environments, repeat_actions=1,
-                                     save_path=args.save, save_episodes=args.save_episodes)
+    threaded_runner = ThreadedRunner(
+        agents, environments,
+        repeat_actions=1,
+         save_path=args.save,
+        save_episodes=args.save_episodes
+    )
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environments[0]))
     threaded_runner.run(summary_interval=100, episode_finished=episode_finished, summary_report=summary_report)

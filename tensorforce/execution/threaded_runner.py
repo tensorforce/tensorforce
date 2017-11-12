@@ -160,13 +160,14 @@ def WorkerAgentGenerator(agent_class):
         Worker agent receiving a shared model to avoid creating multiple models.
         """
 
-        def __init__(self, states_spec, actions_spec, network_spec, model=None):
+        def __init__(self, states_spec, actions_spec, network_spec, model=None, **kwargs):
             self.network_spec = network_spec
             self.model = model
+
             super(WorkerAgent, self).__init__(
-                states_spec=states_spec,
-                actions_spec=actions_spec,
-                network_spec=network_spec
+                states_spec,
+                actions_spec,
+                **kwargs
             )
 
         def initialize_model(self, states_spec, actions_spec):

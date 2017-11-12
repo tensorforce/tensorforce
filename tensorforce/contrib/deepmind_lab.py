@@ -13,12 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-DeepMind Lab Integration:
-https://arxiv.org/abs/1612.03801
-https://github.com/deepmind/lab
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -29,6 +23,11 @@ from tensorforce.environments.environment import Environment
 
 
 class DeepMindLab(Environment):
+    """
+    DeepMind Lab Integration:
+    https://arxiv.org/abs/1612.03801
+    https://github.com/deepmind/lab
+    """
     #
     # @staticmethod
     # def state_spec(level_id):
@@ -50,7 +49,13 @@ class DeepMindLab(Environment):
     #     level = deepmind_lab.Lab(level_id, ())
     #     return level.action_spec()
 
-    def __init__(self, level_id, repeat_action=1, state_attribute='RGB_INTERLACED', settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}):
+    def __init__(
+        self,
+        level_id,
+        repeat_action=1,
+        state_attribute='RGB_INTERLACED',
+        settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}
+    ):
         """
         Initialize DeepMind Lab environment.
 
@@ -60,7 +65,9 @@ class DeepMindLab(Environment):
             state_attribute: Attributes which represents the state for this environment, should adhere to the
                 specification given in DeepMindLabEnvironment.state_spec(level_id).
             settings: dict specifying additional settings as key-value string pairs. The following options
-                are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
+                are recognized: 'width' (horizontal resolution of the observation frames), 'height'
+                (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand'
+                (commands for the internal Quake console).
 
         """
         self.level_id = level_id
@@ -73,7 +80,8 @@ class DeepMindLab(Environment):
 
     def close(self):
         """
-        Closes the environment and releases the underlying Quake III Arena instance. No other method calls possible afterwards.
+        Closes the environment and releases the underlying Quake III Arena instance.
+        No other method calls possible afterwards.
         """
         self.level.close()
         self.level = None
@@ -90,7 +98,8 @@ class DeepMindLab(Environment):
 
     def execute(self, actions):
         """
-        Pass action to universe environment, return reward, next step, terminal state and additional info.
+        Pass action to universe environment, return reward, next step, terminal state and
+        additional info.
 
         :param action: action to execute as numpy array, should have dtype np.intc and should adhere to
             the specification given in DeepMindLabEnvironment.action_spec(level_id)

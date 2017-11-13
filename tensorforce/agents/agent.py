@@ -126,7 +126,7 @@ class Agent(object):
             if 'type' not in state:
                 state['type'] = 'float'
 
-            if preprocessing is not None and name in preprocessing and preprocessing[name]:
+            if preprocessing is not None and preprocessing.get(name):
                 state_preprocessing = Preprocessing.from_spec(preprocessing[name])
                 self.preprocessing[name] = state_preprocessing
                 state['shape'] = state_preprocessing.processed_shape(shape=state['shape'])
@@ -160,7 +160,7 @@ class Agent(object):
                 action['shape'] = (action['shape'],)
 
             # Set exploration
-            if exploration is not None and name in exploration and exploration[name]:
+            if exploration is not None and exploration.get(name):
                 self.exploration[name] = Exploration.from_spec(exploration[name])
 
         # reward preprocessing config

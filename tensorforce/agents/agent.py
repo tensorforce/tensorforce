@@ -109,68 +109,59 @@ class Agent(object):
         # States config and preprocessing
         self.preprocessing = dict()
 
-        if 'shape' in states_spec:  # Single-state
+        self.unique_state = False
+        if 'shape' in states_spec.keys():
             self.unique_state = True
-            state = dict(states_spec)
-            self.states_spec = dict(state=state)
-            if isinstance(state['shape'], int):  # Shape: int to unary tuple
-                state['shape'] = (state['shape'],)
-            if 'type' not in state:  # Type: default to float
-                state['type'] = 'float'
-            if preprocessing is not None:
-                preprocessing = Preprocessing.from_spec(spec=preprocessing)
-                self.preprocessing['state'] = preprocessing
-                state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+            states_spec = dict(state=states_spec)
+            preprocessing = dict(state=preprocessing)
 
-        else:  # Multi-state
-            self.unique_state = False
-            self.states_spec = dict(states_spec)
-            for name, state in self.states_spec.items():
-                if isinstance(state['shape'], int):  # Shape: int to unary tuple
-                    state['shape'] = (state['shape'],)
-                if 'type' not in state:  # Type: default to float
-                    state['type'] = 'float'
-                if preprocessing is not None and name in preprocessing:
-                    preprocessing = Preprocessing.from_spec(preprocessing[name])
-                    self.preprocessing[name] = preprocessing
-                    state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+        self.states_spec = states_spec
+
+        for name, state in self.states_spec.items():
+            # Convert int to unary tuple
+            if isinstance(state['shape'], int):
+                state['shape'] = (state['shape'],)
+
+            # Set default type to float
+            if 'type' not in state.keys():
+                state['type'] = 'float'
+
+            if preprocessing is not None and name in preprocessing.keys() and preprocessing[name]:
+                state_preprocessing = Preprocessing.from_spec(preprocessing[name])
+                self.preprocessing[name] = state_preprocessing
+                state['shape'] = state_preprocessing.processed_shape(shape=state['shape'])
 
         # Actions config and exploration
         self.exploration = dict()
 
-        if 'type' in actions_spec:  # Single-action
+        self.unique_action = False
+        if 'type' in actions_spec.keys():
             self.unique_action = True
-            action = dict(actions_spec)
-            self.actions_spec = dict(action=action)
-            if action['type'] == 'int':  # Check required values
-                if 'num_actions' not in action:
+            actions_spec = dict(action=actions_spec)
+            exploration = dict(action=exploration)
+
+        self.actions_spec = actions_spec
+
+        for name, action in self.actions_spec.items():
+            # Check requried values
+            if action['type'] == 'int':
+                if 'num_actions' not in action.keys():
                     raise TensorForceError("Action requires value 'num_actions' set!")
             elif action['type'] == 'float':
-                if ('min_value' in action) != ('max_value' in action):
+                if ('min_value' in action.keys()) != ('max_value' in action):
                     raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
-            if 'shape' not in action:  # Shape: default to empty tuple
-                action['shape'] = ()
-            if isinstance(action['shape'], int):  # Shape: int to unary tuple
-                action['shape'] = (action['shape'],)
-            if exploration is not None:
-                self.exploration['action'] = Exploration.from_spec(exploration)
 
-        else:  # Multi-action
-            self.unique_action = False
-            self.actions_spec = dict(actions_spec)
-            for name, action in self.actions_spec.items():
-                if action['type'] == 'int':  # Check required values
-                    if 'num_actions' not in action:
-                        raise TensorForceError("Action requires value 'num_actions' set!")
-                elif action['type'] == 'float':
-                    if ('min_value' in action) != ('max_value' in action):
-                        raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
-                if 'shape' not in action:  # Shape: default to empty tuple
-                    action['shape'] = ()
-                if isinstance(action['shape'], int):  # Shape: int to unary tuple
-                    action['shape'] = (action['shape'],)
-                if exploration is not None and name in exploration:
-                    self.exploration[name] = Exploration.from_spec(exploration[name])
+            # Set default shape to empty tuple
+            if 'shape' not in action.keys():
+                action['shape'] = ()
+
+            # Convert int to unary tuple
+            if isinstance(action['shape'], int):
+                action['shape'] = (action['shape'],)
+
+            # Set exploration
+            if exploration is not None and name in exploration.keys() and exploration[name]:
+                self.exploration[name] = Exploration.from_spec(exploration[name])
 
         # reward preprocessing config
         if reward_preprocessing is None:

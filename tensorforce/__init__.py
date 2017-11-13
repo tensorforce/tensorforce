@@ -17,7 +17,7 @@
 from tensorforce.exception import TensorForceError
 
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 
 # Libraries shoulld add NullHandler() by default, as its the application code's

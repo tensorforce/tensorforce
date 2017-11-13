@@ -116,6 +116,7 @@ class Model(object):
         """
         Sets up the TensorFlow model graph and initializes the TensorFlow session.
         """
+        default_graph = None
         if self.distributed_spec is None:
             self.global_model = None
             self.graph = tf.Graph()
@@ -428,7 +429,8 @@ class Model(object):
                 stop_grace_period_secs=120  # Default value.
             )
 
-        default_graph.__exit__(None, None, None)
+        if default_graph:
+            default_graph.__exit__(None, None, None)
         self.graph.finalize()
         self.monitored_session.__enter__()
         self.session = self.monitored_session._tf_sess()

@@ -53,7 +53,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorForceError, util
-from tensorforce.core.optimizers import Optimizer, GlobalOptimizer
+from tensorforce.core.optimizers import Optimizer,TFOptimizer, GlobalOptimizer
 
 
 class Model(object):
@@ -709,6 +709,14 @@ class Model(object):
                 reward=reward,
                 update=update
             )
+            if 'gradients' in self.summary_labels:  # Add training variable gradient histograms to summary output
+                if not isinstance(self.optimizer, TFOptimizer):
+                    raise TensorForceError('Gradient Information cannot be found for custom Optimizers, please use TF Optimizer or remove summary label') 
+                gradients = self.optimizer.optimizer.compute_gradients(optimizer_kwargs['fn_loss']())
+                for grad, var in gradients:
+                    if grad is not None:
+                        summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
+                        self.summaries.append(summary)          
             return self.optimizer.minimize(**optimizer_kwargs)
 
     def create_output_operations(self, states, internals, actions, terminal, reward, update, deterministic):

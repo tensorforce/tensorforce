@@ -110,7 +110,7 @@ class Agent(object):
         self.preprocessing = dict()
 
         self.unique_state = False
-        if 'shape' in states_spec.keys():
+        if 'shape' in states_spec:
             self.unique_state = True
             states_spec = dict(state=states_spec)
             preprocessing = dict(state=preprocessing)
@@ -123,10 +123,10 @@ class Agent(object):
                 state['shape'] = (state['shape'],)
 
             # Set default type to float
-            if 'type' not in state.keys():
+            if 'type' not in state:
                 state['type'] = 'float'
 
-            if preprocessing is not None and name in preprocessing.keys() and preprocessing[name]:
+            if preprocessing is not None and preprocessing.get(name):
                 state_preprocessing = Preprocessing.from_spec(preprocessing[name])
                 self.preprocessing[name] = state_preprocessing
                 state['shape'] = state_preprocessing.processed_shape(shape=state['shape'])
@@ -135,7 +135,7 @@ class Agent(object):
         self.exploration = dict()
 
         self.unique_action = False
-        if 'type' in actions_spec.keys():
+        if 'type' in actions_spec:
             self.unique_action = True
             actions_spec = dict(action=actions_spec)
             exploration = dict(action=exploration)
@@ -145,14 +145,14 @@ class Agent(object):
         for name, action in self.actions_spec.items():
             # Check requried values
             if action['type'] == 'int':
-                if 'num_actions' not in action.keys():
+                if 'num_actions' not in action:
                     raise TensorForceError("Action requires value 'num_actions' set!")
             elif action['type'] == 'float':
-                if ('min_value' in action.keys()) != ('max_value' in action):
+                if ('min_value' in action) != ('max_value' in action):
                     raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
 
             # Set default shape to empty tuple
-            if 'shape' not in action.keys():
+            if 'shape' not in action:
                 action['shape'] = ()
 
             # Convert int to unary tuple
@@ -160,7 +160,7 @@ class Agent(object):
                 action['shape'] = (action['shape'],)
 
             # Set exploration
-            if exploration is not None and name in exploration.keys() and exploration[name]:
+            if exploration is not None and exploration.get(name):
                 self.exploration[name] = Exploration.from_spec(exploration[name])
 
         # reward preprocessing config

@@ -973,7 +973,7 @@ class Model(object):
         elif not os.path.isfile(file):
             file = os.path.join(directory, file)
 
-        if not os.path.isfile(file):
-            raise TensorForceError("Invalid model directory/file.")
+        # if not os.path.isfile(file):
+        #     raise TensorForceError("Invalid model directory/file.")
 
         self.scaffold.saver.restore(sess=self.session, save_path=file)

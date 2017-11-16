@@ -115,8 +115,6 @@ def main():
 
     for i in xrange(args.workers - 1):
         config = agent_configs[i]
-        # Use default config from first agent
-        config.default(agent.default_config)
 
         worker = WorkerAgentGenerator(AgentsDictionary[args.agent])(
             states_spec=environments[0].states,

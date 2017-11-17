@@ -17,8 +17,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from copy import deepcopy
 from six.moves import xrange
 from random import random
+
 import numpy as np
 
 from tensorforce import util, TensorForceError
@@ -109,13 +111,12 @@ class Agent(object):
         # States config and preprocessing
         self.preprocessing = dict()
 
-        self.unique_state = False
-        if 'shape' in states_spec:
-            self.unique_state = True
+        self.unique_state = ('shape' in states_spec)
+        if self.unique_state:
             states_spec = dict(state=states_spec)
             preprocessing = dict(state=preprocessing)
 
-        self.states_spec = states_spec
+        self.states_spec = deepcopy(states_spec)
 
         for name, state in self.states_spec.items():
             # Convert int to unary tuple
@@ -126,21 +127,20 @@ class Agent(object):
             if 'type' not in state:
                 state['type'] = 'float'
 
-            if preprocessing is not None and preprocessing.get(name):
-                state_preprocessing = Preprocessing.from_spec(preprocessing[name])
+            if preprocessing is not None and preprocessing.get(name) is not None:
+                state_preprocessing = Preprocessing.from_spec(spec=preprocessing[name])
                 self.preprocessing[name] = state_preprocessing
                 state['shape'] = state_preprocessing.processed_shape(shape=state['shape'])
 
         # Actions config and exploration
         self.exploration = dict()
 
-        self.unique_action = False
-        if 'type' in actions_spec:
-            self.unique_action = True
+        self.unique_action = ('type' in actions_spec)
+        if self.unique_action:
             actions_spec = dict(action=actions_spec)
             exploration = dict(action=exploration)
 
-        self.actions_spec = actions_spec
+        self.actions_spec = deepcopy(actions_spec)
 
         for name, action in self.actions_spec.items():
             # Check requried values
@@ -160,8 +160,8 @@ class Agent(object):
                 action['shape'] = (action['shape'],)
 
             # Set exploration
-            if exploration is not None and exploration.get(name):
-                self.exploration[name] = Exploration.from_spec(exploration[name])
+            if exploration is not None and exploration.get(name) is not None:
+                self.exploration[name] = Exploration.from_spec(spec=exploration[name])
 
         # reward preprocessing config
         if reward_preprocessing is None:

@@ -140,36 +140,6 @@ class Layer(object):
         return layer
 
 
-class Flatten(Layer):
-    """
-    Flatten layer reshaping the input.
-    """
-
-    def __init__(self, scope='flatten', summary_labels=()):
-        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
-
-    def tf_apply(self, x, update):
-        return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
-
-
-class Dropout(Layer):
-    """
-    Dropout layer. If using dropout, add this layer after inputs and after dense layers. For  
-    LSTM, dropout is handled independently as an argument. Not available for Conv2d yet.
-    """
-
-    def __init__(self, rate=0.0, scope='dropout', summary_labels=()):
-        self.rate = rate
-        super(Dropout, self).__init__(scope=scope, summary_labels=summary_labels)
-
-    def tf_apply(self, x, update):
-        return tf.cond(
-            pred=update,
-            true_fn=(lambda: tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))),
-            false_fn=(lambda: x)
-        )
-
-
 class Nonlinearity(Layer):
     """
     Non-linearity layer applying a non-linear transformation.
@@ -225,6 +195,88 @@ class Nonlinearity(Layer):
         return x
 
 
+class Dropout(Layer):
+    """
+    Dropout layer. If using dropout, add this layer after inputs and after dense layers. For  
+    LSTM, dropout is handled independently as an argument. Not available for Conv2d yet.
+    """
+
+    def __init__(self, rate=0.0, scope='dropout', summary_labels=()):
+        self.rate = rate
+        super(Dropout, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        return tf.cond(
+            pred=update,
+            true_fn=(lambda: tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))),
+            false_fn=(lambda: x)
+        )
+
+
+class Flatten(Layer):
+    """
+    Flatten layer reshaping the input.
+    """
+
+    def __init__(self, scope='flatten', summary_labels=()):
+        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
+
+
+class Pool2d(Layer):
+    """
+    2-dimensional pooling layer.
+    """
+
+    def __init__(
+        self,
+        pooling_type='max',
+        window=2,
+        stride=2,
+        padding='SAME',
+        scope='pool2d',
+        summary_labels=()
+    ):
+        """
+        2-dimensional pooling layer.
+
+        Args:
+            pooling_type: Either 'max' or 'average'.
+            window: Pooling window size, either an integer or pair of integers.
+            stride: Pooling stride, either an integer or pair of integers.
+            padding: Pooling padding, one of 'VALID' or 'SAME'.
+        """
+        self.pooling_type = pooling_type
+        if isinstance(window, int):
+            self.window = (1, window, window, 1)
+        elif len(window) == 2:
+            self.window = (1, window[0], window[1], 1)
+        else:
+            raise TensorForceError('Invalid window {} for pool2d layer, must be of size 2'.format(window))
+        if isinstance(stride, int):
+            self.stride = (1, stride, stride, 1)
+        elif len(window) == 2:
+            self.stride = (1, stride[0], stride[1], 1)
+        else:
+            raise TensorForceError('Invalid stride {} for pool2d layer, must be of size 2'.format(stride))
+        self.padding = padding
+        super(Pool2d, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        if self.pooling_type == 'average':
+            x = tf.nn.avg_pool(value=x, ksize=self.window, strides=self.stride, padding=self.padding)
+
+        elif self.pooling_type == 'max':
+            x = tf.nn.max_pool(value=x, ksize=self.window, strides=self.stride, padding=self.padding)
+
+        else:
+            raise TensorForceError('Invalid pooling type: {}'.format(self.name))
+
+        return x
+
+
 class Linear(Layer):
     """
     Linear fully-connected layer.
@@ -250,8 +302,9 @@ class Linear(Layer):
 
     def tf_apply(self, x, update=False):
         if util.rank(x) != 2:
-            raise TensorForceError('Invalid input rank for linear layer: {},'
-                                   ' must be 2.'.format(util.rank(x)))
+            raise TensorForceError(
+                'Invalid input rank for linear layer: {}, must be 2.'.format(util.rank(x))
+            )
 
         if self.size is None:   # If size is None than Output Matches Input, required for Skip Connections
             self.size = x.shape[1].value
@@ -686,10 +739,10 @@ class Conv2d(Layer):
         self.size = size
         if isinstance(window, int):
             self.window = (window, window)
-        elif len(window) != 2:
-            raise TensorForceError('Invalid window {} for conv2d layer, must be of size 2'.format(window))
-        else:
+        elif len(window) == 2:
             self.window = tuple(window)
+        else:
+            raise TensorForceError('Invalid window {} for conv2d layer, must be of size 2'.format(window))
         self.stride = stride
         self.padding = padding
         self.bias = bias

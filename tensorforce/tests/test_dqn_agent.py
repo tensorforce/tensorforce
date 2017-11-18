@@ -37,6 +37,11 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
             type="adam",
             learning_rate=0.002
         ),
+        # exploration=dict(
+        #     type="epsilon_decay",
+        #     initial_epsilon=1,
+        #     final_epsilon=0.1,
+        # ),
         repeat_update=4,
         batch_size=32,
         first_update=64,

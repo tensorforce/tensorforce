@@ -238,8 +238,8 @@ class Agent(object):
 
         # Exploration
         if not deterministic:
-            for name, exploration in self.exploration.items():
 
+            for name, exploration in self.exploration.items():
                 if self.actions_spec[name]['type'] == 'bool':
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
                         shape = self.actions_spec[name]['shape']
@@ -249,7 +249,10 @@ class Agent(object):
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
                         shape = self.actions_spec[name]['shape']
                         num_actions = self.actions_spec[name]['num_actions']
-                        self.current_actions[name] = np.random.randint(low=num_actions, size=shape)
+                        if shape == ():
+                            self.current_actions[name] = np.random.randint(low=num_actions)
+                        else:
+                            self.current_actions[name] = np.random.randint(low=num_actions, size=shape)
 
                 elif self.actions_spec[name]['type'] == 'float':
                     explore = (lambda: exploration(episode=self.episode, timestep=self.timestep))

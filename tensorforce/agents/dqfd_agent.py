@@ -128,7 +128,6 @@ class DQFDAgent(MemoryAgent):
             entropy_regularization:
             target_sync_frequency:
             target_update_weight:
-            double_q_model:
             huber_loss:
             preprocessing:
             exploration:
@@ -175,7 +174,6 @@ class DQFDAgent(MemoryAgent):
         self.entropy_regularization = entropy_regularization
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
-        self.double_q_model = double_q_model
         self.huber_loss = huber_loss
 
         # DQFD always uses double dqn, which is a required key for a q-model.

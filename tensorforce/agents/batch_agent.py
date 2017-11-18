@@ -23,20 +23,8 @@ from tensorforce.agents import Agent
 
 class BatchAgent(Agent):
     """
-    The `BatchAgent` class implements a batch memory, which is cleared after every update.
-
-    Each agent requires the following ``Configuration`` parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    The `BatchAgent` class additionally requires the following parameters:
-
-    * `batch_size`: integer of the batch size.
-    * `keep_last_timestep`: bool optionally keep the last observation for use in the next batch
-
+    The `BatchAgent` class implements a batch memory which generally implies on-policy
+    experience collection and updates.
     """
 
     def __init__(
@@ -50,6 +38,25 @@ class BatchAgent(Agent):
         batch_size,
         keep_last_timestep
     ):
+        """
+
+        Args:
+            states_spec: Dict containing at least one state definition. In the case of a single state,
+               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
+               is a dict itself with a unique name as its key.
+            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
+            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
+                preprocessor is a dict containing a type and optional necessary arguments.
+            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
+                and arguments.
+            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
+            batched_observe: Optional int specifying how many observe calls are batched into one session run.
+                Without batching, throughput will be lower because every `observe` triggers a session invocation to
+                update rewards in the graph.
+            batch_size: Int specifying number of samples collected via `observe` before an update is executed.
+            keep_last_timestep: Boolean flag specifying whether last sample is kept, default True.
+        """
         assert isinstance(batch_size, int) and batch_size > 0
         self.batch_size = batch_size
 

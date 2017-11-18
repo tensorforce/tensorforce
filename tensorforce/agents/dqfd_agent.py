@@ -113,12 +113,18 @@ class DQFDAgent(MemoryAgent):
         This agent uses DQN to pre-train from demonstration data in combination with a supervised loss.
 
         Args:
-            states_spec:
-            actions_spec:
-            network_spec:
-            device:
-            scope:
-            saver_spec:
+            states_spec: Dict containing at least one state definition. In the case of a single state,
+               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
+               is a dict itself with a unique name as its key.
+            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
+            network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
+                such as activation or regularisation. Full examples are in the examples/configs folder.
+            device: Device string specifying model device.
+            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
+            saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
+                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
+                if a model is initially loaded (set to True) from a file `file`.
             summary_spec:
             distributed_spec:
             optimizer:
@@ -130,15 +136,21 @@ class DQFDAgent(MemoryAgent):
             target_sync_frequency:
             target_update_weight:
             huber_loss:
-            preprocessing:
-            exploration:
-            reward_preprocessing:
-            batched_observe:
-            batch_size:
-            memory:
-            first_update:
-            update_frequency:
-            repeat_update:
+            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
+                preprocessor is a dict containing a type and optional necessary arguments.
+            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
+                and arguments.
+            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
+            batched_observe: Optional int specifying how many observe calls are batched into one session run.
+                Without batching, throughput will be lower because every `observe` triggers a session invocation to
+                update rewards in the graph.
+            batch_size: Int specifying batch size used to sample from memory. Should be smaller than memory size.
+            memory: Dict describing memory via `type` (e.g. `replay`) and `capacity`.
+            first_update: Int describing at which time step the first update is performed. Should be larger
+                than batch size.
+            update_frequency: Int specifying number of observe steps to perform until an update is executed.
+            repeat_update: Int specifying how many update steps are performed per update, where each update step implies
+                sampling a batch from the memory and passing it to the model.
             expert_margin:
             supervised_weight:
             demo_memory_capacity:

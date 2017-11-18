@@ -38,53 +38,6 @@ class Agent(object):
     The agent hence acts an intermediate layer between environment
     and backend execution (value function or policy updates).
 
-    Each agent requires the following configuration parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    The configuration is passed to the [Model](#Model) and should thus include its configuration parameters, too.
-
-    Examples:
-
-        One state, one action, two preprecessors, epsilon exploration.
-
-        ```python
-        agent = Agent(Configuration(dict(
-            states=dict(shape=(10,), type='float'),
-            actions=dict(continuous=False, num_actions=6),
-            preprocessing=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
-            exploration=...,
-            # ... model configuration parameters
-        )))
-        ```
-
-        Two states, two actions:
-
-        ```python
-
-        agent = Agent(Configuration(dict(
-            states=dict(
-                state1=dict(shape=(10,), type='float'),
-                state2=dict(shape=(40,20), type='int')
-            ),
-            actions=dict(
-                action1=dict(continuous=True),
-                action2=dict(continuous=False, num_actions=6)
-            ),
-            preprocessing=dict(
-                state1=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
-                state2=None
-            ),
-            exploration=dict(
-                action1=...,
-                action2=...
-            ),
-            # ... model configuration parameters
-        )))
-        ```
     """
 
     def __init__(
@@ -100,12 +53,19 @@ class Agent(object):
         Initializes the reinforcement learning agent.
 
         Args:
-            states_spec:
-            actions_spec:
-            preprocessing:
-            exploration:
-            reward_preprocessing:
-            batched_observe:
+            states_spec: Dict containing at least one state definition. In the case of a single state,
+               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
+               is a dict itself with a unique name as its key.
+            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
+            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
+                preprocessor is a dict containing a type and optional necessary arguments.
+            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
+                and arguments.
+            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
+            batched_observe: Optional int specifying how many observe calls are batched into one session run.
+                Without batching, throughput will be lower because every `observe` triggers a session invocation to
+                update rewards in the graph.
         """
 
         # States config and preprocessing
@@ -163,7 +123,7 @@ class Agent(object):
             if exploration is not None and exploration.get(name) is not None:
                 self.exploration[name] = Exploration.from_spec(spec=exploration[name])
 
-        # reward preprocessing config
+        # Reward preprocessing config
         if reward_preprocessing is None:
             self.reward_preprocessing = None
         else:

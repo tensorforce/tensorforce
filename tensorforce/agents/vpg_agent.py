@@ -27,45 +27,6 @@ class VPGAgent(BatchAgent):
     Vanilla Policy Gradient agent as described by [Sutton et al. (1999)]
     (https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf).
 
-    ### Configuration options
-
-    #### General:
-
-    * `scope`: TensorFlow variable scope name (default: 'vpg')
-
-    #### Hyperparameters:
-
-    * `batch_size`: Positive integer (**mandatory**)
-    * `discount`: Positive float, at most 1.0 (default: 0.99)
-    * `normalize_rewards`: Boolean (default: false)
-    * `entropy_regularization`: None or positive float (default: none)
-    * `gae_lambda`: None or float between 0.0 and 1.0 (default: none)
-
-    #### Optimizer:
-
-    * `optimizer`: Specification dict (default: Adam with learning rate 1e-3)
-
-    #### Baseline:
-
-    * `baseline_mode`: None, or one of 'states' or 'network' specifying the baseline input (default: none)
-    * `baseline`: None or specification dict, or per-state specification for aggregated baseline (default: none)
-    * `baseline_optimizer`: None or specification dict (default: none)
-
-    #### Pre-/post-processing:
-
-    * `state_preprocessing`: None or dict with (default: none)
-    * `exploration`: None or dict with (default: none)
-    * `reward_preprocessing`: None or dict with (default: none)
-
-    #### TensorFlow Summaries:
-    * `summary_logdir`: None or summary directory string (default: none)
-    * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
-        + 'total-loss'
-        + 'losses'
-        + 'variables'
-        + 'activations'
-        + 'relu'
-    * `summary_frequency`: Positive integer (default: 1)
     """
 
     def __init__(
@@ -96,14 +57,21 @@ class VPGAgent(BatchAgent):
         keep_last_timestep=True
     ):
         """
+        Creates a vanilla policy gradient agent.
 
         Args:
-            states_spec:
-            actions_spec:
-            network_spec:
-            device:
-            scope:
-            saver_spec:
+            states_spec: Dict containing at least one state definition. In the case of a single state,
+               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
+               is a dict itself with a unique name as its key.
+            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
+            network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
+                such as activation or regularisation. Full examples are in the examples/configs folder.
+            device: Device string specifying model device.
+            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
+            saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
+                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
+                if a model is initially loaded (set to True) from a file `file`.
             summary_spec:
             distributed_spec:
             optimizer:
@@ -116,12 +84,16 @@ class VPGAgent(BatchAgent):
             baseline:
             baseline_optimizer:
             gae_lambda:
-            preprocessing:
-            exploration:
-            reward_preprocessing:
-            batched_observe:
-            batch_size:
-            keep_last_timestep:
+            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
+                preprocessor is a dict containing a type and optional necessary arguments.
+            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
+                and arguments.
+            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
+            batched_observe: Optional int specifying how many observe calls are batched into one session run.
+                Without batching, throughput will be lower because every `observe` triggers a session invocation to
+                update rewards in the graph.
+            batch_size: Int specifying number of samples collected via `observe` before an update is executed.
+            keep_last_timestep: Boolean flag specifying whether last sample is kept, default True.
         """
         if network_spec is None:
             raise TensorForceError("No network_spec provided.")

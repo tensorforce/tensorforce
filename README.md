@@ -55,7 +55,7 @@ policy methods both continuous/discrete and using a Beta distribution for bounde
 - Vanilla Policy Gradients (VPG/ REINFORCE) - ```vpg_agent```- [paper]()
 - Deep Q-learning from Demonstration (DQFD) -
     [paper](https://arxiv.org/abs/1704.03732)
-- Proximal Policy Optimisation (PPO) - ```ppp_agent``` - [paper](https://arxiv.org/abs/1707.06347)
+- Proximal Policy Optimisation (PPO) - ```ppo_agent``` - [paper](https://arxiv.org/abs/1707.06347)
 - Random and constant agents for sanity checking: ```random_agent```, ```constant_agent```
  
 Other heuristics and their respective config key that can be turned on where sensible:

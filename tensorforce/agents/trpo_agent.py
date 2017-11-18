@@ -74,18 +74,25 @@ class TRPOAgent(BatchAgent):
             saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary_spec:
-            distributed_spec:
-            optimizer:
-            discount:
-            normalize_rewards:
-            variable_noise:
-            distributions_spec:
-            entropy_regularization:
-            baseline_mode:
-            baseline:
-            baseline_optimizer:
-            gae_lambda:
+            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
+                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
+                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
+            distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
+                Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
+                cluster spec.
+            discount: Float specifying reward discount factor.
+            normalize_rewards: Boolean flag specifying whether to normalize rewards, default False.
+            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
+            distributions_spec: Optional dict specifying action distributions to override default distribution choices.
+                Must match action names.
+            entropy_regularization: Optional positive float specifying an entropy regularization value.
+            baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
+                for sharing parameters with the training network.
+            baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
+             examples/configs for full example configurations.
+            baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline
+                following the same conventions as the main optimizer.
+            gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
             preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
                 preprocessor is a dict containing a type and optional necessary arguments.
             exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)

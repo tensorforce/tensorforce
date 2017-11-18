@@ -27,7 +27,7 @@ from tensorforce.models import Model
 
 class DistributionModel(Model):
     """
-    Base class for models using distributions parameterized by a neural network
+    Base class for models using distributions parameterized by a neural network.
     """
 
     def __init__(
@@ -79,7 +79,11 @@ class DistributionModel(Model):
         )
 
         # Distributions
-        self.distributions = self.generate_distributions(self.actions_spec, self.distributions_spec, self.summary_labels)
+        self.distributions = self.generate_distributions(
+            self.actions_spec,
+            self.distributions_spec,
+            self.summary_labels
+        )
 
         # Network internals
         self.internal_inputs.extend(self.network.internal_inputs())

@@ -125,17 +125,24 @@ class DQFDAgent(MemoryAgent):
             saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary_spec:
-            distributed_spec:
-            optimizer:
-            discount:
-            normalize_rewards:
-            variable_noise:
-            distributions_spec:
-            entropy_regularization:
-            target_sync_frequency:
-            target_update_weight:
-            huber_loss:
+            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
+                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
+                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
+            distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
+                Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
+                cluster spec.
+            optimizer: Dict specifying optimizer type and its optional parameters, typically a `learning_rate`.
+                Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
+                and `evolutionary`. Consult the optimizer test or example configurations for more.
+            discount: Float specifying reward discount factor.
+            normalize_rewards: Boolean flag specifying whether to normalize rewards, default False.
+            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
+            distributions_spec: Optional dict specifying action distributions to override default distribution choices.
+                Must match action names.
+            entropy_regularization: Optional positive float specifying an entropy regularization value.
+            target_sync_frequency: Interval between optimization calls synchronizing the target network.
+            target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
+            huber_loss: Optional flat specifying Huber-loss clipping.
             preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
                 preprocessor is a dict containing a type and optional necessary arguments.
             exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
@@ -151,10 +158,11 @@ class DQFDAgent(MemoryAgent):
             update_frequency: Int specifying number of observe steps to perform until an update is executed.
             repeat_update: Int specifying how many update steps are performed per update, where each update step implies
                 sampling a batch from the memory and passing it to the model.
-            expert_margin:
-            supervised_weight:
-            demo_memory_capacity:
-            demo_sampling_ratio:
+            expert_margin: Positive float specifying enforced supervised margin between expert action Q-value and other
+                Q-values.
+            supervised_weight: Weight of supervised loss term.
+            demo_memory_capacity: Int describing capacity of expert demonstration memory.
+            demo_sampling_ratio: Runtime sampling ratio of expert data.
         """
         if network_spec is None:
             raise TensorForceError("No network_spec provided.")

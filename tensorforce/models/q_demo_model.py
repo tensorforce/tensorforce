@@ -16,7 +16,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
 import tensorflow as tf
+
 from tensorforce import util, TensorForceError
 from tensorforce.models import QModel
 
@@ -184,21 +186,46 @@ class QDemoModel(QModel):
 
         return tf.group(demo_optimization, target_optimization)
 
-    def demonstration_update(self, batch):
+    def demonstration_update(self, states, internals, actions, terminal, reward):
         fetches = self.demo_optimization
 
-        feed_dict = {state_input: batch['states'][name] for name, state_input in self.state_inputs.items()}
-        feed_dict.update(
-            {internal_input: batch['internals'][n]
-                for n, internal_input in enumerate(self.internal_inputs)}
-        )
-        feed_dict.update(
-            {action_input: batch['actions'][name]
-                for name, action_input in self.action_inputs.items()}
-        )
-        feed_dict[self.terminal_input] = batch['terminal']
-        feed_dict[self.reward_input] = batch['reward']
+        terminal = np.asarray(terminal)
+        batched = (terminal.ndim == 1)
+        if batched:
+            # TEMP: Random sampling fix
+            if self.random_sampling_fix:
+                feed_dict = {state_input: states[name][0] for name, state_input in self.state_inputs.items()}
+                feed_dict.update({state_input: states[name][1] for name, state_input in self.next_state_inputs.items()})
+            else:
+                feed_dict = {state_input: states[name] for name, state_input in self.state_inputs.items()}
+            feed_dict.update(
+                {internal_input: internals[n]
+                    for n, internal_input in enumerate(self.internal_inputs)}
+            )
+            feed_dict.update(
+                {action_input: actions[name]
+                    for name, action_input in self.action_inputs.items()}
+            )
+            feed_dict[self.terminal_input] = terminal
+            feed_dict[self.reward_input] = reward
+        else:
+            # TEMP: Random sampling fix
+            if self.random_sampling_fix:
+                raise TensorForceError("Unbatched version not covered by fix.")
+            else:
+                feed_dict = {state_input: (states[name],) for name, state_input in self.state_inputs.items()}
+            feed_dict.update(
+                {internal_input: (internals[n],)
+                    for n, internal_input in enumerate(self.internal_inputs)}
+            )
+            feed_dict.update(
+                {action_input: (actions[name],)
+                    for name, action_input in self.action_inputs.items()}
+            )
+            feed_dict[self.terminal_input] = (terminal,)
+            feed_dict[self.reward_input] = (reward,)
 
-        # TODO: summaries? distributed?
+        feed_dict[self.deterministic_input] = True
+        feed_dict[self.update_input] = True
 
-        self.session.run(fetches=fetches, feed_dict=feed_dict)
+        self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)

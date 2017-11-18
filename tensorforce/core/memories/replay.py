@@ -74,6 +74,11 @@ class Replay(Memory):
         if self.random_sampling:
             if next_states:
                 indices = np.random.randint(self.size - 1, size=batch_size)
+                terminal = self.terminal.take(indices)
+                while np.any(terminal):
+                    alternative = np.random.randint(self.size - 1, size=batch_size)
+                    indices = np.where(condition=terminal, x=alternative, y=indices)
+                    terminal = self.terminal.take(indices)
             else:
                 indices = np.random.randint(self.size, size=batch_size)
 
@@ -91,6 +96,7 @@ class Replay(Memory):
             if next_states:
                 end = (self.index - 1 - randrange(self.size - batch_size + 1)) % self.capacity
                 start = (end - batch_size) % self.capacity
+                # TODO: terminal states shouldn't be included
             else:
                 end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
                 start = (end - batch_size) % self.capacity

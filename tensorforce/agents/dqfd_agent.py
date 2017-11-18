@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import division
 
 from six.moves import xrange
+import numpy as np
 
 from tensorforce import TensorForceError
 from tensorforce.agents import MemoryAgent
@@ -248,8 +249,14 @@ class DQFDAgent(MemoryAgent):
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
             for _ in xrange(self.repeat_update):
-                batch = self.demo_memory.get_batch(self.demo_batch_size)
-                self.model.demonstration_update(batch=batch)
+                batch = self.demo_memory.get_batch(batch_size=self.demo_batch_size, next_states=True)
+                self.model.demonstration_update(
+                    states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
+                    internals=batch['internals'],
+                    actions=batch['actions'],
+                    terminal=batch['terminal'],
+                    reward=batch['reward']
+                )
 
     def import_demonstrations(self, demonstrations):
         """
@@ -308,4 +315,10 @@ class DQFDAgent(MemoryAgent):
             batch = self.demo_memory.get_batch(batch_size=self.batch_size, next_states=True)
 
             # Update using both double Q-learning and supervised double_q_loss.
-            self.model.demonstration_update(batch)
+            self.model.demonstration_update(
+                states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
+                internals=batch['internals'],
+                actions=batch['actions'],
+                terminal=batch['terminal'],
+                reward=batch['reward']
+            )

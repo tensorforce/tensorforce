@@ -29,50 +29,7 @@ from tensorforce.models import QDemoModel
 class DQFDAgent(MemoryAgent):
     """
     Deep Q-learning from demonstration (DQFD) agent ([Hester et al., 2017](https://arxiv.org/abs/1704.03732)).
-    This agent uses DQN to pre-train from demonstration data.
-
-    Configuration:
-
-    Each agent requires the following configuration parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    Each model requires the following configuration parameters:
-
-    * `discount`: float of discount factor (gamma).
-    * `learning_rate`: float of learning rate (alpha).
-    * `optimizer`: string of optimizer to use (e.g. 'adam').
-    * `device`: string of tensorflow device name.
-    * `tf_summary`: string directory to write tensorflow summaries. Default None
-    * `tf_summary_level`: int indicating which tensorflow summaries to create.
-    * `tf_summary_interval`: int number of calls to get_action until writing tensorflow summaries on update.
-    * `log_level`: string containing logleve (e.g. 'info').
-    * `distributed`: boolean indicating whether to use distributed tensorflow.
-    * `global_model`: global model.
-    * `session`: session to use.
-
-
-    The `DQFDAgent` class additionally requires the following parameters:
-
-    * `batch_size`: integer of the batch size.
-    * `memory_capacity`: integer of maximum experiences to store.
-    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-    * `min_replay_size`: integer of minimum replay size before the first update.
-    * `update_rate`: float of the update rate (e.g. 0.25 = every 4 steps).
-    * `target_network_update_rate`: float of target network update rate (e.g. 0.01 = every 100 steps).
-    * `use_target_network`: boolean indicating whether to use a target network.
-    * `update_repeat`: integer of how many times to repeat an update.
-    * `update_target_weight`: float of update target weight (tau parameter).
-    * `demo_sampling_ratio`: float, ratio of expert data used at runtime to train from.
-    * `supervised_weight`: float, weight of large margin classifier loss.
-    * `expert_margin`: float of difference in Q-values between expert action and other actions enforced
-                       by the large margin function.
-    * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
-
-
+    This agent uses DQN to pre-train from demonstration data via an additional supervised loss term.
     """
 
     def __init__(

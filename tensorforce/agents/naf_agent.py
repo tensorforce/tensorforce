@@ -24,41 +24,8 @@ from tensorforce.models import QNAFModel
 
 class NAFAgent(MemoryAgent):
     """
-    NAF: https://arxiv.org/abs/1603.00748
+    Normalized Advantage Functions (NAF) for continuous DQN: https://arxiv.org/abs/1603.00748
 
-    ### Configuration options
-
-    #### General:
-
-    * `scope`: TensorFlow variable scope name (default: 'vpg')
-
-    #### Hyperparameters:
-
-    * `batch_size`: Positive integer (**mandatory**)
-    * `learning_rate`: positive float (default: 1e-3)
-    * `discount`: Positive float, at most 1.0 (default: 0.99)
-    * `normalize_rewards`: Boolean (default: false)
-    * `entropy_regularization`: None or positive float (default: none)
-
-    #### Optimizer:
-
-    * `optimizer`: Specification dict (default: Adam with learning rate 1e-3)
-
-    #### Pre-/post-processing:
-
-    * `state_preprocessing`: None or dict with (default: none)
-    * `exploration`: None or dict with (default: none)
-    * `reward_preprocessing`: None or dict with (default: none)
-
-    #### TensorFlow Summaries:
-    * `summary_logdir`: None or summary directory string (default: none)
-    * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
-        + 'total-loss'
-        + 'losses'
-        + 'variables'
-        + 'activations'
-        + 'relu'
-    * `summary_frequency`: Positive integer (default: 1)
     """
 
     def __init__(

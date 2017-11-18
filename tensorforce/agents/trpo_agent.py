@@ -103,16 +103,14 @@ class TRPOAgent(BatchAgent):
                 update rewards in the graph.
             batch_size: Int specifying number of samples collected via `observe` before an update is executed.
             keep_last_timestep: Boolean flag specifying whether last sample is kept, default True.
-            likelihood_ratio_clipping:
-            learning_rate:
-            cg_max_iterations:
-            cg_damping:
-            cg_unroll_loop:
-            ls_max_iterations:
-            ls_accept_ratio:
-            ls_mode:
-            ls_parameter:
-            ls_unroll_loop:
+            likelihood_ratio_clipping: Optional clipping of likelihood ratio between old and new policy.
+            learning_rate: Learning rate which may be interpreted differently according to optimizer, e.g. a natural
+                gradient optimizer interprets the learning rate as the max kl-divergence between old and updated policy.
+            cg_max_iterations: Int > 0 specifying conjugate gradient iterations, typically 10-20 are sufficient to
+                find effective approximate solutions.
+            cg_damping: Conjugate gradient damping value to increase numerical stability.
+            cg_unroll_loop: Boolean indicating whether loop unrolling in TensorFlow is to be used which seems to
+                impact performance negatively at this point, default False.
         """
         if network_spec is None:
             raise TensorForceError("No network_spec provided.")

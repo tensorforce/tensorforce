@@ -26,54 +26,6 @@ class PPOAgent(BatchAgent):
     """
     Proximal Policy Optimization agent ([Schulman et al., 2017]
     (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
-
-    ### Configuration options
-
-    #### General:
-
-    * `scope`: TensorFlow variable scope name (default: 'ppo')
-
-    #### Hyperparameters:
-
-    * `batch_size`: Positive integer (**mandatory**)
-    * `learning_rate`: positive float (default: 1e-4)
-    * `discount`: Positive float, at most 1.0 (default: 0.99)
-    * `entropy_regularization`: None or positive float (default: 0.01)
-    * `gae_lambda`: None or float between 0.0 and 1.0 (default: none)
-    * `normalize_rewards`: Boolean (default: false)
-    * `likelihood_ratio_clipping`: None or positive float (default: 0.2)
-
-    #### Multi-step optimizer:
-
-    * `step_optimizer`: Specification dict (default: Adam with learning rate 1e-4)
-    * `optimization_steps`: positive integer (default: 10)
-
-    #### Baseline:
-
-    * `baseline_mode`: None, or one of 'states' or 'network' specifying the baseline input (default: none)
-    * `baseline`: None or specification dict, or per-state specification for aggregated baseline (default: none)
-    * `baseline_optimizer`: None or specification dict (default: none)
-
-    #### Pre-/post-processing:
-
-    * `state_preprocessing`: None or dict with (default: none)
-    * `exploration`: None or dict with (default: none)
-    * `reward_preprocessing`: None or dict with (default: none)
-
-    #### Logging:
-
-    * `log_level`: Logging level, one of the following values (default: 'info')
-        + 'info', 'debug', 'critical', 'warning', 'fatal'
-
-    #### TensorFlow Summaries:
-    * `summary_logdir`: None or summary directory string (default: none)
-    * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
-        + 'total-loss'
-        + 'losses'
-        + 'variables'
-        + 'activations'
-        + 'relu'
-    * `summary_frequency`: Positive integer (default: 1)
     """
 
     def __init__(
@@ -154,9 +106,11 @@ class PPOAgent(BatchAgent):
                 update rewards in the graph.
             batch_size: Int specifying number of samples collected via `observe` before an update is executed.
             keep_last_timestep: Boolean flag specifying whether last sample is kept, default True.
-            likelihood_ratio_clipping:
-            step_optimizer:
-            optimization_steps:
+            likelihood_ratio_clipping: Optional clipping of likelihood ratio between old and new policy.
+            step_optimizer: Optimizer dict specification for optimizer used in each PPO update step, defaults to
+                Adam if None.
+            optimization_steps: Int specifying number of optimization steps to execute on the collected batch using
+                the step optimizer.                `
         """
         if network_spec is None:
             raise TensorForceError("No network_spec provided.")

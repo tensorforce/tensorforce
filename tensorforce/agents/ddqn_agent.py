@@ -24,80 +24,8 @@ from tensorforce.models import QModel
 
 class DDQNAgent(MemoryAgent):
     """
-    Double DQN Agent based on [Van Hasselt et al.](https://arxiv.org/abs/1509.06461).
-
-    Configuration:
-
-    Each agent requires the following configuration parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    The `MemoryAgent` class additionally requires the following parameters:
-
-    * `batch_size`: integer of the batch size.
-    * `memory_capacity`: integer of maximum experiences to store.
-    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-    * `update_frequency`: integer indicating the number of steps between model updates.
-    * `first_update`: integer indicating the number of steps to pass before the first update.
-    * `repeat_update`: integer indicating how often to repeat the model update.
-
-    Each model requires the following configuration parameters:
-
-    * `discount`: float of discount factor (gamma).
-    * `learning_rate`: float of learning rate (alpha).
-    * `optimizer`: string of optimizer to use (e.g. 'adam').
-    * `device`: string of tensorflow device name.
-    * `tf_summary`: string directory to write tensorflow summaries. Default None
-    * `tf_summary_level`: int indicating which tensorflow summaries to create.
-    * `tf_summary_interval`: int number of calls to get_action until writing tensorflow summaries on update.
-    * `log_level`: string containing logleve (e.g. 'info').
-    * `distributed`: boolean indicating whether to use distributed tensorflow.
-    * `global_model`: global model.
-    * `session`: session to use.
-
-    The DQN agent expects the following additional configuration parameters:
-
-    * `target_update_frequency`: int of states between updates of the target network.
-    * `update_target_weight`: float of update target weight (tau parameter).
-    * `double_q_model`: boolean indicating whether to use a double q-model.
-    * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
-
-    ### Configuration options
-
-    #### General:
-
-    * `scope`: TensorFlow variable scope name (default: 'vpg')
-
-    #### Hyperparameters:
-
-    * `batch_size`: Positive integer (**mandatory**)
-    * `learning_rate`: positive float (default: 1e-3)
-    * `discount`: Positive float, at most 1.0 (default: 0.99)
-    * `normalize_rewards`: Boolean (default: false)
-    * `entropy_regularization`: None or positive float (default: none)
-
-    #### Optimizer:
-
-    * `optimizer`: Specification dict (default: Adam with learning rate 1e-3)
-
-    #### Pre-/post-processing:
-
-    * `state_preprocessing`: None or dict with (default: none)
-    * `exploration`: None or dict with (default: none)
-    * `reward_preprocessing`: None or dict with (default: none)
-
-    #### TensorFlow Summaries:
-    * `summary_logdir`: None or summary directory string (default: none)
-    * `summary_labels`: List of summary labels to be reported, some possible values below (default: 'total-loss')
-        + 'total-loss'
-        + 'losses'
-        + 'variables'
-        + 'activations'
-        + 'relu'
-    * `summary_frequency`: Positive integer (default: 1)
+    Double DQN Agent based on [Van Hasselt et al.](https://arxiv.org/abs/1509.06461). Simple
+    extension to DQN which improves stability.
     """
 
     def __init__(
@@ -130,7 +58,7 @@ class DDQNAgent(MemoryAgent):
             repeat_update=1
     ):
         """
-        Double Q-lerning agent where double-dqn loss is default  enabled.
+        Double Q-learning agent where double-dqn loss is default enabled.
 
         Args:
             states_spec: Dict containing at least one state definition. In the case of a single state,

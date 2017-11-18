@@ -29,7 +29,8 @@ from tensorforce.models.constant_model import ConstantModel
 
 class ConstantAgent(Agent):
     """
-    Constant action agent for sanity checks.
+    Constant action agent for sanity checks. Returns a constant value at every
+    step, useful to debug continuous problems.
     """
 
     def __init__(

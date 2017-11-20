@@ -16,6 +16,7 @@
 from tensorforce.core.preprocessing.preprocessor import Preprocessor
 from tensorforce.core.preprocessing.sequence import Sequence
 from tensorforce.core.preprocessing.standardize import Standardize
+from tensorforce.core.preprocessing.running_standardize import RunningStandardize
 from tensorforce.core.preprocessing.normalize import Normalize
 from tensorforce.core.preprocessing.grayscale import Grayscale
 from tensorforce.core.preprocessing.image_resize import ImageResize
@@ -27,6 +28,7 @@ from tensorforce.core.preprocessing.preprocessing import Preprocessing
 preprocessors = dict(
     sequence=Sequence,
     standardize=Standardize,
+    running_standardize=RunningStandardize,
     normalize=Normalize,
     grayscale=Grayscale,
     image_resize=ImageResize,
@@ -39,6 +41,7 @@ __all__ = [
     'Preprocessor',
     'Sequence',
     'Standardize',
+    'RunningStandardize',
     'Normalize',
     'Grayscale',
     'ImageResize',

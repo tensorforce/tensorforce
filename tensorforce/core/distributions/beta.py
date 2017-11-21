@@ -45,13 +45,12 @@ class Beta(Distribution):
         self.max_value = max_value
         action_size = util.prod(self.shape)
 
-        with tf.name_scope(name=scope):
-            self.alpha = Linear(size=action_size, bias=alpha, scope='alpha')
-            self.beta = Linear(size=action_size, bias=beta, scope='beta')
+        self.alpha = Linear(size=action_size, bias=alpha, scope='alpha')
+        self.beta = Linear(size=action_size, bias=beta, scope='beta')
 
         super(Beta, self).__init__(scope, summary_labels)
 
-    def tf_parameters(self, x):
+    def tf_parameterize(self, x):
         # Softplus to ensure alpha and beta >= 1
         # epsilon < 1.0, hence negative
         log_eps = log(util.epsilon)
@@ -128,9 +127,14 @@ class Beta(Distribution):
 
     def get_variables(self, include_non_trainable=False):
         distribution_variables = super(Beta, self).get_variables(include_non_trainable=include_non_trainable)
-
         alpha_variables = self.alpha.get_variables(include_non_trainable=include_non_trainable)
-
         beta_variables = self.beta.get_variables(include_non_trainable=include_non_trainable)
 
         return distribution_variables + alpha_variables + beta_variables
+
+    def get_summaries(self):
+        distribution_summaries = super(Beta, self).get_summaries()
+        alpha_summaries = self.alpha.get_summaries()
+        beta_summaries = self.beta.get_summaries()
+
+        return distribution_summaries + alpha_summaries + beta_summaries

@@ -18,22 +18,28 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import scipy
 
+from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
 
-class ImageResize(Preprocessor):
+class RunningStandardize(Preprocessor):
     """
-    Resize image to width x height.
+    Standardize state w.r.t past states. Subtract mean and divide by standard deviation of sequence of past states.
     """
-
-    def __init__(self, width, height):
-        super(ImageResize, self).__init__()
-        self.size = (width, height)
+    def __init__(self, axis=None, reset_after_batch=True):
+        self.axis=axis
+        self.reset_after_batch = reset_after_batch
+        self.history = list()
 
     def process(self, state):
-        return scipy.misc.imresize(arr=state.astype(np.uint8), size=self.size)
+        state = state.astype(np.float32)
 
-    def processed_shape(self, shape):
-        return self.size + (shape[-1],)
+        self.history.append(state)
+        history = np.array(self.history)
+
+        return (state - history.mean(axis=self.axis)) / (state.std(axis=self.axis) + util.epsilon)
+
+    def reset(self):
+        if self.reset_after_batch:
+            self.history = list()

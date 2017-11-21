@@ -29,7 +29,7 @@ class Replay(Memory):
     Replay memory to store observations and sample mini batches for training from.
     """
 
-    def __init__(self, states_spec, actions_spec, capacity, random_sampling=False):
+    def __init__(self, states_spec, actions_spec, capacity, random_sampling=True):
         super(Replay, self).__init__(states_spec=states_spec, actions_spec=actions_spec)
         self.capacity = capacity
         self.states = {name: np.zeros((capacity,) + tuple(state['shape']), dtype=util.np_dtype(state['type'])) for name, state in states_spec.items()}
@@ -74,6 +74,11 @@ class Replay(Memory):
         if self.random_sampling:
             if next_states:
                 indices = np.random.randint(self.size - 1, size=batch_size)
+                terminal = self.terminal.take(indices)
+                while np.any(terminal):
+                    alternative = np.random.randint(self.size - 1, size=batch_size)
+                    indices = np.where(condition=terminal, x=alternative, y=indices)
+                    terminal = self.terminal.take(indices)
             else:
                 indices = np.random.randint(self.size, size=batch_size)
 
@@ -91,6 +96,7 @@ class Replay(Memory):
             if next_states:
                 end = (self.index - 1 - randrange(self.size - batch_size + 1)) % self.capacity
                 start = (end - batch_size) % self.capacity
+                # TODO: terminal states shouldn't be included
             else:
                 end = (self.index - randrange(self.size - batch_size + 1)) % self.capacity
                 start = (end - batch_size) % self.capacity

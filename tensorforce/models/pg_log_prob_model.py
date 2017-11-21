@@ -28,12 +28,12 @@ class PGLogProbModel(PGModel):
     Policy gradient model based on computing log likelihoods, e.g. VPG.
     """
 
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
-        embedding = self.network.apply(x=states, internals=internals)
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
 
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))

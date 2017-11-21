@@ -37,23 +37,20 @@ class AggregatedBaseline(Baseline):
             baselines: Dict of per-state baseline specification dicts
         """
 
-        with tf.name_scope(name=scope):
-            self.baselines = dict()
-            for name, baseline_spec in baselines.items():
-                with tf.name_scope(name=(name + '-baseline')):
-                    self.baselines[name] = Baseline.from_spec(
-                        spec=baseline_spec,
-                        kwargs=dict(summary_labels=summary_labels)
-                    )
+        self.baselines = dict()
+        for name, baseline_spec in baselines.items():
+            self.baselines[name] = Baseline.from_spec(
+                spec=baseline_spec,
+                kwargs=dict(summary_labels=summary_labels))
 
-            self.linear = Linear(size=1, bias=0.0, scope='prediction')
+        self.linear = Linear(size=1, bias=0.0, scope='prediction')
 
         super(AggregatedBaseline, self).__init__(scope, summary_labels)
 
-    def tf_predict(self, states):
+    def tf_predict(self, states, update):
         predictions = list()
         for name, state in states.items():
-            prediction = self.baselines[name].predict(states=state)
+            prediction = self.baselines[name].predict(states=state, update=update)
             predictions.append(prediction)
         predictions = tf.stack(values=predictions, axis=1)
         prediction = self.linear.apply(x=predictions)
@@ -81,15 +78,21 @@ class AggregatedBaseline(Baseline):
             return None
 
     def get_variables(self, include_non_trainable=False):
-        baseline_variables = super(AggregatedBaseline, self).get_variables(
-            include_non_trainable=include_non_trainable
-        )
-
+        baseline_variables = super(AggregatedBaseline, self).get_variables(include_non_trainable=include_non_trainable)
         baselines_variables = [
             variable for name in sorted(self.baselines)
             for variable in self.baselines[name].get_variables(include_non_trainable=include_non_trainable)
         ]
-
         linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
 
         return baseline_variables + baselines_variables + linear_variables
+
+    def get_summaries(self):
+        baseline_summaries = super(AggregatedBaseline, self).get_summaries()
+        baselines_summaries = [
+            variable for name in sorted(self.baselines)
+            for variable in self.baselines[name].get_summaries()
+        ]
+        linear_summaries = self.linear.get_summaries()
+
+        return baseline_summaries + baselines_summaries + linear_summaries

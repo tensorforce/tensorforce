@@ -13,11 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Test for examples from the reinforce.io website, blogposts and other examples.
-"""
-
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -47,19 +42,14 @@ class TestTutorialCode(unittest.TestCase):
         Code example from the homepage and README.md.
         """
 
-        from tensorforce import Configuration
         from tensorforce.agents import TRPOAgent
-
-        config = Configuration(
-            batch_size=100,
-        )
 
         # Create a Trust Region Policy Optimization agent
         agent = TRPOAgent(
             states_spec=dict(shape=(10,), type='float'),
             actions_spec=dict(type='int', num_actions=2),
             network_spec=[dict(type='dense', size=50), dict(type='dense', size=50)],
-            config=config
+            batch_size=100,
         )
 
         # Get new data from somewhere, e.g. a client to a web app
@@ -74,7 +64,6 @@ class TestTutorialCode(unittest.TestCase):
 
         # Add experience, agent automatically updates model according to batch size
         agent.observe(reward=reward, terminal=False)
-
         agent.close()
 
     def test_blogpost_introduction(self):
@@ -85,20 +74,7 @@ class TestTutorialCode(unittest.TestCase):
         import numpy as np
 
         ### DQN agent example
-
-        from tensorforce import Configuration
         from tensorforce.agents import DQNAgent
-
-        # The agent is configured with a single configuration object
-        config = Configuration(
-            memory=dict(
-                type='replay',
-                capacity=1000
-            ),
-            batch_size=8,
-            first_update=100,
-            target_sync_frequency=10
-        )
 
         # Network is an ordered list of layers
         network_spec = [dict(type='dense', size=32), dict(type='dense', size=32)]
@@ -113,7 +89,13 @@ class TestTutorialCode(unittest.TestCase):
             states_spec=states,
             actions_spec=actions,
             network_spec=network_spec,
-            config=config
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
+            batch_size=8,
+            first_update=100,
+            target_sync_frequency=10
         )
 
         agent.close()
@@ -192,7 +174,7 @@ class TestTutorialCode(unittest.TestCase):
                 super(BatchNormalization, self).__init__(scope=scope, summary_labels=summary_labels)
                 self.variance_epsilon = variance_epsilon
 
-            def tf_apply(self, x):
+            def tf_apply(self, x, update):
                 mean, variance = tf.nn.moments(x, axes=tuple(range(x.shape.ndims - 1)))
                 return tf.nn.batch_normalization(
                     x=x,
@@ -210,18 +192,16 @@ class TestTutorialCode(unittest.TestCase):
             {'type': 'dense', 'size': 32},
             {'type': BatchNormalization, 'variance_epsilon': 1e-9}
         ]
-        config = Configuration(
+
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_spec,
             memory=dict(
                 type='replay',
                 capacity=1000
             ),
             batch_size=8
-        )
-        agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
-            config=config
         )
 
         agent.close()
@@ -231,7 +211,7 @@ class TestTutorialCode(unittest.TestCase):
 
         class CustomNetwork(Network):
 
-            def tf_apply(self, x, internals, return_internals=False):
+            def tf_apply(self, x, internals, update, return_internals=False):
                 image = x['image']  # 64x64x3-dim, float
                 caption = x['caption']  # 20-dim, int
                 initializer = tf.random_normal_initializer(mean=0.0, stddev=0.01, dtype=tf.float32)
@@ -269,18 +249,16 @@ class TestTutorialCode(unittest.TestCase):
             image=dict(shape=(64, 64, 3), type='float'),
             caption=dict(shape=(20,), type='int')
         )
-        config = Configuration(
+
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=CustomNetwork,
             memory=dict(
                 type='replay',
                 capacity=1000
             ),
             batch_size=8
-        )
-        agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=CustomNetwork,
-            config=config
         )
 
         agent.close()
@@ -294,7 +272,7 @@ class TestTutorialCode(unittest.TestCase):
                 self.size = size
                 super(Lstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
 
-            def tf_apply(self, x, state):
+            def tf_apply(self, x, update, state):
                 state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
                 self.lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
 
@@ -315,19 +293,16 @@ class TestTutorialCode(unittest.TestCase):
             {'type': 'flatten'},
             {'type': Lstm, 'size': 10}
         ]
-        config = Configuration(
-            memory=dict(
-                type='replay',
-                capacity=1000
-            ),
-            batch_size=8
-        )
 
         agent = DQNAgent(
             states_spec=states,
             actions_spec=actions,
             network_spec=network_spec,
-            config=config
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
+            batch_size=8
         )
 
         agent.close()
@@ -344,14 +319,20 @@ class TestTutorialCode(unittest.TestCase):
                 type='grayscale'
             ),
             dict(
-                type='center'
+                type='normalize'
             ),
             dict(
                 type='sequence',
                 length=4
             )
         ]
-        config = Configuration(
+
+        ### Test preprocessing configuration
+
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_spec,
             memory=dict(
                 type='replay',
                 capacity=1000
@@ -360,15 +341,6 @@ class TestTutorialCode(unittest.TestCase):
             first_update=100,
             target_sync_frequency=50,
             preprocessing=preprocessing
-        )
-
-        ### Test preprocessing configuration
-
-        agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
-            config=config
         )
 
         agent.close()
@@ -381,22 +353,18 @@ class TestTutorialCode(unittest.TestCase):
             mu=0,
             theta=0.1
         )
-        config = Configuration(
+
+         ### Test continuous action exploration
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_spec,
             memory=dict(
                 type='replay',
                 capacity=1000
             ),
             batch_size=8,
             exploration=exploration
-        )
-
-        ### Test continuous action exploration
-
-        agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
-            config=config
         )
 
         agent.close()
@@ -405,11 +373,16 @@ class TestTutorialCode(unittest.TestCase):
 
         exploration = dict(
             type='epsilon_decay',
-            epsilon=1,
-            epsilon_final=0.01,
-            epsilon_timesteps=1e6
+            initial_epsilon=1.0,
+            final_epsilon=0.01,
+            timesteps=1e6
         )
-        config = Configuration(
+
+        ### Test discrete action exploration
+        agent = DQNAgent(
+            states_spec=states,
+            actions_spec=actions,
+            network_spec=network_spec,
             memory=dict(
                 type='replay',
                 capacity=1000
@@ -418,18 +391,9 @@ class TestTutorialCode(unittest.TestCase):
             exploration=exploration
         )
 
-        ### Test discrete action exploration
-        agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
-            config=config
-        )
-
         agent.close()
 
     def test_blogpost_introduction_runner(self):
-        from tensorforce.config import Configuration
         from tensorforce.environments.minimal_test import MinimalTest
         from tensorforce.agents import DQNAgent
         from tensorforce.execution import Runner
@@ -439,7 +403,11 @@ class TestTutorialCode(unittest.TestCase):
         network_spec = [
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+
+        agent = DQNAgent(
+            states_spec=environment.states,
+            actions_spec=environment.actions,
+            network_spec=network_spec,
             memory=dict(
                 type='replay',
                 capacity=1000
@@ -447,13 +415,6 @@ class TestTutorialCode(unittest.TestCase):
             batch_size=8,
             first_update=100,
             target_sync_frequency=50
-        )
-
-        agent = DQNAgent(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec,
-            config=config
         )
         runner = Runner(agent=agent, environment=environment)
 
@@ -471,7 +432,13 @@ class TestTutorialCode(unittest.TestCase):
             states_spec=environment.states,
             actions_spec=environment.actions,
             network_spec=network_spec,
-            config=config
+            memory=dict(
+                type='replay',
+                capacity=1000
+            ),
+            batch_size=8,
+            first_update=100,
+            target_sync_frequency=50
         )
 
         # max_episodes = 1000

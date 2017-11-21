@@ -5,6 +5,23 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+11th November 2017
+
+- BREAKING: We removed the Configuration object. Most users feel named arguments are far more
+  comfortable to handle. Agents are now created specifying all non-default paremeters explicitly,
+  see quickstart examples. 
+- Agents are now specified as part of the configuration via a 'type', e.g. "type" : "dqn_agent" 
+
+8th November 2017
+
+- Layers/networks/etc now take an additional argument `update` in `tf_apply`, a boolean tensor indicating whether the call happens during an update.
+
+7th November 2017
+
+- New saver/summary/distributed config interface via entries `saver_spec`, `summary_spec`, `distributed_spec`.
+- The first two require at least a `directory` value.
+- Automatically periodically saves model/summaries with `seconds` in respective `_spec` set.
+
 22nd October 2017
 
 - BREAKING: We released a complete redesign including our new optimization module. Optimizers

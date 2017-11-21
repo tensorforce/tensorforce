@@ -37,16 +37,18 @@ class NetworkBaseline(Baseline):
         Args:
             network_spec: Network specification dict
         """
-        with tf.name_scope(name=scope):
-            self.network = Network.from_spec(spec=network_spec)
-            assert len(self.network.internal_inputs()) == 0
+        self.network = Network.from_spec(
+            spec=network_spec,
+            kwargs=dict(summary_labels=summary_labels)
+        )
+        assert len(self.network.internal_inputs()) == 0
 
-            self.linear = Linear(size=1, bias=0.0, scope='prediction')
+        self.linear = Linear(size=1, bias=0.0, scope='prediction')
 
         super(NetworkBaseline, self).__init__(scope, summary_labels)
 
-    def tf_predict(self, states):
-        embedding = self.network.apply(x=states)
+    def tf_predict(self, states, update):
+        embedding = self.network.apply(x=states, internals=(), update=update)
         prediction = self.linear.apply(x=embedding)
         return tf.squeeze(input=prediction, axis=1)
 
@@ -77,12 +79,15 @@ class NetworkBaseline(Baseline):
             return None
 
     def get_variables(self, include_non_trainable=False):
-        baseline_variables = super(NetworkBaseline, self).get_variables(
-            include_non_trainable=include_non_trainable
-        )
-
+        baseline_variables = super(NetworkBaseline, self).get_variables(include_non_trainable=include_non_trainable)
         network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
-
         layer_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
 
         return baseline_variables + network_variables + layer_variables
+
+    def get_summaries(self):
+        baseline_summaries = super(NetworkBaseline, self).get_summaries()
+        network_summaries = self.network.get_summaries()
+        layer_summaries = self.linear.get_summaries()
+
+        return baseline_summaries + network_summaries + layer_summaries

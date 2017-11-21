@@ -17,6 +17,7 @@ import importlib
 import logging
 import numpy as np
 import tensorflow as tf
+from tensorflow.core.util.event_pb2 import SessionLog
 
 from tensorforce import TensorForceError
 
@@ -152,9 +153,13 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
     if predefined_objects is not None and obj in predefined_objects:
         obj = predefined_objects[obj]
     elif isinstance(obj, str):
-        module_name, function_name = obj.rsplit('.', 1)
-        module = importlib.import_module(module_name)
-        obj = getattr(module, function_name)
+        if obj.find('.') != -1:
+            module_name, function_name = obj.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            obj = getattr(module, function_name)
+        else:
+            predef_obj_keys = list(predefined_objects.keys())
+            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(obj,predef_obj_keys))
     elif callable(obj):
         pass
     elif default_object is not None:
@@ -165,3 +170,39 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
         return obj
 
     return obj(*args, **kwargs)
+
+
+class UpdateSummarySaverHook(tf.train.SummarySaverHook):
+
+    def __init__(self, update_input, *args, **kwargs):
+        super(UpdateSummarySaverHook, self).__init__(*args, **kwargs)
+        self.update_input = update_input
+
+    def before_run(self, run_context):
+        self._request_summary = run_context.original_args[1] is not None and \
+            run_context.original_args[1].get(self.update_input, False) and \
+            (self._next_step is None or self._timer.should_trigger_for_step(self._next_step))
+        requests = {'global_step': self._global_step_tensor}
+        if self._request_summary:
+            if self._get_summary_op() is not None:
+                requests['summary'] = self._get_summary_op()
+        return tf.train.SessionRunArgs(requests)
+
+    def after_run(self, run_context, run_values):
+        if not self._summary_writer:
+            return
+
+        stale_global_step = run_values.results["global_step"]
+        global_step = stale_global_step + 1
+        if self._next_step is None or self._request_summary:
+            global_step = run_context.session.run(self._global_step_tensor)
+
+        if self._next_step is None:
+            self._summary_writer.add_session_log(SessionLog(status=SessionLog.START), global_step)
+
+        if "summary" in run_values.results:
+            self._timer.update_last_triggered_step(global_step)
+            for summary in run_values.results["summary"]:
+                self._summary_writer.add_summary(summary, global_step)
+
+        self._next_step = global_step + 1

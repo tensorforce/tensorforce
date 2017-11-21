@@ -19,23 +19,71 @@ from __future__ import division
 
 from six.moves import xrange
 
+import numpy as np
+
 from tensorforce.agents import Agent
 from tensorforce.core.memories import Memory
 
 
 class MemoryAgent(Agent):
     """
-    The `MemoryAgent` class implements a replay memory, from which it samples batches to update the value function.
+    The `MemoryAgent` class implements a replay memory from
+    which it samples batches according to some sampling strategy to
+    update the value function.
     """
 
-    def __init__(self, states_spec, actions_spec, config):
-        self.memory_spec = config.memory
-        self.batch_size = config.batch_size
-        self.first_update = config.first_update
-        self.update_frequency = config.update_frequency
-        self.repeat_update = config.repeat_update
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
+        batched_observe,
+        batch_size,
+        memory,
+        first_update,
+        update_frequency,
+        repeat_update
+    ):
+        """
 
-        super(MemoryAgent, self).__init__(states_spec=states_spec, actions_spec=actions_spec, config=config)
+        Args:
+            states_spec: Dict containing at least one state definition. In the case of a single state,
+               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
+               is a dict itself with a unique name as its key.
+            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
+            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
+                preprocessor is a dict containing a type and optional necessary arguments.
+            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
+                and arguments.
+            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
+            batched_observe: Optional int specifying how many observe calls are batched into one session run.
+                Without batching, throughput will be lower because every `observe` triggers a session invocation to
+                update rewards in the graph.
+            batch_size: Int specifying batch size used to sample from memory. Should be smaller than memory size.
+            memory: Dict describing memory via `type` (e.g. `replay`) and `capacity`.
+            first_update: Int describing at which time step the first update is performed. Should be larger
+                than batch size.
+            update_frequency: Int specifying number of observe steps to perform until an update is executed.
+            repeat_update: Int specifying how many update steps are performed per update, where each update step implies
+                sampling a batch from the memory and passing it to the model.
+        """
+        self.memory_spec = memory
+        self.batch_size = batch_size
+        self.first_update = first_update
+        self.update_frequency = update_frequency
+        self.repeat_update = repeat_update
+
+        super(MemoryAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing,
+            batched_observe=batched_observe
+        )
 
         self.memory = Memory.from_spec(
             spec=self.memory_spec,
@@ -57,9 +105,18 @@ class MemoryAgent(Agent):
         )
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
+
             for _ in xrange(self.repeat_update):
                 batch = self.memory.get_batch(batch_size=self.batch_size, next_states=True)
-                loss_per_instance = self.model.update(batch=batch, return_loss_per_instance=True)
+                loss_per_instance = self.model.update(
+                    # TEMP: Random sampling fix
+                    states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
+                    internals=batch['internals'],
+                    actions=batch['actions'],
+                    terminal=batch['terminal'],
+                    reward=batch['reward'],
+                    return_loss_per_instance=True
+                )
                 self.memory.update_batch(loss_per_instance=loss_per_instance)
 
     def import_observations(self, observations):

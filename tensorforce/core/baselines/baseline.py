@@ -36,45 +36,45 @@ class Baseline(object):
         self.all_variables = dict()
         self.summaries = list()
 
-        with tf.name_scope(name=scope):
-            def custom_getter(getter, name, registered=False, **kwargs):
-                variable = getter(name=name, registered=True, **kwargs)
-                if not registered:
-                    self.all_variables[name] = variable
-                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
-                        self.variables[name] = variable
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.all_variables[name] = variable
+                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                    self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
                         self.summaries.append(summary)
-                return variable
+            return variable
 
-            self.predict = tf.make_template(
-                name_='predict',
-                func_=self.tf_predict,
-                custom_getter_=custom_getter
-            )
-            self.loss = tf.make_template(
-                name_='loss',
-                func_=self.tf_loss,
-                custom_getter_=custom_getter
-            )
-            self.regularization_loss = tf.make_template(
-                name_='regularization-loss',
-                func_=self.tf_regularization_loss,
-                custom_getter_=custom_getter
-            )
+        self.predict = tf.make_template(
+            name_=(scope + '/predict'),
+            func_=self.tf_predict,
+            custom_getter_=custom_getter
+        )
+        self.loss = tf.make_template(
+            name_=(scope + '/loss'),
+            func_=self.tf_loss,
+            custom_getter_=custom_getter
+        )
+        self.regularization_loss = tf.make_template(
+            name_=(scope + '/regularization-loss'),
+            func_=self.tf_regularization_loss,
+            custom_getter_=custom_getter
+        )
 
-    def tf_predict(self, states):
+    def tf_predict(self, states, update):
         """
         Creates the TensorFlow operations for predicting the value function of given states.
         Args:
             states: State tensors
+            update: Boolean tensor indicating whether this call happens during an update.
         Returns:
             State value tensor
         """
         raise NotImplementedError
 
-    def tf_loss(self, states, reward):
+    def tf_loss(self, states, reward, update):
         """
         Creates the TensorFlow operations for calculating the L2 loss between predicted
         state values and actual rewards.
@@ -82,10 +82,11 @@ class Baseline(object):
         Args:
             states: State tensors
             reward: Reward tensor
+            update: Boolean tensor indicating whether this call happens during an update.
         Returns:
             Loss tensor
         """
-        prediction = self.predict(states=states)
+        prediction = self.predict(states=states, update=update)
         return tf.nn.l2_loss(t=(prediction - reward))
 
     def tf_regularization_loss(self):

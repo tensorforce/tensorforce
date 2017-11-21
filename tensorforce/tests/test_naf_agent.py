@@ -4,7 +4,6 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
 from tensorforce.agents import NAFAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
@@ -14,7 +13,7 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
     agent = NAFAgent
     deterministic = True
 
-    config = Configuration(
+    kwargs = dict(
         memory=dict(
             type='replay',
             capacity=1000

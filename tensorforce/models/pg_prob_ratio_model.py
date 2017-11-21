@@ -28,16 +28,51 @@ class PGProbRatioModel(PGModel):
     Policy gradient model based on computing likelihood ratios, e.g. TRPO and PPO.
     """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        distributions_spec,
+        entropy_regularization,
+        baseline_mode,
+        baseline,
+        baseline_optimizer,
+        gae_lambda,
+        likelihood_ratio_clipping
+    ):
         # Likelihood ratio clipping
-        assert config.likelihood_ratio_clipping is None or config.likelihood_ratio_clipping > 0.0
-        self.likelihood_ratio_clipping = config.likelihood_ratio_clipping
+        assert likelihood_ratio_clipping is None or likelihood_ratio_clipping > 0.0
+        self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
         super(PGProbRatioModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            baseline_mode=baseline_mode,
+            baseline=baseline,
+            baseline_optimizer=baseline_optimizer,
+            gae_lambda=gae_lambda,
         )
 
     def initialize(self, custom_getter):
@@ -55,11 +90,11 @@ class PGProbRatioModel(PGModel):
             custom_getter_=custom_getter
         )
 
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
-        embedding = self.network.apply(x=states, internals=internals)
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         prob_ratios = list()
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             # works the same?
             # fixed_distr_params = tuple(tf.stop_gradient(input=x) for x in distr_params)
@@ -80,30 +115,31 @@ class PGProbRatioModel(PGModel):
             )
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
-    def tf_reference(self, states, internals, actions):
-        embedding = self.network.apply(x=states, internals=internals)
+    def tf_reference(self, states, internals, actions, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
         for name in sorted(self.distributions):
             distribution = self.distributions[name]
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))
             log_probs.append(log_prob)
         return tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
 
-    def tf_compare(self, states, internals, actions, terminal, reward, reference):
+    def tf_compare(self, states, internals, actions, terminal, reward, update, reference):
         reward = self.fn_reward_estimation(
             states=states,
             internals=internals,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
-        embedding = self.network.apply(x=states, internals=internals)
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
         for name in sorted(self.distributions):
             distribution = self.distributions[name]
-            distr_params = distribution.parameters(x=embedding)
+            distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))
@@ -120,24 +156,26 @@ class PGProbRatioModel(PGModel):
             )
             gain_per_instance = tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
         gain = tf.reduce_mean(input_tensor=gain_per_instance, axis=0)
-        losses = self.fn_regularization_losses(states=states, internals=internals)
+        losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
         if len(losses) > 0:
             gain -= tf.add_n(inputs=list(losses.values()))
         return gain
 
-    def get_optimizer_kwargs(self, states, actions, terminal, reward, internals):
+    def get_optimizer_kwargs(self, states, actions, terminal, reward, internals, update):
         kwargs = super(PGProbRatioModel, self).get_optimizer_kwargs(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
         kwargs['fn_reference'] = (
             lambda: self.reference(
                 states=states,
                 internals=internals,
-                actions=actions
+                actions=actions,
+                update=update
             )
         )
         kwargs['fn_compare'] = (
@@ -147,6 +185,7 @@ class PGProbRatioModel(PGModel):
                 actions=actions,
                 terminal=terminal,
                 reward=reward,
+                update=update,
                 reference=reference
             )
         )

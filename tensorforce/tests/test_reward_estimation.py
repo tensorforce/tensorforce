@@ -19,8 +19,6 @@ from __future__ import division
 
 import unittest
 import numpy as np
-
-from tensorforce import Configuration
 from tensorforce.agents import VPGAgent
 from tensorforce.core.baselines import Baseline
 
@@ -31,7 +29,7 @@ class TestRewardEstimation(unittest.TestCase):
 
     def test_basic(self):
 
-        config = Configuration(
+        kwargs = dict(
             discount=0.75,
             batch_size=8,
             learning_rate=0.001,
@@ -63,7 +61,7 @@ class TestRewardEstimation(unittest.TestCase):
        #self.assertTrue((result == expected).all())
 
     def test_baseline(self):
-        config = Configuration(
+        kwargs = dict(
             discount=0.75,
             batch_size=8,
             learning_rate=0.001,
@@ -93,7 +91,7 @@ class TestRewardEstimation(unittest.TestCase):
         #self.assertTrue((result == expected).all())
 
     def test_gae(self):
-        config = Configuration(
+        kwargs = dict(
             discount=0.75,
             batch_size=8,
             learning_rate=0.001,

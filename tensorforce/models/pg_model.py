@@ -13,13 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
-"""
-The `PGModel` class implements the specified reward estimation. It optionally defines a baseline
-and handles its optimization. It implements the `tf_loss_per_instance` function, but requires
-subclasses to implement `tf_pg_loss_per_instance`.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -32,73 +25,112 @@ from tensorforce.models import DistributionModel
 
 
 class PGModel(DistributionModel):
-    """Base class for policy gradient models."""
+    """
+    Base class for policy gradient models. It optionally defines a baseline
+    and handles its optimization. It implements the `tf_loss_per_instance` function, but requires
+    subclasses to implement `tf_pg_loss_per_instance`.
+    """
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        distributions_spec,
+        entropy_regularization,
+        baseline_mode,
+        baseline,
+        baseline_optimizer,
+        gae_lambda
+    ):
         # Baseline mode
-        assert config.baseline_mode is None or config.baseline_mode in ('states', 'network')
-        self.baseline_mode = config.baseline_mode
+        assert baseline_mode is None or baseline_mode in ('states', 'network')
+        self.baseline_mode = baseline_mode
 
-        with tf.name_scope(name=config.scope):
-            # Baseline
-            if config.baseline is None:
-                assert self.baseline_mode is None
-                self.baseline = None
-
-            elif all(name in states_spec for name in config.baseline):
-                # Implies AggregatedBaseline
-                assert self.baseline_mode == 'states'
-                self.baseline = AggregatedBaseline(baselines=config.baseline)
-
-            else:
-                assert self.baseline_mode is not None
-                self.baseline = Baseline.from_spec(
-                    spec=config.baseline,
-                    kwargs=dict(summary_labels=config.summary_labels)
-                )
-
-            # Baseline optimizer
-            if config.baseline_optimizer is None:
-                self.baseline_optimizer = None
-            else:
-                assert self.baseline_mode is not None
-                self.baseline_optimizer = Optimizer.from_spec(spec=config.baseline_optimizer)
+        self.baseline = baseline
+        self.baseline_optimizer = baseline_optimizer
 
         # Generalized advantage function
-        assert config.gae_lambda is None or (0.0 <= config.gae_lambda <= 1.0 and self.baseline_mode is not None)
-        self.gae_lambda = config.gae_lambda
+        assert gae_lambda is None or (0.0 <= gae_lambda <= 1.0 and self.baseline_mode is not None)
+        self.gae_lambda = gae_lambda
 
         super(PGModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
         )
 
     def initialize(self, custom_getter):
         super(PGModel, self).initialize(custom_getter)
 
+        # Baseline
+        if self.baseline is None:
+            assert self.baseline_mode is None
+            self.baseline = None
+
+        elif all(name in self.states_spec for name in self.baseline):
+            # Implies AggregatedBaseline.
+            assert self.baseline_mode == 'states'
+            self.baseline = AggregatedBaseline(baselines=self.baseline)
+
+        else:
+            assert self.baseline_mode is not None
+            self.baseline = Baseline.from_spec(
+                spec=self.baseline,
+                kwargs=dict(
+                    summary_labels=self.summary_labels
+                )
+            )
+
+        # Baseline optimizer
+        if self.baseline_optimizer is None:
+            self.baseline_optimizer = None
+        else:
+            assert self.baseline_mode is not None
+            self.baseline_optimizer = Optimizer.from_spec(spec=self.baseline_optimizer)
+
         # TODO: Baseline internal states !!! (see target_network q_model)
 
         # Reward estimation
         self.fn_reward_estimation = tf.make_template(
-            name_='reward-estimation',
+            name_=(self.scope + '/reward-estimation'),
             func_=self.tf_reward_estimation,
             custom_getter_=custom_getter
         )
         # PG loss per instance function
         self.fn_pg_loss_per_instance = tf.make_template(
-            name_='pg-loss-per-instance',
+            name_=(self.scope + '/pg-loss-per-instance'),
             func_=self.tf_pg_loss_per_instance,
             custom_getter_=custom_getter
         )
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
         reward = self.fn_reward_estimation(
             states=states,
             internals=internals,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
 
         return self.fn_pg_loss_per_instance(
@@ -106,20 +138,21 @@ class PGModel(DistributionModel):
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            update=update
         )
 
-    def tf_reward_estimation(self, states, internals, terminal, reward):
+    def tf_reward_estimation(self, states, internals, terminal, reward, update):
         if self.baseline_mode is None:
             reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
         else:
             if self.baseline_mode == 'states':
-                state_value = self.baseline.predict(states=states)
+                state_value = self.baseline.predict(states=states, update=update)
 
             elif self.baseline_mode == 'network':
-                embedding = self.network.apply(x=states, internals=internals)
-                state_value = self.baseline.predict(states=embedding)
+                embedding = self.network.apply(x=states, internals=internals, update=update)
+                state_value = self.baseline.predict(states=embedding, update=update)
 
             if self.gae_lambda is None:
                 reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
@@ -136,7 +169,7 @@ class PGModel(DistributionModel):
 
         return reward
 
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward):
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, update):
         """
         Creates the TensorFlow operations for calculating the (policy-gradient-specific) loss per batch
         instance of the given input states and actions, after the specified reward/advantage calculations.
@@ -147,14 +180,19 @@ class PGModel(DistributionModel):
             actions: Dict of action tensors.
             terminal: Terminal boolean tensor.
             reward: Reward tensor.
+            update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:
             Loss tensor.
         """
         raise NotImplementedError
 
-    def tf_regularization_losses(self, states, internals):
-        losses = super(PGModel, self).tf_regularization_losses(states=states, internals=internals)
+    def tf_regularization_losses(self, states, internals, update):
+        losses = super(PGModel, self).tf_regularization_losses(
+            states=states,
+            internals=internals,
+            update=update
+        )
 
         if self.baseline_mode is not None and self.baseline_optimizer is None:
             baseline_regularization_loss = self.baseline.regularization_loss()
@@ -163,8 +201,15 @@ class PGModel(DistributionModel):
 
         return losses
 
-    def tf_optimization(self, states, internals, actions, terminal, reward):
-        optimization = super(PGModel, self).tf_optimization(states, internals, actions, terminal, reward)
+    def tf_optimization(self, states, internals, actions, terminal, reward, update):
+        optimization = super(PGModel, self).tf_optimization(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            update=update
+        )
 
         if self.baseline_optimizer is None:
             return optimization
@@ -173,7 +218,7 @@ class PGModel(DistributionModel):
 
         if self.baseline_mode == 'states':
             def fn_loss():
-                loss = self.baseline.loss(states=states, reward=reward)
+                loss = self.baseline.loss(states=states, reward=reward, update=update)
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
                     return loss
@@ -182,7 +227,11 @@ class PGModel(DistributionModel):
 
         elif self.baseline_mode == 'network':
             def fn_loss():
-                loss = self.baseline.loss(states=self.network.apply(x=states, internals=internals), reward=reward)
+                loss = self.baseline.loss(
+                    states=self.network.apply(x=states, internals=internals, update=update),
+                    reward=reward,
+                    update=update
+                )
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
                     return loss

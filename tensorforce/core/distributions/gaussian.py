@@ -34,13 +34,12 @@ class Gaussian(Distribution):
         self.shape = shape
         action_size = util.prod(self.shape)
 
-        with tf.name_scope(name=scope):
-            self.mean = Linear(size=action_size, bias=mean, scope='mean')
-            self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev')
+        self.mean = Linear(size=action_size, bias=mean, scope='mean')
+        self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev')
 
         super(Gaussian, self).__init__(scope, summary_labels)
 
-    def tf_parameters(self, x):
+    def tf_parameterize(self, x):
         # Flat mean and log standard deviation
         mean = self.mean.apply(x=x)
         log_stddev = self.log_stddev.apply(x=x)
@@ -125,9 +124,14 @@ class Gaussian(Distribution):
 
     def get_variables(self, include_non_trainable=False):
         distribution_variables = super(Gaussian, self).get_variables(include_non_trainable=include_non_trainable)
-
         mean_variables = self.mean.get_variables(include_non_trainable=include_non_trainable)
-
         log_stddev_variables = self.log_stddev.get_variables(include_non_trainable=include_non_trainable)
 
         return distribution_variables + mean_variables + log_stddev_variables
+
+    def get_summaries(self):
+        distribution_summaries = super(Gaussian, self).get_summaries()
+        mean_summaries = self.mean.get_summaries()
+        log_stddev_summaries = self.log_stddev.get_summaries()
+
+        return distribution_summaries + mean_summaries + log_stddev_summaries

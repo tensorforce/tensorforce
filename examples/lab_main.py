@@ -26,17 +26,16 @@ import logging
 import os
 import sys
 import time
+import json
 
 import numpy as np
 
 from tensorforce import TensorForceError
-from tensorforce.agents import agents
-from tensorforce.core.networks import from_json
+from tensorforce.agents import Agent
 
 # This was necessary for bazel, test if can be removed
 logger = logging.getLogger(__name__)
 
-from tensorforce.config import Configuration
 from tensorforce.contrib.deepmind_lab import DeepMindLab
 from tensorforce.execution import Runner
 
@@ -47,9 +46,8 @@ def main():
     # N.b. if ran from within lab, the working directory is something like lab/bazel-out/../../tensorforce
     # Hence, relative paths will not work without first fetching the path of this run file
     parser.add_argument('-id', '--level-id', default='tests/demo_map',help="DeepMind Lab level id")
-    parser.add_argument('-a', '--agent', default='VPGAgent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-config', help="Network configuration file")
+    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
     parser.add_argument('-e', '--episodes', type=int, default=1000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=200, help="Maximum number of timesteps per episode")
     parser.add_argument('-m', '--monitor', help="Save results to this directory")
@@ -70,24 +68,31 @@ def main():
     path = os.path.dirname(__file__)
     if args.agent_config:
         # Use absolute path
-        agent_config = Configuration.from_json(path + args.agent_config, True)
+        agent_config = json.load(path + args.agent_config)
     else:
         raise TensorForceError("No agent configuration provided.")
-    if not args.network_config:
+
+    if not args.network_spec:
         raise TensorForceError("No network configuration provided.")
-    agent_config.default(dict(states=environment.states, actions=environment.actions,
-                              network=from_json(path + args.network_config, True)))
+    else:
+        network_spec = json.load(path + args.network_config)
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)  # configurable!!!
 
-    agent = agents[args.agent](config=agent_config)
-
+    agent = Agent.from_spec(
+        spec=agent_config,
+        kwargs=dict(
+            states_spec=environment.states,
+            actions_spec=environment.actions,
+            network_spec=network_spec
+        )
+    )
     if args.load:
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):
             raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
-        agent.load_model(args.load)
+        agent.restore_model(args.load)
 
     if args.debug:
         logger.info("-" * 16)
@@ -103,7 +108,7 @@ def main():
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):
             raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
-        agent.load_model(args.load)
+        agent.restore_model(args.load)
 
     if args.debug:
         logger.info("-" * 16)

@@ -30,11 +30,11 @@ import time
 import numpy as np
 
 from tensorforce import Configuration
-from tensorforce.agents import agents as AgentsDictionary
+from tensorforce.agents import agents as AgentsDictionary, Agent
 import json
 from tensorforce.execution import ThreadedRunner
 from tensorforce.contrib.ale import ALE
-from tensorforce.execution.threaded_runner import WorkerAgent
+from tensorforce.execution.threaded_runner import WorkerAgentGenerator
 
 """
 To replicate the Asynchronous Methods for Deep Reinforcement Learning paper (https://arxiv.org/abs/1602.01783)
@@ -50,9 +50,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('rom', help="File path of the rom")
-    parser.add_argument('-a', '--agent', help='Agent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-spec', help="Network configuration file")
+    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
     parser.add_argument('-w', '--workers', help="Number of threads to run where the model is shared", type=int, default=16)
     parser.add_argument('-fs', '--frame-skip', help="Number of frames to repeat action", type=int, default=1)
     parser.add_argument('-rap', '--repeat-action-probability', help="Repeat action probability", type=float, default=0.0)
@@ -77,8 +76,7 @@ def main():
                         repeat_action_probability=args.repeat_action_probability,
                         loss_of_life_termination=args.loss_of_life_termination,
                         loss_of_life_reward=args.loss_of_life_reward,
-                        display_screen=args.display_screen) for t in range(args.workers)]
-
+                        display_screen=args.display_screen) for _ in range(args.workers)]
 
     if args.network_spec:
         with open(args.network_spec, 'r') as fp:
@@ -87,46 +85,43 @@ def main():
         network_spec = None
         logger.info("No network configuration provided.")
 
-
     agent_configs = []
     for i in range(args.workers):
-        agent_config = Configuration.from_json(args.agent_config)
+        agent_config = json.loads(args.agent_config)
 
         # Optionally overwrite epsilon final values
         if "exploration" in agent_config and agent_config.exploration["type"] == "epsilon_anneal":
-            # epsilon annealing is based on the global step so divide by the total workers
-            epsilon_timesteps = agent_config.exploration["epsilon_timesteps"] // args.workers
-            agent_config.exploration["epsilon_timesteps"] = epsilon_timesteps
             if args.epsilon_annealing:
                 # epsilon final values are [0.5, 0.1, 0.01] with probabilities [0.3, 0.4, 0.3]
                 epsilon_final = np.random.choice([0.5, 0.1, 0.01], p=[0.3, 0.4, 0.3])
                 agent_config.exploration["epsilon_final"] = epsilon_final
-
 
         agent_configs.append(agent_config)
 
     # Let the first agent create the model
     # Manually assign model
     logger.info(agent_configs[0])
-    agent = AgentsDictionary[args.agent](
-        states_spec=environments[0].states,
-        actions_spec=environments[0].actions,
-        network_spec=network_spec,
-        config=agent_configs[0]
+
+    agent = Agent.from_spec(
+        spec=agent_configs[0],
+        kwargs=dict(
+            states_spec=environments[0].states,
+            actions_spec=environments[0].actions,
+            network_spec=network_spec
+        )
     )
+
     agents = [agent]
 
     for i in xrange(args.workers - 1):
         config = agent_configs[i]
-        # Use default config from first agent
-        config.default(agent.default_config)
 
-        worker = WorkerAgent(
+        worker = WorkerAgentGenerator(AgentsDictionary[args.agent])(
             states_spec=environments[0].states,
             actions_spec=environments[0].actions,
             network_spec=network_spec,
-            config=config,
-            model=agent.model
+            model=agent.model,
+            **config
         )
         agents.append(worker)
 
@@ -134,12 +129,12 @@ def main():
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):
             raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
-        agent.load_model(args.load)
+        agent.restore_model(args.load)
 
     if args.debug:
         logger.info("-" * 16)
         logger.info("Configuration:")
-        logger.info(agent_config)
+        logger.info(agent_configs[0])
 
     if args.save:
         save_dir = os.path.dirname(args.save)
@@ -153,7 +148,7 @@ def main():
         if args.debug:
             logger.info(
                 "Thread {t}. Finished episode {ep} after {ts} timesteps. Reward {r}".
-                    format(t=stats['thread_id'], ep=stats['episode'], ts=stats['timestep'], r=stats['episode_reward'])
+                format(t=stats['thread_id'], ep=stats['episode'], ts=stats['timestep'], r=stats['episode_reward'])
             )
         return True
 
@@ -170,8 +165,12 @@ def main():
         logger.info('=' * 40)
 
     # Create runners
-    threaded_runner = ThreadedRunner(agents, environments, repeat_actions=1,
-                                     save_path=args.save, save_episodes=args.save_episodes)
+    threaded_runner = ThreadedRunner(
+        agents, environments,
+        repeat_actions=1,
+         save_path=args.save,
+        save_episodes=args.save_episodes
+    )
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environments[0]))
     threaded_runner.run(summary_interval=100, episode_finished=episode_finished, summary_report=summary_report)
@@ -182,4 +181,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

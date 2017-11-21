@@ -128,7 +128,8 @@ class OpenAIUniverse(Environment):
             return dict(
                 # VNCObeservationSpace seems to be hardcoded to 1024x768
                 vision=dict(type='float', shape=(768, 1024, 3))
-                # vision = dict(type=float, shape=(self.env.action_space.screen_shape[1], self.env.action_space.screen_shape[0], 3))
+                # vision = dict(type=float, shape=(self.env.action_space.screen_shape[1],
+                #  self.env.action_space.screen_shape[0], 3))
                 # text=dict(type=str, shape=(1,)) # TODO: implement string states
             )
         elif isinstance(self.env.observation_space, Discrete):

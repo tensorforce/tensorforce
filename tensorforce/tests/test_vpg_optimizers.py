@@ -19,7 +19,6 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
 from tensorforce.agents import VPGAgent
 from tensorforce.environments.minimal_test import MinimalTest
 from tensorforce.tests.base_test import BaseTest
@@ -38,14 +37,14 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='adam',
                 learning_rate=1e-3
             )
         )
-        self.base_test(name='adam', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(name='adam', environment=environment, network_spec=network_spec, **kwargs)
 
     def test_evolutionary(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -53,14 +52,14 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='evolutionary',
                 learning_rate=1e-2
             )
         )
-        self.base_test(name='evolutionary', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(name='evolutionary', environment=environment, network_spec=network_spec, **kwargs)
 
     def test_natural_gradient(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -68,14 +67,14 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='natural_gradient',
                 learning_rate=1e-3
             )
         )
-        self.base_test(name='natural-gradient', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(name='natural-gradient', environment=environment, network_spec=network_spec, **kwargs)
 
     def test_multi_step(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -83,7 +82,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='multi_step',
@@ -93,7 +92,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                 )
             )
         )
-        self.base_test(name='multi-step', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(name='multi-step', environment=environment, network_spec=network_spec, **kwargs)
 
     def test_optimized_step(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -101,7 +100,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        config = Configuration(
+        kwargs = dict(
             batch_size=8,
             optimizer=dict(
                 type='optimized_step',
@@ -111,4 +110,4 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                 )
             )
         )
-        self.base_test(name='optimized-step', environment=environment, network_spec=network_spec, config=config)
+        self.base_test(name='optimized-step', environment=environment, network_spec=network_spec, **kwargs)

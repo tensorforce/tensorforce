@@ -39,12 +39,11 @@ class Categorical(Distribution):
             logits = [log(prob) for _ in range(util.prod(shape)) for prob in probabilities]
         action_size = util.prod(self.shape) * self.num_actions
 
-        with tf.name_scope(name=scope):
-            self.logits = Linear(size=action_size, bias=logits, scope='logits')
+        self.logits = Linear(size=action_size, bias=logits, scope='logits')
 
         super(Categorical, self).__init__(scope, summary_labels)
 
-    def tf_parameters(self, x):
+    def tf_parameterize(self, x):
         # Flat logits
         logits = self.logits.apply(x=x)
 
@@ -126,7 +125,12 @@ class Categorical(Distribution):
 
     def get_variables(self, include_non_trainable=False):
         distribution_variables = super(Categorical, self).get_variables(include_non_trainable=include_non_trainable)
-
         logits_variables = self.logits.get_variables(include_non_trainable=include_non_trainable)
 
         return distribution_variables + logits_variables
+
+    def get_summaries(self):
+        distribution_summaries = super(Categorical, self).get_summaries()
+        logits_summaries = self.logits.get_summaries()
+
+        return distribution_summaries + logits_summaries

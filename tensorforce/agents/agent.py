@@ -17,9 +17,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import logging
+from copy import deepcopy
 from six.moves import xrange
 from random import random
+
 import numpy as np
 
 from tensorforce import util, TensorForceError
@@ -37,152 +38,108 @@ class Agent(object):
     The agent hence acts an intermediate layer between environment
     and backend execution (value function or policy updates).
 
-    Each agent requires the following configuration parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    The configuration is passed to the [Model](#Model) and should thus include its configuration parameters, too.
-
-    Examples:
-
-        One state, one action, two preprecessors, epsilon exploration.
-
-        ```python
-        agent = Agent(Configuration(dict(
-            states=dict(shape=(10,), type='float'),
-            actions=dict(continuous=False, num_actions=6),
-            preprocessing=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
-            exploration=...,
-            # ... model configuration parameters
-        )))
-        ```
-
-        Two states, two actions:
-
-        ```python
-
-        agent = Agent(Configuration(dict(
-            states=dict(
-                state1=dict(shape=(10,), type='float'),
-                state2=dict(shape=(40,20), type='int')
-            ),
-            actions=dict(
-                action1=dict(continuous=True),
-                action2=dict(continuous=False, num_actions=6)
-            ),
-            preprocessing=dict(
-                state1=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
-                state2=None
-            ),
-            exploration=dict(
-                action1=...,
-                action2=...
-            ),
-            # ... model configuration parameters
-        )))
-        ```
     """
 
-    def __init__(self, states_spec, actions_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
+        batched_observe
+    ):
         """
         Initializes the reinforcement learning agent.
 
         Args:
-            model (Model): optional model instance. If not supplied, a new model is created.
-            config (Configuration): configuration object containing at least `states`, `actions`, `preprocessing` and
-                'exploration`.
-
+            states_spec: Dict containing at least one state definition. In the case of a single state,
+               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
+               is a dict itself with a unique name as its key.
+            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
+            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
+                preprocessor is a dict containing a type and optional necessary arguments.
+            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
+                and arguments.
+            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
+            batched_observe: Optional int specifying how many observe calls are batched into one session run.
+                Without batching, throughput will be lower because every `observe` triggers a session invocation to
+                update rewards in the graph.
         """
-        self.logger = logging.getLogger(self.__class__.__name__)  # other name?
-        self.logger.setLevel(util.log_levels[config.log_level])
 
         # States config and preprocessing
         self.preprocessing = dict()
 
-        if 'shape' in states_spec:  # Single-state
-            self.unique_state = True
-            state = dict(states_spec)
-            self.states_spec = dict(state=state)
-            if isinstance(state['shape'], int):  # Shape: int to unary tuple
-                state['shape'] = (state['shape'],)
-            if 'type' not in state:  # Type: default to float
-                state['type'] = 'float'
-            if config.preprocessing is not None:
-                preprocessing = Preprocessing.from_spec(spec=config.preprocessing)
-                self.preprocessing['state'] = preprocessing
-                state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+        self.unique_state = ('shape' in states_spec)
+        if self.unique_state:
+            states_spec = dict(state=states_spec)
+            preprocessing = dict(state=preprocessing)
 
-        else:  # Multi-state
-            self.unique_state = False
-            self.states_spec = dict(states_spec)
-            for name, state in self.states_spec.items():
-                if isinstance(state['shape'], int):  # Shape: int to unary tuple
-                    state['shape'] = (state['shape'],)
-                if 'type' not in state:  # Type: default to float
-                    state['type'] = 'float'
-                if config.preprocessing is not None and name in config.preprocessing:
-                    preprocessing = Preprocessing.from_spec(config.preprocessing[name])
-                    self.preprocessing[name] = preprocessing
-                    state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+        self.states_spec = deepcopy(states_spec)
+
+        for name, state in self.states_spec.items():
+            # Convert int to unary tuple
+            if isinstance(state['shape'], int):
+                state['shape'] = (state['shape'],)
+
+            # Set default type to float
+            if 'type' not in state:
+                state['type'] = 'float'
+
+            if preprocessing is not None and preprocessing.get(name) is not None:
+                state_preprocessing = Preprocessing.from_spec(spec=preprocessing[name])
+                self.preprocessing[name] = state_preprocessing
+                state['shape'] = state_preprocessing.processed_shape(shape=state['shape'])
 
         # Actions config and exploration
         self.exploration = dict()
 
-        if 'type' in actions_spec:  # Single-action
-            self.unique_action = True
-            action = dict(actions_spec)
-            self.actions_spec = dict(action=action)
-            if action['type'] == 'int':  # Check required values
+        self.unique_action = ('type' in actions_spec)
+        if self.unique_action:
+            actions_spec = dict(action=actions_spec)
+            exploration = dict(action=exploration)
+
+        self.actions_spec = deepcopy(actions_spec)
+
+        for name, action in self.actions_spec.items():
+            # Check requried values
+            if action['type'] == 'int':
                 if 'num_actions' not in action:
                     raise TensorForceError("Action requires value 'num_actions' set!")
             elif action['type'] == 'float':
                 if ('min_value' in action) != ('max_value' in action):
                     raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
-            if 'shape' not in action:  # Shape: default to empty tuple
+
+            # Set default shape to empty tuple
+            if 'shape' not in action:
                 action['shape'] = ()
-            if isinstance(action['shape'], int):  # Shape: int to unary tuple
+
+            # Convert int to unary tuple
+            if isinstance(action['shape'], int):
                 action['shape'] = (action['shape'],)
-            if config.exploration is not None:
-                self.exploration['action'] = Exploration.from_spec(config.exploration)
 
-        else:  # Multi-action
-            self.unique_action = False
-            self.actions_spec = dict(actions_spec)
-            for name, action in self.actions_spec.items():
-                if action['type'] == 'int':  # Check required values
-                    if 'num_actions' not in action:
-                        raise TensorForceError("Action requires value 'num_actions' set!")
-                elif action['type'] == 'float':
-                    if ('min_value' in action) != ('max_value' in action):
-                        raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
-                if 'shape' not in action:  # Shape: default to empty tuple
-                    action['shape'] = ()
-                if isinstance(action['shape'], int):  # Shape: int to unary tuple
-                    action['shape'] = (action['shape'],)
-                if config.exploration is not None and name in config.exploration:
-                    self.exploration[name] = Exploration.from_spec(config.exploration[name])
+            # Set exploration
+            if exploration is not None and exploration.get(name) is not None:
+                self.exploration[name] = Exploration.from_spec(spec=exploration[name])
 
-        # reward preprocessing config
-        if config.reward_preprocessing is None:
+        # Reward preprocessing config
+        if reward_preprocessing is None:
             self.reward_preprocessing = None
         else:
-            self.reward_preprocessing = Preprocessing.from_spec(config.reward_preprocessing)
+            self.reward_preprocessing = Preprocessing.from_spec(reward_preprocessing)
 
         self.model = self.initialize_model(
             states_spec=self.states_spec,
             actions_spec=self.actions_spec,
-            config=config
         )
 
-        not_accessed = config.not_accessed()
-        if not_accessed:
-            self.logger.warning("Configuration values not accessed: {}".format(', '.join(not_accessed)))
+        # Batched observe for better performance with Python.
+        self.batched_observe = batched_observe
+        if self.batched_observe is not None:
+            self.observe_terminal = list()
+            self.observe_reward = list()
 
-        self.episode = -1
-        self.timestep = 0
         self.reset()
 
     def __str__(self):
@@ -191,18 +148,17 @@ class Agent(object):
     def close(self):
         self.model.close()
 
-    def initialize_model(self, states_spec, actions_spec, config):
+    def initialize_model(self, states_spec, actions_spec):
         raise NotImplementedError
 
     def reset(self):
-        """Reset agent after episode. Increments internal episode count, internal states and preprocessors.
-
-        Returns:
-            void
-
         """
-        self.episode += 1
-        self.current_internals = self.next_internals = self.model.reset()
+        Reset the agent to its initial state on episode start. Updates internal episode and  
+        timestep counter, internal states,  and resets preprocessors.
+        """
+        self.episode, self.timestep, self.next_internals = self.model.reset()
+        self.current_internals = self.next_internals
+
         for preprocessing in self.preprocessing.values():
             preprocessing.reset()
 
@@ -222,7 +178,6 @@ class Agent(object):
 
         """
 
-        # self.timestep += 1  TODO: SHOULD USE WHAT model.act() returns
         self.current_internals = self.next_internals
 
         if self.unique_state:
@@ -243,8 +198,8 @@ class Agent(object):
 
         # Exploration
         if not deterministic:
-            for name, exploration in self.exploration.items():
 
+            for name, exploration in self.exploration.items():
                 if self.actions_spec[name]['type'] == 'bool':
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
                         shape = self.actions_spec[name]['shape']
@@ -254,7 +209,10 @@ class Agent(object):
                     if random() < exploration(episode=self.episode, timestep=self.timestep):
                         shape = self.actions_spec[name]['shape']
                         num_actions = self.actions_spec[name]['num_actions']
-                        self.current_actions[name] = np.random.randint(low=num_actions, size=shape)
+                        if shape == ():
+                            self.current_actions[name] = np.random.randint(low=num_actions)
+                        else:
+                            self.current_actions[name] = np.random.randint(low=num_actions, size=shape)
 
                 elif self.actions_spec[name]['type'] == 'float':
                     explore = (lambda: exploration(episode=self.episode, timestep=self.timestep))
@@ -285,14 +243,33 @@ class Agent(object):
             terminal: boolean indicating if the episode terminated after the observation.
             reward: scalar reward that resulted from executing the action.
         """
-        self.episode = self.model.observe(terminal=terminal, reward=reward)
-
         self.current_terminal = terminal
-
         if self.reward_preprocessing is None:
             self.current_reward = reward
         else:
             self.current_reward = self.reward_preprocessing.process(reward)
+
+        if self.batched_observe is not None and self.batched_observe > 0:
+            # Batched observe for better performance with Python.
+            self.observe_terminal.append(self.current_terminal)
+            self.observe_reward.append(self.current_reward)
+
+            if self.current_terminal or len(self.observe_terminal) >= self.batched_observe:
+                self.episode = self.model.observe(
+                    terminal=self.observe_terminal,
+                    reward=self.observe_reward
+                )
+                self.observe_terminal = list()
+                self.observe_reward = list()
+
+        else:
+            self.episode = self.model.observe(
+                terminal=self.current_terminal,
+                reward=self.current_reward
+            )
+
+    def should_stop(self):
+        return self.model.monitored_session.should_stop()
 
     def last_observation(self):
         return dict(
@@ -303,36 +280,39 @@ class Agent(object):
             reward=self.current_reward
         )
 
-    def load_model(self, path):
+    def save_model(self, directory=None, append_timestep=True):
         """
-        Loads model from from checkpoint file. Consult the save model documentation to understand how
-        checkpoint paths are created.
+        Save TensorFlow model. If no checkpoint directory is given, the model's default saver  
+        directory is used. Optionally appends current timestep to prevent overwriting previous  
+        checkpoint files. Turn off to be able to load model from the same given path argument as  
+        given here.
 
         Args:
-            path: Path to .ckpt file
+            directory: Optional checkpoint directory.
+            use_global_step:  Appends the current timestep to the checkpoint file if true.
+            If this is set to True, the load path must include the checkpoint timestep suffix.  
+            For example, if stored to models/ and set to true, the exported file will be of the  
+            form models/model.ckpt-X where X is the last timestep saved. The load path must  
+            precisely match this file name. If this option is turned off, the checkpoint will  
+            always overwrite the file specified in path and the model can always be loaded under  
+            this path.
 
         Returns:
-
+            Checkpoint path were the model was saved.
         """
-        self.model.load_model(path)
+        return self.model.save(directory=directory, append_timestep=append_timestep)
 
-    def save_model(self, path, use_global_step=True):
+    def restore_model(self, directory=None, file=None):
         """
-        Stores model in path.
+        Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is  
+        restored. If no checkpoint directory is given, the model's default saver directory is  
+        used (unless file specifies the entire path).
 
         Args:
-            path: Path to checkpoint file
-            use_global_step:  Whether to append the current timestep to the checkpoint path. If this is
-            set to True, the load path must include the checkpoint id. For example, if we store to
-            models/model.ckpt and set global step to true, the exported file will be of the form models/model.ckpt-X
-            where X is the last step saved. The load path must precisely match this file name. If this option
-            is turned off, the checkpoint will always overwrite the file specified in path and the model
-            can always be loaded under this path.
-
-        Returns:
-
+            directory: Optional checkpoint directory.
+            file: Optional checkpoint file, or path if directory not given.
         """
-        self.model.save_model(path, use_global_step)
+        self.model.restore(directory=directory, file=file)
 
     @staticmethod
     def from_spec(spec, kwargs):

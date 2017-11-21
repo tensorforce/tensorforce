@@ -43,35 +43,35 @@ class Layer(object):
         self.all_variables = dict()
         self.summaries = list()
 
-        with tf.name_scope(name=scope):
-            def custom_getter(getter, name, registered=False, **kwargs):
-                variable = getter(name=name, registered=True, **kwargs)
-                if not registered:
-                    self.all_variables[name] = variable
-                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
-                        self.variables[name] = variable
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.all_variables[name] = variable
+                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                    self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
                         self.summaries.append(summary)
-                return variable
+            return variable
 
-            self.apply = tf.make_template(
-                name_='apply',
-                func_=self.tf_apply,
-                custom_getter_=custom_getter
-            )
-            self.regularization_loss = tf.make_template(
-                name_='regularization-loss',
-                func_=self.tf_regularization_loss,
-                custom_getter_=custom_getter
-            )
+        self.apply = tf.make_template(
+            name_=(scope + '/apply'),
+            func_=self.tf_apply,
+            custom_getter_=custom_getter
+        )
+        self.regularization_loss = tf.make_template(
+            name_=(scope + '/regularization-loss'),
+            func_=self.tf_regularization_loss,
+            custom_getter_=custom_getter
+        )
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, update):
         """
         Creates the TensorFlow operations for applying the layer to the given input.
 
         Args:
             x: Layer input tensor.
+            update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:
             Layer output tensor.
@@ -140,18 +140,6 @@ class Layer(object):
         return layer
 
 
-class Flatten(Layer):
-    """
-    Flatten layer reshaping the input.
-    """
-
-    def __init__(self, scope='flatten', summary_labels=()):
-        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
-
-    def tf_apply(self, x):
-        return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
-
-
 class Nonlinearity(Layer):
     """
     Non-linearity layer applying a non-linear transformation.
@@ -167,9 +155,12 @@ class Nonlinearity(Layer):
         self.name = name
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, update):
         if self.name == 'elu':
             x = tf.nn.elu(features=x)
+
+        elif self.name == 'none':
+            x = tf.identity(input=x)
 
         elif self.name == 'relu':
             x = tf.nn.relu(features=x)
@@ -198,11 +189,90 @@ class Nonlinearity(Layer):
         elif self.name == 'tanh':
             x = tf.nn.tanh(x=x)
 
-        elif self.name == 'none':
-            x = tf.identity(input=x)            
-
         else:
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))
+
+        return x
+
+
+class Dropout(Layer):
+    """
+    Dropout layer. If using dropout, add this layer after inputs and after dense layers. For  
+    LSTM, dropout is handled independently as an argument. Not available for Conv2d yet.
+    """
+
+    def __init__(self, rate=0.0, scope='dropout', summary_labels=()):
+        self.rate = rate
+        super(Dropout, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        return tf.cond(
+            pred=update,
+            true_fn=(lambda: tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))),
+            false_fn=(lambda: x)
+        )
+
+
+class Flatten(Layer):
+    """
+    Flatten layer reshaping the input.
+    """
+
+    def __init__(self, scope='flatten', summary_labels=()):
+        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
+
+
+class Pool2d(Layer):
+    """
+    2-dimensional pooling layer.
+    """
+
+    def __init__(
+        self,
+        pooling_type='max',
+        window=2,
+        stride=2,
+        padding='SAME',
+        scope='pool2d',
+        summary_labels=()
+    ):
+        """
+        2-dimensional pooling layer.
+
+        Args:
+            pooling_type: Either 'max' or 'average'.
+            window: Pooling window size, either an integer or pair of integers.
+            stride: Pooling stride, either an integer or pair of integers.
+            padding: Pooling padding, one of 'VALID' or 'SAME'.
+        """
+        self.pooling_type = pooling_type
+        if isinstance(window, int):
+            self.window = (1, window, window, 1)
+        elif len(window) == 2:
+            self.window = (1, window[0], window[1], 1)
+        else:
+            raise TensorForceError('Invalid window {} for pool2d layer, must be of size 2'.format(window))
+        if isinstance(stride, int):
+            self.stride = (1, stride, stride, 1)
+        elif len(window) == 2:
+            self.stride = (1, stride[0], stride[1], 1)
+        else:
+            raise TensorForceError('Invalid stride {} for pool2d layer, must be of size 2'.format(stride))
+        self.padding = padding
+        super(Pool2d, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        if self.pooling_type == 'average':
+            x = tf.nn.avg_pool(value=x, ksize=self.window, strides=self.stride, padding=self.padding)
+
+        elif self.pooling_type == 'max':
+            x = tf.nn.max_pool(value=x, ksize=self.window, strides=self.stride, padding=self.padding)
+
+        else:
+            raise TensorForceError('Invalid pooling type: {}'.format(self.name))
 
         return x
 
@@ -230,10 +300,11 @@ class Linear(Layer):
         self.l1_regularization = l1_regularization
         super(Linear, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, update=False):
         if util.rank(x) != 2:
-            raise TensorForceError('Invalid input rank for linear layer: {},'
-                                   ' must be 2.'.format(util.rank(x)))
+            raise TensorForceError(
+                'Invalid input rank for linear layer: {}, must be 2.'.format(util.rank(x))
+            )
 
         if self.size is None:   # If size is None than Output Matches Input, required for Skip Connections
             self.size = x.shape[1].value
@@ -310,6 +381,7 @@ class Linear(Layer):
             self.weights = self.weights_init
         else:
             self.weights = tf.get_variable(name='W', shape=weights_shape, dtype=tf.float32, initializer=self.weights_init)
+
         x = tf.matmul(a=x, b=self.weights)
 
         if self.bias_init is None:
@@ -320,11 +392,12 @@ class Linear(Layer):
                 self.bias = self.bias_init
             else:
                 self.bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=self.bias_init)
+
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
         return x
 
-    def tf_regularization_losses(self):
+    def tf_regularization_loss(self):
         regularization_loss = super(Linear, self).tf_regularization_loss()
         if regularization_loss is None:
             losses = list()
@@ -385,12 +458,12 @@ class Dense(Layer):
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
-        xl1 = self.linear.apply(x=x)
-        xl1 = self.nonlinearity.apply(x=xl1)
+    def tf_apply(self, x, update):
+        xl1 = self.linear.apply(x=x, update=update)
+        xl1 = self.nonlinearity.apply(x=xl1, update=update)
         if self.skip:
-            xl2 = self.linear_skip.apply(x=xl1)
-            xl2 = self.nonlinearity.apply(x=xl2+x)  #add input back in as skip connection per paper
+            xl2 = self.linear_skip.apply(x=xl1, update=update)
+            xl2 = self.nonlinearity.apply(x=(xl2 + x), update=update)  #add input back in as skip connection per paper
         else:
             xl2 = xl1
 
@@ -427,15 +500,19 @@ class Dense(Layer):
 
     def get_variables(self, include_non_trainable=False):
         layer_variables = super(Dense, self).get_variables(include_non_trainable=include_non_trainable)
-
         linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
-
         if self.skip:
             linear_variables = linear_variables + self.linear_skip.get_variables(include_non_trainable=include_non_trainable)
-
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
         return layer_variables + linear_variables + nonlinearity_variables
+
+    def get_summaries(self):
+        layer_summaries = super(Dense, self).get_summaries()
+        linear_summaries = self.linear.get_summaries()
+        nonlinearity_summaries = self.nonlinearity.get_summaries()
+
+        return layer_summaries + linear_summaries + nonlinearity_summaries
 
 
 class Dueling(Layer):
@@ -466,19 +543,20 @@ class Dueling(Layer):
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
         """
-        # Expectation is broadcast back over advantage values so output is of size 1 
-        self.linear_exp = Linear(size=1, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
-        self.linear_adv = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        # Expectation is broadcast back over advantage values so output is of size 1
+        self.expectation_layer = Linear(size=1, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        self.advantage_layer = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
-        expectation = self.linear_exp.apply(x=x)
-        advantage   = self.linear_adv.apply(x=x)
+    def tf_apply(self, x, update):
+        expectation = self.expectation_layer.apply(x=x, update=update)
+        advantage = self.advantage_layer.apply(x=x, update=update)
+        mean_advantage = tf.reduce_mean(input_tensor=advantage, axis=1, keep_dims=True)
 
-        x = expectation + advantage - tf.reduce_mean(advantage,axis=1,keep_dims=True)
+        x = expectation + advantage - mean_advantage
 
-        x = self.nonlinearity.apply(x=x)
+        x = self.nonlinearity.apply(x=x, update=update)
 
         if 'activations' in self.summary_labels:
             summary = tf.summary.histogram(name='activations', values=x)
@@ -487,16 +565,19 @@ class Dueling(Layer):
         return x
 
     def tf_regularization_loss(self):
-        if super(Dueling, self).tf_regularization_loss() is None:
+        regularization_loss = super(Dueling, self).tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
-            losses = [super(Dueling, self).tf_regularization_loss()]
+            losses = [regularization_loss]
 
-        if self.linear_exp.regularization_loss() is not None:
-            losses.append(self.linear_exp.regularization_loss())
+        regularization_loss = self.expectation_layer.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
-        if self.linear_adv.regularization_loss() is not None:
-            losses.append(self.linear_adv.regularization_loss())            
+        regularization_loss = self.advantage_layer.regularization_loss()
+        if regularization_loss is not None:
+            losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)
@@ -505,13 +586,20 @@ class Dueling(Layer):
 
     def get_variables(self, include_non_trainable=False):
         layer_variables = super(Dueling, self).get_variables(include_non_trainable=include_non_trainable)
-
-        linear_variables_exp = self.linear_exp.get_variables(include_non_trainable=include_non_trainable)
-        linear_variables_adv = self.linear_adv.get_variables(include_non_trainable=include_non_trainable)
-
+        expectation_layer_variables = self.expectation_layer.get_variables(include_non_trainable=include_non_trainable)
+        advantage_layer_variables = self.advantage_layer.get_variables(include_non_trainable=include_non_trainable)
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
-        return layer_variables + linear_variables_exp + linear_variables_adv + nonlinearity_variables
+        return layer_variables + expectation_layer_variables + advantage_layer_variables + nonlinearity_variables
+
+    def get_summaries(self):
+        layer_summaries = super(Dueling, self).get_summaries()
+        expectation_layer_summaries = self.expectation_layer.get_summaries()
+        advantage_layer_summaries = self.advantage_layer.get_summaries()
+        nonlinearity_summaries = self.nonlinearity.get_summaries()
+
+        return layer_summaries + expectation_layer_summaries + advantage_layer_summaries + nonlinearity_summaries
+
 
 class Conv1d(Layer):
     """
@@ -554,7 +642,7 @@ class Conv1d(Layer):
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Conv1d, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, update):
         if util.rank(x) != 3:
             raise TensorForceError('Invalid input rank for conv1d layer: {}, must be 3'.format(util.rank(x)))
 
@@ -570,7 +658,7 @@ class Conv1d(Layer):
             self.bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=bias_init)
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
-        x = self.nonlinearity.apply(x=x)
+        x = self.nonlinearity.apply(x=x, update=update)
 
         if 'activations' in self.summary_labels:
             summary = tf.summary.histogram(name='activations', values=x)
@@ -606,10 +694,15 @@ class Conv1d(Layer):
 
     def get_variables(self, include_non_trainable=False):
         layer_variables = super(Conv1d, self).get_variables(include_non_trainable=include_non_trainable)
-
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
         return layer_variables + nonlinearity_variables
+
+    def get_summaries(self):
+        layer_summaries = super(Conv1d, self).get_summaries()
+        nonlinearity_summaries = self.nonlinearity.get_summaries()
+
+        return layer_summaries + nonlinearity_summaries
 
 
 class Conv2d(Layer):
@@ -646,10 +739,10 @@ class Conv2d(Layer):
         self.size = size
         if isinstance(window, int):
             self.window = (window, window)
-        elif len(window) != 2:
-            raise TensorForceError('Invalid window {} for conv2d layer, must be of size 2'.format(window))
-        else:
+        elif len(window) == 2:
             self.window = tuple(window)
+        else:
+            raise TensorForceError('Invalid window {} for conv2d layer, must be of size 2'.format(window))
         self.stride = stride
         self.padding = padding
         self.bias = bias
@@ -658,7 +751,7 @@ class Conv2d(Layer):
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x):
+    def tf_apply(self, x, update):
         if util.rank(x) != 4:
             raise TensorForceError('Invalid input rank for conv2d layer: {}, must be 4'.format(util.rank(x)))
 
@@ -675,7 +768,7 @@ class Conv2d(Layer):
             self.bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=bias_init)
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
-        x = self.nonlinearity.apply(x=x)
+        x = self.nonlinearity.apply(x=x, update=update)
 
         if 'activations' in self.summary_labels:
             summary = tf.summary.histogram(name='activations', values=x)
@@ -711,10 +804,15 @@ class Conv2d(Layer):
 
     def get_variables(self, include_non_trainable=False):
         layer_variables = super(Conv2d, self).get_variables(include_non_trainable=include_non_trainable)
-
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
         return layer_variables + nonlinearity_variables
+
+    def get_summaries(self):
+        layer_summaries = super(Conv2d, self).get_summaries()
+        nonlinearity_summaries = self.nonlinearity.get_summaries()
+
+        return layer_summaries + nonlinearity_summaries
 
 
 class Lstm(Layer):
@@ -734,7 +832,7 @@ class Lstm(Layer):
         self.dropout = dropout
         super(Lstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
 
-    def tf_apply(self, x, state):
+    def tf_apply(self, x, update, state):
         if util.rank(x) != 2:
             raise TensorForceError('Invalid input rank for lstm layer: {}, must be 2.'.format(util.rank(x)))
 
@@ -743,8 +841,10 @@ class Lstm(Layer):
         state = tf.contrib.rnn.LSTMStateTuple(c=c, h=h)
 
         self.lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
+
         if self.dropout is not None:
-            self.lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=self.lstm_cell, output_keep_prob=(1.0 - self.dropout))
+            keep_prob = tf.cond(pred=update, true_fn=(lambda: 1.0 - self.dropout), false_fn=(lambda: 1.0))
+            self.lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=self.lstm_cell, output_keep_prob=keep_prob)
 
         x, state = self.lstm_cell(inputs=x, state=state)
 

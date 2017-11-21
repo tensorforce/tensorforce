@@ -28,24 +28,64 @@ from tensorforce.core.networks import Linear
 
 class QNAFModel(QModel):
 
-    def __init__(self, states_spec, actions_spec, network_spec, config):
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        network_spec,
+        device,
+        scope,
+        saver_spec,
+        summary_spec,
+        distributed_spec,
+        optimizer,
+        discount,
+        normalize_rewards,
+        variable_noise,
+        distributions_spec,
+        entropy_regularization,
+        target_sync_frequency,
+        target_update_weight,
+        double_q_model,
+        huber_loss,
+        # TEMP: Random sampling fix
+        random_sampling_fix
+    ):
         if any(action['type'] != 'float' or 'min_value' in action or 'max_value' in action for action in actions_spec.values()):
             raise TensorForceError("Only unconstrained float actions valid for NAFModel.")
-
-        with tf.name_scope(name=config.scope):
-            self.state_values = dict()
-            self.l_entries = dict()
-            for name, action in actions_spec.items():
-                num_action = util.prod(action['shape'])
-                self.state_values[name] = Linear(size=num_action, scope=(name + 'state-value'))
-                self.l_entries[name] = Linear(size=(num_action * (num_action - 1) // 2), scope=(name + '-l-entries'))
 
         super(QNAFModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             network_spec=network_spec,
-            config=config
+            device=device,
+            scope=scope,
+            saver_spec=saver_spec,
+            summary_spec=summary_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            discount=discount,
+            normalize_rewards=normalize_rewards,
+            variable_noise=variable_noise,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            target_sync_frequency=target_sync_frequency,
+            target_update_weight=target_update_weight,
+            double_q_model=double_q_model,
+            huber_loss=huber_loss,
+            # TEMP: Random sampling fix
+            random_sampling_fix=random_sampling_fix
         )
+
+    def initialize(self, custom_getter):
+        super(QNAFModel, self).initialize(custom_getter)
+
+        self.state_values = dict()
+        self.l_entries = dict()
+        for name, action in self.actions_spec.items():
+            num_action = util.prod(action['shape'])
+            self.state_values[name] = Linear(size=num_action, scope='state-value')
+            self.l_entries[name] = Linear(size=(num_action * (num_action - 1) // 2), scope='l-entries')
 
     def tf_q_value(self, embedding, distr_params, action, name):
         num_action = util.prod(self.actions_spec[name]['shape'])
@@ -90,8 +130,12 @@ class QNAFModel(QModel):
 
         return tf.reshape(tensor=q_value, shape=((-1,) + self.actions_spec[name]['shape']))
 
-    def tf_regularization_losses(self, states, internals):
-        losses = super(QNAFModel, self).tf_regularization_losses(states=states, internals=internals)
+    def tf_regularization_losses(self, states, internals, update):
+        losses = super(QNAFModel, self).tf_regularization_losses(
+            states=states,
+            internals=internals,
+            update=update
+        )
 
         for state_value in self.state_values.values():
             regularization_loss = state_value.regularization_loss()

@@ -34,12 +34,11 @@ class Bernoulli(Distribution):
         self.shape = shape
         action_size = util.prod(self.shape)
 
-        with tf.name_scope(name=scope):
-            self.logit = Linear(size=action_size, bias=log(probability), scope='logit')
+        self.logit = Linear(size=action_size, bias=log(probability), scope='logit')
 
         super(Bernoulli, self).__init__(scope, summary_labels)
 
-    def tf_parameters(self, x):
+    def tf_parameterize(self, x):
         # Flat logit
         logit = self.logit.apply(x=x)
 
@@ -120,7 +119,12 @@ class Bernoulli(Distribution):
 
     def get_variables(self, include_non_trainable=False):
         distribution_variables = super(Bernoulli, self).get_variables(include_non_trainable=include_non_trainable)
-
         logit_variables = self.logit.get_variables(include_non_trainable=include_non_trainable)
 
         return distribution_variables + logit_variables
+
+    def get_summaries(self):
+        distribution_summaries = super(Bernoulli, self).get_summaries()
+        logit_summaries = self.logit.get_summaries()
+
+        return distribution_summaries + logit_summaries

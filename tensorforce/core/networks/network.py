@@ -39,36 +39,36 @@ class Network(object):
         self.all_variables = dict()
         self.summaries = list()
 
-        with tf.name_scope(name=scope):
-            def custom_getter(getter, name, registered=False, **kwargs):
-                variable = getter(name=name, registered=True, **kwargs)
-                if not registered:
-                    self.all_variables[name] = variable
-                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
-                        self.variables[name] = variable
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.all_variables[name] = variable
+                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                    self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
                         self.summaries.append(summary)
-                return variable
+            return variable
 
-            self.apply = tf.make_template(
-                name_='apply',
-                func_=self.tf_apply,
-                custom_getter_=custom_getter
-            )
-            self.regularization_loss = tf.make_template(
-                name_='regularization-loss',
-                func_=self.tf_regularization_loss,
-                custom_getter_=custom_getter
-            )
+        self.apply = tf.make_template(
+            name_=(scope + '/apply'),
+            func_=self.tf_apply,
+            custom_getter_=custom_getter
+        )
+        self.regularization_loss = tf.make_template(
+            name_=(scope + '/regularization-loss'),
+            func_=self.tf_regularization_loss,
+            custom_getter_=custom_getter
+        )
 
-    def tf_apply(self, x, internals=(), return_internals=False):
+    def tf_apply(self, x, internals, update, return_internals=False):
         """
         Creates the TensorFlow operations for applying the network to the given input.
 
         Args:
-            x: Network input tensor or dict of input tensors
+            x: Network input tensor or dict of input tensors.
             internals: List of prior internal state tensors
+            update: Boolean tensor indicating whether this call happens during an update.
             return_internals: If true, also returns posterior internal state tensors
 
         Returns:
@@ -183,7 +183,6 @@ class LayerBasedNetwork(Network):
         network_variables = super(LayerBasedNetwork, self).get_variables(
             include_non_trainable=include_non_trainable
         )
-
         layer_variables = [
             variable for layer in self.layers
             for variable in layer.get_variables(include_non_trainable=include_non_trainable)
@@ -192,8 +191,10 @@ class LayerBasedNetwork(Network):
         return network_variables + layer_variables
 
     def get_summaries(self):
-        return super(LayerBasedNetwork, self).get_summaries() + \
-            [summary for layer in self.layers for summary in layer.get_summaries()]
+        network_summaries = super(LayerBasedNetwork, self).get_summaries()
+        layer_summaries = [summary for layer in self.layers for summary in layer.get_summaries()]
+
+        return network_summaries + layer_summaries
 
 
 class LayeredNetwork(LayerBasedNetwork):
@@ -212,20 +213,21 @@ class LayeredNetwork(LayerBasedNetwork):
         self.layers_spec = layers_spec
         layer_counter = Counter()
 
-        with tf.name_scope(name=scope):
-            for layer_spec in self.layers_spec:
-                layer = Layer.from_spec(
-                    spec=layer_spec,
-                    kwargs=dict(scope=scope, summary_labels=summary_labels)
-                )
+        for layer_spec in self.layers_spec:
+            if isinstance(layer_spec['type'], str):
+                name = layer_spec['type']
+            else:
+                name = 'layer'
+            scope = name + str(layer_counter[name])
+            layer_counter[name] += 1
 
-                name = layer_spec['type'].__class__.__name__
-                scope = name + str(layer_counter[name])
-                layer_counter[name] += 1
+            layer = Layer.from_spec(
+                spec=layer_spec,
+                kwargs=dict(scope=scope, summary_labels=summary_labels)
+            )
+            self.add_layer(layer=layer)
 
-                self.add_layer(layer=layer)
-
-    def tf_apply(self, x, internals=(), return_internals=False):
+    def tf_apply(self, x, internals, update, return_internals=False):
         if isinstance(x, dict):
             if len(x) != 1:
                 raise TensorForceError('Layered network must have only one input, but {} given.'.format(len(x)))
@@ -236,7 +238,7 @@ class LayeredNetwork(LayerBasedNetwork):
         for layer in self.layers:
             layer_internals = [internals[index + n] for n in range(layer.num_internals)]
             index += layer.num_internals
-            x = layer.apply(x, *layer_internals)
+            x = layer.apply(x, update, *layer_internals)
 
             if not isinstance(x, tf.Tensor):
                 internal_outputs.extend(x[1])

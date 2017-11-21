@@ -19,7 +19,6 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
 from tensorforce.agents import DQNNstepAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
 
@@ -29,7 +28,7 @@ class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
     agent = DQNNstepAgent
     deterministic = True
 
-    config = Configuration(
+    kwargs = dict(
         batch_size=8,
         optimizer=dict(
             type='adam',

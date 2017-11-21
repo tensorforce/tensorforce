@@ -77,7 +77,7 @@ class Replay(Memory):
                 terminal = self.terminal.take(indices)
                 while np.any(terminal):
                     alternative = np.random.randint(self.size - 1, size=batch_size)
-                    indices = np.where(condition=terminal, x=alternative, y=indices)
+                    indices = np.where(terminal, alternative, indices)
                     terminal = self.terminal.take(indices)
             else:
                 indices = np.random.randint(self.size, size=batch_size)

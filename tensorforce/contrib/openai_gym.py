@@ -29,7 +29,7 @@ from tensorforce.environments import Environment
 
 class OpenAIGym(Environment):
 
-    def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0):
+    def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0, visualize=False):
         """
         Initialize OpenAI Gym.
 
@@ -38,10 +38,13 @@ class OpenAIGym(Environment):
             monitor: Output directory. Setting this to None disables monitoring.
             monitor_safe: Setting this to True prevents existing log files to be overwritten. Default False.
             monitor_video: Save a video every monitor_video steps. Setting this to 0 disables recording of videos.
+            visualize: If set True, the program will visualize the trainings of gym's environment. Note that such
+                visualization is probabily going to slow down the training.
         """
 
         self.gym_id = gym_id
         self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
+        self.visualize = visualize
 
         if monitor:
             if monitor_video == 0:
@@ -63,6 +66,8 @@ class OpenAIGym(Environment):
         return self.gym.reset()
 
     def execute(self, actions):
+        if self.visualize:
+            self.gym.render()
         state, reward, terminal, _ = self.gym.step(actions)
         return state, terminal, reward
 

@@ -20,7 +20,7 @@ from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
 # Create an OpenAIgym environment
-env = OpenAIGym('CartPole-v0')
+env = OpenAIGym('CartPole-v0', visualize=True)
 
 # Network as list of layers
 network_spec = [

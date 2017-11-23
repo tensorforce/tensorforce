@@ -53,6 +53,7 @@ policy methods both continuous/discrete and using a Beta distribution for bounde
 - Double-DQN - ```ddqn_agent``` - [paper](https://arxiv.org/abs/1509.06461)
 - N-step DQN - ```dqn_nstep_agent```
 - Vanilla Policy Gradients (VPG/ REINFORCE) - ```vpg_agent```- [paper]()
+- Actor-critic models - via `baseline` for any policy gradient model (see next list) - [paper]()
 - Deep Q-learning from Demonstration (DQFD) -
     [paper](https://arxiv.org/abs/1704.03732)
 - Proximal Policy Optimisation (PPO) - ```ppo_agent``` - [paper](https://arxiv.org/abs/1707.06347)
@@ -63,7 +64,7 @@ Other heuristics and their respective config key that can be turned on where sen
 - Generalized advantage estimation - ```gae_lambda```  - [paper](https://arxiv.org/abs/1506.02438)
 - Prioritizied experience replay - memory type ```prioritized_replay``` - [paper](https://arxiv.org/abs/1511.05952)
 - Bounded continuous actions are mapped to Beta distributions instead of Gaussians - [paper](http://proceedings.mlr.press/v70/chou17a/chou17a.pdf)
-- Baseline modes: Based on raw states (```states```) or on network output (```network```). MLP (```mlp```), CNN (```cnn```) or custom network (```custom```). Special case for mode ```states```: baseline per state + linear combination layer (via ```baseline=dict(state1=..., state2=..., etc)```).
+- Baseline / actor-critic modes: Based on raw states (```states```) or on network output (```network```). MLP (```mlp```), CNN (```cnn```) or custom network (```custom```). Special case for mode ```states```: baseline per state + linear combination layer (via ```baseline=dict(state1=..., state2=..., etc)```).
 - Generic pure TensorFlow optimizers, most models can be used with natural gradient and evolutionary optimizers
 - Preprocessing modes: ```normalize```, ```standardize```, ```grayscale```, ```sequence```, ```clip```,
   ```divide```, ```image_resize```

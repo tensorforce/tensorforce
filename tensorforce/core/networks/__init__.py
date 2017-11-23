@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.networks.layer import Layer, Nonlinearity, Dropout, Flatten, Pool2d, Linear, Dense, Dueling, Conv1d, Conv2d, Lstm
+from tensorforce.core.networks.layer import Layer, Nonlinearity, Dropout, Flatten, Pool2d, Embedding, Linear, Dense, Dueling, Conv1d, Conv2d, Lstm
 from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
 
 
@@ -22,6 +22,7 @@ layers = dict(
     dropout=Dropout,
     flatten=Flatten,
     pool2d=Pool2d,
+    embedding=Embedding,
     linear=Linear,
     dense=Dense,
     dueling=Dueling,

@@ -277,6 +277,57 @@ class Pool2d(Layer):
         return x
 
 
+class Embedding(Layer):
+    """
+    Embedding layer.
+    """
+
+    def __init__(self, indices, size, l2_regularization=0.0, l1_regularization=0.0, scope='embedding', summary_labels=()):
+        """
+        Embedding layer.
+
+        Args:
+            indices: Number of embedding indices.
+            size: Embedding size.
+            l2_regularization: L2 regularization weight.
+            l1_regularization: L1 regularization weight.
+        """
+        self.indices = indices
+        self.size = size
+        self.l2_regularization = l2_regularization
+        self.l1_regularization = l1_regularization
+        super(Embedding, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        stddev = min(0.1, sqrt(1.0 / self.size))
+        weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
+        self.weights = tf.get_variable(
+            name='embeddings',
+            shape=(self.indices, self.size),
+            dtype=tf.float32,
+            initializer=weights_init
+        )
+        return tf.nn.embedding_lookup(params=self.weights, ids=x)
+
+    def tf_regularization_loss(self):
+        regularization_loss = super(Embedding, self).tf_regularization_loss()
+        if regularization_loss is None:
+            losses = list()
+        else:
+            losses = [regularization_loss]
+
+        if self.l2_regularization > 0.0:
+            losses.append(self.l2_regularization * tf.nn.l2_loss(t=self.weights))
+
+        if self.l1_regularization > 0.0:
+            losses.append(self.l1_regularization * tf.reduce_sum(input_tensor=tf.abs(x=self.weights)))
+
+        if len(losses) > 0:
+            return tf.add_n(inputs=losses)
+        else:
+            return None
+
+
 class Linear(Layer):
     """
     Linear fully-connected layer.
@@ -306,7 +357,7 @@ class Linear(Layer):
                 'Invalid input rank for linear layer: {}, must be 2.'.format(util.rank(x))
             )
 
-        if self.size is None:   # If size is None than Output Matches Input, required for Skip Connections
+        if self.size is None:  # If size is None than Output Matches Input, required for Skip Connections
             self.size = x.shape[1].value
 
         weights_shape = (x.shape[1].value, self.size)

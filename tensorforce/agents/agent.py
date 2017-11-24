@@ -231,7 +231,7 @@ class Agent(object):
         if self.unique_action:
             return self.current_actions['action']
         else:
-            return [values for values in self.current_actions.values()]
+            return self.current_actions 
 
     def observe(self, terminal, reward):
         """

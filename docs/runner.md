@@ -66,8 +66,9 @@ def episode_finished(r):
 Here is some example code for using the runner (without preprocessing).
 
 ```python
-from tensorforce.config import Configuration
-from tensorforce.environments.openai_gym import OpenAIGym
+import logging
+
+from tensorforce.contrib.openai_gym import OpenAIGym
 from tensorforce.agents import DQNAgent
 from tensorforce.execution import Runner
 
@@ -90,12 +91,14 @@ def main():
     )
 
     runner = Runner(agent, env)
+    
+    report_episodes = 10
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            logger.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode, ts=r.timestep))
-            logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
-            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
+            logging.info("Finished episode {ep} after {ts} timesteps".format(ep=r.episode, ts=r.timestep))
+            logging.info("Episode reward: {}".format(r.episode_rewards[-1]))
+            logging.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
         return True
 
     print("Starting {agent} for Environment '{env}'".format(agent=agent, env=env))

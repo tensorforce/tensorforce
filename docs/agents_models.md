@@ -26,6 +26,7 @@ agent inherits from this class.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.Agent
+        :noindex:
         :members:
 ```
 
@@ -35,6 +36,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.models.Model
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -45,6 +47,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.MemoryAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -55,6 +58,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.BatchAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -64,6 +68,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.DQNAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -74,6 +79,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.NAFAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -82,6 +88,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.DQFDAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -91,6 +98,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.VPGAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -100,6 +108,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.TRPOAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```

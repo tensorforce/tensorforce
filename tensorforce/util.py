@@ -35,8 +35,8 @@ log_levels = dict(
 
 
 def prod(xs):
-    """Computes the product along the elements in an iterable. Returns 1 for empty
-        iterable.
+    """Computes the product along the elements in an iterable. Returns 1 for empty iterable.
+
     Args:
         xs: Iterable containing numbers.
 
@@ -108,9 +108,10 @@ def np_dtype(dtype):
 
 def tf_dtype(dtype):
     """Translates dtype specifications in configurations to tensorflow data types.
+
        Args:
            dtype: String describing a numerical type (e.g. 'float'), numpy data type,
-            or numerical type primitive.
+               or numerical type primitive.
 
        Returns: TensorFlow data type
 

@@ -28,7 +28,7 @@ class ConjugateGradient(Iterative):
     See below pseudo-code taken from  
     [Wikipedia](https://en.wikipedia.org/wiki/Conjugate_gradient_method#The_resulting_algorithm):
 
-    ```
+    ```python
     def conjgrad(A, b, x_0):
         r_0 := b - A * x_0
         c_0 := r_0
@@ -48,6 +48,7 @@ class ConjugateGradient(Iterative):
 
         return x_{t+1}
     ```
+
     """
 
     def __init__(self, max_iterations, damping, unroll_loop=False):

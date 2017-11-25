@@ -25,7 +25,7 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class MultiStep(MetaOptimizer):
     """
-    The multi-shep meta optimizer repeatedly applies the optimization step proposed by another  
+    The multi-step meta optimizer repeatedly applies the optimization step proposed by another  
     optimizer a number of times.
     """
 

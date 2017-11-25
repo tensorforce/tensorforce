@@ -35,9 +35,9 @@ import logging
 import os
 import time
 
+from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 import json
-from tensorforce import Configuration
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_universe import OpenAIUniverse
 
@@ -65,11 +65,11 @@ def main():
     environment = OpenAIUniverse(args.gym_id)
     environment.configure(remotes=1)
 
-    if args.agent_config:
-        config = Configuration.from_json(args.agent_config)
+    if args.agent_config is not None:
+        with open(args.agent_config, 'r') as fp:
+            agent_config = json.load(fp=fp)
     else:
-        config = Configuration()
-        logger.info("No agent configuration provided.")
+        raise TensorForceError("No agent configuration provided.")
 
     if args.network_spec:
         with open(args.network_spec, 'r') as fp:
@@ -79,12 +79,11 @@ def main():
         logger.info("No network configuration provided.")
 
     agent = Agent.from_spec(
-        spec=args.agent,
+        spec=agent_config,
         kwargs=dict(
             states_spec=environment.states,
             actions_spec=environment.actions,
-            network_spec=network_spec,
-            config=config
+            network_spec=network_spec
         )
     )
 
@@ -97,7 +96,7 @@ def main():
     if args.debug:
         logger.info("-" * 16)
         logger.info("Configuration:")
-        logger.info(config)
+        logger.info(agent_config)
 
     runner = Runner(
         agent=agent,

@@ -29,7 +29,6 @@ import sys
 import time
 import numpy as np
 
-from tensorforce import Configuration
 from tensorforce.agents import agents as AgentsDictionary, Agent
 import json
 from tensorforce.execution import ThreadedRunner

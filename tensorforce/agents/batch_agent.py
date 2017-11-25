@@ -33,7 +33,6 @@ class BatchAgent(Agent):
         actions_spec,
         preprocessing,
         exploration,
-        reward_preprocessing,
         batched_observe,
         batch_size,
         keep_last_timestep
@@ -50,7 +49,6 @@ class BatchAgent(Agent):
                 preprocessor is a dict containing a type and optional necessary arguments.
             exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
                 and arguments.
-            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
@@ -68,7 +66,6 @@ class BatchAgent(Agent):
             actions_spec=actions_spec,
             preprocessing=preprocessing,
             exploration=exploration,
-            reward_preprocessing=reward_preprocessing,
             batched_observe=batched_observe
         )
 

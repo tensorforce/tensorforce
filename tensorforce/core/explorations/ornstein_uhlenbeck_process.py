@@ -13,8 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from random import gauss
-
+import tensorflow as tf
 from tensorforce.core.explorations import Exploration
 
 
@@ -32,6 +31,20 @@ class OrnsteinUhlenbeckProcess(Exploration):
         self.mu = self.state = mu
         self.theta = theta
 
-    def __call__(self, episode=0, timestep=0):
-        self.state += self.theta * (self.mu - self.state) + self.sigma * gauss(mu=0.0, sigma=1.0)
+    def __call__(self, episode=0, timestep=0, num_actions=1):
+        normal_sample = tf.random_normal(
+            shape=num_actions,
+            mean=0.0,
+            stddev=1.0
+        )
+        state = tf.get_variable(
+            name='ornstein_uhlenbeck',
+            shape=num_actions,
+            initializer=tf.constant_initializer(self.mu)
+        )
+        self.state = tf.assign_add(
+            ref=state,
+            value=self.theta * (self.mu - self.state) + self.sigma * normal_sample
+        )
+
         return self.state

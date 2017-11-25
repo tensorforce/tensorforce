@@ -146,6 +146,9 @@ class DQNAgent(MemoryAgent):
         self.discount = discount
         self.normalize_rewards = normalize_rewards
         self.variable_noise = variable_noise
+        self.preprocessing = preprocessing
+        self.exploration = exploration
+        self.reward_preprocessing = reward_preprocessing
         self.distributions_spec = distributions_spec
         self.entropy_regularization = entropy_regularization
         self.target_sync_frequency = target_sync_frequency
@@ -158,7 +161,6 @@ class DQNAgent(MemoryAgent):
             actions_spec=actions_spec,
             preprocessing=preprocessing,
             exploration=exploration,
-            reward_preprocessing=reward_preprocessing,
             batched_observe=batched_observe,
             batch_size=batch_size,
             memory=memory,
@@ -167,10 +169,10 @@ class DQNAgent(MemoryAgent):
             repeat_update=repeat_update
         )
 
-    def initialize_model(self, states_spec, actions_spec):
+    def initialize_model(self):
         return QModel(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states_spec=self.states_spec,
+            actions_spec=self.actions_spec,
             network_spec=self.network_spec,
             device=self.device,
             session_config=self.session_config,
@@ -182,6 +184,9 @@ class DQNAgent(MemoryAgent):
             discount=self.discount,
             normalize_rewards=self.normalize_rewards,
             variable_noise=self.variable_noise,
+            preprocessing=self.preprocessing,
+            exploration=self.exploration,
+            reward_preprocessing=self.reward_preprocessing,
             distributions_spec=self.distributions_spec,
             entropy_regularization=self.entropy_regularization,
             target_sync_frequency=self.target_sync_frequency,

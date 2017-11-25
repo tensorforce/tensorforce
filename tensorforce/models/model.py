@@ -53,7 +53,9 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorForceError, util
+from tensorforce.core.explorations import Exploration
 from tensorforce.core.optimizers import Optimizer, GlobalOptimizer
+from tensorforce.core.preprocessing import Preprocessing
 
 
 class Model(object):
@@ -75,6 +77,9 @@ class Model(object):
         discount,
         normalize_rewards,
         variable_noise,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
         **kwargs
     ):
         # States and actions specifications
@@ -110,6 +115,10 @@ class Model(object):
         # Variable noise
         assert variable_noise is None or variable_noise > 0.0
         self.variable_noise = variable_noise
+
+        self.preprocessing = preprocessing
+        self.exploration = exploration
+        self.reward_preprocessing = reward_preprocessing
 
         # Setup TensorFlow graph and session
         self.setup()
@@ -197,9 +206,20 @@ class Model(object):
             self.initialize(custom_getter=custom_getter)
 
             # Input tensors
-            states = self.get_states(states=self.state_inputs)
+            states = self.get_states(state_inputs=self.state_inputs)
             internals = [tf.identity(input=internal) for internal in self.internal_inputs]
-            actions = self.get_actions(actions=self.action_inputs)
+
+            actions = dict()
+            for name, action in self.action_inputs.items():
+                actions[name] = tf.cond(
+                    pred=self.deterministic_input,
+                    true_fn=(lambda: action),
+                    false_fn=(lambda: self.get_actions(
+                        action=action,
+                        action_spec=self.actions_spec[name],
+                        exploration_spec=self.exploration[name])
+                    )
+                )
             terminal = tf.identity(input=self.terminal_input)
             reward = self.get_reward(states=states, internals=internals, terminal=terminal, reward=self.reward_input)
 
@@ -529,15 +549,71 @@ class Model(object):
         #     custom_getter_=custom_getter
         # )
 
-    def get_states(self, states):
-        # TODO: preprocessing could go here?
-        return {name: tf.identity(input=state) for name, state in states.items()}
+    def get_states(self, state_inputs):
+        """
+        Initializes state operations for optional pre-processing in TensorFlow.
 
-    def get_actions(self, actions):
-        # TODO: preprocessing could go here?
-        return {name: tf.identity(input=action) for name, action in actions.items()}
+        """
+        for name, state in self.states_spec.items():
+            if self.preprocessing is not None and self.preprocessing.get(name) is not None:
+                state_preprocessing = Preprocessing.from_spec(spec=self.preprocessing[name])
+                self.preprocessing[name] = state_preprocessing
+                state['shape'] = state_preprocessing.processed_shape(shape=state['shape'])
+                state_inputs[name] = state_preprocessing.process(state=state_inputs[name])
+
+        return state_inputs
+
+    def get_actions(self, action, action_spec, exploration_spec):
+        """
+        Initialize action operations such as exploration.
+        """
+        # Create exploration object
+        if exploration_spec is not None:
+            exploration = Exploration.from_spec(spec=exploration_spec)
+
+            num_actions = tf.shape(action)
+            # Sample an exploration value to apply depending on action type
+            exploration_value = exploration(episode=self.episode, timestep=self.timestep, num_actions=num_actions)
+            uniform_sample = tf.random_uniform(shape=num_actions)
+
+            if action_spec['type'] == 'bool':
+                action = tf.where(
+                    condition=tf.less(x=uniform_sample, y=exploration_value),
+                    x=tf.less(x=tf.random_uniform(shape=tf.shape(action)), y=0.5),
+                    y=action
+                )
+
+            elif action_spec['type'] == 'int':
+                # Int sample
+                sampled_action = tf.floor(
+                    x=tf.random_uniform(shape=tf.shape(action)) * action_spec['num_actions']
+                )
+                action = tf.where(
+                    condition=tf.less(x=uniform_sample, y=exploration_value),
+                    x=tf.cast(x=sampled_action, dtype=util.tf_dtype('int')),
+                    y=action
+                )
+
+            elif action_spec['type'] == 'float':
+                if 'min_value' in action_spec:
+                    exploration = tf.clip_by_value(
+                        t=exploration_value,
+                        clip_value_min=action_spec['min_value'],
+                        clip_value_max=action_spec['max_value']
+                    )
+
+                action += tf.reshape(exploration, tf.shape(action))
+
+        return action
 
     def get_reward(self, states, internals, terminal, reward):
+        """
+        Initializes reward operations such as preprocessing (e.g. clipping) and normalization.
+        """
+        if self.reward_preprocessing is not None:
+            self.reward_preprocesspor = Preprocessing.from_spec(self.reward_preprocessing)
+            reward = self.reward_preprocesspor.process(state=reward)
+
         if self.normalize_rewards:
             mean, variance = tf.nn.moments(x=reward, axes=0)
             return (reward - mean) / tf.maximum(x=variance, y=util.epsilon)
@@ -846,6 +922,7 @@ class Model(object):
             Current episode and timestep counter, and a list containing the internal states  
             initializations.
         """
+        #TODO preprocessing reset call moved from agent
         episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
         return episode, timestep, list(self.internal_inits)
 

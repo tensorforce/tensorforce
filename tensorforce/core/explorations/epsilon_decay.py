@@ -14,7 +14,7 @@
 # ==============================================================================
 
 from tensorforce.core.explorations import Exploration
-
+import tensorflow as tf
 
 class EpsilonDecay(Exploration):
     """
@@ -25,17 +25,29 @@ class EpsilonDecay(Exploration):
     def __init__(self, initial_epsilon=1.0, final_epsilon=0.1, timesteps=10000, start_timestep=0, half_lives=10):
         self.initial_epsilon = initial_epsilon
         self.final_epsilon = final_epsilon
-        self.timesteps = timesteps
-        self.start_timestep = start_timestep
-        self.half_life = self.timesteps / half_lives
+        self.timesteps =  tf.cast(x=timesteps, dtype=tf.int32)
+        self.start_timestep = tf.cast(x=start_timestep, dtype=tf.int32)
+        self.half_life = tf.cast(x=self.timesteps / half_lives, dtype=tf.int32)
 
-    def __call__(self, episode=0, timestep=0):
-        if timestep < self.start_timestep:
-            return self.initial_epsilon
+    def __call__(self, episode=0, timestep=0, num_actions=1):
+        def true_fn():
+            # Know if first is not true second must be true from outer cond check.
+            return tf.cond(
+                pred=timestep < self.start_timestep,
+                true_fn=(lambda: self.initial_epsilon),
+                false_fn=(lambda: self.final_epsilon)
+            )
 
-        elif timestep > self.start_timestep + self.timesteps:
-            return self.final_epsilon
-
-        else:
+        def false_fn():
             half_life_ratio = (timestep - self.start_timestep) / self.half_life
-            return self.final_epsilon + (2 ** (-half_life_ratio)) * (self.initial_epsilon - self.final_epsilon)
+            epsilon = self.final_epsilon + (2 ** (-half_life_ratio)) * (self.initial_epsilon - self.final_epsilon)
+            return tf.cast(x=epsilon, dtype=tf.float32)
+
+        # Ternary evaluation. Check first two in first predicate, then both again in inner cond in true function.
+        return tf.cond(
+            pred=tf.logical_or(timestep < self.start_timestep, timestep > self.start_timestep + self.timesteps),
+            true_fn=true_fn,
+            false_fn=false_fn
+        )
+
+

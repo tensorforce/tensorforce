@@ -17,8 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-
+import tensorflow as tf
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -32,8 +31,7 @@ class Grayscale(Preprocessor):
         self.weights = weights
 
     def process(self, state):
-        state = (self.weights * state).sum(-1)
-        return np.reshape(state, tuple(state.shape) + (1,))
+        return tf.reduce_sum(input_tensor=self.weights * state, axis=-1, keep_dims=True)
 
     def processed_shape(self, shape):
         return tuple(shape[:-1]) + (1,)

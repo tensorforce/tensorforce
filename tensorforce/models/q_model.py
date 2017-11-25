@@ -46,6 +46,9 @@ class QModel(DistributionModel):
         discount,
         normalize_rewards,
         variable_noise,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
         distributions_spec,
         entropy_regularization,
         target_sync_frequency,
@@ -80,6 +83,9 @@ class QModel(DistributionModel):
             discount=discount,
             normalize_rewards=normalize_rewards,
             variable_noise=variable_noise,
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing,
             distributions_spec=distributions_spec,
             entropy_regularization=entropy_regularization,
         )
@@ -138,7 +144,7 @@ class QModel(DistributionModel):
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
         # TEMP: Random sampling fix
         if self.random_sampling_fix:
-            next_states = self.get_states(states=self.next_state_inputs)
+            next_states = self.get_states(state_inputs=self.next_state_inputs)
             next_states = {name: tf.stop_gradient(input=state) for name, state in next_states.items()}
 
             embedding, next_internals = self.network.apply(

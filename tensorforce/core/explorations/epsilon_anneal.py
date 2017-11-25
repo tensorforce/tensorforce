@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
 from tensorforce.core.explorations import Exploration
-
 
 class EpsilonAnneal(Exploration):
     """
@@ -24,16 +24,26 @@ class EpsilonAnneal(Exploration):
     def __init__(self, initial_epsilon=1.0, final_epsilon=0.1, timesteps=10000, start_timestep=0):
         self.initial_epsilon = initial_epsilon
         self.final_epsilon = final_epsilon
-        self.timesteps = timesteps
-        self.start_timestep = start_timestep
+        self.timesteps = tf.cast(x=timesteps, dtype=tf.int32)
+        self.start_timestep = tf.cast(x=start_timestep, dtype=tf.int32)
 
-    def __call__(self, episode=0, timestep=0):
-        if timestep < self.start_timestep:
-            return self.initial_epsilon
+    def __call__(self, episode=0, timestep=0, num_actions=1):
+        def true_fn():
+            # Know if first is not true second must be true from outer cond check.
+            return tf.cond(
+                pred=timestep < self.start_timestep,
+                true_fn=(lambda: self.initial_epsilon),
+                false_fn=(lambda: self.final_epsilon)
+            )
 
-        elif timestep > self.start_timestep + self.timesteps:
-            return self.final_epsilon
-
-        else:
+        def false_fn():
             completed_ratio = (timestep - self.start_timestep) / self.timesteps
-            return self.initial_epsilon + completed_ratio * (self.final_epsilon - self.initial_epsilon)
+            epsilon = self.initial_epsilon + completed_ratio * (self.final_epsilon - self.initial_epsilon)
+            return tf.cast(x=epsilon, dtype=tf.float32)
+
+        # Ternary evaluation. Check first two in first predicate, then both again in inner cond in true function.
+        return tf.cond(
+            pred=tf.logical_or(timestep < self.start_timestep, timestep > self.start_timestep + self.timesteps),
+            true_fn=true_fn(),
+            false_fn=false_fn()
+        )

@@ -41,6 +41,7 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
         #     type="epsilon_decay",
         #     initial_epsilon=1,
         #     final_epsilon=0.1,
+        #     timesteps=10
         # ),
         repeat_update=4,
         batch_size=32,

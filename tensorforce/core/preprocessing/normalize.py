@@ -18,7 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-
+import tensorflow as tf
 from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
@@ -29,5 +29,8 @@ class Normalize(Preprocessor):
     """
 
     def process(self, state):
-        state = state.astype(np.float32)
-        return (state - state.min()) / (state.max() - state.min() + util.epsilon)
+        # Min/max across every axis except batch dimension.
+        min = tf.reduce_min(input_tensor=state, axis=np.arange(1, util.rank(state)))
+        max = tf.reduce_max(input_tensor=state, axis=np.arange(1, util.rank(state)))
+
+        return (state - min) / (max - min + util.epsilon)

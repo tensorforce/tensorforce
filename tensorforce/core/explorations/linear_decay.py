@@ -13,8 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from random import random
-
+import tensorflow as tf
 from tensorforce.core.explorations import Exploration
 
 
@@ -23,5 +22,5 @@ class LinearDecay(Exploration):
     Linear decay based on episode number.
     """
 
-    def __call__(self, episode=0, timestep=0):
-        return random() / (episode + 1)
+    def __call__(self, episode=0, timestep=0, num_actions=1):
+        return tf.random_uniform(shape=num_actions) / (episode + 1)

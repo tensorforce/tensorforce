@@ -100,6 +100,9 @@ class ConstantAgent(Agent):
         self.discount = discount
         self.normalize_rewards = normalize_rewards
         self.variable_noise = variable_noise
+        self.preprocessing = preprocessing
+        self.exploration = exploration
+        self.reward_preprocessing = reward_preprocessing
         self.action_values = action_values
 
         super(ConstantAgent, self).__init__(
@@ -107,14 +110,13 @@ class ConstantAgent(Agent):
             actions_spec,
             preprocessing=preprocessing,
             exploration=exploration,
-            reward_preprocessing=reward_preprocessing,
             batched_observe=batched_observe
          )
 
-    def initialize_model(self, states_spec, actions_spec):
+    def initialize_model(self):
         return ConstantModel(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states_spec=self.states_spec,
+            actions_spec=self.actions_spec,
             device=self.device,
             session_config=self.session_config,
             scope=self.scope,
@@ -125,5 +127,8 @@ class ConstantAgent(Agent):
             discount=self.discount,
             normalize_rewards=self.normalize_rewards,
             variable_noise=self.variable_noise,
+            preprocessing=self.preprocessing,
+            exploration=self.exploration,
+            reward_preprocessing=self.reward_preprocessing,
             action_values=self.action_values
         )

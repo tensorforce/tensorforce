@@ -17,8 +17,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 import numpy as np
-
 from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
@@ -29,5 +29,5 @@ class Standardize(Preprocessor):
     """
 
     def process(self, state):
-        state = state.astype(np.float32)
-        return (state - state.mean()) / (state.std() + util.epsilon)
+        mean, variance = tf.nn.moments(x=state, axes=np.arange(1, util.rank(state)))
+        return (state - mean) / (tf.sqrt(x=variance) + util.epsilon)

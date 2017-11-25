@@ -46,7 +46,6 @@ class Agent(object):
         actions_spec,
         preprocessing,
         exploration,
-        reward_preprocessing,
         batched_observe
     ):
         """
@@ -62,22 +61,18 @@ class Agent(object):
                 preprocessor is a dict containing a type and optional necessary arguments.
             exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
                 and arguments.
-            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
         """
 
-        # States config and preprocessing
-        self.preprocessing = dict()
-
         self.unique_state = ('shape' in states_spec)
         if self.unique_state:
             states_spec = dict(state=states_spec)
-            preprocessing = dict(state=preprocessing)
+            self.preprocessing = dict(state=preprocessing)
+
 
         self.states_spec = deepcopy(states_spec)
-
         for name, state in self.states_spec.items():
             # Convert int to unary tuple
             if isinstance(state['shape'], int):
@@ -87,23 +82,16 @@ class Agent(object):
             if 'type' not in state:
                 state['type'] = 'float'
 
-            if preprocessing is not None and preprocessing.get(name) is not None:
-                state_preprocessing = Preprocessing.from_spec(spec=preprocessing[name])
-                self.preprocessing[name] = state_preprocessing
-                state['shape'] = state_preprocessing.processed_shape(shape=state['shape'])
-
         # Actions config and exploration
         self.exploration = dict()
-
         self.unique_action = ('type' in actions_spec)
         if self.unique_action:
             actions_spec = dict(action=actions_spec)
-            exploration = dict(action=exploration)
-
+            self.exploration = dict(action=exploration)
         self.actions_spec = deepcopy(actions_spec)
 
         for name, action in self.actions_spec.items():
-            # Check requried values
+            # Check required values
             if action['type'] == 'int':
                 if 'num_actions' not in action:
                     raise TensorForceError("Action requires value 'num_actions' set!")
@@ -119,20 +107,7 @@ class Agent(object):
             if isinstance(action['shape'], int):
                 action['shape'] = (action['shape'],)
 
-            # Set exploration
-            if exploration is not None and exploration.get(name) is not None:
-                self.exploration[name] = Exploration.from_spec(spec=exploration[name])
-
-        # Reward preprocessing config
-        if reward_preprocessing is None:
-            self.reward_preprocessing = None
-        else:
-            self.reward_preprocessing = Preprocessing.from_spec(reward_preprocessing)
-
-        self.model = self.initialize_model(
-            states_spec=self.states_spec,
-            actions_spec=self.actions_spec,
-        )
+        self.model = self.initialize_model()
 
         # Batched observe for better performance with Python.
         self.batched_observe = batched_observe
@@ -148,7 +123,12 @@ class Agent(object):
     def close(self):
         self.model.close()
 
-    def initialize_model(self, states_spec, actions_spec):
+    def initialize_model(self):
+        """
+        Creates the model for the respective agent based on specifications given by user. This is a separate
+        call after constructing the agent because the agent constructor has to perform a number of checks
+        on the specs first, sometimes adjusting them e.g. by converting to a dict.
+        """
         raise NotImplementedError
 
     def reset(self):
@@ -159,8 +139,9 @@ class Agent(object):
         self.episode, self.timestep, self.next_internals = self.model.reset()
         self.current_internals = self.next_internals
 
-        for preprocessing in self.preprocessing.values():
-            preprocessing.reset()
+        #TODO have to call preprocessing reset in model
+        # for preprocessing in self.preprocessing.values():
+        #     preprocessing.reset()
 
     def act(self, states, deterministic=False):
         """
@@ -177,7 +158,6 @@ class Agent(object):
             Scalar value of the action or dict of multiple actions the agent wants to execute.
 
         """
-
         self.current_internals = self.next_internals
 
         if self.unique_state:
@@ -185,48 +165,12 @@ class Agent(object):
         else:
             self.current_states = {name: np.asarray(state) for name, state in states.items()}
 
-        # Preprocessing
-        for name, preprocessing in self.preprocessing.items():
-            self.current_states[name] = preprocessing.process(state=self.current_states[name])
-
         # Retrieve action
         self.current_actions, self.next_internals, self.timestep = self.model.act(
             states=self.current_states,
             internals=self.current_internals,
             deterministic=deterministic
         )
-
-        # Exploration
-        if not deterministic:
-
-            for name, exploration in self.exploration.items():
-                if self.actions_spec[name]['type'] == 'bool':
-                    if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        shape = self.actions_spec[name]['shape']
-                        self.current_actions[name] = (np.random.random_sample(size=shape) < 0.5)
-
-                elif self.actions_spec[name]['type'] == 'int':
-                    if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        shape = self.actions_spec[name]['shape']
-                        num_actions = self.actions_spec[name]['num_actions']
-                        if shape == ():
-                            self.current_actions[name] = np.random.randint(low=num_actions)
-                        else:
-                            self.current_actions[name] = np.random.randint(low=num_actions, size=shape)
-
-                elif self.actions_spec[name]['type'] == 'float':
-                    explore = (lambda: exploration(episode=self.episode, timestep=self.timestep))
-                    shape = self.actions_spec[name]['shape']
-                    exploration = np.array([explore() for _ in xrange(util.prod(shape))])
-
-                    if 'min_value' in self.actions_spec[name]:
-                        exploration = np.clip(
-                            a=exploration,
-                            a_min=self.actions_spec[name]['min_value'],
-                            a_max=self.actions_spec[name]['max_value']
-                        )
-
-                    self.current_actions[name] += np.reshape(exploration, shape)
 
         if self.unique_action:
             return self.current_actions['action']
@@ -244,10 +188,7 @@ class Agent(object):
             reward: scalar reward that resulted from executing the action.
         """
         self.current_terminal = terminal
-        if self.reward_preprocessing is None:
-            self.current_reward = reward
-        else:
-            self.current_reward = self.reward_preprocessing.process(reward)
+        self.current_reward = reward
 
         if self.batched_observe is not None and self.batched_observe > 0:
             # Batched observe for better performance with Python.

@@ -17,9 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-import scipy
-
+import tensorflow as tf
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -33,7 +31,7 @@ class ImageResize(Preprocessor):
         self.size = (width, height)
 
     def process(self, state):
-        return scipy.misc.imresize(arr=state.astype(np.uint8), size=self.size)
+        return tf.image.resize_images(images=state, size=self.size)
 
     def processed_shape(self, shape):
         return self.size + (shape[-1],)

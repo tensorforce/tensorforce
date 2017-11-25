@@ -29,11 +29,8 @@
             "type": "grayscale"
         },
         {
-            "type": "center"
-        },
-        {
-            "type": "sequence",
-            "length": 4
+            "type": "divide",
+            "scale": 255
         }
     ]
 }

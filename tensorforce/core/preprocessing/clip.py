@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
+import tensorflow as tf
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -31,4 +31,4 @@ class Clip(Preprocessor):
         self.max = max
 
     def process(self, state):
-        return np.clip(state, self.min, self.max)
+        return tf.clip_by_value(t=state, clip_value_min=self.min, clip_value_max=self.max)

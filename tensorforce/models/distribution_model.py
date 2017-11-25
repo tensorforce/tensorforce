@@ -45,6 +45,9 @@ class DistributionModel(Model):
         discount,
         normalize_rewards,
         variable_noise,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
         distributions_spec,
         entropy_regularization
     ):
@@ -68,7 +71,10 @@ class DistributionModel(Model):
             optimizer=optimizer,
             discount=discount,
             normalize_rewards=normalize_rewards,
-            variable_noise=variable_noise
+            variable_noise=variable_noise,
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing
         )
 
     def initialize(self, custom_getter):

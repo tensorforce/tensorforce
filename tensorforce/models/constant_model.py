@@ -41,6 +41,9 @@ class ConstantModel(Model):
         discount,
         normalize_rewards,
         variable_noise,
+        preprocessing,
+        exploration,
+        reward_preprocessing,
         action_values
     ):
         self.action_values = action_values
@@ -57,7 +60,10 @@ class ConstantModel(Model):
             optimizer=optimizer,
             discount=discount,
             normalize_rewards=normalize_rewards,
-            variable_noise=variable_noise
+            variable_noise=variable_noise,
+            preprocessing=preprocessing,
+            exploration=exploration,
+            reward_preprocessing=reward_preprocessing
         )
 
     def tf_actions_and_internals(self, states, internals, update, deterministic):

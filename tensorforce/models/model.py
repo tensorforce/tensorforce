@@ -215,9 +215,10 @@ class Model(object):
                     pred=self.deterministic_input,
                     true_fn=(lambda: action),
                     false_fn=(lambda: self.get_actions(
-                        action=action,
-                        action_spec=self.actions_spec[name],
-                        exploration_spec=self.exploration[name])
+                            action=action,
+                            action_spec=self.actions_spec[name],
+                            exploration_spec=self.exploration[name]
+                        )
                     )
                 )
             terminal = tf.identity(input=self.terminal_input)
@@ -557,7 +558,7 @@ class Model(object):
         for name, state in self.states_spec.items():
             if self.preprocessing is not None and self.preprocessing.get(name) is not None:
                 state_preprocessing = Preprocessing.from_spec(spec=self.preprocessing[name])
-                self.preprocessing[name] = state_preprocessing
+                #self.preprocessing[name] = state_preprocessing
                 state['shape'] = state_preprocessing.processed_shape(shape=state['shape'])
                 state_inputs[name] = state_preprocessing.process(state=state_inputs[name])
 

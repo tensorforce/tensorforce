@@ -66,20 +66,15 @@ class Preprocessing(object):
         """
         Creates a preprocessing stack from a specification dict.
         """
-        print('calling from spec')
         if not isinstance(spec, list):
             spec = [spec]
 
         preprocessing = Preprocessing()
-        print('spec=')
-        print(spec)
         for spec in spec:
             preprocessor = util.get_object(
                 obj=spec,
                 predefined_objects=tensorforce.core.preprocessing.preprocessors
             )
-            print(type(preprocessor))
-            print(isinstance(preprocessor, Preprocessor))
             assert isinstance(preprocessor, Preprocessor)
             preprocessing.add(preprocessor=preprocessor)
         return preprocessing

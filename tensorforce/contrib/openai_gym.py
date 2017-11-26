@@ -69,8 +69,8 @@ class OpenAIGym(Environment):
         if self.visualize:
             self.gym.render()
         # if the actions is not unique, that is, if the actions is a dict
-        if type(actions) == dict:
-            actions = [values for values in actions.values()]
+        if isinstance(actions, dict):
+            actions = [actions['action{}'.format(n)] for n in range(len(actions))]
         state, reward, terminal, _ = self.gym.step(actions)
         return state, terminal, reward
 

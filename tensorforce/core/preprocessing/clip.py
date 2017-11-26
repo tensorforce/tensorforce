@@ -25,6 +25,7 @@ class Clip(Preprocessor):
     """
     Clip by min/max.
     """
+
     def __init__(self, min, max):
         super(Clip, self).__init__()
         self.min = min

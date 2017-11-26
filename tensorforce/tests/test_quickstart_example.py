@@ -58,9 +58,8 @@ class TestQuickstartExample(unittest.TestCase):
                 ),
                 optimization_steps=5,
                 discount=0.99,
-                normalize_rewards=False,
                 entropy_regularization=0.01,
-                likelihood_ratio_clipping = 0.2
+                likelihood_ratio_clipping=0.2
             )
 
             # Initialize the runner

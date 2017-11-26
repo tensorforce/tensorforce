@@ -24,11 +24,12 @@ from __future__ import division
 import time
 import threading
 from six.moves import xrange
-from tensorforce.agents.agent import Agent
+
 from tensorforce import TensorForceError
 
 
 class ThreadedRunner(object):
+
     def __init__(self, agents, environments, repeat_actions=1, save_path=None, save_episodes=None):
         """
         Initialize a Runner object.
@@ -160,18 +161,11 @@ def WorkerAgentGenerator(agent_class):
         Worker agent receiving a shared model to avoid creating multiple models.
         """
 
-        def __init__(self, states_spec, actions_spec, network_spec, model=None, **kwargs):
-            self.network_spec = network_spec
+        def __init__(self, model=None, **kwargs):
             self.model = model
+            super(WorkerAgent, self).__init__(**kwargs)
 
-            super(WorkerAgent, self).__init__(
-                states_spec,
-                actions_spec,
-                network_spec,
-                **kwargs
-            )
-
-        def initialize_model(self, states_spec, actions_spec):
+        def initialize_model(self):
             return self.model
 
     return WorkerAgent

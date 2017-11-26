@@ -56,7 +56,6 @@ agent = PPOAgent(
     baseline=None,
     baseline_optimizer=None,
     gae_lambda=None,
-    normalize_rewards=False,
     # PGLRModel
     likelihood_ratio_clipping=0.2,
     summary_spec=None,

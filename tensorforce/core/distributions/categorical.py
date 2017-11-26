@@ -79,7 +79,7 @@ class Categorical(Distribution):
         logits, _, _ = distr_params
 
         # Deterministic: maximum likelihood action
-        definite = tf.argmax(input=logits, axis=-1)
+        definite = tf.argmax(input=logits, axis=-1, output_type=util.tf_dtype('int'))
 
         # Non-deterministic: sample action using Gumbel distribution
         uniform_distribution = tf.random_uniform(
@@ -88,7 +88,7 @@ class Categorical(Distribution):
             maxval=(1.0 - util.epsilon)
         )
         gumbel_distribution = -tf.log(x=-tf.log(x=uniform_distribution))
-        sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
+        sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1, output_type=util.tf_dtype('int'))
 
         return tf.where(condition=deterministic, x=definite, y=sampled)
 

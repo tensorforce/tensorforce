@@ -87,7 +87,7 @@ class Layer(object):
         """
         return None
 
-    def internal_inputs(self):
+    def internals_input(self):
         """
         Returns the TensorFlow placeholders for internal state inputs.
 
@@ -96,7 +96,7 @@ class Layer(object):
         """
         return list()
 
-    def internal_inits(self):
+    def internals_init(self):
         """
         Returns the TensorFlow tensors for internal state initializations.
 
@@ -907,8 +907,8 @@ class Lstm(Layer):
 
         return x, (internal_output,)
 
-    def internal_inputs(self):
-        return super(Lstm, self).internal_inputs() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
+    def internals_input(self):
+        return super(Lstm, self).internals_input() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
 
-    def internal_inits(self):
-        return super(Lstm, self).internal_inits() + [np.zeros(shape=(2, self.size))]
+    def internals_init(self):
+        return super(Lstm, self).internals_init() + [np.zeros(shape=(2, self.size))]

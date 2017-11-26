@@ -12,14 +12,7 @@
 
     "discount": 0.97,
 
-    "exploration": {
-        "type": "epsilon_decay",
-        "initial_epsilon": 1.0,
-        "final_epsilon": 0.1,
-        "timesteps": 1e6
-    },
-
-    "preprocessing": [
+    "states_preprocessing_spec": [
         {
             "type": "image_resize",
             "width": 84,
@@ -31,6 +24,17 @@
         {
             "type": "divide",
             "scale": 255
+        },
+        {
+            "type": "sequence",
+            "length": 4
         }
-    ]
+    ],
+
+    "explorations_spec": {
+        "type": "epsilon_decay",
+        "initial_epsilon": 1.0,
+        "final_epsilon": 0.1,
+        "timesteps": 1e6
+    }
 }

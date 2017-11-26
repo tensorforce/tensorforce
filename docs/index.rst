@@ -44,10 +44,6 @@ In python, it could look like this:
        actions_spec=env.actions,
        network_spec=network_spec,
        batch_size=4096,
-       # Agent
-       preprocessing=None,
-       exploration=None,
-       reward_preprocessing=None,
        # BatchAgent
        keep_last_timestep=True,
        # PPOAgent
@@ -67,7 +63,6 @@ In python, it could look like this:
        baseline=None,
        baseline_optimizer=None,
        gae_lambda=None,
-       normalize_rewards=False,
        # PGLRModel
        likelihood_ratio_clipping=0.2,
        summary_spec=None,

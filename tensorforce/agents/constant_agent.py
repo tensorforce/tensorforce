@@ -44,14 +44,13 @@ class ConstantAgent(Agent):
         summary_spec=None,
         distributed_spec=None,
         discount=0.99,
-        normalize_rewards=False,
         variable_noise=None,
-        preprocessing=None,
-        exploration=None,
-        reward_preprocessing=None,
+        states_preprocessing_spec=None,
+        explorations_spec=None,
+        reward_preprocessing_spec=None,
         batched_observe=1000,
         action_values=None
-     ):
+    ):
         """
         Initializes a constant agent which returns a constant action of the provided shape.
 
@@ -74,13 +73,12 @@ class ConstantAgent(Agent):
                 Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
                 cluster spec.
             discount: Float specifying reward discount factor.
-            normalize_rewards: Boolean flag specifying whether to normalize rewards, default False.
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
-                preprocessor is a dict containing a type and optional necessary arguments.
-            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
-                and arguments.
-            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
+            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
+                (e.g. `image_resize`, `grayscale`).
+            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
+                or Gaussian noise).
+            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
@@ -98,20 +96,17 @@ class ConstantAgent(Agent):
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
         self.discount = discount
-        self.normalize_rewards = normalize_rewards
         self.variable_noise = variable_noise
-        self.preprocessing = preprocessing
-        self.exploration = exploration
-        self.reward_preprocessing = reward_preprocessing
+        self.states_preprocessing_spec = states_preprocessing_spec
+        self.explorations_spec = explorations_spec
+        self.reward_preprocessing_spec = reward_preprocessing_spec
         self.action_values = action_values
 
         super(ConstantAgent, self).__init__(
-            states_spec,
-            actions_spec,
-            preprocessing=preprocessing,
-            exploration=exploration,
+            states_spec=states_spec,
+            actions_spec=actions_spec,
             batched_observe=batched_observe
-         )
+        )
 
     def initialize_model(self):
         return ConstantModel(
@@ -125,10 +120,9 @@ class ConstantAgent(Agent):
             distributed_spec=self.distributed_spec,
             optimizer=self.optimizer,
             discount=self.discount,
-            normalize_rewards=self.normalize_rewards,
             variable_noise=self.variable_noise,
-            preprocessing=self.preprocessing,
-            exploration=self.exploration,
-            reward_preprocessing=self.reward_preprocessing,
+            states_preprocessing_spec=self.states_preprocessing_spec,
+            explorations_spec=self.explorations_spec,
+            reward_preprocessing_spec=self.reward_preprocessing_spec,
             action_values=self.action_values
         )

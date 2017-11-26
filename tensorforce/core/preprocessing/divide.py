@@ -24,6 +24,7 @@ class Divide(Preprocessor):
     """
     Divide state by scale.
     """
+
     def __init__(self, scale):
         super(Divide, self).__init__()
         self.scale = scale

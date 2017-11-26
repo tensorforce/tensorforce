@@ -7,7 +7,6 @@
     },
 
     "discount": 0.99,
-    "normalize_rewards": false,
     "entropy_regularization": null,
     "gae_lambda": 0.97,
 
@@ -25,7 +24,7 @@
         "num_steps": 5
     },
 
-    "preprocessing": [
+    "states_preprocessing_spec": [
         {
             "type": "image_resize",
             "width": 84,

@@ -12,7 +12,7 @@
 
     "discount": 0.97,
 
-    "exploration": {
+    "explorations_spec": {
         "type": "ornstein_uhlenbeck",
         "sigma": 0.2,
         "mu": 0.0,

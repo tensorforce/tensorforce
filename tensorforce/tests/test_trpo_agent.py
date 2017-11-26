@@ -29,6 +29,5 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
     deterministic = False
 
     kwargs = dict(
-        batch_size=64,
-        normalize_rewards=True
+        batch_size=64
     )

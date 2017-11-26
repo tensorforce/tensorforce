@@ -12,7 +12,7 @@
 
     "discount": 0.97,
 
-    "exploration": {
+    "explorations_spec": {
         "type": "epsilon_decay",
         "initial_epsilon": 1.0,
         "final_epsilon": 0.1,

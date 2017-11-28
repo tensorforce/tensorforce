@@ -84,7 +84,7 @@ The `Model` class is the base class for reinforcement learning models.
         :members:
 ```
 
-### Deep-Q-learning from demonostration (DQFD)
+### Deep-Q-learning from demonstration (DQFD)
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.DQFDAgent

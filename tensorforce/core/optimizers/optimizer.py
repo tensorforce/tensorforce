@@ -102,18 +102,27 @@ class Optimizer(object):
 
         # Add training variable gradient histograms to summary output
         if 'gradients' in self.summary_labels:  
+            valid = True
             if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
                 gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
-                for grad, var in gradients:
-                    if grad is not None:
-                        summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
-                        self.summaries.append(summary)   
-            else:
+            elif isinstance(self.optimizer, tensorforce.core.optimizers.TFOptimizer):
                 ## This section handles "Multi_step" and may handle others
                 #  if failure is found, add another elif to handle that case
                 gradients = self.optimizer.optimizer.compute_gradients(kwargs['fn_loss']())
+            else:
+                # Didn't find proper gradient information
+                valid = False
+
+            # valid gradient data found, create summary data items
+            if valid:
                 for grad, var in gradients:
                     if grad is not None:
+                        axes = list(range(len(grad.shape)))
+                        mean, var = tf.nn.moments(grad,axes)
+                        summary = tf.summary.scalar(name='gradients/'+var.name+"/mean", tensor=mean)
+                        self.summaries.append(summary)  
+                        summary = tf.summary.scalar(name='gradients/'+var.name+"/variance", tensor=var)
+                        self.summaries.append(summary)  
                         summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
                         self.summaries.append(summary)                   
 

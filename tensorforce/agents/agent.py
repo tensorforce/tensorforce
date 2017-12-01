@@ -21,6 +21,9 @@ from copy import deepcopy
 from six.moves import xrange
 from random import random
 
+import inspect
+from tensorforce.meta_parameter_recorder import MetaParameterRecorder
+
 import numpy as np
 
 from tensorforce import util, TensorForceError
@@ -129,6 +132,24 @@ class Agent(object):
         else:
             self.reward_preprocessing = Preprocessing.from_spec(reward_preprocessing)
 
+       # TensorFlow summaries & Configuration Meta Parameter Recorder options
+        if self.summary_spec is None:
+            self.summary_labels = set()
+        else:
+            self.summary_labels = set(self.summary_spec.get('labels', ()))
+
+        self.meta_param_recorder = None
+
+        if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
+            self.meta_param_recorder = MetaParameterRecorder(inspect.currentframe())
+            if 'meta_dict' in self.summary_spec:   # Custom Meta Dictionary passed
+                self.meta_param_recorder.MergeCustom(self.summary_spec['meta_dict'])
+            if 'configuration' in self.summary_labels:  # Setup for TensorBoard population
+                self.summary_spec['meta_param_recorder_class'] = self.meta_param_recorder
+            if 'print_configuration' in self.summary_labels: # Print to STDOUT (TADO: optimize output)
+                self.meta_param_recorder.TextOutput(format_type=1)
+
+        # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
         self.model = self.initialize_model(
             states_spec=self.states_spec,
             actions_spec=self.actions_spec,

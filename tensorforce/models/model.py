@@ -209,6 +209,9 @@ class Model(object):
             reward = tf.stop_gradient(input=reward)
 
             # Optimizer
+            kwargs_opt = dict()
+            kwargs_opt['summaries']         =self.summaries
+            kwargs_opt['summary_labels']    =self.summary_labels
             if self.optimizer is None:
                 pass
             elif self.distributed_spec is not None and \
@@ -217,7 +220,7 @@ class Model(object):
                 # If not internal global model
                 self.optimizer = GlobalOptimizer(optimizer=self.optimizer)
             else:
-                self.optimizer = Optimizer.from_spec(spec=self.optimizer)
+                self.optimizer = Optimizer.from_spec(spec=self.optimizer,kwargs=kwargs_opt)
 
             # Create output fetch operations
             self.create_output_operations(
@@ -348,7 +351,7 @@ class Model(object):
             self.summary_writer_hook = None
         else:
             # TensorFlow summary writer object
-            summary_writer = tf.summary.FileWriter(
+            self.summary_writer = tf.summary.FileWriter(
                 logdir=self.summary_spec['directory'],
                 graph=self.graph,
                 max_queue=10,
@@ -360,7 +363,7 @@ class Model(object):
                 save_steps=self.summary_spec.get('steps'),  # Either one or the other has to be set.
                 save_secs=self.summary_spec.get('seconds', None if 'steps' in self.summary_spec else 120),
                 output_dir=None,  # None since given via 'summary_writer' argument.
-                summary_writer=summary_writer,
+                summary_writer=self.summary_writer,
                 scaffold=self.scaffold,
                 summary_op=None  # None since given via 'scaffold' argument.
             )
@@ -523,6 +526,11 @@ class Model(object):
             func_=self.tf_optimization,
             custom_getter_=custom_getter
         )
+
+        self.summary_configuration_op = None
+        if 'meta_param_recorder_class' in self.summary_spec:
+            self.summary_configuration_op =self.summary_spec['meta_param_recorder_class'].BuildMetaGraphList()
+               
         # self.fn_summarization = tf.make_template(
         #     name_='summarization',
         #     func_=self.tf_summarization,
@@ -869,6 +877,12 @@ class Model(object):
         if not batched:
             actions = {name: action[0] for name, action in actions.items()}
             internals = [internal[0] for internal in internals]
+            
+        if self.summary_configuration_op is not None:
+            summary_values = self.session.run(self.summary_configuration_op)
+            self.summary_writer.add_summary(summary_values)
+            self.summary_writer.flush()   
+            self.summary_configuration_op = None   # Only do this once to reduce duplicate data in Tensorboard              
 
         return actions, internals, timestep
 

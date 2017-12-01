@@ -20,6 +20,7 @@ from __future__ import division
 import tensorflow as tf
 
 from tensorforce import util, TensorForceError
+#from tensorforce.core.optimizers import TFOptimizer
 import tensorforce.core.optimizers
 
 
@@ -30,11 +31,19 @@ class Optimizer(object):
     updating a set of variables.
     """
 
-    def __init__(self):
+    def __init__(self,**kwargs):
         """
         Creates a new optimizer instance.
         """
         self.variables = dict()
+        if 'summaries' in kwargs:
+            self.summaries = kwargs['summaries']
+            del kwargs['summaries']
+        if 'summary_labels' in kwargs:
+            self.summary_labels = kwargs['summary_labels']
+            del kwargs['summary_labels']
+        else:
+            self.summary_labels = dict()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
@@ -90,6 +99,22 @@ class Optimizer(object):
         Returns:
             The optimization operation.
         """
+
+        if 'gradients' in self.summary_labels:  # Add training variable gradient histograms to summary output
+            if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
+                gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
+                for grad, var in gradients:
+                    if grad is not None:
+                        summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
+                        self.summaries.append(summary)   
+            else:
+                ## This section handles "Multi_step" and may handle others, if failure is found, add another elif to handle that case
+                gradients = self.optimizer.optimizer.compute_gradients(kwargs['fn_loss']())
+                for grad, var in gradients:
+                    if grad is not None:
+                        summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
+                        self.summaries.append(summary)                   
+
         deltas = self.step(time=time, variables=variables, **kwargs)
         with tf.control_dependencies(control_inputs=deltas):
             return tf.no_op()

@@ -16,6 +16,7 @@
 import numpy as np
 
 from tensorforce.agents import PPOAgent
+from tensorforce.execution import EnhancedRunner
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
@@ -64,15 +65,19 @@ agent = PPOAgent(
 )
 
 # Create the runner
-runner = Runner(agent=agent, environment=env)
+runner = EnhancedRunner(agent=agent, environment=env)
 
 
 # Callback function printing episode statistics
+#def episode_finished(r):
+    #print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.episode_timestep,
+                                                                                # reward=r.episode_rewards[-1]))
+    #return True
+
 def episode_finished(r):
-    print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.episode_timestep,
+    runner.writeOut("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.episode_timestep,
                                                                                  reward=r.episode_rewards[-1]))
     return True
-
 
 # Start learning
 runner.run(episodes=3000, max_episode_timesteps=200, episode_finished=episode_finished)

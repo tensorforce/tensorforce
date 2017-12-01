@@ -882,7 +882,8 @@ class Model(object):
             summary_values = self.session.run(self.summary_configuration_op)
             self.summary_writer.add_summary(summary_values)
             self.summary_writer.flush()   
-            self.summary_configuration_op = None   # Only do this once to reduce duplicate data in Tensorboard              
+            # Only do this operation once to reduce duplicate data in Tensorboard
+            self.summary_configuration_op = None           
 
         return actions, internals, timestep
 

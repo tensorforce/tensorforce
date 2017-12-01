@@ -100,7 +100,8 @@ class Optimizer(object):
             The optimization operation.
         """
 
-        if 'gradients' in self.summary_labels:  # Add training variable gradient histograms to summary output
+        # Add training variable gradient histograms to summary output
+        if 'gradients' in self.summary_labels:  
             if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
                 gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
                 for grad, var in gradients:
@@ -108,7 +109,8 @@ class Optimizer(object):
                         summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
                         self.summaries.append(summary)   
             else:
-                ## This section handles "Multi_step" and may handle others, if failure is found, add another elif to handle that case
+                ## This section handles "Multi_step" and may handle others
+                #  if failure is found, add another elif to handle that case
                 gradients = self.optimizer.optimizer.compute_gradients(kwargs['fn_loss']())
                 for grad, var in gradients:
                     if grad is not None:

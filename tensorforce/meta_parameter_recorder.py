@@ -48,19 +48,23 @@ class MetaParameterRecorder(object):
         self.method_calling  = inspect.getframeinfo(current_frame)[2]
 
         _, _, __, self.vals_current =inspect.getargvalues(current_frame)
-        if 'self' in self.vals_current:  #self is the class name of the frame involved
+        #self is the class name of the frame involved
+        if 'self' in self.vals_current:  
             self.recorded_class_type = self.vals_current['self']
-            self.meta_params['AgentName'] = str(self.vals_current['self'])  # Add explicit AgentName item
+             # Add explicit AgentName item so class can be deleted
+            self.meta_params['AgentName'] = str(self.vals_current['self']) 
 
         frame_list = inspect.getouterframes(current_frame)
         
         for frame in frame_list:           
-            args, varargs, keywords, vals =inspect.getargvalues(frame[0])   #Rather than frame.frame (named tuple), use [0] for python2
+            #Rather than frame.frame (named tuple), use [0] for python2
+            args, varargs, keywords, vals =inspect.getargvalues(frame[0])   
             if 'self' in vals:
                 if self.recorded_class_type == vals['self']:
                     for i in args:
                         self.meta_params[i] = vals[i]
-        del self.meta_params['self']  # Remove the "CLASS" from the dictionary, has no value "AgentName" contains STR of Class
+        # Remove the "CLASS" from the dictionary, has no value "AgentName" contains STR of Class
+        del self.meta_params['self']  
     
 
     def MergeCustom(self,custom_dict):
@@ -84,7 +88,9 @@ class MetaParameterRecorder(object):
             eol = os.linesep        
         if seperator is None:
             seperator = ", "
-        if type(data) is not dict: #This should not ever occur but here as a catch
+        
+        #This should not ever occur but here as a catch
+        if type(data) is not dict:
             raise TensorForceError("Error:  MetaParameterRecorder Dictionary conversion was passed a type {} not supported.".format(str(type(data))))
         
         if format_type == 0: # TensorBoard
@@ -95,16 +101,15 @@ class MetaParameterRecorder(object):
                 div  ="--- | "
             data_string += label + "Key | Value" + eol + div+ "--- | ----" +eol
         
-        for key in data: # Should setup a TYPE here
+        for key in data:
             key_txt = key
             if format_type == 0: # TensorBoard
                 key_txt = "**" + key + "**"
                 key_value_sep = ' | '
-                if indent>0:  # Add indent
+                if indent>0:  
                     key_txt="    | "+key_txt
 
             data_string += add_seperator+key_txt+key_value_sep+self.ConvertDataToString(data[key],seperator=seperator,indent=indent+1)  +eol
-            #add_seperator = seperator
         
         return data_string  
 
@@ -112,18 +117,21 @@ class MetaParameterRecorder(object):
         data_string =""
         if eol is None:
             eol = os.linesep
-        if type(data) is not list: #This should not ever occur but here as a catch
+
+        #This should not ever occur but here as a catch
+        if type(data) is not list:
             raise TensorForceError("Error:  MetaParameterRecorder List conversion was passed a type {} not supported.".format(str(type(data))))
 
-        for index,line in enumerate(data): # Should setup a TYPE here
+        for index,line in enumerate(data):
             data_string_prefix = ""
             if count and indent==0:
                 data_string_prefix = str(index+1)+". "
             if format_type == 0: # TensorBoard
-                if indent>0 and index>0:  #Only add indent for 2nd item and beyond as this is likely a dictionary entry
+                #Only add indent for 2nd item and beyond as this is likely a dictionary entry
+                if indent>0 and index>0:  
                     data_string_prefix = "    | "+data_string_prefix
             if index==(len(data)-1):
-                append_eol = ""  # don't append EOL
+                append_eol = "" 
             else:
                 append_eol = eol
             data_string += data_string_prefix + self.ConvertDataToString(line,indent=indent+1)+append_eol  
@@ -136,7 +144,9 @@ class MetaParameterRecorder(object):
         data_string2 = "|:---:|"
         if eol is None:
             eol = os.linesep
-        if type(data) is not np.ndarray: #This should not ever occur but here as a catch
+
+        #This should not ever occur but here as a catch
+        if type(data) is not np.ndarray: 
             raise TensorForceError("Error:  MetaParameterRecorder ndarray conversion was passed a type {} not supported.".format(str(type(data))))
 
         shape = data.shape
@@ -175,11 +185,11 @@ class MetaParameterRecorder(object):
         elif type(data) is tuple:
             data_string = str(data)                     
         elif type(data) is list:
-            data_string = self.ConvertListToString(data,indent=indent,eol=eol) #str(data)  
+            data_string = self.ConvertListToString(data,indent=indent,eol=eol)  
         elif type(data) is bool:
             data_string = str(data)                        
         elif type(data) is dict:
-            data_string = self.ConvertDictionaryToString(data,indent=indent,seperator=seperator)  #str(data)
+            data_string = self.ConvertDictionaryToString(data,indent=indent,seperator=seperator) 
         elif type(data) is np.ndarray:
             if format_type==0:  # TensorBoard
                 data_string = self.ConvertNDArrayToMD(data)
@@ -197,7 +207,17 @@ class MetaParameterRecorder(object):
         
         return data_string
 
-    def BuildMetaGraphList(self):  # returns list of summary ops
+    def BuildMetaGraphList(self): 
+        """
+        Convert MetaParams into TF Summary Format and create summary_op
+
+        Args:
+            None
+
+        Returns:
+            Merged TF Op for TEXT summary elements, should only be executed once to reduce data duplication
+
+        """    
         ops = []
 
         self.ignore_unknown_dtypes = True

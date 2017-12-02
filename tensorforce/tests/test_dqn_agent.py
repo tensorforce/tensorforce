@@ -37,12 +37,19 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
             type="adam",
             learning_rate=0.002
         ),
+        # Comment in to test exploration types
         # exploration=dict(
         #     type="epsilon_decay",
-        #     initial_epsilon=1,
+        #     initial_epsilon=1.0,
         #     final_epsilon=0.1,
         #     timesteps=10
         # ),
+        exploration=dict(
+            type="epsilon_anneal",
+            initial_epsilon=1.0,
+            final_epsilon=0.1,
+            timesteps=10
+        ),
         repeat_update=4,
         batch_size=32,
         first_update=64,

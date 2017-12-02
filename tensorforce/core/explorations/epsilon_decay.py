@@ -25,9 +25,9 @@ class EpsilonDecay(Exploration):
     def __init__(self, initial_epsilon=1.0, final_epsilon=0.1, timesteps=10000, start_timestep=0, half_lives=10):
         self.initial_epsilon = initial_epsilon
         self.final_epsilon = final_epsilon
-        self.timesteps =  tf.cast(x=timesteps, dtype=tf.int32)
-        self.start_timestep = tf.cast(x=start_timestep, dtype=tf.int32)
-        self.half_life = tf.cast(x=self.timesteps / half_lives, dtype=tf.int32)
+        self.timesteps = timesteps
+        self.start_timestep = start_timestep
+        self.half_life = timesteps / half_lives
 
     def __call__(self, episode=0, timestep=0, num_actions=1):
         def true_fn():
@@ -39,7 +39,8 @@ class EpsilonDecay(Exploration):
             )
 
         def false_fn():
-            half_life_ratio = (timestep - self.start_timestep) / self.half_life
+            half_life_ratio = (tf.cast(x=timestep, dtype=tf.float32)
+                               - tf.cast(x=self.start_timestep, dtype=tf.float32)) / tf.constant(value=self.half_life)
             epsilon = self.final_epsilon + (2 ** (-half_life_ratio)) * (self.initial_epsilon - self.final_epsilon)
             return tf.cast(x=epsilon, dtype=tf.float32)
 

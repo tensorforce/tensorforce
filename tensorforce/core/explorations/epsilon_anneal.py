@@ -24,8 +24,8 @@ class EpsilonAnneal(Exploration):
     def __init__(self, initial_epsilon=1.0, final_epsilon=0.1, timesteps=10000, start_timestep=0):
         self.initial_epsilon = initial_epsilon
         self.final_epsilon = final_epsilon
-        self.timesteps = tf.cast(x=timesteps, dtype=tf.int32)
-        self.start_timestep = tf.cast(x=start_timestep, dtype=tf.int32)
+        self.timesteps = timesteps
+        self.start_timestep = start_timestep
 
     def __call__(self, episode=0, timestep=0, num_actions=1):
         def true_fn():
@@ -37,13 +37,14 @@ class EpsilonAnneal(Exploration):
             )
 
         def false_fn():
-            completed_ratio = (timestep - self.start_timestep) / self.timesteps
+            completed_ratio = (tf.cast(x=timestep, dtype=tf.float32) -
+                               tf.cast(x=self.start_timestep, dtype=tf.float32)) / self.timesteps
             epsilon = self.initial_epsilon + completed_ratio * (self.final_epsilon - self.initial_epsilon)
-            return tf.cast(x=epsilon, dtype=tf.float32)
+            return epsilon
 
         # Ternary evaluation. Check first two in first predicate, then both again in inner cond in true function.
         return tf.cond(
             pred=tf.logical_or(timestep < self.start_timestep, timestep > self.start_timestep + self.timesteps),
-            true_fn=true_fn(),
-            false_fn=false_fn()
+            true_fn=true_fn,
+            false_fn=false_fn
         )

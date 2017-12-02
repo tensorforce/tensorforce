@@ -5,11 +5,15 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+2nd December 2017
+
+- Sequence preprocessor temporarily broken; use version 0.3.2 if required.
+
 11th November 2017
 
-- BREAKING: We removed the Configuration object. Most users feel named arguments are far more
-  comfortable to handle. Agents are now created specifying all non-default paremeters explicitly,
-  see quickstart examples. 
+- BREAKING: We removed the Configuration object. Most users feel named arguments are far more  
+  comfortable to handle. Agents are now created specifying all non-default paremeters explicitly,  
+  see quickstart examples.
 - Agents are now specified as part of the configuration via a 'type', e.g. "type" : "dqn_agent" 
 
 8th November 2017

@@ -19,7 +19,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import util, TensorForceError
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -30,6 +30,7 @@ class Sequence(Preprocessor):
     """
 
     def __init__(self, length=2, scope='sequence', summary_labels=()):
+        raise TensorForceError("The sequence preprocessor is temporarily broken; use version 0.3.2 if required.")
         self.length = length
         super(Sequence, self).__init__(scope=scope, summary_labels=summary_labels)
 

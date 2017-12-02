@@ -22,5 +22,5 @@ class LinearDecay(Exploration):
     Linear decay based on episode number.
     """
 
-    def __call__(self, episode=0, timestep=0, num_actions=1):
+    def tf_explore(self, episode=0, timestep=0, num_actions=1):
         return tf.random_uniform(shape=num_actions) / (episode + 1)

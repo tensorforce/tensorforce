@@ -22,7 +22,7 @@ from tensorforce.core.preprocessing import Preprocessor
 import tensorforce.core.preprocessing
 
 
-class Preprocessing(object):
+class PreprocessorStack(object):
 
     def __init__(self):
         self.preprocessors = list()
@@ -30,19 +30,19 @@ class Preprocessing(object):
     def add(self, preprocessor):
         self.preprocessors.append(preprocessor)
 
-    def process(self, state):
+    def process(self, tensor):
         """
         Process state.
 
         Args:
-            state: state
+            tensor: tensor to process
 
         Returns: processed state
 
         """
         for processor in self.preprocessors:
-            state = processor.process(state=state)
-        return state
+            tensor = processor.tf_process(tensor=tensor)
+        return tensor
 
     def processed_shape(self, shape):
         """
@@ -61,6 +61,9 @@ class Preprocessing(object):
         for processor in self.preprocessors:
             processor.reset()
 
+    def get_variables(self):
+        return [variable for preprocessor in self.preprocessors for variable in preprocessor.get_variables()]
+
     @staticmethod
     def from_spec(spec):
         """
@@ -69,7 +72,7 @@ class Preprocessing(object):
         if not isinstance(spec, list):
             spec = [spec]
 
-        preprocessing = Preprocessing()
+        preprocessing = PreprocessorStack()
         for spec in spec:
             preprocessor = util.get_object(
                 obj=spec,

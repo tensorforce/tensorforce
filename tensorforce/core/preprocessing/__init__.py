@@ -22,7 +22,7 @@ from tensorforce.core.preprocessing.grayscale import Grayscale
 from tensorforce.core.preprocessing.image_resize import ImageResize
 from tensorforce.core.preprocessing.divide import Divide
 from tensorforce.core.preprocessing.clip import Clip
-from tensorforce.core.preprocessing.preprocessing import Preprocessing
+from tensorforce.core.preprocessing.preprocessor_stack import PreprocessorStack
 
 
 preprocessors = dict(
@@ -45,7 +45,7 @@ __all__ = [
     'Normalize',
     'Grayscale',
     'ImageResize',
-    'Preprocessing',
+    'PreprocessorStack',
     'Divide',
     'Clip',
     'preprocessors'

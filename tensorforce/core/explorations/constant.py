@@ -21,8 +21,9 @@ class Constant(Exploration):
     Explore via adding a constant term.
     """
 
-    def __init__(self, constant=0.0):
+    def __init__(self, constant=0.0, scope='constant', summary_labels=()):
         self.constant = constant
+        super(Constant).__init__(scope, summary_labels)
 
-    def __call__(self, episode=0, timestep=0, num_actions=1):
+    def tf_explore(self, episode=0, timestep=0, num_actions=1):
         return self.constant

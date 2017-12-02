@@ -55,7 +55,7 @@ import tensorflow as tf
 from tensorforce import TensorForceError, util
 from tensorforce.core.explorations import Exploration
 from tensorforce.core.optimizers import Optimizer, GlobalOptimizer
-from tensorforce.core.preprocessing import Preprocessing
+from tensorforce.core.preprocessing import PreprocessorStack
 
 
 class Model(object):
@@ -493,13 +493,13 @@ class Model(object):
                 state['processed_shape'] = state['shape']
         elif isinstance(self.states_preprocessing_spec, list):
             for name, state in self.states_spec.items():
-                preprocessing = Preprocessing.from_spec(spec=self.states_preprocessing_spec)
+                preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
                 self.states_preprocessing[name] = preprocessing
                 state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
         else:
             for name, state in self.states_spec.items():
                 if self.states_preprocessing_spec.get(name) is not None:
-                    preprocessing = Preprocessing.from_spec(spec=self.states_preprocessing_spec[name])
+                    preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec[name])
                     self.states_preprocessing[name] = preprocessing
                     state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
                 else:
@@ -542,7 +542,7 @@ class Model(object):
         if self.reward_preprocessing_spec is None:
             self.reward_preprocessing = None
         else:
-            self.reward_preprocessing = Preprocessing.from_spec(spec=self.self.reward_preprocessing_spec)
+            self.reward_preprocessing = PreprocessorStack.from_spec(spec=self.reward_preprocessing_spec)
             if self.reward_preprocessing.processed_shape(shape=()) != ():
                 raise TensorForceError("Invalid reward preprocessing!")
 
@@ -602,7 +602,7 @@ class Model(object):
         """
         for name, state in states.items():
             if name in self.states_preprocessing:
-                states[name] = self.states_preprocessing[name].process(state=state)
+                states[name] = self.states_preprocessing[name].process(tensor=state)
             else:
                 states[name] = tf.identity(input=state)
 
@@ -613,7 +613,11 @@ class Model(object):
         Applies optional exploration to the action.
         """
         action_shape = tf.shape(input=action)
-        exploration_value = exploration(episode=self.episode, timestep=self.timestep, num_actions=action_shape[0])
+        exploration_value = exploration.tf_explore(
+            episode=self.episode,
+            timestep=self.timestep,
+            num_actions=action_shape[0]
+        )
 
         if action_spec['type'] == 'bool':
             action = tf.where(
@@ -651,7 +655,7 @@ class Model(object):
         if self.reward_preprocessing is None:
             reward = tf.identity(input=reward)
         else:
-            reward = self.reward_preprocessing.process(state=reward)
+            reward = self.reward_preprocessing.tf_process(state=reward)
 
         return reward
 
@@ -927,15 +931,23 @@ class Model(object):
 
         if include_non_trainable:
                 # optimizer variables and timestep/episode only included if 'include_non_trainable' set
-            model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
+            all_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
+            all_variables += [
+                variable for name in self.explorations.keys()
+                for variable in self.explorations[name].get_variables()
+            ]
+            all_variables += [
+                variable for name in self.states_preprocessing.keys()
+                for variable in self.states_preprocessing[name].get_variables()
+            ]
+            if self.reward_preprocessing is not None:
+                all_variables += self.reward_preprocessing.get_variables()
 
             if self.optimizer is None:
-                return model_variables
-
+                return all_variables
             else:
                 optimizer_variables = self.optimizer.get_variables()
-                return model_variables + optimizer_variables
-
+                return all_variables + optimizer_variables
         else:
             return [self.variables[key] for key in sorted(self.variables)]
 

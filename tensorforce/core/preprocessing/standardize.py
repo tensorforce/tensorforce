@@ -28,13 +28,14 @@ class Standardize(Preprocessor):
     Standardize state. Subtract mean and divide by standard deviation.
     """
 
-    def __init__(self, across_batch=False):
+    def __init__(self, across_batch=False, scope='standardize', summary_labels=()):
         self.across_batch = across_batch
+        super(Standardize).__init__(scope, summary_labels)
 
-    def process(self, state):
+    def tf_process(self, tensor):
         if self.across_batch:
-            axes = np.arange(0, util.rank(state))
+            axes = np.arange(0, util.rank(tensor))
         else:
-            axes = np.arange(1, util.rank(state))
-        mean, variance = tf.nn.moments(x=state, axes=axes)
-        return (state - mean) / tf.maximum(x=variance, y=util.epsilon)
+            axes = np.arange(1, util.rank(tensor))
+        mean, variance = tf.nn.moments(x=tensor, axes=axes)
+        return (tensor - mean) / tf.maximum(x=variance, y=util.epsilon)

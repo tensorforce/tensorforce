@@ -28,14 +28,14 @@ class RunningStandardize(Preprocessor):
     Standardize state w.r.t past states. Subtract mean and divide by standard deviation of sequence of past states.
     """
 
-    def __init__(self, axis=None, reset_after_batch=True):
-        self.axis=axis
+    def __init__(self, axis=None, reset_after_batch=True, scope='running_standardize', summary_labels=()):
+        self.axis = axis
         self.reset_after_batch = reset_after_batch
         self.history = list()
+        super(RunningStandardize).__init__(scope, summary_labels)
 
-    def process(self, state):
-        state = state.astype(np.float32)
-
+    def tf_process(self, tensor):
+        state = tensor.astype(np.float32)
         self.history.append(state)
         history = np.array(self.history)
 

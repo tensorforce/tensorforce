@@ -29,23 +29,37 @@ class Sequence(Preprocessor):
     problems to create the Markov property.
     """
 
-    def __init__(self, length=2):
-        super(Sequence, self).__init__()
+    def __init__(self, length=2, scope='sequence', summary_labels=()):
         self.length = length
+        super(Sequence, self).__init__(scope, summary_labels)
 
-    def process(self, state):
-        tf.assert_equal(x=tf.shape(input=state)[0], y=1)  # or just always the same?
+    def tf_process(self, tensor):
+        # or just always the same?
+        tf.assert_equal(x=tf.shape(input=tensor)[0], y=1)
 
-        states_buffer = tf.get_variable(name='states-buffer', shape=((self.length,) + util.shape(state)[1:]), dtype=state.dtype, trainable=False)
-        index = tf.get_variable(name='index', dtype=util.tf_dtype('int'), initializer=-1, trainable=False)
+        states_buffer = tf.get_variable(
+            name='states-buffer',
+            shape=((self.length,) + util.shape(tensor)[1:]),
+            dtype=tensor.dtype,
+            trainable=False
+        )
+        index = tf.get_variable(
+            name='index',
+            dtype=util.tf_dtype('int'),
+            initializer=-1,
+            trainable=False
+        )
 
         assignment = tf.cond(
             pred=tf.equal(x=index, y=-1),
             true_fn=(lambda: tf.assign(
                 ref=states_buffer,
-                value=tf.tile(input=state, multiples=((self.length,) + tuple(1 for _ in range(util.rank(state) - 1))))
+                value=tf.tile(
+                    input=tensor,
+                    multiples=((self.length,) + tuple(1 for _ in range(util.rank(tensor) - 1)))
+                )
             )),
-            false_fn=(lambda: tf.assign(ref=states_buffer[index], value=state[0]))
+            false_fn=(lambda: tf.assign(ref=states_buffer[index], value=tensor[0]))
         )
 
         with tf.control_dependencies(control_inputs=(assignment,)):
@@ -59,5 +73,6 @@ class Sequence(Preprocessor):
         return shape[:-1] + (shape[-1] * self.length,)
 
     def reset(self):
+        #TODO fix
         # self.index = -1 !!!!!!!!!!!!
         pass

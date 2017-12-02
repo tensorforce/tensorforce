@@ -19,10 +19,17 @@ from tensorforce.core.explorations import Exploration
 
 class OrnsteinUhlenbeckProcess(Exploration):
     """
-    Explore via an Ornstein-Uhlenbeck process.
+    Explores via an Ornstein-Uhlenbeck process.
     """
 
-    def __init__(self, sigma=0.3, mu=0.0, theta=0.15):
+    def __init__(
+        self,
+        sigma=0.3,
+        mu=0.0,
+        theta=0.15,
+        scope='ornstein_uhlenbeck',
+        summary_labels=()
+    ):
         """
         Initializes an Ornstein-Uhlenbeck process which is a mean reverting stochastic process
         introducing time-correlated noise.
@@ -31,7 +38,9 @@ class OrnsteinUhlenbeckProcess(Exploration):
         self.mu = mu
         self.theta = theta
 
-    def __call__(self, episode=0, timestep=0, num_actions=1):
+        super(OrnsteinUhlenbeckProcess).__init__(scope, summary_labels)
+
+    def tf_explore(self, episode=0, timestep=0, num_actions=1):
         normal_sample = tf.random_normal(
             shape=num_actions,
             mean=0.0,
@@ -39,7 +48,6 @@ class OrnsteinUhlenbeckProcess(Exploration):
         )
         state = tf.get_variable(
             name='ornstein_uhlenbeck',
-           # shape=num_actions,
             dtype=tf.float32,
             initializer=(self.mu,)
         )

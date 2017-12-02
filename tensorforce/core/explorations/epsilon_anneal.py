@@ -16,18 +16,30 @@
 import tensorflow as tf
 from tensorforce.core.explorations import Exploration
 
+
 class EpsilonAnneal(Exploration):
     """
     Annealing epsilon parameter based on ratio of current timestep to total timesteps.
     """
 
-    def __init__(self, initial_epsilon=1.0, final_epsilon=0.1, timesteps=10000, start_timestep=0):
+    def __init__(
+        self,
+        initial_epsilon=1.0,
+        final_epsilon=0.1,
+        timesteps=10000,
+        start_timestep=0,
+        scope='epsilon_anneal',
+        summary_labels=()
+    ):
         self.initial_epsilon = initial_epsilon
         self.final_epsilon = final_epsilon
         self.timesteps = timesteps
         self.start_timestep = start_timestep
 
-    def __call__(self, episode=0, timestep=0, num_actions=1):
+        super(EpsilonAnneal).__init__(scope, summary_labels)
+
+
+    def tf_explore(self, episode=0, timestep=0, num_actions=1):
         def true_fn():
             # Know if first is not true second must be true from outer cond check.
             return tf.cond(

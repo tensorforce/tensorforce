@@ -26,12 +26,12 @@ class ImageResize(Preprocessor):
     Resize image to width x height.
     """
 
-    def __init__(self, width, height):
-        super(ImageResize, self).__init__()
+    def __init__(self, width, height, scope='image_resize', summary_labels=()):
         self.size = (width, height)
+        super(ImageResize, self).__init__(scope, summary_labels)
 
-    def process(self, state):
-        return tf.image.resize_images(images=state, size=self.size)
+    def tf_process(self, tensor):
+        return tf.image.resize_images(images=tensor, size=self.size)
 
     def processed_shape(self, shape):
         return self.size + (shape[-1],)

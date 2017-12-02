@@ -26,10 +26,10 @@ class Clip(Preprocessor):
     Clip by min/max.
     """
 
-    def __init__(self, min, max):
-        super(Clip, self).__init__()
+    def __init__(self, min, max, scope='clip', summary_labels=()):
         self.min = min
         self.max = max
+        super(Clip, self).__init__(scope, summary_labels)
 
-    def process(self, state):
-        return tf.clip_by_value(t=state, clip_value_min=self.min, clip_value_max=self.max)
+    def tf_process(self, tensor):
+        return tf.clip_by_value(t=tensor, clip_value_min=self.min, clip_value_max=self.max)

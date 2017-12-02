@@ -22,14 +22,25 @@ class EpsilonDecay(Exploration):
     difference between current and final epsilon to total timesteps.
     """
 
-    def __init__(self, initial_epsilon=1.0, final_epsilon=0.1, timesteps=10000, start_timestep=0, half_lives=10):
+    def __init__(
+        self,
+        initial_epsilon=1.0,
+        final_epsilon=0.1,
+        timesteps=10000,
+        start_timestep=0,
+        half_lives=10,
+        scope='epsilon_anneal',
+        summary_labels=()
+    ):
         self.initial_epsilon = initial_epsilon
         self.final_epsilon = final_epsilon
         self.timesteps = timesteps
         self.start_timestep = start_timestep
         self.half_life = timesteps / half_lives
 
-    def __call__(self, episode=0, timestep=0, num_actions=1):
+        super(EpsilonDecay).__init__(scope, summary_labels)
+
+    def tf_explore(self, episode=0, timestep=0, num_actions=1):
         def true_fn():
             # Know if first is not true second must be true from outer cond check.
             return tf.cond(

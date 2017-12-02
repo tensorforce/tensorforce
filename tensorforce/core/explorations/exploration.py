@@ -13,14 +13,32 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
 from tensorforce import util
 import tensorforce.core.explorations
 
 
 class Exploration(object):
+    """
+    Abstract exploration object.
+    """
 
-    def __call__(self, episode=0, timestep=0, num_actions=1):
-        raise NotImplementedError
+    def __init__(self, scope='exploration', summary_labels=None):
+        self.summary_labels = set(summary_labels or ())
+        self.variables = dict()
+        self.summaries = list()
+
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.variables[name] = variable
+            return variable
+
+        self.explore = tf.make_template(
+            name_=(scope + '/explore'),
+            func_=self.tf_explore,
+            custom_getter_=custom_getter
+        )
 
     @staticmethod
     def from_spec(spec):
@@ -33,3 +51,19 @@ class Exploration(object):
         )
         assert isinstance(exploration, Exploration)
         return exploration
+
+    def tf_explore(self, episode=0, timestep=0, num_actions=1):
+        """
+        Creates exploration value, e.g. compute an epsilon for epsilon-greedy or
+        sample normal noise.
+        """
+        raise NotImplementedError
+
+    def get_variables(self):
+        """
+        Returns exploration variables.
+
+        Returns:
+            List of variables.
+        """
+        return [self.variables[key] for key in sorted(self.variables)]

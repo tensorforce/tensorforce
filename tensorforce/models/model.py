@@ -637,19 +637,15 @@ class Model(object):
 
         if action_spec['type'] == 'bool':
             action = tf.where(
-                condition=tf.less(x=tf.random_uniform(shape=action_shape[0]), y=exploration_value),
+                condition=(tf.random_uniform(shape=action_shape[0]) < exploration_value),
                 x=(tf.random_uniform(shape=action_shape) < 0.5),
                 y=action
             )
 
         elif action_spec['type'] == 'int':
-            random_action = tf.cast(
-                x=tf.floor(x=(tf.random_uniform(shape=action_shape) * action_spec['num_actions'])),
-                dtype=util.tf_dtype('int')
-            )
             action = tf.where(
-                condition=tf.less(x=tf.random_uniform(shape=action_shape[0]), y=exploration_value),
-                x=random_action,
+                condition=(tf.random_uniform(shape=action_shape[0]) < exploration_value),
+                x=tf.random_uniform(shape=action_shape, maxval=action_spec['num_actions'], dtype=util.tf_dtype('int')),
                 y=action
             )
 

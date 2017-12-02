@@ -23,7 +23,7 @@ class Constant(Exploration):
 
     def __init__(self, constant=0.0, scope='constant', summary_labels=()):
         self.constant = constant
-        super(Constant).__init__(scope, summary_labels)
+        super(Constant, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode=0, timestep=0, num_actions=1):
+    def tf_explore(self, episode, timestep, num_actions):
         return self.constant

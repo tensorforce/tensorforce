@@ -27,8 +27,9 @@ class PreprocessorStack(object):
     def __init__(self):
         self.preprocessors = list()
 
-    def add(self, preprocessor):
-        self.preprocessors.append(preprocessor)
+    def reset(self):
+        for processor in self.preprocessors:
+            processor.reset()
 
     def process(self, tensor):
         """
@@ -57,10 +58,6 @@ class PreprocessorStack(object):
             shape = processor.processed_shape(shape=shape)
         return shape
 
-    def reset(self):
-        for processor in self.preprocessors:
-            processor.reset()
-
     def get_variables(self):
         return [variable for preprocessor in self.preprocessors for variable in preprocessor.get_variables()]
 
@@ -69,15 +66,16 @@ class PreprocessorStack(object):
         """
         Creates a preprocessing stack from a specification dict.
         """
-        if not isinstance(spec, list):
+        if isinstance(spec, dict):
             spec = [spec]
 
-        preprocessing = PreprocessorStack()
+        stack = PreprocessorStack()
         for spec in spec:
             preprocessor = util.get_object(
                 obj=spec,
                 predefined_objects=tensorforce.core.preprocessing.preprocessors
             )
             assert isinstance(preprocessor, Preprocessor)
-            preprocessing.add(preprocessor=preprocessor)
-        return preprocessing
+            stack.preprocessors.append(preprocessor)
+
+        return stack

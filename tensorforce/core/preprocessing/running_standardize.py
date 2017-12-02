@@ -32,7 +32,11 @@ class RunningStandardize(Preprocessor):
         self.axis = axis
         self.reset_after_batch = reset_after_batch
         self.history = list()
-        super(RunningStandardize).__init__(scope, summary_labels)
+        super(RunningStandardize, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def reset(self):
+        if self.reset_after_batch:
+            self.history = list()
 
     def tf_process(self, tensor):
         state = tensor.astype(np.float32)
@@ -40,7 +44,3 @@ class RunningStandardize(Preprocessor):
         history = np.array(self.history)
 
         return (state - history.mean(axis=self.axis)) / (state.std(axis=self.axis) + util.epsilon)
-
-    def reset(self):
-        if self.reset_after_batch:
-            self.history = list()

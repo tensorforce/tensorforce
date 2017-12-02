@@ -13,8 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.explorations import Exploration
 import tensorflow as tf
+
+from tensorforce import util
+from tensorforce.core.explorations import Exploration
+
 
 class EpsilonDecay(Exploration):
     """
@@ -38,28 +41,22 @@ class EpsilonDecay(Exploration):
         self.start_timestep = start_timestep
         self.half_life = timesteps / half_lives
 
-        super(EpsilonDecay).__init__(scope, summary_labels)
+        super(EpsilonDecay, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_explore(self, episode=0, timestep=0, num_actions=1):
+
         def true_fn():
             # Know if first is not true second must be true from outer cond check.
             return tf.cond(
-                pred=timestep < self.start_timestep,
+                pred=(timestep < self.start_timestep),
                 true_fn=(lambda: self.initial_epsilon),
                 false_fn=(lambda: self.final_epsilon)
             )
 
         def false_fn():
-            half_life_ratio = (tf.cast(x=timestep, dtype=tf.float32)
-                               - tf.cast(x=self.start_timestep, dtype=tf.float32)) / tf.constant(value=self.half_life)
+            half_life_ratio = (tf.cast(x=timestep, dtype=util.tf_dtype('float')) - self.start_timestep) / self.half_life
             epsilon = self.final_epsilon + (2 ** (-half_life_ratio)) * (self.initial_epsilon - self.final_epsilon)
-            return tf.cast(x=epsilon, dtype=tf.float32)
+            return epsilon
 
-        # Ternary evaluation. Check first two in first predicate, then both again in inner cond in true function.
-        return tf.cond(
-            pred=tf.logical_or(timestep < self.start_timestep, timestep > self.start_timestep + self.timesteps),
-            true_fn=true_fn,
-            false_fn=false_fn
-        )
-
-
+        pred = tf.logical_or(x=(timestep < self.start_timestep), y=(timestep > self.start_timestep + self.timesteps))
+        return tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)

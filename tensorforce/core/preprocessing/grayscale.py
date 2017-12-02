@@ -30,7 +30,7 @@ class Grayscale(Preprocessor):
 
     def __init__(self, weights=(0.299, 0.587, 0.114), scope='grayscale', summary_labels=()):
         self.weights = weights
-        super(Grayscale, self).__init__(scope, summary_labels)
+        super(Grayscale, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
         weights = tf.reshape(tensor=self.weights, shape=(tuple(1 for _ in range(util.rank(tensor) - 1)) + (3,)))

@@ -14,6 +14,8 @@
 # ==============================================================================
 
 import tensorflow as tf
+
+from tensorforce import util
 from tensorforce.core.explorations import Exploration
 
 
@@ -22,5 +24,5 @@ class LinearDecay(Exploration):
     Linear decay based on episode number.
     """
 
-    def tf_explore(self, episode=0, timestep=0, num_actions=1):
-        return tf.random_uniform(shape=num_actions) / (episode + 1)
+    def tf_explore(self, episode, timestep, num_actions):
+        return tf.random_uniform(shape=num_actions) / (tf.cast(x=episode, dtype=util.tf_dtype('float') + 1.0))

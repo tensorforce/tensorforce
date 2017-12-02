@@ -27,7 +27,7 @@ class Divide(Preprocessor):
 
     def __init__(self, scale, scope='divide', summary_labels=()):
         self.scale = scale
-        super(Divide, self).__init__(scope, summary_labels)
+        super(Divide, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_process(self,  tensor):
+    def tf_process(self, tensor):
         return tensor / self.scale

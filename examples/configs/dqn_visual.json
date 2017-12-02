@@ -3,7 +3,7 @@
     "batch_size": 64,
     "memory": {
         "type": "replay",
-        "capacity": 10000
+        "capacity": 1000
     },
     "optimizer": {
       "type": "adam",
@@ -24,10 +24,6 @@
         {
             "type": "divide",
             "scale": 255
-        },
-        {
-            "type": "sequence",
-            "length": 4
         }
     ],
 

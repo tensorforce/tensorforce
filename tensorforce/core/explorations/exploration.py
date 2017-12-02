@@ -25,6 +25,7 @@ class Exploration(object):
 
     def __init__(self, scope='exploration', summary_labels=None):
         self.summary_labels = set(summary_labels or ())
+
         self.variables = dict()
         self.summaries = list()
 
@@ -40,22 +41,10 @@ class Exploration(object):
             custom_getter_=custom_getter
         )
 
-    @staticmethod
-    def from_spec(spec):
+    def tf_explore(self, episode, timestep, num_actions):
         """
-        Creates an exploration object from a specification dict.
-        """
-        exploration = util.get_object(
-            obj=spec,
-            predefined_objects=tensorforce.core.explorations.explorations
-        )
-        assert isinstance(exploration, Exploration)
-        return exploration
-
-    def tf_explore(self, episode=0, timestep=0, num_actions=1):
-        """
-        Creates exploration value, e.g. compute an epsilon for epsilon-greedy or
-        sample normal noise.
+        Creates exploration value, e.g. compute an epsilon for epsilon-greedy or sample normal  
+        noise.
         """
         raise NotImplementedError
 
@@ -67,3 +56,15 @@ class Exploration(object):
             List of variables.
         """
         return [self.variables[key] for key in sorted(self.variables)]
+
+    @staticmethod
+    def from_spec(spec):
+        """
+        Creates an exploration object from a specification dict.
+        """
+        exploration = util.get_object(
+            obj=spec,
+            predefined_objects=tensorforce.core.explorations.explorations
+        )
+        assert isinstance(exploration, Exploration)
+        return exploration

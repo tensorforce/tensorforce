@@ -14,6 +14,8 @@
 # ==============================================================================
 
 import tensorflow as tf
+
+from tensorforce import util
 from tensorforce.core.explorations import Exploration
 
 
@@ -38,22 +40,9 @@ class OrnsteinUhlenbeckProcess(Exploration):
         self.mu = mu
         self.theta = theta
 
-        super(OrnsteinUhlenbeckProcess).__init__(scope, summary_labels)
+        super(OrnsteinUhlenbeckProcess, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode=0, timestep=0, num_actions=1):
-        normal_sample = tf.random_normal(
-            shape=num_actions,
-            mean=0.0,
-            stddev=1.0
-        )
-        state = tf.get_variable(
-            name='ornstein_uhlenbeck',
-            dtype=tf.float32,
-            initializer=(self.mu,)
-        )
-        state = tf.assign_add(
-            ref=state,
-            value=self.theta * (self.mu - state) + self.sigma * normal_sample
-        )
-
-        return state
+    def tf_explore(self, episode, timestep, num_actions):
+        normal_sample = tf.random_normal(shape=num_actions, mean=0.0, stddev=1.0)
+        state = tf.get_variable(name='ornstein_uhlenbeck', dtype=util.tf_dtype('float'), initializer=(self.mu,))
+        return tf.assign_add(ref=state, value=(self.theta * (self.mu - state) + self.sigma * normal_sample))

@@ -31,7 +31,12 @@ class Sequence(Preprocessor):
 
     def __init__(self, length=2, scope='sequence', summary_labels=()):
         self.length = length
-        super(Sequence, self).__init__(scope, summary_labels)
+        super(Sequence, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def reset(self):
+        #TODO fix
+        # self.index = -1 !!!!!!!!!!!!
+        pass
 
     def tf_process(self, tensor):
         # or just always the same?
@@ -71,8 +76,3 @@ class Sequence(Preprocessor):
 
     def processed_shape(self, shape):
         return shape[:-1] + (shape[-1] * self.length,)
-
-    def reset(self):
-        #TODO fix
-        # self.index = -1 !!!!!!!!!!!!
-        pass

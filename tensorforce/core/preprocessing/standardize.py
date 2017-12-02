@@ -17,8 +17,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+
 from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
@@ -30,12 +31,13 @@ class Standardize(Preprocessor):
 
     def __init__(self, across_batch=False, scope='standardize', summary_labels=()):
         self.across_batch = across_batch
-        super(Standardize).__init__(scope, summary_labels)
+        super(Standardize, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
         if self.across_batch:
-            axes = np.arange(0, util.rank(tensor))
+            axes = tuple(range(util.rank(tensor)))
         else:
-            axes = np.arange(1, util.rank(tensor))
+            axes = tuple(range(1, util.rank(tensor)))
+
         mean, variance = tf.nn.moments(x=tensor, axes=axes)
         return (tensor - mean) / tf.maximum(x=variance, y=util.epsilon)

@@ -29,11 +29,11 @@ class Normalize(Preprocessor):
     """
 
     def __init__(self, scope='normalize', summary_labels=()):
-        super(Normalize).__init__(scope, summary_labels)
+        super(Normalize, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
         # Min/max across every axis except batch dimension.
-        min = tf.reduce_min(input_tensor=tensor, axis=np.arange(1, util.rank(tensor)))
-        max = tf.reduce_max(input_tensor=tensor, axis=np.arange(1, util.rank(tensor)))
+        min_value = tf.reduce_min(input_tensor=tensor, axis=np.arange(1, util.rank(tensor)))
+        max_value = tf.reduce_max(input_tensor=tensor, axis=np.arange(1, util.rank(tensor)))
 
-        return (tensor - min) / (max - min + util.epsilon)
+        return (tensor - min_value) / (max_value - min_value + util.epsilon)

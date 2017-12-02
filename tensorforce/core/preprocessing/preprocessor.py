@@ -38,6 +38,9 @@ class Preprocessor(object):
             custom_getter_=custom_getter
         )
 
+    def reset(self):
+        pass
+
     def tf_process(self, tensor):
         """
         Process state.
@@ -60,9 +63,6 @@ class Preprocessor(object):
         """
         return shape
 
-    def reset(self):
-        pass
-
     def get_variables(self):
         """
         Returns the TensorFlow variables used by the preprocessor.
@@ -71,4 +71,3 @@ class Preprocessor(object):
             List of variables.
         """
         return [self.variables[key] for key in sorted(self.variables)]
-

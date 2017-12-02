@@ -27,13 +27,12 @@ class Preprocessor(object):
         self.summaries = list()
 
         def custom_getter(getter, name, registered=False, **kwargs):
-            print(name)
             variable = getter(name=name, registered=True, **kwargs)
             if not registered:
                 self.variables[name] = variable
             return variable
 
-        self.explore = tf.make_template(
+        self.process = tf.make_template(
             name_=(scope + '/process'),
             func_=self.tf_process,
             custom_getter_=custom_getter

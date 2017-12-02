@@ -143,7 +143,7 @@ class QModel(DistributionModel):
         # TEMP: Random sampling fix
         if self.random_sampling_fix:
             next_states = {name: tf.identity(input=state) for name, state in self.next_states_input.items()}
-            next_states = self.preprocess_states(states=next_states)
+            next_states = self.fn_preprocess_states(states=next_states)
             next_states = {name: tf.stop_gradient(input=state) for name, state in next_states.items()}
 
             embedding, next_internals = self.network.apply(

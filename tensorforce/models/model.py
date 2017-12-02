@@ -215,13 +215,13 @@ class Model(object):
 
             # Input tensors
             states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
-            states = self.preprocess_states(states=states)
+            states = self.fn_preprocess_states(states=states)
             states = {name: tf.stop_gradient(input=state) for name, state in states.items()}
             internals = [tf.identity(input=internal) for internal in self.internals_input]
             actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
             terminal = tf.identity(input=self.terminal_input)
             reward = tf.identity(input=self.reward_input)
-            reward = self.preprocess_reward(states=states, internals=internals, terminal=terminal, reward=reward)
+            reward = self.fn_preprocess_reward(states=states, internals=internals, terminal=terminal, reward=reward)
             reward = tf.stop_gradient(input=reward)
 
             # Optimizer
@@ -590,13 +590,29 @@ class Model(object):
             func_=self.tf_optimization,
             custom_getter_=custom_getter
         )
+        self.fn_preprocess_states = tf.make_template(
+            name_=(self.scope + '/preprocess-states'),
+            func_=self.tf_preprocess_states,
+            custom_getter_=custom_getter
+        )
+        self.fn_action_exploration = tf.make_template(
+            name_=(self.scope + '/action-exploration'),
+            func_=self.tf_action_exploration,
+            custom_getter_=custom_getter
+        )
+        self.fn_preprocess_reward = tf.make_template(
+            name_=(self.scope + '/preprocess-reward'),
+            func_=self.tf_preprocess_reward,
+            custom_getter_=custom_getter
+        )
+
         # self.fn_summarization = tf.make_template(
         #     name_='summarization',
         #     func_=self.tf_summarization,
         #     custom_getter_=custom_getter
         # )
 
-    def preprocess_states(self, states):
+    def tf_preprocess_states(self, states):
         """
         Applies optional pre-processing to the states.
         """
@@ -608,7 +624,7 @@ class Model(object):
 
         return states
 
-    def action_exploration(self, action, exploration, action_spec):
+    def tf_action_exploration(self, action, exploration, action_spec):
         """
         Applies optional exploration to the action.
         """
@@ -648,14 +664,14 @@ class Model(object):
 
         return action
 
-    def preprocess_reward(self, states, internals, terminal, reward):
+    def tf_preprocess_reward(self, states, internals, terminal, reward):
         """
         Applies optional pre-processing to the reward.
         """
         if self.reward_preprocessing is None:
             reward = tf.identity(input=reward)
         else:
-            reward = self.reward_preprocessing.tf_process(state=reward)
+            reward = self.reward_preprocessing.process(state=reward)
 
         return reward
 

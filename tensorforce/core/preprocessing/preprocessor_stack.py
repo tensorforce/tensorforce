@@ -41,7 +41,7 @@ class PreprocessorStack(object):
 
         """
         for processor in self.preprocessors:
-            tensor = processor.tf_process(tensor=tensor)
+            tensor = processor.process(tensor=tensor)
         return tensor
 
     def processed_shape(self, shape):

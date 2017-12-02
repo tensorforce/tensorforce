@@ -44,11 +44,10 @@ class QModel(DistributionModel):
         distributed_spec,
         optimizer,
         discount,
-        normalize_rewards,
         variable_noise,
-        preprocessing,
-        exploration,
-        reward_preprocessing,
+        states_preprocessing_spec,
+        explorations_spec,
+        reward_preprocessing_spec,
         distributions_spec,
         entropy_regularization,
         target_sync_frequency,
@@ -81,11 +80,10 @@ class QModel(DistributionModel):
             distributed_spec=distributed_spec,
             optimizer=optimizer,
             discount=discount,
-            normalize_rewards=normalize_rewards,
             variable_noise=variable_noise,
-            preprocessing=preprocessing,
-            exploration=exploration,
-            reward_preprocessing=reward_preprocessing,
+            states_preprocessing_spec=states_preprocessing_spec,
+            explorations_spec=explorations_spec,
+            reward_preprocessing_spec=reward_preprocessing_spec,
             distributions_spec=distributions_spec,
             entropy_regularization=entropy_regularization,
         )
@@ -95,9 +93,9 @@ class QModel(DistributionModel):
 
         # TEMP: Random sampling fix
         if self.random_sampling_fix:
-            self.next_state_inputs = dict()
+            self.next_states_input = dict()
             for name, state in self.states_spec.items():
-                self.next_state_inputs[name] = tf.placeholder(
+                self.next_states_input[name] = tf.placeholder(
                     dtype=util.tf_dtype(state['type']),
                     shape=(None,) + tuple(state['shape']),
                     name=('next-' + name)
@@ -116,7 +114,7 @@ class QModel(DistributionModel):
         )
 
         # Target network distributions
-        self.target_distributions = self.generate_distributions(self.actions_spec, self.distributions_spec, self.summary_labels)
+        self.target_distributions = self.create_distributions()
 
     def tf_q_value(self, embedding, distr_params, action, name):
         # Mainly for NAF.
@@ -144,7 +142,8 @@ class QModel(DistributionModel):
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
         # TEMP: Random sampling fix
         if self.random_sampling_fix:
-            next_states = self.get_states(state_inputs=self.next_state_inputs)
+            next_states = {name: tf.identity(input=state) for name, state in self.next_states_input.items()}
+            next_states = self.preprocess_states(states=next_states)
             next_states = {name: tf.stop_gradient(input=state) for name, state in next_states.items()}
 
             embedding, next_internals = self.network.apply(
@@ -269,17 +268,17 @@ class QModel(DistributionModel):
         if batched:
             # TEMP: Random sampling fix
             if self.random_sampling_fix:
-                feed_dict = {state_input: states[name][0] for name, state_input in self.state_inputs.items()}
-                feed_dict.update({state_input: states[name][1] for name, state_input in self.next_state_inputs.items()})
+                feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
+                feed_dict.update({state_input: states[name][1] for name, state_input in self.next_states_input.items()})
             else:
-                feed_dict = {state_input: states[name] for name, state_input in self.state_inputs.items()}
+                feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
             feed_dict.update(
                 {internal_input: internals[n]
-                    for n, internal_input in enumerate(self.internal_inputs)}
+                    for n, internal_input in enumerate(self.internals_input)}
             )
             feed_dict.update(
                 {action_input: actions[name]
-                    for name, action_input in self.action_inputs.items()}
+                    for name, action_input in self.actions_input.items()}
             )
             feed_dict[self.terminal_input] = terminal
             feed_dict[self.reward_input] = reward
@@ -288,14 +287,14 @@ class QModel(DistributionModel):
             if self.random_sampling_fix:
                 raise TensorForceError("Unbatched version not covered by fix.")
             else:
-                feed_dict = {state_input: (states[name],) for name, state_input in self.state_inputs.items()}
+                feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
             feed_dict.update(
                 {internal_input: (internals[n],)
-                    for n, internal_input in enumerate(self.internal_inputs)}
+                    for n, internal_input in enumerate(self.internals_input)}
             )
             feed_dict.update(
                 {action_input: (actions[name],)
-                    for name, action_input in self.action_inputs.items()}
+                    for name, action_input in self.actions_input.items()}
             )
             feed_dict[self.terminal_input] = (terminal,)
             feed_dict[self.reward_input] = (reward,)

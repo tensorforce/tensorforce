@@ -27,6 +27,7 @@ class RunningStandardize(Preprocessor):
     """
     Standardize state w.r.t past states. Subtract mean and divide by standard deviation of sequence of past states.
     """
+
     def __init__(self, axis=None, reset_after_batch=True):
         self.axis=axis
         self.reset_after_batch = reset_after_batch

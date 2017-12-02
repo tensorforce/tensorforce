@@ -18,6 +18,8 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+
+from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -31,7 +33,8 @@ class Grayscale(Preprocessor):
         self.weights = weights
 
     def process(self, state):
-        return tf.reduce_sum(input_tensor=self.weights * state, axis=-1, keep_dims=True)
+        weights = tf.reshape(tensor=self.weights, shape=(tuple(1 for _ in range(util.rank(state) - 1)) + (3,)))
+        return tf.reduce_sum(input_tensor=(weights * state), axis=-1, keep_dims=True)
 
     def processed_shape(self, shape):
         return tuple(shape[:-1]) + (1,)

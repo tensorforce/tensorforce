@@ -18,14 +18,10 @@ from __future__ import print_function
 from __future__ import division
 
 from copy import deepcopy
-from six.moves import xrange
-from random import random
 
 import numpy as np
 
 from tensorforce import util, TensorForceError
-from tensorforce.core.preprocessing import Preprocessing
-from tensorforce.core.explorations import Exploration
 import tensorforce.agents
 
 
@@ -44,8 +40,6 @@ class Agent(object):
         self,
         states_spec,
         actions_spec,
-        preprocessing,
-        exploration,
         batched_observe
     ):
         """
@@ -57,10 +51,6 @@ class Agent(object):
                is a dict itself with a unique name as its key.
             actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
                 for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
-                preprocessor is a dict containing a type and optional necessary arguments.
-            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
-                and arguments.
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
@@ -69,8 +59,6 @@ class Agent(object):
         self.unique_state = ('shape' in states_spec)
         if self.unique_state:
             states_spec = dict(state=states_spec)
-            self.preprocessing = dict(state=preprocessing)
-
 
         self.states_spec = deepcopy(states_spec)
         for name, state in self.states_spec.items():
@@ -87,7 +75,6 @@ class Agent(object):
         self.unique_action = ('type' in actions_spec)
         if self.unique_action:
             actions_spec = dict(action=actions_spec)
-            self.exploration = dict(action=exploration)
         self.actions_spec = deepcopy(actions_spec)
 
         for name, action in self.actions_spec.items():
@@ -145,11 +132,8 @@ class Agent(object):
 
     def act(self, states, deterministic=False):
         """
-        Return action(s) for given state(s). First, the states are preprocessed using the given preprocessing
-        configuration. Then, the states are passed to the model to calculate the desired action(s) to execute.
-
-        After obtaining the actions, exploration might be added by the agent, depending on the exploration
-        configuration.
+        Return action(s) for given state(s). States preprocessing and exploration are applied if  
+        configured accordingly.
 
         Args:
             states: One state (usually a value tuple) or dict of states if multiple states are expected.

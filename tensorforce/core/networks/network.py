@@ -85,7 +85,7 @@ class Network(object):
         """
         return None
 
-    def internal_inputs(self):
+    def internals_input(self):
         """
         Returns the TensorFlow placeholders for internal state inputs.
 
@@ -94,7 +94,7 @@ class Network(object):
         """
         return list()
 
-    def internal_inits(self):
+    def internals_init(self):
         """
         Returns the TensorFlow tensors for internal state initializations.
 
@@ -167,17 +167,17 @@ class LayerBasedNetwork(Network):
         else:
             return None
 
-    def internal_inputs(self):
-        internal_inputs = super(LayerBasedNetwork, self).internal_inputs()
+    def internals_input(self):
+        internals_input = super(LayerBasedNetwork, self).internals_input()
         for layer in self.layers:
-            internal_inputs.extend(layer.internal_inputs())
-        return internal_inputs
+            internals_input.extend(layer.internals_input())
+        return internals_input
 
-    def internal_inits(self):
-        internal_inits = super(LayerBasedNetwork, self).internal_inits()
+    def internals_init(self):
+        internals_init = super(LayerBasedNetwork, self).internals_init()
         for layer in self.layers:
-            internal_inits.extend(layer.internal_inits())
-        return internal_inits
+            internals_init.extend(layer.internals_init())
+        return internals_init
 
     def get_variables(self, include_non_trainable=False):
         network_variables = super(LayerBasedNetwork, self).get_variables(

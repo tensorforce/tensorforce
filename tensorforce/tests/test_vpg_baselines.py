@@ -131,8 +131,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 ),
                 num_steps=5
             ),
-            gae_lambda=0.95,
-            normalize_rewards=True
+            gae_lambda=0.95
         )
         self.base_test(
             name='gae-baseline',

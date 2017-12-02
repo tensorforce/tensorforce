@@ -31,8 +31,6 @@ class BatchAgent(Agent):
         self,
         states_spec,
         actions_spec,
-        preprocessing,
-        exploration,
         batched_observe,
         batch_size,
         keep_last_timestep
@@ -45,10 +43,6 @@ class BatchAgent(Agent):
                is a dict itself with a unique name as its key.
             actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
                 for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
-                preprocessor is a dict containing a type and optional necessary arguments.
-            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
-                and arguments.
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
@@ -64,8 +58,6 @@ class BatchAgent(Agent):
         super(BatchAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            preprocessing=preprocessing,
-            exploration=exploration,
             batched_observe=batched_observe
         )
 

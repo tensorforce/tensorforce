@@ -42,17 +42,16 @@ class VPGAgent(BatchAgent):
         distributed_spec=None,
         optimizer=None,
         discount=0.99,
-        normalize_rewards=False,
         variable_noise=None,
+        states_preprocessing_spec=None,
+        explorations_spec=None,
+        reward_preprocessing_spec=None,
         distributions_spec=None,
         entropy_regularization=None,
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        preprocessing=None,
-        exploration=None,
-        reward_preprocessing=None,
         batched_observe=1000,
         batch_size=1000,
         keep_last_timestep=True
@@ -84,8 +83,12 @@ class VPGAgent(BatchAgent):
                 Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
                 and `evolutionary`. Consult the optimizer test or example configurations for more.
             discount: Float specifying reward discount factor.
-            normalize_rewards: Boolean flag specifying whether to normalize rewards, default False.
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
+            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
+                (e.g. `image_resize`, `grayscale`).
+            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
+                or Gaussian noise).
+            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
             distributions_spec: Optional dict specifying action distributions to override default distribution choices.
                 Must match action names.
             entropy_regularization: Optional positive float specifying an entropy regularization value.
@@ -96,11 +99,6 @@ class VPGAgent(BatchAgent):
             baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline
                 following the same conventions as the main optimizer.
             gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
-            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
-                preprocessor is a dict containing a type and optional necessary arguments.
-            exploration: Optional dict specifying exploration type (epsilon greedy strategies or Gaussian noise)
-                and arguments.
-            reward_preprocessing: Optional dict specifying reward preprocessor using same syntax as state preprocessing.
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
@@ -127,11 +125,10 @@ class VPGAgent(BatchAgent):
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
         self.discount = discount
-        self.normalize_rewards = normalize_rewards
         self.variable_noise = variable_noise
-        self.preprocessing = preprocessing
-        self.exploration = exploration
-        self.reward_preprocessing = reward_preprocessing
+        self.states_preprocessing_spec = states_preprocessing_spec
+        self.explorations_spec = explorations_spec
+        self.reward_preprocessing_spec = reward_preprocessing_spec
         self.distributions_spec = distributions_spec
         self.entropy_regularization = entropy_regularization
         self.baseline_mode = baseline_mode
@@ -142,8 +139,6 @@ class VPGAgent(BatchAgent):
         super(VPGAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            preprocessing=preprocessing,
-            exploration=exploration,
             batched_observe=batched_observe,
             batch_size=batch_size,
             keep_last_timestep=keep_last_timestep
@@ -162,11 +157,10 @@ class VPGAgent(BatchAgent):
             distributed_spec=self.distributed_spec,
             optimizer=self.optimizer,
             discount=self.discount,
-            normalize_rewards=self.normalize_rewards,
             variable_noise=self.variable_noise,
-            preprocessing=self.preprocessing,
-            exploration=self.exploration,
-            reward_preprocessing=self.reward_preprocessing,
+            states_preprocessing_spec=self.states_preprocessing_spec,
+            explorations_spec=self.explorations_spec,
+            reward_preprocessing_spec=self.reward_preprocessing_spec,
             distributions_spec=self.distributions_spec,
             entropy_regularization=self.entropy_regularization,
             baseline_mode=self.baseline_mode,

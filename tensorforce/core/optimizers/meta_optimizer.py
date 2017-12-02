@@ -27,15 +27,15 @@ class MetaOptimizer(Optimizer):
     more optimal step size.
     """
 
-    def __init__(self, optimizer):
+    def __init__(self, optimizer, **kwargs):
         """
         Creates a new meta optimizer instance.
 
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.
         """
-        super(MetaOptimizer, self).__init__()
-        self.optimizer = Optimizer.from_spec(spec=optimizer)
+        super(MetaOptimizer, self).__init__(**kwargs)
+        self.optimizer = Optimizer.from_spec(spec=optimizer, kwargs=kwargs)
 
     def get_variables(self):
         return super(MetaOptimizer, self).get_variables() + self.optimizer.get_variables()

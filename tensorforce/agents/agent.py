@@ -20,9 +20,11 @@ from __future__ import division
 from copy import deepcopy
 
 import numpy as np
+import inspect
 
 from tensorforce import util, TensorForceError
 import tensorforce.agents
+from tensorforce.meta_parameter_recorder import MetaParameterRecorder
 
 
 class Agent(object):
@@ -94,6 +96,27 @@ class Agent(object):
             if isinstance(action['shape'], int):
                 action['shape'] = (action['shape'],)
 
+        # TensorFlow summaries & Configuration Meta Parameter Recorder options
+        if self.summary_spec is None:
+            self.summary_labels = set()
+        else:
+            self.summary_labels = set(self.summary_spec.get('labels', ()))
+ 
+        self.meta_param_recorder = None
+ 
+        if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
+            self.meta_param_recorder = MetaParameterRecorder(inspect.currentframe())
+            if 'meta_dict' in self.summary_spec:   
+                # Custom Meta Dictionary passed
+                self.meta_param_recorder.merge_custom(self.summary_spec['meta_dict'])
+            if 'configuration' in self.summary_labels:  
+                # Setup for TensorBoard population
+                self.summary_spec['meta_param_recorder_class'] = self.meta_param_recorder
+            if 'print_configuration' in self.summary_labels: 
+                # Print to STDOUT (TADO: optimize output)
+                self.meta_param_recorder.text_output(format_type=1)
+ 
+        # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
         self.model = self.initialize_model()
 
         # Batched observe for better performance with Python.

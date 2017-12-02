@@ -636,7 +636,7 @@ class Model(object):
         elif action_spec['type'] == 'float':
             action += tf.reshape(tensor=exploration_value, shape=tuple(1 for _ in range(len(action_shape))))
             if 'min_value' in action_spec:
-                exploration_value = tf.clip_by_value(
+                action = tf.clip_by_value(
                     t=action,
                     clip_value_min=action_spec['min_value'],
                     clip_value_max=action_spec['max_value']

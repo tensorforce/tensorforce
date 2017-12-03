@@ -21,6 +21,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from copy import deepcopy
+
 from six.moves import xrange
 import argparse
 import logging
@@ -29,6 +31,7 @@ import sys
 import time
 import numpy as np
 
+from tensorforce import TensorForceError
 from tensorforce.agents import agents as AgentsDictionary, Agent
 import json
 from tensorforce.execution import ThreadedRunner
@@ -85,17 +88,23 @@ def main():
         logger.info("No network configuration provided.")
 
     agent_configs = []
+    if args.agent_config is not None:
+        with open(args.agent_config, 'r') as fp:
+            agent_config = json.load(fp=fp)
+    else:
+        raise TensorForceError("No agent configuration provided.")
+
     for i in range(args.workers):
-        agent_config = json.loads(args.agent_config)
+        worker_config = deepcopy(agent_config)
 
         # Optionally overwrite epsilon final values
-        if "exploration" in agent_config and agent_config.exploration["type"] == "epsilon_anneal":
+        if "explorations_spec" in worker_config and worker_config['explorations_spec']['type'] == "epsilon_anneal":
             if args.epsilon_annealing:
                 # epsilon final values are [0.5, 0.1, 0.01] with probabilities [0.3, 0.4, 0.3]
                 epsilon_final = np.random.choice([0.5, 0.1, 0.01], p=[0.3, 0.4, 0.3])
-                agent_config.exploration["epsilon_final"] = epsilon_final
+                worker_config['explorations_spec']["epsilon_final"] = epsilon_final
 
-        agent_configs.append(agent_config)
+        agent_configs.append(worker_config)
 
     # Let the first agent create the model
     # Manually assign model

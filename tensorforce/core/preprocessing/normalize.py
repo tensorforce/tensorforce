@@ -33,7 +33,7 @@ class Normalize(Preprocessor):
 
     def tf_process(self, tensor):
         # Min/max across every axis except batch dimension.
-        min_value = tf.reduce_min(input_tensor=tensor, axis=np.arange(1, util.rank(tensor)))
-        max_value = tf.reduce_max(input_tensor=tensor, axis=np.arange(1, util.rank(tensor)))
+        min_value = tf.reduce_min(input_tensor=tensor, axis=np.arange(0, util.rank(tensor)))
+        max_value = tf.reduce_max(input_tensor=tensor, axis=np.arange(0, util.rank(tensor)))
 
         return (tensor - min_value) / (max_value - min_value + util.epsilon)

@@ -317,10 +317,10 @@ class TestTutorialCode(unittest.TestCase):
             ),
             dict(
                 type='grayscale'
-            )#,
-            #dict(
-            #    type='normalize'
-            #)#,  # sequence preprocessing is temporarily broken
+            ),
+            dict(
+                type='normalize'
+            )#,  # sequence preprocessing is temporarily broken
             #dict(
             #    type='sequence',
             #    length=4

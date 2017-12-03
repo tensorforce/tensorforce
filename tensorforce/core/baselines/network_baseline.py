@@ -41,7 +41,7 @@ class NetworkBaseline(Baseline):
             spec=network_spec,
             kwargs=dict(summary_labels=summary_labels)
         )
-        assert len(self.network.internal_inputs()) == 0
+        assert len(self.network.internals_input()) == 0
 
         self.linear = Linear(size=1, bias=0.0, scope='prediction')
 

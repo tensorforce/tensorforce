@@ -887,9 +887,7 @@ class Lstm(Layer):
         if util.rank(x) != 2:
             raise TensorForceError('Invalid input rank for lstm layer: {}, must be 2.'.format(util.rank(x)))
 
-        c = state[:, 0, :]
-        h = state[:, 1, :]
-        state = tf.contrib.rnn.LSTMStateTuple(c=c, h=h)
+        state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
 
         self.lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
 

@@ -206,7 +206,7 @@ class QDemoModel(QModel):
                 feed_dict = {state_input: states[name] for name, state_input in self.state_inputs.items()}
             feed_dict.update(
                 {internal_input: internals[n]
-                    for n, internal_input in enumerate(self.internal_inputs)}
+                    for n, internal_input in enumerate(self.internals_input)}
             )
             feed_dict.update(
                 {action_input: actions[name]
@@ -222,7 +222,7 @@ class QDemoModel(QModel):
                 feed_dict = {state_input: (states[name],) for name, state_input in self.state_inputs.items()}
             feed_dict.update(
                 {internal_input: (internals[n],)
-                    for n, internal_input in enumerate(self.internal_inputs)}
+                    for n, internal_input in enumerate(self.internals_input)}
             )
             feed_dict.update(
                 {action_input: (actions[name],)

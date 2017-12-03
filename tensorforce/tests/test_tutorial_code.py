@@ -281,11 +281,11 @@ class TestTutorialCode(unittest.TestCase):
                 internal_output = tf.stack(values=(state.c, state.h), axis=1)
                 return x, (internal_output,)
 
-            def internal_inputs(self):
-                return super(Lstm, self).internal_inputs() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
+            def internals_input(self):
+                return super(Lstm, self).internals_input() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
 
-            def internal_inits(self):
-                return super(Lstm, self).internal_inits() + [np.zeros(shape=(2, self.size))]
+            def internals_init(self):
+                return super(Lstm, self).internals_init() + [np.zeros(shape=(2, self.size))]
 
         ### Test LSTM
         states = dict(shape=(10,), type='float')
@@ -309,7 +309,7 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Preprocessing configuration
         states = dict(shape=(84, 84, 3), type='float')
-        preprocessing = [
+        states_preprocessing_spec = [
             dict(
                 type='image_resize',
                 width=84,
@@ -340,7 +340,7 @@ class TestTutorialCode(unittest.TestCase):
             batch_size=8,
             first_update=100,
             target_sync_frequency=50,
-            preprocessing=preprocessing
+            states_preprocessing_spec=states_preprocessing_spec
         )
 
         agent.close()

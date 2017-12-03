@@ -22,7 +22,9 @@ TensorFlow graph, including control flow. This both reduces dependencies
 on the host language (Python), thus enabling portable computation graphs that
 can be used in other languages and  contexts, and improves performance.
 
-More information on architecture can also be found [on our blog.](https://reinforce.io/blog/)
+Please read our [TensorForce FAQ](https://github.com/reinforceio/tensorforce/blob/master/FAQ.md)
+first, if you encounter problems and/or questions. More information on architecture can also be
+found [on our blog](https://reinforce.io/blog/).
 
 Please do read the latest update notes (UPDATE_NOTES.md) for an idea of how the project is evolving, especially
 concerning majorAPI breaking updates.

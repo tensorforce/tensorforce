@@ -364,7 +364,7 @@ class TestTutorialCode(unittest.TestCase):
                 capacity=1000
             ),
             batch_size=8,
-            exploration=exploration
+            explorations_spec=exploration
         )
 
         agent.close()
@@ -388,7 +388,7 @@ class TestTutorialCode(unittest.TestCase):
                 capacity=1000
             ),
             batch_size=8,
-            exploration=exploration
+            explorations_spec=exploration
         )
 
         agent.close()

@@ -22,7 +22,7 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
             type='adam',
             learning_rate=0.001
         ),
-        exploration=dict(
+        explorations_spec=dict(
             type="ornstein_uhlenbeck"
         ),
         repeat_update=4,

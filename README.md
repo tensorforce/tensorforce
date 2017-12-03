@@ -14,7 +14,13 @@ providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
 TensorForce is built on top of TensorFlow and compatible with Python 2.7
 and &gt;3.5 and supports multiple state inputs and multi-dimensional
-actions to be compatible with Gym, Universe, and DeepMind lab.
+actions to be compatible with Gym, Universe, and DeepMind lab. It further
+provides an easily extensible interface to implement new environments.
+
+Finally, TensorForce aims to move all reinforcement learning logic into the
+TensorFlow graph, including control flow. This both reduces dependencies
+on the host language (Python), thus enabling portable computation graphs that
+can be used in other languages and  contexts, and improves performance.
 
 More information on architecture can also be found [on our blog.](https://reinforce.io/blog/)
 
@@ -49,10 +55,10 @@ policy methods both continuous/discrete and using a Beta distribution for bounde
     usable with different agents. - [paper](https://arxiv.org/pdf/1602.01783.pdf)
 - Trust Region Policy Optimization (TRPO) - ```trpo_agent``` - [paper](https://arxiv.org/abs/1502.05477)
 - Normalised Advantage functions (NAFs) - ```naf_agent``` - [paper](https://arxiv.org/pdf/1603.00748.pdf)
-- DQN - [paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
+- DQN - ```dqn_agent``` -  [paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
 - Double-DQN - ```ddqn_agent``` - [paper](https://arxiv.org/abs/1509.06461)
 - N-step DQN - ```dqn_nstep_agent```
-- Vanilla Policy Gradients (VPG/ REINFORCE) - ```vpg_agent```- [paper]()
+- Vanilla Policy Gradients (VPG/ REINFORCE) - ```vpg_agent```- [paper](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf)
 - Actor-critic models - via `baseline` for any policy gradient model (see next list) - [paper]()
 - Deep Q-learning from Demonstration (DQFD) -
     [paper](https://arxiv.org/abs/1704.03732)
@@ -255,4 +261,5 @@ If you use TensorForce in your academic research, we would be grateful if you co
 ```
 
 We are also very grateful for our open source contributors (listed according to github): Islandman93, wassname, 
-trickmeyer, lefnire, mryellow, beflix,AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.
+lefnire, Mazecreator, trickmeyer, mryellow, ImpulseAdventure, vwxyzjn, beflix, tms1337, BorisSchaeling, ngoodger,
+ekerazha, Davidnet, nikoliazekter, AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.

@@ -7,7 +7,9 @@ be tracked here in detail but through github issues.
 
 2nd December 2017
 
-- Sequence preprocessor temporarily broken; use version 0.3.2 if required.
+- Sequence preprocessor temporarily broken; use version 0.3.2 if required. This is because sequence sampling
+  in TensorFlow is only sensibly possible once replay memories/batches have also been moved into TensorFlow.
+- Moved pre-processing and exploration from agent (in Python logic) to TensorFlow control flow in model
 
 11th November 2017
 

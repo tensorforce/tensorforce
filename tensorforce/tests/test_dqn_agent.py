@@ -44,12 +44,12 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
         #     final_epsilon=0.1,
         #     timesteps=10
         # ),
-        explorations_spec=dict(
-            type="epsilon_anneal",
-            initial_epsilon=1.0,
-            final_epsilon=0.1,
-            timesteps=10
-        ),
+        # explorations_spec=dict(
+        #     type="epsilon_anneal",
+        #     initial_epsilon=1.0,
+        #     final_epsilon=0.1,
+        #     timesteps=10
+        # ),
         repeat_update=4,
         batch_size=32,
         first_update=64,

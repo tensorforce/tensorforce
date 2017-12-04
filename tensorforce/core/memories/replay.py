@@ -59,7 +59,7 @@ class Replay(Memory):
             self.size += 1
         self.index = (self.index + 1) % self.capacity
 
-    def get_batch(self, batch_size, next_states=False):
+    def get_batch(self, batch_size, next_states=False, keep_terminal_states=True):
         """
         Samples a batch of the specified size by selecting a random start/end point and returning
         the contained sequence or random indices depending on the field 'random_sampling'.
@@ -67,6 +67,11 @@ class Replay(Memory):
         Args:
             batch_size: The batch size
             next_states: A boolean flag indicating whether 'next_states' values should be included
+            keep_terminal_states: A boolean flag indicating whether to keep terminal states when
+                `next_states` are requested. In this case, the next state is not from the same episode
+                and should probably not be used to learn a model of the environment. However, if the
+                environment produces sparse rewards (i.e. only one reward at the end of the episode) we
+                cannot exclude terminal states, as otherwise there would never be a reward to learn from.
 
         Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
 
@@ -75,10 +80,11 @@ class Replay(Memory):
             if next_states:
                 indices = np.random.randint(self.size - 1, size=batch_size)
                 terminal = self.terminal.take(indices)
-                while np.any(terminal):
-                    alternative = np.random.randint(self.size - 1, size=batch_size)
-                    indices = np.where(terminal, alternative, indices)
-                    terminal = self.terminal.take(indices)
+                if not keep_terminal_states:
+                    while np.any(terminal):
+                        alternative = np.random.randint(self.size - 1, size=batch_size)
+                        indices = np.where(terminal, alternative, indices)
+                        terminal = self.terminal.take(indices)
             else:
                 indices = np.random.randint(self.size, size=batch_size)
 

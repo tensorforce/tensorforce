@@ -29,7 +29,7 @@ class ClippedStep(MetaOptimizer):
     optimizer a number of times.
     """
 
-    def __init__(self, optimizer, clip_delta_value=0.):
+    def __init__(self, optimizer, clipping_value):
         """
         Creates a new multi-step meta optimizer instance.
 
@@ -39,8 +39,8 @@ class ClippedStep(MetaOptimizer):
         """
         super(ClippedStep, self).__init__(optimizer=optimizer)
 
-        assert isinstance(clip_delta_value, float) and clip_delta_value > 0.
-        self.clip_delta_value = clip_delta_value
+        assert isinstance(clipping_value, float) and clipping_value > 0.0
+        self.clipping_value = clipping_value
 
     def tf_step(self, time, variables, **kwargs):
         """
@@ -58,9 +58,17 @@ class ClippedStep(MetaOptimizer):
 
         with tf.control_dependencies(control_inputs=deltas):
             clipped_deltas = list()
-            for var, delta in zip(variables, deltas):
-                clipped_delta = tf.clip_by_value(delta, -self.clip_delta_value, self.clip_delta_value)
-                var -= (delta - clipped_delta)
+            exceeding_deltas = list()
+            for delta in deltas:
+                clipped_delta = tf.clip_by_value(
+                    t=delta,
+                    clip_value_min=-self.clipping_value,
+                    clip_value_max=self.clipping_value
+                )
                 clipped_deltas.append(clipped_delta)
+                exceeding_deltas.append(clipped_delta - delta)
 
-        return clipped_deltas
+        applied = self.apply_step(variables=variables, deltas=exceeding_deltas)
+
+        with tf.control_dependencies(control_inputs=(applied,)):
+            return [delta + 0.0 for delta in clipped_deltas]

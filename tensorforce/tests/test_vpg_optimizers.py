@@ -111,3 +111,22 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             )
         )
         self.base_test(name='optimized-step', environment=environment, network_spec=network_spec, **kwargs)
+
+    def test_clipped_step(self):
+        environment = MinimalTest(specification=[('int', ())])
+        network_spec = [
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
+        ]
+        kwargs = dict(
+            batch_size=8,
+            optimizer=dict(
+                type='clipped_step',
+                optimizer=dict(
+                    type='adam',
+                    learning_rate=1e-3
+                ),
+                clipping_value=0.01
+            )
+        )
+        self.base_test(name='clipped-step', environment=environment, network_spec=network_spec, **kwargs)

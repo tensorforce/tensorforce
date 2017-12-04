@@ -320,11 +320,13 @@ class TestTutorialCode(unittest.TestCase):
             ),
             dict(
                 type='normalize'
-            )#,  # sequence preprocessing is temporarily broken
-            #dict(
+            )
+            # sequence preprocessing is temporarily broken
+            # ,
+            # dict(
             #    type='sequence',
             #    length=4
-            #)
+            # )
         ]
 
         ### Test preprocessing configuration

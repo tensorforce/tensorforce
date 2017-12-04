@@ -894,10 +894,10 @@ class Conv2d(Layer):
 
 class InternalLstm(Layer):
     """
-    Long short-term memory layer.
+    Long short-term memory layer for internal state management.
     """
 
-    def __init__(self, size, dropout=None, scope='lstm', summary_labels=()):
+    def __init__(self, size, dropout=None, scope='internal_lstm', summary_labels=()):
         """
         LSTM layer.
 
@@ -911,7 +911,9 @@ class InternalLstm(Layer):
 
     def tf_apply(self, x, update, state):
         if util.rank(x) != 2:
-            raise TensorForceError('Invalid input rank for lstm layer: {}, must be 2.'.format(util.rank(x)))
+            raise TensorForceError(
+                'Invalid input rank for internal lstm layer: {}, must be 2.'.format(util.rank(x))
+            )
 
         state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
 
@@ -932,7 +934,45 @@ class InternalLstm(Layer):
         return x, (internal_output,)
 
     def internals_input(self):
-        return super(InternalLstm, self).internals_input() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
+        return super(InternalLstm, self).internals_input() \
+               + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
 
     def internals_init(self):
         return super(InternalLstm, self).internals_init() + [np.zeros(shape=(2, self.size))]
+
+
+class Lstm(Layer):
+
+    def __init__(self, size, dropout=None, scope='lstm', summary_labels=(), return_final_state=True):
+        """
+        LSTM layer.
+
+        Args:
+            size: LSTM size.
+            dropout: Dropout rate.
+        """
+        self.size = size
+        self.dropout = dropout
+        self.return_final_state = return_final_state
+        super(Lstm, self).__init__(num_internals=0, scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update, sequence_length=None):
+        if util.rank(x) != 3:
+            raise TensorForceError('Invalid input rank for lstm layer: {}, must be 3.'.format(util.rank(x)))
+
+        lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
+        if 'activations' in self.summary_labels:
+            summary = tf.summary.histogram(name='activations', values=x)
+            self.summaries.append(summary)
+
+        x, state = tf.nn.dynamic_rnn(
+            cell=lstm_cell,
+            inputs=x,
+            sequence_length=sequence_length,
+        )
+
+        # This distinction is so we can stack multiple LSTM layers
+        if self.return_final_state:
+            return tf.stack(values=(state.c, state.h), axis=1)
+        else:
+            return x

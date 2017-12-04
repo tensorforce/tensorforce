@@ -39,5 +39,5 @@ class Standardize(Preprocessor):
         else:
             axes = tuple(range(1, util.rank(tensor)))
 
-        mean, variance = tf.nn.moments(x=tensor, axes=axes)
-        return (tensor - mean) / tf.maximum(x=variance, y=util.epsilon)
+        mean, variance = tf.nn.moments(x=tensor, axes=axes, keep_dims=True)
+        return (tensor - mean) / tf.maximum(x=tf.sqrt(variance), y=util.epsilon)

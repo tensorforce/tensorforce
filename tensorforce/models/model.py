@@ -667,7 +667,7 @@ class Model(object):
         if self.reward_preprocessing is None:
             reward = tf.identity(input=reward)
         else:
-            reward = self.reward_preprocessing.process(state=reward)
+            reward = self.reward_preprocessing.process(tensor=reward)
 
         return reward
 

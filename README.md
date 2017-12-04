@@ -22,12 +22,13 @@ TensorFlow graph, including control flow. This both reduces dependencies
 on the host language (Python), thus enabling portable computation graphs that
 can be used in other languages and  contexts, and improves performance.
 
-Please read our [TensorForce FAQ](https://github.com/reinforceio/tensorforce/blob/master/FAQ.md)
-first, if you encounter problems and/or questions. More information on architecture can also be
-found [on our blog](https://reinforce.io/blog/).
+More information on architecture can also be found [on our blog](https://reinforce.io/blog/).
+Please also read the [TensorForce FAQ](https://github.com/reinforceio/tensorforce/blob/master/FAQ.md)
+if you encounter problems or have questions.
 
-Please do read the latest update notes (UPDATE_NOTES.md) for an idea of how the project is evolving, especially
-concerning majorAPI breaking updates.
+Finally, read the latest update notes (UPDATE_NOTES.md) for an idea of
+how the project is evolving, especially concerning majorAPI breaking updates.
+
 
 The main difference to existing libraries is a strict separation of
 environments, agents and update logic that facilitates usage in

@@ -22,7 +22,6 @@ from __future__ import print_function
 from __future__ import division
 
 from math import sqrt
-
 import numpy as np
 import tensorflow as tf
 
@@ -501,11 +500,26 @@ class Dense(Layer):
         self.skip = skip
         if self.skip and size is not None:
             raise TensorForceError(
-                    'Dense Layer SKIP connection needs Size=None, uses input shape sizes to create skip connection network, please delete "size" parameter')         
-        self.linear = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+                'Dense Layer SKIP connection needs Size=None, uses input shape '
+                'sizes to create skip connection network, please delete "size" parameter'
+            )
+
+        self.linear = Linear(
+            size=size,
+            bias=bias,
+            l2_regularization=l2_regularization,
+            l1_regularization=l1_regularization,
+            summary_labels=summary_labels
+        )
         if self.skip:
             print("SKIP ENABLED")
-            self.linear_skip = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+            self.linear_skip = Linear(
+                size=size,
+                bias=bias,
+                l2_regularization=l2_regularization,
+                l1_regularization=l1_regularization,
+                summary_labels=summary_labels
+            )
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
@@ -553,7 +567,8 @@ class Dense(Layer):
         layer_variables = super(Dense, self).get_variables(include_non_trainable=include_non_trainable)
         linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
         if self.skip:
-            linear_variables = linear_variables + self.linear_skip.get_variables(include_non_trainable=include_non_trainable)
+            linear_variables = linear_variables \
+                               + self.linear_skip.get_variables(include_non_trainable=include_non_trainable)
         nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
 
         return layer_variables + linear_variables + nonlinearity_variables
@@ -595,8 +610,19 @@ class Dueling(Layer):
             l1_regularization: L1 regularization weight.
         """
         # Expectation is broadcast back over advantage values so output is of size 1
-        self.expectation_layer = Linear(size=1, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
-        self.advantage_layer = Linear(size=size, bias=bias, l2_regularization=l2_regularization, l1_regularization=l1_regularization, summary_labels=summary_labels)
+        self.expectation_layer = Linear(
+            size=1, bias=bias,
+            l2_regularization=l2_regularization,
+            l1_regularization=l1_regularization,
+            summary_labels=summary_labels
+        )
+        self.advantage_layer = Linear(
+            size=size,
+            bias=bias,
+            l2_regularization=l2_regularization,
+            l1_regularization=l1_regularization,
+            summary_labels=summary_labels
+        )
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
@@ -701,7 +727,7 @@ class Conv1d(Layer):
         stddev = min(0.1, sqrt(2.0 / self.size))
         filters_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
         self.filters = tf.get_variable(name='W', shape=filters_shape, dtype=tf.float32, initializer=filters_init)
-        x = tf.nn.conv1d(input=x, filter=self.filters, strides=self.stride, padding=self.padding)
+        x = tf.nn.conv1d(value=x, filters=self.filters, stride=self.stride, padding=self.padding)
 
         if self.bias:
             bias_shape = (self.size,)
@@ -866,7 +892,7 @@ class Conv2d(Layer):
         return layer_summaries + nonlinearity_summaries
 
 
-class Lstm(Layer):
+class InternalLstm(Layer):
     """
     Long short-term memory layer.
     """
@@ -881,7 +907,7 @@ class Lstm(Layer):
         """
         self.size = size
         self.dropout = dropout
-        super(Lstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
+        super(InternalLstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update, state):
         if util.rank(x) != 2:
@@ -906,7 +932,7 @@ class Lstm(Layer):
         return x, (internal_output,)
 
     def internals_input(self):
-        return super(Lstm, self).internals_input() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
+        return super(InternalLstm, self).internals_input() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
 
     def internals_init(self):
-        return super(Lstm, self).internals_init() + [np.zeros(shape=(2, self.size))]
+        return super(InternalLstm, self).internals_init() + [np.zeros(shape=(2, self.size))]

@@ -104,7 +104,8 @@ class Agent(object):
  
         self.meta_param_recorder = None
  
-        if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
+        #if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
+        if any(k in self.summary_labels for k in ['configuration','print_configuration']):
             self.meta_param_recorder = MetaParameterRecorder(inspect.currentframe())
             if 'meta_dict' in self.summary_spec:   
                 # Custom Meta Dictionary passed

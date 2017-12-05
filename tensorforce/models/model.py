@@ -259,15 +259,18 @@ class Model(object):
                         ))
                     )
 
-            if 'inputs' in self.summary_labels:
-                for name, state in states.items():
-                    summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=state)
+            if any(k in self.summary_labels for k in ['inputs','states','actions','rewards']): 
+                if any(k in self.summary_labels for k in ['inputs','states']):               
+                    for name, state in states.items():
+                        summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=state)
+                        self.summaries.append(summary)
+                if any(k in self.summary_labels for k in ['inputs','actions']):                                       
+                    for name, action in actions.items():
+                        summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=action)
+                        self.summaries.append(summary)
+                if any(k in self.summary_labels for k in ['inputs','rewards']):                                       
+                    summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
                     self.summaries.append(summary)
-                for name, action in actions.items():
-                    summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=action)
-                    self.summaries.append(summary)
-                summary = tf.summary.histogram(name=(self.scope + '/inputs/reward'), values=reward)
-                self.summaries.append(summary)
 
         if self.distributed_spec is not None:
             if self.distributed_spec.get('replica_model'):

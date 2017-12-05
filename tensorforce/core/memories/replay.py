@@ -162,6 +162,8 @@ class Replay(Memory):
                 self.actions[name] = np.asarray(action)
             self.terminal = np.asarray(terminal)
             self.reward = np.asarray(reward)
+            # Filled capacity to point of index wrap
+            self.index = 0
 
         else:
             # Otherwise partial assignment.
@@ -177,3 +179,4 @@ class Replay(Memory):
                 self.actions[name][:len(action)] = action
             self.terminal[:len(terminal)] = terminal
             self.reward[:len(reward)] = reward
+            self.index = len(terminal)

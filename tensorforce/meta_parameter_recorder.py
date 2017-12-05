@@ -80,7 +80,8 @@ class MetaParameterRecorder(object):
     def text_output(self, format_type=1):
         print('======================= ' + self.meta_params['AgentName'] + ' ====================================')
         for key in self.meta_params:
-            print ("    ", key, type(self.meta_params[key]),"=", self.convert_data_to_string(self.meta_params[key], format_type=format_type))      
+            print ("    ", key, type(self.meta_params[key]),"=", self.convert_data_to_string(self.meta_params[key],\
+                format_type=format_type))      
         print('======================= ' + self.meta_params['AgentName'] + ' ====================================')
 
     def convert_dictionary_to_string(self, data, indent=0, format_type=0, seperator=None, eol=None):
@@ -111,7 +112,8 @@ class MetaParameterRecorder(object):
                 if indent>0:  
                     key_txt="    | " + key_txt
 
-            data_string += add_seperator + key_txt + key_value_sep + self.convert_data_to_string(data[key], seperator=seperator, indent=indent+1) + eol
+            data_string += add_seperator + key_txt + key_value_sep + self.convert_data_to_string(data[key],\
+                seperator=seperator, indent=indent+1) + eol
         
         return data_string  
 

@@ -30,20 +30,16 @@ class Optimizer(object):
     updating a set of variables.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, summaries=None, summary_labels=None):
         """
         Creates a new optimizer instance.
         """
         self.variables = dict()
-        if 'summaries' in kwargs:
-            self.summaries = kwargs['summaries']
-            del kwargs['summaries']
-        if 'summary_labels' in kwargs:
-            self.summary_labels = kwargs['summary_labels']
-            del kwargs['summary_labels']
-        else:
+        self.summaries = summaries
+        if summary_labels is None:
             self.summary_labels = dict()
-          
+        else:
+            self.summary_labels = summary_labels
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
@@ -100,7 +96,8 @@ class Optimizer(object):
             The optimization operation.
         """
         # Add training variable gradient histograms/scalars to summary output
-        if 'gradients' in self.summary_labels:  
+        #if 'gradients' in self.summary_labels:  
+        if any(k in self.summary_labels for k in ['gradients','gradients_histogram','gradients_scalar']):  
             valid = True
             if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
                 gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
@@ -116,14 +113,16 @@ class Optimizer(object):
             if valid:
                 for grad, var in gradients:
                     if grad is not None:
-                        axes = list(range(len(grad.shape)))
-                        mean, var = tf.nn.moments(grad,axes)
-                        summary = tf.summary.scalar(name='gradients/'+var.name+"/mean", tensor=mean)
-                        self.summaries.append(summary)  
-                        summary = tf.summary.scalar(name='gradients/'+var.name+"/variance", tensor=var)
-                        self.summaries.append(summary)  
-                        summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
-                        self.summaries.append(summary)                   
+                        if any(k in self.summary_labels for k in ['gradients','gradients_scalar']):                                
+                            axes = list(range(len(grad.shape)))
+                            mean, var = tf.nn.moments(grad,axes)
+                            summary = tf.summary.scalar(name='gradients/'+var.name+"/mean", tensor=mean)
+                            self.summaries.append(summary)  
+                            summary = tf.summary.scalar(name='gradients/'+var.name+"/variance", tensor=var)
+                            self.summaries.append(summary)  
+                        if any(k in self.summary_labels for k in ['gradients','gradients_histogram']):                        
+                            summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
+                            self.summaries.append(summary)                   
         
         deltas = self.step(time=time, variables=variables, **kwargs)
         with tf.control_dependencies(control_inputs=deltas):

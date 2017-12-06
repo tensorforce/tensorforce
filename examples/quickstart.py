@@ -23,7 +23,15 @@ from tensorforce.contrib.openai_gym import OpenAIGym
 env = OpenAIGym('CartPole-v0', visualize=True)
 
 # Network as list of layers
+# - Embedding layer:
+#   - For Gym environments utilizing a discrete observation space, an
+#     "embedding" layer should be inserted at the head of the network spec.
+#     Such environments are usually identified by either:
+#     - class ...Env(discrete.DiscreteEnv):
+#     - self.observation_space = spaces.Discrete(...)
+#   
 network_spec = [
+    #dict(type='embedding', indices=100, size=32),
     dict(type='dense', size=32, activation='tanh'),
     dict(type='dense', size=32, activation='tanh')
 ]

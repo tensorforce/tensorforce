@@ -77,6 +77,20 @@ Please note that not every model can sensibly make use of every optimizer. Read 
 individual model, for example, TRPO is by default a natural gradient model.
 
 
-### 5. I really need a certain feature or help with my application.
+### 5. What is deterministic mode? How does it relate to evaluation?
+
+The deterministic flag on ```act``` only concerns the action selection. It does
+not affect whether training is performed or not. Training is controlled via
+```observe``` calls. The deterministic flag is relevant with regard to stochastic
+and deterministic policies. For example, policy gradient models typically
+assume a stochastic policy during training (unless when using deterministic policy
+gradients). Q-models, which we have also implemented inheriting from a distribution
+model (see our blog posts on architecture), deterministically sample their action
+via their greedy maximisation.
+
+When evaluating the final trained model, one would typically act deterministically to
+avoid sampling random actions.
+
+### 6. I really need a certain feature or help with my application.
 
 Please contact ```contact@reinforce.io``` for commercial support.

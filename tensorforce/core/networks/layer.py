@@ -997,6 +997,6 @@ class Lstm(Layer):
 
         # This distinction is so we can stack multiple LSTM layers
         if self.return_final_state:
-            return tf.stack(values=(state.c, state.h), axis=1)
+            return tf.concat(values=(state.c, state.h), axis=1)
         else:
             return x

@@ -95,7 +95,11 @@ class TFOptimizer(Optimizer):
     def get_variables(self):
         optimizer_variables = super(TFOptimizer, self).get_variables()
 
-        slots_variables = [variable for slot in self.optimizer._slots.values() for variable in slot.values()]
+        slots_variables = [
+            self.optimizer._slots[slot][key]
+            for slot in sorted(self.optimizer._slots)
+            for key in sorted(self.optimizer._slots[slot])
+        ]
 
         if self.name in ('adam', 'nadam'):
             additional_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]

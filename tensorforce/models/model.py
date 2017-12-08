@@ -182,12 +182,11 @@ class Model(object):
             # Episode
             collection = self.graph.get_collection(name='episode')
             if len(collection) == 0:
-                self.episode = custom_getter(
-                    getter=tf.get_variable,
+                self.episode = tf.Variable(
                     name='episode',
                     dtype=util.tf_dtype('int'),
-                    initializer=0,
-                    trainable=False
+                    trainable=False,
+                    initial_value=0
                 )
                 self.graph.add_to_collection(name='episode', value=self.episode)
             else:
@@ -197,12 +196,11 @@ class Model(object):
             # Timestep
             collection = self.graph.get_collection(name='timestep')
             if len(collection) == 0:
-                self.timestep = custom_getter(
-                    getter=tf.get_variable,
+                self.timestep = tf.Variable(
                     name='timestep',
                     dtype=util.tf_dtype('int'),
-                    initializer=0,
-                    trainable=False
+                    trainable=False,
+                    initial_value=0
                 )
                 self.graph.add_to_collection(name='timestep', value=self.timestep)
                 self.graph.add_to_collection(name=tf.GraphKeys.GLOBAL_STEP, value=self.timestep)
@@ -288,14 +286,14 @@ class Model(object):
 
         # Global and local variables initialize operations
         if self.distributed_spec is None:
-            global_variables = self.get_variables(include_non_trainable=True)
+            global_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
             ready_for_local_init_op = None
             local_init_op = None
         else:
-            global_variables = self.global_model.get_variables(include_non_trainable=True)
-            local_variables = self.get_variables(include_non_trainable=True)
+            global_variables = self.global_model.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
+            local_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)

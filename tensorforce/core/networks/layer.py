@@ -281,7 +281,15 @@ class Embedding(Layer):
     Embedding layer.
     """
 
-    def __init__(self, indices, size, l2_regularization=0.0, l1_regularization=0.0, scope='embedding', summary_labels=()):
+    def __init__(
+        self,
+        indices,
+        size,
+        l2_regularization=0.0,
+        l1_regularization=0.0,
+        scope='embedding',
+        summary_labels=()
+    ):
         """
         Embedding layer.
 
@@ -332,7 +340,16 @@ class Linear(Layer):
     Linear fully-connected layer.
     """
 
-    def __init__(self, size, weights=None, bias=True, l2_regularization=0.0, l1_regularization=0.0, scope='linear', summary_labels=()):
+    def __init__(
+        self,
+        size,
+        weights=None,
+        bias=True,
+        l2_regularization=0.0,
+        l1_regularization=0.0,
+        scope='linear',
+        summary_labels=()
+    ):
         """
         Linear layer.
 
@@ -430,7 +447,12 @@ class Linear(Layer):
         if isinstance(self.weights_init, tf.Tensor):
             self.weights = self.weights_init
         else:
-            self.weights = tf.get_variable(name='W', shape=weights_shape, dtype=tf.float32, initializer=self.weights_init)
+            self.weights = tf.get_variable(
+                name='W',
+                shape=weights_shape,
+                dtype=tf.float32,
+                initializer=self.weights_init
+            )
 
         x = tf.matmul(a=x, b=self.weights)
 
@@ -495,7 +517,8 @@ class Dense(Layer):
             activation: Type of nonlinearity.
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
-            skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf), doubles layers and ShortCut from Input to output
+            skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf),
+                  doubles layers and ShortCut from Input to output
         """
         self.skip = skip
         if self.skip and size is not None:
@@ -969,6 +992,7 @@ class Lstm(Layer):
             cell=lstm_cell,
             inputs=x,
             sequence_length=sequence_length,
+            dtype=tf.float32
         )
 
         # This distinction is so we can stack multiple LSTM layers

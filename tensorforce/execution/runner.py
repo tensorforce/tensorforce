@@ -56,7 +56,8 @@ class Runner(object):
         episodes=None,
         max_episode_timesteps=None,
         deterministic=False,
-        episode_finished=None
+        should_observe=True,
+        episode_finished=None,
     ):
         """
         Runs the agent on the environment.
@@ -66,6 +67,7 @@ class Runner(object):
             episodes: Number of episodes
             max_episode_timesteps: Max number of timesteps per episode
             deterministic: Deterministic flag
+            should_observe: Should the agent observe rewards? (set to False if testing a trained agent)
             episode_finished: Function handler taking a `Runner` argument and returning a boolean indicating
                 whether to continue execution. For instance, useful for reporting intermediate performance or
                 integrating termination conditions.
@@ -108,7 +110,8 @@ class Runner(object):
                 if max_episode_timesteps is not None and self.episode_timestep >= max_episode_timesteps:
                     terminal = True
 
-                self.agent.observe(terminal=terminal, reward=reward)
+                if should_observe:
+                    self.agent.observe(terminal=terminal, reward=reward)
 
                 self.episode_timestep += 1
                 self.timestep += 1

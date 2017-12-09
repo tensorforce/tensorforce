@@ -25,7 +25,8 @@ from tensorforce.models import QModel
 
 class QDemoModel(QModel):
     """
-    Model for deep Q-learning from demonstration. Principal structure similar to double deep Q-networks but uses additional loss terms for demo data.
+    Model for deep Q-learning from demonstration. Principal structure similar to double
+    deep Q-networks but uses additional loss terms for demo data.
     """
 
     def __init__(
@@ -200,17 +201,19 @@ class QDemoModel(QModel):
         if batched:
             # TEMP: Random sampling fix
             if self.random_sampling_fix:
-                feed_dict = {state_input: states[name][0] for name, state_input in self.state_inputs.items()}
-                feed_dict.update({state_input: states[name][1] for name, state_input in self.next_state_inputs.items()})
+                feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
+                feed_dict.update(
+                    {state_input: states[name][1] for name, state_input in self.next_states_input.items()}
+                )
             else:
-                feed_dict = {state_input: states[name] for name, state_input in self.state_inputs.items()}
+                feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
             feed_dict.update(
                 {internal_input: internals[n]
                     for n, internal_input in enumerate(self.internals_input)}
             )
             feed_dict.update(
                 {action_input: actions[name]
-                    for name, action_input in self.action_inputs.items()}
+                    for name, action_input in self.actions_input.items()}
             )
             feed_dict[self.terminal_input] = terminal
             feed_dict[self.reward_input] = reward
@@ -219,14 +222,14 @@ class QDemoModel(QModel):
             if self.random_sampling_fix:
                 raise TensorForceError("Unbatched version not covered by fix.")
             else:
-                feed_dict = {state_input: (states[name],) for name, state_input in self.state_inputs.items()}
+                feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
             feed_dict.update(
                 {internal_input: (internals[n],)
                     for n, internal_input in enumerate(self.internals_input)}
             )
             feed_dict.update(
                 {action_input: (actions[name],)
-                    for name, action_input in self.action_inputs.items()}
+                    for name, action_input in self.actions_input.items()}
             )
             feed_dict[self.terminal_input] = (terminal,)
             feed_dict[self.reward_input] = (reward,)

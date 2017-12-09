@@ -82,6 +82,8 @@ class BaseTest(object):
             if all(rw / ln >= self.__class__.pass_threshold
                     for rw, ln in zip(runner.episode_rewards[-100:], runner.episode_timesteps[-100:])):
                 passed += 1
+            if passed == 2:
+                break
 
         sys.stdout.write(' ==> {} passed\n'.format(passed))
         sys.stdout.flush()

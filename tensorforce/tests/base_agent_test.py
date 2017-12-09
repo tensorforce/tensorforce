@@ -133,24 +133,24 @@ class BaseAgentTest(BaseTest):
             def __init__(self, scope='layerbased-network', summary_labels=()):
                 super(CustomNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
 
-                self.layer01 = Dense(size=32, scope='state0-1')
+                self.layer01 = Dense(size=16, scope='state0-1')
                 self.add_layer(layer=self.layer01)
-                self.layer02 = Dense(size=32, scope='state0-2')
+                self.layer02 = Dense(size=16, scope='state0-2')
                 self.add_layer(layer=self.layer02)
 
-                self.layer11 = Dense(size=32, scope='state1-1')
+                self.layer11 = Dense(size=16, scope='state1-1')
                 self.add_layer(layer=self.layer11)
-                self.layer12 = Dense(size=32, scope='state1-2')
+                self.layer12 = Dense(size=16, scope='state1-2')
                 self.add_layer(layer=self.layer12)
 
-                self.layer21 = Dense(size=32, scope='state2-1')
+                self.layer21 = Dense(size=16, scope='state2-1')
                 self.add_layer(layer=self.layer21)
-                self.layer22 = Dense(size=32, scope='state2-2')
+                self.layer22 = Dense(size=16, scope='state2-2')
                 self.add_layer(layer=self.layer22)
 
-                self.layer31 = Dense(size=32, scope='state3-1')
+                self.layer31 = Dense(size=16, scope='state3-1')
                 self.add_layer(layer=self.layer31)
-                self.layer32 = Dense(size=32, scope='state3-2')
+                self.layer32 = Dense(size=16, scope='state3-2')
                 self.add_layer(layer=self.layer32)
 
             def tf_apply(self, x, internals, update, return_internals=False):

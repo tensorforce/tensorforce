@@ -29,5 +29,5 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
     deterministic = False
 
     kwargs = dict(
-        batch_size=64
+        batch_size=8
     )

@@ -97,7 +97,7 @@ class Optimizer(object):
         """
         # Add training variable gradient histograms/scalars to summary output
         #if 'gradients' in self.summary_labels:  
-        if any(k in self.summary_labels for k in ['gradients','gradients_histogram','gradients_scalar']):  
+        if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram', 'gradients_scalar']):
             valid = True
             if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
                 gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
@@ -109,19 +109,19 @@ class Optimizer(object):
                 # Didn't find proper gradient information
                 valid = False
 
-            # valid gradient data found, create summary data items
+            # Valid gradient data found, create summary data items
             if valid:
                 for grad, var in gradients:
                     if grad is not None:
                         if any(k in self.summary_labels for k in ['gradients','gradients_scalar']):                                
                             axes = list(range(len(grad.shape)))
                             mean, var = tf.nn.moments(grad,axes)
-                            summary = tf.summary.scalar(name='gradients/'+var.name+"/mean", tensor=mean)
+                            summary = tf.summary.scalar(name='gradients/' + var.name+ "/mean", tensor=mean)
                             self.summaries.append(summary)  
-                            summary = tf.summary.scalar(name='gradients/'+var.name+"/variance", tensor=var)
+                            summary = tf.summary.scalar(name='gradients/' + var.name+ "/variance", tensor=var)
                             self.summaries.append(summary)  
-                        if any(k in self.summary_labels for k in ['gradients','gradients_histogram']):                        
-                            summary = tf.summary.histogram(name='gradients/'+var.name, values=grad)  
+                        if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram']):
+                            summary = tf.summary.histogram(name='gradients/' + var.name, values=grad)
                             self.summaries.append(summary)                   
         
         deltas = self.step(time=time, variables=variables, **kwargs)

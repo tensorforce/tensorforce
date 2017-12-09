@@ -37,7 +37,9 @@ class OptimizedStep(MetaOptimizer):
         ls_accept_ratio=0.9,
         ls_mode='exponential',
         ls_parameter=0.5,
-        ls_unroll_loop=False
+        ls_unroll_loop=False,
+        summaries=None,
+        summary_labels=None
     ):
         """
         Creates a new optimized step meta optimizer instance.
@@ -50,7 +52,7 @@ class OptimizedStep(MetaOptimizer):
             ls_parameter: Line search parameter, see LineSearch solver.
             ls_unroll_loop: Unroll line search loop if true.
         """
-        super(OptimizedStep, self).__init__(optimizer=optimizer)
+        super(OptimizedStep, self).__init__(optimizer=optimizer, summaries=summaries, summary_labels=summary_labels)
 
         self.solver = LineSearch(
             max_iterations=ls_max_iterations,

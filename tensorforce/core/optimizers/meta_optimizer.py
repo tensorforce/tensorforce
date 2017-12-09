@@ -35,6 +35,7 @@ class MetaOptimizer(Optimizer):
             optimizer: The optimizer which is modified by this meta optimizer.
         """
         super(MetaOptimizer, self).__init__(**kwargs)
+
         self.optimizer = Optimizer.from_spec(spec=optimizer, kwargs=kwargs)
 
     def get_variables(self):

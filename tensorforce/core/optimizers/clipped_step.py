@@ -29,15 +29,15 @@ class ClippedStep(MetaOptimizer):
     optimizer a number of times.
     """
 
-    def __init__(self, optimizer, clipping_value):
+    def __init__(self, optimizer, clipping_value, summaries=None, summary_labels=None):
         """
         Creates a new multi-step meta optimizer instance.
 
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.
-            clip_delta_value: Clip deltas at this value.
+            clipping_value: Clip deltas at this value.
         """
-        super(ClippedStep, self).__init__(optimizer=optimizer)
+        super(ClippedStep, self).__init__(optimizer=optimizer, summaries=summaries, summary_labels=summary_labels)
 
         assert isinstance(clipping_value, float) and clipping_value > 0.0
         self.clipping_value = clipping_value

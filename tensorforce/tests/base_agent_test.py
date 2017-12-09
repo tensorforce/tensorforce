@@ -207,7 +207,7 @@ class BaseAgentTest(BaseTest):
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32),
-            dict(type='lstm', size=32)
+            dict(type='internal_lstm', size=32)
         ]
 
         self.base_test(

@@ -611,8 +611,8 @@ class Model(object):
         )
 
         self.summary_configuration_op = None
-        if 'meta_param_recorder_class' in self.summary_spec:
-            self.summary_configuration_op =self.summary_spec['meta_param_recorder_class'].build_metagraph_list()
+        if self.summary_spec and 'meta_param_recorder_class' in self.summary_spec:
+            self.summary_configuration_op = self.summary_spec['meta_param_recorder_class'].build_metagraph_list()
           
         # self.fn_summarization = tf.make_template(
         #     name_='summarization',

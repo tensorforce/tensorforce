@@ -19,6 +19,7 @@ import numpy as np
 import tensorflow as tf
 from tensorforce import TensorForceError
 
+
 class MetaParameterRecorder(object):
     """
     Class to record MetaParameters as well as Summary/Description for TensorBoard (TEXT & FILE will come later)
@@ -69,10 +70,16 @@ class MetaParameterRecorder(object):
 
     def merge_custom(self, custom_dict):
         if type(custom_dict) is not dict:
-            raise TensorForceError("Error:  MetaParameterRecorder 'meta_dict' must be passed a dictionary but was passed a type {} which is not supported.".format(str(type(custom_dictdata))))
+            raise TensorForceError(
+                "Error:  MetaParameterRecorder 'meta_dict' must be passed a dictionary "
+                "but was passed a type {} which is not supported.".format(str(type(custom_dict)))
+            )
         for key in custom_dict:
             if key in self.meta_params:
-                raise TensorForceError("Error:  MetaParameterRecorder 'meta_dict' key {} conflicts with internal key, please change passed key.".format(str(key)))
+                raise TensorForceError(
+                    "Error:  MetaParameterRecorder 'meta_dict' key {} conflicts with internal key,"
+                    " please change passed key.".format(str(key))
+                )
             self.meta_params[key] = custom_dict[key]
         # This line assumes the merge data came from summary_spec['meta_dict'], remove this from summary_spec
         del self.meta_params['summary_spec']['meta_dict']
@@ -80,8 +87,14 @@ class MetaParameterRecorder(object):
     def text_output(self, format_type=1):
         print('======================= ' + self.meta_params['AgentName'] + ' ====================================')
         for key in self.meta_params:
-            print ("    ", key, type(self.meta_params[key]),"=", self.convert_data_to_string(self.meta_params[key],\
-                format_type=format_type))      
+            print(
+                "    ",
+                key,
+                type(self.meta_params[key]),
+                "=",
+                self.convert_data_to_string(self.meta_params[key], format_type=format_type)
+            )
+
         print('======================= ' + self.meta_params['AgentName'] + ' ====================================')
 
     def convert_dictionary_to_string(self, data, indent=0, format_type=0, seperator=None, eol=None):
@@ -94,47 +107,57 @@ class MetaParameterRecorder(object):
         
         #This should not ever occur but here as a catch
         if type(data) is not dict:
-            raise TensorForceError("Error:  MetaParameterRecorder Dictionary conversion was passed a type {} not supported.".format(str(type(data))))
-        
-        if format_type == 0: # TensorBoard
-            label=""
-            div=""
+            raise TensorForceError(
+                "Error:  MetaParameterRecorder Dictionary conversion was passed a type {}"
+                " not supported.".format(str(type(data)))
+            )
+
+        # TensorBoard
+        if format_type == 0:
+            label = ""
+            div = ""
+
             if indent>0:
-                label= "    | "
-                div  = "--- | "
+                label = "    | "
+                div = "--- | "
             data_string += label + "Key | Value" + eol + div + "--- | ----" + eol
         
         for key in data:
             key_txt = key
-            if format_type == 0: # TensorBoard
+            # TensorBoard
+            if format_type == 0:
                 key_txt = "**" + key + "**"
                 key_value_sep = ' | '
-                if indent>0:  
-                    key_txt="    | " + key_txt
+                if indent > 0:
+                    key_txt = "    | " + key_txt
 
-            data_string += add_seperator + key_txt + key_value_sep + self.convert_data_to_string(data[key],\
-                seperator=seperator, indent=indent+1) + eol
+            converted_data = self.convert_data_to_string(data[key], seperator=seperator, indent=indent+1)
+            data_string += add_seperator + key_txt + key_value_sep + converted_data + eol
         
         return data_string  
 
     def convert_list_to_string(self, data, indent=0, format_type=0, eol=None, count=True):
-        data_string =""
+        data_string = ""
         if eol is None:
             eol = os.linesep
 
         #This should not ever occur but here as a catch
         if type(data) is not list:
-            raise TensorForceError("Error:  MetaParameterRecorder List conversion was passed a type {} not supported.".format(str(type(data))))
+            raise TensorForceError(
+                "Error:  MetaParameterRecorder List conversion was passed a type {}"
+                " not supported.".format(str(type(data)))
+            )
 
         for index,line in enumerate(data):
             data_string_prefix = ""
             if count and indent==0:
                 data_string_prefix = str(index+1)+". "
-            if format_type == 0: # TensorBoard
-                #Only add indent for 2nd item and beyond as this is likely a dictionary entry
-                if indent>0 and index>0:  
+            # TensorBoard
+            if format_type == 0:
+                # Only add indent for 2nd item and beyond as this is likely a dictionary entry
+                if indent > 0 and index>0:
                     data_string_prefix = "    | "+data_string_prefix
-            if index==(len(data)-1):
+            if index == (len(data)-1):
                 append_eol = "" 
             else:
                 append_eol = eol
@@ -143,7 +166,7 @@ class MetaParameterRecorder(object):
         return data_string  
 
     def convert_ndarray_to_md(self, data, format_type=0, eol=None):
-        data_string =""
+        data_string = ""
         data_string1 = "|Row|"
         data_string2 = "|:---:|"
         if eol is None:
@@ -151,7 +174,10 @@ class MetaParameterRecorder(object):
 
         #This should not ever occur but here as a catch
         if type(data) is not np.ndarray: 
-            raise TensorForceError("Error:  MetaParameterRecorder ndarray conversion was passed a type {} not supported.".format(str(type(data))))
+            raise TensorForceError(
+                "Error:  MetaParameterRecorder ndarray conversion was passed"
+                " a type {} not supported.".format(str(type(data)))
+            )
 
         shape = data.shape
         rank = data.ndim
@@ -174,12 +200,12 @@ class MetaParameterRecorder(object):
             data_string += "|Row|Col-0|" + eol + "|:----:|:----:|" + eol
 
             for row in range(shape[0]):
-                data_string += str(row) + "|" + str(data[row]) +"|" + eol          
+                data_string += str(row) + "|" + str(data[row]) + "|" + eol
 
         return data_string      
 
     def convert_data_to_string(self, data, indent=0, format_type=0, seperator=None, eol=None):
-        data_string =""
+        data_string = ""
         if type(data) is int:
             data_string = str(data)
         elif type(data) is float:
@@ -195,7 +221,8 @@ class MetaParameterRecorder(object):
         elif type(data) is dict:
             data_string = self.convert_dictionary_to_string(data, indent=indent, seperator=seperator) 
         elif type(data) is np.ndarray:
-            if format_type==0:  # TensorBoard
+            # TensorBoard
+            if format_type==0:
                 data_string = self.convert_ndarray_to_md(data)
             else:
                 data_string = str(data)   
@@ -203,10 +230,12 @@ class MetaParameterRecorder(object):
             data_string = "None"            
         else:
             if not self.ignore_unknown_dtypes:
-                data_string ="Error:  MetaParameterRecorder Type conversion from type {} not supported.".format(str(type(data)))
+                data_string = "Error:  MetaParameterRecorder Type conversion from type {} not supported.".\
+                    format(str(type(data)))
                 data_string += " ("+str(data)+") "
             else:
-                if format_type == 0: # TensorBoard                
+                # TensorBoard
+                if format_type == 0:
                     data_string = "**?**"
         
         return data_string
@@ -239,5 +268,3 @@ class MetaParameterRecorder(object):
             self.summary_merged = tf.summary.merge_all()
 
         return self.summary_merged
-
-    

@@ -26,7 +26,7 @@ class MetaParameterRecorder(object):
 
     #### General:
 
-    * format_type: used to configure data convertion for TensorBoard=0, TEXT & JSON (not Implemented), etc 
+    * format_type: used to configure data conversion for TensorBoard=0, TEXT & JSON (not Implemented), etc
     """
 
     def __init__(self, current_frame):
@@ -49,16 +49,16 @@ class MetaParameterRecorder(object):
         self.method_calling  = inspect.getframeinfo(current_frame)[2]
 
         _, _, __, self.vals_current = inspect.getargvalues(current_frame)
-        #self is the class name of the frame involved
+        # self is the class name of the frame involved
         if 'self' in self.vals_current:  
             self.recorded_class_type = self.vals_current['self']
-             # Add explicit AgentName item so class can be deleted
+            # Add explicit AgentName item so class can be deleted
             self.meta_params['AgentName'] = str(self.vals_current['self']) 
 
         frame_list = inspect.getouterframes(current_frame)
         
         for frame in frame_list:           
-            #Rather than frame.frame (named tuple), use [0] for python2
+            # Rather than frame.frame (named tuple), use [0] for python2
             args, varargs, keywords, vals =inspect.getargvalues(frame[0])   
             if 'self' in vals:
                 if self.recorded_class_type == vals['self']:
@@ -66,7 +66,6 @@ class MetaParameterRecorder(object):
                         self.meta_params[i] = vals[i]
         # Remove the "CLASS" from the dictionary, has no value "AgentName" contains STR of Class
         del self.meta_params['self']  
-    
 
     def merge_custom(self, custom_dict):
         if type(custom_dict) is not dict:
@@ -97,13 +96,13 @@ class MetaParameterRecorder(object):
 
         print('======================= ' + self.meta_params['AgentName'] + ' ====================================')
 
-    def convert_dictionary_to_string(self, data, indent=0, format_type=0, seperator=None, eol=None):
-        data_string     = ""
-        add_seperator   = ""
+    def convert_dictionary_to_string(self, data, indent=0, format_type=0, separator=None, eol=None):
+        data_string = ""
+        add_separator = ""
         if eol is None:
             eol = os.linesep        
-        if seperator is None:
-            seperator = ", "
+        if separator is None:
+            separator = ", "
         
         #This should not ever occur but here as a catch
         if type(data) is not dict:
@@ -117,7 +116,7 @@ class MetaParameterRecorder(object):
             label = ""
             div = ""
 
-            if indent>0:
+            if indent > 0:
                 label = "    | "
                 div = "--- | "
             data_string += label + "Key | Value" + eol + div + "--- | ----" + eol
@@ -131,8 +130,8 @@ class MetaParameterRecorder(object):
                 if indent > 0:
                     key_txt = "    | " + key_txt
 
-            converted_data = self.convert_data_to_string(data[key], seperator=seperator, indent=indent+1)
-            data_string += add_seperator + key_txt + key_value_sep + converted_data + eol
+            converted_data = self.convert_data_to_string(data[key], separator=separator, indent=indent+1)
+            data_string += add_separator + key_txt + key_value_sep + converted_data + eol
         
         return data_string  
 
@@ -150,7 +149,7 @@ class MetaParameterRecorder(object):
 
         for index,line in enumerate(data):
             data_string_prefix = ""
-            if count and indent==0:
+            if count and indent == 0:
                 data_string_prefix = str(index+1)+". "
             # TensorBoard
             if format_type == 0:
@@ -193,7 +192,7 @@ class MetaParameterRecorder(object):
                 for col in range(shape[1]): 
                     data_string += str(data[row,col]) + "|"
 
-                if row!=(shape[0]-1):
+                if row != (shape[0]-1):
                     data_string += eol
 
         elif rank == 1:
@@ -204,7 +203,7 @@ class MetaParameterRecorder(object):
 
         return data_string      
 
-    def convert_data_to_string(self, data, indent=0, format_type=0, seperator=None, eol=None):
+    def convert_data_to_string(self, data, indent=0, format_type=0, separator=None, eol=None):
         data_string = ""
         if type(data) is int:
             data_string = str(data)
@@ -219,10 +218,10 @@ class MetaParameterRecorder(object):
         elif type(data) is bool:
             data_string = str(data)                        
         elif type(data) is dict:
-            data_string = self.convert_dictionary_to_string(data, indent=indent, seperator=seperator) 
+            data_string = self.convert_dictionary_to_string(data, indent=indent, separator=separator) 
         elif type(data) is np.ndarray:
             # TensorBoard
-            if format_type==0:
+            if format_type == 0:
                 data_string = self.convert_ndarray_to_md(data)
             else:
                 data_string = str(data)   

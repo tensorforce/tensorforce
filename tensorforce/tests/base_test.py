@@ -48,7 +48,7 @@ class BaseTest(object):
         sys.stdout.flush()
 
         passed = 0
-        for _ in xrange(5):
+        for _ in xrange(3):
 
             if self.__class__.requires_network:
                 agent = self.__class__.agent(
@@ -85,4 +85,4 @@ class BaseTest(object):
 
         sys.stdout.write(' ==> {} passed\n'.format(passed))
         sys.stdout.flush()
-        self.assertTrue(passed >= 4)
+        self.assertTrue(passed >= 2)

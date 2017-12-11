@@ -233,8 +233,8 @@ these instructions just explain connectivity in case someone wants to
 get started there.
 
 
-Community and contributions
----------------------------
+Community and contribution guidelines
+-------------------------------------
 
 TensorForce is developed by [reinforce.io](https://reinforce.io), a new
 project focused on providing reinforcement learning software
@@ -242,6 +242,12 @@ infrastructure. For any questions, get in touch at
 <contact@reinforce.io>.
 
 Please file bug reports and feature discussions as GitHub issues in first instance.
+Please read the FAQ before creating an issue.
+
+Please appreciate that we do not have the resources to help you find the right configuration
+for your problem, so unless you are reasonably convinced there is a bug (e.g. by testing known hyper-parameters),
+please do not create issues such as 'Algorithm X is not working on environment Y with Configuration Z' without
+showing you have done some research (again, please read the FAQ on why).
 
 There is also a developer chat you are welcome to join. For joining, we ask to provide
 some basic details how you are using TensorForce so we can learn more about applications and our

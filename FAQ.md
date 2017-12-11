@@ -16,18 +16,23 @@ library, and call `act()` and `observe()` when new data is available. Consider t
 example in the readme.
 
 
-### 2. Why is my algorithm not converging?
+### 2. Why is my algorithm not learning?
 
 Generally, this is either because there is a bug in our implementation or a problem in your
 configuration or application. The reality of reinforcement learning is that getting things to work
 is *very* difficult and we will not be able to tell you why your specific thing is not working.
 Newcomers with some experience in deep learning, where successfully training small networks is
-easy, often carry over this expectation to reinforcement learning.
+easy, often carry over this expectation to reinforcement learning. Issues that simply
+ask for configuration help without doing some research (small ablation analysis, using some
+known hyper-parameters from papers, or reasonable argument why something should work) will be
+closed with reference to this document.
 
 Please appreciate that for almost every problem, none of the default configurations will work,
 usually because batch sizes and learning rates are wrong, or you need vastly more data. Substantial
 practical experience is required to get an intuition for what is possible with which amount of data
-for a given problem. Reproducing papers is extremely difficult.
+for a given problem. Reproducing papers is extremely difficult. From a user perspective, the
+expectation should be that to get an algorithm to work on *any* problem, hyper-parameter tuning
+is required.
 
 That being said, there are small implementation issues in some of the Q-models due to the move to
 full TensorFlow code, and the current recommendation is to use PPO unless there is a good reason

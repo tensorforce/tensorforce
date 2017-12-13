@@ -21,7 +21,7 @@ import os
 
 from setuptools import setup, find_packages
 
-install_requires=[
+install_requires = [
     'numpy',
     'six',
     'scipy',
@@ -29,7 +29,7 @@ install_requires=[
     'pytest'
 ]
 
-setup_requires=[
+setup_requires = [
     'numpy',
     'recommonmark'
 ]
@@ -39,7 +39,8 @@ extras_require = {
     'tf_gpu': ['tensorflow-gpu>=1.3.0'],
     'gym': ['gym>=0.7.4'],
     'universe': ['universe>=0.21.3'],
-    'mazeexp': ['mazeexp>=0.0.1']
+    'mazeexp': ['mazeexp>=0.0.1'],
+    'ue4': ['msgpack-python', 'msgpack-numpy']
 }
 
 # Readthedocs requires Sphinx extensions to be specified as part of

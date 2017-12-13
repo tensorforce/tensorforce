@@ -20,7 +20,7 @@ from tensorforce.exception import TensorForceError
 __version__ = '0.3.2'
 
 
-# Libraries shoulld add NullHandler() by default, as its the application code's
+# Libraries should add NullHandler() by default, as its the application code's
 # responsibility to configure log handlers.
 # https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
 

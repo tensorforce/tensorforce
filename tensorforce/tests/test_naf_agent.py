@@ -20,14 +20,14 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
         ),
         optimizer=dict(
             type='adam',
-            learning_rate=0.001
+            learning_rate=0.005
         ),
         explorations_spec=dict(
             type="ornstein_uhlenbeck"
         ),
         repeat_update=4,
-        batch_size=64,
-        first_update=64,
+        batch_size=8,
+        first_update=8,
         target_sync_frequency=10
     )
 

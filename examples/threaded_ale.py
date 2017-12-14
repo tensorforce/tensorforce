@@ -41,8 +41,9 @@ from tensorforce.execution.threaded_runner import WorkerAgentGenerator
 """
 To replicate the Asynchronous Methods for Deep Reinforcement Learning paper (https://arxiv.org/abs/1602.01783)
 Nstep DQN:
-    python threaded_ale.py <path_to_rom> -a dqn_nstep_agent -c ./configs/dqn_nstep_agent_visual.json \
-    -n ./configs/dqn_2013_network_visual.json -fs 4 -ea -w 16
+    python threaded_ale.py breakout.bin -a configs/dqn_visual.json -n 
+    configs/cnn_dqn2013_network.json -fs 4 -ea -w 4
+
 
     Note: batch_size in the config should be set to n+1 where n is the desired number of steps
 """
@@ -123,8 +124,8 @@ def main():
 
     for i in xrange(args.workers - 1):
         config = agent_configs[i]
-
-        worker = WorkerAgentGenerator(AgentsDictionary[args.agent])(
+        agent_type = config.pop('type', None)
+        worker = WorkerAgentGenerator(AgentsDictionary[agent_type])(
             states_spec=environments[0].states,
             actions_spec=environments[0].actions,
             network_spec=network_spec,

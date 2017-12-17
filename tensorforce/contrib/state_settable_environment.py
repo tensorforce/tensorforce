@@ -18,9 +18,9 @@ from tensorforce.environments import Environment
 
 class StateSettableEnvironment(Environment):
     """
-    An Environment that implements the set method to set the current state to some new state.
+    An Environment that implements the set_state method to set the current state to some new state using setter instructions.
     """
-    def set(self, **kwargs):
+    def set_state(self, **kwargs):
         """
         Sets the current state of the environment manually to some other state and returns a new observation.
 

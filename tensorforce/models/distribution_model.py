@@ -52,6 +52,8 @@ class DistributionModel(Model):
     ):
         self.network_spec = network_spec
         self.distributions_spec = distributions_spec
+        self.distributions = None
+        self.fn_kl_divergence = None
 
         # Entropy regularization
         assert entropy_regularization is None or entropy_regularization >= 0.0

@@ -25,7 +25,10 @@ import argparse
 import json
 import logging
 import os
+import sys
 import time
+import random
+from PIL import Image
 
 from tensorforce import TensorForceError
 from tensorforce.agents import Agent
@@ -54,15 +57,37 @@ def main():
     parser.add_argument('-d', '--deterministic', action='store_true', default=False, help="Choose actions deterministically")
     parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
+    parser.add_argument('-R', '--random-test-run', action="store_true", help="Do a quick random test run on the env")
 
     args = parser.parse_args()
 
-    logging.basicConfig(filename="logfile.txt", level=logging.INFO)
+    #logging.basicConfig(filename="logfile.txt", level=logging.INFO)
+    logging.basicConfig(stream=sys.stderr)
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
     # we have to connect this remote env to get the specs
-    environment = UE4Environment(host=args.host, port=args.port, connect=True)
+    # we also discretize axis-mappings b/c we will use a deep q-network
+    # use num_ticks==6 to match Nature paper by Mnih et al ("human cannot press fire button with more than 10Hz", dt=1/60)
+    # TODO: need to build in capturing and concatenating last 4 images (plus greyscale conversion!) into one input state signal.
+    environment = UE4Environment(host=args.host, port=args.port, connect=True, discretize_actions=True, num_ticks=6)
+    environment.seed(200)  # to seed or not to seed?
+
+    # do a quick random test-run with image capture of the first n images -> then exit after 1000 steps
+    if args.random_test_run:
+        # reset the env
+        s = environment.reset()
+        img = Image.fromarray(s, "RGB")
+        img.save("reset.png")  # save first received image as a sanity-check
+        for i in range(1000):
+            s, is_terminal, r = environment.execute(actions=random.choice(range(environment.actions["num_actions"])))
+            if i < 10:
+                img = Image.fromarray(s, "RGB")
+                img.save("{:03d}.png".format(i))  # save first received image as a sanity-check
+            logging.debug("i={} r={} term={}".format(i, r, is_terminal))
+            if is_terminal:
+                environment.reset()
+        quit()
 
     if args.agent_config is not None:
         with open(args.agent_config, 'r') as fp:

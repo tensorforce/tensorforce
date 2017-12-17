@@ -45,6 +45,12 @@ class RemoteEnvironment(Environment):
     def __str__(self):
         return "RemoteEnvironment({}:{}{})".format(self.host, self.port, " [connected]" if self.socket else "")
 
+    def close(self):
+        """
+        Same as disconnect method.
+        """
+        self.disconnect()
+
     def connect(self):
         """
         Starts the server tcp connection on the given host:port.
@@ -81,16 +87,30 @@ class MsgPackNumpyProtocol(object):
     A simple protocol to communicate over tcp sockets, which can be used by RemoteEnvironment implementations.
     The protocol is based on msgpack-numpy encoding and decoding.
 
-    Each message has a simple 8-byte header, which encodes the length of the subsequent msgpack encoded byte-string.
-    Messages received need to have the 'status' field set to 'ok'. If 'status' is set to 'error', the field 'message' should be populated with
+    Each message has a simple 8-byte header, which encodes the length of the subsequent msgpack-numpy encoded byte-string.
+    All messages received need to have the 'status' field set to 'ok'. If 'status' is set to 'error', the field 'message' should be populated with
     some error information.
+
+    Examples:
+    client sends: "[8-byte header]msgpack-encoded({"cmd": "seed", "value": 200})"
+    server responds: "[8-byte header]msgpack-encoded({"status": "ok", "value": 200})"
+
+    client sends: "[8-byte header]msgpack-encoded({"cmd": "reset"})"
+    server responds: "[8-byte header]msgpack-encoded({"status": "ok"})"
+
+    client sends: "[8-byte header]msgpack-encoded({"cmd": "step", "action": 5})"
+    server responds: "[8-byte header]msgpack-encoded({"status": "ok", "obs_dict": {... some observations}, "reward": -10.0, "is_terminal": False})"
     """
-    def __init__(self):
+    def __init__(self, max_msg_len=8192):
+        """
+        Args:
+            max_msg_len (int): The maximum number of bytes to read from the socket.
+        """
+        self.max_msg_len = max_msg_len
         # make all msgpack methods use the numpy-aware de/encoders
         mnp.patch()
 
-    @staticmethod
-    def send(message, socket_):
+    def send(self, message, socket_):
         """
         Sends a message (dict) to the socket. Message is encoded via msgpack-numpy.
 
@@ -102,8 +122,7 @@ class MsgPackNumpyProtocol(object):
             raise TensorForceError("No socket given in call to `send`!")
         socket_.send(msgpack.packb(message))
 
-    @staticmethod
-    def recv(socket_):
+    def recv(self, socket_):
         """
         Receives a message as msgpack-numpy encoded byte-string from the given socket object.
         Blocks until something was received.
@@ -117,12 +136,11 @@ class MsgPackNumpyProtocol(object):
         # wait for an immediate response
         response = socket_.recv(8)  # get the length of the message
         if response == b"":
-            raise TensorForceError("No data received by socket.recv in call to method `recv` (listener on {} possibly closed)!".
-                                   format(socket_.getpeername()))
+            raise TensorForceError("No data received by socket.recv in call to method `recv` (listener possibly closed)!")
         orig_len = int(response)
         received_len = 0
         while True:
-            data = socket_.recv(orig_len - received_len)
+            data = socket_.recv(min(orig_len - received_len, self.max_msg_len))
             if not data:  # there must be a response
                 raise TensorForceError("No data of len {} received by socket.recv in call to method `recv`!".format(orig_len - received_len))
             data_len = len(data)
@@ -141,5 +159,5 @@ class MsgPackNumpyProtocol(object):
                     raise TensorForceError("RemoteEnvironment server error: {}".format(message.get("message", "not specified")))
             else:
                 raise TensorForceError("Message without field 'status' received!")
-        raise TensorForceError("No message encoded in data stream (data stream had len={})")
+        raise TensorForceError("No message encoded in data stream (data stream had len={})".format(orig_len))
 

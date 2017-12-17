@@ -41,20 +41,24 @@ from tensorforce.contrib.unreal_engine import UE4Environment
 # - you will need to install the UE4 Engine and the engine2learn plugin
 # - supports headless execution of UE4 games under Linux
 
-# python examples/unreal_engine_game.py 6025 -a examples/configs/vpg.json -n examples/configs/mlp2_network.json -e 50000 -m 2000
+# python examples/unreal_engine_game.py 6025 -a examples/configs/vpg.json
+#   -n examples/configs/mlp2_network.json -e 50000 -m 2000
 
 
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-P', '--port', default=6025, help="Port on which the UE4 Game listens on for incoming RL-client connections")
+    parser.add_argument('-P', '--port', default=6025,
+                        help="Port on which the UE4 Game listens on for incoming RL-client connections")
     parser.add_argument('-H', '--host', default=None, help="Hostname of the UE4 Game (default: localhost)")
     parser.add_argument('-a', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
     parser.add_argument('-e', '--episodes', type=int, default=None, help="Number of episodes")
     parser.add_argument('-t', '--timesteps', type=int, default=None, help="Number of timesteps")
-    parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None, help="Maximum number of timesteps per episode")
-    parser.add_argument('-d', '--deterministic', action='store_true', default=False, help="Choose actions deterministically")
+    parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None,
+                        help="Maximum number of timesteps per episode")
+    parser.add_argument('-d', '--deterministic', action='store_true', default=False,
+                        help="Choose actions deterministically")
     parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
     parser.add_argument('-R', '--random-test-run', action="store_true", help="Do a quick random test run on the env")
@@ -68,8 +72,9 @@ def main():
 
     # we have to connect this remote env to get the specs
     # we also discretize axis-mappings b/c we will use a deep q-network
-    # use num_ticks==6 to match Nature paper by Mnih et al ("human cannot press fire button with more than 10Hz", dt=1/60)
-    # TODO: need to build in capturing and concatenating last 4 images (plus greyscale conversion!) into one input state signal.
+    # use num_ticks==6 to match Nature paper by Mnih et al
+    # ("human cannot press fire button with more than 10Hz", dt=1/60)
+    # TODO: need to build in capturing and concat'ing last 4 images (plus 8-bit conversion!) into 1 input state signal.
     environment = UE4Environment(host=args.host, port=args.port, connect=True, discretize_actions=True, num_ticks=6)
     environment.seed(200)  # to seed or not to seed?
 
@@ -141,8 +146,10 @@ def main():
                 r.agent.episode, r.episode_timestep, steps_per_second
             ))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
-            logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / min(500, len(r.episode_rewards))))
-            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / min(100, len(r.episode_rewards))))
+            logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) /
+                                                                 min(500, len(r.episode_rewards))))
+            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) /
+                                                                 min(100, len(r.episode_rewards))))
         return True
 
     runner.run(

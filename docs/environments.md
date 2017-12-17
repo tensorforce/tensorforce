@@ -46,3 +46,13 @@ Ready-to-use environments
         :members:
         :special-members: __init__
 ```
+
+### Unreal Engine 4 Games
+
+```eval_rst
+    .. autoclass:: tensorforce.contrib.unreal_engine.UE4Environment
+        :noindex:
+        :show-inheritance:
+        :members:
+        :special-members: __init__
+```

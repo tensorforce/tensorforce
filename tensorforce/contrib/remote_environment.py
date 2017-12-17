@@ -28,7 +28,8 @@ class RemoteEnvironment(Environment):
     def __init__(self, host="localhost", port=6025):
         """
         A remote Environment that one can connect to through tcp.
-        Implements a simple msgpack protocol to get the step/reset/etc.. commands to the remote server and simply waits (blocks) for a response.
+        Implements a simple msgpack protocol to get the step/reset/etc.. commands to the
+        remote server and simply waits (blocks) for a response.
 
         Args:
                 host (str): The hostname to connect to.
@@ -57,8 +58,8 @@ class RemoteEnvironment(Environment):
         """
         # if we are already connected -> return error
         if self.socket:
-            raise TensorForceError("Already connected to {}:{}. Only one connection allowed at a time. Close first by calling `close`!".
-                                   format(self.host, self.port))
+            raise TensorForceError("Already connected to {}:{}. Only one connection allowed at a time. " +
+                                   "Close first by calling `close`!".format(self.host, self.port))
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.settimeout(5)
         err = self.socket.connect_ex((self.host, self.port))
@@ -87,9 +88,10 @@ class MsgPackNumpyProtocol(object):
     A simple protocol to communicate over tcp sockets, which can be used by RemoteEnvironment implementations.
     The protocol is based on msgpack-numpy encoding and decoding.
 
-    Each message has a simple 8-byte header, which encodes the length of the subsequent msgpack-numpy encoded byte-string.
-    All messages received need to have the 'status' field set to 'ok'. If 'status' is set to 'error', the field 'message' should be populated with
-    some error information.
+    Each message has a simple 8-byte header, which encodes the length of the subsequent msgpack-numpy
+    encoded byte-string.
+    All messages received need to have the 'status' field set to 'ok'. If 'status' is set to 'error',
+    the field 'message' should be populated with some error information.
 
     Examples:
     client sends: "[8-byte header]msgpack-encoded({"cmd": "seed", "value": 200})"
@@ -99,7 +101,8 @@ class MsgPackNumpyProtocol(object):
     server responds: "[8-byte header]msgpack-encoded({"status": "ok"})"
 
     client sends: "[8-byte header]msgpack-encoded({"cmd": "step", "action": 5})"
-    server responds: "[8-byte header]msgpack-encoded({"status": "ok", "obs_dict": {... some observations}, "reward": -10.0, "is_terminal": False})"
+    server responds: "[8-byte header]msgpack-encoded({"status": "ok", "obs_dict": {... some observations},
+    "reward": -10.0, "is_terminal": False})"
     """
     def __init__(self, max_msg_len=8192):
         """
@@ -136,13 +139,15 @@ class MsgPackNumpyProtocol(object):
         # wait for an immediate response
         response = socket_.recv(8)  # get the length of the message
         if response == b"":
-            raise TensorForceError("No data received by socket.recv in call to method `recv` (listener possibly closed)!")
+            raise TensorForceError("No data received by socket.recv in call to method `recv` " +
+                                   "(listener possibly closed)!")
         orig_len = int(response)
         received_len = 0
         while True:
             data = socket_.recv(min(orig_len - received_len, self.max_msg_len))
             if not data:  # there must be a response
-                raise TensorForceError("No data of len {} received by socket.recv in call to method `recv`!".format(orig_len - received_len))
+                raise TensorForceError("No data of len {} received by socket.recv in call to method `recv`!".
+                                       format(orig_len - received_len))
             data_len = len(data)
             received_len += data_len
             unpacker.feed(data)
@@ -156,8 +161,10 @@ class MsgPackNumpyProtocol(object):
                 if message["status"] == "ok":
                     return message
                 else:
-                    raise TensorForceError("RemoteEnvironment server error: {}".format(message.get("message", "not specified")))
+                    raise TensorForceError("RemoteEnvironment server error: {}".
+                                           format(message.get("message", "not specified")))
             else:
                 raise TensorForceError("Message without field 'status' received!")
-        raise TensorForceError("No message encoded in data stream (data stream had len={})".format(orig_len))
+        raise TensorForceError("No message encoded in data stream (data stream had len={})".
+                               format(orig_len))
 

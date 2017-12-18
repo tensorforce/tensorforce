@@ -140,5 +140,5 @@ To start building your own agent, please refer to
 [this blogpost](https://reinforce.io) to gain a deeper understanding of the
 internals of the TensorForce library. Afterwards, have look on a sample
 implementation, e.g. the [DQN Agent](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/agents/dqn_agent.py)
-and [DQN Model](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/models/dqn_model.py).
+and [DQN Model](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/models/q_model.py).
 

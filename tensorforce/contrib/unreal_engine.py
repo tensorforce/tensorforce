@@ -36,19 +36,20 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                  delta_time=1/60, num_ticks=4):
         """
         Args:
-             host (str): The hostname to connect to.
-             port (int): The port to connect to.
-             connect (bool): Whether to connect already in this c'tor.
-             discretize_actions (bool): Whether to treat axis-mappings defined in UE4 game as discrete actions.
+            host (str): The hostname to connect to.
+            port (int): The port to connect to.
+            connect (bool): Whether to connect already in this c'tor.
+            discretize_actions (bool): Whether to treat axis-mappings defined in UE4 game as discrete actions.
                 This would be necessary e.g. for agents that use q-networks where the output are q-values per discrete
-                state-action.
+                state-action pair.
             delta_time (float): The fake delta time to use for each single game tick.
             num_ticks (int): The number of ticks to be executed in this step (each tick will repeat the same given
             actions).
         """
         RemoteEnvironment.__init__(self, host, port)
 
-        self.game_name = None  # remote env should send a name of the game upon connection
+        # RemoteEnvironment should send a name of the game upon connection.
+        self.game_name = None
         self.action_space_desc = None
         self.observation_space_desc = None
 
@@ -57,7 +58,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         self.delta_time = delta_time
         self.num_ticks = num_ticks
 
-        # our tcp messaging protocol to use (simple len-header + msgpack-numpy-body)
+        # Our tcp messaging protocol to use (simple len-header + msgpack-numpy-body).
         self.protocol = MsgPackNumpyProtocol()
 
         if connect:
@@ -70,7 +71,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
     def connect(self):
         RemoteEnvironment.connect(self)
 
-        # get action- and state-specs from our game
+        # Get action- and state-specs from our game.
         self.protocol.send({"cmd": "get_spec"}, self.socket)
         response = self.protocol.recv(self.socket)
 
@@ -86,7 +87,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         if self.discretize_actions:
             self.discretize_action_space_desc()
 
-        # invalidate our states- and actions caches
+        # Invalidate our states- and actions caches.
         if "states" in self.__dict__:
             del self.__dict__["states"]
         if "actions" in self.__dict__:
@@ -95,9 +96,9 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
     def seed(self, seed=None):
         if not seed:
             seed = time.time()
-        # send command
+        # Send command.
         self.protocol.send({"cmd": "seed", "value": int(seed)}, self.socket)
-        # wait for response
+        # Wait for response.
         response = self.protocol.recv(self.socket)
         if "status" not in response:
             raise RuntimeError("Message without field 'status' received!")
@@ -110,23 +111,23 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         same as step (no kwargs to pass), but needs to block and return observation_dict
         - stores the received observation in self.last_observation
         """
-        # send command
+        # Send command.
         self.protocol.send({"cmd": "reset"}, self.socket)
-        # wait for response
+        # Wait for response.
         response = self.protocol.recv(self.socket)
-        # extract observations
+        # Extract observations.
         return self.extract_observation(response)
 
     def set_state(self, setters, **kwargs):
         if "cmd" in kwargs:
             raise TensorForceError("Key 'cmd' must not be present in **kwargs to method `set`!")
 
-        # forward kwargs to remote (only add command: set)
+        # Forward kwargs to remote (only add command: set).
         message = kwargs
         message["cmd"] = "set"
 
-        # sanity check setters
-        # solve single tuple with prop-name and value -> should become a list (len=1) of this tuple
+        # Sanity check given setters.
+        # Solve single tuple with prop-name and value -> should become a list (len=1) of this tuple.
         if len(setters) >= 2 and not isinstance(setters[1], (list, tuple)):
             setters = list((setters,))
         for set_cmd in setters:
@@ -138,7 +139,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         message["setters"] = setters
 
         self.protocol.send(message, self.socket)
-        # wait for response
+        # Wait for response.
         response = self.protocol.recv(self.socket)
         return self.extract_observation(response)
 
@@ -157,18 +158,18 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
 
         # discretized -> each action is an int
         if self.discretize_actions:
-            # pull record from discretized_actions, which will look like: [A, Right, SpaceBar]
+            # Pull record from discretized_actions, which will look like: [A, Right, SpaceBar].
             combination = self.discretized_actions[actions]
-            # -> translate to {"axis_mappings": [('A', 1.0), (Right, 1.0)], "action_mappings": [(SpaceBar, True)]}
+            # Translate to {"axis_mappings": [('A', 1.0), (Right, 1.0)], "action_mappings": [(SpaceBar, True)]}
             for key, value in combination:
-                # action mapping (True or False)
+                # Action mapping (True or False).
                 if isinstance(value, bool):
                     action_mappings.append((key, value))
-                # axis mapping: always use 1.0 as value as UE4 already multiplies with the correct scaling factor
+                # Axis mapping: always use 1.0 as value as UE4 already multiplies with the correct scaling factor.
                 else:
                     axis_mappings.append((key, value))
-        # non-discretized: each action is a dict of action- and axis-mappings defined in UE4 game's input settings
-        # re-translate incoming action names into keyboard keys for the server
+        # non-discretized: Each action is a dict of action- and axis-mappings defined in UE4 game's input settings.
+        # re-translate Incoming action names into keyboard keys for the server.
         elif actions:
             try:
                 action_mappings, axis_mappings = self.translate_abstract_actions_to_keys(actions)
@@ -183,19 +184,20 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         message = dict(cmd="step", delta_time=self.delta_time, num_ticks=self.num_ticks,
                        actions=action_mappings, axes=axis_mappings)
         self.protocol.send(message, self.socket)
-        # wait for response (blocks)
+        # Wait for response (blocks).
         response = self.protocol.recv(self.socket)
         r = response.pop("_reward", 0.0)
         is_terminal = response.pop("_is_terminal", False)
 
         obs = self.extract_observation(response)
-        self.last_observation = obs  # cache last observation
+        # Cache last observation
+        self.last_observation = obs
         return obs, is_terminal, r
 
     @cached_property
     def states(self):
         observation_space = {}
-        # derive observation space from observation_space_desc
+        # Derive observation space from observation_space_desc.
         if self.observation_space_desc:
             for key, desc in self.observation_space_desc.items():
                 type_ = desc["type"]
@@ -213,24 +215,24 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                                            "observation_space_desc)!".format(type_))
 
                 observation_space[key] = space
-        # simplest case: if only one observer -> use that one
+        # Simplest case: if only one observer -> use that one.
         if len(observation_space) == 1:
             observation_space = list(observation_space.values())[0]
         return observation_space
 
     @cached_property
     def actions(self):
-        # derive action space from action_space_desc
+        # Derive action space from action_space_desc.
         if not self.action_space_desc:
             return {}
 
-        # discretize all mappings -> pretend that each single mapping and combination thereof is its own discrete action
-        # e.g. MoveForward=Up(1.0)+Down(-1.0) MoveRight=Right(1.0)+Left(-1.0) -> UpRight, UpLeft, Right, Left, Up, Down,
+        # Discretize all mappings. Pretend that each single mapping and combination thereof is its own discrete action.
+        # E.g. MoveForward=Up(1.0)+Down(-1.0) MoveRight=Right(1.0)+Left(-1.0) -> UpRight, UpLeft, Right, Left, Up, Down,
         # DownRight, DownLeft, Idle
         if self.discretize_actions:
             return dict(type="int", num_actions=len(self.discretized_actions))
-        # leave each mapping as independent action, which may be continuous and can be combined with all other actions
-        # in any way
+        # Leave each mapping as independent action, which may be continuous and can be combined with all other actions
+        # in any way.
         else:
             action_space = {}
             for action_name, properties in self.action_space_desc.items():
@@ -265,11 +267,11 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         result: "Left": -0.5 * -1.0 = 0.5 (same as "Right": -0.5)
         """
 
-        # solve single tuple with name and value -> should become a list (len=1) of this tuple
+        # Solve single tuple with name and value -> should become a list (len=1) of this tuple.
         if len(abstract) >= 2 and not isinstance(abstract[1], (list, tuple)):
             abstract = list((abstract,))
 
-        # now go through the list and translate each axis into an actual keyboard key (or mouse event/etc..)
+        # Now go through the list and translate each axis into an actual keyboard key (or mouse event/etc..).
         actions, axes = [], []
         for a in abstract:
             # first_key = key-name (action mapping or discretized axis mapping) OR tuple (key-name, scale) (continuous
@@ -280,7 +282,6 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                 actions.append((first_key, a[1]))
             # axis mapping
             elif isinstance(first_key, tuple):
-                # ret.append((first_key[0].decode(), a[1] * first_key[1]))
                 axes.append((first_key[0], a[1] * first_key[1]))
             else:
                 raise TensorForceError("action_space_desc contains unsupported type for key {}!".format(a[0]))
@@ -308,17 +309,20 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         [(Right, 1.0),(SpaceBar, True)],
         ]
         """
-        # - put all unique_keys lists in one list and itertools.product that list:
+        # Put all unique_keys lists in one list and itertools.product that list.
         unique_list = []
         for nice, record in self.action_space_desc.items():
             list_for_record = []
             if record["type"] == "axis":
-                head_key = record["keys"][0][0]  # the main key for this record (always the first one)
-                head_value = record["keys"][0][1]  # the reference value (divide by this one to get the others)
-                list_for_record.append((head_key, 0.0))  # the zero key (idle action; axis scale=0.0)
+                # the main key for this record (always the first one)
+                head_key = record["keys"][0][0]
+                # the reference value (divide by this one to get the others)
+                head_value = record["keys"][0][1]
+                # the zero key (idle action; axis scale=0.0)
+                list_for_record.append((head_key, 0.0))
                 set_ = set()
                 for key_and_scale in self.action_space_desc[nice]["keys"]:
-                    # build unique lists of mappings (each axis value should only be represented once)
+                    # Build unique lists of mappings (each axis value should only be represented once).
                     if key_and_scale[1] not in set_:
                         list_for_record.append((head_key, key_and_scale[1] / head_value))
                         set_.add(key_and_scale[1])
@@ -327,17 +331,18 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                 list_for_record = [(record["keys"][0], False), (record["keys"][0], True)]
             unique_list.append(list_for_record)
 
-        def so(in_):  # in_ is List[Tuple[str,any]] -> sort by concat'd sequence of str(any's)
+        def so(in_):
+            # in_ is List[Tuple[str,any]] -> sort by concat'd sequence of str(any's)
             st = ""
             for i in in_:
                 st += str(i[1])
             return st
 
-        # then sort and get the entire list of all possible sorted meaningful key-combinations
+        # Then sort and get the entire list of all possible sorted meaningful key-combinations.
         combinations = list(itertools.product(*unique_list))
         combinations = list(map(lambda x: sorted(list(x), key=lambda y: y[0]), combinations))
         combinations = sorted(combinations, key=so)
-        # store that list as discretized_actions
+        # Store that list as discretized_actions.
         self.discretized_actions = combinations
 
     @staticmethod
@@ -346,9 +351,8 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             raise TensorForceError("Message without field 'obs_dict' received!")
 
         ret = message["obs_dict"]
-        # only one observer -> use that one (no dict of dicts)
+        # Only one observer -> use that one (no dict of dicts).
         if len(ret) == 1:
             ret = list(ret.values())[0]
         return ret
-
 

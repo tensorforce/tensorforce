@@ -39,9 +39,11 @@ class RemoteEnvironment(Environment):
         self.port = int(port) or 6025
         self.host = host or "localhost"
         self.socket = None
-        self.buffer_size = 8192  # the size of the response buffer (depends on the Env's observation-space)
+        # The size of the response buffer (depends on the Env's observation-space).
+        self.buffer_size = 8192
 
-        self.last_observation = None  # cache the last received observation (through socket) here
+        # Cache the last received observation (through socket) here.
+        self.last_observation = None
 
     def __str__(self):
         return "RemoteEnvironment({}:{}{})".format(self.host, self.port, " [connected]" if self.socket else "")
@@ -56,7 +58,7 @@ class RemoteEnvironment(Environment):
         """
         Starts the server tcp connection on the given host:port.
         """
-        # if we are already connected -> return error
+        # If we are already connected, return error.
         if self.socket:
             raise TensorForceError("Already connected to {}:{}. Only one connection allowed at a time. " +
                                    "Close first by calling `close`!".format(self.host, self.port))
@@ -71,11 +73,12 @@ class RemoteEnvironment(Environment):
         """
         Ends our server tcp connection.
         """
-        # if we are not connected -> return error
+        # If we are not connected, return error.
         if not self.socket:
             logging.warning("No active socket to close!")
             return
-        self.socket.close()  # simply close our socket
+        # Close our socket.
+        self.socket.close()
         self.socket = None
 
     @property
@@ -110,7 +113,7 @@ class MsgPackNumpyProtocol(object):
             max_msg_len (int): The maximum number of bytes to read from the socket.
         """
         self.max_msg_len = max_msg_len
-        # make all msgpack methods use the numpy-aware de/encoders
+        # Make all msgpack methods use the numpy-aware de/encoders.
         mnp.patch()
 
     def send(self, message, socket_):
@@ -136,7 +139,7 @@ class MsgPackNumpyProtocol(object):
         """
         unpacker = msgpack.Unpacker(encoding="utf-8")
 
-        # wait for an immediate response
+        # Wait for an immediate response.
         response = socket_.recv(8)  # get the length of the message
         if response == b"":
             raise TensorForceError("No data received by socket.recv in call to method `recv` " +
@@ -145,7 +148,8 @@ class MsgPackNumpyProtocol(object):
         received_len = 0
         while True:
             data = socket_.recv(min(orig_len - received_len, self.max_msg_len))
-            if not data:  # there must be a response
+            # There must be a response.
+            if not data:
                 raise TensorForceError("No data of len {} received by socket.recv in call to method `recv`!".
                                        format(orig_len - received_len))
             data_len = len(data)
@@ -155,7 +159,7 @@ class MsgPackNumpyProtocol(object):
             if received_len == orig_len:
                 break
 
-        # get the data
+        # Get the data.
         for message in unpacker:
             if "status" in message:
                 if message["status"] == "ok":

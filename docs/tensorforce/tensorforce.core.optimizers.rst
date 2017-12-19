@@ -11,6 +11,14 @@ Subpackages
 Submodules
 ----------
 
+tensorforce.core.optimizers.clipped_step module
+-----------------------------------------------
+
+.. automodule:: tensorforce.core.optimizers.clipped_step
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 tensorforce.core.optimizers.evolutionary module
 -----------------------------------------------
 

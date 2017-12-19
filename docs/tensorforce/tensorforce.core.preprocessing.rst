@@ -44,18 +44,18 @@ tensorforce.core.preprocessing.normalize module
     :undoc-members:
     :show-inheritance:
 
-tensorforce.core.preprocessing.preprocessing module
----------------------------------------------------
-
-.. automodule:: tensorforce.core.preprocessing.preprocessing
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 tensorforce.core.preprocessing.preprocessor module
 --------------------------------------------------
 
 .. automodule:: tensorforce.core.preprocessing.preprocessor
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tensorforce.core.preprocessing.preprocessor_stack module
+--------------------------------------------------------
+
+.. automodule:: tensorforce.core.preprocessing.preprocessor_stack
     :members:
     :undoc-members:
     :show-inheritance:

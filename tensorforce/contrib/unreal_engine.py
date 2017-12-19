@@ -293,13 +293,17 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         Creates a list of discrete action(-combinations) in case we want to learn with a discrete set of actions,
         but only have action-combinations (maybe even continuous) available from the env.
         E.g. the UE4 game has the following action/axis-mappings:
+
+        ```json
         {
         'Fire':
             {'type': 'action', 'keys': ('SpaceBar',)},
         'MoveRight':
             {'type': 'axis', 'keys': (('Right', 1.0), ('Left', -1.0), ('A', -1.0), ('D', 1.0))},
         }
+        ```
         -> this method will discretize them into the following 6 discrete actions:
+        ```json
         [
         [(Right, 0.0),(SpaceBar, False)],
         [(Right, 0.0),(SpaceBar, True)]
@@ -308,6 +312,8 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         [(Right, 1.0),(SpaceBar, False)],
         [(Right, 1.0),(SpaceBar, True)],
         ]
+        ```
+
         """
         # Put all unique_keys lists in one list and itertools.product that list.
         unique_list = []

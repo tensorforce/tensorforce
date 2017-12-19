@@ -24,7 +24,7 @@ class MetaParameterRecorder(object):
     """
     Class to record MetaParameters as well as Summary/Description for TensorBoard (TEXT & FILE will come later)
 
-    #### General:
+    General:
 
     * format_type: used to configure data conversion for TensorBoard=0, TEXT & JSON (not Implemented), etc
     """

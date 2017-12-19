@@ -25,6 +25,14 @@ tensorforce.exception module
     :undoc-members:
     :show-inheritance:
 
+tensorforce.meta_parameter_recorder module
+------------------------------------------
+
+.. automodule:: tensorforce.meta_parameter_recorder
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 tensorforce.util module
 -----------------------
 

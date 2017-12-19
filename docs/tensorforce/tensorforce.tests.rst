@@ -84,14 +84,6 @@ tensorforce.tests.test_ppo_agent module
     :undoc-members:
     :show-inheritance:
 
-tensorforce.tests.test_preprocessing module
--------------------------------------------
-
-.. automodule:: tensorforce.tests.test_preprocessing
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 tensorforce.tests.test_quickstart_example module
 ------------------------------------------------
 

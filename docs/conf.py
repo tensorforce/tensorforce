@@ -90,7 +90,7 @@ todo_include_todos = False
 # autoclass_content = 'both'
 
 autodoc_mock_imports = ['go_vncdriver', 'tensorflow', 'deepmind_lab', 'universe.spaces', 'gym.spaces.discrete', 'gym.wrappers',
-    'mazeexp', 'ale_python_interface',
+    'mazeexp', 'ale_python_interface', 'msgpack', 'msgpack_numpy', 'cached_property',
     'tensorflow.python.training.adadelta', 'tensorflow.python.training.adagrad', 'tensorflow.python.training.adam',
     'tensorflow.python.training.gradient_descent', 'tensorflow.python.training.momentum', 'tensorflow.python.training.rmsprop',
     'tensorflow.core.util.event_pb2']

@@ -44,6 +44,30 @@ tensorforce.contrib.openai_universe module
     :undoc-members:
     :show-inheritance:
 
+tensorforce.contrib.remote_environment module
+---------------------------------------------
+
+.. automodule:: tensorforce.contrib.remote_environment
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tensorforce.contrib.state_settable_environment module
+-----------------------------------------------------
+
+.. automodule:: tensorforce.contrib.state_settable_environment
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+tensorforce.contrib.unreal_engine module
+----------------------------------------
+
+.. automodule:: tensorforce.contrib.unreal_engine
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 
 Module contents
 ---------------

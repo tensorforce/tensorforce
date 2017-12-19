@@ -79,17 +79,17 @@ class Optimizer(object):
             variables: List of variables to optimize.
             **kwargs: Additional optimizer-specific arguments. The following arguments are used
                 by some optimizers:
-                - fn_loss: A callable returning the loss of the current model.
-                - fn_kl_divergence: A callable returning the KL-divergence relative to the
-                    current model.
-                - return_estimated_improvement: Returns the estimated improvement resulting from
-                    the natural gradient calculation if true.
-                - fn_reference: A callable returning the reference values necessary for comparison.
-                - fn_compare: A callable comparing the current model to the reference model given
-                    by its values.
-                - source_variables: List of source variables to synchronize with.
-                - global_variables: List of global variables to apply the proposed optimization
-                    step to.
+            - fn_loss: A callable returning the loss of the current model.
+            - fn_kl_divergence: A callable returning the KL-divergence relative to the
+                current model.
+            - return_estimated_improvement: Returns the estimated improvement resulting from
+                the natural gradient calculation if true.
+            - fn_reference: A callable returning the reference values necessary for comparison.
+            - fn_compare: A callable comparing the current model to the reference model given
+                by its values.
+            - source_variables: List of source variables to synchronize with.
+            - global_variables: List of global variables to apply the proposed optimization
+                step to.
 
 
         Returns:

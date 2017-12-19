@@ -33,7 +33,7 @@ class Agent(object):
     of a particular reinforcement learning algorithm and defines the external interface
     to the environment.
 
-    The agent hence acts an intermediate layer between environment
+    The agent hence acts as an intermediate layer between environment
     and backend execution (value function or policy updates).
 
     """

@@ -17,6 +17,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
+logging.getLogger('tensorflow').disabled = True
+
 import sys
 import unittest
 

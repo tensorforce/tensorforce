@@ -18,10 +18,12 @@ from __future__ import print_function
 from __future__ import division
 
 import unittest
+
+from tensorforce.tests.base_test import BaseTest
+
 from tensorforce.agents import VPGAgent
 from tensorforce.core.networks import Dense, LayerBasedNetwork
 from tensorforce.environments.minimal_test import MinimalTest
-from tensorforce.tests.base_test import BaseTest
 
 
 class TestVPGBaselines(BaseTest, unittest.TestCase):

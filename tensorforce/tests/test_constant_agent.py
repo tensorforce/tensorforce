@@ -20,8 +20,8 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.agents import ConstantAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.agents import ConstantAgent
 
 
 class TestConstantAgent(BaseAgentTest, unittest.TestCase):

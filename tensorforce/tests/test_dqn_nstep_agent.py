@@ -19,8 +19,9 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.agents import DQNNstepAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.agents import DQNNstepAgent
+
 
 
 class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):

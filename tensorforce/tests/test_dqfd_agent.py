@@ -21,9 +21,10 @@ from six.moves import xrange
 import unittest
 import numpy as np
 
+from tensorforce.tests.base_agent_test import BaseAgentTest
+
 from tensorforce import util
 from tensorforce.agents import DQFDAgent
-from tensorforce.tests.base_agent_test import BaseAgentTest
 
 
 class TestDQFDAgent(BaseAgentTest, unittest.TestCase):

@@ -19,8 +19,8 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.agents import DQNAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.agents import DQNAgent
 
 
 class TestDQNAgent(BaseAgentTest, unittest.TestCase):

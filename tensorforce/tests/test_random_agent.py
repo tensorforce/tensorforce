@@ -19,8 +19,8 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.agents import RandomAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.agents import RandomAgent
 
 
 class TestRandomAgent(BaseAgentTest, unittest.TestCase):

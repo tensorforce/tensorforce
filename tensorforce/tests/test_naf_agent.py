@@ -4,8 +4,8 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.agents import NAFAgent
 from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.agents import NAFAgent
 
 
 class TestNAFAgent(BaseAgentTest, unittest.TestCase):

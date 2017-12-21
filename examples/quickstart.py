@@ -42,9 +42,9 @@ agent = PPOAgent(
     network_spec=network_spec,
     batch_size=4096,
     # Agent
-    preprocessing=None,
-    exploration=None,
-    reward_preprocessing=None,
+    states_preprocessing_spec=None,
+    explorations_spec=None,
+    reward_preprocessing_spec=None,
     # BatchAgent
     keep_last_timestep=True,
     # PPOAgent

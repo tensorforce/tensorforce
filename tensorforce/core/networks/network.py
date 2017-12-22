@@ -129,11 +129,26 @@ class Network(object):
         """
         Creates a network from a specification dict.
         """
-        network = util.get_object(
-            obj=spec,
-            default_object=LayeredNetwork,
-            kwargs=kwargs
-        )
+        network=None
+        if len(spec)>0:
+            # ComplexLayeredNetwork forced for testing
+            if type(spec[0]) is list:
+                # Spec contains List of List of Dict(), Complex network specification
+                # Load "ComplexLayeredNetwork" here to avoid a recurring loop which fails
+                from tensorforce.core.networks.complex_network import ComplexLayeredNetwork
+                network = util.get_object(
+                    obj=spec,
+                    default_object=ComplexLayeredNetwork,
+                    kwargs=kwargs
+                )
+            if type(spec[0]) is dict:
+                # Spec contains List of Dict(), Layered network specification
+                network = util.get_object(
+                    obj=spec,
+                    default_object=LayeredNetwork,
+                    kwargs=kwargs
+                )   
+        # If neither format, invalid spec and will fail on assert             
         assert isinstance(network, Network)
         return network
 

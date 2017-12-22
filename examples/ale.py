@@ -117,13 +117,10 @@ def main():
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
             logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
-        if args.save and args.save_episodes is not None and r.episode % args.save_episodes == 0:
-            logger.info("Saving agent after episode {}".format(r.episode))
-            r.agent.save_model(args.save)
         return True
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
-    runner.run(episodes=args.episodes, timesteps=args.max_timesteps, episode_finished=episode_finished)
+    runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
     environment.close()

@@ -16,6 +16,7 @@
 from tensorforce.core.networks.layer import Layer, Nonlinearity, Dropout, Flatten, Pool2d, Embedding, Linear, Dense, \
     Dueling, Conv1d, Conv2d, InternalLstm, Lstm
 from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
+from tensorforce.core.networks.complex_network import Input, Output
 
 
 layers = dict(
@@ -30,7 +31,9 @@ layers = dict(
     conv1d=Conv1d,
     conv2d=Conv2d,
     internal_lstm=InternalLstm,
-    lstm=Lstm
+    lstm=Lstm,
+    input=Input,
+    output=Output   
 )
 
 
@@ -41,12 +44,14 @@ __all__ = [
     'Dropout',
     'Flatten',
     'Pool2d',
+    'Embedding',
     'Linear',
     'Dense',
     'Dueling',
     'Conv1d',
     'Conv2d',
     'InternalLstm',
+    'Lstm',
     'Network',
     'LayerBasedNetwork',
     'LayeredNetwork'

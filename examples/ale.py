@@ -120,7 +120,7 @@ def main():
         return True
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
-    runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
+    runner.run(episodes=args.episodes, timesteps=args.max_timesteps, episode_finished=episode_finished)
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
     environment.close()

@@ -32,6 +32,7 @@ class TestRandomAgent(BaseAgentTest, unittest.TestCase):
     pass_threshold = 0.0
 
     kwargs = dict()
+    multi_kwargs = dict()
 
     # Not using a network so no point in testing LSTM
     exclude_lstm = True

@@ -45,3 +45,18 @@ class TestDDQNAgent(BaseAgentTest, unittest.TestCase):
 
     exclude_float = True
     exclude_bounded = True
+
+    multi_kwargs = dict(
+        memory=dict(
+            type='replay',
+            capacity=1000
+        ),
+        optimizer=dict(
+            type="adam",
+            learning_rate=0.01
+        ),
+        repeat_update=1,
+        batch_size=16,
+        first_update=16,
+        target_sync_frequency=10
+    )

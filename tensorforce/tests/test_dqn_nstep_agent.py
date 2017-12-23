@@ -23,7 +23,6 @@ from tensorforce.tests.base_agent_test import BaseAgentTest
 from tensorforce.agents import DQNNstepAgent
 
 
-
 class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQNNstepAgent
@@ -33,9 +32,10 @@ class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
         batch_size=8,
         optimizer=dict(
             type='adam',
-            learning_rate=1e-2
+            learning_rate=0.01
         )
     )
 
     exclude_float = True
     exclude_bounded = True
+    exclude_multi = True

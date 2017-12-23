@@ -30,3 +30,12 @@ class TestVPGAgent(BaseAgentTest, unittest.TestCase):
     kwargs = dict(
         batch_size=8
     )
+
+    multi_kwargs = dict(
+        batch_size=64,
+        optimizer=dict(
+            type='adam',
+            learning_rate=0.01
+        )
+    )
+

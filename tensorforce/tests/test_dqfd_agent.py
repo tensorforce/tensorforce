@@ -107,3 +107,20 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
         agent.import_demonstrations(demonstrations)
         agent.pretrain(steps=1000)
+
+    multi_kwargs = dict(
+        memory=dict(
+            type='replay',
+            capacity=1000
+        ),
+        optimizer=dict(
+            type="adam",
+            learning_rate=0.01
+        ),
+        repeat_update=1,
+        batch_size=16,
+        first_update=16,
+        target_sync_frequency=10,
+        demo_memory_capacity=100,
+        demo_sampling_ratio=0.2
+    )

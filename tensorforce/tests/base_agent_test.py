@@ -193,7 +193,7 @@ class BaseAgentTest(BaseTest):
             name='multi',
             environment=environment,
             network_spec=CustomNetwork,
-            **self.__class__.kwargs
+            **self.__class__.multi_kwargs
         )
 
     def test_lstm(self):

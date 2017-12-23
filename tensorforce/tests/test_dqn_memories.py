@@ -40,8 +40,9 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
                 type='replay',
                 capacity=1000
             ),
-            batch_size=8,
-            first_update=10,
+            repeat_update=4,
+            batch_size=32,
+            first_update=64,
             target_sync_frequency=10
         )
 
@@ -64,8 +65,9 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
                 type='prioritized_replay',
                 capacity=1000
             ),
-            batch_size=8,
-            first_update=10,
+            repeat_update=4,
+            batch_size=32,
+            first_update=64,
             target_sync_frequency=10
         )
 
@@ -87,8 +89,9 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
                 type='naive_prioritized_replay',
                 capacity=1000
             ),
-            batch_size=8,
-            first_update=10,
+            repeat_update=4,
+            batch_size=32,
+            first_update=64,
             target_sync_frequency=10
         )
 

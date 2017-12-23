@@ -51,7 +51,7 @@ Features
 --------
 
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
-Universe, DeepMind lab, ALE and Maze explorer. The following algorithms are available (all
+Universe, the Unreal Engine (game engine), DeepMind lab, ALE and Maze explorer. The following algorithms are available (all
 policy methods both continuous/discrete and using a Beta distribution for bounded actions). 
 
 -  A3C using distributed TensorFlow or a multithreaded runner - now as part of our generic Model

@@ -31,3 +31,8 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
     kwargs = dict(
         batch_size=8
     )
+
+    multi_kwargs = dict(
+        batch_size=64,
+        learning_rate=0.1
+    )

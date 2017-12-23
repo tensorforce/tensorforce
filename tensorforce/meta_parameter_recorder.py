@@ -104,7 +104,7 @@ class MetaParameterRecorder(object):
         if separator is None:
             separator = ", "
         
-        #This should not ever occur but here as a catch
+        # This should not ever occur but here as a catch
         if type(data) is not dict:
             raise TensorForceError(
                 "Error:  MetaParameterRecorder Dictionary conversion was passed a type {}"
@@ -140,7 +140,7 @@ class MetaParameterRecorder(object):
         if eol is None:
             eol = os.linesep
 
-        #This should not ever occur but here as a catch
+        # This should not ever occur but here as a catch
         if type(data) is not list:
             raise TensorForceError(
                 "Error:  MetaParameterRecorder List conversion was passed a type {}"
@@ -171,7 +171,7 @@ class MetaParameterRecorder(object):
         if eol is None:
             eol = os.linesep
 
-        #This should not ever occur but here as a catch
+        # This should not ever occur but here as a catch
         if type(data) is not np.ndarray: 
             raise TensorForceError(
                 "Error:  MetaParameterRecorder ndarray conversion was passed"
@@ -254,7 +254,7 @@ class MetaParameterRecorder(object):
 
         self.ignore_unknown_dtypes = True
         for key in sorted(self.meta_params):
-            value=self.convert_data_to_string(self.meta_params[key])
+            value = self.convert_data_to_string(self.meta_params[key])
 
             if len(value) == 0:
                 continue

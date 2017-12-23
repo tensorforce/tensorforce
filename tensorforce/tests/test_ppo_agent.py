@@ -30,3 +30,11 @@ class TestPPOAgent(BaseAgentTest, unittest.TestCase):
     kwargs = dict(
         batch_size=8
     )
+
+    multi_kwargs = dict(
+        batch_size=32,
+        step_optimizer=dict(
+            type='adam',
+            learning_rate=0.001
+        )
+    )

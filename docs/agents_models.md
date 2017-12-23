@@ -119,7 +119,7 @@ State preprocessing
 The agent handles state preprocessing. A preprocessor takes the raw state input
 from the environment and modifies it (for instance, image resize, state 
 concatenation, etc.). You can find information about our ready-to-use
-preprocessors [here](preprocessing.md).
+preprocessors [here](preprocessing.html).
 
 
 Building your own agent

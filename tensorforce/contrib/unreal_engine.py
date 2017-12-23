@@ -294,7 +294,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         but only have action-combinations (maybe even continuous) available from the env.
         E.g. the UE4 game has the following action/axis-mappings:
 
-        ```json
+        ```javascript
         {
         'Fire':
             {'type': 'action', 'keys': ('SpaceBar',)},
@@ -302,8 +302,10 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             {'type': 'axis', 'keys': (('Right', 1.0), ('Left', -1.0), ('A', -1.0), ('D', 1.0))},
         }
         ```
+
         -> this method will discretize them into the following 6 discrete actions:
-        ```json
+
+        ```javascript
         [
         [(Right, 0.0),(SpaceBar, False)],
         [(Right, 0.0),(SpaceBar, True)]

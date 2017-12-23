@@ -97,6 +97,7 @@ In python, it could look like this:
    agents_models
    environments
    preprocessing
+   summary_spec
    runner
    tensorforce/tensorforce
 

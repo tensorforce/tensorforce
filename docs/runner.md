@@ -33,11 +33,11 @@ runner = Runner(
 A reinforcement learning agent observes states from the environment,
 selects actions and collect experience which is used to update its model
 and improve action selection. You can get information about our
-ready-to-use agents [here](agents_models.md).
+ready-to-use agents [here](agents_models.html).
 
 The environment object is either the "real" environment, or a proxy
 which fulfills the actions selected by the agent in the real world. You
-can find information about environments [here](environments.md).
+can find information about environments [here](environments.html).
 
 The runner is started with the `Runner.run(...)` method:
 

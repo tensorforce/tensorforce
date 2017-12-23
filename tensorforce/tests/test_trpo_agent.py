@@ -28,11 +28,11 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
     agent = TRPOAgent
     deterministic = False
 
-    kwargs = dict(
+    config = dict(
         batch_size=8
     )
 
-    multi_kwargs = dict(
+    multi_config = dict(
         batch_size=64,
         learning_rate=0.1
     )

@@ -28,7 +28,7 @@ class TestDDQNAgent(BaseAgentTest, unittest.TestCase):
     agent = DDQNAgent
     deterministic = True
 
-    kwargs = dict(
+    config = dict(
         memory=dict(
             type='replay',
             capacity=1000
@@ -46,7 +46,7 @@ class TestDDQNAgent(BaseAgentTest, unittest.TestCase):
     exclude_float = True
     exclude_bounded = True
 
-    multi_kwargs = dict(
+    multi_config = dict(
         memory=dict(
             type='replay',
             capacity=1000

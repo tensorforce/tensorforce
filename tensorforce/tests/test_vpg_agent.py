@@ -27,15 +27,14 @@ class TestVPGAgent(BaseAgentTest, unittest.TestCase):
 
     agent = VPGAgent
     deterministic = False
-    kwargs = dict(
+    config = dict(
         batch_size=8
     )
 
-    multi_kwargs = dict(
+    multi_config = dict(
         batch_size=64,
         optimizer=dict(
             type='adam',
             learning_rate=0.01
         )
     )
-

@@ -28,7 +28,7 @@ class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
     agent = DQNNstepAgent
     deterministic = True
 
-    kwargs = dict(
+    config = dict(
         batch_size=8,
         optimizer=dict(
             type='adam',

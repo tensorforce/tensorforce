@@ -31,7 +31,7 @@ class TestConstantAgent(BaseAgentTest, unittest.TestCase):
 
     # Just testing one test, otherwise we would have to specify constant values of every type for every
     # test and override all base tests
-    kwargs = dict(
+    config = dict(
         action_values=dict(
             action=1.0
         )

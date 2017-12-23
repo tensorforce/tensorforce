@@ -33,13 +33,13 @@ class MinimalTest(Environment):
         Args:
             specification: Takes a list of (type, shape) pairs specifying the action structure of the environment.
         """
-        self.specification = list()
-        for action in specification:
-            if len(action) == 2 and action[0] in ('bool', 'int', 'float', 'bounded-float'):
-                if isinstance(action[1], int):
-                    self.specification.append((action[0], (action[1],)))
+        self.specification = dict()
+        for action_type, shape in specification.items():
+            if action_type in ('bool', 'int', 'float', 'bounded-float'):
+                if isinstance(shape, int):
+                    self.specification[action_type] = (shape,)
                 else:
-                    self.specification.append((action[0], tuple(action[1])))
+                    self.specification[action_type] = tuple(shape)
             else:
                 raise TensorForceError('Invalid MinimalTest specification.')
         self.single_state_action = (len(specification) == 1)
@@ -51,59 +51,58 @@ class MinimalTest(Environment):
         pass
 
     def reset(self):
-        self.state = [(1.0, 0.0) for _ in self.specification]
+        self.state = {action_type: (1.0, 0.0) for action_type in self.specification}
         if self.single_state_action:
-            return self.state[0]
+            return next(iter(self.state.values()))
         else:
-            return {'state{}'.format(n): state for n, state in enumerate(self.state)}
+            return dict(self.state)
 
     def execute(self, actions):
         if self.single_state_action:
-            actions = (actions,)
-        else:
-            actions = tuple(actions[name] for name in sorted(actions))
+            actions = {next(iter(self.specification)): actions}
 
         reward = 0.0
-        for n, (action_type, shape) in enumerate(self.specification):
+        for action_type, shape in self.specification.items():
             if action_type == 'bool' or action_type == 'int':
-                correct = np.sum(actions[n])
+                correct = np.sum(actions[action_type])
                 overall = util.prod(shape)
-                self.state[n] = ((overall - correct) / overall, correct / overall)
+                self.state[action_type] = ((overall - correct) / overall, correct / overall)
             elif action_type == 'float' or action_type == 'bounded-float':
-                step = np.sum(actions[n]) / util.prod(shape)
-                self.state[n] = max(self.state[n][0] - step, 0.0), min(self.state[n][1] + step, 1.0)
-            reward += max(min(self.state[n][1], 1.0), 0.0)
+                step = np.sum(actions[action_type]) / util.prod(shape)
+                self.state[action_type] = max(self.state[action_type][0] - step, 0.0), min(self.state[action_type][1] + step, 1.0)
+            reward += max(min(self.state[action_type][1], 1.0), 0.0)
 
         terminal = random() < 0.25
         if self.single_state_action:
-            return self.state[0], terminal, reward
+            return next(iter(self.state.values())), terminal, reward
         else:
             reward = reward / len(self.specification)
-            return {'state{}'.format(n): state for n, state in enumerate(self.state)}, terminal, reward
+            return dict(self.state), terminal, reward
 
     @property
     def states(self):
         if self.single_state_action:
             return dict(shape=2, type='float')
         else:
-            return {'state{}'.format(n): dict(shape=(2,), type='float') for n in range(len(self.specification))}
+            return {action_type: dict(shape=(2,), type='float') for action_type in self.specification}
 
     @property
     def actions(self):
         if self.single_state_action:
-            if self.specification[0][0] == 'int':
+            action_type = next(iter(self.specification))
+            if action_type == 'int':
                 return dict(type='int', num_actions=2)
-            elif self.specification[0][0] == 'bounded-float':
+            elif action_type == 'bounded-float':
                 return dict(type='float', min_value=-0.5, max_value=1.5)
             else:
-                return dict(type=self.specification[0][0])
+                return dict(type=action_type)
         else:
             actions = dict()
-            for n, (action_type, shape) in enumerate(self.specification):
+            for action_type, shape in self.specification.items():
                 if action_type == 'int':
-                    actions['action{}'.format(n)] = dict(type='int', shape=shape, num_actions=2)
+                    actions[action_type] = dict(type='int', shape=shape, num_actions=2)
                 elif action_type == 'bounded-float':
-                    actions['action{}'.format(n)] = dict(type='float', shape=shape, min_value=-0.5, max_value=1.5)
+                    actions[action_type] = dict(type='float', shape=shape, min_value=-0.5, max_value=1.5)
                 else:
-                    actions['action{}'.format(n)] = dict(type=action_type, shape=shape)
+                    actions[action_type] = dict(type=action_type, shape=shape)
             return actions

@@ -27,11 +27,11 @@ class TestPPOAgent(BaseAgentTest, unittest.TestCase):
 
     agent = PPOAgent
     deterministic = False
-    kwargs = dict(
+    config = dict(
         batch_size=8
     )
 
-    multi_kwargs = dict(
+    multi_config = dict(
         batch_size=32,
         step_optimizer=dict(
             type='adam',

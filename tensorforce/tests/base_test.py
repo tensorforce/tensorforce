@@ -18,12 +18,14 @@ from __future__ import print_function
 from __future__ import division
 
 import logging
-logging.getLogger('tensorflow').disabled = True
 
 from six.moves import xrange
 import sys
 
 from tensorforce.execution import Runner
+
+
+logging.getLogger('tensorflow').disabled = True
 
 
 class BaseTest(object):
@@ -127,5 +129,6 @@ class BaseTest(object):
             return r.episode < 100 or not all(episodes_passed)
 
         runner.run(episodes=100, deterministic=self.__class__.deterministic, episode_finished=episode_finished)
+
         sys.stdout.write('==> {} ran\n'.format(1))
         sys.stdout.flush()

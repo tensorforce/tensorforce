@@ -13,7 +13,7 @@ TensorForce is an open source reinforcement learning library focused on
 providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
 TensorForce is built on top of TensorFlow and compatible with Python 2.7
-and &gt;3.5 and supports multiple state inputs and multi-dimensional
+and &ge;3.5 and supports multiple state inputs and multi-dimensional
 actions to be compatible with Gym, Universe, and DeepMind lab. It further
 provides an easily extensible interface to implement new environments.
 
@@ -24,7 +24,7 @@ can be used in other languages and  contexts, and improves performance.
 
 More information on architecture can also be found [on our blog](https://reinforce.io/blog/).
 Please also read the [TensorForce FAQ](https://github.com/reinforceio/tensorforce/blob/master/FAQ.md)
-if you encounter problems or have questions.
+if you encounter problems or have questions. Finally, you can sign up to our [Gitter channel](https://docs.google.com/forms/d/1_UD5Pb5LaPVUviD0pO0fFcEnx_vwenvuc00jmP2rRIc/).
 
 Finally, read the latest update notes (UPDATE_NOTES.md) for an idea of
 how the project is evolving, especially concerning majorAPI breaking updates.

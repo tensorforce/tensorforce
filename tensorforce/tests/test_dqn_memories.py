@@ -35,7 +35,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             memory=dict(
                 type='replay',
                 capacity=1000
@@ -50,7 +50,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             name='replay',
             environment=environment,
             network_spec=network_spec,
-            **kwargs
+            **config
         )
 
     def test_prioritized_replay(self):
@@ -60,7 +60,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
 
-        kwargs = dict(
+        config = dict(
             memory=dict(
                 type='prioritized_replay',
                 capacity=1000
@@ -75,7 +75,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             name='prioritized-replay',
             environment=environment,
             network_spec=network_spec,
-            **kwargs
+            **config
         )
 
     def test_naive_prioritized_replay(self):
@@ -84,7 +84,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             memory=dict(
                 type='naive_prioritized_replay',
                 capacity=1000
@@ -99,5 +99,5 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             name='naive-prioritized-replay',
             environment=environment,
             network_spec=network_spec,
-            **kwargs
+            **config
         )

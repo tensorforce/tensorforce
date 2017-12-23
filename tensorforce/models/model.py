@@ -951,23 +951,27 @@ class Model(object):
 
         if include_non_trainable:
                 # optimizer variables and timestep/episode only included if 'include_non_trainable' set
-            all_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
-            all_variables += [
-                variable for name in self.explorations.keys()
-                for variable in self.explorations[name].get_variables()
-            ]
-            all_variables += [
+            model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
+            states_preprocessing_variables = [
                 variable for name in self.states_preprocessing.keys()
                 for variable in self.states_preprocessing[name].get_variables()
             ]
+            explorations_variables = [
+                variable for name in self.explorations.keys()
+                for variable in self.explorations[name].get_variables()
+            ]
             if self.reward_preprocessing is not None:
-                all_variables += self.reward_preprocessing.get_variables()
-
+                reward_preprocessing_variables = self.reward_preprocessing.get_variables()
+            else:
+                reward_preprocessing_variables = list()
             if self.optimizer is None:
-                return all_variables
+                optimizer_variables = list()
             else:
                 optimizer_variables = self.optimizer.get_variables()
-                return all_variables + optimizer_variables
+
+            return model_variables + states_preprocessing_variables + explorations_variables + \
+                reward_preprocessing_variables + optimizer_variables
+
         else:
             return [self.variables[key] for key in sorted(self.variables)]
 
@@ -1016,9 +1020,9 @@ class Model(object):
         if self.summary_configuration_op is not None:
             summary_values = self.session.run(self.summary_configuration_op)
             self.summary_writer.add_summary(summary_values)
-            self.summary_writer.flush()   
+            self.summary_writer.flush()
             # Only do this operation once to reduce duplicate data in Tensorboard
-            self.summary_configuration_op = None    
+            self.summary_configuration_op = None
 
         return actions, internals, timestep
 

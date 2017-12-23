@@ -29,6 +29,7 @@ class BaseAgentTest(BaseTest):
     """
 
     config = None
+    multi_config = None
 
     # Exclude flags to indicate whether a certain test is excluded for a model.
     exclude_bool = False
@@ -45,7 +46,7 @@ class BaseAgentTest(BaseTest):
         if self.__class__.exclude_bool:
             return
 
-        environment = MinimalTest(specification=[('bool', ())])
+        environment = MinimalTest(specification={'bool': ()})
 
         network_spec = [
             dict(type='dense', size=32),
@@ -55,7 +56,7 @@ class BaseAgentTest(BaseTest):
             name='bool',
             environment=environment,
             network_spec=network_spec,
-            **self.__class__.kwargs
+            **self.__class__.config
         )
 
     def test_int(self):
@@ -65,7 +66,7 @@ class BaseAgentTest(BaseTest):
         if self.__class__.exclude_int:
             return
 
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -75,7 +76,7 @@ class BaseAgentTest(BaseTest):
             name='int',
             environment=environment,
             network_spec=network_spec,
-            **self.__class__.kwargs
+            **self.__class__.config
         )
 
     def test_float(self):
@@ -85,7 +86,7 @@ class BaseAgentTest(BaseTest):
         if self.__class__.exclude_float:
             return
 
-        environment = MinimalTest(specification=[('float', ())])
+        environment = MinimalTest(specification={'float': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -94,7 +95,7 @@ class BaseAgentTest(BaseTest):
             name='float',
             environment=environment,
             network_spec=network_spec,
-            **self.__class__.kwargs
+            **self.__class__.config
         )
 
     def test_bounded_float(self):
@@ -104,7 +105,7 @@ class BaseAgentTest(BaseTest):
         if self.__class__.exclude_bounded:
             return
 
-        environment = MinimalTest(specification=[('bounded-float', ())])
+        environment = MinimalTest(specification={'bounded-float': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -113,7 +114,7 @@ class BaseAgentTest(BaseTest):
             name='bounded-float',
             environment=environment,
             network_spec=network_spec,
-            **self.__class__.kwargs
+            **self.__class__.config
         )
 
     def test_multi(self):
@@ -133,68 +134,78 @@ class BaseAgentTest(BaseTest):
             def __init__(self, scope='layerbased-network', summary_labels=()):
                 super(CustomNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
 
-                self.layer01 = Dense(size=16, scope='state0-1')
-                self.add_layer(layer=self.layer01)
-                self.layer02 = Dense(size=16, scope='state0-2')
-                self.add_layer(layer=self.layer02)
+                if not exclude_bool:
+                    self.layer_bool1 = Dense(size=16, scope='state-bool1')
+                    self.add_layer(layer=self.layer_bool1)
+                    self.layer_bool2 = Dense(size=16, scope='state-bool2')
+                    self.add_layer(layer=self.layer_bool2)
 
-                self.layer11 = Dense(size=16, scope='state1-1')
-                self.add_layer(layer=self.layer11)
-                self.layer12 = Dense(size=16, scope='state1-2')
-                self.add_layer(layer=self.layer12)
+                if not exclude_int:
+                    self.layer_int1 = Dense(size=16, scope='state-int1')
+                    self.add_layer(layer=self.layer_int1)
+                    self.layer_int2 = Dense(size=16, scope='state-int2')
+                    self.add_layer(layer=self.layer_int2)
 
-                self.layer21 = Dense(size=16, scope='state2-1')
-                self.add_layer(layer=self.layer21)
-                self.layer22 = Dense(size=16, scope='state2-2')
-                self.add_layer(layer=self.layer22)
+                if not exclude_float:
+                    self.layer_float1 = Dense(size=16, scope='state-float1')
+                    self.add_layer(layer=self.layer_float1)
+                    self.layer_float2 = Dense(size=16, scope='state-float2')
+                    self.add_layer(layer=self.layer_float2)
 
-                self.layer31 = Dense(size=16, scope='state3-1')
-                self.add_layer(layer=self.layer31)
-                self.layer32 = Dense(size=16, scope='state3-2')
-                self.add_layer(layer=self.layer32)
+                if not exclude_bounded:
+                    self.layer_bounded1 = Dense(size=16, scope='state-bounded1')
+                    self.add_layer(layer=self.layer_bounded1)
+                    self.layer_bounded2 = Dense(size=16, scope='state-bounded2')
+                    self.add_layer(layer=self.layer_bounded2)
 
             def tf_apply(self, x, internals, update, return_internals=False):
-                if exclude_bool:
-                    x0 = 1.0
-                else:
-                    x0 = self.layer02.apply(x=self.layer01.apply(x=x['state0'], update=update), update=update)
+                xs = list()
 
-                if exclude_int:
-                    x1 = 1.0
-                else:
-                    x1 = self.layer12.apply(x=self.layer11.apply(x=x['state1'], update=update), update=update)
+                if not exclude_bool:
+                    xs.append(self.layer_bool2.apply(x=self.layer_bool1.apply(x=x['bool'], update=update), update=update))
 
-                if exclude_float:
-                    x2 = 1.0
-                else:
-                    x2 = self.layer22.apply(x=self.layer21.apply(x=x['state2'], update=update), update=update)
+                if not exclude_int:
+                    xs.append(self.layer_int2.apply(x=self.layer_int1.apply(x=x['int'], update=update), update=update))
 
-                if exclude_bounded:
-                    x3 = 1.0
-                else:
-                    x3 = self.layer32.apply(x=self.layer31.apply(x=x['state3'], update=update), update=update)
+                if not exclude_float:
+                    xs.append(self.layer_float2.apply(x=self.layer_float1.apply(x=x['float'], update=update), update=update))
 
-                x = x0 * x1 * x2 * x3
+                if not exclude_bounded:
+                    xs.append(self.layer_bounded2.apply(x=self.layer_bounded1.apply(x=x['bounded-float'], update=update), update=update))
+
+                x = xs[0]
+                for y in xs[1:]:
+                    x *= y
+                # import tensorflow as tf
+                # x = tf.concat(values=xs, axis=1)
                 return (x, list()) if return_internals else x
 
-        specification = list()
+        specification = dict()
         if not exclude_bool:
-            specification.append(('bool', ()))
+            specification['bool'] = ()
         if not exclude_int:
-            specification.append(('int', (2,)))
+            specification['int'] = (2,)
         if not exclude_float:
-            specification.append(('float', (1, 1)))
+            specification['float'] = (1, 1)
         if not exclude_bounded:
-            specification.append(('bounded-float', (1,)))
+            specification['bounded-float'] = (1,)
 
         environment = MinimalTest(specification=specification)
 
-        self.base_test_run(
-            name='multi',
-            environment=environment,
-            network_spec=CustomNetwork,
-            **self.__class__.multi_kwargs
-        )
+        if self.__class__.multi_config is None:
+            self.base_test_run(
+                name='multi',
+                environment=environment,
+                network_spec=CustomNetwork,
+                **self.__class__.config
+            )
+        else:
+            self.base_test_run(
+                name='multi',
+                environment=environment,
+                network_spec=CustomNetwork,
+                **self.__class__.multi_config
+            )
 
     def test_lstm(self):
         """
@@ -203,7 +214,7 @@ class BaseAgentTest(BaseTest):
         if self.__class__.exclude_lstm:
             return
 
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32),
@@ -214,5 +225,5 @@ class BaseAgentTest(BaseTest):
             name='lstm',
             environment=environment,
             network_spec=network_spec,
-            **self.__class__.kwargs
+            **self.__class__.config
         )

@@ -138,7 +138,7 @@ class PPOAgent(BatchAgent):
         if step_optimizer is None:
             step_optimizer = dict(
                 type='adam',
-                learning_rate=1e-4
+                learning_rate=2.5e-4
             )
 
         self.optimizer = dict(

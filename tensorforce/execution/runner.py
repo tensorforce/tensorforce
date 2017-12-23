@@ -125,7 +125,7 @@ class Runner(object):
 
             self.episode += 1
 
-            if episode_finished and not episode_finished(self) or \
+            if (episode_finished is not None and not episode_finished(self)) or \
                     (episodes is not None and self.agent.episode >= episodes) or \
                     (timesteps is not None and self.agent.timestep >= timesteps) or \
                     self.agent.should_stop():

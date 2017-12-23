@@ -18,7 +18,6 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-logging.getLogger('tensorflow').disabled = True
 
 import sys
 import unittest
@@ -29,6 +28,9 @@ from six.moves import xrange
 from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
+
+
+logging.getLogger('tensorflow').disabled = True
 
 
 class TestQuickstartExample(unittest.TestCase):

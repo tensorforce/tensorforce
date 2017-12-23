@@ -37,14 +37,14 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             optimizer=dict(
                 type='adam',
                 learning_rate=1e-3
             )
         )
-        self.base_test_pass(name='adam', environment=environment, network_spec=network_spec, **kwargs)
+        self.base_test_pass(name='adam', environment=environment, network_spec=network_spec, **config)
 
     def test_evolutionary(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -52,14 +52,14 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             optimizer=dict(
                 type='evolutionary',
                 learning_rate=1e-2
             )
         )
-        self.base_test_pass(name='evolutionary', environment=environment, network_spec=network_spec, **kwargs)
+        self.base_test_pass(name='evolutionary', environment=environment, network_spec=network_spec, **config)
 
     def test_natural_gradient(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -67,14 +67,14 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             optimizer=dict(
                 type='natural_gradient',
                 learning_rate=1e-3
             )
         )
-        self.base_test_pass(name='natural-gradient', environment=environment, network_spec=network_spec, **kwargs)
+        self.base_test_pass(name='natural-gradient', environment=environment, network_spec=network_spec, **config)
 
     def test_multi_step(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -82,7 +82,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             optimizer=dict(
                 type='multi_step',
@@ -92,7 +92,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                 )
             )
         )
-        self.base_test_pass(name='multi-step', environment=environment, network_spec=network_spec, **kwargs)
+        self.base_test_pass(name='multi-step', environment=environment, network_spec=network_spec, **config)
 
     def test_optimized_step(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -100,7 +100,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             optimizer=dict(
                 type='optimized_step',
@@ -110,7 +110,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                 )
             )
         )
-        self.base_test_pass(name='optimized-step', environment=environment, network_spec=network_spec, **kwargs)
+        self.base_test_pass(name='optimized-step', environment=environment, network_spec=network_spec, **config)
 
     def test_clipped_step(self):
         environment = MinimalTest(specification=[('int', ())])
@@ -118,7 +118,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             optimizer=dict(
                 type='clipped_step',
@@ -129,4 +129,4 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                 clipping_value=0.01
             )
         )
-        self.base_test_pass(name='clipped-step', environment=environment, network_spec=network_spec, **kwargs)
+        self.base_test_pass(name='clipped-step', environment=environment, network_spec=network_spec, **config)

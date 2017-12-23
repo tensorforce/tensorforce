@@ -13,7 +13,7 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
     agent = NAFAgent
     deterministic = True
 
-    kwargs = dict(
+    config = dict(
         memory=dict(
             type='replay',
             capacity=1000

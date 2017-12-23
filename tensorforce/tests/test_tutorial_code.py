@@ -18,9 +18,10 @@ from __future__ import print_function
 from __future__ import division
 
 import logging
-logging.getLogger('tensorflow').disabled = True
-
 import unittest
+
+
+logging.getLogger('tensorflow').disabled = True
 
 
 class TestTutorialCode(unittest.TestCase):

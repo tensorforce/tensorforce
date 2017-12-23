@@ -22,7 +22,6 @@ import unittest
 import numpy as np
 
 from tensorforce.tests.base_agent_test import BaseAgentTest
-
 from tensorforce import util
 from tensorforce.agents import DQFDAgent
 
@@ -32,7 +31,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
     agent = DQFDAgent
     deterministic = True
 
-    kwargs = dict(
+    config = dict(
         memory=dict(
             type='replay',
             capacity=1000
@@ -108,7 +107,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
         agent.import_demonstrations(demonstrations)
         agent.pretrain(steps=1000)
 
-    multi_kwargs = dict(
+    multi_config = dict(
         memory=dict(
             type='replay',
             capacity=1000

@@ -43,8 +43,8 @@ class Optimizer(object):
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
-            assert kwargs.get('trainable', False)
             if not registered:
+                assert kwargs.get('trainable', False)
                 self.variables[name] = variable
             return variable
 
@@ -122,8 +122,8 @@ class Optimizer(object):
                             self.summaries.append(summary)  
                         if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram']):
                             summary = tf.summary.histogram(name='gradients/' + var.name, values=grad)
-                            self.summaries.append(summary)                   
-        
+                            self.summaries.append(summary)
+
         deltas = self.step(time=time, variables=variables, **kwargs)
         with tf.control_dependencies(control_inputs=deltas):
             return tf.no_op()

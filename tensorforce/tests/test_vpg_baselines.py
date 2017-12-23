@@ -20,7 +20,6 @@ from __future__ import division
 import unittest
 
 from tensorforce.tests.base_test import BaseTest
-
 from tensorforce.agents import VPGAgent
 from tensorforce.core.networks import Dense, LayerBasedNetwork
 from tensorforce.environments.minimal_test import MinimalTest
@@ -37,7 +36,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -57,7 +56,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             name='states-baseline',
             environment=environment,
             network_spec=network_spec,
-            **kwargs
+            **config
         )
 
     def test_network_baseline(self):
@@ -67,7 +66,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
 
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             baseline_mode='network',
             baseline=dict(
@@ -87,7 +86,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             name='network-baseline',
             environment=environment,
             network_spec=network_spec,
-            **kwargs
+            **config
         )
 
     def test_baseline_no_optimizer(self):
@@ -97,7 +96,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
 
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -109,7 +108,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             name='baseline-no-optimizer',
             environment=environment,
             network_spec=network_spec,
-            **kwargs
+            **config
         )
 
     def test_gae_baseline(self):
@@ -118,7 +117,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -139,7 +138,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             name='gae-baseline',
             environment=environment,
             network_spec=network_spec,
-            **kwargs
+            **config
         )
 
     def test_multi_baseline(self):
@@ -180,7 +179,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         environment = MinimalTest(
             specification=[('bool', ()), ('int', (2,)), ('float', (1, 1)), ('bounded-float', (1,))]
         )
-        kwargs = dict(
+        config = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
@@ -218,5 +217,5 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             name='multi-baseline',
             environment=environment,
             network_spec=CustomNetwork,
-            **kwargs
+            **config
         )

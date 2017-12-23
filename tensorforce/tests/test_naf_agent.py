@@ -20,7 +20,7 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
         ),
         optimizer=dict(
             type='adam',
-            learning_rate=0.005
+            learning_rate=0.001
         ),
         explorations_spec=dict(
             type="ornstein_uhlenbeck"

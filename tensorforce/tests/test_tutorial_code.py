@@ -404,7 +404,7 @@ class TestTutorialCode(unittest.TestCase):
         from tensorforce.agents import DQNAgent
         from tensorforce.execution import Runner
 
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
 
         network_spec = [
             dict(type='dense', size=32)

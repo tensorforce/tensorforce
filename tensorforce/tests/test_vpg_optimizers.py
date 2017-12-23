@@ -32,7 +32,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
     # TODO: Tests for other TensorFlow optimizers, necessary?
 
     def test_adam(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -47,7 +47,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
         self.base_test_pass(name='adam', environment=environment, network_spec=network_spec, **config)
 
     def test_evolutionary(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -62,7 +62,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
         self.base_test_pass(name='evolutionary', environment=environment, network_spec=network_spec, **config)
 
     def test_natural_gradient(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -77,7 +77,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
         self.base_test_pass(name='natural-gradient', environment=environment, network_spec=network_spec, **config)
 
     def test_multi_step(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -95,7 +95,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
         self.base_test_pass(name='multi-step', environment=environment, network_spec=network_spec, **config)
 
     def test_optimized_step(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -113,7 +113,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
         self.base_test_pass(name='optimized-step', environment=environment, network_spec=network_spec, **config)
 
     def test_clipped_step(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)

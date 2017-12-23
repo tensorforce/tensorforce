@@ -30,7 +30,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
     deterministic = True
 
     def test_replay(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -54,7 +54,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
         )
 
     def test_prioritized_replay(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -79,7 +79,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
         )
 
     def test_naive_prioritized_replay(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)

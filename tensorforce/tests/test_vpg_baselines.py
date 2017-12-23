@@ -31,7 +31,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
     deterministic = False
 
     def test_states_baseline(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -60,7 +60,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         )
 
     def test_network_baseline(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -90,7 +90,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         )
 
     def test_baseline_no_optimizer(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -112,7 +112,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         )
 
     def test_gae_baseline(self):
-        environment = MinimalTest(specification=[('int', ())])
+        environment = MinimalTest(specification={'int': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
@@ -177,7 +177,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 return (x, list()) if return_internals else x
 
         environment = MinimalTest(
-            specification=[('bool', ()), ('int', (2,)), ('float', (1, 1)), ('bounded-float', (1,))]
+            specification={'bool': (), 'int': (2,), 'float': (1, 1), 'bounded-float': (1,)}
         )
         config = dict(
             batch_size=8,

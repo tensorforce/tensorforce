@@ -51,7 +51,7 @@ class BaseAgentTest(BaseTest):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        self.base_test(
+        self.base_test_pass(
             name='bool',
             environment=environment,
             network_spec=network_spec,
@@ -71,7 +71,7 @@ class BaseAgentTest(BaseTest):
             dict(type='dense', size=32)
         ]
 
-        self.base_test(
+        self.base_test_pass(
             name='int',
             environment=environment,
             network_spec=network_spec,
@@ -90,7 +90,7 @@ class BaseAgentTest(BaseTest):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        self.base_test(
+        self.base_test_pass(
             name='float',
             environment=environment,
             network_spec=network_spec,
@@ -109,7 +109,7 @@ class BaseAgentTest(BaseTest):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        self.base_test(
+        self.base_test_pass(
             name='bounded-float',
             environment=environment,
             network_spec=network_spec,
@@ -189,7 +189,7 @@ class BaseAgentTest(BaseTest):
 
         environment = MinimalTest(specification=specification)
 
-        self.base_test(
+        self.base_test_run(
             name='multi',
             environment=environment,
             network_spec=CustomNetwork,
@@ -210,7 +210,7 @@ class BaseAgentTest(BaseTest):
             dict(type='internal_lstm', size=32)
         ]
 
-        self.base_test(
+        self.base_test_pass(
             name='lstm',
             environment=environment,
             network_spec=network_spec,

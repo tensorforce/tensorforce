@@ -42,7 +42,7 @@ class BaseTest(object):
         """
         pass
 
-    def base_test(self, name, environment, network_spec, **kwargs):
+    def base_test_pass(self, name, environment, network_spec, **kwargs):
         """
         Basic test loop, requires an Agent to achieve a certain performance on an environment.
         """
@@ -91,3 +91,41 @@ class BaseTest(object):
         sys.stdout.write(' ==> {} passed\n'.format(passed))
         sys.stdout.flush()
         self.assertTrue(passed >= 2)
+
+    def base_test_run(self, name, environment, network_spec, **kwargs):
+        """
+        Run test, tests whether algorithm can run and update without compilation errors,
+        not whether it passes.
+        """
+
+        sys.stdout.write('\n{} ({}):'.format(self.__class__.agent.__name__, name))
+        sys.stdout.flush()
+
+        if self.__class__.requires_network:
+            agent = self.__class__.agent(
+                states_spec=environment.states,
+                actions_spec=environment.actions,
+                network_spec=network_spec,
+                **kwargs
+            )
+        else:
+            agent = self.__class__.agent(
+                states_spec=environment.states,
+                actions_spec=environment.actions,
+                **kwargs
+            )
+
+        runner = Runner(agent=agent, environment=environment)
+
+        self.pre_run(agent=agent, environment=environment)
+
+        def episode_finished(r):
+            episodes_passed = [
+                rw / ln >= self.__class__.pass_threshold
+                for rw, ln in zip(r.episode_rewards[-100:], r.episode_timesteps[-100:])
+            ]
+            return r.episode < 100 or not all(episodes_passed)
+
+        runner.run(episodes=100, deterministic=self.__class__.deterministic, episode_finished=episode_finished)
+        sys.stdout.write('==> {} ran\n'.format(1))
+        sys.stdout.flush()

@@ -46,7 +46,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             target_sync_frequency=10
         )
 
-        self.base_test(
+        self.base_test_pass(
             name='replay',
             environment=environment,
             network_spec=network_spec,
@@ -71,7 +71,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             target_sync_frequency=10
         )
 
-        self.base_test(
+        self.base_test_pass(
             name='prioritized-replay',
             environment=environment,
             network_spec=network_spec,
@@ -95,7 +95,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             target_sync_frequency=10
         )
 
-        self.base_test(
+        self.base_test_pass(
             name='naive-prioritized-replay',
             environment=environment,
             network_spec=network_spec,

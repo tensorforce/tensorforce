@@ -53,7 +53,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 num_steps=5
             )
         )
-        self.base_test(
+        self.base_test_pass(
             name='states-baseline',
             environment=environment,
             network_spec=network_spec,
@@ -83,7 +83,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 num_steps=5
             )
         )
-        self.base_test(
+        self.base_test_pass(
             name='network-baseline',
             environment=environment,
             network_spec=network_spec,
@@ -105,7 +105,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 sizes=[32, 32]
             )
         )
-        self.base_test(
+        self.base_test_pass(
             name='baseline-no-optimizer',
             environment=environment,
             network_spec=network_spec,
@@ -135,7 +135,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             ),
             gae_lambda=0.95
         )
-        self.base_test(
+        self.base_test_pass(
             name='gae-baseline',
             environment=environment,
             network_spec=network_spec,
@@ -214,7 +214,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             )
         )
 
-        self.base_test(
+        self.base_test_pass(
             name='multi-baseline',
             environment=environment,
             network_spec=CustomNetwork,

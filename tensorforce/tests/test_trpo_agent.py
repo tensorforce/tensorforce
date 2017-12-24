@@ -29,7 +29,8 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
     deterministic = False
 
     config = dict(
-        batch_size=8
+        batch_size=8,
+        learning_rate=1e-2
     )
 
     multi_config = dict(

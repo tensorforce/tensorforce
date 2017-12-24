@@ -35,7 +35,7 @@ class MinimalTest(Environment):
         """
         self.specification = dict()
         for action_type, shape in specification.items():
-            if action_type in ('bool', 'int', 'float', 'bounded-float'):
+            if action_type in ('bool', 'int', 'float', 'bounded'):
                 if isinstance(shape, int):
                     self.specification[action_type] = (shape,)
                 else:
@@ -67,7 +67,7 @@ class MinimalTest(Environment):
                 correct = np.sum(actions[action_type])
                 overall = util.prod(shape)
                 self.state[action_type] = ((overall - correct) / overall, correct / overall)
-            elif action_type == 'float' or action_type == 'bounded-float':
+            elif action_type == 'float' or action_type == 'bounded':
                 step = np.sum(actions[action_type]) / util.prod(shape)
                 self.state[action_type] = max(self.state[action_type][0] - step, 0.0), min(self.state[action_type][1] + step, 1.0)
             reward += max(min(self.state[action_type][1], 1.0), 0.0)
@@ -92,7 +92,7 @@ class MinimalTest(Environment):
             action_type = next(iter(self.specification))
             if action_type == 'int':
                 return dict(type='int', num_actions=2)
-            elif action_type == 'bounded-float':
+            elif action_type == 'bounded':
                 return dict(type='float', min_value=-0.5, max_value=1.5)
             else:
                 return dict(type=action_type)
@@ -101,7 +101,7 @@ class MinimalTest(Environment):
             for action_type, shape in self.specification.items():
                 if action_type == 'int':
                     actions[action_type] = dict(type='int', shape=shape, num_actions=2)
-                elif action_type == 'bounded-float':
+                elif action_type == 'bounded':
                     actions[action_type] = dict(type='float', shape=shape, min_value=-0.5, max_value=1.5)
                 else:
                     actions[action_type] = dict(type=action_type, shape=shape)

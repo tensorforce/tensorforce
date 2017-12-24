@@ -148,60 +148,60 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             def __init__(self, scope='layerbased-network', summary_labels=()):
                 super(CustomNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
 
-                self.layer01 = Dense(size=32, scope='state0-1')
-                self.add_layer(layer=self.layer01)
-                self.layer02 = Dense(size=32, scope='state0-2')
-                self.add_layer(layer=self.layer02)
+                self.layer_bool1 = Dense(size=16, scope='state-bool1')
+                self.add_layer(layer=self.layer_bool1)
+                self.layer_bool2 = Dense(size=16, scope='state-bool2')
+                self.add_layer(layer=self.layer_bool2)
 
-                self.layer11 = Dense(size=32, scope='state1-1')
-                self.add_layer(layer=self.layer11)
-                self.layer12 = Dense(size=32, scope='state1-2')
-                self.add_layer(layer=self.layer12)
+                self.layer_int1 = Dense(size=16, scope='state-int1')
+                self.add_layer(layer=self.layer_int1)
+                self.layer_int2 = Dense(size=16, scope='state-int2')
+                self.add_layer(layer=self.layer_int2)
 
-                self.layer21 = Dense(size=32, scope='state2-1')
-                self.add_layer(layer=self.layer21)
-                self.layer22 = Dense(size=32, scope='state2-2')
-                self.add_layer(layer=self.layer22)
+                self.layer_float1 = Dense(size=16, scope='state-float1')
+                self.add_layer(layer=self.layer_float1)
+                self.layer_float2 = Dense(size=16, scope='state-float2')
+                self.add_layer(layer=self.layer_float2)
 
-                self.layer31 = Dense(size=32, scope='state3-1')
-                self.add_layer(layer=self.layer31)
-                self.layer32 = Dense(size=32, scope='state3-2')
-                self.add_layer(layer=self.layer32)
+                self.layer_bounded1 = Dense(size=16, scope='state-bounded1')
+                self.add_layer(layer=self.layer_bounded1)
+                self.layer_bounded2 = Dense(size=16, scope='state-bounded2')
+                self.add_layer(layer=self.layer_bounded2)
 
             def tf_apply(self, x, internals, update, return_internals=False):
-                x0 = self.layer02.apply(x=self.layer01.apply(x=x['state0'], update=update), update=update)
-                x1 = self.layer12.apply(x=self.layer11.apply(x=x['state1'], update=update), update=update)
-                x2 = self.layer22.apply(x=self.layer21.apply(x=x['state2'], update=update), update=update)
-                x3 = self.layer32.apply(x=self.layer31.apply(x=x['state3'], update=update), update=update)
+                x0 = self.layer_bool2.apply(x=self.layer_bool1.apply(x=x['bool'], update=update), update=update)
+                x1 = self.layer_int2.apply(x=self.layer_int1.apply(x=x['int'], update=update), update=update)
+                x2 = self.layer_float2.apply(x=self.layer_float1.apply(x=x['float'], update=update), update=update)
+                x3 = self.layer_bounded2.apply(x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update)
                 x = x0 * x1 * x2 * x3
                 return (x, list()) if return_internals else x
 
         environment = MinimalTest(
-            specification={'bool': (), 'int': (2,), 'float': (1, 1), 'bounded-float': (1,)}
+            specification={'bool': (), 'int': (2,), 'float': (1, 1), 'bounded': (1,)}
         )
         config = dict(
             batch_size=8,
             baseline_mode='states',
             baseline=dict(
                 type='aggregated',
-                baselines=dict(
-                    state0=dict(
+                baselines={
+                    'bool': dict(
                         type='mlp',
                         sizes=[32, 32]
                     ),
-                    state1=dict(
+                    'int': dict(
                         type='mlp',
                         sizes=[32, 32]
                     ),
-                    state2=dict(
+                    'float': dict(
                         type='mlp',
                         sizes=[32, 32]
                     ),
-                    state3=dict(
+                    'bounded': dict(
                         type='mlp',
                         sizes=[32, 32]
                     )
-                )
+                }
             ),
             baseline_optimizer=dict(
                 type='multi_step',

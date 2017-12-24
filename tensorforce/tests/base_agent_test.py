@@ -105,13 +105,13 @@ class BaseAgentTest(BaseTest):
         if self.__class__.exclude_bounded:
             return
 
-        environment = MinimalTest(specification={'bounded-float': ()})
+        environment = MinimalTest(specification={'bounded': ()})
         network_spec = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         self.base_test_pass(
-            name='bounded-float',
+            name='bounded',
             environment=environment,
             network_spec=network_spec,
             **self.__class__.config
@@ -171,13 +171,12 @@ class BaseAgentTest(BaseTest):
                     xs.append(self.layer_float2.apply(x=self.layer_float1.apply(x=x['float'], update=update), update=update))
 
                 if not exclude_bounded:
-                    xs.append(self.layer_bounded2.apply(x=self.layer_bounded1.apply(x=x['bounded-float'], update=update), update=update))
+                    xs.append(self.layer_bounded2.apply(x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update))
 
                 x = xs[0]
                 for y in xs[1:]:
                     x *= y
-                # import tensorflow as tf
-                # x = tf.concat(values=xs, axis=1)
+
                 return (x, list()) if return_internals else x
 
         specification = dict()
@@ -188,7 +187,7 @@ class BaseAgentTest(BaseTest):
         if not exclude_float:
             specification['float'] = (1, 1)
         if not exclude_bounded:
-            specification['bounded-float'] = (1,)
+            specification['bounded'] = (1,)
 
         environment = MinimalTest(specification=specification)
 

@@ -68,26 +68,40 @@ class Input(Layer):
                 )    
         # Review data for casting to more precise format so TensorFlow doesn't throw error for mixed data
         # Quick & Dirty cast only promote types: bool=0,int32=10, int64=20, float32=30, double=40
-        #            
+
         cast_type_level = 0
-        cast_type_dict = {'bool':0, 'int32':10, 'int64':20, 'float32':30, 'float64':40}                
-        cast_type_func_dict = {0:tf.identity, 10:tf.to_int32, 20:tf.to_int64, 30:tf.to_float, 40:tf.to_double}    
+        cast_type_dict = {
+            'bool':0,
+            'int32':10,
+            'int64':20,
+            'float32':30,
+            'float64':40
+        }
+        cast_type_func_dict = {
+            0:tf.identity,
+            10:tf.to_int32,
+            20:tf.to_int64,
+            30:tf.to_float,
+            40:tf.to_double
+        }
         # Scan inputs for max cast_type            
         for tensor in inputs_to_merge:
-            key=str(tensor.dtype.name)
+            key = str(tensor.dtype.name)
             if key in cast_type_dict:
                 if cast_type_dict[key] > cast_type_level:
                     cast_type_level = cast_type_dict[key]
             else:
-                raise TensorForceError('Network spec "input" doesn\'t support dtype {}'.format(keys)
-   
+                raise TensorForceError('Network spec input does not support dtype {}'.format(key))
+
         # Add casting if needed
-        for index,tensor in enumerate(inputs_to_merge):
-            key=str(tensor.dtype.name)
+        for index, tensor in enumerate(inputs_to_merge):
+            key = str(tensor.dtype.name)
+
             if cast_type_dict[key] < cast_type_level:
                 inputs_to_merge[index]=cast_type_func_dict[cast_type_level](tensor)
 
-        input_tensor = tf.concat(inputs_to_merge,self.axis)
+        input_tensor = tf.concat(inputs_to_merge, self.axis)
+
         return input_tensor
 
 

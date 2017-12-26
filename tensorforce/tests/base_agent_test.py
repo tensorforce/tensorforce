@@ -162,16 +162,24 @@ class BaseAgentTest(BaseTest):
                 xs = list()
 
                 if not exclude_bool:
-                    xs.append(self.layer_bool2.apply(x=self.layer_bool1.apply(x=x['bool'], update=update), update=update))
+                    xs.append(self.layer_bool2.apply(
+                        x=self.layer_bool1.apply(x=x['bool'], update=update), update=update
+                    ))
 
                 if not exclude_int:
-                    xs.append(self.layer_int2.apply(x=self.layer_int1.apply(x=x['int'], update=update), update=update))
+                    xs.append(self.layer_int2.apply(
+                        x=self.layer_int1.apply(x=x['int'], update=update), update=update
+                    ))
 
                 if not exclude_float:
-                    xs.append(self.layer_float2.apply(x=self.layer_float1.apply(x=x['float'], update=update), update=update))
+                    xs.append(self.layer_float2.apply(
+                        x=self.layer_float1.apply(x=x['float'], update=update), update=update
+                    ))
 
                 if not exclude_bounded:
-                    xs.append(self.layer_bounded2.apply(x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update))
+                    xs.append(self.layer_bounded2.apply(
+                        x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update
+                    ))
 
                 x = xs[0]
                 for y in xs[1:]:

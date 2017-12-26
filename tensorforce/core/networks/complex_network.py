@@ -23,9 +23,10 @@ import os
 
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
+from tensorforce import TensorForceError
 from tensorforce.core.networks import Layer
 from tensorforce.core.networks.network import LayerBasedNetwork
+
 
 class Input(Layer):
     """
@@ -38,7 +39,8 @@ class Input(Layer):
         inputs, 
         axis=1,
         scope='merge_inputs', 
-        summary_labels=()):
+        summary_labels=()
+    ):
         """
         Input layer.
 
@@ -110,10 +112,12 @@ class Output(Layer):
     Output layer. Used for ComplexLayerNetwork's to capture the tensor
     under and name for use with Input layers.  Acts as a input to output passthrough.
     """
-    def __init__(self,
+    def __init__(
+        self,
         output,
         scope='output',
-        summary_labels=()):
+        summary_labels=()
+    ):
         """
         Output layer.
 
@@ -142,7 +146,7 @@ class ComplexLayeredNetwork(LayerBasedNetwork):
         """
         super(ComplexLayeredNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
         self.complex_layers_spec = complex_layers_spec
-        self.Inputs = dict()
+        self.inputs = dict()
 
         layer_counter = Counter()
 
@@ -160,12 +164,12 @@ class ComplexLayeredNetwork(LayerBasedNetwork):
                     kwargs=dict(scope=scope, summary_labels=summary_labels)
                 )
                 # Link named dictionary reference into Layer
-                layer.tf_tensors(named_tensors=self.Inputs)
+                layer.tf_tensors(named_tensors=self.inputs)
                 self.add_layer(layer=layer)
 
     def tf_apply(self, x, internals, update, return_internals=False):
         if isinstance(x, dict):
-            self.Inputs.update(x) 
+            self.inputs.update(x)
             if len(x) == 1:              
                 x = next(iter(x.values()))         
 
@@ -198,4 +202,4 @@ class ComplexLayeredNetwork(LayerBasedNetwork):
         path = os.path.join(os.getcwd(), filename)
         with open(path, 'r') as fp:
             config = json.load(fp=fp)
-        return ComplexLayeredNetwork(layers_spec=config)
+        return ComplexLayeredNetwork(complex_layers_spec=config)

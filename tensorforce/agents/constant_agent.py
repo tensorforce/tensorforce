@@ -37,11 +37,12 @@ class ConstantAgent(Agent):
         self,
         states_spec,
         actions_spec,
+        summary_spec=None,
+        network_spec=None,
         device=None,
         session_config=None,
         scope='constant',
         saver_spec=None,
-        summary_spec=None,
         distributed_spec=None,
         discount=0.99,
         variable_noise=None,
@@ -55,20 +56,12 @@ class ConstantAgent(Agent):
         Initializes a constant agent which returns a constant action of the provided shape.
 
         Args:
-            states_spec: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
             device: Device string specifying model device.
             session_config: optional tf.ConfigProto with additional desired session configurations
             scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
             saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
-                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
             distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
                 cluster spec.
@@ -79,21 +72,25 @@ class ConstantAgent(Agent):
             explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
                 or Gaussian noise).
             reward_preprocessing_spec: Optional dict specifying reward preprocessing.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
             action_values: Action value specification, must match actions_spec names
         """
 
         if action_values is None:
             raise TensorForceError("No action_values for constant model provided.")
 
+        super(ConstantAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            summary_spec=summary_spec,
+            network_spec=network_spec,
+            batched_observe=batched_observe
+        )
+
         self.optimizer = None
         self.device = device
         self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
-        self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
         self.discount = discount
         self.variable_noise = variable_noise
@@ -101,12 +98,6 @@ class ConstantAgent(Agent):
         self.explorations_spec = explorations_spec
         self.reward_preprocessing_spec = reward_preprocessing_spec
         self.action_values = action_values
-
-        super(ConstantAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            batched_observe=batched_observe
-        )
 
     def initialize_model(self):
         return ConstantModel(

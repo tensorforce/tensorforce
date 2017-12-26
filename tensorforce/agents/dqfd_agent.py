@@ -36,12 +36,12 @@ class DQFDAgent(MemoryAgent):
         self,
         states_spec,
         actions_spec,
-        network_spec,
+        summary_spec=None,
+        network_spec=None,
         device=None,
         session_config=None,
         scope='dqfd',
         saver_spec=None,
-        summary_spec=None,
         distributed_spec=None,
         optimizer=None,
         discount=0.99,
@@ -70,22 +70,12 @@ class DQFDAgent(MemoryAgent):
         This agent uses DQN to pre-train from demonstration data in combination with a supervised loss.
 
         Args:
-            states_spec: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
-                such as activation or regularisation. Full examples are in the examples/configs folder.
             device: Device string specifying model device.
             session_config: optional tf.ConfigProto with additional desired session configurations
             scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
             saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
-                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
             distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
                 cluster spec.
@@ -105,24 +95,25 @@ class DQFDAgent(MemoryAgent):
             target_sync_frequency: Interval between optimization calls synchronizing the target network.
             target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
             huber_loss: Optional flat specifying Huber-loss clipping.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
-            batch_size: Int specifying batch size used to sample from memory. Should be smaller than memory size.
-            memory: Dict describing memory via `type` (e.g. `replay`) and `capacity`.
-            first_update: Int describing at which time step the first update is performed. Should be larger
-                than batch size.
-            update_frequency: Int specifying number of observe steps to perform until an update is executed.
-            repeat_update: Int specifying how many update steps are performed per update, where each update step implies
-                sampling a batch from the memory and passing it to the model.
             expert_margin: Positive float specifying enforced supervised margin between expert action Q-value and other
                 Q-values.
             supervised_weight: Weight of supervised loss term.
             demo_memory_capacity: Int describing capacity of expert demonstration memory.
             demo_sampling_ratio: Runtime sampling ratio of expert data.
         """
-        if network_spec is None:
-            raise TensorForceError("No network_spec provided.")
+
+        super(DQFDAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            summary_spec=summary_spec,
+            network_spec=network_spec,
+            batched_observe=batched_observe,
+            batch_size=batch_size,
+            memory=memory,
+            first_update=first_update,
+            update_frequency=update_frequency,
+            repeat_update=repeat_update
+        )
 
         if optimizer is None:
             self.optimizer = dict(
@@ -131,15 +122,7 @@ class DQFDAgent(MemoryAgent):
             )
         else:
             self.optimizer = optimizer
-        if memory is None:
-            memory = dict(
-                type='replay',
-                capacity=100000
-            )
-        else:
-            self.memory = memory
 
-        self.network_spec = network_spec
         self.device = device
         self.session_config = session_config
         self.scope = scope
@@ -167,23 +150,12 @@ class DQFDAgent(MemoryAgent):
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
         self.demo_batch_size = int(demo_sampling_ratio * batch_size / (1.0 - demo_sampling_ratio))
-
         assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to ensure ' \
                                          'demo_batch_size is positive. (Calculated {} based on current' \
                                          ' parameters)'.format(self.demo_batch_size)
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
-        super(DQFDAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            batched_observe=batched_observe,
-            batch_size=batch_size,
-            memory=memory,
-            first_update=first_update,
-            update_frequency=update_frequency,
-            repeat_update=repeat_update
-        )
         self.demo_memory = Replay(self.states_spec, self.actions_spec, self.demo_memory_capacity)
 
     def initialize_model(self):

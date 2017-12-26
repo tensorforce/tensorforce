@@ -42,61 +42,41 @@ class Agent(object):
         self,
         states_spec,
         actions_spec,
-        batched_observe
+        batched_observe=1000,
+        summary_spec=None,
+        network_spec=None
     ):
         """
         Initializes the reinforcement learning agent.
 
         Args:
-            states_spec: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
+            states_spec (dict): Dict containing at least one state-component definition. In the case of a single state
+                space component, the keys `shape` and `type` are necessary (e.g. a 3D float-box with shape [3,3,3]).
+                For multiple state components, pass a dict of dicts where each component is a dict itself with a unique
+                name as its key (e.g. {cam: {shape: [84,84], type=int}, health: {shape=(), type=float}}).
+            actions_spec (dict): Dict containing at least one action-component definition.
+                Action components have types and either `num_actions` for discrete actions or a `shape`
+                for continuous actions.
+                Consult documentation and tests for more.
+            batched_observe (int): How many calls to `observe` are batched into one tensorflow session run.
+                Values of 0 or 1 indicate no batching being used and every call to `observe` triggers a tensorflow
+                session invocation to update rewards in the graph, which will lower the throughput.
+            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
+                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
+                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
+            network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
+                such as activation or regularisation. Full examples are in the examples/configs folder.
         """
 
-        self.unique_state = ('shape' in states_spec)
-        if self.unique_state:
-            states_spec = dict(state=states_spec)
-
-        self.states_spec = deepcopy(states_spec)
-        for name, state in self.states_spec.items():
-            # Convert int to unary tuple
-            if isinstance(state['shape'], int):
-                state['shape'] = (state['shape'],)
-
-            # Set default type to float
-            if 'type' not in state:
-                state['type'] = 'float'
+        # process state space
+        self.states_spec, self.unique_state = self.process_state_spec(states_spec)
 
         # Actions config and exploration
         self.exploration = dict()
-        self.unique_action = ('type' in actions_spec)
-        if self.unique_action:
-            actions_spec = dict(action=actions_spec)
-        self.actions_spec = deepcopy(actions_spec)
-
-        for name, action in self.actions_spec.items():
-            # Check required values
-            if action['type'] == 'int':
-                if 'num_actions' not in action:
-                    raise TensorForceError("Action requires value 'num_actions' set!")
-            elif action['type'] == 'float':
-                if ('min_value' in action) != ('max_value' in action):
-                    raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
-
-            # Set default shape to empty tuple
-            if 'shape' not in action:
-                action['shape'] = ()
-
-            # Convert int to unary tuple
-            if isinstance(action['shape'], int):
-                action['shape'] = (action['shape'],)
+        self.actions_spec, self.unique_action = self.process_action_spec(actions_spec)
 
         # TensorFlow summaries & Configuration Meta Parameter Recorder options
+        self.summary_spec = summary_spec
         if self.summary_spec is None:
             self.summary_labels = set()
         else:
@@ -104,19 +84,23 @@ class Agent(object):
  
         self.meta_param_recorder = None
  
-        #if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
-        if any(k in self.summary_labels for k in ['configuration','print_configuration']):
+        # if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
+        if any(k in self.summary_labels for k in ['configuration', 'print_configuration']):
             self.meta_param_recorder = MetaParameterRecorder(inspect.currentframe())
-            if 'meta_dict' in self.summary_spec:   
+            if 'meta_dict' in self.summary_spec:
                 # Custom Meta Dictionary passed
                 self.meta_param_recorder.merge_custom(self.summary_spec['meta_dict'])
             if 'configuration' in self.summary_labels:  
                 # Setup for TensorBoard population
                 self.summary_spec['meta_param_recorder_class'] = self.meta_param_recorder
             if 'print_configuration' in self.summary_labels: 
-                # Print to STDOUT (TADO: optimize output)
+                # Print to STDOUT (TODO: optimize output)
                 self.meta_param_recorder.text_output(format_type=1)
- 
+
+        if network_spec is None:
+            raise TensorForceError("No network_spec provided.")
+        self.network_spec = network_spec
+
         # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
         self.model = self.initialize_model()
 
@@ -125,6 +109,16 @@ class Agent(object):
         if self.batched_observe is not None:
             self.observe_terminal = list()
             self.observe_reward = list()
+
+        #  Define the properties used to store internal state of Agent.
+        self.current_states = None
+        self.current_actions = None
+        self.current_internals = None
+        self.next_internals = None
+        self.current_terminal = None
+        self.current_reward = None
+        self.episode = None
+        self.timestep = None
 
         self.reset()
 
@@ -160,8 +154,8 @@ class Agent(object):
         configured accordingly.
 
         Args:
-            states: One state (usually a value tuple) or dict of states if multiple states are expected.
-            deterministic: If true, no exploration and sampling is applied.
+            states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
+            deterministic (bool): If true, no exploration and sampling is applied.
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
 
@@ -192,8 +186,8 @@ class Agent(object):
         EX: terminal, reward = super()...
 
         Args:
-            terminal: boolean indicating if the episode terminated after the observation.
-            reward: scalar reward that resulted from executing the action.
+            terminal (bool): boolean indicating if the episode terminated after the observation.
+            reward (float): scalar reward that resulted from executing the action.
         """
         self.current_terminal = terminal
         self.current_reward = reward
@@ -275,3 +269,53 @@ class Agent(object):
         )
         assert isinstance(agent, Agent)
         return agent
+
+    @staticmethod
+    def process_state_spec(states_spec):
+        unique_state = ('shape' in states_spec)
+
+        # Leave incoming spec-dict intact.
+        states_spec_copy = deepcopy(states_spec)
+        if unique_state:
+            states_spec_copy = dict(state=states_spec_copy)
+
+        for name, state in states_spec_copy.items():
+            # Convert int to unary tuple.
+            if isinstance(state['shape'], int):
+                state['shape'] = (state['shape'],)
+
+            # Set default type to float.
+            if 'type' not in state:
+                state['type'] = 'float'
+        return states_spec_copy, unique_state
+
+    @staticmethod
+    def process_action_spec(actions_spec):
+        unique_action = ('type' in actions_spec)
+        # Leave incoming spec-dict intact.
+        actions_spec_copy = deepcopy(actions_spec)
+        if unique_action:
+            actions_spec_copy = dict(action=actions_spec_copy)
+
+        for name, action in actions_spec_copy.items():
+            # Set default type to int
+            if 'type' not in action:
+                action['type'] = 'int'
+
+            # Check required values
+            if action['type'] == 'int':
+                if 'num_actions' not in action:
+                    raise TensorForceError("Action requires value 'num_actions' set!")
+            elif action['type'] == 'float':
+                if ('min_value' in action) != ('max_value' in action):
+                    raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
+
+            # Set default shape to empty tuple (single-int, discrete action space)
+            if 'shape' not in action:
+                action['shape'] = ()
+
+            # Convert int to unary tuple
+            if isinstance(action['shape'], int):
+                action['shape'] = (action['shape'],)
+
+        return actions_spec_copy, unique_action

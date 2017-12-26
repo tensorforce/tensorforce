@@ -31,23 +31,17 @@ class BatchAgent(Agent):
         self,
         states_spec,
         actions_spec,
-        batched_observe,
-        batch_size,
-        keep_last_timestep
+        batched_observe=1000,
+        summary_spec=None,
+        network_spec=None,
+        batch_size=1000,
+        keep_last_timestep=True
     ):
         """
 
         Args:
-            states_spec: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
-            batch_size: Int specifying number of samples collected via `observe` before an update is executed.
-            keep_last_timestep: Boolean flag specifying whether last sample is kept, default True.
+            batch_size (int): Int specifying number of samples collected via `observe` before an update is executed.
+            keep_last_timestep (bool): Flag specifying whether last sample is kept, default True.
         """
         assert isinstance(batch_size, int) and batch_size > 0
         self.batch_size = batch_size
@@ -58,10 +52,18 @@ class BatchAgent(Agent):
         super(BatchAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            batched_observe=batched_observe
+            batched_observe=batched_observe,
+            summary_spec = summary_spec
         )
 
-        self.batch_count = None
+        # define the information we store about each batch
+        self.batch_states = None  # a dict of lists of batched state observations
+        self.batch_internals = None  # a list of lists of batched internal state values
+        self.batch_actions = None  # a dict of lists of batched actions taken
+        self.batch_terminal = None  # a list of is-terminal (bool) signals from the environment
+        self.batch_reward = None  # a list of (float) rewards from the environment
+        self.batch_count = None  # current size of the batch (0=empty)
+
         self.reset_batch()
 
     def observe(self, terminal, reward):
@@ -74,10 +76,8 @@ class BatchAgent(Agent):
         the agent should be agnostic to how the training data is created.
 
         Args:
-            reward: float of a scalar reward
-            terminal: boolean whether episode is terminated or not
-
-        Returns: void
+            terminal (bool): Whether episode is terminated or not.
+            reward (float): The scalar reward value.
         """
         super(BatchAgent, self).observe(terminal=terminal, reward=reward)
 
@@ -103,6 +103,16 @@ class BatchAgent(Agent):
             self.reset_batch()
 
     def reset_batch(self):
+        """
+        Cleans up after a batch has been processed (observed).
+        Resets all batch information to be ready for new observation data. Batch information contains:
+        - observed states
+        - internal-variables
+        - taken actions
+        - observed is-terminal signals/rewards
+        - total batch size
+        """
+        # full reset
         if self.batch_count is None or not self.keep_last_timestep:
             self.batch_states = {name: list() for name in self.states_spec}
             self.batch_internals = [list() for _ in range(len(self.current_internals))]
@@ -110,7 +120,7 @@ class BatchAgent(Agent):
             self.batch_terminal = list()
             self.batch_reward = list()
             self.batch_count = 0
-
+        # reset, but keep the last time step in our batch-information memory
         else:
             self.batch_states = {name: [self.batch_states[name][-1]] for name in self.states_spec}
             self.batch_internals = [[self.batch_internals[i][-1]] for i in range(len(self.current_internals))]

@@ -34,6 +34,7 @@ class BatchAgent(Agent):
         batched_observe=1000,
         summary_spec=None,
         network_spec=None,
+        discount=0.99,
         batch_size=1000,
         keep_last_timestep=True
     ):
@@ -53,7 +54,9 @@ class BatchAgent(Agent):
             states_spec=states_spec,
             actions_spec=actions_spec,
             batched_observe=batched_observe,
-            summary_spec = summary_spec
+            summary_spec = summary_spec,
+            network_spec=network_spec,
+            discount=discount
         )
 
         # define the information we store about each batch

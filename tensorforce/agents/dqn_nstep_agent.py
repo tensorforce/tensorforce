@@ -70,7 +70,6 @@ class DQNNstepAgent(BatchAgent):
             optimizer: Dict specifying optimizer type and its optional parameters, typically a `learning_rate`.
                 Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
                 and `evolutionary`. Consult the optimizer test or example configurations for more.
-            discount: Float specifying reward discount factor.
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
             states_preprocessing_spec: Optional list of states preprocessors to apply to state  
                 (e.g. `image_resize`, `grayscale`).
@@ -90,6 +89,7 @@ class DQNNstepAgent(BatchAgent):
             actions_spec=actions_spec,
             summary_spec=summary_spec,
             network_spec=network_spec,
+            discount=discount,
             batched_observe=batched_observe,
             batch_size=batch_size,
             keep_last_timestep=keep_last_timestep
@@ -108,7 +108,6 @@ class DQNNstepAgent(BatchAgent):
         self.scope = scope
         self.saver_spec = saver_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
         self.variable_noise = variable_noise
         self.states_preprocessing_spec = states_preprocessing_spec
         self.explorations_spec = explorations_spec

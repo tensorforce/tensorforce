@@ -107,6 +107,7 @@ class DQFDAgent(MemoryAgent):
             actions_spec=actions_spec,
             summary_spec=summary_spec,
             network_spec=network_spec,
+            discount=discount,
             batched_observe=batched_observe,
             batch_size=batch_size,
             memory=memory,
@@ -129,7 +130,6 @@ class DQFDAgent(MemoryAgent):
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
         self.variable_noise = variable_noise
         self.states_preprocessing_spec = states_preprocessing_spec
         self.explorations_spec = explorations_spec

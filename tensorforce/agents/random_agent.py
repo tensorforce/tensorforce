@@ -65,7 +65,6 @@ class RandomAgent(Agent):
             distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
                 cluster spec.
-            discount: Float specifying reward discount factor.
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
             states_preprocessing_spec: Optional list of states preprocessors to apply to state  
                 (e.g. `image_resize`, `grayscale`).
@@ -79,6 +78,13 @@ class RandomAgent(Agent):
                 update rewards in the graph.
         """
 
+        super(RandomAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            discount=discount,
+            batched_observe=batched_observe
+        )
+
         self.optimizer = None
         self.device = device
         self.session_config = session_config
@@ -86,17 +92,10 @@ class RandomAgent(Agent):
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
         self.variable_noise = variable_noise
         self.states_preprocessing_spec = states_preprocessing_spec
         self.explorations_spec = explorations_spec
         self.reward_preprocessing_spec = reward_preprocessing_spec
-
-        super(RandomAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            batched_observe=batched_observe
-        )
 
     def initialize_model(self):
         return RandomModel(

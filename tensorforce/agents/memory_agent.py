@@ -36,51 +36,59 @@ class MemoryAgent(Agent):
         self,
         states_spec,
         actions_spec,
-        batched_observe,
-        batch_size,
-        memory,
-        first_update,
-        update_frequency,
-        repeat_update
+        batched_observe=1000,
+        summary_spec=None,
+        network_spec=None,
+        batch_size=1000,
+        memory=None,
+        first_update=10000,
+        update_frequency=4,
+        repeat_update=1
     ):
         """
 
         Args:
-            states_spec: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
-            batch_size: Int specifying batch size used to sample from memory. Should be smaller than memory size.
-            memory: Dict describing memory via `type` (e.g. `replay`) and `capacity`.
-            first_update: Int describing at which time step the first update is performed. Should be larger
+            batch_size (int): The batch size used to sample from memory. Should be smaller than memory size.
+            memory (Union[dict,Memory]): Dict describing memory via `type` (e.g. `replay`) and `capacity`.
+                Alternatively, an actual Memory object can be passed in directly.
+            first_update (int): At which time step the first update is performed. Should be larger
                 than batch size.
-            update_frequency: Int specifying number of observe steps to perform until an update is executed.
-            repeat_update: Int specifying how many update steps are performed per update, where each update step implies
+            update_frequency (int): Number of `observe` steps to perform until an update is executed.
+            repeat_update (int): How many update steps are performed per update, where each update step implies
                 sampling a batch from the memory and passing it to the model.
         """
-        self.memory_spec = memory
+        super(MemoryAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            summary_spec = summary_spec,
+            network_spec=network_spec,
+            batched_observe = batched_observe
+        )
+
+        # Memory already given as a Memory object: Use that.
+        if isinstance(memory, Memory):
+            self.memory = memory
+            self.memory_spec = None
+        else:
+            # Nothing given: Create a default memory spec.
+            if memory is None:
+                memory = dict(
+                    type='replay',
+                    capacity=100000
+                )
+            # Now create actual Memory object from the spec.
+            self.memory_spec = memory
+            self.memory = Memory.from_spec(
+                spec=self.memory_spec,
+                kwargs=dict(
+                    states_spec=self.states_spec,
+                    actions_spec=self.actions_spec
+                )
+            )
         self.batch_size = batch_size
         self.first_update = first_update
         self.update_frequency = update_frequency
         self.repeat_update = repeat_update
-
-        super(MemoryAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            batched_observe=batched_observe
-        )
-
-        self.memory = Memory.from_spec(
-            spec=self.memory_spec,
-            kwargs=dict(
-                states_spec=self.states_spec,
-                actions_spec=self.actions_spec
-            )
-        )
 
     def observe(self, terminal, reward):
         super(MemoryAgent, self).observe(terminal=terminal, reward=reward)
@@ -109,15 +117,13 @@ class MemoryAgent(Agent):
                 self.memory.update_batch(loss_per_instance=loss_per_instance)
 
     def import_observations(self, observations):
-        """Load an iterable of observation dicts into the replay memory.
+        """
+        Load an iterable of observation dicts into the replay memory.
 
         Args:
             observations: An iterable with each element containing an observation. Each
-            observation requires keys 'state','action','reward','terminal', 'internal'.
-            Use an empty list [] for 'internal' if internal state is irrelevant.
-
-        Returns:
-
+                observation requires keys 'state','action','reward','terminal', 'internal'.
+                Use an empty list [] for 'internal' if internal state is irrelevant.
         """
         for observation in observations:
             self.memory.add_observation(

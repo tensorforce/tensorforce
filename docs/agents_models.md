@@ -27,6 +27,7 @@ agent inherits from this class.
 ```eval_rst
     .. autoclass:: tensorforce.agents.Agent
         :noindex:
+        :show-inheritance:
         :members:
 ```
 

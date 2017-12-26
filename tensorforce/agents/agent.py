@@ -44,7 +44,8 @@ class Agent(object):
         actions_spec,
         batched_observe=1000,
         summary_spec=None,
-        network_spec=None
+        network_spec=None,
+        discount=0.99
     ):
         """
         Initializes the reinforcement learning agent.
@@ -66,6 +67,7 @@ class Agent(object):
                 to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
             network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
                 such as activation or regularisation. Full examples are in the examples/configs folder.
+            discount (float): The reward discount factor.
         """
 
         # process state space
@@ -109,6 +111,8 @@ class Agent(object):
         if self.batched_observe is not None:
             self.observe_terminal = list()
             self.observe_reward = list()
+
+        self.discount = discount
 
         #  Define the properties used to store internal state of Agent.
         self.current_states = None

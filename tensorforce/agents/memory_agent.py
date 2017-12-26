@@ -39,6 +39,7 @@ class MemoryAgent(Agent):
         batched_observe=1000,
         summary_spec=None,
         network_spec=None,
+        discount=0.99,
         batch_size=1000,
         memory=None,
         first_update=10000,
@@ -62,6 +63,7 @@ class MemoryAgent(Agent):
             actions_spec=actions_spec,
             summary_spec = summary_spec,
             network_spec=network_spec,
+            discount=discount,
             batched_observe = batched_observe
         )
 

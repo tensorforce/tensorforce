@@ -32,6 +32,8 @@ class PPOAgent(BatchAgent):
         self,
         states_spec,
         actions_spec,
+        batched_observe=1000,
+        # parameters specific to LearningAgents (except optimizer)
         summary_spec=None,
         network_spec=None,
         device=None,
@@ -46,13 +48,14 @@ class PPOAgent(BatchAgent):
         reward_preprocessing_spec=None,
         distributions_spec=None,
         entropy_regularization=1e-2,
+        # parameters specific to BatchAgents
+        batch_size=1000,
+        keep_last_timestep=True,
+        # parameters specific to proximal-policy-opt Agents
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        batched_observe=1000,
-        batch_size=1000,
-        keep_last_timestep=True,
         likelihood_ratio_clipping=None,
         step_optimizer=None,
         optimization_steps=10
@@ -65,24 +68,6 @@ class PPOAgent(BatchAgent):
         (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
 
         Args:
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
-                cluster spec.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
-            distributions_spec: Optional dict specifying action distributions to override default distribution choices.
-                Must match action names.
-            entropy_regularization: Optional positive float specifying an entropy regularization value.
             baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
                 for sharing parameters with the training network.
             baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
@@ -97,40 +82,43 @@ class PPOAgent(BatchAgent):
                 the step optimizer.                `
         """
 
-        super(PPOAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            summary_spec=summary_spec,
-            network_spec=network_spec,
-            discount=discount,
-            batched_observe=batched_observe,
-            batch_size=batch_size,
-            keep_last_timestep=keep_last_timestep
-        )
-
+        # define our step-optimizer (the actual optimizer is always a multi-step optimizer)
         if step_optimizer is None:
             step_optimizer = dict(
                 type='adam',
                 learning_rate=2.5e-4
             )
-
         self.optimizer = dict(
             type='multi_step',
             optimizer=step_optimizer,
             num_steps=optimization_steps
         )
 
-        self.device = device
-        self.session_config = session_config
-        self.scope = scope
-        self.saver_spec = saver_spec
-        self.distributed_spec = distributed_spec
-        self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
-        self.distributions_spec = distributions_spec
-        self.entropy_regularization = entropy_regularization
+        super(PPOAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            batched_observe=batched_observe,
+            # parameters specific to LearningAgent
+            summary_spec=summary_spec,
+            network_spec=network_spec,
+            discount=discount,
+            device=device,
+            session_config=session_config,
+            scope=scope,
+            saver_spec=saver_spec,
+            distributed_spec=distributed_spec,
+            optimizer=self.optimizer,  # use our fixed parametrized optimizer
+            variable_noise=variable_noise,
+            states_preprocessing_spec=states_preprocessing_spec,
+            explorations_spec=explorations_spec,
+            reward_preprocessing_spec=reward_preprocessing_spec,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            # parameters specific to BatchAgents
+            batch_size=batch_size,
+            keep_last_timestep=keep_last_timestep
+        )
+
         self.baseline_mode = baseline_mode
         self.baseline = baseline
         self.baseline_optimizer = baseline_optimizer

@@ -33,12 +33,12 @@ class NAFAgent(MemoryAgent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        scope='naf',
         # parameters specific to LearningAgents
         summary_spec=None,
         network_spec=None,
         device=None,
         session_config=None,
-        scope='naf',
         saver_spec=None,
         distributed_spec=None,
         optimizer=None,
@@ -72,17 +72,22 @@ class NAFAgent(MemoryAgent):
             huber_loss: Optional flat specifying Huber-loss clipping.
         """
 
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
+        self.double_q_model = double_q_model
+        self.huber_loss = huber_loss
+
         super(NAFAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             batched_observe=batched_observe,
+            scope=scope,
             # parameters specific to LearningAgent
             summary_spec=summary_spec,
             network_spec=network_spec,
             discount=discount,
             device=device,
             session_config=session_config,
-            scope=scope,
             saver_spec=saver_spec,
             distributed_spec=distributed_spec,
             optimizer=optimizer,
@@ -99,11 +104,6 @@ class NAFAgent(MemoryAgent):
             update_frequency=update_frequency,
             repeat_update=repeat_update
         )
-
-        self.target_sync_frequency = target_sync_frequency
-        self.target_update_weight = target_update_weight
-        self.double_q_model = double_q_model
-        self.huber_loss = huber_loss
 
     def initialize_model(self):
         return QNAFModel(

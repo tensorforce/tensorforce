@@ -32,12 +32,12 @@ class DQNNstepAgent(BatchAgent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        scope='dqn-nstep',
         # parameters specific to LearningAgents
         summary_spec=None,
         network_spec=None,
         device=None,
         session_config=None,
-        scope='dqn-nstep',
         saver_spec=None,
         distributed_spec=None,
         optimizer=None,
@@ -66,18 +66,22 @@ class DQNNstepAgent(BatchAgent):
             double_q_model (bool): Whether to use a double-Q-model (learning two value functions).
             huber_loss: Optional flat specifying Huber-loss clipping.
         """
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
+        self.double_q_model = double_q_model
+        self.huber_loss = huber_loss
 
         super(DQNNstepAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             batched_observe=batched_observe,
+            scope=scope,
             # parameters specific to LearningAgent
             summary_spec=summary_spec,
             network_spec=network_spec,
             discount=discount,
             device=device,
             session_config=session_config,
-            scope=scope,
             saver_spec=saver_spec,
             distributed_spec=distributed_spec,
             optimizer=optimizer,
@@ -91,11 +95,6 @@ class DQNNstepAgent(BatchAgent):
             batch_size=batch_size,
             keep_last_timestep=keep_last_timestep
         )
-
-        self.target_sync_frequency = target_sync_frequency
-        self.target_update_weight = target_update_weight
-        self.double_q_model = double_q_model
-        self.huber_loss = huber_loss
 
     def initialize_model(self):
         return QNstepModel(

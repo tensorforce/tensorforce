@@ -35,13 +35,13 @@ class LearningAgent(Agent):
             states_spec,
             actions_spec,
             batched_observe=1000,
+            scope='dqn',
             # parameters specific to LearningAgents
             summary_spec=None,
             network_spec=None,
             discount=0.99,
             device=None,
             session_config=None,
-            scope='dqn',
             saver_spec=None,
             distributed_spec=None,
             optimizer=None,
@@ -64,7 +64,6 @@ class LearningAgent(Agent):
             discount (float): The reward discount factor.
             device: Device string specifying model device.
             session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
             saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
@@ -84,11 +83,6 @@ class LearningAgent(Agent):
                 Must match action names.
             entropy_regularization: Optional positive float specifying an entropy regularization value.
         """
-        super(LearningAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            batched_observe=batched_observe
-        )
 
         # TensorFlow summaries & Configuration Meta Parameter Recorder options
         self.summary_spec = summary_spec
@@ -119,7 +113,6 @@ class LearningAgent(Agent):
         self.discount = discount
         self.device = device
         self.session_config = session_config
-        self.scope = scope
         self.saver_spec = saver_spec
         self.distributed_spec = distributed_spec
 
@@ -137,4 +130,11 @@ class LearningAgent(Agent):
         self.reward_preprocessing_spec = reward_preprocessing_spec
         self.distributions_spec = distributions_spec
         self.entropy_regularization = entropy_regularization
+
+        super(LearningAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            batched_observe=batched_observe,
+            scope=scope
+        )
 

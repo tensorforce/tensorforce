@@ -33,12 +33,12 @@ class PPOAgent(BatchAgent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        scope='ppo',
         # parameters specific to LearningAgents (except optimizer)
         summary_spec=None,
         network_spec=None,
         device=None,
         session_config=None,
-        scope='ppo',
         saver_spec=None,
         distributed_spec=None,
         discount=0.99,
@@ -94,17 +94,23 @@ class PPOAgent(BatchAgent):
             num_steps=optimization_steps
         )
 
+        self.baseline_mode = baseline_mode
+        self.baseline = baseline
+        self.baseline_optimizer = baseline_optimizer
+        self.gae_lambda = gae_lambda
+        self.likelihood_ratio_clipping = likelihood_ratio_clipping
+
         super(PPOAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             batched_observe=batched_observe,
+            scope=scope,
             # parameters specific to LearningAgent
             summary_spec=summary_spec,
             network_spec=network_spec,
             discount=discount,
             device=device,
             session_config=session_config,
-            scope=scope,
             saver_spec=saver_spec,
             distributed_spec=distributed_spec,
             optimizer=self.optimizer,  # use our fixed parametrized optimizer
@@ -118,12 +124,6 @@ class PPOAgent(BatchAgent):
             batch_size=batch_size,
             keep_last_timestep=keep_last_timestep
         )
-
-        self.baseline_mode = baseline_mode
-        self.baseline = baseline
-        self.baseline_optimizer = baseline_optimizer
-        self.gae_lambda = gae_lambda
-        self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
     def initialize_model(self):
         return PGProbRatioModel(

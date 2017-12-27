@@ -34,12 +34,12 @@ class DDQNAgent(MemoryAgent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        scope='ddqn',
         # parameters specific to LearningAgents
         summary_spec=None,
         network_spec=None,
         device=None,
         session_config=None,
-        scope='ddqn',
         saver_spec=None,
         distributed_spec=None,
         optimizer=None,
@@ -73,17 +73,21 @@ class DDQNAgent(MemoryAgent):
         warnings.warn("WARNING: DDQNAgent is an obsolete class. Instead, use DQNAgent with double_q_model set to True",
                       category=DeprecationWarning)
 
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
+        self.huber_loss = huber_loss
+
         super(DDQNAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             batched_observe=batched_observe,
+            scope=scope,
             # parameters specific to LearningAgent
             summary_spec=summary_spec,
             network_spec=network_spec,
             discount=discount,
             device=device,
             session_config=session_config,
-            scope=scope,
             saver_spec=saver_spec,
             distributed_spec=distributed_spec,
             optimizer=optimizer,
@@ -100,10 +104,6 @@ class DDQNAgent(MemoryAgent):
             update_frequency=update_frequency,
             repeat_update=repeat_update
         )
-
-        self.target_sync_frequency = target_sync_frequency
-        self.target_update_weight = target_update_weight
-        self.huber_loss = huber_loss
 
     def initialize_model(self):
         return QModel(

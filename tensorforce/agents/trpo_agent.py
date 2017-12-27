@@ -32,12 +32,12 @@ class TRPOAgent(BatchAgent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        scope='trpo',
         # parameters specific to LearningAgents (except optimizer)
         summary_spec=None,
         network_spec=None,
         device=None,
         session_config=None,
-        scope='trpo',
         saver_spec=None,
         distributed_spec=None,
         discount=0.99,
@@ -98,6 +98,12 @@ class TRPOAgent(BatchAgent):
             ls_unroll_loop=False
         )
 
+        self.baseline_mode = baseline_mode
+        self.baseline = baseline
+        self.baseline_optimizer = baseline_optimizer
+        self.gae_lambda = gae_lambda
+        self.likelihood_ratio_clipping = likelihood_ratio_clipping
+
         super(TRPOAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
@@ -122,12 +128,6 @@ class TRPOAgent(BatchAgent):
             batch_size=batch_size,
             keep_last_timestep=keep_last_timestep
         )
-
-        self.baseline_mode = baseline_mode
-        self.baseline = baseline
-        self.baseline_optimizer = baseline_optimizer
-        self.gae_lambda = gae_lambda
-        self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
     def initialize_model(self):
         return PGProbRatioModel(

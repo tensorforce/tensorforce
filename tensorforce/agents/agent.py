@@ -43,6 +43,7 @@ class Agent(object):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        scope='base_agent'
     ):
         """
         Initializes the reinforcement learning agent.
@@ -59,6 +60,7 @@ class Agent(object):
             batched_observe (int): How many calls to `observe` are batched into one tensorflow session run.
                 Values of 0 or 1 indicate no batching being used and every call to `observe` triggers a tensorflow
                 session invocation to update rewards in the graph, which will lower the throughput.
+            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
         """
 
         # process state space
@@ -68,14 +70,16 @@ class Agent(object):
         self.exploration = dict()
         self.actions_spec, self.unique_action = self.process_action_spec(actions_spec)
 
-        # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
-        self.model = self.initialize_model()
-
         # Batched observe for better performance with Python.
         self.batched_observe = batched_observe
         if self.batched_observe is not None:
             self.observe_terminal = list()
             self.observe_reward = list()
+
+        self.scope = scope
+
+        # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
+        self.model = self.initialize_model()
 
         #  Define the properties used to store internal state of Agent.
         self.current_states = None

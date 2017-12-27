@@ -37,12 +37,12 @@ class DQFDAgent(MemoryAgent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        scope='dqfd',
         # parameters specific to LearningAgents
         summary_spec=None,
         network_spec=None,
         device=None,
         session_config=None,
-        scope='dqfd',
         saver_spec=None,
         distributed_spec=None,
         optimizer=None,
@@ -82,18 +82,24 @@ class DQFDAgent(MemoryAgent):
             demo_memory_capacity: Int describing capacity of expert demonstration memory.
             demo_sampling_ratio: Runtime sampling ratio of expert data.
         """
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
+        self.huber_loss = huber_loss
+
+        self.expert_margin = expert_margin
+        self.supervised_weight = supervised_weight
 
         super(DQFDAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             batched_observe=batched_observe,
+            scope=scope,
             # parameters specific to LearningAgent
             summary_spec=summary_spec,
             network_spec=network_spec,
             discount=discount,
             device=device,
             session_config=session_config,
-            scope=scope,
             saver_spec=saver_spec,
             distributed_spec=distributed_spec,
             optimizer=optimizer,
@@ -111,15 +117,9 @@ class DQFDAgent(MemoryAgent):
             repeat_update=repeat_update
         )
 
-        self.target_sync_frequency = target_sync_frequency
-        self.target_update_weight = target_update_weight
-        self.huber_loss = huber_loss
-        self.expert_margin = expert_margin
-        self.supervised_weight = supervised_weight
-        self.demo_memory_capacity = demo_memory_capacity
-
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
+        self.demo_memory_capacity = demo_memory_capacity
         self.demo_batch_size = int(demo_sampling_ratio * batch_size / (1.0 - demo_sampling_ratio))
         assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to ensure ' \
                                          'demo_batch_size is positive. (Calculated {} based on current' \

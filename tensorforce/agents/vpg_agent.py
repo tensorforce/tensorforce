@@ -34,12 +34,12 @@ class VPGAgent(BatchAgent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        scope='vpg',
         # parameters specific to LearningAgents
         summary_spec=None,
         network_spec=None,
         device=None,
         session_config=None,
-        scope='vpg',
         saver_spec=None,
         distributed_spec=None,
         optimizer=None,
@@ -72,17 +72,22 @@ class VPGAgent(BatchAgent):
             gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
         """
 
+        self.baseline_mode = baseline_mode
+        self.baseline = baseline
+        self.baseline_optimizer = baseline_optimizer
+        self.gae_lambda = gae_lambda
+
         super(VPGAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             batched_observe=batched_observe,
+            scope=scope,
             # parameters specific to LearningAgent
             summary_spec=summary_spec,
             network_spec=network_spec,
             discount=discount,
             device=device,
             session_config=session_config,
-            scope=scope,
             saver_spec=saver_spec,
             distributed_spec=distributed_spec,
             optimizer=optimizer,
@@ -96,11 +101,6 @@ class VPGAgent(BatchAgent):
             batch_size=batch_size,
             keep_last_timestep=keep_last_timestep
         )
-
-        self.baseline_mode = baseline_mode
-        self.baseline = baseline
-        self.baseline_optimizer = baseline_optimizer
-        self.gae_lambda = gae_lambda
 
     def initialize_model(self):
         return PGLogProbModel(

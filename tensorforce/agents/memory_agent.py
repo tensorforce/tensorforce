@@ -21,7 +21,7 @@ from six.moves import xrange
 
 import numpy as np
 
-from tensorforce.agents import LearningAgent
+from tensorforce.agents.learning_agent import LearningAgent
 from tensorforce.core.memories import Memory
 
 

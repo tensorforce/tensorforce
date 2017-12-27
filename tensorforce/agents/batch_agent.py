@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.agents import LearningAgent
+from tensorforce.agents.learning_agent import LearningAgent
 
 
 class BatchAgent(LearningAgent):

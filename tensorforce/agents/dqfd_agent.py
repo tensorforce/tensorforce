@@ -36,6 +36,8 @@ class DQFDAgent(MemoryAgent):
         self,
         states_spec,
         actions_spec,
+        batched_observe=1000,
+        # parameters specific to LearningAgents
         summary_spec=None,
         network_spec=None,
         device=None,
@@ -51,15 +53,16 @@ class DQFDAgent(MemoryAgent):
         reward_preprocessing_spec=None,
         distributions_spec=None,
         entropy_regularization=None,
-        target_sync_frequency=10000,
-        target_update_weight=1.0,
-        huber_loss=None,
-        batched_observe=1000,
+        # parameters specific to MemoryAgents
         batch_size=32,
         memory=None,
         first_update=10000,
         update_frequency=4,
         repeat_update=1,
+        # parameters specific to DQFD agents
+        target_sync_frequency=10000,
+        target_update_weight=1.0,
+        huber_loss=None,
         expert_margin=0.5,
         supervised_weight=0.1,
         demo_memory_capacity=10000,
@@ -70,28 +73,6 @@ class DQFDAgent(MemoryAgent):
         This agent uses DQN to pre-train from demonstration data in combination with a supervised loss.
 
         Args:
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
-                cluster spec.
-            optimizer: Dict specifying optimizer type and its optional parameters, typically a `learning_rate`.
-                Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
-                and `evolutionary`. Consult the optimizer test or example configurations for more.
-            discount: Float specifying reward discount factor.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
-            distributions_spec: Optional dict specifying action distributions to override default distribution choices.
-                Must match action names.
-            entropy_regularization: Optional positive float specifying an entropy regularization value.
             target_sync_frequency: Interval between optimization calls synchronizing the target network.
             target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
             huber_loss: Optional flat specifying Huber-loss clipping.
@@ -105,10 +86,24 @@ class DQFDAgent(MemoryAgent):
         super(DQFDAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
+            batched_observe=batched_observe,
+            # parameters specific to LearningAgent
             summary_spec=summary_spec,
             network_spec=network_spec,
             discount=discount,
-            batched_observe=batched_observe,
+            device=device,
+            session_config=session_config,
+            scope=scope,
+            saver_spec=saver_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            variable_noise=variable_noise,
+            states_preprocessing_spec=states_preprocessing_spec,
+            explorations_spec=explorations_spec,
+            reward_preprocessing_spec=reward_preprocessing_spec,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            # parameters specific to MemoryAgents
             batch_size=batch_size,
             memory=memory,
             first_update=first_update,
@@ -116,36 +111,12 @@ class DQFDAgent(MemoryAgent):
             repeat_update=repeat_update
         )
 
-        if optimizer is None:
-            self.optimizer = dict(
-                type='adam',
-                learning_rate=1e-3
-            )
-        else:
-            self.optimizer = optimizer
-
-        self.device = device
-        self.session_config = session_config
-        self.scope = scope
-        self.saver_spec = saver_spec
-        self.summary_spec = summary_spec
-        self.distributed_spec = distributed_spec
-        self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
-        self.distributions_spec = distributions_spec
-        self.entropy_regularization = entropy_regularization
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
         self.huber_loss = huber_loss
-
-        # DQFD always uses double dqn, which is a required key for a q-model.
-        self.double_q_model = True
-        self.target_sync_frequency = target_sync_frequency
-        self.demo_memory_capacity = demo_memory_capacity
         self.expert_margin = expert_margin
         self.supervised_weight = supervised_weight
+        self.demo_memory_capacity = demo_memory_capacity
 
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
@@ -179,7 +150,8 @@ class DQFDAgent(MemoryAgent):
             entropy_regularization=self.entropy_regularization,
             target_sync_frequency=self.target_sync_frequency,
             target_update_weight=self.target_update_weight,
-            double_q_model=self.double_q_model,
+            # DQFD always uses double dqn, which is a required key for a q-model.
+            double_q_model=True,
             huber_loss=self.huber_loss,
             # TEMP: Random sampling fix
             random_sampling_fix=True,
@@ -192,10 +164,6 @@ class DQFDAgent(MemoryAgent):
         Adds observations, updates via sampling from memories according to update rate.
         DQFD samples from the online replay memory and the demo memory with
         the fractions controlled by a hyper parameter p called 'expert sampling ratio.
-
-        Args:
-            reward:
-            terminal:
         """
         super(DQFDAgent, self).observe(reward=reward, terminal=terminal)
 
@@ -203,7 +171,8 @@ class DQFDAgent(MemoryAgent):
             for _ in xrange(self.repeat_update):
                 batch = self.demo_memory.get_batch(batch_size=self.demo_batch_size, next_states=True)
                 self.model.demonstration_update(
-                    states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
+                    states={name: np.stack((batch['states'][name],
+                                            batch['next_states'][name])) for name in batch['states']},
                     internals=batch['internals'],
                     actions=batch['actions'],
                     terminal=batch['terminal'],
@@ -256,7 +225,7 @@ class DQFDAgent(MemoryAgent):
 
     def pretrain(self, steps):
         """
-        Computes pretrain updates.
+        Computes pre-train updates.
 
         Args:
             steps: Number of updates to execute.
@@ -268,7 +237,8 @@ class DQFDAgent(MemoryAgent):
 
             # Update using both double Q-learning and supervised double_q_loss.
             self.model.demonstration_update(
-                states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
+                states={name: np.stack((batch['states'][name],
+                                        batch['next_states'][name])) for name in batch['states']},
                 internals=batch['internals'],
                 actions=batch['actions'],
                 terminal=batch['terminal'],

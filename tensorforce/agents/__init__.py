@@ -18,6 +18,7 @@ from tensorforce.agents.batch_agent import BatchAgent
 from tensorforce.agents.constant_agent import ConstantAgent
 from tensorforce.agents.memory_agent import MemoryAgent
 from tensorforce.agents.random_agent import RandomAgent
+from tensorforce.agents.learning_agent import LearningAgent
 from tensorforce.agents.vpg_agent import VPGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
 from tensorforce.agents.ppo_agent import PPOAgent
@@ -31,6 +32,7 @@ from tensorforce.agents.dqfd_agent import DQFDAgent
 agents = dict(
     constant_agent=ConstantAgent,
     random_agent=RandomAgent,
+    learning_agent=LearningAgent,
     vpg_agent=VPGAgent,
     trpo_agent=TRPOAgent,
     ppo_agent=PPOAgent,
@@ -44,10 +46,11 @@ agents = dict(
 
 __all__ = [
     'Agent',
-    'BatchAgent',
-    'MemoryAgent',
     'ConstantAgent',
     'RandomAgent',
+    'LearningAgent',
+    'BatchAgent',
+    'MemoryAgent',
     'VPGAgent',
     'TRPOAgent',
     'PPOAgent',

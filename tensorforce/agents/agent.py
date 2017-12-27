@@ -43,9 +43,6 @@ class Agent(object):
         states_spec,
         actions_spec,
         batched_observe=1000,
-        summary_spec=None,
-        network_spec=None,
-        discount=0.99
     ):
         """
         Initializes the reinforcement learning agent.
@@ -62,12 +59,6 @@ class Agent(object):
             batched_observe (int): How many calls to `observe` are batched into one tensorflow session run.
                 Values of 0 or 1 indicate no batching being used and every call to `observe` triggers a tensorflow
                 session invocation to update rewards in the graph, which will lower the throughput.
-            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
-                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
-                such as activation or regularisation. Full examples are in the examples/configs folder.
-            discount (float): The reward discount factor.
         """
 
         # process state space
@@ -77,32 +68,6 @@ class Agent(object):
         self.exploration = dict()
         self.actions_spec, self.unique_action = self.process_action_spec(actions_spec)
 
-        # TensorFlow summaries & Configuration Meta Parameter Recorder options
-        self.summary_spec = summary_spec
-        if self.summary_spec is None:
-            self.summary_labels = set()
-        else:
-            self.summary_labels = set(self.summary_spec.get('labels', ()))
- 
-        self.meta_param_recorder = None
- 
-        # if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
-        if any(k in self.summary_labels for k in ['configuration', 'print_configuration']):
-            self.meta_param_recorder = MetaParameterRecorder(inspect.currentframe())
-            if 'meta_dict' in self.summary_spec:
-                # Custom Meta Dictionary passed
-                self.meta_param_recorder.merge_custom(self.summary_spec['meta_dict'])
-            if 'configuration' in self.summary_labels:  
-                # Setup for TensorBoard population
-                self.summary_spec['meta_param_recorder_class'] = self.meta_param_recorder
-            if 'print_configuration' in self.summary_labels: 
-                # Print to STDOUT (TODO: optimize output)
-                self.meta_param_recorder.text_output(format_type=1)
-
-        if network_spec is None:
-            raise TensorForceError("No network_spec provided.")
-        self.network_spec = network_spec
-
         # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
         self.model = self.initialize_model()
 
@@ -111,8 +76,6 @@ class Agent(object):
         if self.batched_observe is not None:
             self.observe_terminal = list()
             self.observe_reward = list()
-
-        self.discount = discount
 
         #  Define the properties used to store internal state of Agent.
         self.current_states = None
@@ -148,7 +111,7 @@ class Agent(object):
         self.episode, self.timestep, self.next_internals = self.model.reset()
         self.current_internals = self.next_internals
 
-        #TODO have to call preprocessing reset in model
+        # TODO have to call preprocessing reset in model
         # for preprocessing in self.preprocessing.values():
         #     preprocessing.reset()
 
@@ -185,7 +148,7 @@ class Agent(object):
 
     def observe(self, terminal, reward):
         """
-        Observe experience from the environment to learn from. Optionally preprocesses rewards
+        Observe experience from the environment to learn from. Optionally pre-processes rewards
         Child classes should call super to get the processed reward
         EX: terminal, reward = super()...
 
@@ -196,7 +159,7 @@ class Agent(object):
         self.current_terminal = terminal
         self.current_reward = reward
 
-        if self.batched_observe is not None and self.batched_observe > 0:
+        if self.batched_observe is not None and self.batched_observe > 1:
             # Batched observe for better performance with Python.
             self.observe_terminal.append(self.current_terminal)
             self.observe_reward.append(self.current_reward)
@@ -235,14 +198,14 @@ class Agent(object):
         given here.
 
         Args:
-            directory: Optional checkpoint directory.
-            use_global_step:  Appends the current timestep to the checkpoint file if true.
-            If this is set to True, the load path must include the checkpoint timestep suffix.  
-            For example, if stored to models/ and set to true, the exported file will be of the  
-            form models/model.ckpt-X where X is the last timestep saved. The load path must  
-            precisely match this file name. If this option is turned off, the checkpoint will  
-            always overwrite the file specified in path and the model can always be loaded under  
-            this path.
+            directory (str): Optional checkpoint directory.
+            append_timestep (bool):  Appends the current timestep to the checkpoint file if true.
+                If this is set to True, the load path must include the checkpoint timestep suffix.
+                For example, if stored to models/ and set to true, the exported file will be of the
+                form models/model.ckpt-X where X is the last timestep saved. The load path must
+                precisely match this file name. If this option is turned off, the checkpoint will
+                always overwrite the file specified in path and the model can always be loaded under
+                this path.
 
         Returns:
             Checkpoint path were the model was saved.

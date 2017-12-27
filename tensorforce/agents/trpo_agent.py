@@ -31,6 +31,8 @@ class TRPOAgent(BatchAgent):
         self,
         states_spec,
         actions_spec,
+        batched_observe=1000,
+        # parameters specific to LearningAgents (except optimizer)
         summary_spec=None,
         network_spec=None,
         device=None,
@@ -45,13 +47,14 @@ class TRPOAgent(BatchAgent):
         reward_preprocessing_spec=None,
         distributions_spec=None,
         entropy_regularization=None,
+        # parameters specific to BatchAgents
+        batch_size=1000,
+        keep_last_timestep=True,
+        # parameters specific to trust-region pol.opt. Agents
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        batched_observe=1000,
-        batch_size=1000,
-        keep_last_timestep=True,
         likelihood_ratio_clipping=None,
         learning_rate=1e-3,
         cg_max_iterations=20,
@@ -62,24 +65,6 @@ class TRPOAgent(BatchAgent):
         Creates a Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
 
         Args:
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
-                cluster spec.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
-            distributions_spec: Optional dict specifying action distributions to override default distribution choices.
-                Must match action names.
-            entropy_regularization: Optional positive float specifying an entropy regularization value.
             baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
                 for sharing parameters with the training network.
             baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
@@ -96,16 +81,6 @@ class TRPOAgent(BatchAgent):
             cg_unroll_loop: Boolean indicating whether loop unrolling in TensorFlow is to be used which seems to
                 impact performance negatively at this point, default False.
         """
-        super(TRPOAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            summary_spec=summary_spec,
-            network_spec=network_spec,
-            discount=discount,
-            batched_observe=batched_observe,
-            batch_size=batch_size,
-            keep_last_timestep=keep_last_timestep
-        )
 
         self.optimizer = dict(
             type='optimized_step',
@@ -123,17 +98,31 @@ class TRPOAgent(BatchAgent):
             ls_unroll_loop=False
         )
 
-        self.device = device
-        self.session_config = session_config
-        self.scope = scope
-        self.saver_spec = saver_spec
-        self.distributed_spec = distributed_spec
-        self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
-        self.distributions_spec = distributions_spec
-        self.entropy_regularization = entropy_regularization
+        super(TRPOAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            batched_observe=batched_observe,
+            # parameters specific to LearningAgent
+            summary_spec=summary_spec,
+            network_spec=network_spec,
+            discount=discount,
+            device=device,
+            session_config=session_config,
+            scope=scope,
+            saver_spec=saver_spec,
+            distributed_spec=distributed_spec,
+            optimizer=self.optimizer,  # use our fixed parametrized optimizer
+            variable_noise=variable_noise,
+            states_preprocessing_spec=states_preprocessing_spec,
+            explorations_spec=explorations_spec,
+            reward_preprocessing_spec=reward_preprocessing_spec,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            # parameters specific to BatchAgents
+            batch_size=batch_size,
+            keep_last_timestep=keep_last_timestep
+        )
+
         self.baseline_mode = baseline_mode
         self.baseline = baseline
         self.baseline_optimizer = baseline_optimizer

@@ -21,11 +21,11 @@ from six.moves import xrange
 
 import numpy as np
 
-from tensorforce.agents import Agent
+from tensorforce.agents import LearningAgent
 from tensorforce.core.memories import Memory
 
 
-class MemoryAgent(Agent):
+class MemoryAgent(LearningAgent):
     """
     The `MemoryAgent` class implements a replay memory from
     which it samples batches according to some sampling strategy to
@@ -37,9 +37,23 @@ class MemoryAgent(Agent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        # parameters specific to LearningAgents
         summary_spec=None,
         network_spec=None,
         discount=0.99,
+        device=None,
+        session_config=None,
+        scope='memory_agent',
+        saver_spec=None,
+        distributed_spec=None,
+        optimizer=None,
+        variable_noise=None,
+        states_preprocessing_spec=None,
+        explorations_spec=None,
+        reward_preprocessing_spec=None,
+        distributions_spec=None,
+        entropy_regularization=None,
+        # parameters specific to MemoryAgents
         batch_size=1000,
         memory=None,
         first_update=10000,
@@ -61,10 +75,23 @@ class MemoryAgent(Agent):
         super(MemoryAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            summary_spec = summary_spec,
+            batched_observe=batched_observe,
+            # parameters specific to LearningAgent
+            summary_spec=summary_spec,
             network_spec=network_spec,
             discount=discount,
-            batched_observe = batched_observe
+            device=device,
+            session_config=session_config,
+            scope=scope,
+            saver_spec=saver_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            variable_noise=variable_noise,
+            states_preprocessing_spec=states_preprocessing_spec,
+            explorations_spec=explorations_spec,
+            reward_preprocessing_spec=reward_preprocessing_spec,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization
         )
 
         # Memory already given as a Memory object: Use that.
@@ -109,7 +136,8 @@ class MemoryAgent(Agent):
                 batch = self.memory.get_batch(batch_size=self.batch_size, next_states=True)
                 loss_per_instance = self.model.update(
                     # TEMP: Random sampling fix
-                    states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
+                    states={name: np.stack((batch['states'][name],
+                                            batch['next_states'][name])) for name in batch['states']},
                     internals=batch['internals'],
                     actions=batch['actions'],
                     terminal=batch['terminal'],

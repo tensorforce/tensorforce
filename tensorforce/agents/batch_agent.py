@@ -18,10 +18,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.agents import Agent
+from tensorforce.agents import LearningAgent
 
 
-class BatchAgent(Agent):
+class BatchAgent(LearningAgent):
     """
     The `BatchAgent` class implements a batch memory which generally implies on-policy
     experience collection and updates.
@@ -32,9 +32,23 @@ class BatchAgent(Agent):
         states_spec,
         actions_spec,
         batched_observe=1000,
+        # parameters specific to LearningAgents
         summary_spec=None,
         network_spec=None,
         discount=0.99,
+        device=None,
+        session_config=None,
+        scope='batch_agent',
+        saver_spec=None,
+        distributed_spec=None,
+        optimizer=None,
+        variable_noise=None,
+        states_preprocessing_spec=None,
+        explorations_spec=None,
+        reward_preprocessing_spec=None,
+        distributions_spec=None,
+        entropy_regularization=None,
+        # parameters specific to BatchAgents
         batch_size=1000,
         keep_last_timestep=True
     ):
@@ -44,20 +58,33 @@ class BatchAgent(Agent):
             batch_size (int): Int specifying number of samples collected via `observe` before an update is executed.
             keep_last_timestep (bool): Flag specifying whether last sample is kept, default True.
         """
+        super(BatchAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            batched_observe=batched_observe,
+            # parameters specific to LearningAgent
+            summary_spec=summary_spec,
+            network_spec=network_spec,
+            discount=discount,
+            device=device,
+            session_config=session_config,
+            scope=scope,
+            saver_spec=saver_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            variable_noise=variable_noise,
+            states_preprocessing_spec=states_preprocessing_spec,
+            explorations_spec=explorations_spec,
+            reward_preprocessing_spec=reward_preprocessing_spec,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization
+        )
+
         assert isinstance(batch_size, int) and batch_size > 0
         self.batch_size = batch_size
 
         assert isinstance(keep_last_timestep, bool)
         self.keep_last_timestep = keep_last_timestep
-
-        super(BatchAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            batched_observe=batched_observe,
-            summary_spec = summary_spec,
-            network_spec=network_spec,
-            discount=discount
-        )
 
         # define the information we store about each batch
         self.batch_states = None  # a dict of lists of batched state observations

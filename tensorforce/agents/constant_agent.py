@@ -37,14 +37,14 @@ class ConstantAgent(Agent):
         self,
         states_spec,
         actions_spec,
-        summary_spec=None,
-        network_spec=None,
+        # summary_spec=None,
+        # network_spec=None,
         device=None,
         session_config=None,
         scope='constant',
         saver_spec=None,
         distributed_spec=None,
-        discount=0.99,
+        # discount=0.99,
         variable_noise=None,
         states_preprocessing_spec=None,
         explorations_spec=None,
@@ -67,7 +67,7 @@ class ConstantAgent(Agent):
                 cluster spec.
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
             states_preprocessing_spec: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
+                (e.g. `image_resize`, `greyscale`).
             explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
                 or Gaussian noise).
             reward_preprocessing_spec: Optional dict specifying reward preprocessing.
@@ -80,9 +80,6 @@ class ConstantAgent(Agent):
         super(ConstantAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            summary_spec=summary_spec,
-            network_spec=network_spec,
-            discount=discount,
             batched_observe=batched_observe
         )
 
@@ -106,10 +103,10 @@ class ConstantAgent(Agent):
             session_config=self.session_config,
             scope=self.scope,
             saver_spec=self.saver_spec,
-            summary_spec=self.summary_spec,
+            summary_spec=None,  # TODO: remove from ConstantModel or make Model c'tor more flexible (add default values)
             distributed_spec=self.distributed_spec,
             optimizer=self.optimizer,
-            discount=self.discount,
+            discount=0.0,  # TODO: remove from ConstantModel or make Model c'tor more flexible (add default values)
             variable_noise=self.variable_noise,
             states_preprocessing_spec=self.states_preprocessing_spec,
             explorations_spec=self.explorations_spec,

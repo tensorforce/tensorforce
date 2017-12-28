@@ -35,7 +35,7 @@ class LearningAgent(Agent):
             states_spec,
             actions_spec,
             batched_observe=1000,
-            scope='dqn',
+            scope='learning_agent',
             # parameters specific to LearningAgents
             summary_spec=None,
             network_spec=None,

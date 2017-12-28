@@ -15,34 +15,59 @@ parameter called "summary_spec" passed to the agent on initialization.
 
 "summary_spec" supports the following optional dictionary entries:
 
-|  Key  | Value
-| :--- | :----------
-| directory | (str) Path to storage for TensorBoard summary data
-| steps | (int) Frequency in steps between storage of summary data
-| seconds | (int) Frequency in seconds to store summary data
-| labels | (list) Requested Export, See "*LABELS*" section
-| meta_dict | (dict) For used with label "configuration"
+```eval_rst
++--------------+------------------------------------------------------------+
+| Key          | Value                                                      |
++==============+============================================================+
+| directory    | (str) Path to storage for TensorBoard summary data         |
++--------------+------------------------------------------------------------+
+| steps        | (int) Frequency in steps between storage of summary data   |
++--------------+------------------------------------------------------------+
+| seconds      | (int) Frequency in seconds to store summary data           |
++--------------+------------------------------------------------------------+
+| labels       | (list) Requested Export, See "*LABELS*" section            |
++--------------+------------------------------------------------------------+
+| meta\_dict   | (dict) For used with label "configuration"                 |
++--------------+------------------------------------------------------------+
+```
 
 
 LABELS
 ------
+```eval_rst
 
-|  Entry  | Data produced
-| :--- | :----------
-| losses | Training total-loss and "loss-without-regularization"
-| total-loss | Final calculated loss value
-| variables | Network variables
-| inputs | Equivalent to: ['states','actions','rewards']
-| states | Histogram of input state space
-| actions | Histogram of input action space
-| rewards | Histogram of input reward space
-| gradients | Histogram and scalar gradients
-| gradients_histogram | Variable gradients as histograms
-| gradients_scalar | Variable Mean/Variance of gradients as scalar
-| regularization | Regularization values
-| **configuration** | See *Configuration Export* for more detail
-| configuration | Export configuration to "TEXT" tab in TensorBoard
-| print_configuration | Prints configuration to STDOUT
++------------------------+---------------------------------------------------------+
+| Entry                  | Data produced                                           |
++========================+=========================================================+
+| losses                 | Training total-loss and "loss-without-regularization"   |
++------------------------+---------------------------------------------------------+
+| total-loss             | Final calculated loss value                             |
++------------------------+---------------------------------------------------------+
+| variables              | Network variables                                       |
++------------------------+---------------------------------------------------------+
+| inputs                 | Equivalent to: ['states', 'actions', 'rewards']         |
++------------------------+---------------------------------------------------------+
+| states                 | Histogram of input state space                          |
++------------------------+---------------------------------------------------------+
+| actions                | Histogram of input action space                         |
++------------------------+---------------------------------------------------------+
+| rewards                | Histogram of input reward space                         |
++------------------------+---------------------------------------------------------+
+| gradients              | Histogram and scalar gradients                          |
++------------------------+---------------------------------------------------------+
+| gradients\_histogram   | Variable gradients as histograms                        |
++------------------------+---------------------------------------------------------+
+| gradients\_scalar      | Variable Mean/Variance of gradients as scalar           |
++------------------------+---------------------------------------------------------+
+| regularization         | Regularization values                                   |
++------------------------+---------------------------------------------------------+
+| **configuration**      | See *Configuration Export* for more detail              |
++------------------------+---------------------------------------------------------+
+| configuration          | Export configuration to "TEXT" tab in TensorBoard       |
++------------------------+---------------------------------------------------------+
+| print\_configuration   | Prints configuration to STDOUT                          |
++------------------------+---------------------------------------------------------+
+```
 
 ```python
 from tensorforce.agents import PPOAgent

@@ -252,7 +252,7 @@ class Model(object):
                     self.actions_output[name] = tf.cond(
                         pred=self.deterministic_input,
                         true_fn=(lambda: action),
-                        false_fn=(lambda: self.action_exploration(
+                        false_fn=(lambda: self.fn_action_exploration(
                             action=action,
                             exploration=self.explorations[name],
                             action_spec=self.actions_spec[name]
@@ -534,6 +534,11 @@ class Model(object):
         elif isinstance(self.explorations_spec, list):
             for name, state in self.actions_spec.items():
                 self.explorations[name] = Exploration.from_spec(spec=self.explorations_spec)
+        # single spec for all components of our action space
+        elif "type" in self.explorations_spec:
+            for name, state in self.actions_spec.items():
+                self.explorations[name] = Exploration.from_spec(spec=self.explorations_spec)
+        # different spec for different components of our action space
         else:
             for name, state in self.actions_spec.items():
                 if self.explorations_spec.get(name) is not None:
@@ -640,7 +645,7 @@ class Model(object):
         exploration_value = exploration.tf_explore(
             episode=self.episode,
             timestep=self.timestep,
-            num_actions=action_shape[0]
+            action_shape=action_shape
         )
 
         if action_spec['type'] == 'bool':
@@ -658,7 +663,8 @@ class Model(object):
             )
 
         elif action_spec['type'] == 'float':
-            action += tf.reshape(tensor=exploration_value, shape=tuple(1 for _ in range(len(action_shape))))
+            action += tf.reshape(tensor=exploration_value,
+                                 shape=tuple(1 for _ in range(action_shape.get_shape().as_list()[0])))
             if 'min_value' in action_spec:
                 action = tf.clip_by_value(
                     t=action,

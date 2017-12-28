@@ -43,7 +43,7 @@ class EpsilonDecay(Exploration):
 
         super(EpsilonDecay, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode=0, timestep=0, num_actions=1):
+    def tf_explore(self, episode=0, timestep=0, action_shape=(1,)):
 
         def true_fn():
             # Know if first is not true second must be true from outer cond check.

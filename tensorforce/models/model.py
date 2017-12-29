@@ -657,7 +657,7 @@ class Model(object):
 
         elif action_spec['type'] == 'int':
             action = tf.where(
-                condition=(tf.random_uniform(shape=action_shape[0]) < exploration_value),
+                condition=(tf.random_uniform(shape=action_shape) < exploration_value),
                 x=tf.random_uniform(shape=action_shape, maxval=action_spec['num_actions'], dtype=util.tf_dtype('int')),
                 y=action
             )

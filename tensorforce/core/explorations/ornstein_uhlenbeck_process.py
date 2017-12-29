@@ -39,7 +39,7 @@ class OrnsteinUhlenbeckProcess(Exploration):
         super(OrnsteinUhlenbeckProcess, self).__init__(scope=scope, summary_labels=summary_labels)
 
         self.sigma = sigma
-        self.mu = mu
+        self.mu = float(mu)  # need to add cast to float to avoid tf type-mismatch error in case mu=0.0
         self.theta = theta
 
     def tf_explore(self, episode, timestep, action_shape):

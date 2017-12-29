@@ -36,13 +36,13 @@ class OrnsteinUhlenbeckProcess(Exploration):
         Initializes an Ornstein-Uhlenbeck process which is a mean reverting stochastic process
         introducing time-correlated noise.
         """
-        self.sigma = sigma
-        self.mu = mu
-        self.theta = theta
-
         super(OrnsteinUhlenbeckProcess, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode, timestep, num_actions):
-        normal_sample = tf.random_normal(shape=num_actions, mean=0.0, stddev=1.0)
+        self.sigma = sigma
+        self.mu = float(mu)  # need to add cast to float to avoid tf type-mismatch error in case mu=0.0
+        self.theta = theta
+
+    def tf_explore(self, episode, timestep, action_shape):
+        normal_sample = tf.random_normal(shape=action_shape, mean=0.0, stddev=1.0)
         state = tf.get_variable(name='ornstein_uhlenbeck', dtype=util.tf_dtype('float'), initializer=(self.mu,))
         return tf.assign_add(ref=state, value=(self.theta * (self.mu - state) + self.sigma * normal_sample))

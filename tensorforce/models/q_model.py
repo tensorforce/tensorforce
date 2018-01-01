@@ -153,6 +153,13 @@ class QModel(DistributionModel):
                 return_internals=True
             )
 
+            if self.double_q_model:
+                next_embedding = self.network.apply(
+                    x=next_states,
+                    internals=next_internals,
+                    update=update
+                )
+
             # Both networks can use the same internals, could that be a problem?
             # Otherwise need to handle internals indices correctly everywhere
             target_embedding = self.target_network.apply(
@@ -167,6 +174,13 @@ class QModel(DistributionModel):
                 internals=[internal[:-1] for internal in internals],
                 update=update
             )
+
+            if self.double_q_model:
+                next_embedding = self.network.apply(
+                    x={name: state[1:] for name, state in states.items()},
+                    internals=[internal[1:] for internal in internals],
+                    update=update
+                )
 
             # Both networks can use the same internals, could that be a problem?
             # Otherwise need to handle internals indices correctly everywhere
@@ -190,7 +204,8 @@ class QModel(DistributionModel):
             q_value = self.tf_q_value(embedding=embedding, distr_params=distr_params, action=actions[name], name=name)
 
             if self.double_q_model:
-                action_taken = distribution.sample(distr_params=distr_params, deterministic=True)
+                next_distr_params = distribution.parameterize(x=next_embedding)
+                action_taken = distribution.sample(distr_params=next_distr_params, deterministic=True)
             else:
                 action_taken = target_distribution.sample(distr_params=target_distr_params, deterministic=True)
 

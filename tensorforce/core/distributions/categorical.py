@@ -51,8 +51,7 @@ class Categorical(Distribution):
         shape = (-1,) + self.shape + (self.num_actions,)
         logits = tf.reshape(tensor=logits, shape=shape)
 
-        # !!!
-        state_value = tf.reduce_logsumexp(input_tensor=logits, axis=-1)
+        state_value = tf.zeros(tf.shape(logits[:-1]))
 
         # Softmax for corresponding probabilities
         probabilities = tf.nn.softmax(logits=logits, dim=-1)

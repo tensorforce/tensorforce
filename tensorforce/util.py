@@ -107,15 +107,15 @@ def np_dtype(dtype):
 
 
 def tf_dtype(dtype):
-    """Translates dtype specifications in configurations to tensorflow data types.
+    """
+    Translates dtype specifications in configurations to tensorflow data types.
 
        Args:
-           dtype: String describing a numerical type (e.g. 'float'), numpy data type,
+           dtype (str): String describing a numerical type (e.g. 'float'), numpy data type,
                or numerical type primitive.
 
        Returns: TensorFlow data type
-
-       """
+    """
     if dtype == 'float' or dtype == float or dtype == np.float32 or dtype == tf.float32:
         return tf.float32
     elif dtype == 'int' or dtype == int or dtype == np.int32 or dtype == tf.int32:

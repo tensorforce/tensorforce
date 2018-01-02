@@ -28,16 +28,30 @@ class Runner(object):
 
     def __init__(self, agent, environment, repeat_actions=1, history=None):
         """
-        Initialize a Runner object.
+        Initialize a single Runner object (one Agent/one Environment).
 
         Args:
-            agent:
-            environment:
-            repeat_actions:
+            agent (Agent): Agent object to use for the run.
+            environment (Environment): Environment object to use for the run.
+            repeat_actions (int): How many times the same given action will be repeated in subsequent calls to
+                Environment's `execute` method. Rewards collected in these calls are accumulated and reported
+                as a sum in the following call to Agent's `observe` method.
+            history (dict): A dictionary containing an already run experiment's results. Keys should be:
+                episode_rewards (list of rewards), episode_timesteps (lengths of episodes), episode_times (run-times)
         """
         self.agent = agent
         self.environment = environment
         self.repeat_actions = repeat_actions
+
+        self.episode = None  # the Agent's episode number
+        self.timestep = None  # the Agent's timestep
+        self.episode_timestep = None  # the timestep in the current episode
+
+        # lists of episode data (rewards, wall-times/timesteps)
+        self.start_time = None  # the time when an episode was started
+        self.episode_rewards = None  # list of accumulated episode rewards
+        self.episode_timesteps = None  # list of total timesteps taken in the episodes
+        self.episode_times = None  # list of durations for the episodes
 
         self.reset(history)
 
@@ -62,11 +76,11 @@ class Runner(object):
         Runs the agent on the environment.
 
         Args:
-            timesteps: Number of timesteps
-            episodes: Number of episodes
-            max_episode_timesteps: Max number of timesteps per episode
-            deterministic: Deterministic flag
-            episode_finished: Function handler taking a `Runner` argument and returning a boolean indicating
+            timesteps (int): Max. number of total timesteps to run (across episodes).
+            episodes (int): Max. number of episodes to run.
+            max_episode_timesteps (int): Max. number of timesteps per episode.
+            deterministic (bool): If true, pick actions from model without exploration/sampling.
+            episode_finished (callable): Function handler taking a `Runner` argument and returning a boolean indicating
                 whether to continue execution. For instance, useful for reporting intermediate performance or
                 integrating termination conditions.
         """
@@ -84,6 +98,7 @@ class Runner(object):
         if timesteps is not None:
             timesteps += self.agent.timestep
 
+        # episode loop
         while True:
             episode_start_time = time.time()
 
@@ -92,6 +107,7 @@ class Runner(object):
             episode_reward = 0
             self.episode_timestep = 0
 
+            # timestep (within episode) loop
             while True:
                 action = self.agent.act(states=state, deterministic=deterministic)
 
@@ -114,17 +130,17 @@ class Runner(object):
                 self.timestep += 1
                 episode_reward += reward
 
-                if terminal or self.agent.should_stop():  # TODO: should_stop also termina?
+                if terminal or self.agent.should_stop():  # TODO: should_stop also terminate?
                     break
 
+            # Update our episode stats.
             time_passed = time.time() - episode_start_time
-
             self.episode_rewards.append(episode_reward)
             self.episode_timesteps.append(self.episode_timestep)
             self.episode_times.append(time_passed)
-
             self.episode += 1
 
+            # Check, whether we should stop this run.
             if (episode_finished is not None and not episode_finished(self)) or \
                     (episodes is not None and self.agent.episode >= episodes) or \
                     (timesteps is not None and self.agent.timestep >= timesteps) or \

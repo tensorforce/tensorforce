@@ -895,7 +895,7 @@ class Model(object):
 
         # Retrieve actions and internals
         with tf.control_dependencies(control_inputs=operations):
-            self.actions_output, self.internals_output = self.fn_actions_and_internals(
+            self.actions_output, self.internals_output, self.logits = self.fn_actions_and_internals(
                 states=states,
                 internals=internals,
                 update=update,
@@ -996,8 +996,11 @@ class Model(object):
         episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
         return episode, timestep, list(self.internals_init)
 
-    def act(self, states, internals, deterministic=False):
-        fetches = [self.actions_output, self.internals_output, self.timestep_output]
+    def act(self, states, internals, deterministic=False, include_logits=False):
+        if include_logits:
+            fetches = [self.actions_output, self.internals_output, self.timestep_output, self.logits]
+        else:
+            fetches = [self.actions_output, self.internals_output, self.timestep_output]
 
         name = next(iter(self.states_spec))
         batched = (np.asarray(states[name]).ndim != len(self.states_spec[name]['shape']))
@@ -1011,7 +1014,10 @@ class Model(object):
         feed_dict[self.deterministic_input] = deterministic
         feed_dict[self.update_input] = False
 
-        actions, internals, timestep = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+        if include_logits:
+            actions, internals, timestep, logits = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+        else:
+            actions, internals, timestep = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
         if not batched:
             actions = {name: action[0] for name, action in actions.items()}
@@ -1024,7 +1030,10 @@ class Model(object):
             # Only do this operation once to reduce duplicate data in Tensorboard
             self.summary_configuration_op = None
 
-        return actions, internals, timestep
+        if include_logits:
+            return actions, internals, timestep, logits
+        else:
+            return actions, internals, timestep
 
     def observe(self, terminal, reward):
         fetches = self.increment_episode

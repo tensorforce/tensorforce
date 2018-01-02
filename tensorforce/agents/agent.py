@@ -154,7 +154,7 @@ class Agent(object):
         # for preprocessing in self.preprocessing.values():
         #     preprocessing.reset()
 
-    def act(self, states, deterministic=False):
+    def act(self, states, deterministic=False, include_logits=False):
         """
         Return action(s) for given state(s). States preprocessing and exploration are applied if  
         configured accordingly.
@@ -162,9 +162,10 @@ class Agent(object):
         Args:
             states: One state (usually a value tuple) or dict of states if multiple states are expected.
             deterministic: If true, no exploration and sampling is applied.
+            include_logits: If true, logits are returned with action
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
-
+            (logits) Optional second value of logits returned if include_logits = True
         """
         self.current_internals = self.next_internals
 
@@ -173,17 +174,31 @@ class Agent(object):
         else:
             self.current_states = {name: np.asarray(state) for name, state in states.items()}
 
-        # Retrieve action
-        self.current_actions, self.next_internals, self.timestep = self.model.act(
-            states=self.current_states,
-            internals=self.current_internals,
-            deterministic=deterministic
-        )
+        if include_logits:
+            # Retrieve action
+            self.current_actions, self.next_internals, self.timestep, self.logits = self.model.act(
+                states=self.current_states,
+                internals=self.current_internals,
+                deterministic=deterministic,
+                include_logits=True
+            )
 
-        if self.unique_action:
-            return self.current_actions['action']
+            if self.unique_action:
+                return self.current_actions['action'], self.logits
+            else:
+                return self.current_actions, self.logits            
         else:
-            return self.current_actions
+            # Retrieve action
+            self.current_actions, self.next_internals, self.timestep = self.model.act(
+                states=self.current_states,
+                internals=self.current_internals,
+                deterministic=deterministic
+            )
+
+            if self.unique_action:
+                return self.current_actions['action']
+            else:
+                return self.current_actions
 
     def observe(self, terminal, reward):
         """

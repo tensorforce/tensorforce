@@ -147,7 +147,8 @@ class DistributionModel(Model):
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameterize(x=embedding)
             actions[name] = distribution.sample(distr_params=distr_params, deterministic=deterministic)
-        return actions, internals
+        # Logits are passed in position 0 of the distr_params
+        return actions, internals, distr_params[0]
 
     def tf_kl_divergence(self, states, internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)

@@ -27,7 +27,7 @@ from tensorforce.models import Model
 
 class DistributionModel(Model):
     """
-    Base class for models using distributions parameterized by a neural network.
+    Base class for models using distributions parametrized by a neural network.
     """
 
     def __init__(

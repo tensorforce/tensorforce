@@ -207,13 +207,17 @@ class Model(object):
 
         # Create our Graph or figure out, which shared/global one to use.
         default_graph = None
-        # No parallel RL: Build single graph and work with that from here on.
+        # No parallel RL or ThreadedRunner with Hogwild! shared network updates:
+        # Build single graph and work with that from here on. In the case of threaded RL, the central
+        # and already initialized model is handed to the worker Agents via the ThreadedRunner's
+        # WorkerAgentGenerator factory.
         if self.distributed_spec is None:
             self.global_model = None
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
-        # We are the PS have a ps+worker setup. Each process gets its own (identical) graph.
+        # Distributed tensorflow setup (each process gets its own (identical) graph).
+        # We are the parameter server.
         elif self.distributed_spec.get('parameter_server'):
             if self.distributed_spec.get('replica_model'):
                 raise TensorForceError("Invalid config value for distributed mode.")
@@ -221,7 +225,8 @@ class Model(object):
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
-        # Replica model: Different ops are placed on different devices (variables on ps, ops on workers)
+        # We are a worker's replica model.
+        # Place our ops round-robin on all worker devices.
         elif self.distributed_spec.get('replica_model'):
             self.device = tf.train.replica_device_setter(
                 worker_device=self.device,
@@ -230,12 +235,12 @@ class Model(object):
             # The graph is the parent model's graph, hence no new graph here.
             self.global_model = None
             self.graph = tf.get_default_graph()
-        # Construct the global model used in calls
+        # We are a worker:
+        # Construct the global model (deepcopy of ourselves), set it up via `setup` and link to it (global_model).
         else:
             graph = tf.Graph()
             default_graph = graph.as_default()
             default_graph.__enter__()
-            # Global model.
             self.global_model = deepcopy(self)
             self.global_model.distributed_spec['replica_model'] = True
             self.global_model.setup()
@@ -362,7 +367,7 @@ class Model(object):
 
         #
         if self.distributed_spec is not None:
-            # We have an internal, global model: Return.
+            # We are just a replica model: Return.
             if self.distributed_spec.get('replica_model'):
                 return
             # We are the parameter server: Start and wait.
@@ -379,16 +384,18 @@ class Model(object):
                 server.join()
                 return
 
-            # Use
+            # global trainables (from global_model)
             global_variables = self.global_model.get_variables(include_non_trainable=True) +\
                                [self.episode, self.timestep]
+            # local counterparts
             local_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
+            # op to assign values from the global model to local counterparts
             local_init_op = tf.group(*(local_var.assign(value=global_var)
                                        for local_var, global_var in zip(local_variables, global_variables)))
-        # Global and local variables initialize operations
+        # Local variables initialize operations (no global_model).
         else:
             global_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
@@ -733,7 +740,7 @@ class Model(object):
         Applies optional exploration to the action (post-processor for action outputs).
 
         Args:
-             action (tf.Tensor): The originally output action tensor (to be post-processed).
+             action (tf.Tensor): The original output action tensor (to be post-processed).
              exploration (Exploration): The Exploration object to use.
              action_spec (dict): Dict specifying the action space.
         Returns:
@@ -1253,8 +1260,8 @@ class Model(object):
 
     def update(self, states, internals, actions, terminal, reward, return_loss_per_instance=False):
         """
-        Runs and returns the self.optimization in the session to update the Model's parameters.
-        Optionally, also runs the `loss_per_instance` calculation and returns the result of that as well.
+        Runs the self.optimization in the session to update the Model's parameters.
+        Optionally, also runs the `loss_per_instance` calculation and returns the result of that.
 
         Args:
             states (dict): Dict of state tensors (each key represents one state space component).

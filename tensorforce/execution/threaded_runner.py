@@ -197,10 +197,13 @@ def WorkerAgentGenerator(agent_class):
         """
 
         def __init__(self, model=None, **kwargs):
+            # set our model externally
             self.model = model
+            # call super c'tor (which will call initialize_model and assing self.model to the return value)
             super(WorkerAgent, self).__init__(**kwargs)
 
         def initialize_model(self):
+            # return our model (already given and initialized)
             return self.model
 
     return WorkerAgent

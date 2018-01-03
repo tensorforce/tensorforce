@@ -177,7 +177,7 @@ def main():
     threaded_runner = ThreadedRunner(
         agents, environments,
         repeat_actions=1,
-         save_path=args.save,
+        save_path=args.save,
         save_episodes=args.save_episodes
     )
 

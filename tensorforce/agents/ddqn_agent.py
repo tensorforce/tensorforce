@@ -70,7 +70,7 @@ class DDQNAgent(MemoryAgent):
             huber_loss: Optional flat specifying Huber-loss clipping.
         """
         # TODO: get rid of this class if we still can. Otherwise, leave this deprecation warning in place
-        warnings.warn("WARNING: DDQNAgent is an obsolete class. Instead, use DQNAgent with double_q_model set to True",
+        warnings.warn("WARNING: DDQNAgent is deprecated. Instead, use DQNAgent with double_q_model set to True",
                       category=DeprecationWarning)
 
         self.target_sync_frequency = target_sync_frequency

@@ -26,7 +26,7 @@ from tensorforce.core.optimizers import MetaOptimizer
 class GlobalOptimizer(MetaOptimizer):
     """
     The global optimizer applies an optimizer to the local variables. In addition, it also  
-    applies the update a corresponding set of global variables and subsequently updates the local  
+    applies the update to a corresponding set of global variables and subsequently updates the local
     variables to the value of these global variables.
     Note: This is used for the current distributed mode, and will likely change with the next  
     major version update.

@@ -79,6 +79,8 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             raise TensorForceError("ERROR in UE4Environment.connect: no observation- or action-space-desc sent "
                                    "by remote server!")
 
+        # game's name
+        self.game_name = response.get("game_name")  # keep non-mandatory for now
         # observers
         self.observation_space_desc = response["observation_space_desc"]
         # action-mappings

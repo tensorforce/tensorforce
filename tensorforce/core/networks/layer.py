@@ -157,25 +157,80 @@ class Nonlinearity(Layer):
     Non-linearity layer applying a non-linear transformation.
     """
 
-    def __init__(self, name='relu', scope='nonlinearity', summary_labels=()):
+    def __init__(self, name='relu', scope='nonlinearity', kwargs=None, summary_labels=()):
         """
         Non-linearity layer.
 
         Args:
             name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', 'tanh' or 'none'.
+            kwargs: Optional dictionary of args for activation; Currently supports;
+                        {'beta': float|int|'learn'} # for beta factor on input
+                        {'alpha': float|int}   # For leaky Relu
+                        {'max': float|int}   # Clip maximum input to activation at "max"
+                        {'min': float|int}   # Clip minimum input to activation at "min"
+            summary_labels: Requested summary labels for tensorboard export
         """
-        self.name = name
+        self.name           = name
+        self.alpha          = None
+        self.max            = None
+        self.min            = None        
+        self.beta_learn     = False
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
 
+        if kwargs is None:
+            kwargs = dict()
+        if 'max' in kwargs:
+            if type(kwargs['max']) is int or type(kwargs['max']) is float:
+                self.max = float(kwargs['max'])       
+            else:
+                raise TensorForceError('Invalid non-linearity max parameter: {}'.format(kwargs['max']))     
+
+        if 'min' in kwargs:
+            if type(kwargs['min']) is int or type(kwargs['min']) is float:
+                self.min = float(kwargs['min'])       
+            else:
+                raise TensorForceError('Invalid non-linearity min parameter: {}'.format(kwargs['min']))                     
+
+        if 'alpha' in kwargs:
+            if type(kwargs['alpha']) is int or type(kwargs['alpha']) is float:
+                self.alpha = float(kwargs['alpha'])       
+            else:
+                raise TensorForceError('Invalid non-linearity alpha parameter: {}'.format(kwargs['alpha']))                    
+
+        if 'beta' in kwargs:
+            if type(kwargs['beta']) is int or type(kwargs['beta']) is float:
+                self.beta = tf.constant(float(kwargs['beta']), dtype=util.tf_dtype('float'))
+            elif kwargs['beta'] == 'learn':
+                self.beta_learn = True
+                self.beta = None
+            else:
+                raise TensorForceError('Invalid non-linearity beta parameter: {}'.format(kwargs['beta']))
+        else:
+            self.beta = tf.constant(float(1.0), dtype=util.tf_dtype('float'))
+
     def tf_apply(self, x, update):
+        if self.beta_learn:
+            self.beta = tf.get_variable(
+                name='beta',
+                shape=(),
+                dtype=tf.float32,
+                initializer=tf.ones_initializer()
+            )
+
+        if self.max is not None:
+            x = tf.minimum((self.beta*x), self.max)
+
+        if self.min is not None:
+            x = tf.maximum((self.beta*x), self.min)   
+
         if self.name == 'elu':
-            x = tf.nn.elu(features=x)
+            x = tf.nn.elu(features=(self.beta*x))
 
         elif self.name == 'none':
-            x = tf.identity(input=x)
+            x = tf.identity(input=(self.beta*x))
 
         elif self.name == 'relu':
-            x = tf.nn.relu(features=x)
+            x = tf.nn.relu(features=(self.beta*x))
             if 'relu' in self.summary_labels:
                 non_zero = tf.cast(x=tf.count_nonzero(input_tensor=x), dtype=tf.float32)
                 size = tf.cast(x=tf.reduce_prod(input_tensor=tf.shape(input=x)), dtype=tf.float32)
@@ -184,25 +239,42 @@ class Nonlinearity(Layer):
 
         elif self.name == 'selu':
             # https://arxiv.org/pdf/1706.02515.pdf
-            alpha = 1.6732632423543772848170429916717
-            scale = 1.0507009873554804934193349852946
-            negative = alpha * tf.nn.elu(features=x)
-            x = scale * tf.where(condition=(x >= 0.0), x=x, y=negative)
+            x = tf.nn.selu(features=(self.beta*x))
 
         elif self.name == 'sigmoid':
-            x = tf.sigmoid(x=x)
+            x = tf.sigmoid(x=(self.beta*x))
+
+        elif self.name == 'swish':
+            # https://arxiv.org/abs/1710.05941
+            x = tf.sigmoid(x=(self.beta*x)) * x    
+
+        elif self.name == 'lrelu' or self.name == 'leaky_relu':
+            if self.alpha is None:
+                # Default alpha value for leaky_relu
+                self.alpha = 0.2
+            x = tf.nn.leaky_relu(features=(self.beta*x), alpha=self.alpha)
+
+        elif self.name == 'crelu':
+            x = tf.nn.crelu(features=(self.beta*x))            
 
         elif self.name == 'softmax':
-            x = tf.nn.softmax(logits=x)
+            x = tf.nn.softmax(logits=(self.beta*x))
 
         elif self.name == 'softplus':
-            x = tf.nn.softplus(features=x)
+            x = tf.nn.softplus(features=(self.beta*x))
+
+        elif self.name == 'softsign':
+            x = tf.nn.softsign(features=(self.beta*x))
 
         elif self.name == 'tanh':
-            x = tf.nn.tanh(x=x)
+            x = tf.nn.tanh(x=(self.beta*x))
 
         else:
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))
+
+        if 'beta' in self.summary_labels:
+            summary = tf.summary.scalar(name='beta', tensor=self.beta)
+            self.summaries.append(summary)            
 
         return x
 
@@ -515,6 +587,7 @@ class Dense(Layer):
         size=None,
         bias=True,
         activation='tanh',
+        activation_kwargs=None,
         l2_regularization=0.0,
         l1_regularization=0.0,
         skip=False,
@@ -528,6 +601,7 @@ class Dense(Layer):
             size: Layer size, if None than input size matches the output size of the layer
             bias: If true, bias is added.
             activation: Type of nonlinearity.
+            activation_kwargs: Arguments passed to nonlinearity
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
             skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf),
@@ -555,7 +629,9 @@ class Dense(Layer):
                 l1_regularization=l1_regularization,
                 summary_labels=summary_labels
             )
-        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        # TODO: Consider creating two nonlinearity variables when skip is used and learning beta
+        #       Right now, only a single beta can be learned
+        self.nonlinearity = Nonlinearity(name=activation, kwargs=activation_kwargs, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -626,6 +702,7 @@ class Dueling(Layer):
         size,
         bias=False,
         activation='none',
+        activation_kwargs=None,
         l2_regularization=0.0,
         l1_regularization=0.0,
         output=None,
@@ -642,6 +719,7 @@ class Dueling(Layer):
             size: Layer size.
             bias: If true, bias is added.
             activation: Type of nonlinearity.
+            activation_kwargs: Arguments passed to nonlinearity
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
             output: None or tuple of output names for ('expectation','advantage','mean_advantage')
@@ -661,7 +739,7 @@ class Dueling(Layer):
             summary_labels=summary_labels
         )
         self.output = output
-        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(name=activation, kwargs=activation_kwargs, summary_labels=summary_labels)
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -742,6 +820,7 @@ class Conv1d(Layer):
         padding='SAME',
         bias=True,
         activation='relu',
+        activation_kwargs=None,
         l2_regularization=0.0,
         l1_regularization=0.0,
         scope='conv1d',
@@ -757,6 +836,7 @@ class Conv1d(Layer):
             padding: Convolution padding, one of 'VALID' or 'SAME'
             bias: If true, a bias is added
             activation: Type of nonlinearity
+            activation_kwargs: Arguments passed to nonlinearity
             l2_regularization: L2 regularization weight
             l1_regularization: L1 regularization weight
         """
@@ -767,7 +847,7 @@ class Conv1d(Layer):
         self.bias = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(name=activation, kwargs=activation_kwargs, summary_labels=summary_labels)
         super(Conv1d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -846,6 +926,7 @@ class Conv2d(Layer):
         padding='SAME',
         bias=True,
         activation='relu',
+        activation_kwargs=None,
         l2_regularization=0.0,
         l1_regularization=0.0,
         scope='conv2d',
@@ -861,6 +942,7 @@ class Conv2d(Layer):
             padding: Convolution padding, one of 'VALID' or 'SAME'
             bias: If true, a bias is added
             activation: Type of nonlinearity
+            activation_kwargs: Arguments passed to nonlinearity
             l2_regularization: L2 regularization weight
             l1_regularization: L1 regularization weight
         """
@@ -876,7 +958,7 @@ class Conv2d(Layer):
         self.bias = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(name=activation, kwargs=activation_kwargs, summary_labels=summary_labels)
         super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):

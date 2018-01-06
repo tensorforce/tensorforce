@@ -911,8 +911,11 @@ class Model(object):
 
         # Now do the scan, each time summing up the previous step (discounted by gamma) and
         # subtracting the respective `horizon_subtraction`.
-        reward = tf.scan(fn=cumulate, elems=(reward, terminal, off_horizon, horizon_subtractions),
-                         initializer=final_reward if horizon != 1 else 0.0)
+        reward = tf.scan(
+            fn=cumulate,
+            elems=(reward, terminal, off_horizon, horizon_subtractions),
+            initializer=final_reward if horizon != 1 else 0.0
+        )
         # Re-reverse again to match input sequences.
         return tf.reverse(tensor=reward, axis=(0,))
 

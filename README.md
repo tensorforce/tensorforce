@@ -13,22 +13,20 @@ TensorForce is an open source reinforcement learning library focused on
 providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
 TensorForce is built on top of TensorFlow and compatible with Python 2.7
-and &ge;3.5 and supports multiple state inputs and multi-dimensional
-actions to be compatible with Gym, Universe, and DeepMind lab. It further
-provides an easily extensible interface to implement new environments.
+and &gt;3.5 and supports multiple state inputs and multi-dimensional
+actions to be compatible with any type of simulation or application environment.
 
-Finally, TensorForce aims to move all reinforcement learning logic into the
+TensorForce also aims to move all reinforcement learning logic into the
 TensorFlow graph, including control flow. This both reduces dependencies
 on the host language (Python), thus enabling portable computation graphs that
 can be used in other languages and  contexts, and improves performance.
 
 More information on architecture can also be found [on our blog](https://reinforce.io/blog/).
 Please also read the [TensorForce FAQ](https://github.com/reinforceio/tensorforce/blob/master/FAQ.md)
-if you encounter problems or have questions. Finally, you can sign up to our [Gitter channel](https://docs.google.com/forms/d/1_UD5Pb5LaPVUviD0pO0fFcEnx_vwenvuc00jmP2rRIc/).
+if you encounter problems or have questions.
 
 Finally, read the latest update notes (UPDATE_NOTES.md) for an idea of
 how the project is evolving, especially concerning majorAPI breaking updates.
-
 
 The main difference to existing libraries is a strict separation of
 environments, agents and update logic that facilitates usage in
@@ -51,7 +49,7 @@ Features
 --------
 
 TensorForce currently integrates with the OpenAI Gym API, OpenAI
-Universe, the Unreal Engine (game engine), DeepMind lab, ALE and Maze explorer. The following algorithms are available (all
+Universe, DeepMind lab, ALE and Maze explorer. The following algorithms are available (all
 policy methods both continuous/discrete and using a Beta distribution for bounded actions). 
 
 -  A3C using distributed TensorFlow or a multithreaded runner - now as part of our generic Model
@@ -201,40 +199,8 @@ Please refer to the [tensorforce-benchmark](https://github.com/reinforceio/tenso
 for more information.
 
 
-Use with DeepMind lab
----------------------
-
-Since DeepMind lab is only available as source code, a manual install
-via bazel is required. Further, due to the way bazel handles external
-dependencies, cloning TensorForce into lab is the most convenient way to
-run it using the bazel BUILD file we provide. To use lab, first download
-and install it according to instructions
-<https://github.com/deepmind/lab/blob/master/docs/build.md>:
-
-```bash
-git clone https://github.com/deepmind/lab.git
-```
-
-Add to the lab main BUILD file:
-
-```
-package(default_visibility = ["//visibility:public"])
-```
-
-Clone TensorForce into the lab directory, then run the TensorForce bazel runner. Note that using any specific configuration file
-currently requires changing the Tensorforce BUILD file to adjust environment parameters.
-
-```bash
-bazel run //tensorforce:lab_runner
-```
-
-Please note that we have not tried to reproduce any lab results yet, and
-these instructions just explain connectivity in case someone wants to
-get started there.
-
-
-Community and contribution guidelines
--------------------------------------
+Community and contributions
+---------------------------
 
 TensorForce is developed by [reinforce.io](https://reinforce.io), a new
 project focused on providing reinforcement learning software
@@ -242,12 +208,6 @@ infrastructure. For any questions, get in touch at
 <contact@reinforce.io>.
 
 Please file bug reports and feature discussions as GitHub issues in first instance.
-Please read the FAQ before creating an issue.
-
-Please appreciate that we do not have the resources to help you find the right configuration
-for your problem, so unless you are reasonably convinced there is a bug (e.g. by testing known hyper-parameters),
-please do not create issues such as 'Algorithm X is not working on environment Y with Configuration Z' without
-showing you have done some research (again, please read the FAQ on why).
 
 There is also a developer chat you are welcome to join. For joining, we ask to provide
 some basic details how you are using TensorForce so we can learn more about applications and our
@@ -270,5 +230,5 @@ If you use TensorForce in your academic research, we would be grateful if you co
 ```
 
 We are also very grateful for our open source contributors (listed according to github): Islandman93, wassname, 
-lefnire, Mazecreator, trickmeyer, mryellow, ImpulseAdventure, vwxyzjn, beflix, tms1337, BorisSchaeling, ngoodger,
+Mazecreator, lefnire, sven1977, trickmeyer, mryellow, ImpulseAdventure, vwxyzjn, beflix, tms1337, BorisSchaeling, ngoodger,
 ekerazha, Davidnet, nikoliazekter, AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.

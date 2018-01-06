@@ -5,6 +5,16 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+6th January
+
+- In December, a number of bugs regarding exploration and a numberical issue in generalised 
+  advantage estimation were fixed which seem to increase performance so an update is recommended.
+- Agent structure saw major refactoring to remove redundant code, introduced a ```LearningAgent```
+  to hold common fields and distinguish from non-learning agents (e.g. ```RandomAgent``)
+- We are preparing to move memories into the TensorFlow graph which will fix sequences and allow subsampling
+  in the optimizers. Further, new episode/batch semantics will be enabled (e.g. episode based instead of
+  timestep based batching). 
+
 9th December 2017
 
 - Renamed LSTM to InternalLSTM and created a new LSTM layer which implements more standard

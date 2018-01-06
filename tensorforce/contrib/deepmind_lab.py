@@ -27,27 +27,39 @@ class DeepMindLab(Environment):
     DeepMind Lab Integration:
     https://arxiv.org/abs/1612.03801
     https://github.com/deepmind/lab
+
+    Since DeepMind lab is only available as source code, a manual install
+    via bazel is required. Further, due to the way bazel handles external
+    dependencies, cloning TensorForce into lab is the most convenient way to
+    run it using the bazel BUILD file we provide. To use lab, first download
+    and install it according to instructions
+    <https://github.com/deepmind/lab/blob/master/docs/build.md>:
+
+    ```bash
+    git clone https://github.com/deepmind/lab.git
+    ```
+
+    Add to the lab main BUILD file:
+
+    ```
+    package(default_visibility = ["//visibility:public"])
+    ```
+
+    Clone TensorForce into the lab directory, then run the TensorForce bazel runner.
+
+    Note that using any specific configuration file currently requires changing the Tensorforce
+    BUILD file to adjust environment parameters.
+
+    ```bash
+    bazel run //tensorforce:lab_runner
+    ```
+
+    Please note that we have not tried to reproduce any lab results yet, and
+    these instructions just explain connectivity in case someone wants to
+    get started there.
+
+
     """
-    #
-    # @staticmethod
-    # def state_spec(level_id):
-    #     """
-    #     Returns a list of dicts with keys 'dtype', 'shape' and 'name', specifying the available observations this DeepMind Lab environment supports.
-    #
-    #     :param level_id: string with id/descriptor of the level
-    #     """
-    #     level = deepmind_lab.Lab(level_id, ())
-    #     return level.observation_spec()
-    #
-    # @staticmethod
-    # def action_spec(level_id):
-    #     """
-    #     Returns a list of dicts with keys 'min', 'max' and 'name', specifying the shape of the actions expected by this DeepMind Lab environment.
-    #
-    #     :param level_id: string with id/descriptor of the level
-    #     """
-    #     level = deepmind_lab.Lab(level_id, ())
-    #     return level.action_spec()
 
     def __init__(
         self,

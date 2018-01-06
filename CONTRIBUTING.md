@@ -110,3 +110,9 @@ models. Some model suggestions:
 - Rainbow DQN, needs categorical DQN first. - [paper](https://arxiv.org/abs/1710.02298)
 - Distributional RL with quantile regression - [paper](https://arxiv.org/pdf/1710.10044.pdf)
 
+Ecosystem integrations:
+
+If you are interested in general usability, another area of contribution is integrations into the wider
+machine learning and data processing ecosystem. For example, providing scripts to run
+TensorForce on one of a number of cloud service providers, or to run jobs on data infrastructure frameworks
+like Kubernetes, Spark, etc is a great way to make RL more accessible. 

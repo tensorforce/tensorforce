@@ -192,6 +192,11 @@ class Nonlinearity(Layer):
         elif self.name == 'sigmoid':
             x = tf.sigmoid(x=x)
 
+        elif self.name == 'swish':
+            # https://arxiv.org/abs/1710.05941
+            # TODO: Look into adding learnable "beta" as paper describes
+            x = tf.sigmoid(x=x) * x    
+            
         elif self.name == 'softmax':
             x = tf.nn.softmax(logits=x)
 

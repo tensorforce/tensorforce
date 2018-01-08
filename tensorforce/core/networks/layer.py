@@ -157,28 +157,31 @@ class Nonlinearity(Layer):
     Non-linearity layer applying a non-linear transformation.
     """
 
-    def __init__(self, name='relu', scope='nonlinearity', kwargs=None, summary_labels=()):
+    def __init__(self, kwargs='relu', scope='nonlinearity', summary_labels=()):
         """
         Non-linearity layer.
 
         Args:
-            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', 'tanh' or 'none'.
-            kwargs: Optional dictionary of args for activation; Currently supports;
+            kwargs: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', 'tanh' or 'none'.
+                    Optional dictionary of args for activation, must include {'name':'xxx'} Currently supports;
                         {'beta': float|int|'learn'} # for beta factor on input
                         {'alpha': float|int}   # For leaky Relu
                         {'max': float|int}   # Clip maximum input to activation at "max"
                         {'min': float|int}   # Clip minimum input to activation at "min"
             summary_labels: Requested summary labels for tensorboard export
         """
-        self.name           = name
+        if type(kwargs) is str:
+            self.name       = kwargs
+            #kwargs          = dict()
+        else:
+            self.name       = kwargs['name']
+
         self.alpha          = None
         self.max            = None
         self.min            = None        
         self.beta_learn     = False
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
 
-        if kwargs is None:
-            kwargs = dict()
         if 'max' in kwargs:
             if type(kwargs['max']) is int or type(kwargs['max']) is float:
                 self.max = float(kwargs['max'])       
@@ -587,7 +590,6 @@ class Dense(Layer):
         size=None,
         bias=True,
         activation='tanh',
-        activation_kwargs=None,
         l2_regularization=0.0,
         l1_regularization=0.0,
         skip=False,
@@ -600,8 +602,7 @@ class Dense(Layer):
         Args:
             size: Layer size, if None than input size matches the output size of the layer
             bias: If true, bias is added.
-            activation: Type of nonlinearity.
-            activation_kwargs: Arguments passed to nonlinearity
+            activation: Type of nonlinearity, or dict with name & arguments
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
             skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf),
@@ -631,7 +632,7 @@ class Dense(Layer):
             )
         # TODO: Consider creating two nonlinearity variables when skip is used and learning beta
         #       Right now, only a single beta can be learned
-        self.nonlinearity = Nonlinearity(name=activation, kwargs=activation_kwargs, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(kwargs=activation, summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -702,7 +703,6 @@ class Dueling(Layer):
         size,
         bias=False,
         activation='none',
-        activation_kwargs=None,
         l2_regularization=0.0,
         l1_regularization=0.0,
         output=None,
@@ -718,8 +718,7 @@ class Dueling(Layer):
         Args:
             size: Layer size.
             bias: If true, bias is added.
-            activation: Type of nonlinearity.
-            activation_kwargs: Arguments passed to nonlinearity
+            activation: Type of nonlinearity, or dict with name & arguments
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
             output: None or tuple of output names for ('expectation','advantage','mean_advantage')
@@ -739,7 +738,7 @@ class Dueling(Layer):
             summary_labels=summary_labels
         )
         self.output = output
-        self.nonlinearity = Nonlinearity(name=activation, kwargs=activation_kwargs, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(kwargs=activation, summary_labels=summary_labels)
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -820,7 +819,6 @@ class Conv1d(Layer):
         padding='SAME',
         bias=True,
         activation='relu',
-        activation_kwargs=None,
         l2_regularization=0.0,
         l1_regularization=0.0,
         scope='conv1d',
@@ -835,8 +833,7 @@ class Conv1d(Layer):
             stride: Convolution stride
             padding: Convolution padding, one of 'VALID' or 'SAME'
             bias: If true, a bias is added
-            activation: Type of nonlinearity
-            activation_kwargs: Arguments passed to nonlinearity
+            activation: Type of nonlinearity, or dict with name & arguments
             l2_regularization: L2 regularization weight
             l1_regularization: L1 regularization weight
         """
@@ -847,7 +844,7 @@ class Conv1d(Layer):
         self.bias = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        self.nonlinearity = Nonlinearity(name=activation, kwargs=activation_kwargs, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(kwargs=activation, summary_labels=summary_labels)
         super(Conv1d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -926,7 +923,6 @@ class Conv2d(Layer):
         padding='SAME',
         bias=True,
         activation='relu',
-        activation_kwargs=None,
         l2_regularization=0.0,
         l1_regularization=0.0,
         scope='conv2d',
@@ -941,8 +937,7 @@ class Conv2d(Layer):
             stride: Convolution stride, either an integer or pair of integers.
             padding: Convolution padding, one of 'VALID' or 'SAME'
             bias: If true, a bias is added
-            activation: Type of nonlinearity
-            activation_kwargs: Arguments passed to nonlinearity
+            activation: Type of nonlinearity, or dict with name & arguments
             l2_regularization: L2 regularization weight
             l1_regularization: L1 regularization weight
         """
@@ -958,7 +953,7 @@ class Conv2d(Layer):
         self.bias = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        self.nonlinearity = Nonlinearity(name=activation, kwargs=activation_kwargs, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(kwargs=activation, summary_labels=summary_labels)
         super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):

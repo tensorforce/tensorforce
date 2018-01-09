@@ -204,7 +204,9 @@ class PrioritizedReplay(Memory):
             if self.observations._isfull():
                 if self.none_priority_index <= 0:
                     raise TensorForceError(
-                        "Trying to replace unseen observations: Memory is at capacity and contains only unseen observations.")
+                        "Trying to replace unseen observations: "
+                        "Memory is at capacity and contains only unseen observations."
+                    )
                 self.none_priority_index -= 1
 
             self.observations.put(observation, None)

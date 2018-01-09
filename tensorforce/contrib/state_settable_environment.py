@@ -18,14 +18,16 @@ from tensorforce.environments import Environment
 
 class StateSettableEnvironment(Environment):
     """
-    An Environment that implements the set_state method to set the current state to some new state using setter instructions.
+    An Environment that implements the set_state method to set the current state
+    to some new state using setter instructions.
     """
     def set_state(self, **kwargs):
         """
         Sets the current state of the environment manually to some other state and returns a new observation.
 
         Args:
-            **kwargs: The set instruction(s) to be executed by the environment. A single set instruction usually set a single property of the
+            **kwargs: The set instruction(s) to be executed by the environment.
+                       A single set instruction usually set a single property of the
                       state/observation vector to some new value.
         Returns: The observation dictionary of the Environment after(!) setting it to the new state.
         """

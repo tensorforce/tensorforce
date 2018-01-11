@@ -10,7 +10,7 @@ env:
 install:
   - pip install -U pip
   - pip install pytest-xdist
-  - pip install tensorflow
+  - pip install tensorflow==1.5.0rc0
   - pip install gym
   - pip install .
 script: pytest

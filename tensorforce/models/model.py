@@ -1199,9 +1199,13 @@ class Model(object):
             else:
                 optimizer_variables = self.optimizer.get_variables()
 
-            return model_variables + states_preprocessing_variables + explorations_variables + \
-                reward_preprocessing_variables + optimizer_variables
+            variables = model_variables
+            variables.extend([v for v in states_preprocessing_variables if v not in variables])
+            variables.extend([v for v in explorations_variables if v not in variables])
+            variables.extend([v for v in reward_preprocessing_variables if v not in variables])
+            variables.extend([v for v in optimizer_variables if v not in variables])
 
+            return variables
         else:
             return [self.variables[key] for key in sorted(self.variables)]
 

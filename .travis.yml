@@ -5,14 +5,13 @@ language: python
 services:
   - docker
 
-env:
-  - DOCKER_JOB_NAME='tensorforce_pytest'
-
 matrix:
   include:
   - env:
+    - DOCKER_JOB_NAME='tensorforce_pytest_py2'
     - DOCKER_IMAGE='tensorflow/tensorflow:latest'
   - env:
+    - DOCKER_JOB_NAME='tensorforce_pytest_py3'
     - DOCKER_IMAGE='tensorflow/tensorflow:latest-py3'
 
 before_install:

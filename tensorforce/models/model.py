@@ -428,6 +428,7 @@ class Model(object):
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
+
             # Op to assign values from the global model to local counterparts
             local_init_op = tf.group(*(local_var.assign(value=global_var)
                                        for local_var, global_var in zip(local_variables, global_variables)))
@@ -436,6 +437,9 @@ class Model(object):
             global_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
+            # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
+            global_variables = list(set(global_variables))
+
             ready_for_local_init_op = None
             local_init_op = None
 

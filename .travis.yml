@@ -16,7 +16,7 @@ matrix:
 
 before_install:
   - docker pull ${DOCKER_IMAGE}
-  - docker run --rm --name ${DOCKER_JOB_NAME} -v $(pwd):/tensorforce ${DOCKER_IMAGE} /bin/bash -c 'while true; do sleep 1; done';
+  - docker run -d --rm --name ${DOCKER_JOB_NAME} -v $(pwd):/tensorforce ${DOCKER_IMAGE} /bin/bash -c 'while true; do sleep 1; done';
 
 install:
   - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'python -m pip install -U pip';

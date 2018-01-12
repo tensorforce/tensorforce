@@ -35,8 +35,8 @@ setup_requires = [
 ]
 
 extras_require = {
-    'tf': ['tensorflow>=1.3.0'],
-    'tf_gpu': ['tensorflow-gpu>=1.3.0'],
+    'tf': ['tensorflow>=1.5.0rc0'],
+    'tf_gpu': ['tensorflow-gpu>=1.5.0rc0'],
     'gym': ['gym>=0.7.4'],
     'universe': ['universe>=0.21.3'],
     'mazeexp': ['mazeexp>=0.0.1'],
@@ -51,10 +51,10 @@ if on_rtd:
 
 
 setup(name='tensorforce',
-      version='0.3.4',  # please remember to edit tensorforce/__init__.py when updating the version
+      version='0.3.5',  # please remember to edit tensorforce/__init__.py when updating the version
       description='Reinforcement learning for TensorFlow',
       url='http://github.com/reinforceio/tensorforce',
-      download_url='https://github.com/reinforceio/tensorforce/archive/0.3.4.tar.gz',
+      download_url='https://github.com/reinforceio/tensorforce/archive/0.3.5.tar.gz',
       author='reinforce.io',
       author_email='contact@reinforce.io',
       license='Apache 2.0',

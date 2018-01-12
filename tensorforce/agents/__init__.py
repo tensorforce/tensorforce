@@ -14,9 +14,7 @@
 # ==============================================================================
 
 from tensorforce.agents.agent import Agent
-from tensorforce.agents.batch_agent import BatchAgent
 from tensorforce.agents.constant_agent import ConstantAgent
-from tensorforce.agents.memory_agent import MemoryAgent
 from tensorforce.agents.random_agent import RandomAgent
 from tensorforce.agents.vpg_agent import VPGAgent
 from tensorforce.agents.trpo_agent import TRPOAgent
@@ -44,8 +42,6 @@ agents = dict(
 
 __all__ = [
     'Agent',
-    'BatchAgent',
-    'MemoryAgent',
     'ConstantAgent',
     'RandomAgent',
     'VPGAgent',

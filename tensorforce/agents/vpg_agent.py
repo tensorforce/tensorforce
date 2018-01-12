@@ -18,11 +18,11 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce import TensorForceError
-from tensorforce.agents import BatchAgent
+from tensorforce.agents import Agent
 from tensorforce.models import PGLogProbModel
 
 
-class VPGAgent(BatchAgent):
+class VPGAgent(Agent):
     """
     Vanilla Policy Gradient agent as described by [Sutton et al. (1999)]
     (https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf).
@@ -33,28 +33,31 @@ class VPGAgent(BatchAgent):
         self,
         states_spec,
         actions_spec,
-        network_spec,
+        network,
         device=None,
         session_config=None,
         scope='vpg',
         saver_spec=None,
         summary_spec=None,
         distributed_spec=None,
+        variable_noise=None,
+        states_preprocessing=None,
+        actions_exploration=None,
+        reward_preprocessing=None,
+        memory=None,
+        update_spec=None,
         optimizer=None,
         discount=0.99,
-        variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
-        distributions_spec=None,
+        distributions=None,
         entropy_regularization=None,
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        batched_observe=1000,
-        batch_size=1000,
-        keep_last_timestep=True
+        batched_observe=None,  # !!!!!!!!!!!!!
+        batch_size=10,
+        update_frequency=None
+        # keep_last_timestep=True
     ):
         """
         Creates a vanilla policy gradient agent.
@@ -84,12 +87,12 @@ class VPGAgent(BatchAgent):
                 and `evolutionary`. Consult the optimizer test or example configurations for more.
             discount: Float specifying reward discount factor.
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
+            states_preprocessing: Optional list of states preprocessors to apply to state  
                 (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
+            actions_exploration: Optional dict specifying action exploration type (epsilon greedy  
                 or Gaussian noise).
-            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
-            distributions_spec: Optional dict specifying action distributions to override default distribution choices.
+            reward_preprocessing: Optional dict specifying reward preprocessing.
+            distributions: Optional dict specifying action distributions to override default distribution choices.
                 Must match action names.
             entropy_regularization: Optional positive float specifying an entropy regularization value.
             baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
@@ -105,31 +108,47 @@ class VPGAgent(BatchAgent):
             batch_size: Int specifying number of samples collected via `observe` before an update is executed.
             keep_last_timestep: Boolean flag specifying whether last sample is kept, default True.
         """
-        if network_spec is None:
-            raise TensorForceError("No network_spec provided.")
+        if network is None:
+            raise TensorForceError("No network provided.")
 
+        if memory is None:
+            memory = dict(
+                type='latest',
+                include_next_states=False,
+                capacity=(1000 * batch_size)  # assumed episode length of 1000
+            )
+        else:
+            assert not memory['include_next_states']
+        if update_frequency is None:
+            update_frequency = batch_size
+        update_spec = dict(
+            mode='episodes',
+            batch_size=batch_size,
+            frequency=update_frequency
+        )
         if optimizer is None:
-            self.optimizer = dict(
+            optimizer = dict(
                 type='adam',
                 learning_rate=1e-3
             )
-        else:
-            self.optimizer = optimizer
 
         # Model arguments
-        self.network_spec = network_spec
         self.device = device
         self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
         self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
-        self.distributions_spec = distributions_spec
+        self.states_preprocessing = states_preprocessing
+        self.actions_exploration = actions_exploration
+        self.reward_preprocessing = reward_preprocessing
+        self.memory = memory
+        self.update_spec = update_spec
+        self.optimizer = optimizer
+        self.discount = discount
+        self.network = network
+        self.distributions = distributions
         self.entropy_regularization = entropy_regularization
         self.baseline_mode = baseline_mode
         self.baseline = baseline
@@ -139,29 +158,29 @@ class VPGAgent(BatchAgent):
         super(VPGAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            batched_observe=batched_observe,
-            batch_size=batch_size,
-            keep_last_timestep=keep_last_timestep
+            batched_observe=batched_observe
         )
 
     def initialize_model(self):
         return PGLogProbModel(
             states_spec=self.states_spec,
             actions_spec=self.actions_spec,
-            network_spec=self.network_spec,
             device=self.device,
             session_config=self.session_config,
             scope=self.scope,
             saver_spec=self.saver_spec,
             summary_spec=self.summary_spec,
             distributed_spec=self.distributed_spec,
+            variable_noise=self.variable_noise,
+            states_preprocessing=self.states_preprocessing,
+            actions_exploration=self.actions_exploration,
+            reward_preprocessing=self.reward_preprocessing,
+            memory=self.memory,
+            update_spec=self.update_spec,
             optimizer=self.optimizer,
             discount=self.discount,
-            variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec,
-            distributions_spec=self.distributions_spec,
+            network=self.network,
+            distributions=self.distributions,
             entropy_regularization=self.entropy_regularization,
             baseline_mode=self.baseline_mode,
             baseline=self.baseline,

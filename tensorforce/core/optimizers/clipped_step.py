@@ -17,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from six.moves import xrange
 import tensorflow as tf
 
 from tensorforce.core.optimizers import MetaOptimizer
@@ -25,8 +24,8 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class ClippedStep(MetaOptimizer):
     """
-    The multi-shep meta optimizer repeatedly applies the optimization step proposed by another  
-    optimizer a number of times.
+    The clipped-shep meta optimizer clips the values of the optimization step proposed by another  
+    optimizer.
     """
 
     def __init__(self, optimizer, clipping_value, summaries=None, summary_labels=None):

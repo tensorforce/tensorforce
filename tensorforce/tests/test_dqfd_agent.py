@@ -34,13 +34,19 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
     config = dict(
         memory=dict(
             type='replay',
-            capacity=1000
+            include_next_states=True,
+            capacity=100
         ),
-        batch_size=8,
-        first_update=10,
+        optimizer=dict(
+            type="adam",
+            learning_rate=1e-2
+        ),
         target_sync_frequency=10,
+        batch_size=8,
+        update_frequency=4,
         demo_memory_capacity=100,
         demo_sampling_ratio=0.2
+        # first_update=10,
     )
 
     exclude_float = True

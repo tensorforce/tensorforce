@@ -22,10 +22,10 @@ import tensorflow as tf
 from tensorforce.core.memories import Queue
 
 
-class Replay(Queue):
+class Latest(Queue):
 
-    def __init__(self, states_spec, actions_spec, include_next_states, capacity, scope='replay', summary_labels=None):
-        super(Replay, self).__init__(
+    def __init__(self, states_spec, actions_spec, include_next_states, capacity, scope='latest', summary_labels=None):
+        super(Latest, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
             include_next_states=include_next_states,
@@ -37,30 +37,35 @@ class Replay(Queue):
     def tf_retrieve_timesteps(self, n):
         num_timesteps = (self.memory_index - self.episode_indices[0] - 2) % self.capacity + 1
         n = tf.minimum(x=n, y=num_timesteps)
-        indices = tf.random_uniform(shape=(n,), maxval=num_timesteps, dtype=tf.int32)
-        indices = (self.memory_index - 1 - indices) % self.capacity
-        # indices = tf.Print(indices, (self.memory_index, indices, n))
+        # n = tf.Print(n, (self.memory_index, self.episode_count, self.episode_indices[:self.episode_count + 1], n), summarize=64)
+        indices = tf.range(
+            start=(self.memory_index - 1 - n),
+            limit=(self.memory_index - 1)
+        ) % self.capacity
         terminal = tf.gather(params=self.terminal_memory, indices=indices)
         indices = tf.boolean_mask(tensor=indices, mask=tf.logical_not(x=terminal))
         return self.retrieve_indices(indices=indices)
 
     def tf_retrieve_episodes(self, n):
-        random_episode_indices = tf.random_uniform(shape=(n,), maxval=(self.episode_count + 1), dtype=tf.int32)
-        starts = tf.gather(params=self.episode_indices, indices=random_episode_indices) + 1
-        limits = tf.gather(params=self.episode_indices, indices=(random_episode_indices + 1))
-        limits += tf.where(condition=(starts < limits), x=0, y=self.capacity)
-        episodes = [tf.range(start=starts[n], limit=limits[n]) for k in range(n)]
-        indices = tf.concat(values=episodes, axis=0) % self.capacity
+        n = tf.minimum(x=n, y=self.episode_count)
+        # n = tf.Print(n, (self.memory_index, self.episode_count, self.episode_indices[:self.episode_count + 1], n))
+        start = self.episode_indices[self.episode_count - n - 1] + 1
+        limit = self.episode_indices[self.episode_count - 1]
+        limit += tf.where(condition=(start < limit), x=0, y=self.capacity)
+        indices = tf.range(start=start, limit=limit) % self.capacity
+        # indices = tf.Print(indices, (tf.shape(indices), start, limit))
         return self.retrieve_indices(indices=indices)
 
     def tf_retrieve_sequences(self, n, sequence_length):
-        num_sequences = (self.memory_index - self.episode_indices[0] - 2) % self.capacity + 1 - sequence_length
-        n = tf.minimum(x=n, y=num_sequences)
-        indices = tf.random_uniform(shape=(n,), maxval=num_sequences, dtype=tf.int32)
-        indices = (self.memory_index - 1 - indices - sequence_length) % self.capacity
-        sequence_indices = [tf.range(start=indices[n], limit=(indices[n] + sequence_length)) for k in range(n)]
-        sequence_indices = tf.stack(values=sequence_indices, axis=0) % self.capacity
-        sequence_indices = tf.Print(sequence_indices, (self.memory_index, sequence_indices, n))
+        num_timesteps = (self.memory_index - self.episode_indices[0] - 2) % self.capacity + 1
+        n = tf.minimum(x=n, y=(num_timesteps - sequence_length))
+        # n = tf.Print(n, (self.memory_index, self.episode_count, self.episode_indices[:self.episode_count + 1], n), summarize=64)
+        indices = tf.range(
+            start=(self.memory_index - 1 - n - sequence_length),  # or '- 1' implied in sequence length?
+            limit=(self.memory_index - 1)
+        ) % self.capacity
+        sequence_indices = [indices[k: k + sequence_length] for k in range(n)]
+        sequence_indices = tf.stack(values=sequence_indices, axis=0)
         terminal = tf.gather(params=self.terminal_memory, indices=indices)
         sequence_indices = tf.boolean_mask(tensor=sequence_indices, mask=tf.logical_not(x=terminal))
         return self.retrieve_indices(indices=sequence_indices)

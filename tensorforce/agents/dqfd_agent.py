@@ -21,12 +21,12 @@ from six.moves import xrange
 import numpy as np
 
 from tensorforce import TensorForceError
-from tensorforce.agents import MemoryAgent
+from tensorforce.agents import Agent
 from tensorforce.core.memories import Replay
 from tensorforce.models import QDemoModel
 
 
-class DQFDAgent(MemoryAgent):
+class DQFDAgent(Agent):
     """
     Deep Q-learning from demonstration (DQFD) agent ([Hester et al., 2017](https://arxiv.org/abs/1704.03732)).
     This agent uses DQN to pre-train from demonstration data via an additional supervised loss term.
@@ -36,30 +36,31 @@ class DQFDAgent(MemoryAgent):
         self,
         states_spec,
         actions_spec,
-        network_spec,
+        network,
         device=None,
         session_config=None,
         scope='dqfd',
         saver_spec=None,
         summary_spec=None,
         distributed_spec=None,
+        variable_noise=None,
+        states_preprocessing=None,
+        actions_exploration=None,
+        reward_preprocessing=None,
+        memory=None,
+        update_spec=None,
         optimizer=None,
         discount=0.99,
-        variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
-        distributions_spec=None,
+        distributions=None,
         entropy_regularization=None,
         target_sync_frequency=10000,
         target_update_weight=1.0,
         huber_loss=None,
-        batched_observe=1000,
+        batched_observe=None,
         batch_size=32,
-        memory=None,
-        first_update=10000,
         update_frequency=4,
-        repeat_update=1,
+        # first_update=10000,
+        # repeat_update=1
         expert_margin=0.5,
         supervised_weight=0.1,
         demo_memory_capacity=10000,
@@ -96,7 +97,7 @@ class DQFDAgent(MemoryAgent):
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
             states_preprocessing_spec: Optional list of states preprocessors to apply to state  
                 (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
+            actions_exploration_spec: Optional dict specifying action exploration type (epsilon greedy  
                 or Gaussian noise).
             reward_preprocessing_spec: Optional dict specifying reward preprocessing.
             distributions_spec: Optional dict specifying action distributions to override default distribution choices.
@@ -121,53 +122,56 @@ class DQFDAgent(MemoryAgent):
             demo_memory_capacity: Int describing capacity of expert demonstration memory.
             demo_sampling_ratio: Runtime sampling ratio of expert data.
         """
-        if network_spec is None:
-            raise TensorForceError("No network_spec provided.")
+        if network is None:
+            raise TensorForceError("No network provided.")
 
-        if optimizer is None:
-            self.optimizer = dict(
-                type='adam',
-                learning_rate=1e-3
-            )
-        else:
-            self.optimizer = optimizer
         if memory is None:
             memory = dict(
                 type='replay',
-                capacity=100000
+                include_next_states=True,
+                capacity=(1000 * batch_size)  # capacity of 1000 batches
             )
         else:
-            self.memory = memory
+            assert memory['include_next_states']
+        update_spec = dict(
+            mode='timesteps',
+            batch_size=batch_size,
+            frequency=update_frequency
+        )
+        if optimizer is None:
+            optimizer = dict(
+                type='adam',
+                learning_rate=1e-3
+            )
 
-        self.network_spec = network_spec
         self.device = device
         self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
         self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
-        self.distributions_spec = distributions_spec
+        self.states_preprocessing = states_preprocessing
+        self.actions_exploration = actions_exploration
+        self.reward_preprocessing = reward_preprocessing
+        self.memory = memory
+        self.update_spec = update_spec
+        self.optimizer = optimizer
+        self.discount = discount
+        self.network = network
+        self.distributions = distributions
         self.entropy_regularization = entropy_regularization
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
-        self.huber_loss = huber_loss
-
-        # DQFD always uses double dqn, which is a required key for a q-model.
         self.double_q_model = True
-        self.target_sync_frequency = target_sync_frequency
-        self.demo_memory_capacity = demo_memory_capacity
+        self.huber_loss = huber_loss
         self.expert_margin = expert_margin
         self.supervised_weight = supervised_weight
 
+        self.demo_memory_capacity = demo_memory_capacity
         # The demo_sampling_ratio, called p in paper, controls ratio of expert vs online training samples
         # p = n_demo / (n_demo + n_replay) => n_demo  = p * n_replay / (1 - p)
         self.demo_batch_size = int(demo_sampling_ratio * batch_size / (1.0 - demo_sampling_ratio))
-
         assert self.demo_batch_size > 0, 'Check DQFD sampling parameters to ensure ' \
                                          'demo_batch_size is positive. (Calculated {} based on current' \
                                          ' parameters)'.format(self.demo_batch_size)
@@ -177,12 +181,7 @@ class DQFDAgent(MemoryAgent):
         super(DQFDAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            batched_observe=batched_observe,
-            batch_size=batch_size,
-            memory=memory,
-            first_update=first_update,
-            update_frequency=update_frequency,
-            repeat_update=repeat_update
+            batched_observe=batched_observe
         )
         self.demo_memory = Replay(self.states_spec, self.actions_spec, self.demo_memory_capacity)
 
@@ -190,27 +189,27 @@ class DQFDAgent(MemoryAgent):
         return QDemoModel(
             states_spec=self.states_spec,
             actions_spec=self.actions_spec,
-            network_spec=self.network_spec,
             device=self.device,
             session_config=self.session_config,
             scope=self.scope,
             saver_spec=self.saver_spec,
             summary_spec=self.summary_spec,
             distributed_spec=self.distributed_spec,
+            variable_noise=self.variable_noise,
+            states_preprocessing=self.states_preprocessing,
+            actions_exploration=self.actions_exploration,
+            reward_preprocessing=self.reward_preprocessing,
+            memory=self.memory,
+            update_spec=self.update_spec,
             optimizer=self.optimizer,
             discount=self.discount,
-            variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec,
-            distributions_spec=self.distributions_spec,
+            network=self.network,
+            distributions=self.distributions,
             entropy_regularization=self.entropy_regularization,
             target_sync_frequency=self.target_sync_frequency,
             target_update_weight=self.target_update_weight,
             double_q_model=self.double_q_model,
             huber_loss=self.huber_loss,
-            # TEMP: Random sampling fix
-            random_sampling_fix=True,
             expert_margin=self.expert_margin,
             supervised_weight=self.supervised_weight
         )

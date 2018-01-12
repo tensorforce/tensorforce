@@ -46,7 +46,7 @@ class TestQuickstartExample(unittest.TestCase):
             environment = OpenAIGym('CartPole-v0')
 
             # Network specification for the model
-            network_spec = [
+            network = [
                 dict(type='dense', size=32),
                 dict(type='dense', size=32)
             ]
@@ -55,16 +55,17 @@ class TestQuickstartExample(unittest.TestCase):
             agent = PPOAgent(
                 states_spec=environment.states,
                 actions_spec=environment.actions,
-                network_spec=network_spec,
-                batch_size=4000,
+                discount=0.99,
+                network=network,
+                entropy_regularization=0.01,
+                likelihood_ratio_clipping=0.2,
+                batch_size=50,
                 step_optimizer=dict(
                     type='adam',
-                    learning_rate=1e-2
+                    learning_rate=1e-4
                 ),
-                optimization_steps=5,
-                discount=0.99,
-                entropy_regularization=0.01,
-                likelihood_ratio_clipping=0.2
+                subsampling_fraction=0.1,
+                optimization_steps=100
             )
 
             # Initialize the runner

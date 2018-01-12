@@ -35,20 +35,22 @@ class PGModel(DistributionModel):
         self,
         states_spec,
         actions_spec,
-        network_spec,
         device,
         session_config,
         scope,
         saver_spec,
         summary_spec,
         distributed_spec,
+        variable_noise,
+        states_preprocessing,
+        actions_exploration,
+        reward_preprocessing,
+        memory,
+        update_spec,
         optimizer,
         discount,
-        variable_noise,
-        states_preprocessing_spec,
-        explorations_spec,
-        reward_preprocessing_spec,
-        distributions_spec,
+        network,
+        distributions,
         entropy_regularization,
         baseline_mode,
         baseline,
@@ -69,21 +71,23 @@ class PGModel(DistributionModel):
         super(PGModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            network_spec=network_spec,
             device=device,
             session_config=session_config,
             scope=scope,
             saver_spec=saver_spec,
             summary_spec=summary_spec,
             distributed_spec=distributed_spec,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            memory=memory,
+            update_spec=update_spec,
             optimizer=optimizer,
             discount=discount,
-            variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec,
-            distributions_spec=distributions_spec,
-            entropy_regularization=entropy_regularization,
+            network=network,
+            distributions=distributions,
+            entropy_regularization=entropy_regularization
         )
 
     def initialize(self, custom_getter):
@@ -130,7 +134,8 @@ class PGModel(DistributionModel):
             custom_getter_=custom_getter
         )
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+        assert next_states is None and next_internals is None  # temporary
         reward = self.fn_reward_estimation(
             states=states,
             internals=internals,
@@ -207,14 +212,15 @@ class PGModel(DistributionModel):
 
         return losses
 
-    def tf_optimization(self, states, internals, actions, terminal, reward, update):
+    def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
         optimization = super(PGModel, self).tf_optimization(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
             reward=reward,
-            update=update
+            next_states=next_states,
+            next_internals=next_internals
         )
 
         if self.baseline_optimizer is None:
@@ -224,7 +230,7 @@ class PGModel(DistributionModel):
 
         if self.baseline_mode == 'states':
             def fn_loss():
-                loss = self.baseline.loss(states=states, reward=reward, update=update)
+                loss = self.baseline.loss(states=states, reward=reward)
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
                     return loss
@@ -234,9 +240,9 @@ class PGModel(DistributionModel):
         elif self.baseline_mode == 'network':
             def fn_loss():
                 loss = self.baseline.loss(
-                    states=self.network.apply(x=states, internals=internals, update=update),
+                    states=self.network.apply(x=states, internals=internals, update=tf.constant(value=True)),
                     reward=reward,
-                    update=update
+                    update=tf.constant(value=True)
                 )
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
@@ -248,6 +254,8 @@ class PGModel(DistributionModel):
         baseline_optimization = self.baseline_optimizer.minimize(
             time=self.timestep,
             variables=self.baseline.get_variables(),
+            states=states,
+            update=tf.constant(value=True),
             fn_loss=fn_loss,
             source_variables=self.network.get_variables()
         )

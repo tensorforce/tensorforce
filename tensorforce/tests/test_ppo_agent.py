@@ -28,7 +28,18 @@ class TestPPOAgent(BaseAgentTest, unittest.TestCase):
     agent = PPOAgent
     deterministic = False
     config = dict(
-        batch_size=8
+        memory=dict(
+            type='latest',
+            include_next_states=False,
+            capacity=100
+        ),
+        batch_size=4,
+        step_optimizer=dict(
+            type='adam',
+            learning_rate=1e-3
+        ),
+        subsampling_fraction=0.3,
+        optimization_steps=30
     )
 
     multi_config = dict(

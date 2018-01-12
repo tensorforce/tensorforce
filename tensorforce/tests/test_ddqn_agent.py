@@ -31,32 +31,28 @@ class TestDDQNAgent(BaseAgentTest, unittest.TestCase):
     config = dict(
         memory=dict(
             type='replay',
-            capacity=1000
+            include_next_states=True,
+            capacity=100
         ),
         optimizer=dict(
-            type="adam",
-            learning_rate=0.002
+            type='adam',
+            learning_rate=1e-2
         ),
-        repeat_update=4,
-        batch_size=32,
-        first_update=64,
-        target_sync_frequency=10
+        target_sync_frequency=10,
+        batch_size=8,
+        update_frequency=4
+        # memory=dict(
+        #     type='replay',
+        #     capacity=1000
+        # ),
+        # optimizer=dict(
+        #     type="adam",
+        #     learning_rate=0.002
+        # ),
+        # batch_size=32,
+        # first_update=64,
+        # repeat_update=4
     )
 
     exclude_float = True
     exclude_bounded = True
-
-    multi_config = dict(
-        memory=dict(
-            type='replay',
-            capacity=1000
-        ),
-        optimizer=dict(
-            type="adam",
-            learning_rate=0.01
-        ),
-        repeat_update=1,
-        batch_size=16,
-        first_update=16,
-        target_sync_frequency=10
-    )

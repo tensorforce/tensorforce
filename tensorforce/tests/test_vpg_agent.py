@@ -28,13 +28,22 @@ class TestVPGAgent(BaseAgentTest, unittest.TestCase):
     agent = VPGAgent
     deterministic = False
     config = dict(
-        batch_size=8
-    )
-
-    multi_config = dict(
-        batch_size=64,
+        memory=dict(
+            type='latest',
+            include_next_states=False,
+            capacity=100
+        ),
         optimizer=dict(
             type='adam',
-            learning_rate=0.01
-        )
+            learning_rate=1e-2
+        ),
+        batch_size=4
     )
+
+    # multi_config = dict(
+    #     batch_size=64,
+    #     optimizer=dict(
+    #         type='adam',
+    #         learning_rate=0.01
+    #     )
+    # )

@@ -22,10 +22,10 @@ import tensorflow as tf
 from tensorforce import util
 from tensorforce.core.networks import Network
 from tensorforce.core.distributions import Distribution, Bernoulli, Categorical, Gaussian, Beta
-from tensorforce.models import Model
+from tensorforce.models import MemoryModel
 
 
-class DistributionModel(Model):
+class DistributionModel(MemoryModel):
     """
     Base class for models using distributions parameterized by a neural network.
     """
@@ -34,25 +34,26 @@ class DistributionModel(Model):
         self,
         states_spec,
         actions_spec,
-        network_spec,
         device,
         session_config,
         scope,
         saver_spec,
         summary_spec,
         distributed_spec,
+        variable_noise,
+        states_preprocessing,
+        actions_exploration,
+        reward_preprocessing,
+        memory,
+        update_spec,
         optimizer,
         discount,
-        variable_noise,
-        states_preprocessing_spec,
-        explorations_spec,
-        reward_preprocessing_spec,
-        distributions_spec,
+        network,
+        distributions,
         entropy_regularization
     ):
-        self.network_spec = network_spec
-        self.distributions_spec = distributions_spec
-        self.distributions = None
+        self.network = network
+        self.distributions = distributions
         self.fn_kl_divergence = None
 
         # Entropy regularization
@@ -68,12 +69,14 @@ class DistributionModel(Model):
             saver_spec=saver_spec,
             summary_spec=summary_spec,
             distributed_spec=distributed_spec,
-            optimizer=optimizer,
-            discount=discount,
             variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            memory=memory,
+            update_spec=update_spec,
+            optimizer=optimizer,
+            discount=discount
         )
 
     def initialize(self, custom_getter):
@@ -81,7 +84,7 @@ class DistributionModel(Model):
 
         # Network
         self.network = Network.from_spec(
-            spec=self.network_spec,
+            spec=self.network,
             kwargs=dict(summary_labels=self.summary_labels)
         )
 
@@ -103,11 +106,11 @@ class DistributionModel(Model):
         distributions = dict()
         for name, action in self.actions_spec.items():
 
-            if self.distributions_spec is not None and name in self.distributions_spec:
+            if self.distributions is not None and name in self.distributions:
                 kwargs = dict(action)
                 kwargs['summary_labels'] = self.summary_labels
                 distributions[name] = Distribution.from_spec(
-                    spec=self.distributions_spec[name],
+                    spec=self.distributions[name],
                     kwargs=kwargs
                 )
 
@@ -141,46 +144,18 @@ class DistributionModel(Model):
 
         return distributions
 
-    def tf_actions_and_internals(self, states, internals, update, deterministic):
-        embedding, internals = self.network.apply(x=states, internals=internals, update=update, return_internals=True)
+    def tf_actions_and_internals(self, states, internals, deterministic):
+        embedding, internals = self.network.apply(
+            x=states,
+            internals=internals,
+            update=tf.constant(value=False),
+            return_internals=True
+        )
         actions = dict()
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameterize(x=embedding)
             actions[name] = distribution.sample(distr_params=distr_params, deterministic=deterministic)
         return actions, internals
-
-    def tf_kl_divergence(self, states, internals, update):
-        embedding = self.network.apply(x=states, internals=internals, update=update)
-        kl_divergences = list()
-
-        for name, distribution in self.distributions.items():
-            distr_params = distribution.parameterize(x=embedding)
-            fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
-            kl_divergence = distribution.kl_divergence(distr_params1=fixed_distr_params, distr_params2=distr_params)
-            collapsed_size = util.prod(util.shape(kl_divergence)[1:])
-            kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
-            kl_divergences.append(kl_divergence)
-
-        kl_divergence_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
-        return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
-
-    def get_optimizer_kwargs(self, states, internals, actions, terminal, reward, update):
-        kwargs = super(DistributionModel, self).get_optimizer_kwargs(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            update=update
-        )
-        kwargs['fn_kl_divergence'] = (
-            lambda: self.fn_kl_divergence(
-                states=states,
-                internals=internals,
-                update=update
-            )
-        )
-        return kwargs
 
     def tf_regularization_losses(self, states, internals, update):
         losses = super(DistributionModel, self).tf_regularization_losses(
@@ -216,6 +191,34 @@ class DistributionModel(Model):
             losses['entropy'] = -self.entropy_regularization * entropy
 
         return losses
+
+    def tf_kl_divergence(self, states, internals, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
+        kl_divergences = list()
+
+        for name, distribution in self.distributions.items():
+            distr_params = distribution.parameterize(x=embedding)
+            fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
+            kl_divergence = distribution.kl_divergence(distr_params1=fixed_distr_params, distr_params2=distr_params)
+            collapsed_size = util.prod(util.shape(kl_divergence)[1:])
+            kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
+            kl_divergences.append(kl_divergence)
+
+        kl_divergence_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=kl_divergences, axis=1), axis=1)
+        return tf.reduce_mean(input_tensor=kl_divergence_per_instance, axis=0)
+
+    def optimizer_arguments(self, states, internals, actions, terminal, reward, next_states, next_internals):
+        arguments = super(DistributionModel, self).optimizer_arguments(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            next_states=next_states,
+            next_internals=next_internals
+        )
+        arguments['fn_kl_divergence'] = self.fn_kl_divergence
+        return arguments
 
     def get_variables(self, include_non_trainable=False):
         model_variables = super(DistributionModel, self).get_variables(include_non_trainable=include_non_trainable)

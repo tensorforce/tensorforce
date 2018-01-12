@@ -57,13 +57,37 @@ class NaturalGradient(Optimizer):
             unroll_loop=cg_unroll_loop
         )
 
-    def tf_step(self, time, variables, fn_loss, fn_kl_divergence, return_estimated_improvement=False, **kwargs):
+    def tf_step(
+        self,
+        time,
+        variables,
+        states,
+        internals,
+        actions,
+        terminal,
+        reward,
+        next_states,
+        next_internals,
+        update,
+        fn_loss,
+        fn_kl_divergence,
+        return_estimated_improvement=False,
+        **kwargs
+    ):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
+            states: Dictionary of batch state tensors.
+            internals: List of batch internal tensors.
+            actions: Dictionary of batch action tensors.
+            terminal: Batch terminal tensor.
+            reward: Batch reward tensor.
+            next_states: Dictionary of batch successor state tensors.
+            next_internals: List of batch posterior internal state tensors.
+            update: Update tensor.
             fn_loss: A callable returning the loss of the current model.
             fn_kl_divergence: A callable returning the KL-divergence relative to the current model.
             return_estimated_improvement: Returns the estimated improvement resulting from the  
@@ -77,8 +101,11 @@ class NaturalGradient(Optimizer):
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
         # For more details, see our blogpost: [LINK]
 
+        # kldiv
+        kldiv = fn_kl_divergence(states=states, internals=internals, update=update)
+
         # grad(kldiv)
-        kldiv_gradients = tf.gradients(ys=fn_kl_divergence(), xs=variables)
+        kldiv_gradients = tf.gradients(ys=kldiv, xs=variables)
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to actually calculate the entire matrix explicitly.
@@ -94,8 +121,20 @@ class NaturalGradient(Optimizer):
             # [delta' * F] = grad(delta' * grad(kldiv))
             return tf.gradients(ys=x_kldiv_gradients, xs=variables)
 
+        # loss
+        loss = fn_loss(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            next_states=next_states,
+            next_internals=next_internals,
+            update=update
+        )
+
         # grad(loss)
-        loss_gradients = tf.gradients(ys=fn_loss(), xs=variables)
+        loss_gradients = tf.gradients(ys=loss, xs=variables)
 
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)

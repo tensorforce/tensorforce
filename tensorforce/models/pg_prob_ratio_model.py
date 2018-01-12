@@ -32,20 +32,22 @@ class PGProbRatioModel(PGModel):
         self,
         states_spec,
         actions_spec,
-        network_spec,
         device,
         session_config,
         scope,
         saver_spec,
         summary_spec,
         distributed_spec,
+        variable_noise,
+        states_preprocessing,
+        actions_exploration,
+        reward_preprocessing,
+        memory,
+        update_spec,
         optimizer,
         discount,
-        variable_noise,
-        states_preprocessing_spec,
-        explorations_spec,
-        reward_preprocessing_spec,
-        distributions_spec,
+        network,
+        distributions,
         entropy_regularization,
         baseline_mode,
         baseline,
@@ -60,25 +62,27 @@ class PGProbRatioModel(PGModel):
         super(PGProbRatioModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            network_spec=network_spec,
             device=device,
             session_config=session_config,
             scope=scope,
             saver_spec=saver_spec,
             summary_spec=summary_spec,
             distributed_spec=distributed_spec,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            memory=memory,
+            update_spec=update_spec,
             optimizer=optimizer,
             discount=discount,
-            variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec,
-            distributions_spec=distributions_spec,
+            network=network,
+            distributions=distributions,
             entropy_regularization=entropy_regularization,
             baseline_mode=baseline_mode,
             baseline=baseline,
             baseline_optimizer=baseline_optimizer,
-            gae_lambda=gae_lambda,
+            gae_lambda=gae_lambda
         )
 
     def initialize(self, custom_getter):
@@ -167,32 +171,16 @@ class PGProbRatioModel(PGModel):
             gain -= tf.add_n(inputs=list(losses.values()))
         return gain
 
-    def get_optimizer_kwargs(self, states, actions, terminal, reward, internals, update):
-        kwargs = super(PGProbRatioModel, self).get_optimizer_kwargs(
+    def optimizer_arguments(self, states, actions, terminal, reward, internals, next_states, next_internals):
+        arguments = super(PGProbRatioModel, self).optimizer_arguments(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
             reward=reward,
-            update=update
+            next_states=next_states,
+            next_internals=next_internals
         )
-        kwargs['fn_reference'] = (
-            lambda: self.reference(
-                states=states,
-                internals=internals,
-                actions=actions,
-                update=update
-            )
-        )
-        kwargs['fn_compare'] = (
-            lambda reference: self.compare(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                update=update,
-                reference=reference
-            )
-        )
-        return kwargs
+        arguments['fn_reference'] = self.reference
+        arguments['fn_compare'] = self.compare
+        return arguments

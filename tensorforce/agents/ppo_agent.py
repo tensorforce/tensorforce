@@ -18,11 +18,11 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce import TensorForceError
-from tensorforce.agents import BatchAgent
+from tensorforce.agents import Agent
 from tensorforce.models import PGProbRatioModel
 
 
-class PPOAgent(BatchAgent):
+class PPOAgent(Agent):
     """
     Proximal Policy Optimization agent ([Schulman et al., 2017]
     (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
@@ -32,30 +32,33 @@ class PPOAgent(BatchAgent):
         self,
         states_spec,
         actions_spec,
-        network_spec,
+        network,
         device=None,
         session_config=None,
         scope='ppo',
         saver_spec=None,
         summary_spec=None,
         distributed_spec=None,
-        discount=0.99,
         variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
-        distributions_spec=None,
-        entropy_regularization=1e-2,
+        states_preprocessing=None,
+        actions_exploration=None,
+        reward_preprocessing=None,
+        memory=None,
+        update_spec=None,
+        discount=0.99,
+        distributions=None,
+        entropy_regularization=None,
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        batched_observe=1000,
-        batch_size=1000,
-        keep_last_timestep=True,
         likelihood_ratio_clipping=None,
+        batched_observe=None,
+        batch_size=10,
+        update_frequency=None,
         step_optimizer=None,
-        optimization_steps=10
+        subsampling_fraction=0.1,
+        optimization_steps=100
     ):
 
         # random_sampling=True  # Sampling strategy for replay memory
@@ -88,7 +91,7 @@ class PPOAgent(BatchAgent):
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
             states_preprocessing_spec: Optional list of states preprocessors to apply to state  
                 (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
+            actions_exploration_spec: Optional dict specifying action exploration type (epsilon greedy  
                 or Gaussian noise).
             reward_preprocessing_spec: Optional dict specifying reward preprocessing.
             distributions_spec: Optional dict specifying action distributions to override default distribution choices.
@@ -112,22 +115,55 @@ class PPOAgent(BatchAgent):
             optimization_steps: Int specifying number of optimization steps to execute on the collected batch using
                 the step optimizer.                `
         """
-        if network_spec is None:
-            raise TensorForceError("No network_spec provided.")
+        if network is None:
+            raise TensorForceError("No network provided.")
 
-        self.network_spec = network_spec
+        if memory is None:
+            memory = dict(
+                type='latest',
+                include_next_states=False,
+                capacity=(1000 * batch_size)  # assumed episode length of 1000
+            )
+        else:
+            assert not memory['include_next_states']
+        if update_frequency is None:
+            update_frequency = batch_size
+        update_spec = dict(
+            mode='episodes',
+            batch_size=batch_size,
+            frequency=update_frequency
+        )
+        if step_optimizer is None:
+            step_optimizer = dict(
+                type='adam',
+                learning_rate=1e-4
+            )
+        optimizer = dict(
+            type='multi_step',
+            optimizer=dict(
+                type='subsampling_step',
+                optimizer=step_optimizer,
+                fraction=subsampling_fraction
+            ),
+            num_steps=optimization_steps
+        )
+
         self.device = device
         self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
         self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
-        self.distributions_spec = distributions_spec
+        self.states_preprocessing = states_preprocessing
+        self.actions_exploration = actions_exploration
+        self.reward_preprocessing = reward_preprocessing
+        self.memory = memory
+        self.update_spec = update_spec
+        self.optimizer = optimizer
+        self.discount = discount
+        self.network = network
+        self.distributions = distributions
         self.entropy_regularization = entropy_regularization
         self.baseline_mode = baseline_mode
         self.baseline = baseline
@@ -135,44 +171,32 @@ class PPOAgent(BatchAgent):
         self.gae_lambda = gae_lambda
         self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
-        if step_optimizer is None:
-            step_optimizer = dict(
-                type='adam',
-                learning_rate=2.5e-4
-            )
-
-        self.optimizer = dict(
-            type='multi_step',
-            optimizer=step_optimizer,
-            num_steps=optimization_steps
-        )
-
         super(PPOAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            batched_observe=batched_observe,
-            batch_size=batch_size,
-            keep_last_timestep=keep_last_timestep
+            batched_observe=batched_observe
         )
 
     def initialize_model(self):
         return PGProbRatioModel(
             states_spec=self.states_spec,
             actions_spec=self.actions_spec,
-            network_spec=self.network_spec,
             device=self.device,
             session_config=self.session_config,
             scope=self.scope,
             saver_spec=self.saver_spec,
             summary_spec=self.summary_spec,
             distributed_spec=self.distributed_spec,
+            variable_noise=self.variable_noise,
+            states_preprocessing=self.states_preprocessing,
+            actions_exploration=self.actions_exploration,
+            reward_preprocessing=self.reward_preprocessing,
+            memory=self.memory,
+            update_spec=self.update_spec,
             optimizer=self.optimizer,
             discount=self.discount,
-            variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec,
-            distributions_spec=self.distributions_spec,
+            network=self.network,
+            distributions=self.distributions,
             entropy_regularization=self.entropy_regularization,
             baseline_mode=self.baseline_mode,
             baseline=self.baseline,

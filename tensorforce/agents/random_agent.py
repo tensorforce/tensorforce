@@ -36,11 +36,6 @@ class RandomAgent(Agent):
         saver_spec=None,
         summary_spec=None,
         distributed_spec=None,
-        discount=0.99,
-        variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
         batched_observe=1000
     ):
         """
@@ -65,32 +60,17 @@ class RandomAgent(Agent):
             distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
                 cluster spec.
-            discount: Float specifying reward discount factor.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
-            preprocessing: Optional list of preprocessors (e.g. `image_resize`, `grayscale`) to apply to state. Each
-                preprocessor is a dict containing a type and optional necessary arguments.
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
         """
 
-        self.optimizer = None
         self.device = device
         self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
-        self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
 
         super(RandomAgent, self).__init__(
             states_spec=states_spec,
@@ -107,11 +87,5 @@ class RandomAgent(Agent):
             scope=self.scope,
             saver_spec=self.saver_spec,
             summary_spec=self.summary_spec,
-            distributed_spec=self.distributed_spec,
-            optimizer=self.optimizer,
-            discount=self.discount,
-            variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec
+            distributed_spec=self.distributed_spec
         )

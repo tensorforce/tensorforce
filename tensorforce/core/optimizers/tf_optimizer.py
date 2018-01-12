@@ -62,25 +62,56 @@ class TFOptimizer(Optimizer):
             'gradient_descent', 'momentum', 'rmsprop'.
             **kwargs: Additional arguments passed on to the TensorFlow optimizer constructor.
         """
-        super(TFOptimizer, self).__init__(summaries=summaries, summary_labels=summary_labels)     
+        super(TFOptimizer, self).__init__(summaries=summaries, summary_labels=summary_labels)
 
         self.name = optimizer
         self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
 
-    def tf_step(self, time, variables, fn_loss, **kwargs):
+    def tf_step(
+        self,
+        time,
+        variables,
+        states,
+        internals,
+        actions,
+        terminal,
+        reward,
+        next_states,
+        next_internals,
+        update,
+        fn_loss,
+        **kwargs
+    ):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
+            states: Dictionary of batch state tensors.
+            internals: List of batch internal tensors.
+            actions: Dictionary of batch action tensors.
+            terminal: Batch terminal tensor.
+            reward: Batch reward tensor.
+            next_states: Dictionary of batch successor state tensors.
+            next_internals: List of batch posterior internal state tensors.
+            update: Update tensor.
             fn_loss: A callable returning the loss of the current model.
             **kwargs: Additional arguments, not used.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        loss = fn_loss()
+        loss = fn_loss(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            next_states=next_states,
+            next_internals=next_internals,
+            update=update
+        )
 
         with tf.control_dependencies(control_inputs=(loss,)):
             # Trivial operation to enforce control dependency

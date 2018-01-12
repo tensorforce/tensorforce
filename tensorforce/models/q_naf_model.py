@@ -32,27 +32,27 @@ class QNAFModel(QModel):
         self,
         states_spec,
         actions_spec,
-        network_spec,
         device,
         session_config,
         scope,
         saver_spec,
         summary_spec,
         distributed_spec,
+        variable_noise,
+        states_preprocessing,
+        actions_exploration,
+        reward_preprocessing,
+        memory,
+        update_spec,
         optimizer,
         discount,
-        variable_noise,
-        states_preprocessing_spec,
-        explorations_spec,
-        reward_preprocessing_spec,
-        distributions_spec,
+        network,
+        distributions,
         entropy_regularization,
         target_sync_frequency,
         target_update_weight,
         double_q_model,
-        huber_loss,
-        # TEMP: Random sampling fix
-        random_sampling_fix
+        huber_loss
     ):
         if any(action['type'] != 'float' or 'min_value' in action or 'max_value' in action for action in actions_spec.values()):
             raise TensorForceError("Only unconstrained float actions valid for NAFModel.")
@@ -60,27 +60,27 @@ class QNAFModel(QModel):
         super(QNAFModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            network_spec=network_spec,
             device=device,
             session_config=session_config,
             scope=scope,
             saver_spec=saver_spec,
             summary_spec=summary_spec,
             distributed_spec=distributed_spec,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            memory=memory,
+            update_spec=update_spec,
             optimizer=optimizer,
             discount=discount,
-            variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec,
-            distributions_spec=distributions_spec,
+            network=network,
+            distributions=distributions,
             entropy_regularization=entropy_regularization,
             target_sync_frequency=target_sync_frequency,
             target_update_weight=target_update_weight,
             double_q_model=double_q_model,
-            huber_loss=huber_loss,
-            # TEMP: Random sampling fix
-            random_sampling_fix=random_sampling_fix
+            huber_loss=huber_loss
         )
 
     def initialize(self, custom_getter):
@@ -135,47 +135,17 @@ class QNAFModel(QModel):
 
         return tf.reshape(tensor=q_value, shape=((-1,) + self.actions_spec[name]['shape']))
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         # Michael: doubling this function because NAF needs V'(s) not Q'(s), see comment below
-        # TEMP: Random sampling fix
-        if self.random_sampling_fix:
-            next_states = {name: tf.identity(input=state) for name, state in self.next_states_input.items()}
-            next_states = self.fn_preprocess_states(states=next_states)
-            next_states = {name: tf.stop_gradient(input=state) for name, state in next_states.items()}
+        embedding = self.network.apply(x=states, internals=internals, update=update)
 
-            embedding, next_internals = self.network.apply(
-                x=states,
-                internals=internals,
-                update=update,
-                return_internals=True
-            )
-
-            # Both networks can use the same internals, could that be a problem?
-            # Otherwise need to handle internals indices correctly everywhere
-            target_embedding = self.target_network.apply(
-                x=next_states,
-                internals=next_internals,
-                update=update
-            )
-
-        else:
-            embedding = self.network.apply(
-                x={name: state[:-1] for name, state in states.items()},
-                internals=[internal[:-1] for internal in internals],
-                update=update
-            )
-
-            # Both networks can use the same internals, could that be a problem?
-            # Otherwise need to handle internals indices correctly everywhere
-            target_embedding = self.target_network.apply(
-                x={name: state[1:] for name, state in states.items()},
-                internals=[internal[1:] for internal in internals],
-                update=update
-            )
-
-            actions = {name: action[:-1] for name, action in actions.items()}
-            terminal = terminal[:-1]
-            reward = reward[:-1]
+        # Both networks can use the same internals, could that be a problem?
+        # Otherwise need to handle internals indices correctly everywhere
+        target_embedding = self.target_network.apply(
+            x=next_states,
+            internals=next_internals,
+            update=update
+        )
 
         deltas = list()
         for name, distribution in self.distributions.items():

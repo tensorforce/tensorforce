@@ -29,8 +29,8 @@ class TestConstantAgent(BaseAgentTest, unittest.TestCase):
     deterministic = False
     requires_network = False
 
-    # Just testing one test, otherwise we would have to specify constant values of every type for every
-    # test and override all base tests
+    # Just testing float and bounded test, otherwise we would have to specify constant values of  
+    # every type for every test and override all base tests
     config = dict(
         action_values=dict(
             action=1.0
@@ -39,6 +39,5 @@ class TestConstantAgent(BaseAgentTest, unittest.TestCase):
 
     exclude_bool = True
     exclude_int = True
-    exclude_bounded = True
     exclude_multi = True
     exclude_lstm = True

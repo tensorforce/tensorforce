@@ -30,7 +30,7 @@ class Evolutionary(Optimizer):
     or negatively, depending on their improvement of the loss.
     """
 
-    def __init__(self, learning_rate, num_samples=1, summaries=None, summary_labels=None):
+    def __init__(self, learning_rate, num_samples=1, unroll_loop=True, summaries=None, summary_labels=None):
         """
         Creates a new evolutionary optimizer instance.
 
@@ -40,59 +40,109 @@ class Evolutionary(Optimizer):
         """
         super(Evolutionary, self).__init__(summaries=summaries, summary_labels=summary_labels)
 
-        assert learning_rate > 0.0
+        assert isinstance(learning_rate, float) and learning_rate > 0.0
         self.learning_rate = learning_rate
 
-        assert num_samples >= 1
+        assert isinstance(num_samples, int) and num_samples > 0
         self.num_samples = num_samples
 
-    def tf_step(self, time, variables, fn_loss, **kwargs):
+        assert isinstance(unroll_loop, bool)
+        self.unroll_loop = unroll_loop
+
+    def tf_step(
+        self,
+        time,
+        variables,
+        states,
+        internals,
+        actions,
+        terminal,
+        reward,
+        next_states,
+        next_internals,
+        update,
+        fn_loss,
+        **kwargs
+    ):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
+            states: Dictionary of batch state tensors.
+            internals: List of batch internal tensors.
+            actions: Dictionary of batch action tensors.
+            terminal: Batch terminal tensor.
+            reward: Batch reward tensor.
+            next_states: Dictionary of batch successor state tensors.
+            next_internals: List of batch posterior internal state tensors.
+            update: Update tensor.
             fn_loss: A callable returning the loss of the current model.
             **kwargs: Additional arguments, not used.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        unperturbed_loss = fn_loss()
-        deltas = variables
-        deltas_list = list()
-        previous_perturbations = None
+        unperturbed_loss = fn_loss(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            next_states=next_states,
+            next_internals=next_internals,
+            update=update
+        )
 
-        for sample in xrange(self.num_samples):
+        if self.unroll_loop:
+            # Unrolled for loop
+            deltas = variables
+            deltas_list = list()
+            previous_perturbations = None
+
+            for sample in xrange(self.num_samples):
+
+                with tf.control_dependencies(control_inputs=deltas):
+                    perturbations = [tf.random_normal(shape=util.shape(t)) * self.learning_rate for t in deltas]
+                    if previous_perturbations is None:
+                        applied = self.apply_step(variables=variables, deltas=perturbations)
+                    else:
+                        perturbation_deltas = [
+                            pert - prev_pert for pert, prev_pert in zip(perturbations, previous_perturbations)
+                        ]
+                        applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
+                    previous_perturbations = perturbations
+
+                with tf.control_dependencies(control_inputs=(applied,)):
+                    perturbed_loss = fn_loss(
+                        states=states,
+                        internals=internals,
+                        actions=actions,
+                        terminal=terminal,
+                        reward=reward,
+                        next_states=next_states,
+                        next_internals=next_internals,
+                        update=update
+                    )
+                    direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
+
+                with tf.control_dependencies(control_inputs=(direction,)):
+                    deltas = [direction * perturbation for perturbation in perturbations]
+                    deltas_list.append(deltas)
 
             with tf.control_dependencies(control_inputs=deltas):
-                perturbations = [tf.random_normal(shape=util.shape(t)) * self.learning_rate for t in deltas]
-                if previous_perturbations is None:
-                    applied = self.apply_step(variables=variables, deltas=perturbations)
-                else:
-                    perturbation_deltas = [
-                        pert - prev_pert for pert, prev_pert in zip(perturbations, previous_perturbations)
-                    ]
-                    applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
-                previous_perturbations = perturbations
+                deltas = [
+                    tf.add_n(inputs=[deltas[n] for deltas in deltas_list]) / self.num_samples
+                    for n in range(len(deltas_list[0]))
+                ]
+                perturbation_deltas = [delta - pert for delta, pert in zip(deltas, previous_perturbations)]
+                applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
 
             with tf.control_dependencies(control_inputs=(applied,)):
-                perturbed_loss = fn_loss()
-                direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
+                # Trivial operation to enforce control dependency
+                return [delta + 0.0 for delta in deltas]
 
-            with tf.control_dependencies(control_inputs=(direction,)):
-                deltas = [direction * perturbation for perturbation in perturbations]
-                deltas_list.append(deltas)
-
-        with tf.control_dependencies(control_inputs=deltas):
-            deltas = [
-                tf.add_n(inputs=[deltas[n] for deltas in deltas_list]) / self.num_samples
-                for n in range(len(deltas_list[0]))
-            ]
-            perturbation_deltas = [delta - pert for delta, pert in zip(deltas, previous_perturbations)]
-            applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
-
-        with tf.control_dependencies(control_inputs=(applied,)):
-            # Trivial operation to enforce control dependency
-            return [delta + 0.0 for delta in deltas]
+        else:
+            # TensorFlow while loop
+            assert False

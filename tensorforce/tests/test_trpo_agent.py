@@ -27,9 +27,13 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
 
     agent = TRPOAgent
     deterministic = False
-
     config = dict(
-        batch_size=8,
+        memory=dict(
+            type='latest',
+            include_next_states=False,
+            capacity=100
+        ),
+        batch_size=4,
         learning_rate=1e-2
     )
 

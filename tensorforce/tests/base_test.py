@@ -44,7 +44,7 @@ class BaseTest(object):
         """
         pass
 
-    def base_test_pass(self, name, environment, network_spec, **kwargs):
+    def base_test_pass(self, name, environment, network, **kwargs):
         """
         Basic test loop, requires an Agent to achieve a certain performance on an environment.
         """
@@ -59,7 +59,7 @@ class BaseTest(object):
                 agent = self.__class__.agent(
                     states_spec=environment.states,
                     actions_spec=environment.actions,
-                    network_spec=network_spec,
+                    network=network,
                     **kwargs
                 )
             else:
@@ -94,7 +94,7 @@ class BaseTest(object):
         sys.stdout.flush()
         self.assertTrue(passed >= 2)
 
-    def base_test_run(self, name, environment, network_spec, **kwargs):
+    def base_test_run(self, name, environment, network, **kwargs):
         """
         Run test, tests whether algorithm can run and update without compilation errors,
         not whether it passes.
@@ -107,7 +107,7 @@ class BaseTest(object):
             agent = self.__class__.agent(
                 states_spec=environment.states,
                 actions_spec=environment.actions,
-                network_spec=network_spec,
+                network=network,
                 **kwargs
             )
         else:

@@ -160,7 +160,7 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
             obj = getattr(module, function_name)
         else:
             predef_obj_keys = list(predefined_objects.keys())
-            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(obj,predef_obj_keys))
+            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(obj, predef_obj_keys))
     elif callable(obj):
         pass
     elif default_object is not None:
@@ -175,13 +175,13 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
 
 class UpdateSummarySaverHook(tf.train.SummarySaverHook):
 
-    def __init__(self, update_input, *args, **kwargs):
+    def __init__(self, is_optimizing, *args, **kwargs):
         super(UpdateSummarySaverHook, self).__init__(*args, **kwargs)
-        self.update_input = update_input
+        self.is_optimizing = is_optimizing
 
     def before_run(self, run_context):
         self._request_summary = run_context.original_args[1] is not None and \
-            run_context.original_args[1].get(self.update_input, False) and \
+            run_context.original_args[1].get(self.is_optimizing, False) and \
             (self._next_step is None or self._timer.should_trigger_for_step(self._next_step))
         requests = {'global_step': self._global_step_tensor}
         if self._request_summary:

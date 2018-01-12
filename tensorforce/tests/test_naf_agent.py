@@ -14,21 +14,32 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
     deterministic = True
 
     config = dict(
-        memory=dict(
-            type='replay',
-            capacity=1000
-        ),
-        optimizer=dict(
-            type='adam',
-            learning_rate=0.001
-        ),
-        explorations_spec=dict(
+        actions_exploration=dict(
             type="ornstein_uhlenbeck"
         ),
-        repeat_update=4,
+        memory=dict(
+            type='replay',
+            include_next_states=True,
+            capacity=100
+        ),
+        optimizer=dict(
+            type="adam",
+            learning_rate=1e-2
+        ),
+        target_sync_frequency=10,
         batch_size=8,
-        first_update=8,
-        target_sync_frequency=10
+        update_frequency=4
+        # memory=dict(
+        #     type='replay',
+        #     capacity=1000
+        # ),
+        # optimizer=dict(
+        #     type='adam',
+        #     learning_rate=0.001
+        # ),
+        # batch_size=8,
+        # first_update=8,
+        # repeat_update=4
     )
 
     exclude_bool = True

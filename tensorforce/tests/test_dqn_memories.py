@@ -31,31 +31,35 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
 
     def test_replay(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         config = dict(
             memory=dict(
                 type='replay',
-                capacity=1000
+                include_next_states=True,
+                capacity=100
             ),
-            repeat_update=4,
-            batch_size=32,
-            first_update=64,
-            target_sync_frequency=10
+            optimizer=dict(
+                type="adam",
+                learning_rate=1e-2
+            ),
+            target_sync_frequency=10,
+            batch_size=8,
+            update_frequency=4
         )
 
         self.base_test_pass(
             name='replay',
             environment=environment,
-            network_spec=network_spec,
+            network=network,
             **config
         )
 
     def test_prioritized_replay(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
@@ -63,41 +67,49 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
         config = dict(
             memory=dict(
                 type='prioritized_replay',
-                capacity=1000
+                include_next_states=True,
+                capacity=100
             ),
-            repeat_update=4,
-            batch_size=32,
-            first_update=64,
-            target_sync_frequency=10
+            optimizer=dict(
+                type="adam",
+                learning_rate=1e-2
+            ),
+            target_sync_frequency=10,
+            batch_size=8,
+            update_frequency=4
         )
 
         self.base_test_pass(
             name='prioritized-replay',
             environment=environment,
-            network_spec=network_spec,
+            network=network,
             **config
         )
 
     def test_naive_prioritized_replay(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         config = dict(
             memory=dict(
                 type='naive_prioritized_replay',
-                capacity=1000
+                include_next_states=True,
+                capacity=100
             ),
-            repeat_update=4,
-            batch_size=32,
-            first_update=64,
-            target_sync_frequency=10
+            optimizer=dict(
+                type="adam",
+                learning_rate=1e-2
+            ),
+            target_sync_frequency=10,
+            batch_size=8,
+            update_frequency=4
         )
 
         self.base_test_pass(
             name='naive-prioritized-replay',
             environment=environment,
-            network_spec=network_spec,
+            network=network,
             **config
         )

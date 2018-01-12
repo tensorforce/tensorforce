@@ -35,10 +35,6 @@ Further, the following TensorFlow functions should be extended accordingly:
 
 Finally, the following TensorFlow functions can be useful in some cases:
 
-* `preprocess_states(states)` for state preprocessing, returning the processed batch of states.
-* `action_exploration(action, exploration, action_spec)` for action postprocessing (e.g. exploration), returning the processed batch of actions.
-* `preprocess_reward(states, internals, terminal, reward)` for reward preprocessing (e.g. reward normalization), returning the processed batch of rewards.
-* `create_output_operations(states, internals, actions, terminal, reward, deterministic)` for further output operations, similar to the two above for `Model.act` and `Model.update`.
 * `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations (e.g. the baseline update in a `PGModel` or the target network update in a `QModel`), returning a single grouped optimization operation.
 """
 
@@ -54,7 +50,6 @@ import tensorflow as tf
 
 from tensorforce import TensorForceError, util
 from tensorforce.core.explorations import Exploration
-from tensorforce.core.optimizers import Optimizer, GlobalOptimizer
 from tensorforce.core.preprocessing import PreprocessorStack
 
 
@@ -73,12 +68,10 @@ class Model(object):
         saver_spec,
         summary_spec,
         distributed_spec,
-        optimizer,
-        discount,
         variable_noise,
-        states_preprocessing_spec,
-        explorations_spec,
-        reward_preprocessing_spec
+        states_preprocessing,
+        actions_exploration,
+        reward_preprocessing
     ):
         # States and actions specifications
         self.states_spec = states_spec
@@ -100,20 +93,14 @@ class Model(object):
         else:
             self.summary_labels = set(summary_spec.get('labels', ()))
 
-        # Optimizer
-        self.optimizer = optimizer
-
-        # Discount factor
-        self.discount = discount
-
         # Variable noise
         assert variable_noise is None or variable_noise > 0.0
         self.variable_noise = variable_noise
 
         # Preprocessing and exploration
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
+        self.states_preprocessing = states_preprocessing
+        self.actions_exploration = actions_exploration
+        self.reward_preprocessing = reward_preprocessing
 
         # Setup TensorFlow graph and session
         self.setup()
@@ -147,6 +134,10 @@ class Model(object):
             self.graph = tf.get_default_graph()
 
         else:
+            self.optimizer = dict(
+                type='global_optimizer',
+                optimizer=self.optimizer
+            )
             graph = tf.Graph()
             default_graph = graph.as_default()
             default_graph.__enter__()
@@ -211,66 +202,38 @@ class Model(object):
             # Create placeholders, tf functions, internals, etc
             self.initialize(custom_getter=custom_getter)
 
-            # Input tensors
-            states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
-            states = self.fn_preprocess_states(states=states)
-            states = {name: tf.stop_gradient(input=state) for name, state in states.items()}
-            internals = [tf.identity(input=internal) for internal in self.internals_input]
-            actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
-            terminal = tf.identity(input=self.terminal_input)
-            reward = tf.identity(input=self.reward_input)
-            reward = self.fn_preprocess_reward(states=states, internals=internals, terminal=terminal, reward=reward)
-            reward = tf.stop_gradient(input=reward)
+            # self.fn_actions_and_internals(
+            #     states=states,
+            #     internals=internals,
+            #     update=update,
+            #     deterministic=deterministic
+            # )
+            # self.fn_loss_per_instance(
+            #     states=states,
+            #     internals=internals,
+            #     actions=actions,
+            #     terminal=terminal,
+            #     reward=reward,
+            #     update=update
+            # )
 
-            # Optimizer
-            kwargs_opt = dict()
-            kwargs_opt['summaries']         =self.summaries
-            kwargs_opt['summary_labels']    =self.summary_labels            
-            if self.optimizer is None:
-                pass
-            elif self.distributed_spec is not None and \
-                    not self.distributed_spec.get('parameter_server') and \
-                    not self.distributed_spec.get('replica_model'):
-                # If not internal global model
-                self.optimizer = GlobalOptimizer(optimizer=self.optimizer)
-            else:
-                self.optimizer = Optimizer.from_spec(spec=self.optimizer, kwargs=kwargs_opt)
+            # Create output operations
+            self.fn_initialize()
+            self.create_act_outputs()
+            self.create_observe_outputs()
 
-            # Create output fetch operations
-            self.create_output_operations(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                update=self.update_input,
-                deterministic=self.deterministic_input
-            )
-
-            for name, action in self.actions_output.items():
-                if name in self.explorations:
-                    self.actions_output[name] = tf.cond(
-                        pred=self.deterministic_input,
-                        true_fn=(lambda: action),
-                        false_fn=(lambda: self.action_exploration(
-                            action=action,
-                            exploration=self.explorations[name],
-                            action_spec=self.actions_spec[name]
-                        ))
-                    )
-
-            if any(k in self.summary_labels for k in ['inputs','states','actions','rewards']): 
-                if any(k in self.summary_labels for k in ['inputs','states']):               
-                    for name, state in states.items():
-                        summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=state)
-                        self.summaries.append(summary)
-                if any(k in self.summary_labels for k in ['inputs','actions']):                                       
-                    for name, action in actions.items():
-                        summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=action)
-                        self.summaries.append(summary)
-                if any(k in self.summary_labels for k in ['inputs','rewards']):                                       
-                    summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
-                    self.summaries.append(summary)
+            # if any(k in self.summary_labels for k in ['inputs','states','actions','rewards']): 
+            #     if any(k in self.summary_labels for k in ['inputs','states']):               
+            #         for name, state in states.items():
+            #             summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=state)
+            #             self.summaries.append(summary)
+            #     if any(k in self.summary_labels for k in ['inputs','actions']):                                       
+            #         for name, action in actions.items():
+            #             summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=action)
+            #             self.summaries.append(summary)
+            #     if any(k in self.summary_labels for k in ['inputs','rewards']):                                       
+            #         summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
+            #         self.summaries.append(summary)
 
         if self.distributed_spec is not None:
             if self.distributed_spec.get('replica_model'):
@@ -388,7 +351,7 @@ class Model(object):
                 filename_suffix=None
             )
             self.summary_writer_hook = util.UpdateSummarySaverHook(
-                update_input=self.update_input,
+                is_optimizing=self.is_optimizing,
                 save_steps=self.summary_spec.get('steps'),  # Either one or the other has to be set.
                 save_secs=self.summary_spec.get('seconds', None if 'steps' in self.summary_spec else 120),
                 output_dir=None,  # None since given via 'summary_writer' argument.
@@ -490,33 +453,32 @@ class Model(object):
             custom_getter: The `custom_getter_` object to use for `tf.make_template` when creating TensorFlow functions.
         """
 
-        # States preprocessing
-        self.states_preprocessing = dict()
-        if self.states_preprocessing_spec is None:
-            for name, state in self.states_spec.items():
-                state['processed_shape'] = state['shape']
-        elif isinstance(self.states_preprocessing_spec, list):
-            for name, state in self.states_spec.items():
-                preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
-                self.states_preprocessing[name] = preprocessing
-                state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
-        else:
-            for name, state in self.states_spec.items():
-                if self.states_preprocessing_spec.get(name) is not None:
-                    preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec[name])
-                    self.states_preprocessing[name] = preprocessing
-                    state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
-                else:
-                    state['processed_shape'] = state['shape']
-
         # States
         self.states_input = dict()
         for name, state in self.states_spec.items():
             self.states_input[name] = tf.placeholder(
                 dtype=util.tf_dtype(state['type']),
                 shape=(None,) + tuple(state['shape']),
-                name=name
+                name=('state-' + name)
             )
+
+        # States preprocessing
+        preprocessing = dict()
+        if self.states_preprocessing is None:
+            for name, state in self.states_spec.items():
+                state['processed_shape'] = state['shape']
+        elif all(name in self.states_spec for name in self.states_preprocessing):
+            for name, state in self.states_spec.items():
+                if name in self.states_preprocessing:
+                    preprocessing[name] = PreprocessorStack.from_spec(spec=self.states_preprocessing[name])
+                    state['processed_shape'] = preprocessing[name].processed_shape(shape=state['shape'])
+                else:
+                    state['processed_shape'] = state['shape']
+        else:
+            for name, state in self.states_spec.items():
+                preprocessing[name] = PreprocessorStack.from_spec(spec=self.states_preprocessing)
+                state['processed_shape'] = preprocessing[name].processed_shape(shape=state['shape'])
+        self.states_preprocessing = preprocessing
 
         # Actions
         self.actions_input = dict()
@@ -524,49 +486,45 @@ class Model(object):
             self.actions_input[name] = tf.placeholder(
                 dtype=util.tf_dtype(action['type']),
                 shape=(None,) + tuple(action['shape']),
-                name=name
+                name=('action-' + name)
             )
 
-        # Explorations
-        self.explorations = dict()
-        if self.explorations_spec is None:
+        # Actions exploration
+        exploration = dict()
+        if self.actions_exploration is None:
             pass
-        elif isinstance(self.explorations_spec, list):
+        elif all(name in self.actions_spec for name in self.actions_exploration):
             for name, state in self.actions_spec.items():
-                self.explorations[name] = Exploration.from_spec(spec=self.explorations_spec)
+                if name in self.actions_exploration:
+                    exploration[name] = Exploration.from_spec(spec=self.actions_exploration[name])
         else:
             for name, state in self.actions_spec.items():
-                if self.explorations_spec.get(name) is not None:
-                    self.explorations[name] = Exploration.from_spec(spec=self.explorations_spec[name])
+                exploration[name] = Exploration.from_spec(spec=self.actions_exploration)
+        self.actions_exploration = exploration
 
         # Terminal
         self.terminal_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(None,), name='terminal')
 
+        # Reward
+        self.reward_input = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name='reward')
+
         # Reward preprocessing
-        if self.reward_preprocessing_spec is None:
-            self.reward_preprocessing = None
-        else:
-            self.reward_preprocessing = PreprocessorStack.from_spec(spec=self.reward_preprocessing_spec)
+        if self.reward_preprocessing is not None:
+            self.reward_preprocessing = PreprocessorStack.from_spec(spec=self.reward_preprocessing)
             if self.reward_preprocessing.processed_shape(shape=()) != ():
                 raise TensorForceError("Invalid reward preprocessing!")
 
-        # Reward
-        self.reward_input = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name='reward')
+        # Deterministic action flag
+        self.deterministic_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='deterministic')
 
         # Internal states
         self.internals_input = list()
         self.internals_init = list()
 
-        # Deterministic action flag
-        self.deterministic_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='deterministic')
-
-        # Update flag
-        self.update_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='update')
-
         # TensorFlow functions
-        self.fn_discounted_cumulative_reward = tf.make_template(
-            name_=(self.scope + '/discounted-cumulative-reward'),
-            func_=self.tf_discounted_cumulative_reward,
+        self.fn_initialize = tf.make_template(
+            name_=(self.scope + '/initialize'),
+            func_=self.tf_initialize,
             custom_getter_=custom_getter
         )
         self.fn_actions_and_internals = tf.make_template(
@@ -574,29 +532,9 @@ class Model(object):
             func_=self.tf_actions_and_internals,
             custom_getter_=custom_getter
         )
-        self.fn_loss_per_instance = tf.make_template(
-            name_=(self.scope + '/loss-per-instance'),
-            func_=self.tf_loss_per_instance,
-            custom_getter_=custom_getter
-        )
-        self.fn_regularization_losses = tf.make_template(
-            name_=(self.scope + '/regularization-losses'),
-            func_=self.tf_regularization_losses,
-            custom_getter_=custom_getter
-        )
-        self.fn_loss = tf.make_template(
-            name_=(self.scope + '/loss'),
-            func_=self.tf_loss,
-            custom_getter_=custom_getter
-        )
-        self.fn_optimization = tf.make_template(
-            name_=(self.scope + '/optimization'),
-            func_=self.tf_optimization,
-            custom_getter_=custom_getter
-        )
-        self.fn_preprocess_states = tf.make_template(
-            name_=(self.scope + '/preprocess-states'),
-            func_=self.tf_preprocess_states,
+        self.fn_observe_timestep = tf.make_template(
+            name_=(self.scope + '/observe-timestep'),
+            func_=self.tf_observe_timestep,
             custom_getter_=custom_getter
         )
         self.fn_action_exploration = tf.make_template(
@@ -604,33 +542,60 @@ class Model(object):
             func_=self.tf_action_exploration,
             custom_getter_=custom_getter
         )
-        self.fn_preprocess_reward = tf.make_template(
-            name_=(self.scope + '/preprocess-reward'),
-            func_=self.tf_preprocess_reward,
-            custom_getter_=custom_getter
-        )
 
         self.summary_configuration_op = None
         if self.summary_spec and 'meta_param_recorder_class' in self.summary_spec:
             self.summary_configuration_op = self.summary_spec['meta_param_recorder_class'].build_metagraph_list()
-          
+
         # self.fn_summarization = tf.make_template(
         #     name_='summarization',
         #     func_=self.tf_summarization,
         #     custom_getter_=custom_getter
         # )
 
-    def tf_preprocess_states(self, states):
-        """
-        Applies optional pre-processing to the states.
-        """
-        for name, state in states.items():
-            if name in self.states_preprocessing:
-                states[name] = self.states_preprocessing[name].process(tensor=state)
-            else:
-                states[name] = tf.identity(input=state)
+    def tf_initialize(self):
+        # Optimization flag
+        self.is_optimizing = tf.get_variable(
+            # getter=tf.get_variable,
+            name='is-optimizing',
+            shape=(),
+            dtype=util.tf_dtype('bool'),
+            trainable=False
+        )
 
-        return states
+        # Current states variable
+        self.current_states = dict()
+        for name, state in self.states_spec.items():
+            self.current_states[name] = tf.get_variable(
+                # getter=tf.get_variable,
+                name=('state-' + name),
+                shape=((1,) + tuple(state['shape'])),  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                dtype=util.tf_dtype(state['type']),
+                trainable=False
+            )
+
+        # Current internals variable
+        # Internal states spec !!!
+        self.current_internals = list()
+        for n, internal_input in enumerate(self.internals_input):
+            self.current_internals.append(tf.get_variable(
+                # getter=tf.get_variable,
+                name=('internal' + str(n)),
+                shape=((1,) + tuple(util.shape(x=internal_input))[1:]),  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                dtype=internal_input.dtype,
+                trainable=False
+            ))
+
+        # Current actions variable
+        self.current_actions = dict()
+        for name, action in self.actions_spec.items():
+            self.current_actions[name] = tf.get_variable(
+                # getter=tf.get_variable,
+                name=('action-' + name),
+                shape=((1,) + tuple(action['shape'])),  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                dtype=util.tf_dtype(action['type']),
+                trainable=False
+            )
 
     def tf_action_exploration(self, action, exploration, action_spec):
         """
@@ -658,7 +623,9 @@ class Model(object):
             )
 
         elif action_spec['type'] == 'float':
-            action += tf.reshape(tensor=exploration_value, shape=tuple(1 for _ in range(len(action_shape))))
+            for _ in range(util.rank(action) - 1):
+                exploration_value = tf.expand_dims(input=exploration_value, axis=1)
+            action += exploration_value
             if 'min_value' in action_spec:
                 action = tf.clip_by_value(
                     t=action,
@@ -668,51 +635,7 @@ class Model(object):
 
         return action
 
-    def tf_preprocess_reward(self, states, internals, terminal, reward):
-        """
-        Applies optional pre-processing to the reward.
-        """
-        if self.reward_preprocessing is None:
-            reward = tf.identity(input=reward)
-        else:
-            reward = self.reward_preprocessing.process(tensor=reward)
-
-        return reward
-
-    def tf_discounted_cumulative_reward(self, terminal, reward, discount, final_reward=0.0):
-        """
-        Creates the TensorFlow operations for calculating the discounted cumulative rewards
-        for a given sequence of rewards.
-
-        Args:
-            terminal: Terminal boolean tensor.
-            reward: Reward tensor.
-            discount: Discount factor.
-            final_reward: Last reward value in the sequence.
-
-        Returns:
-            Discounted cumulative reward tensor.
-        """
-
-        # TODO: n-step cumulative reward (particularly for envs without terminal)
-
-        def cumulate(cumulative, reward_and_terminal):
-            rew, term = reward_and_terminal
-            return tf.where(
-                condition=term,
-                x=rew,
-                y=(rew + cumulative * discount)
-            )
-
-        # Reverse since reward cumulation is calculated right-to-left, but tf.scan only works left-to-right
-        reward = tf.reverse(tensor=reward, axis=(0,))
-        terminal = tf.reverse(tensor=terminal, axis=(0,))
-
-        reward = tf.scan(fn=cumulate, elems=(reward, terminal), initializer=final_reward)
-
-        return tf.reverse(tensor=reward, axis=(0,))
-
-    def tf_actions_and_internals(self, states, internals, update, deterministic):
+    def tf_actions_and_internals(self, states, internals, deterministic):
         """
         Creates the TensorFlow operations for retrieving the actions (and posterior internal states)
         in reaction to the given input states (and prior internal states).
@@ -720,7 +643,6 @@ class Model(object):
         Args:
             states: Dict of state tensors.
             internals: List of prior internal state tensors.
-            update: Boolean tensor indicating whether this call happens during an update.
             deterministic: Boolean tensor indicating whether action should be chosen  
                 deterministically.
 
@@ -729,10 +651,10 @@ class Model(object):
         """
         raise NotImplementedError
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
+    def tf_observe_timestep(self, states, internals, actions, terminal, reward):
         """
-        Creates the TensorFlow operations for calculating the loss per batch instance
-        of the given input states and actions.
+        Creates the TensorFlow operations for performing the observation of a full timestep  
+        information.
 
         Args:
             states: Dict of state tensors.
@@ -740,153 +662,34 @@ class Model(object):
             actions: Dict of action tensors.
             terminal: Terminal boolean tensor.
             reward: Reward tensor.
-            update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:
-            Loss tensor.
+            The observation operation.
         """
         raise NotImplementedError
 
-    def tf_regularization_losses(self, states, internals, update):
-        """
-        Creates the TensorFlow operations for calculating the regularization losses for the given input states.
+    def create_act_outputs(self):
+        assignment = tf.assign(ref=self.is_optimizing, value=False)
 
-        Args:
-            states: Dict of state tensors.
-            internals: List of prior internal state tensors.
-            update: Boolean tensor indicating whether this call happens during an update.
+        # Act inputs
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
+            internals = [tf.identity(input=internal) for internal in self.internals_input]
+            deterministic = tf.identity(input=self.deterministic_input)
 
-        Returns:
-            Dict of regularization loss tensors.
-        """
-        return dict()
+        # States preprocessing
+        for name, preprocessing in self.states_preprocessing.items():
+            states[name] = preprocessing.process(tensor=states[name])
 
-    def tf_loss(self, states, internals, actions, terminal, reward, update):
-        # Mean loss per instance
-        loss_per_instance = self.fn_loss_per_instance(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            update=update
-        )
-        loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
-
-        # Loss without regularization summary
-        if 'losses' in self.summary_labels:
-            summary = tf.summary.scalar(name='loss-without-regularization', tensor=loss)
-            self.summaries.append(summary)
-
-        # Regularization losses
-        losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
-        if len(losses) > 0:
-            loss += tf.add_n(inputs=list(losses.values()))
-            if 'regularization' in self.summary_labels:
-                for name, loss_val in losses.items():
-                    summary = tf.summary.scalar(name="regularization/"+name, tensor=loss_val)
-                    self.summaries.append(summary)
-
-        # Total loss summary
-        if 'losses' in self.summary_labels or 'total-loss' in self.summary_labels:
-            summary = tf.summary.scalar(name='total-loss', tensor=loss)
-            self.summaries.append(summary)
-
-        return loss
-
-    def get_optimizer_kwargs(self, states, internals, actions, terminal, reward, update):
-        """
-        Returns the optimizer arguments including the time, the list of variables to optimize,
-        and various argument-free functions (in particular `fn_loss` returning the combined
-        0-dim batch loss tensor) which the optimizer might require to perform an update step.
-
-        Args:
-            states: Dict of state tensors.
-            internals: List of prior internal state tensors.
-            actions: Dict of action tensors.
-            terminal: Terminal boolean tensor.
-            reward: Reward tensor.
-            update: Boolean tensor indicating whether this call happens during an update.
-
-        Returns:
-            Loss tensor of the size of the batch.
-        """
-        kwargs = dict()
-        kwargs['time'] = self.timestep
-        kwargs['variables'] = self.get_variables()
-        kwargs['fn_loss'] = (
-            lambda: self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward, update=update)
-        )
-        if self.global_model is not None:
-            kwargs['global_variables'] = self.global_model.get_variables()
-        return kwargs
-
-    def tf_optimization(self, states, internals, actions, terminal, reward, update):
-        """
-        Creates the TensorFlow operations for performing an optimization update step based
-        on the given input states and actions batch.
-
-        Args:
-            states: Dict of state tensors.
-            internals: List of prior internal state tensors.
-            actions: Dict of action tensors.
-            terminal: Terminal boolean tensor.
-            reward: Reward tensor.
-            update: Boolean tensor indicating whether this call happens during an update.
-
-        Returns:
-            The optimization operation.
-        """
-        if self.optimizer is None:
-            return tf.no_op()
-        else:
-            optimizer_kwargs = self.get_optimizer_kwargs(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                update=update
-            )
-            return self.optimizer.minimize(**optimizer_kwargs)
-
-    def create_output_operations(self, states, internals, actions, terminal, reward, update, deterministic):
-        """
-        Calls all the relevant TensorFlow functions for this model and hence creates all the
-        TensorFlow operations involved.
-
-        Args:
-            states: Dict of state tensors.
-            internals: List of prior internal state tensors.
-            actions: Dict of action tensors.
-            terminal: Terminal boolean tensor.
-            reward: Reward tensor.
-            update: Boolean tensor indicating whether this call happens during an update.
-            deterministic: Boolean tensor indicating whether action should be chosen  
-                deterministically.
-        """
-
-        # Create graph by calling the functions corresponding to model.act() / model.update(), to initialize variables.
-        # TODO: Could call reset here, but would have to move other methods below reset.
-        self.fn_actions_and_internals(
-            states=states,
-            internals=internals,
-            update=update,
-            deterministic=deterministic
-        )
-        self.fn_loss_per_instance(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            update=update
-        )
-
-        # Tensor fetched for model.act()
+        # Optional variable noise
         operations = list()
         if self.variable_noise is not None and self.variable_noise > 0.0:
-            # Add variable noise
+            # Initialize variables
+            self.fn_actions_and_internals(
+                states=states,
+                internals=internals,
+                deterministic=deterministic
+            )
             noise_deltas = list()
             for variable in self.get_variables():
                 noise_delta = tf.random_normal(shape=util.shape(variable), mean=0.0, stddev=self.variable_noise)
@@ -898,14 +701,34 @@ class Model(object):
             self.actions_output, self.internals_output = self.fn_actions_and_internals(
                 states=states,
                 internals=internals,
-                update=update,
                 deterministic=deterministic
             )
+
+        # Actions exploration
+        for name, exploration in self.actions_exploration.items():
+            self.actions_output[name] = tf.cond(
+                pred=self.deterministic_input,
+                true_fn=(lambda: self.actions_output[name]),
+                false_fn=(lambda: self.fn_action_exploration(
+                    action=self.actions_output[name],
+                    exploration=exploration,
+                    action_spec=self.actions_spec[name]
+                ))
+            )
+
+        # Store current states, internals and actions
+        operations = list()
+        for name, state in states.items():
+            operations.append(tf.assign(ref=self.current_states[name], value=state))
+        for n, internal in enumerate(internals):
+            operations.append(tf.assign(ref=self.current_internals[n], value=internal))
+        for name, action in self.actions_output.items():
+            operations.append(tf.assign(ref=self.current_actions[name], value=action))
 
         # Increment timestep
         increment_timestep = tf.shape(input=next(iter(states.values())))[0]
         increment_timestep = self.timestep.assign_add(delta=increment_timestep)
-        operations = [increment_timestep]
+        operations.append(increment_timestep)
 
         # Subtract variable noise
         if self.variable_noise is not None and self.variable_noise > 0.0:
@@ -916,30 +739,37 @@ class Model(object):
             # Trivial operation to enforce control dependency
             self.timestep_output = self.timestep + 0
 
-        # Tensor fetched for model.observe()
-        increment_episode = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
-        increment_episode = self.episode.assign_add(delta=increment_episode)
-        with tf.control_dependencies(control_inputs=(increment_episode,)):
-            self.increment_episode = self.episode + 0
-        # TODO: add up rewards per episode and add summary_label 'episode-reward'
+    def create_observe_outputs(self):
+        assignment = tf.assign(ref=self.is_optimizing, value=False)
 
-        # Tensor(s) fetched for model.update()
-        self.optimization = self.fn_optimization(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            update=update
+        # Observe inputs
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            terminal = tf.identity(input=self.terminal_input)
+            reward = tf.identity(input=self.reward_input)
+
+        # Reward preprocessing
+        if self.reward_preprocessing is not None:
+            reward = self.reward_preprocessing.process(tensor=reward)
+
+        # Observation
+        observation = self.fn_observe_timestep(
+            states={name: tf.stop_gradient(input=state) for name, state in self.current_states.items()},
+            internals=[tf.stop_gradient(input=internal) for internal in self.current_internals],
+            actions={name: tf.stop_gradient(input=action) for name, action in self.current_actions.items()},
+            terminal=tf.stop_gradient(input=terminal),
+            reward=tf.stop_gradient(input=reward)
         )
-        self.loss_per_instance = self.fn_loss_per_instance(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            update=update
-        )
+
+        # Increment episode
+        with tf.control_dependencies(control_inputs=(observation,)):
+            increment_episode = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
+            increment_episode = tf.assign_add(ref=self.episode, value=increment_episode)
+
+        with tf.control_dependencies(control_inputs=(increment_episode,)):
+            # Trivial operation to enforce control dependency
+            self.episode_output = self.episode + 0
+
+        # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
     def get_variables(self, include_non_trainable=False):
         """
@@ -956,21 +786,17 @@ class Model(object):
                 variable for name in self.states_preprocessing.keys()
                 for variable in self.states_preprocessing[name].get_variables()
             ]
-            explorations_variables = [
-                variable for name in self.explorations.keys()
-                for variable in self.explorations[name].get_variables()
+            actions_exploration_variables = [
+                variable for name in self.actions_exploration.keys()
+                for variable in self.actions_exploration[name].get_variables()
             ]
             if self.reward_preprocessing is not None:
                 reward_preprocessing_variables = self.reward_preprocessing.get_variables()
             else:
                 reward_preprocessing_variables = list()
-            if self.optimizer is None:
-                optimizer_variables = list()
-            else:
-                optimizer_variables = self.optimizer.get_variables()
 
-            return model_variables + states_preprocessing_variables + explorations_variables + \
-                reward_preprocessing_variables + optimizer_variables
+            return model_variables + states_preprocessing_variables + actions_exploration_variables + \
+                reward_preprocessing_variables
 
         else:
             return [self.variables[key] for key in sorted(self.variables)]
@@ -997,10 +823,11 @@ class Model(object):
         return episode, timestep, list(self.internals_init)
 
     def act(self, states, internals, deterministic=False):
-        fetches = [self.actions_output, self.internals_output, self.timestep_output]
-
         name = next(iter(self.states_spec))
         batched = (np.asarray(states[name]).ndim != len(self.states_spec[name]['shape']))
+
+        fetches = (self.actions_output, self.internals_output, self.timestep_output)
+
         if batched:
             feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
             feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)})
@@ -1009,7 +836,6 @@ class Model(object):
             feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)})
 
         feed_dict[self.deterministic_input] = deterministic
-        feed_dict[self.update_input] = False
 
         actions, internals, timestep = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
@@ -1027,62 +853,18 @@ class Model(object):
         return actions, internals, timestep
 
     def observe(self, terminal, reward):
-        fetches = self.increment_episode
+        batched = (np.asarray(terminal).ndim == 1)
 
-        terminal = np.asarray(terminal)
-        batched = (terminal.ndim == 1)
+        fetches = self.episode_output
+
         if batched:
             feed_dict = {self.terminal_input: terminal, self.reward_input: reward, }
         else:
             feed_dict = {self.terminal_input: (terminal,), self.reward_input: (reward,)}
 
-        feed_dict[self.update_input] = False
-
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
         return episode
-
-    def update(self, states, internals, actions, terminal, reward, return_loss_per_instance=False):
-        fetches = [self.optimization]
-
-        # Optionally fetch loss per instance
-        if return_loss_per_instance:
-            fetches.append(self.loss_per_instance)
-
-        terminal = np.asarray(terminal)
-        batched = (terminal.ndim == 1)
-        if batched:
-            feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: internals[n]
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: actions[name]
-                    for name, action_input in self.actions_input.items()}
-            )
-            feed_dict[self.terminal_input] = terminal
-            feed_dict[self.reward_input] = reward
-        else:
-            feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: (internals[n],)
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: (actions[name],)
-                    for name, action_input in self.actions_input.items()}
-            )
-            feed_dict[self.terminal_input] = (terminal,)
-            feed_dict[self.reward_input] = (reward,)
-
-        feed_dict[self.deterministic_input] = True
-        feed_dict[self.update_input] = True
-
-        fetched = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-
-        if return_loss_per_instance:
-            return fetched[1]
 
     def save(self, directory=None, append_timestep=True):
         """

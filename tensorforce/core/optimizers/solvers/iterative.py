@@ -105,8 +105,7 @@ class Iterative(Solver):
         Returns:
             Updated arguments for next iteration.
         """
-        next_iteration = iteration + 1
-        return (x, next_iteration) + args
+        return (x, iteration + 1) + args
 
     def tf_next_step(self, x, iteration, *args):
         """

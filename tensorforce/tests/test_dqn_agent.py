@@ -31,45 +31,32 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
     config = dict(
         memory=dict(
             type='replay',
-            capacity=1000
+            include_next_states=True,
+            capacity=100
         ),
         optimizer=dict(
-            type="adam",
-            learning_rate=0.002
+            type='adam',
+            learning_rate=1e-2
         ),
+        target_sync_frequency=10,
+        batch_size=8,
+        update_frequency=4
+        # first_update=64,
+        # repeat_update=4,
         # Comment in to test exploration types
-        # explorations_spec=dict(
+        # actions_exploration_spec=dict(
         #     type="epsilon_decay",
         #     initial_epsilon=1.0,
         #     final_epsilon=0.1,
         #     timesteps=10
         # ),
-        # explorations_spec=dict(
+        # actions_exploration_spec=dict(
         #     type="epsilon_anneal",
         #     initial_epsilon=1.0,
         #     final_epsilon=0.1,
         #     timesteps=10
-        # ),
-        repeat_update=4,
-        batch_size=32,
-        first_update=64,
-        target_sync_frequency=10
+        # )
     )
 
     exclude_float = True
     exclude_bounded = True
-
-    multi_config = dict(
-        memory=dict(
-            type='replay',
-            capacity=1000
-        ),
-        optimizer=dict(
-            type="adam",
-            learning_rate=0.01
-        ),
-        repeat_update=1,
-        batch_size=16,
-        first_update=16,
-        target_sync_frequency=10
-    )

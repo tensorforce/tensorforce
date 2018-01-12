@@ -18,11 +18,11 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce import TensorForceError
-from tensorforce.agents import BatchAgent
+from tensorforce.agents import Agent
 from tensorforce.models import PGProbRatioModel
 
 
-class TRPOAgent(BatchAgent):
+class TRPOAgent(Agent):
     """
     Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
     """
@@ -31,32 +31,37 @@ class TRPOAgent(BatchAgent):
         self,
         states_spec,
         actions_spec,
-        network_spec,
+        network,
         device=None,
         session_config=None,
         scope='trpo',
         saver_spec=None,
         summary_spec=None,
         distributed_spec=None,
-        discount=0.99,
         variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
-        distributions_spec=None,
+        states_preprocessing=None,
+        actions_exploration=None,
+        reward_preprocessing=None,
+        memory=None,
+        update_spec=None,
+        discount=0.99,
+        distributions=None,
         entropy_regularization=None,
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        batched_observe=1000,
-        batch_size=1000,
-        keep_last_timestep=True,
         likelihood_ratio_clipping=None,
+        batched_observe=None,  # !!!!!!!!!!!!!
+        batch_size=10,
+        update_frequency=None,
         learning_rate=1e-3,
         cg_max_iterations=20,
         cg_damping=1e-3,
-        cg_unroll_loop=False
+        cg_unroll_loop=False,
+        ls_max_iterations=10,
+        ls_accept_ratio=0.9,
+        ls_unroll_loop=False
     ):
         """
         Creates a Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
@@ -85,7 +90,7 @@ class TRPOAgent(BatchAgent):
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
             states_preprocessing_spec: Optional list of states preprocessors to apply to state  
                 (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
+            actions_exploration_spec: Optional dict specifying action exploration type (epsilon greedy  
                 or Gaussian noise).
             reward_preprocessing_spec: Optional dict specifying reward preprocessing.
             distributions_spec: Optional dict specifying action distributions to override default distribution choices.
@@ -112,10 +117,25 @@ class TRPOAgent(BatchAgent):
             cg_unroll_loop: Boolean indicating whether loop unrolling in TensorFlow is to be used which seems to
                 impact performance negatively at this point, default False.
         """
-        if network_spec is None:
-            raise TensorForceError("No network_spec provided.")
+        if network is None:
+            raise TensorForceError("No network provided.")
 
-        self.optimizer = dict(
+        if memory is None:
+            memory = dict(
+                type='latest',
+                include_next_states=False,
+                capacity=(1000 * batch_size)  # assumed episode length of 1000
+            )
+        else:
+            assert not memory['include_next_states']
+        if update_frequency is None:
+            update_frequency = batch_size
+        update_spec = dict(
+            mode='episodes',
+            batch_size=batch_size,
+            frequency=update_frequency
+        )
+        optimizer = dict(
             type='optimized_step',
             optimizer=dict(
                 type='natural_gradient',
@@ -124,26 +144,29 @@ class TRPOAgent(BatchAgent):
                 cg_damping=cg_damping,
                 cg_unroll_loop=cg_unroll_loop,
             ),
-            ls_max_iterations=10,
-            ls_accept_ratio=0.9,
-            ls_mode='exponential',
-            ls_parameter=0.5,
-            ls_unroll_loop=False
+            ls_max_iterations=ls_max_iterations,
+            ls_accept_ratio=ls_accept_ratio,
+            ls_mode='exponential',  # !!!!!!!!!!!!!
+            ls_parameter=0.5,  # !!!!!!!!!!!!!
+            ls_unroll_loop=ls_unroll_loop
         )
 
-        self.network_spec = network_spec
         self.device = device
         self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
         self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
-        self.distributions_spec = distributions_spec
+        self.states_preprocessing = states_preprocessing
+        self.actions_exploration = actions_exploration
+        self.reward_preprocessing = reward_preprocessing
+        self.memory = memory
+        self.update_spec = update_spec
+        self.optimizer = optimizer
+        self.discount = discount
+        self.network = network
+        self.distributions = distributions
         self.entropy_regularization = entropy_regularization
         self.baseline_mode = baseline_mode
         self.baseline = baseline
@@ -154,29 +177,29 @@ class TRPOAgent(BatchAgent):
         super(TRPOAgent, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
-            batched_observe=batched_observe,
-            batch_size=batch_size,
-            keep_last_timestep=keep_last_timestep
+            batched_observe=batched_observe
         )
 
     def initialize_model(self):
         return PGProbRatioModel(
             states_spec=self.states_spec,
             actions_spec=self.actions_spec,
-            network_spec=self.network_spec,
             device=self.device,
             session_config=self.session_config,
             scope=self.scope,
             saver_spec=self.saver_spec,
             summary_spec=self.summary_spec,
             distributed_spec=self.distributed_spec,
-            optimizer=self.optimizer,
             discount=self.discount,
             variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec,
-            distributions_spec=self.distributions_spec,
+            states_preprocessing=self.states_preprocessing,
+            actions_exploration=self.actions_exploration,
+            reward_preprocessing=self.reward_preprocessing,
+            memory=self.memory,
+            update_spec=self.update_spec,
+            optimizer=self.optimizer,
+            network=self.network,
+            distributions=self.distributions,
             entropy_regularization=self.entropy_regularization,
             baseline_mode=self.baseline_mode,
             baseline=self.baseline,

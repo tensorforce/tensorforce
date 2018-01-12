@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 from tensorforce.models.model import Model
+from tensorforce.models.memory_model import MemoryModel
 from tensorforce.models.distribution_model import DistributionModel
 from tensorforce.models.pg_model import PGModel
 from tensorforce.models.pg_log_prob_model import PGLogProbModel
@@ -35,6 +37,7 @@ models = dict(
 
 __all__ = [
     'Model',
+    'MemoryModel',
     'DistributionModel',
     'PGModel',
     'PGProbRatioModel',

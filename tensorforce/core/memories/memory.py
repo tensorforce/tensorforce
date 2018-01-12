@@ -17,31 +17,66 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import tensorflow as tf
+
 from tensorforce import util
 import tensorforce.core.memories
 
 
-# TODO: implement in TensorFlow
-
 class Memory(object):
-    """
-    Abstract memory class.
-    """
 
-    def __init__(self, states_spec, actions_spec):
+    def __init__(self, states_spec, actions_spec, include_next_states, scope='memory', summary_labels=None):
         """
-        Generic memory without sampling strategy implemented.
-
         Args:
-            states_spec: State specifiction
-            actions_spec: Action specification
+            states_spec: States specifiction
+            actions_spec: Actions specification
+            include_next_states: Include subsequent state if true.
         """
         self.states_spec = states_spec
         self.actions_spec = actions_spec
+        self.include_next_states = include_next_states
+        self.summary_labels = set(summary_labels or ())
 
-    def add_observation(self, states, internals, actions, terminal, reward):
+        self.variables = dict()
+        self.summaries = list()
+
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, **kwargs)
+            # variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                assert not kwargs.get('trainable', False)
+                self.variables[name] = variable
+            return variable
+
+        self.initialize = tf.make_template(
+            name_=(scope + '/initialize'),
+            func_=self.tf_initialize,
+            custom_getter_=custom_getter
+        )
+        self.store = tf.make_template(
+            name_=(scope + '/store'),
+            func_=self.tf_store,
+            custom_getter_=custom_getter
+        )
+        self.retrieve_timesteps = tf.make_template(
+            name_=(scope + '/retrieve_timesteps'),
+            func_=self.tf_retrieve_timesteps,
+            custom_getter_=custom_getter
+        )
+        self.retrieve_episodes = tf.make_template(
+            name_=(scope + '/retrieve_episodes'),
+            func_=self.tf_retrieve_episodes,
+            custom_getter_=custom_getter
+        )
+        self.retrieve_sequences = tf.make_template(
+            name_=(scope + '/retrieve_sequences'),
+            func_=self.tf_retrieve_sequences,
+            custom_getter_=custom_getter
+        )
+
+    def tf_store(self, states, internals, actions, terminal, reward):
         """
-        Inserts a single experience to the memory.
+        ...
 
         Args:
             states:
@@ -49,48 +84,61 @@ class Memory(object):
             actions:
             terminal:
             reward:
-
-        Returns:
-
         """
         raise NotImplementedError
 
-    def get_batch(self, batch_size, next_states=False):
+    def tf_retrieve_timesteps(self, n):
         """
-        Samples a batch from the memory.
+        ...
 
         Args:
-            batch_size: The batch size
-            next_states: A boolean flag indicating whether 'next_states' values should be included
+            n:
 
-        Returns: A dict containing states, internal states, actions, terminals, rewards (and next states)
+        Returns:
+            ...
+        """
+        raise NotImplementedError
 
+    def tf_retrieve_episodes(self, n):
+        """
+        ...
+
+        Args:
+            n:
+
+        Returns:
+            ...
+        """
+        raise NotImplementedError
+
+    def tf_retrieve_sequences(self, n, sequence_length):
+        """
+        ...
+
+        Args:
+            n:
+
+        Returns:
+            ...
         """
         raise NotImplementedError
 
     def update_batch(self, loss_per_instance):
         """
         Updates loss values for sampling strategies based on loss functions.
-
         Args:
             loss_per_instance:
-
         """
         raise NotImplementedError
 
-    def set_memory(self, states, internals, actions, terminals, rewards):
+    def get_variables(self):
         """
-        Deletes memory content and sets content to provided observations.
+        Returns the TensorFlow variables used by the memory.
 
-        Args:
-            states:
-            internals:
-            actions:
-            terminals:
-            rewards:
-
+        Returns:
+            List of variables.
         """
-        raise NotImplementedError
+        return [self.variables[key] for key in sorted(self.variables)]
 
     @staticmethod
     def from_spec(spec, kwargs=None):

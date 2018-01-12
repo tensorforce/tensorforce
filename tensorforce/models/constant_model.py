@@ -37,12 +37,6 @@ class ConstantModel(Model):
         saver_spec,
         summary_spec,
         distributed_spec,
-        optimizer,
-        discount,
-        variable_noise,
-        states_preprocessing_spec,
-        explorations_spec,
-        reward_preprocessing_spec,
         action_values
     ):
         self.action_values = action_values
@@ -56,22 +50,18 @@ class ConstantModel(Model):
             saver_spec=saver_spec,
             summary_spec=summary_spec,
             distributed_spec=distributed_spec,
-            optimizer=optimizer,
-            discount=discount,
-            variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec
+            variable_noise=None,
+            states_preprocessing=None,
+            actions_exploration=None,
+            reward_preprocessing=None
         )
 
-    def tf_actions_and_internals(self, states, internals, update, deterministic):
+    def tf_actions_and_internals(self, states, internals, deterministic):
+        assert len(internals) == 0
+
         actions = dict()
         for name, action in self.actions_spec.items():
             shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
             actions[name] = tf.fill(dims=shape, value=self.action_values[name])
 
-        return actions, internals
-
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
-        # Nothing to be done here, loss is 0.
-        return tf.zeros_like(tensor=reward)
+        return actions, ()

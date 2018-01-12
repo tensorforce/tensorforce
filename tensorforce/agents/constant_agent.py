@@ -43,13 +43,8 @@ class ConstantAgent(Agent):
         saver_spec=None,
         summary_spec=None,
         distributed_spec=None,
-        discount=0.99,
-        variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
-        batched_observe=1000,
-        action_values=None
+        action_values=None,
+        batched_observe=1000
     ):
         """
         Initializes a constant agent which returns a constant action of the provided shape.
@@ -72,34 +67,21 @@ class ConstantAgent(Agent):
             distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
                 cluster spec.
-            discount: Float specifying reward discount factor.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
+            action_values: Action value specification, must match actions_spec names
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
-            action_values: Action value specification, must match actions_spec names
         """
 
         if action_values is None:
             raise TensorForceError("No action_values for constant model provided.")
 
-        self.optimizer = None
         self.device = device
         self.session_config = session_config
         self.scope = scope
         self.saver_spec = saver_spec
         self.summary_spec = summary_spec
         self.distributed_spec = distributed_spec
-        self.discount = discount
-        self.variable_noise = variable_noise
-        self.states_preprocessing_spec = states_preprocessing_spec
-        self.explorations_spec = explorations_spec
-        self.reward_preprocessing_spec = reward_preprocessing_spec
         self.action_values = action_values
 
         super(ConstantAgent, self).__init__(
@@ -118,11 +100,5 @@ class ConstantAgent(Agent):
             saver_spec=self.saver_spec,
             summary_spec=self.summary_spec,
             distributed_spec=self.distributed_spec,
-            optimizer=self.optimizer,
-            discount=self.discount,
-            variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec,
             action_values=self.action_values
         )

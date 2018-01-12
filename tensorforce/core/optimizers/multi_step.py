@@ -29,7 +29,7 @@ class MultiStep(MetaOptimizer):
     optimizer a number of times.
     """
 
-    def __init__(self, optimizer, num_steps=5, summaries=None, summary_labels=None):
+    def __init__(self, optimizer, num_steps=10, unroll_loop=False, summaries=None, summary_labels=None):
         """
         Creates a new multi-step meta optimizer instance.
 
@@ -41,6 +41,9 @@ class MultiStep(MetaOptimizer):
 
         assert isinstance(num_steps, int) and num_steps > 0
         self.num_steps = num_steps
+
+        assert isinstance(unroll_loop, bool)
+        self.unroll_loop = unroll_loop
 
     def tf_step(self, time, variables, **kwargs):
         """
@@ -54,16 +57,30 @@ class MultiStep(MetaOptimizer):
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        overall_deltas = None
-        deltas = ()
-        for _ in xrange(self.num_steps):
 
-            with tf.control_dependencies(control_inputs=deltas):
-                deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
+        if self.unroll_loop:
+            # Unrolled for loop
+            deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
 
-                if overall_deltas is None:
-                    overall_deltas = deltas
-                else:
-                    overall_deltas = [delta1 + delta2 for delta1, delta2 in zip(overall_deltas, deltas)]
+            for _ in xrange(self.num_steps - 1):
+                with tf.control_dependencies(control_inputs=deltas):
+                    step_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
+                    deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
 
-        return overall_deltas
+            return deltas
+
+        else:
+            # TensorFlow while loop
+            deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
+
+            def body(deltas, iteration):
+                step_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
+                deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
+                return deltas, iteration + 1
+
+            def cond(deltas, iteration):
+                return iteration < self.num_steps - 1
+
+            deltas, _ = tf.while_loop(cond=cond, body=body, loop_vars=(deltas, 0))
+
+            return deltas

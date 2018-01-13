@@ -79,14 +79,7 @@ class Optimizer(object):
             variables: List of variables to optimize.
             **kwargs: Additional optimizer-specific arguments. The following arguments are used
                 by some optimizers:
-            - states: Dictionary of batch state tensors.
-            - internals: List of batch internal tensors.
-            - actions: Dictionary of batch action tensors.
-            - terminal: Batch terminal tensor.
-            - reward: Batch reward tensor.
-            - next_states: Dictionary of batch successor state tensors.
-            - next_internals: List of batch posterior internal state tensors.
-            - update: Update tensor.
+            - arguments: Dict of arguments for callables, like fn_loss.
             - fn_loss: A callable returning the loss of the current model.
             - fn_kl_divergence: A callable returning the KL-divergence relative to the
                 current model.

@@ -66,14 +66,7 @@ class OptimizedStep(MetaOptimizer):
         self,
         time,
         variables,
-        states,
-        internals,
-        actions,
-        terminal,
-        reward,
-        next_states,
-        next_internals,
-        update,
+        arguments,
         fn_loss,
         fn_reference=None,
         fn_compare=None,
@@ -85,14 +78,7 @@ class OptimizedStep(MetaOptimizer):
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
-            states: Dictionary of batch state tensors.
-            internals: List of batch internal tensors.
-            actions: Dictionary of batch action tensors.
-            terminal: Batch terminal tensor.
-            reward: Batch reward tensor.
-            next_states: Dictionary of batch successor state tensors.
-            next_internals: List of batch posterior internal state tensors.
-            update: Update tensor.
+            arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
             fn_reference: A callable returning the reference values necessary for comparison.
             fn_compare: A callable comparing the current model to the reference model given by  
@@ -107,46 +93,17 @@ class OptimizedStep(MetaOptimizer):
 
         if fn_reference is None:
             # Negative value since line search maximizes.
-            loss_before = -fn_loss(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                next_states=next_states,
-                next_internals=next_internals,
-                update=update
-            )
+            loss_before = -fn_loss(**arguments)
 
         else:
-            reference = fn_reference(
-                states=states,
-                internals=internals,
-                actions=actions,
-                update=update
-            )
-            loss_before = fn_compare(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                update=update,
-                reference=reference
-            )
+            reference = fn_reference(**arguments)
+            loss_before = fn_compare(reference=reference, **arguments)
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
                 time=time,
                 variables=variables,
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                next_states=next_states,
-                next_internals=next_internals,
-                update=update,
+                arguments=arguments,
                 fn_loss=fn_loss,
                 fn_reference=fn_reference,
                 fn_compare=fn_compare,
@@ -167,26 +124,9 @@ class OptimizedStep(MetaOptimizer):
         with tf.control_dependencies(control_inputs=deltas):
             if fn_reference is None:
                 # Negative value since line search maximizes.
-                loss_step = -fn_loss(
-                    states=states,
-                    internals=internals,
-                    actions=actions,
-                    terminal=terminal,
-                    reward=reward,
-                    next_states=next_states,
-                    next_internals=next_internals,
-                    update=update
-                )
+                loss_step = -fn_loss(**arguments)
             else:
-                loss_step = fn_compare(
-                    states=states,
-                    internals=internals,
-                    actions=actions,
-                    terminal=terminal,
-                    reward=reward,
-                    update=update,
-                    reference=reference
-                )
+                loss_step = fn_compare(reference=reference, **arguments)
 
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
@@ -196,26 +136,9 @@ class OptimizedStep(MetaOptimizer):
                 with tf.control_dependencies(control_inputs=(applied,)):
                     if fn_compare is None:
                         # Negative value since line search maximizes.
-                        return -fn_loss(
-                            states=states,
-                            internals=internals,
-                            actions=actions,
-                            terminal=terminal,
-                            reward=reward,
-                            next_states=next_states,
-                            next_internals=next_internals,
-                            update=update
-                        )
+                        return -fn_loss(**arguments)
                     else:
-                        return fn_compare(
-                            states=states,
-                            internals=internals,
-                            actions=actions,
-                            terminal=terminal,
-                            reward=reward,
-                            update=update,
-                            reference=reference
-                        )
+                        return fn_compare(reference=reference, **arguments)
 
             return self.solver.solve(
                 fn_x=evaluate_step,

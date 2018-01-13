@@ -47,10 +47,10 @@ class AggregatedBaseline(Baseline):
 
         super(AggregatedBaseline, self).__init__(scope, summary_labels)
 
-    def tf_predict(self, states, update):
+    def tf_predict(self, states, internals, update):
         predictions = list()
         for name, state in states.items():
-            prediction = self.baselines[name].predict(states=state, update=update)
+            prediction = self.baselines[name].predict(states=state, internals=internals, update=update)
             predictions.append(prediction)
         predictions = tf.stack(values=predictions, axis=1)
         prediction = self.linear.apply(x=predictions)

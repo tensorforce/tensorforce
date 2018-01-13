@@ -71,14 +71,7 @@ class TFOptimizer(Optimizer):
         self,
         time,
         variables,
-        states,
-        internals,
-        actions,
-        terminal,
-        reward,
-        next_states,
-        next_internals,
-        update,
+        arguments,
         fn_loss,
         **kwargs
     ):
@@ -88,30 +81,14 @@ class TFOptimizer(Optimizer):
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
-            states: Dictionary of batch state tensors.
-            internals: List of batch internal tensors.
-            actions: Dictionary of batch action tensors.
-            terminal: Batch terminal tensor.
-            reward: Batch reward tensor.
-            next_states: Dictionary of batch successor state tensors.
-            next_internals: List of batch posterior internal state tensors.
-            update: Update tensor.
+            arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
             **kwargs: Additional arguments, not used.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        loss = fn_loss(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            next_states=next_states,
-            next_internals=next_internals,
-            update=update
-        )
+        loss = fn_loss(**arguments)
 
         with tf.control_dependencies(control_inputs=(loss,)):
             # Trivial operation to enforce control dependency

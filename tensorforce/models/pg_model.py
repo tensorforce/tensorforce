@@ -159,14 +159,30 @@ class PGModel(DistributionModel):
 
         else:
             if self.baseline_mode == 'states':
-                state_value = self.baseline.predict(states=states, update=update)
+                state_value = self.baseline.predict(
+                    states=states,
+                    internals=internals,
+                    update=update
+                )
 
             elif self.baseline_mode == 'network':
-                embedding = self.network.apply(x=states, internals=internals, update=update)
-                state_value = self.baseline.predict(states=embedding, update=update)
+                embedding = self.network.apply(
+                    x=states,
+                    internals=internals,
+                    update=update
+                )
+                state_value = self.baseline.predict(
+                    states=embedding,
+                    internals=internals,
+                    update=update
+                )
 
             if self.gae_lambda is None:
-                reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
+                reward = self.fn_discounted_cumulative_reward(
+                    terminal=terminal,
+                    reward=reward,
+                    discount=self.discount
+                )
                 reward -= state_value
 
             else:
@@ -176,7 +192,11 @@ class PGModel(DistributionModel):
                 state_value_change = tf.where(condition=terminal, x=zeros, y=state_value_change)
                 td_residual = reward + state_value_change
                 gae_discount = self.discount * self.gae_lambda
-                reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=td_residual, discount=gae_discount)
+                reward = self.fn_discounted_cumulative_reward(
+                    terminal=terminal,
+                    reward=td_residual,
+                    discount=gae_discount
+                )
 
         return reward
 
@@ -229,8 +249,13 @@ class PGModel(DistributionModel):
         reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
         if self.baseline_mode == 'states':
-            def fn_loss():
-                loss = self.baseline.loss(states=states, reward=reward)
+            def fn_loss(states, internals, reward, update):
+                loss = self.baseline.loss(
+                    states=states,
+                    internals=internals,
+                    reward=reward,
+                    update=update
+                )
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
                     return loss
@@ -238,11 +263,12 @@ class PGModel(DistributionModel):
                     return loss + regularization_loss
 
         elif self.baseline_mode == 'network':
-            def fn_loss():
+            def fn_loss(states, internals, reward, update):
                 loss = self.baseline.loss(
-                    states=self.network.apply(x=states, internals=internals, update=tf.constant(value=True)),
+                    states=self.network.apply(x=states, internals=internals, update=update),
+                    internals=internals,
                     reward=reward,
-                    update=tf.constant(value=True)
+                    update=update
                 )
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
@@ -254,8 +280,12 @@ class PGModel(DistributionModel):
         baseline_optimization = self.baseline_optimizer.minimize(
             time=self.timestep,
             variables=self.baseline.get_variables(),
-            states=states,
-            update=tf.constant(value=True),
+            arguments=dict(
+                states=states,
+                internals=internals,
+                reward=reward,
+                update=tf.constant(value=True)
+            ),
             fn_loss=fn_loss,
             source_variables=self.network.get_variables()
         )

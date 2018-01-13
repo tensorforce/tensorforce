@@ -192,7 +192,7 @@ class DistributionModel(MemoryModel):
 
         return losses
 
-    def tf_kl_divergence(self, states, internals, update):
+    def tf_kl_divergence(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         kl_divergences = list()
 

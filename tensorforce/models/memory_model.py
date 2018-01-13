@@ -259,14 +259,16 @@ class MemoryModel(Model):
         arguments = dict()
         arguments['time'] = self.timestep
         arguments['variables'] = self.get_variables()
-        arguments['states'] = states
-        arguments['internals'] = internals
-        arguments['actions'] = actions
-        arguments['terminal'] = terminal
-        arguments['reward'] = reward
-        arguments['next_states'] = next_states
-        arguments['next_internals'] = next_internals
-        arguments['update'] = tf.constant(value=False)
+        arguments['arguments'] = dict(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            next_states=next_states,
+            next_internals=next_internals,
+            update=tf.constant(value=True)
+        )
         arguments['fn_loss'] = self.fn_loss
         if self.global_model is not None:
             arguments['global_variables'] = self.global_model.get_variables()

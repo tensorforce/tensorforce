@@ -19,7 +19,7 @@ from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import util, TensorForceError
 from tensorforce.core.optimizers import MetaOptimizer
 
 
@@ -46,13 +46,7 @@ class SubsamplingStep(MetaOptimizer):
         self,
         time,
         variables,
-        states,
-        internals,
-        actions,
-        terminal,
-        reward,
-        next_states,
-        next_internals,
+        arguments,
         **kwargs
     ):
         """
@@ -61,19 +55,29 @@ class SubsamplingStep(MetaOptimizer):
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
-            states: Dictionary of batch state tensors.
-            internals: List of batch internal tensors.
-            actions: Dictionary of batch action tensors.
-            terminal: Batch terminal tensor.
-            reward: Batch reward tensor.
-            next_states: Dictionary of batch successor state tensors.
-            next_internals: List of batch posterior internal state tensors.
+            arguments: Dict of arguments for callables, like fn_loss.
             **kwargs: Additional arguments passed on to the internal optimizer.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        batch_size = tf.shape(input=terminal)[0]
+        # Get some (batched) argument to determine batch size.
+        arguments_iter = iter(arguments.values())
+        some_argument = next(arguments_iter)
+        while not isinstance(some_argument, tf.Tensor) or util.rank(some_argument) == 0:
+            if isinstance(some_argument, dict):
+                arguments_iter = iter(some_argument.values())
+                some_argument = next(arguments_iter)
+            elif isinstance(some_argument, list):
+                arguments_iter = iter(some_argument)
+                some_argument = next(arguments_iter)
+            elif util.rank(some_argument) == 0:
+                # Non-batched argument
+                some_argument = next(arguments_iter)
+            else:
+                raise TensorForceError("Invalid argument type.")
+
+        batch_size = tf.shape(input=some_argument)[0]
         num_samples = tf.cast(
             x=(self.fraction * tf.cast(x=batch_size, dtype=util.tf_dtype('float'))),
             dtype=util.tf_dtype('int')
@@ -81,37 +85,28 @@ class SubsamplingStep(MetaOptimizer):
         num_samples = tf.maximum(x=num_samples, y=1)
         indices = tf.random_uniform(shape=(num_samples,), maxval=batch_size, dtype=tf.int32)
 
-        subsampled_states = dict()
-        for name, state in states.items():
-            subsampled_states[name] = tf.gather(params=state, indices=indices)
-        subsampled_internals = list()
-        for n, internal in enumerate(internals):
-            subsampled_internals.append(tf.gather(params=internal, indices=indices))
-        subsampled_actions = dict()
-        for name, action in actions.items():
-            subsampled_actions[name] = tf.gather(params=action, indices=indices)
-        subsampled_terminal = tf.gather(params=terminal, indices=indices)
-        subsampled_reward = tf.gather(params=reward, indices=indices)
-        if next_states is None:
-            subsampled_next_states = None
-            subsampled_next_internals = None
-        else:
-            subsampled_next_states = dict()
-            for name, state in next_states.items():
-                subsampled_next_states[name] = tf.gather(params=state, indices=indices)
-            subsampled_next_internals = list()
-            for n, internal in enumerate(next_internals):
-                subsampled_next_internals.append(tf.gather(params=internal, indices=indices))
+        subsampled_arguments = SubsamplingStep.subsample(argument=arguments, indices=indices)
 
         return self.optimizer.step(
             time=time,
             variables=variables,
-            states=subsampled_states,
-            internals=subsampled_internals,
-            actions=subsampled_actions,
-            terminal=subsampled_terminal,
-            reward=subsampled_reward,
-            next_states=subsampled_next_states,
-            next_internals=subsampled_next_internals,
+            arguments=subsampled_arguments,
             **kwargs
         )
+
+    @staticmethod
+    def subsample(argument, indices):
+        if isinstance(argument, tf.Tensor):
+            if util.rank(argument) == 0:
+                # Non-batched argument
+                return argument
+            else:
+                return tf.gather(params=argument, indices=indices)
+        elif isinstance(argument, dict):
+            return {name: SubsamplingStep.subsample(argument=arg, indices=indices) for name, arg in argument.items()}
+        elif isinstance(argument, list):
+            return [SubsamplingStep.subsample(argument=arg, indices=indices) for arg in argument]
+        elif argument is None:
+            return None
+        else:
+            raise TensorForceError("Invalid argument type.")

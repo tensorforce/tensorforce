@@ -57,11 +57,11 @@ class MultiStep(MetaOptimizer):
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
+        # First step
+        deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
 
         if self.unroll_loop:
             # Unrolled for loop
-            deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
-
             for _ in xrange(self.num_steps - 1):
                 with tf.control_dependencies(control_inputs=deltas):
                     step_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
@@ -71,16 +71,14 @@ class MultiStep(MetaOptimizer):
 
         else:
             # TensorFlow while loop
-            deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
-
-            def body(deltas, iteration):
+            def body(iteration, deltas):
                 step_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
                 deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
-                return deltas, iteration + 1
+                return iteration + 1, deltas
 
-            def cond(deltas, iteration):
+            def cond(iteration, deltas):
                 return iteration < self.num_steps - 1
 
-            deltas, _ = tf.while_loop(cond=cond, body=body, loop_vars=(deltas, 0))
+            _, deltas = tf.while_loop(cond=cond, body=body, loop_vars=(0, deltas))
 
             return deltas

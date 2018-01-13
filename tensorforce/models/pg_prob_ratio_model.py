@@ -125,7 +125,7 @@ class PGProbRatioModel(PGModel):
             )
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
-    def tf_reference(self, states, internals, actions, update):
+    def tf_reference(self, states, internals, actions, terminal, reward, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
         for name in sorted(self.distributions):
@@ -137,7 +137,7 @@ class PGProbRatioModel(PGModel):
             log_probs.append(log_prob)
         return tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
 
-    def tf_compare(self, states, internals, actions, terminal, reward, update, reference):
+    def tf_compare(self, reference, states, internals, actions, terminal, reward, update):
         reward = self.fn_reward_estimation(
             states=states,
             internals=internals,

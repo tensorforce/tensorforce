@@ -61,14 +61,7 @@ class NaturalGradient(Optimizer):
         self,
         time,
         variables,
-        states,
-        internals,
-        actions,
-        terminal,
-        reward,
-        next_states,
-        next_internals,
-        update,
+        arguments,
         fn_loss,
         fn_kl_divergence,
         return_estimated_improvement=False,
@@ -80,14 +73,7 @@ class NaturalGradient(Optimizer):
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
-            states: Dictionary of batch state tensors.
-            internals: List of batch internal tensors.
-            actions: Dictionary of batch action tensors.
-            terminal: Batch terminal tensor.
-            reward: Batch reward tensor.
-            next_states: Dictionary of batch successor state tensors.
-            next_internals: List of batch posterior internal state tensors.
-            update: Update tensor.
+            arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
             fn_kl_divergence: A callable returning the KL-divergence relative to the current model.
             return_estimated_improvement: Returns the estimated improvement resulting from the  
@@ -102,7 +88,7 @@ class NaturalGradient(Optimizer):
         # For more details, see our blogpost: [LINK]
 
         # kldiv
-        kldiv = fn_kl_divergence(states=states, internals=internals, update=update)
+        kldiv = fn_kl_divergence(**arguments)
 
         # grad(kldiv)
         kldiv_gradients = tf.gradients(ys=kldiv, xs=variables)
@@ -122,16 +108,7 @@ class NaturalGradient(Optimizer):
             return tf.gradients(ys=x_kldiv_gradients, xs=variables)
 
         # loss
-        loss = fn_loss(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            next_states=next_states,
-            next_internals=next_internals,
-            update=update
-        )
+        loss = fn_loss(**arguments)
 
         # grad(loss)
         loss_gradients = tf.gradients(ys=loss, xs=variables)

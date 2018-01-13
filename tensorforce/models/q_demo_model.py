@@ -20,6 +20,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import util, TensorForceError
+from tensorforce.core.memories import Memory
 from tensorforce.models import QModel
 
 
@@ -55,14 +56,17 @@ class QDemoModel(QModel):
         double_q_model,
         huber_loss,
         expert_margin,
-        supervised_weight
+        supervised_weight,
+        demo_memory_capacity,
+        demo_batch_size
     ):
         if any(action['type'] not in ('bool', 'int') for action in actions_spec.values()):
             raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")
 
         self.expert_margin = expert_margin
         self.supervised_weight = supervised_weight
-
+        self.demo_batch_size = demo_batch_size
+        self.demo_memory_spec = memory
         super(QDemoModel, self).__init__(
             states_spec=states_spec,
             actions_spec=actions_spec,
@@ -91,6 +95,16 @@ class QDemoModel(QModel):
 
     def initialize(self, custom_getter):
         super(QDemoModel, self).initialize(custom_getter=custom_getter)
+        self.demo_memory = Memory.from_spec(
+            spec=self.demo_memory_spec,
+            kwargs=dict(
+                states_spec=self.states_spec,
+                actions_spec=self.actions_spec,
+                include_next_states=False, # TODO why is this not configurable?
+                summary_labels=self.summary_labels
+            )
+        )
+        self.demo_memory.initialize()
 
         # Demonstration loss
         self.fn_demo_loss = tf.make_template(
@@ -106,25 +120,29 @@ class QDemoModel(QModel):
             custom_getter_=custom_getter
         )
 
-    def create_output_operations(self, states, internals, actions, terminal, reward, update, deterministic):
-        super(QDemoModel, self).create_output_operations(
+    def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
+        optimization = super(QDemoModel, self).tf_optimization(
             states=states,
             internals=internals,
             actions=actions,
             reward=reward,
             terminal=terminal,
-            update=update,
-            deterministic=deterministic
+            next_states=next_states,
+            next_internals=next_internals
         )
 
-        self.demo_optimization = self.fn_optimization(
+        # TODO args mismatch
+        self.demo_optimization = self.fn_demo_optimization(
             states=states,
             internals=internals,
             actions=actions,
             reward=reward,
             terminal=terminal,
-            update=update
+            next_states=next_states,
+            next_internals=next_internals
         )
+
+        return tf.group(optimization, self.demo_optimization)
 
     def tf_demo_loss(self, states, actions, terminal, reward, internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)
@@ -157,6 +175,7 @@ class QDemoModel(QModel):
         loss_per_instance = tf.square(x=loss_per_instance)
         return tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
+    # TODO api mismatch
     def tf_demo_optimization(self, states, internals, actions, terminal, reward, update):
 
         def fn_loss():
@@ -193,48 +212,65 @@ class QDemoModel(QModel):
 
         return tf.group(demo_optimization, target_optimization)
 
-    def demonstration_update(self, states, internals, actions, terminal, reward):
-        fetches = self.demo_optimization
-
-        terminal = np.asarray(terminal)
-        batched = (terminal.ndim == 1)
-        if batched:
-            # TEMP: Random sampling fix
-            if self.random_sampling_fix:
-                feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
-                feed_dict.update(
-                    {state_input: states[name][1] for name, state_input in self.next_states_input.items()}
-                )
-            else:
-                feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: internals[n]
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: actions[name]
-                    for name, action_input in self.actions_input.items()}
-            )
-            feed_dict[self.terminal_input] = terminal
-            feed_dict[self.reward_input] = reward
-        else:
-            # TEMP: Random sampling fix
-            if self.random_sampling_fix:
-                raise TensorForceError("Unbatched version not covered by fix.")
-            else:
-                feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: (internals[n],)
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: (actions[name],)
-                    for name, action_input in self.actions_input.items()}
-            )
-            feed_dict[self.terminal_input] = (terminal,)
-            feed_dict[self.reward_input] = (reward,)
-
-        feed_dict[self.deterministic_input] = True
-        feed_dict[self.update_input] = True
+    def set_demo_memory(self, states, internals, actions, terminal, reward):
+        """
+        Stores demonstrations in the demo memory.
+        """
+        # TODO check if this is correct
+        feed_dict = dict(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
+        fetches = self.demo_memory.store
 
         self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+
+    def demonstration_update(self):
+        # TODO args are now fetched from internal demo memory
+        fetches = self.demo_optimization
+
+        # terminal = np.asarray(terminal)
+        # batched = (terminal.ndim == 1)
+        # if batched:
+        #     # TEMP: Random sampling fix
+        #     if self.random_sampling_fix:
+        #         feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
+        #         feed_dict.update(
+        #             {state_input: states[name][1] for name, state_input in self.next_states_input.items()}
+        #         )
+        #     else:
+        #         feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
+        #     feed_dict.update(
+        #         {internal_input: internals[n]
+        #             for n, internal_input in enumerate(self.internals_input)}
+        #     )
+        #     feed_dict.update(
+        #         {action_input: actions[name]
+        #             for name, action_input in self.actions_input.items()}
+        #     )
+        #     feed_dict[self.terminal_input] = terminal
+        #     feed_dict[self.reward_input] = reward
+        # else:
+        #     # TEMP: Random sampling fix
+        #     if self.random_sampling_fix:
+        #         raise TensorForceError("Unbatched version not covered by fix.")
+        #     else:
+        #         feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
+        #     feed_dict.update(
+        #         {internal_input: (internals[n],)
+        #             for n, internal_input in enumerate(self.internals_input)}
+        #     )
+        #     feed_dict.update(
+        #         {action_input: (actions[name],)
+        #             for name, action_input in self.actions_input.items()}
+        #     )
+        #     feed_dict[self.terminal_input] = (terminal,)
+        #     feed_dict[self.reward_input] = (reward,)
+        #
+        # feed_dict[self.deterministic_input] = True
+        # feed_dict[self.update_input] = True
+        #
+        # self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)

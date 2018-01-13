@@ -183,7 +183,6 @@ class DQFDAgent(Agent):
             actions_spec=actions_spec,
             batched_observe=batched_observe
         )
-        self.demo_memory = Replay(self.states_spec, self.actions_spec, self.demo_memory_capacity)
 
     def initialize_model(self):
         return QDemoModel(
@@ -211,7 +210,9 @@ class DQFDAgent(Agent):
             double_q_model=self.double_q_model,
             huber_loss=self.huber_loss,
             expert_margin=self.expert_margin,
-            supervised_weight=self.supervised_weight
+            supervised_weight=self.supervised_weight,
+            demo_memory_capacity=self.demo_memory_capacity,
+            demo_batch_size=self.demo_batch_size
         )
 
     def observe(self, reward, terminal):
@@ -225,17 +226,10 @@ class DQFDAgent(Agent):
             terminal:
         """
         super(DQFDAgent, self).observe(reward=reward, terminal=terminal)
-
+        # TODO Where are these parameters?
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
             for _ in xrange(self.repeat_update):
-                batch = self.demo_memory.get_batch(batch_size=self.demo_batch_size, next_states=True)
-                self.model.demonstration_update(
-                    states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
-                    internals=batch['internals'],
-                    actions=batch['actions'],
-                    terminal=batch['terminal'],
-                    reward=batch['reward']
-                )
+                self.model.demonstration_update()
 
     def import_demonstrations(self, demonstrations):
         """
@@ -255,14 +249,14 @@ class DQFDAgent(Agent):
                 action = dict(action=observation['actions'])
             else:
                 action = observation['actions']
-
-            self.demo_memory.add_observation(
-                states=state,
-                internals=observation['internals'],
-                actions=action,
-                terminal=observation['terminal'],
-                reward=observation['reward']
-            )
+            # TODO this is undesirable now because it implies one session call per addition of sample
+            # self.demo_memory.add_observation(
+            #     states=state,
+            #     internals=observation['internals'],
+            #     actions=action,
+            #     terminal=observation['terminal'],
+            #     reward=observation['reward']
+            # )
 
     def set_demonstrations(self, batch):
         """
@@ -273,13 +267,20 @@ class DQFDAgent(Agent):
             batch:
 
         """
-        self.demo_memory.set_memory(
+        self.model.set_demo_memory(
             states=batch['states'],
             internals=batch['internals'],
             actions=batch['actions'],
             terminal=batch['terminal'],
             reward=batch['reward']
         )
+        # self.demo_memory.set_memory(
+        #     states=batch['states'],
+        #     internals=batch['internals'],
+        #     actions=batch['actions'],
+        #     terminal=batch['terminal'],
+        #     reward=batch['reward']
+        # )
 
     def pretrain(self, steps):
         """
@@ -290,14 +291,4 @@ class DQFDAgent(Agent):
 
         """
         for _ in xrange(steps):
-            # Sample from demo memory.
-            batch = self.demo_memory.get_batch(batch_size=self.batch_size, next_states=True)
-
-            # Update using both double Q-learning and supervised double_q_loss.
-            self.model.demonstration_update(
-                states={name: np.stack((batch['states'][name], batch['next_states'][name])) for name in batch['states']},
-                internals=batch['internals'],
-                actions=batch['actions'],
-                terminal=batch['terminal'],
-                reward=batch['reward']
-            )
+            self.model.demonstration_update()

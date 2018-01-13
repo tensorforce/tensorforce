@@ -653,7 +653,7 @@ class Model(object):
 
     def tf_observe_timestep(self, states, internals, actions, terminal, reward):
         """
-        Creates the TensorFlow operations for performing the observation of a full timestep  
+        Creates the TensorFlow operations for performing the observation of a full time step's
         information.
 
         Args:

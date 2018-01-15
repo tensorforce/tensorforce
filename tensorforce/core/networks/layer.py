@@ -233,6 +233,9 @@ class Nonlinearity(Layer):
             # https://arxiv.org/pdf/1706.02515.pdf
             x = tf.nn.selu(features=(self.beta * x))
 
+        elif self.name == 'leaky_relu':
+            x = tf.nn.leaky_relu(features=x)
+
         elif self.name == 'sigmoid':
             x = tf.sigmoid(x=(self.beta * x))
 
@@ -459,6 +462,15 @@ class Linear(Layer):
             stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + self.size)))
             self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
 
+        elif isinstance(self.weights_init, str):
+            if self.weights_init == 'xavier':
+                print('linear weights_init xavier')
+                self.weights_init = tf.contrib.layers.xavier_initializer(uniform=False, seed=None, dtype=tf.float32)
+            else:
+                raise TensorForceError(
+                    'Linear Weights init spec wrong weight_init={}, expected xavier'.format(self.weights_init)
+                )
+
         elif isinstance(self.weights_init, float):
             if self.weights_init == 0.0:
                 self.weights_init = tf.zeros_initializer(dtype=tf.float32)
@@ -583,6 +595,7 @@ class Dense(Layer):
         l1_regularization=0.0,
         skip=False,
         scope='dense',
+        weights=None,
         summary_labels=()
     ):
         """
@@ -607,6 +620,7 @@ class Dense(Layer):
         self.linear = Linear(
             size=size,
             bias=bias,
+            weights=weights,
             l2_regularization=l2_regularization,
             l1_regularization=l1_regularization,
             summary_labels=summary_labels

@@ -13,9 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-MazeExplorer Integration: https://github.com/mryellow/maze_explorer.
-"""
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -23,10 +20,12 @@ from __future__ import division
 
 import mazeexp as mx
 
-from tensorforce import TensorForceError
 from tensorforce.environments import Environment
 
 class MazeExplorer(Environment):
+    """
+    MazeExplorer Integration: https://github.com/mryellow/maze_explorer.
+    """
 
     def __init__(self, mode_id=0, visible=True):
         """
@@ -38,7 +37,8 @@ class MazeExplorer(Environment):
         """
 
         self.mode_id = int(mode_id)
-        self.engine = mx.MazeExplorer(mode_id, visible)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
+        # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
+        self.engine = mx.MazeExplorer(mode_id, visible)
 
     def __str__(self):
         return 'MazeExplorer({})'.format(self.mode_id)
@@ -50,14 +50,13 @@ class MazeExplorer(Environment):
         # TODO: Reset to `ones`?
         return self.engine.reset()
 
-    def execute(self, action):
-        state, reward, terminal, _ = self.engine.act(action)
-        return state, reward, terminal
+    def execute(self, actions):
+        state, reward, terminal, _ = self.engine.act(actions)
+        return state, terminal, reward
 
     @property
     def states(self):
         # Use `observation_chans` to multichannel with `item` sensors.
-        shape = tuple()
         if self.engine.observation_chans > 1:
             shape = (self.engine.observation_num, self.engine.observation_chans)
         else:
@@ -67,4 +66,4 @@ class MazeExplorer(Environment):
 
     @property
     def actions(self):
-        return dict(continuous=False, num_actions=self.engine.actions_num)
+        return dict(type='int', num_actions=self.engine.actions_num)

@@ -19,61 +19,19 @@ from __future__ import division
 
 import unittest
 
-from tensorforce import Configuration
+from tensorforce.tests.base_agent_test import BaseAgentTest
 from tensorforce.agents import RandomAgent
-from tensorforce.environments.minimal_test import MinimalTest
-from tensorforce.execution import Runner
-from tensorforce.tests import reward_threshold
 
 
-class TestRandomAgent(unittest.TestCase):
+class TestRandomAgent(BaseAgentTest, unittest.TestCase):
 
-    def test_discrete(self):
-        environment = MinimalTest(definition=False)
-        config = Configuration(
-            states=environment.states,
-            actions=environment.actions
-        )
-        agent = RandomAgent(config=config)
-        runner = Runner(agent=agent, environment=environment)
+    agent = RandomAgent
+    deterministic = False
+    requires_network = False
+    # Random agent is not expected to pass anything
+    pass_threshold = 0.0
 
-        def episode_finished(r):
-            return r.episode < 100 or not all(x / l >= 0.9 for x, l in zip(r.episode_rewards[-100:], r.episode_lengths[-100:]))
+    config = dict()
 
-        runner.run(episodes=1000, episode_finished=episode_finished)
-        print('Random agent (discrete): ' + str(runner.episode))
-        self.assertTrue(runner.episode == 1000)
-
-    def test_continuous(self):
-        environment = MinimalTest(definition=True)
-        config = Configuration(
-            states=environment.states,
-            actions=environment.actions
-        )
-        agent = RandomAgent(config=config)
-        runner = Runner(agent=agent, environment=environment)
-
-        def episode_finished(r):
-            return r.episode < 100 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-100:],
-                                                                                        r.episode_lengths[-100:]))
-
-        runner.run(episodes=1000, episode_finished=episode_finished)
-        print('Random agent (continuous): ' + str(runner.episode))
-        self.assertTrue(runner.episode == 1000)
-
-    def test_multi(self):
-        environment = MinimalTest(definition=[False, (False, 2), (False, (1, 2)), (True, (1, 2))])
-        config = Configuration(
-            states=environment.states,
-            actions=environment.actions
-        )
-        agent = RandomAgent(config=config)
-        runner = Runner(agent=agent, environment=environment)
-
-        def episode_finished(r):
-            return r.episode < 20 or not all(x / l >= reward_threshold for x, l in zip(r.episode_rewards[-20:],
-                                                                                       r.episode_lengths[-20:]))
-
-        runner.run(episodes=1000, episode_finished=episode_finished)
-        print('Random agent (multi-state/action): ' + str(runner.episode))
-        self.assertTrue(runner.episode == 1000)
+    # Not using a network so no point in testing LSTM
+    exclude_lstm = True

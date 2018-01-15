@@ -13,18 +13,36 @@
 # limitations under the License.
 # ==============================================================================
 
-from random import gauss
+import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core.explorations import Exploration
 
 
 class OrnsteinUhlenbeckProcess(Exploration):
+    """
+    Explores via an Ornstein-Uhlenbeck process.
+    """
 
-    def __init__(self, sigma=0.3, mu=0, theta=0.15):
+    def __init__(
+        self,
+        sigma=0.3,
+        mu=0.0,
+        theta=0.15,
+        scope='ornstein_uhlenbeck',
+        summary_labels=()
+    ):
+        """
+        Initializes an Ornstein-Uhlenbeck process which is a mean reverting stochastic process
+        introducing time-correlated noise.
+        """
+        super(OrnsteinUhlenbeckProcess, self).__init__(scope=scope, summary_labels=summary_labels)
+
         self.sigma = sigma
-        self.mu = self.state = mu
+        self.mu = float(mu)  # need to add cast to float to avoid tf type-mismatch error in case mu=0.0
         self.theta = theta
 
-    def __call__(self, episode=0, timestep=0):
-        self.state += self.theta * (self.mu - self.state) + self.sigma * gauss(mu=0.0, sigma=1.0)
-        return self.state
+    def tf_explore(self, episode, timestep, action_shape):
+        normal_sample = tf.random_normal(shape=action_shape, mean=0.0, stddev=1.0)
+        state = tf.get_variable(name='ornstein_uhlenbeck', dtype=util.tf_dtype('float'), initializer=(self.mu,))
+        return tf.assign_add(ref=state, value=(self.theta * (self.mu - state) + self.sigma * normal_sample))

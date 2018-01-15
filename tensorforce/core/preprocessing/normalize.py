@@ -13,15 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Standardize data (z-transformation)
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
+import tensorflow as tf
 
 from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
@@ -29,9 +25,18 @@ from tensorforce.core.preprocessing import Preprocessor
 
 class Normalize(Preprocessor):
     """
-    Normalize state. Subtract mean and divide by standard deviation.
+    Normalize state. Subtract minimal value and divide by range.
     """
 
-    def process(self, state):
-        state = state.astype(np.float32)
-        return (state - state.mean()) / (state.std() + util.epsilon)
+    def __init__(self, scope='normalize', summary_labels=()):
+        super(Normalize, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_process(self, tensor):
+        # Min/max across every axis except batch dimension.
+        min_value = tensor
+        max_value = tensor
+        for axis in range(1, util.rank(tensor)):
+            min_value = tf.reduce_min(input_tensor=min_value, axis=axis, keep_dims=True)
+            max_value = tf.reduce_max(input_tensor=max_value, axis=axis, keep_dims=True)
+
+        return (tensor - min_value) / (max_value - min_value + util.epsilon)

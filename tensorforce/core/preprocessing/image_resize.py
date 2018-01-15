@@ -13,17 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Comment
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-import scipy.misc
-
+import tensorflow as tf
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -32,12 +26,12 @@ class ImageResize(Preprocessor):
     Resize image to width x height.
     """
 
-    def __init__(self, width, height):
-        super(ImageResize, self).__init__()
+    def __init__(self, width, height, scope='image_resize', summary_labels=()):
         self.size = (width, height)
+        super(ImageResize, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def process(self, state):
-        return scipy.misc.imresize(arr=state.astype(np.uint8), size=self.size)
+    def tf_process(self, tensor):
+        return tf.image.resize_images(images=tensor, size=self.size)
 
     def processed_shape(self, shape):
         return self.size + (shape[-1],)

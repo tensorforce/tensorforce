@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Divide data by a constant scalar.
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -28,9 +24,10 @@ class Divide(Preprocessor):
     """
     Divide state by scale.
     """
-    def __init__(self, scale):
-        super(Divide, self).__init__()
-        self.scale = scale
 
-    def process(self, state):
-        return state / self.scale
+    def __init__(self, scale, scope='divide', summary_labels=()):
+        self.scale = scale
+        super(Divide, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_process(self, tensor):
+        return tensor / self.scale

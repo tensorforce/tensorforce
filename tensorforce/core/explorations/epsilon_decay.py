@@ -13,6 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
+
+from tensorforce import util
 from tensorforce.core.explorations import Exploration
 
 
@@ -22,21 +25,39 @@ class EpsilonDecay(Exploration):
     difference between current and final epsilon to total timesteps.
     """
 
-    def __init__(self, epsilon=1.0, epsilon_final=0.1, epsilon_timesteps=10000, start_after=0):
-        self.epsilon = epsilon
-        self.epsilon_final = epsilon_final
-        self.epsilon_timesteps = epsilon_timesteps
-        self.start_after = start_after
+    def __init__(
+        self,
+        initial_epsilon=1.0,
+        final_epsilon=0.1,
+        timesteps=10000,
+        start_timestep=0,
+        half_lives=10,
+        scope='epsilon_anneal',
+        summary_labels=()
+    ):
+        self.initial_epsilon = initial_epsilon
+        self.final_epsilon = final_epsilon
+        self.timesteps = timesteps
+        self.start_timestep = start_timestep
+        self.half_life = timesteps / half_lives
 
-    def __call__(self, episode=0, timestep=0):
-        if timestep < self.start_after:
-            return self.epsilon
+        super(EpsilonDecay, self).__init__(scope=scope, summary_labels=summary_labels)
 
-        offset = self.start_after
+    def tf_explore(self, episode=0, timestep=0, action_shape=(1,)):
 
-        if timestep > self.epsilon_timesteps:
-            self.epsilon = self.epsilon_final
-        else:
-            self.epsilon -= ((self.epsilon - self.epsilon_final) / self.epsilon_timesteps) * (timestep - offset)
+        def true_fn():
+            # Know if first is not true second must be true from outer cond check.
+            return tf.cond(
+                pred=(timestep < self.start_timestep),
+                true_fn=(lambda: self.initial_epsilon),
+                false_fn=(lambda: self.final_epsilon)
+            )
 
-        return self.epsilon
+        def false_fn():
+            half_life_ratio = (tf.cast(x=timestep, dtype=util.tf_dtype('float')) - self.start_timestep) / self.half_life
+            epsilon = self.final_epsilon + (2 ** (-half_life_ratio)) * (self.initial_epsilon - self.final_epsilon)
+            return epsilon
+
+        pred = tf.logical_or(x=(timestep < self.start_timestep),
+                             y=(timestep > self.start_timestep + int(self.timesteps)))
+        return tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)

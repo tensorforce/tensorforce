@@ -15,14 +15,18 @@
 
 
 from tensorforce.core.distributions.distribution import Distribution
+from tensorforce.core.distributions.bernoulli import Bernoulli
 from tensorforce.core.distributions.categorical import Categorical
 from tensorforce.core.distributions.gaussian import Gaussian
+from tensorforce.core.distributions.beta import Beta
 
 
 distributions = dict(
+    bernoulli=Bernoulli,
     categorical=Categorical,
-    gaussian=Gaussian
+    gaussian=Gaussian,
+    beta=Beta
 )
 
 
-__all__ = ['Distribution', 'Categorical', 'Gaussian', 'distributions']
+__all__ = ['distributions', 'Distribution', 'Bernoulli', 'Categorical', 'Gaussian', 'Beta']

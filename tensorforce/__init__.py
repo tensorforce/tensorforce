@@ -15,13 +15,17 @@
 
 
 from tensorforce.exception import TensorForceError
-from tensorforce.config import Configuration
 
-# Libraries shoulld add NullHandler() by default, as its the application code's
+
+__version__ = '0.3.5.1'
+
+
+# Libraries should add NullHandler() by default, as its the application code's
 # responsibility to configure log handlers.
 # https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
 
 import logging
+
 try:
     from logging import NullHandler
 except ImportError:
@@ -31,4 +35,4 @@ except ImportError:
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
-__all__ = ['TensorForceError', 'Configuration']
+__all__ = ['TensorForceError']

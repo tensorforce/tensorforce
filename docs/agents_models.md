@@ -26,6 +26,8 @@ agent inherits from this class.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.Agent
+        :noindex:
+        :show-inheritance:
         :members:
 ```
 
@@ -35,6 +37,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.models.Model
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -45,6 +48,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.MemoryAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -55,6 +59,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.BatchAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -64,6 +69,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.DQNAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -74,14 +80,16 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.NAFAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
 
-### Deep-Q-learning from demonostration (DQFD)
+### Deep-Q-learning from demonstration (DQFD)
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.DQFDAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -91,6 +99,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.VPGAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -100,6 +109,7 @@ The `Model` class is the base class for reinforcement learning models.
 
 ```eval_rst
     .. autoclass:: tensorforce.agents.TRPOAgent
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -110,7 +120,7 @@ State preprocessing
 The agent handles state preprocessing. A preprocessor takes the raw state input
 from the environment and modifies it (for instance, image resize, state 
 concatenation, etc.). You can find information about our ready-to-use
-preprocessors [here](preprocessing.md).
+preprocessors [here](preprocessing.html).
 
 
 Building your own agent
@@ -131,5 +141,5 @@ To start building your own agent, please refer to
 [this blogpost](https://reinforce.io) to gain a deeper understanding of the
 internals of the TensorForce library. Afterwards, have look on a sample
 implementation, e.g. the [DQN Agent](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/agents/dqn_agent.py)
-and [DQN Model](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/models/dqn_model.py).
+and [DQN Model](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/models/q_model.py).
 

@@ -13,8 +13,46 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.core.networks.layer import Layer, Nonlinearity, Dropout, Flatten, Pool2d, Embedding, Linear, Dense, \
+    Dueling, Conv1d, Conv2d, InternalLstm, Lstm
+from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
+from tensorforce.core.networks.complex_network import Input, Output
 
-from tensorforce.core.networks.layers import layers, layered_network_builder, from_json
-from tensorforce.core.networks.network import NeuralNetwork
 
-__all__ = ['NeuralNetwork', 'layers', 'layered_network_builder', 'from_json']
+layers = dict(
+    nonlinearity=Nonlinearity,
+    dropout=Dropout,
+    flatten=Flatten,
+    pool2d=Pool2d,
+    embedding=Embedding,
+    linear=Linear,
+    dense=Dense,
+    dueling=Dueling,
+    conv1d=Conv1d,
+    conv2d=Conv2d,
+    internal_lstm=InternalLstm,
+    lstm=Lstm,
+    input=Input,
+    output=Output   
+)
+
+
+__all__ = [
+    'layers',
+    'Layer',
+    'Nonlinearity',
+    'Dropout',
+    'Flatten',
+    'Pool2d',
+    'Embedding',
+    'Linear',
+    'Dense',
+    'Dueling',
+    'Conv1d',
+    'Conv2d',
+    'InternalLstm',
+    'Lstm',
+    'Network',
+    'LayerBasedNetwork',
+    'LayeredNetwork'
+]

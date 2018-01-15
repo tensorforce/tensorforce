@@ -14,16 +14,25 @@
 # ==============================================================================
 
 from tensorforce.core.baselines.baseline import Baseline
-from tensorforce.core.baselines.cnn import CNNBaseline
-from tensorforce.core.baselines.linear import LinearBaseline
-from tensorforce.core.baselines.mlp import MLPBaseline
+from tensorforce.core.baselines.aggregated_baseline import AggregatedBaseline
+from tensorforce.core.baselines.network_baseline import NetworkBaseline
+from tensorforce.core.baselines.mlp_baseline import MLPBaseline
+from tensorforce.core.baselines.cnn_baseline import CNNBaseline
 
 
 baselines = dict(
-    linear=LinearBaseline,
+    aggregated=AggregatedBaseline,
     mlp=MLPBaseline,
     cnn=CNNBaseline,
+    custom=NetworkBaseline
 )
 
 
-__all__ = ['Baseline', 'LinearBaseline', 'MLPBaseline','CNNBaseline', 'baselines']
+__all__ = [
+    'baselines',
+    'Baseline',
+    'AggregatedBaseline',
+    'NetworkBaseline',
+    'MLPBaseline',
+    'CNNBaseline'
+]

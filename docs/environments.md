@@ -11,6 +11,7 @@ with this environment and learns to act optimally in its dynamics.
 ```eval_rst
     .. autoclass:: tensorforce.environments.Environment
         :members:
+        :noindex:
 ```
 
 
@@ -20,7 +21,8 @@ Ready-to-use environments
 ### OpenAI Gym
 
 ```eval_rst
-    .. autoclass:: tensorforce.environments.openai_gym.OpenAIGym
+    .. autoclass:: tensorforce.contrib.openai_gym.OpenAIGym
+        :noindex:
         :show-inheritance:
         :members:
         :special-members: __init__
@@ -29,7 +31,8 @@ Ready-to-use environments
 ### OpenAI Universe
 
 ```eval_rst
-    .. autoclass:: tensorforce.environments.openai_universe.OpenAIUniverse
+    .. autoclass:: tensorforce.contrib.openai_universe.OpenAIUniverse
+        :noindex:
         :show-inheritance:
         :members:
         :special-members: __init__
@@ -38,7 +41,18 @@ Ready-to-use environments
 ### Deepmind Lab
 
 ```eval_rst
-    .. autoclass:: tensorforce.environments.deepmind_lab.DeepMindLab
+    .. autoclass:: tensorforce.contrib.deepmind_lab.DeepMindLab
+        :noindex:
+        :show-inheritance:
+        :members:
+        :special-members: __init__
+```
+
+### Unreal Engine 4 Games
+
+```eval_rst
+    .. autoclass:: tensorforce.contrib.unreal_engine.UE4Environment
+        :noindex:
         :show-inheritance:
         :members:
         :special-members: __init__

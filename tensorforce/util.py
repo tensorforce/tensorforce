@@ -17,8 +17,9 @@ import importlib
 import logging
 import numpy as np
 import tensorflow as tf
+from tensorflow.core.util.event_pb2 import SessionLog
 
-from tensorforce import TensorForceError, Configuration
+from tensorforce import TensorForceError
 
 
 epsilon = 1e-6
@@ -34,8 +35,8 @@ log_levels = dict(
 
 
 def prod(xs):
-    """Computes the product along the elements in an iterable. Returns 1 for empty
-        iterable.
+    """Computes the product along the elements in an iterable. Returns 1 for empty iterable.
+
     Args:
         xs: Iterable containing numbers.
 
@@ -95,11 +96,11 @@ def np_dtype(dtype):
     Returns: Numpy data type
 
     """
-    if dtype == 'float' or dtype == float:
+    if dtype == 'float' or dtype == float or dtype == np.float32 or dtype == tf.float32:
         return np.float32
-    elif dtype == 'int' or dtype == int:
+    elif dtype == 'int' or dtype == int or dtype == np.int32 or dtype == tf.int32:
         return np.int32
-    elif dtype == 'bool' or dtype == bool:
+    elif dtype == 'bool' or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
         return np.bool_
     else:
         raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
@@ -107,67 +108,102 @@ def np_dtype(dtype):
 
 def tf_dtype(dtype):
     """Translates dtype specifications in configurations to tensorflow data types.
+
        Args:
            dtype: String describing a numerical type (e.g. 'float'), numpy data type,
-            or numerical type primitive.
+               or numerical type primitive.
 
        Returns: TensorFlow data type
 
        """
-    if dtype == 'float' or dtype == float or dtype == np.float32:
+    if dtype == 'float' or dtype == float or dtype == np.float32 or dtype == tf.float32:
         return tf.float32
-    elif dtype == 'int' or dtype == int or dtype == np.int32:
+    elif dtype == 'int' or dtype == int or dtype == np.int32 or dtype == tf.int32:
         return tf.int32
+    elif dtype == 'bool' or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
+        return tf.bool
     else:
         raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
 
 
-def get_function(fct, predefined=None):
+def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
     """
-    Turn a function specification from a configuration to a function, e.g.
-    by importing it from the respective module.
-    Args:
-        fct:
-        predefined:
-
-    Returns:
-
-    """
-    if predefined is not None and fct in predefined:
-        return predefined[fct]
-    elif isinstance(fct, str):
-        module_name, function_name = fct.rsplit('.', 1)
-        module = importlib.import_module(module_name)
-        return getattr(module, function_name)
-    elif callable(fct):
-        return fct
-    else:
-        raise TensorForceError("Argument {} cannot be turned into a function.".format(fct))
-
-
-def get_object(obj, predefined=None, kwargs=None):
-    """
-    Utility method to map Configuration objects to their contents, e.g. optimisers, baselines
-    to the respective classes.
+    Utility method to map some kind of object specification to its content,
+    e.g. optimizer or baseline specifications to the respective classes.
 
     Args:
-        obj: Configuration object or dict
-        predefined: Default value
-        kwargs: Parameters for the configuration
+        obj: A specification dict (value for key 'type' optionally specifies
+                the object, options as follows), a module path (e.g.,
+                my_module.MyClass), a key in predefined_objects, or a callable
+                (e.g., the class type object).
+        predefined_objects: Dict containing predefined set of objects,
+                accessible via their key
+        default_object: Default object is no other is specified
+        kwargs: Arguments for object creation
 
     Returns: The retrieved object
 
     """
-    if isinstance(obj, Configuration):
-        fct = obj.type
-        full_kwargs = {key: value for key, value in obj if key != 'type'}
-    elif isinstance(obj, dict):
-        fct = obj['type']
-        full_kwargs = {key: value for key, value in obj.items() if key != 'type'}
+    args = ()
+    kwargs = dict() if kwargs is None else kwargs
+
+    if isinstance(obj, dict):
+        kwargs.update(obj)
+        obj = kwargs.pop('type', None)
+
+    if predefined_objects is not None and obj in predefined_objects:
+        obj = predefined_objects[obj]
+    elif isinstance(obj, str):
+        if obj.find('.') != -1:
+            module_name, function_name = obj.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            obj = getattr(module, function_name)
+        else:
+            predef_obj_keys = list(predefined_objects.keys())
+            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(obj,predef_obj_keys))
+    elif callable(obj):
+        pass
+    elif default_object is not None:
+        args = (obj,)
+        obj = default_object
     else:
-        fct = obj
-        full_kwargs = dict()
-    obj = get_function(fct=fct, predefined=predefined)
-    if kwargs is not None:
-        full_kwargs.update(kwargs)
-    return obj(**full_kwargs)
+        # assumes the object is already instantiated
+        return obj
+
+    return obj(*args, **kwargs)
+
+
+class UpdateSummarySaverHook(tf.train.SummarySaverHook):
+
+    def __init__(self, update_input, *args, **kwargs):
+        super(UpdateSummarySaverHook, self).__init__(*args, **kwargs)
+        self.update_input = update_input
+
+    def before_run(self, run_context):
+        self._request_summary = run_context.original_args[1] is not None and \
+            run_context.original_args[1].get(self.update_input, False) and \
+            (self._next_step is None or self._timer.should_trigger_for_step(self._next_step))
+        requests = {'global_step': self._global_step_tensor}
+        if self._request_summary:
+            if self._get_summary_op() is not None:
+                requests['summary'] = self._get_summary_op()
+        return tf.train.SessionRunArgs(requests)
+
+    def after_run(self, run_context, run_values):
+        if not self._summary_writer:
+            return
+
+        stale_global_step = run_values.results["global_step"]
+        global_step = stale_global_step + 1
+        if self._next_step is None or self._request_summary:
+            global_step = run_context.session.run(self._global_step_tensor)
+
+        if self._next_step is None:
+            self._summary_writer.add_session_log(SessionLog(status=SessionLog.START), global_step)
+
+        if "summary" in run_values.results:
+            self._timer.update_last_triggered_step(global_step)
+            for summary in run_values.results["summary"]:
+                self._summary_writer.add_summary(summary, global_step)
+
+        self._next_step = global_step + 1

@@ -26,9 +26,10 @@ import logging
 import os
 import time
 
-from tensorforce import Configuration
-from tensorforce.agents import agents
-from tensorforce.core.networks import from_json
+from tensorforce import TensorForceError
+import json
+
+from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from tensorforce.contrib.maze_explorer import MazeExplorer
 
@@ -38,9 +39,8 @@ def main():
 
     parser.add_argument('--mode', help="ID of the game mode")
     parser.add_argument('--hide', dest='hide', action='store_const', const=True, default=False, help="Hide output window")
-    parser.add_argument('-a', '--agent', help='Agent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-config', help="Network configuration file")
+    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
     parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-s', '--save', help="Save agent to this dir")
@@ -55,24 +55,33 @@ def main():
 
     environment = MazeExplorer(mode_id=args.mode, visible=not args.hide)
 
-    if args.agent_config:
-        agent_config = Configuration.from_json(args.agent_config)
+    if args.agent_config is not None:
+        with open(args.agent_config, 'r') as fp:
+            agent_config = json.load(fp=fp)
     else:
-        agent_config = Configuration()
-        logger.info("No agent configuration provided.")
-    if args.network_config:
-        network = from_json(args.network_config)
+        raise TensorForceError("No agent configuration provided.")
+
+    if args.network_spec is not None:
+        with open(args.network_spec, 'r') as fp:
+            network_spec = json.load(fp=fp)
     else:
-        network = None
+        network_spec = None
         logger.info("No network configuration provided.")
-    agent_config.default(dict(states=environment.states, actions=environment.actions, network=network))
-    agent = agents[args.agent](config=agent_config)
+
+    agent = Agent.from_spec(
+        spec=agent_config,
+        kwargs=dict(
+            states_spec=environment.states,
+            actions_spec=environment.actions,
+            network_spec=network_spec
+        )
+    )
 
     if args.load:
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):
             raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
-        agent.load_model(args.load)
+        agent.restore_model(args.load)
 
     if args.debug:
         logger.info("-" * 16)
@@ -90,9 +99,7 @@ def main():
     runner = Runner(
         agent=agent,
         environment=environment,
-        repeat_actions=1,
-        save_path=args.save,
-        save_episodes=args.save_episodes
+        repeat_actions=1
     )
 
     report_episodes = args.episodes // 1000

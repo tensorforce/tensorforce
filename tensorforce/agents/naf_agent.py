@@ -13,62 +13,121 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Agent using Normalized Advantage Functions.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from tensorforce import TensorForceError
 from tensorforce.agents import MemoryAgent
-from tensorforce.models import NAFModel
+from tensorforce.models import QNAFModel
 
 
 class NAFAgent(MemoryAgent):
     """
-    Normalized Advantage Functions (NAF) agent ([Gu et al., 2016](https://arxiv.org/pdf/1603.00748.pdf)), a.k.a.
-    DQN for continuous actions.
-
-    Configuration:
-
-    Each agent requires the following configuration parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    The `MemoryAgent` class additionally requires the following parameters:
-
-    * `batch_size`: integer of the batch size.
-    * `memory_capacity`: integer of maximum experiences to store.
-    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-    * `update_frequency`: integer indicating the number of steps between model updates.
-    * `first_update`: integer indicating the number of steps to pass before the first update.
-    * `repeat_update`: integer indicating how often to repeat the model update.
-
-    Each model requires the following configuration parameters:
-
-    * `discount`: float of discount factor (gamma).
-    * `learning_rate`: float of learning rate (alpha).
-    * `optimizer`: string of optimizer to use (e.g. 'adam').
-    * `device`: string of tensorflow device name.
-    * `tf_summary`: string directory to write tensorflow summaries. Default None
-    * `tf_summary_level`: int indicating which tensorflow summaries to create.
-    * `tf_summary_interval`: int number of calls to get_action until writing tensorflow summaries on update.
-    * `log_level`: string containing logleve (e.g. 'info').
-    * `distributed`: boolean indicating whether to use distributed tensorflow.
-    * `global_model`: global model.
-    * `session`: session to use.
-
-    The NAF agent expects the following additional configuration parameters:
-
-    * `target_update_frequency`: int of states between updates of the target network.
-    * `update_target_weight`: float of update target weight (tau parameter).
-    * `clip_loss`: float if not 0, uses the huber loss with clip_loss as the linear bound
+    Normalized Advantage Functions (NAF) for continuous DQN: https://arxiv.org/abs/1603.00748
 
     """
 
-    name = 'NAFAgent'
-    model = NAFModel
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        batched_observe=1000,
+        scope='naf',
+        # parameters specific to LearningAgents
+        summary_spec=None,
+        network_spec=None,
+        device=None,
+        session_config=None,
+        saver_spec=None,
+        distributed_spec=None,
+        optimizer=None,
+        discount=0.99,
+        variable_noise=None,
+        states_preprocessing_spec=None,
+        explorations_spec=None,
+        reward_preprocessing_spec=None,
+        distributions_spec=None,
+        entropy_regularization=None,
+        # parameters specific to MemoryAgents
+        batch_size=32,
+        memory=None,
+        first_update=10000,
+        update_frequency=4,
+        repeat_update=1,
+        # parameters specific to NAF Agents
+        target_sync_frequency=10000,
+        target_update_weight=1.0,
+        double_q_model=False,
+        huber_loss=None
+    ):
+        """
+        Creates a NAF-agent which is DQN-variant for continuous actions:
+        https://arxiv.org/abs/1603.00748
+
+        Args:
+            target_sync_frequency: Interval between optimization calls synchronizing the target network.
+            target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
+            double_q_model (bool): Whether to use a double-Q-model (learning two value functions).
+            huber_loss: Optional flat specifying Huber-loss clipping.
+        """
+
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
+        self.double_q_model = double_q_model
+        self.huber_loss = huber_loss
+
+        super(NAFAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            batched_observe=batched_observe,
+            scope=scope,
+            # parameters specific to LearningAgent
+            summary_spec=summary_spec,
+            network_spec=network_spec,
+            discount=discount,
+            device=device,
+            session_config=session_config,
+            saver_spec=saver_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            variable_noise=variable_noise,
+            states_preprocessing_spec=states_preprocessing_spec,
+            explorations_spec=explorations_spec,
+            reward_preprocessing_spec=reward_preprocessing_spec,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization,
+            # parameters specific to MemoryAgents
+            batch_size=batch_size,
+            memory=memory,
+            first_update=first_update,
+            update_frequency=update_frequency,
+            repeat_update=repeat_update
+        )
+
+    def initialize_model(self):
+        return QNAFModel(
+            states_spec=self.states_spec,
+            actions_spec=self.actions_spec,
+            network_spec=self.network_spec,
+            device=self.device,
+            session_config=self.session_config,
+            scope=self.scope,
+            saver_spec=self.saver_spec,
+            summary_spec=self.summary_spec,
+            distributed_spec=self.distributed_spec,
+            optimizer=self.optimizer,
+            discount=self.discount,
+            variable_noise=self.variable_noise,
+            states_preprocessing_spec=self.states_preprocessing_spec,
+            explorations_spec=self.explorations_spec,
+            reward_preprocessing_spec=self.reward_preprocessing_spec,
+            distributions_spec=self.distributions_spec,
+            entropy_regularization=self.entropy_regularization,
+            target_sync_frequency=self.target_sync_frequency,
+            target_update_weight=self.target_update_weight,
+            double_q_model=self.double_q_model,
+            huber_loss=self.huber_loss,
+            # TEMP: Random sampling fix
+            random_sampling_fix=True
+        )

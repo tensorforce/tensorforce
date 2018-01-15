@@ -1,0 +1,21 @@
+{
+    "type": "dqn_agent",
+    "batch_size": 64,
+    "memory": {
+        "type": "replay",
+        "capacity": 10000
+    },
+    "optimizer": {
+      "type": "adam",
+      "learning_rate": 1e-3
+    },
+
+    "discount": 0.97,
+
+    "explorations_spec": {
+        "type": "epsilon_decay",
+        "initial_epsilon": 1.0,
+        "final_epsilon": 0.1,
+        "timesteps": 1000000
+    }
+}

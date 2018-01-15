@@ -2,7 +2,7 @@ TensorForce: A TensorFlow library for applied reinforcement learning
 ====================================================================
 
 [![Docs](https://readthedocs.org/projects/tensorforce/badge)](http://tensorforce.readthedocs.io/en/latest/)
-[![Gitter](https://badges.gitter.im/reinforceio/TensorForce.svg)](https://gitter.im/reinforceio/TensorForce?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gitter](https://badges.gitter.im/reinforceio/TensorForce.svg)](https://docs.google.com/forms/d/1_UD5Pb5LaPVUviD0pO0fFcEnx_vwenvuc00jmP2rRIc/)
 [![Build Status](https://travis-ci.org/reinforceio/tensorforce.svg?branch=master)](https://travis-ci.org/reinforceio/tensorforce)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/reinforceio/tensorforce/blob/master/LICENSE)
 
@@ -14,17 +14,19 @@ providing clear APIs, readability and modularisation to deploy
 reinforcement learning solutions both in research and practice.
 TensorForce is built on top of TensorFlow and compatible with Python 2.7
 and &gt;3.5 and supports multiple state inputs and multi-dimensional
-actions to be compatible with Gym, Universe, and DeepMind lab.
+actions to be compatible with any type of simulation or application environment.
 
-NOTE: We are currently in a code freeze as we are preparing the role-out
-of 0.3.0. The dev branch for the new release is available [here](https://github.com/reinforceio/tensorforce/compare/dev)
-and will be merged by end October latest. A new blogpost explaining
-the new architecture will be coming soon. 
+TensorForce also aims to move all reinforcement learning logic into the
+TensorFlow graph, including control flow. This both reduces dependencies
+on the host language (Python), thus enabling portable computation graphs that
+can be used in other languages and  contexts, and improves performance.
 
-An introductory blog post can also be found [on our blog.](https://reinforce.io/blog/introduction-to-tensorforce)
+More information on architecture can also be found [on our blog](https://reinforce.io/blog/).
+Please also read the [TensorForce FAQ](https://github.com/reinforceio/tensorforce/blob/master/FAQ.md)
+if you encounter problems or have questions.
 
-Please do read the latest update notes (UPDATE_NOTES.md) for an idea of how the project is evolving, especially
-concerning majorAPI breaking updates.
+Finally, read the latest update notes (UPDATE_NOTES.md) for an idea of
+how the project is evolving, especially concerning majorAPI breaking updates.
 
 The main difference to existing libraries is a strict separation of
 environments, agents and update logic that facilitates usage in
@@ -51,16 +53,30 @@ Universe, DeepMind lab, ALE and Maze explorer. The following algorithms are avai
 policy methods both continuous/discrete and using a Beta distribution for bounded actions). 
 
 -  A3C using distributed TensorFlow or a multithreaded runner - now as part of our generic Model
-    usable with different agents.
--  Trust Region Policy Optimization (TRPO) with generalised advantage
-    estimation (GAE)
--  Normalised Advantage functions (NAFs)
--  DQN/Double-DQN, N-step DQN
--  Vanilla Policy Gradients (VPG)
--  Deep Q-learning from Demonstration (DQFD) -
+    usable with different agents. - [paper](https://arxiv.org/pdf/1602.01783.pdf)
+- Trust Region Policy Optimization (TRPO) - ```trpo_agent``` - [paper](https://arxiv.org/abs/1502.05477)
+- Normalised Advantage functions (NAFs) - ```naf_agent``` - [paper](https://arxiv.org/pdf/1603.00748.pdf)
+- DQN - ```dqn_agent``` -  [paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
+- Double-DQN - ```ddqn_agent``` - [paper](https://arxiv.org/abs/1509.06461)
+- N-step DQN - ```dqn_nstep_agent```
+- Vanilla Policy Gradients (VPG/ REINFORCE) - ```vpg_agent```- [paper](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf)
+- Actor-critic models - via `baseline` for any policy gradient model (see next list) - [paper]()
+- Deep Q-learning from Demonstration (DQFD) -
     [paper](https://arxiv.org/abs/1704.03732)
--  Proximal Policy Optimisation (PPO) - [paper](https://arxiv.org/abs/1707.06347)
--  Categorical DQN - [paper](https://arxiv.org/abs/1707.06887) 
+- Proximal Policy Optimisation (PPO) - ```ppo_agent``` - [paper](https://arxiv.org/abs/1707.06347)
+- Random and constant agents for sanity checking: ```random_agent```, ```constant_agent```
+ 
+Other heuristics and their respective config key that can be turned on where sensible:
+
+- Generalized advantage estimation - ```gae_lambda```  - [paper](https://arxiv.org/abs/1506.02438)
+- Prioritizied experience replay - memory type ```prioritized_replay``` - [paper](https://arxiv.org/abs/1511.05952)
+- Bounded continuous actions are mapped to Beta distributions instead of Gaussians - [paper](http://proceedings.mlr.press/v70/chou17a/chou17a.pdf)
+- Baseline / actor-critic modes: Based on raw states (```states```) or on network output (```network```). MLP (```mlp```), CNN (```cnn```) or custom network (```custom```). Special case for mode ```states```: baseline per state + linear combination layer (via ```baseline=dict(state1=..., state2=..., etc)```).
+- Generic pure TensorFlow optimizers, most models can be used with natural gradient and evolutionary optimizers
+- Preprocessing modes: ```normalize```, ```standardize```, ```grayscale```, ```sequence```, ```clip```,
+  ```divide```, ```image_resize```
+- Exploration modes: ```constant```,```linear_decay```, ```epsilon_anneal```, ```epsilon_decay```,
+  ```ornstein_uhlenbeck```
 
 Installation
 ------------
@@ -120,44 +136,13 @@ provided configurations, e.g. to run the TRPO agent on CartPole, execute
 from the examples folder:
 
 ```bash
-python examples/openai_gym.py CartPole-v0 -a PPOAgent -c examples/configs/ppo_cartpole.json -n examples/configs/ppo_cartpole_network.json
+python examples/openai_gym.py CartPole-v0 -a examples/configs/ppo.json -n examples/configs/mlp2_network.json
 ```
 
 Documentation is available at
 [ReadTheDocs](http://tensorforce.readthedocs.io). We also have tests
 validating models on minimal environments which can be run from the main
 directory by executing `pytest`{.sourceCode}.
-
-Use with DeepMind lab
----------------------
-
-Since DeepMind lab is only available as source code, a manual install
-via bazel is required. Further, due to the way bazel handles external
-dependencies, cloning TensorForce into lab is the most convenient way to
-run it using the bazel BUILD file we provide. To use lab, first download
-and install it according to instructions
-<https://github.com/deepmind/lab/blob/master/docs/build.md>:
-
-```bash
-git clone https://github.com/deepmind/lab.git
-```
-
-Add to the lab main BUILD file:
-
-```
-package(default_visibility = ["//visibility:public"])
-```
-
-Clone TensorForce into the lab directory, then run the TensorForce bazel runner. Note that using any specific configuration file
-currently requires changing the Tensorforce BUILD file to adjust environment parameters.
-
-```bash
-bazel run //tensorforce:lab_runner
-```
-
-Please note that we have not tried to reproduce any lab results yet, and
-these instructions just explain connectivity in case someone wants to
-get started there.
 
 Create and use agents
 ---------------------
@@ -167,19 +152,22 @@ runners, simply install and import the library, then create an agent and
 use it as seen below (see documentation for all optional parameters):
 
 ```python
-from tensorforce import Configuration
-from tensorforce.agents import TRPOAgent
-from tensorforce.core.networks import layered_network_builder
+from tensorforce.agents import PPOAgent
 
-config = Configuration(
-    batch_size=100,
-    states=dict(shape=(10,), type='float'),
-    actions=dict(continuous=False, num_actions=2),
-    network=layered_network_builder([dict(type='dense', size=50), dict(type='dense', size=50)])
+# Create a Proximal Policy Optimization agent
+agent = PPOAgent(
+    states_spec=dict(type='float', shape=(10,)),
+    actions_spec=dict(type='int', num_actions=10),
+    network_spec=[
+        dict(type='dense', size=64),
+        dict(type='dense', size=64)
+    ],
+    batch_size=1000,
+    step_optimizer=dict(
+        type='adam',
+        learning_rate=1e-4
+    )
 )
-
-# Create a Trust Region Policy Optimization agent
-agent = TRPOAgent(config=config)
 
 # Get new data from somewhere, e.g. a client to a web app
 client = MyClient('http://127.0.0.1', 8080)
@@ -188,7 +176,7 @@ client = MyClient('http://127.0.0.1', 8080)
 state = client.get_state()
 
 # Get prediction from agent, execute
-action = agent.act(state=state)
+action = agent.act(state)
 reward = client.execute(action)
 
 # Add experience, agent automatically updates model according to batch size
@@ -211,18 +199,20 @@ Please refer to the [tensorforce-benchmark](https://github.com/reinforceio/tenso
 for more information.
 
 
-Support and contact
--------------------
+Community and contributions
+---------------------------
 
-TensorForce is maintained by [reinforce.io](https://reinforce.io), a new
+TensorForce is developed by [reinforce.io](https://reinforce.io), a new
 project focused on providing reinforcement learning software
-infrastructure. For any questions or support, get in touch at
+infrastructure. For any questions, get in touch at
 <contact@reinforce.io>.
 
-You are also welcome to join our Gitter channel for help with using
-TensorForce, bugs or contributions:
-[<https://gitter.im/reinforceio/TensorForce>](https://gitter.im/reinforceio/TensorForce)
+Please file bug reports and feature discussions as GitHub issues in first instance.
 
+There is also a developer chat you are welcome to join. For joining, we ask to provide
+some basic details how you are using TensorForce so we can learn more about applications and our
+community. Please fill in [this short form](https://docs.google.com/forms/d/1_UD5Pb5LaPVUviD0pO0fFcEnx_vwenvuc00jmP2rRIc/) which will take
+ you to the chat after.
 
 Cite
 ----
@@ -239,5 +229,6 @@ If you use TensorForce in your academic research, we would be grateful if you co
 }
 ```
 
-We are also very grateful for our open source contributors (listed according to github): Islandman93, mryellow, beflix,
-trickmeyer, AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.
+We are also very grateful for our open source contributors (listed according to github): Islandman93, wassname, 
+Mazecreator, lefnire, sven1977, trickmeyer, mryellow, ImpulseAdventure, vwxyzjn, beflix, tms1337, BorisSchaeling, ngoodger,
+ekerazha, Davidnet, nikoliazekter, AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.

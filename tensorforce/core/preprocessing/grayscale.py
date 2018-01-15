@@ -13,16 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Comment
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
+import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -31,13 +28,13 @@ class Grayscale(Preprocessor):
     Turn 3D color state into grayscale.
     """
 
-    def __init__(self, weights=(0.299, 0.587, 0.114)):
-        super(Grayscale, self).__init__()
+    def __init__(self, weights=(0.299, 0.587, 0.114), scope='grayscale', summary_labels=()):
         self.weights = weights
+        super(Grayscale, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def process(self, state):
-        state = (self.weights * state).sum(-1)
-        return np.reshape(state, tuple(state.shape) + (1,))
+    def tf_process(self, tensor):
+        weights = tf.reshape(tensor=self.weights, shape=(tuple(1 for _ in range(util.rank(tensor) - 1)) + (3,)))
+        return tf.reduce_sum(input_tensor=(weights * tensor), axis=-1, keep_dims=True)
 
     def processed_shape(self, shape):
         return tuple(shape[:-1]) + (1,)

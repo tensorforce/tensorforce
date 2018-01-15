@@ -68,23 +68,19 @@ from tensorforce.core.preprocessing import Preprocessing
 preprocessing_config = [
     {
 	    "type": "image_resize",
-	    "kwargs": {
-		    "width": 84,
-		    "height": 84
-	    }
+        "width": 84,
+        "height": 84
     }, {
 	    "type": "grayscale"
     }, {
 	    "type": "center"
     }, {
 	    "type": "sequence",
-	    "kwargs": {
-		    "length": 4
-	    }
+        "length": 4
     }
 ]
 
-stack = Preprocessing.from_config(preprocessing_config)
+stack = Preprocessing.from_spec(preprocessing_config)
 config.state_shape = stack.shape(config.state_shape)
 ```
 
@@ -108,10 +104,11 @@ Ready-to-use preprocessors
 
 These are the preprocessors that come with TensorForce:
 
-### Center
+### Standardize
 
 ```eval_rst
-    .. autoclass:: tensorforce.core.preprocessing.Center
+    .. autoclass:: tensorforce.core.preprocessing.Standardize
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -120,6 +117,7 @@ These are the preprocessors that come with TensorForce:
 
 ```eval_rst
     .. autoclass:: tensorforce.core.preprocessing.Grayscale
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -128,6 +126,7 @@ These are the preprocessors that come with TensorForce:
 
 ```eval_rst
     .. autoclass:: tensorforce.core.preprocessing.ImageResize
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -136,6 +135,7 @@ These are the preprocessors that come with TensorForce:
 
 ```eval_rst
     .. autoclass:: tensorforce.core.preprocessing.Normalize
+        :noindex:
         :show-inheritance:
         :members:
 ```
@@ -144,6 +144,7 @@ These are the preprocessors that come with TensorForce:
 
 ```eval_rst
     .. autoclass:: tensorforce.core.preprocessing.Sequence
+        :noindex:
         :show-inheritance:
         :members:
 ```

@@ -31,24 +31,37 @@ class Environment(object):
         """
         Close environment. No other method calls possible afterwards.
         """
-        raise NotImplementedError
+        pass
+
+    def seed(self, seed):
+        """
+        Sets the random seed of the environment to the given value (current time, if seed=None).
+        Naturally deterministic Environments (e.g. ALE or some gym Envs) don't have to implement this method.
+
+        Args:
+            seed (int): The seed to use for initializing the pseudo-random number generator (default=epoch time in sec).
+        Returns: The actual seed (int) used OR None if Environment did not override this method (no seeding supported).
+        """
+        return None
 
     def reset(self):
         """
         Reset environment and setup for new episode.
 
-        Returns: initial state of resetted environment.
+        Returns:
+            initial state of reset environment.
         """
         raise NotImplementedError
 
-    def execute(self, action):
+    def execute(self, actions):
         """
-        Executes action, observes next state and reward.
+        Executes action, observes next state(s) and reward.
 
         Args:
-            action: Action to execute.
+            actions: Actions to execute.
 
-        Returns: tuple of state (tuple), reward (float), and terminal_state (bool).
+        Returns:
+            (Dict of) next state(s), boolean indicating terminal, and reward signal.
         """
         raise NotImplementedError
 

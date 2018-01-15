@@ -13,54 +13,62 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Quick start example.
-"""
-
 import numpy as np
 
-from tensorforce import Configuration
-from tensorforce.agents import TRPOAgent, PPOAgent
-from tensorforce.core.networks import layered_network_builder
+from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
 # Create an OpenAIgym environment
-env = OpenAIGym('CartPole-v0')
+env = OpenAIGym('CartPole-v0', visualize=True)
 
-# Create a Trust Region Policy Optimization agent
+# Network as list of layers
+# - Embedding layer:
+#   - For Gym environments utilizing a discrete observation space, an
+#     "embedding" layer should be inserted at the head of the network spec.
+#     Such environments are usually identified by either:
+#     - class ...Env(discrete.DiscreteEnv):
+#     - self.observation_space = spaces.Discrete(...)
+#   
+network_spec = [
+    #dict(type='embedding', indices=100, size=32),
+    dict(type='dense', size=32, activation='tanh'),
+    dict(type='dense', size=32, activation='tanh')
+]
+
 agent = PPOAgent(
-    Configuration(
-    log_level='info',
-    batch_size=4000,
-
-    # max_kl_divergence=0.1,
-    # cg_iterations=20,
-    # cg_damping=0.001,
-    # ls_max_backtracks=10,
-    # ls_accept_ratio=0.9,
-    # ls_override=False,
-
-    learning_rate=0.001,
-    entropy_penalty=0.01,
-    epochs=5,
-    optimizer_batch_size=512,
-    loss_clipping=0.2,
-    normalize_advantage=False,
-    baseline=dict(
-        type="mlp",
-        sizes=[32, 32],
-        epochs=1,
-        update_batch_size=512,
-        learning_rate=0.01
+    states_spec=env.states,
+    actions_spec=env.actions,
+    network_spec=network_spec,
+    batch_size=4096,
+    # Agent
+    states_preprocessing_spec=None,
+    explorations_spec=None,
+    reward_preprocessing_spec=None,
+    # BatchAgent
+    keep_last_timestep=True,
+    # PPOAgent
+    step_optimizer=dict(
+        type='adam',
+        learning_rate=1e-3
     ),
-    states=env.states,
-    actions=env.actions,
-    network=layered_network_builder([
-        dict(type='dense', size=32, activation='tanh'),
-        dict(type='dense', size=32, activation='tanh')
-    ])
-))
+    optimization_steps=10,
+    # Model
+    scope='ppo',
+    discount=0.99,
+    # DistributionModel
+    distributions_spec=None,
+    entropy_regularization=0.01,
+    # PGModel
+    baseline_mode=None,
+    baseline=None,
+    baseline_optimizer=None,
+    gae_lambda=None,
+    # PGLRModel
+    likelihood_ratio_clipping=0.2,
+    summary_spec=None,
+    distributed_spec=None
+)
 
 # Create the runner
 runner = Runner(agent=agent, environment=env)
@@ -68,16 +76,16 @@ runner = Runner(agent=agent, environment=env)
 
 # Callback function printing episode statistics
 def episode_finished(r):
-    print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.timestep,
+    print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.episode_timestep,
                                                                                  reward=r.episode_rewards[-1]))
     return True
 
 
 # Start learning
-runner.run(episodes=3000, max_timesteps=200, episode_finished=episode_finished)
+runner.run(episodes=3000, max_episode_timesteps=200, episode_finished=episode_finished)
 
 # Print statistics
-print("Learning finished. Total episodes: {ep}. Average reward of last 100 episodes: {ar}.".format(ep=runner.episode,
-                                                                                                   ar=np.mean(
-                                                                                                       runner.episode_rewards[
-                                                                                                       -100:])))
+print("Learning finished. Total episodes: {ep}. Average reward of last 100 episodes: {ar}.".format(
+    ep=runner.episode,
+    ar=np.mean(runner.episode_rewards[-100:]))
+)

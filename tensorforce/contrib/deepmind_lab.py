@@ -13,12 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-DeepMind Lab Integration:
-https://arxiv.org/abs/1612.03801
-https://github.com/deepmind/lab
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -29,36 +23,63 @@ from tensorforce.environments.environment import Environment
 
 
 class DeepMindLab(Environment):
-    #
-    # @staticmethod
-    # def state_spec(level_id):
-    #     """
-    #     Returns a list of dicts with keys 'dtype', 'shape' and 'name', specifying the available observations this DeepMind Lab environment supports.
-    #
-    #     :param level_id: string with id/descriptor of the level
-    #     """
-    #     level = deepmind_lab.Lab(level_id, ())
-    #     return level.observation_spec()
-    #
-    # @staticmethod
-    # def action_spec(level_id):
-    #     """
-    #     Returns a list of dicts with keys 'min', 'max' and 'name', specifying the shape of the actions expected by this DeepMind Lab environment.
-    #
-    #     :param level_id: string with id/descriptor of the level
-    #     """
-    #     level = deepmind_lab.Lab(level_id, ())
-    #     return level.action_spec()
+    """
+    DeepMind Lab Integration:
+    https://arxiv.org/abs/1612.03801
+    https://github.com/deepmind/lab
 
-    def __init__(self, level_id, repeat_action=1, state_attribute='RGB_INTERLACED', settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}):
+    Since DeepMind lab is only available as source code, a manual install
+    via bazel is required. Further, due to the way bazel handles external
+    dependencies, cloning TensorForce into lab is the most convenient way to
+    run it using the bazel BUILD file we provide. To use lab, first download
+    and install it according to instructions
+    <https://github.com/deepmind/lab/blob/master/docs/build.md>:
+
+    ```bash
+    git clone https://github.com/deepmind/lab.git
+    ```
+
+    Add to the lab main BUILD file:
+
+    ```
+    package(default_visibility = ["//visibility:public"])
+    ```
+
+    Clone TensorForce into the lab directory, then run the TensorForce bazel runner.
+
+    Note that using any specific configuration file currently requires changing the Tensorforce
+    BUILD file to adjust environment parameters.
+
+    ```bash
+    bazel run //tensorforce:lab_runner
+    ```
+
+    Please note that we have not tried to reproduce any lab results yet, and
+    these instructions just explain connectivity in case someone wants to
+    get started there.
+
+
+    """
+
+    def __init__(
+        self,
+        level_id,
+        repeat_action=1,
+        state_attribute='RGB_INTERLACED',
+        settings={'width': '320', 'height': '240', 'fps': '60', 'appendCommand': ''}
+    ):
         """
         Initialize DeepMind Lab environment.
 
         Args:
             level_id: string with id/descriptor of the level, e.g. 'seekavoid_arena_01'.
             repeat_action: number of frames the environment is advanced, executing the given action during every frame.
-            state_attribute: Attributes which represents the state for this environment, should adhere to the specification given in DeepMindLabEnvironment.state_spec(level_id).
-            settings: dict specifying additional settings as key-value string pairs. The following options are recognized: 'width' (horizontal resolution of the observation frames), 'height' (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand' (commands for the internal Quake console).
+            state_attribute: Attributes which represents the state for this environment, should adhere to the
+                specification given in DeepMindLabEnvironment.state_spec(level_id).
+            settings: dict specifying additional settings as key-value string pairs. The following options
+                are recognized: 'width' (horizontal resolution of the observation frames), 'height'
+                (vertical resolution of the observation frames), 'fps' (frames per second) and 'appendCommand'
+                (commands for the internal Quake console).
 
         """
         self.level_id = level_id
@@ -71,39 +92,44 @@ class DeepMindLab(Environment):
 
     def close(self):
         """
-        Closes the environment and releases the underlying Quake III Arena instance. No other method calls possible afterwards.
+        Closes the environment and releases the underlying Quake III Arena instance.
+        No other method calls possible afterwards.
         """
         self.level.close()
         self.level = None
 
     def reset(self):
         """
-        Resets the environment to its initialization state. This method needs to be called to start a new episode after the last episode ended.
+        Resets the environment to its initialization state. This method needs to be called to start a
+        new episode after the last episode ended.
 
         :return: initial state
         """
         self.level.reset()  # optional: episode=-1, seed=None
         return self.level.observations()[self.state_attribute]
 
-    def execute(self, action):
+    def execute(self, actions):
         """
-        Pass action to universe environment, return reward, next step, terminal state and additional info.
+        Pass action to universe environment, return reward, next step, terminal state and
+        additional info.
 
-        :param action: action to execute as numpy array, should have dtype np.intc and should adhere to the specification given in DeepMindLabEnvironment.action_spec(level_id)
-        :return: dict containing the next state, the reward, and a boolean indicating if the next state is a terminal state
+        :param action: action to execute as numpy array, should have dtype np.intc and should adhere to
+            the specification given in DeepMindLabEnvironment.action_spec(level_id)
+        :return: dict containing the next state, the reward, and a boolean indicating if the
+            next state is a terminal state
         """
-        actions = list()
+        adjusted_actions = list()
         for action_spec in self.level.action_spec():
             if action_spec['min'] == -1 and action_spec['max'] == 1:
-                actions.append(action[action_spec['name']] - 1)
+                adjusted_actions.append(actions[action_spec['name']] - 1)
             else:
-                actions.append(action[action_spec['name']])  # clip?
-        action = np.array(actions, dtype=np.intc)
+                adjusted_actions.append(actions[action_spec['name']])  # clip?
+        actions = np.array(adjusted_actions, dtype=np.intc)
 
-        reward = self.level.step(action=action, num_steps=self.repeat_action)
+        reward = self.level.step(action=actions, num_steps=self.repeat_action)
         state = self.level.observations()['RGB_INTERLACED']
         terminal = not self.level.is_running()
-        return state, reward, terminal
+        return state, terminal, reward
 
     @property
     def states(self):
@@ -125,9 +151,9 @@ class DeepMindLab(Environment):
         actions = dict()
         for action in self.level.action_spec():
             if action['min'] == -1 and action['max'] == 1:
-                actions[action['name']] = dict(continuous=False, num_actions=3)
+                actions[action['name']] = dict(type='int', num_actions=3)
             else:
-                actions[action['name']] = dict(continuous=True, min_value=action['min'], max_value=action['max'])
+                actions[action['name']] = dict(type='float', min_value=action['min'], max_value=action['max'])
         return actions
 
     @property
@@ -140,6 +166,7 @@ class DeepMindLab(Environment):
     @property
     def fps(self):
         """
-        An advisory metric that correlates discrete environment steps ("frames") with real (wallclock) time: the number of frames per (real) second.
+        An advisory metric that correlates discrete environment steps ("frames") with real
+        (wallclock) time: the number of frames per (real) second.
         """
         return self.level.fps()

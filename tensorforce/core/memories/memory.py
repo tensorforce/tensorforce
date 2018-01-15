@@ -21,52 +21,86 @@ from tensorforce import util
 import tensorforce.core.memories
 
 
+# TODO: implement in TensorFlow
+
 class Memory(object):
+    """
+    Abstract memory class.
+    """
 
-    def __init__(self, capacity, states_config, actions_config):
-        self.capacity = capacity
-        self.states_config = states_config
-        self.actions_config = actions_config
-
-    def add_observation(self, state, action, reward, terminal, internal):
-        raise NotImplementedError
-
-    def get_batch(self, batch_size, next_states=False):
+    def __init__(self, states_spec, actions_spec):
         """
-        Samples a batch from the memory
+        Generic memory without sampling strategy implemented.
 
         Args:
-            batch_size: The batch size
-            next_states: A boolean flag indicating whether 'next_states' values should be included
-
-        Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
-
+            states_spec: State specifiction
+            actions_spec: Action specification
         """
-        raise NotImplementedError
+        self.states_spec = states_spec
+        self.actions_spec = actions_spec
 
-    def update_batch(self, loss_per_instance):
-        raise NotImplementedError
-
-    def set_memory(self, states, actions, rewards, terminals, internals):
+    def add_observation(self, states, internals, actions, terminal, reward):
         """
-        Deletes memory content and sets content to provided observations.
+        Inserts a single experience to the memory.
 
         Args:
             states:
-            actions:
-            rewards:
-            terminals:
             internals:
+            actions:
+            terminal:
+            reward:
 
         Returns:
 
         """
         raise NotImplementedError
 
+    def get_batch(self, batch_size, next_states=False):
+        """
+        Samples a batch from the memory.
+
+        Args:
+            batch_size: The batch size
+            next_states: A boolean flag indicating whether 'next_states' values should be included
+
+        Returns: A dict containing states, internal states, actions, terminals, rewards (and next states)
+
+        """
+        raise NotImplementedError
+
+    def update_batch(self, loss_per_instance):
+        """
+        Updates loss values for sampling strategies based on loss functions.
+
+        Args:
+            loss_per_instance:
+
+        """
+        raise NotImplementedError
+
+    def set_memory(self, states, internals, actions, terminals, rewards):
+        """
+        Deletes memory content and sets content to provided observations.
+
+        Args:
+            states:
+            internals:
+            actions:
+            terminals:
+            rewards:
+
+        """
+        raise NotImplementedError
+
     @staticmethod
-    def from_config(config, kwargs=None):
-        return util.get_object(
-            obj=config,
-            predefined=tensorforce.core.memories.memories,
+    def from_spec(spec, kwargs=None):
+        """
+        Creates a memory from a specification dict.
+        """
+        memory = util.get_object(
+            obj=spec,
+            predefined_objects=tensorforce.core.memories.memories,
             kwargs=kwargs
         )
+        assert isinstance(memory, Memory)
+        return memory

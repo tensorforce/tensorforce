@@ -13,15 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Clip data by min/max values.
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
+import tensorflow as tf
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -29,10 +25,11 @@ class Clip(Preprocessor):
     """
     Clip by min/max.
     """
-    def __init__(self, min, max):
-        super(Clip, self).__init__()
-        self.min = min
-        self.max = max
 
-    def process(self, state):
-        return np.clip(state, self.min, self.max)
+    def __init__(self, min_value, max_value, scope='clip', summary_labels=()):
+        self.min_value = min_value
+        self.max_value = max_value
+        super(Clip, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_process(self, tensor):
+        return tf.clip_by_value(t=tensor, clip_value_min=self.min_value, clip_value_max=self.max_value)

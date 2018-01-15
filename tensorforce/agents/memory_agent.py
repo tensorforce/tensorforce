@@ -19,96 +19,147 @@ from __future__ import division
 
 from six.moves import xrange
 
-from tensorforce.agents import Agent
+import numpy as np
+
+from tensorforce.agents.learning_agent import LearningAgent
 from tensorforce.core.memories import Memory
 
 
-class MemoryAgent(Agent):
+class MemoryAgent(LearningAgent):
     """
-    The `MemoryAgent` class implements a replay memory, from which it samples batches to update the value function.
-
-    Each agent requires the following ``Configuration`` parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    The `MemoryAgent` class additionally requires the following parameters:
-
-    * `batch_size`: integer of the batch size.
-    * `memory_capacity`: integer of maximum experiences to store.
-    * `memory`: string indicating memory type ('replay' or 'prioritized_replay').
-    * `update_frequency`: integer indicating the number of steps between model updates.
-    * `first_update`: integer indicating the number of steps to pass before the first update.
-    * `repeat_update`: integer indicating how often to repeat the model update.
-
+    The `MemoryAgent` class implements a replay memory from
+    which it samples batches according to some sampling strategy to
+    update the value function.
     """
 
-    default_config = dict(
-        batch_size=1,
-        memory_capacity=1000000,
-        memory=dict(
-            type='replay',
-            random_sampling=True
-        ),
-        update_frequency=4,
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        batched_observe=1000,
+        scope='memory_agent',
+        # parameters specific to LearningAgents
+        summary_spec=None,
+        network_spec=None,
+        discount=0.99,
+        device=None,
+        session_config=None,
+        saver_spec=None,
+        distributed_spec=None,
+        optimizer=None,
+        variable_noise=None,
+        states_preprocessing_spec=None,
+        explorations_spec=None,
+        reward_preprocessing_spec=None,
+        distributions_spec=None,
+        entropy_regularization=None,
+        # parameters specific to MemoryAgents
+        batch_size=1000,
+        memory=None,
         first_update=10000,
+        update_frequency=4,
         repeat_update=1
-    )
+    ):
+        """
 
-    def __init__(self, config, model=None):
-        config.default(MemoryAgent.default_config)
-        super(MemoryAgent, self).__init__(config, model)
-
-        self.batch_size = config.batch_size
-        self.memory = Memory.from_config(
-            config=config.memory,
-            kwargs=dict(
-                capacity=config.memory_capacity,
-                states_config=config.states,
-                actions_config=config.actions
-            )
+        Args:
+            batch_size (int): The batch size used to sample from memory. Should be smaller than memory size.
+            memory (Union[dict,Memory]): Dict describing memory via `type` (e.g. `replay`) and `capacity`.
+                Alternatively, an actual Memory object can be passed in directly.
+            first_update (int): At which time step the first update is performed. Should be larger
+                than batch size.
+            update_frequency (int): Number of `observe` steps to perform until an update is executed.
+            repeat_update (int): How many update steps are performed per update, where each update step implies
+                sampling a batch from the memory and passing it to the model.
+        """
+        super(MemoryAgent, self).__init__(
+            states_spec=states_spec,
+            actions_spec=actions_spec,
+            batched_observe=batched_observe,
+            scope=scope,
+            # parameters specific to LearningAgent
+            summary_spec=summary_spec,
+            network_spec=network_spec,
+            discount=discount,
+            device=device,
+            session_config=session_config,
+            saver_spec=saver_spec,
+            distributed_spec=distributed_spec,
+            optimizer=optimizer,
+            variable_noise=variable_noise,
+            states_preprocessing_spec=states_preprocessing_spec,
+            explorations_spec=explorations_spec,
+            reward_preprocessing_spec=reward_preprocessing_spec,
+            distributions_spec=distributions_spec,
+            entropy_regularization=entropy_regularization
         )
-        self.update_frequency = config.update_frequency
-        self.first_update = config.first_update
-        self.repeat_update = config.repeat_update
 
-    def observe(self, reward, terminal):
-        reward, terminal = super(MemoryAgent, self).observe(reward, terminal)
-        self.current_reward = reward
-        self.current_terminal = terminal
+        # Memory already given as a Memory object: Use that.
+        if isinstance(memory, Memory):
+            self.memory = memory
+            self.memory_spec = None
+        else:
+            # Nothing given: Create a default memory spec.
+            if memory is None:
+                memory = dict(
+                    type='replay',
+                    capacity=100000
+                )
+            # Now create actual Memory object from the spec.
+            self.memory_spec = memory
+            self.memory = Memory.from_spec(
+                spec=self.memory_spec,
+                kwargs=dict(
+                    states_spec=self.states_spec,
+                    actions_spec=self.actions_spec
+                )
+            )
+        self.batch_size = batch_size
+        self.first_update = first_update
+        self.update_frequency = update_frequency
+        self.repeat_update = repeat_update
+
+    def observe(self, terminal, reward):
+        super(MemoryAgent, self).observe(terminal=terminal, reward=reward)
 
         self.memory.add_observation(
-            state=self.current_state,
-            action=self.current_action,
-            reward=self.current_reward,
+            states=self.current_states,
+            internals=self.current_internals,
+            actions=self.current_actions,
             terminal=self.current_terminal,
-            internal=self.current_internal
+            reward=self.current_reward
         )
 
         if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
+
             for _ in xrange(self.repeat_update):
                 batch = self.memory.get_batch(batch_size=self.batch_size, next_states=True)
-                _, loss_per_instance = self.model.update(batch=batch)
+                loss_per_instance = self.model.update(
+                    # TEMP: Random sampling fix
+                    states={name: np.stack((batch['states'][name],
+                                            batch['next_states'][name])) for name in batch['states']},
+                    internals=batch['internals'],
+                    actions=batch['actions'],
+                    terminal=batch['terminal'],
+                    reward=batch['reward'],
+                    return_loss_per_instance=True
+                )
                 self.memory.update_batch(loss_per_instance=loss_per_instance)
 
     def import_observations(self, observations):
-        """Load an iterable of observation dicts into the replay memory.
+        """
+        Load an iterable of observation dicts into the replay memory.
 
         Args:
             observations: An iterable with each element containing an observation. Each
-            observation requires keys 'state','action','reward','terminal', 'internal'.
-            Use an empty list [] for 'internal' if internal state is irrelevant.
-
-        Returns:
-
+                observation requires keys 'state','action','reward','terminal', 'internal'.
+                Use an empty list [] for 'internal' if internal state is irrelevant.
         """
         for observation in observations:
             self.memory.add_observation(
-                state=observation['state'],
-                action=observation['action'],
-                reward=observation['reward'],
+                states=observation['states'],
+                internals=observation['internals'],
+                actions=observation['actions'],
                 terminal=observation['terminal'],
-                internal=observation['internal']
+                reward=observation['reward']
             )

@@ -27,9 +27,10 @@ import os
 import sys
 import time
 
-from tensorforce import Configuration
-from tensorforce.agents import agents
-from tensorforce.core.networks import from_json
+from tensorforce import TensorForceError
+import json
+
+from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from tensorforce.contrib.ale import ALE
 
@@ -38,9 +39,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('rom', help="File path of the rom")
-    parser.add_argument('-a', '--agent', help='Agent')
-    parser.add_argument('-c', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-config', help="Network configuration file")
+    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
+    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
     parser.add_argument('-fs', '--frame-skip', help="Number of frames to repeat action", type=int, default=1)
     parser.add_argument('-rap', '--repeat-action-probability', help="Repeat action probability", type=float, default=0.0)
     parser.add_argument('-lolt', '--loss-of-life-termination', help="Loss of life counts as terminal state", action='store_true')
@@ -65,24 +65,27 @@ def main():
                       loss_of_life_reward=args.loss_of_life_reward,
                       display_screen=args.display_screen)
 
-    if args.agent_config:
-        agent_config = Configuration.from_json(args.agent_config)
+    if args.agent_config is not None:
+        with open(args.agent_config, 'r') as fp:
+            agent_config = json.load(fp=fp)
     else:
-        agent_config = Configuration()
-        logger.info("No agent configuration provided.")
-    if args.network_config:
-        network = from_json(args.network_config)
-    else:
-        network = None
-        logger.info("No network configuration provided.")
-    agent_config.default(dict(states=environment.states, actions=environment.actions, network=network))
-    agent = agents[args.agent](config=agent_config)
+        raise TensorForceError("No agent configuration provided.")
 
-    if args.load:
-        load_dir = os.path.dirname(args.load)
-        if not os.path.isdir(load_dir):
-            raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
-        agent.load_model(args.load)
+    if args.network_spec is not None:
+        with open(args.network_spec, 'r') as fp:
+            network_spec = json.load(fp=fp)
+    else:
+        network_spec = None
+        logger.info("No network configuration provided.")
+
+    agent = Agent.from_spec(
+        spec=agent_config,
+        kwargs=dict(
+            states_spec=environment.states,
+            actions_spec=environment.actions,
+            network_spec=network_spec
+        )
+    )
 
     if args.debug:
         logger.info("-" * 16)
@@ -100,9 +103,7 @@ def main():
     runner = Runner(
         agent=agent,
         environment=environment,
-        repeat_actions=1,
-        save_path=args.save,
-        save_episodes=args.save_episodes
+        repeat_actions=1
     )
 
     report_episodes = args.episodes // 1000
@@ -111,7 +112,7 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            sps = r.total_timesteps / (time.time() - r.start_time)
+            sps = r.timestep / (time.time() - r.start_time)
             logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep, sps=sps))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))

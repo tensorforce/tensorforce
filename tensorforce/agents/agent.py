@@ -13,20 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Agent base class."""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import logging
-from six.moves import xrange
-from random import random
+from copy import deepcopy
+
 import numpy as np
+import inspect
 
 from tensorforce import util, TensorForceError
-from tensorforce.core.preprocessing import Preprocessing
-from tensorforce.core.explorations import Exploration
+import tensorforce.agents
+from tensorforce.meta_parameter_recorder import MetaParameterRecorder
 
 
 class Agent(object):
@@ -35,243 +33,260 @@ class Agent(object):
     of a particular reinforcement learning algorithm and defines the external interface
     to the environment.
 
-    The agent hence acts an intermediate layer between environment
+    The agent hence acts as an intermediate layer between environment
     and backend execution (value function or policy updates).
 
-    Each agent requires the following configuration parameters:
-
-    * `states`: dict containing one or more state definitions.
-    * `actions`: dict containing one or more action definitions.
-    * `preprocessing`: dict or list containing state preprocessing configuration.
-    * `exploration`: dict containing action exploration configuration.
-
-    The configuration is passed to the [Model](#Model) and should thus include its configuration parameters, too.
-
-    Examples:
-
-        One state, one action, two preprecessors, epsilon exploration.
-
-        ```python
-        agent = Agent(Configuration(dict(
-            states=dict(shape=(10,), type='float'),
-            actions=dict(continuous=False, num_actions=6),
-            preprocessing=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
-            exploration=...,
-            # ... model configuration parameters
-        )))
-        ```
-
-        Two states, two actions:
-
-        ```python
-
-        agent = Agent(Configuration(dict(
-            states=dict(
-                state1=dict(shape=(10,), type='float'),
-                state2=dict(shape=(40,20), type='int')
-            ),
-            actions=dict(
-                action1=dict(continuous=True),
-                action2=dict(continuous=False, num_actions=6)
-            ),
-            preprocessing=dict(
-                state1=[dict(type="sequence", args=[4]), dict=(type="max", args=[2])],
-                state2=None
-            ),
-            exploration=dict(
-                action1=...,
-                action2=...
-            ),
-            # ... model configuration parameters
-        )))
-        ```
     """
 
-    name = None
-    model = None
-    default_config = dict(
-        preprocessing=None,
-        exploration=None,
-        reward_preprocessing=None,
-        log_level='info'
-    )
-
-    def __init__(self, config, model=None):
-        """Initializes the reinforcement learning agent.
+    def __init__(
+        self,
+        states_spec,
+        actions_spec,
+        batched_observe=1000,
+        scope='base_agent'
+    ):
+        """
+        Initializes the reinforcement learning agent.
 
         Args:
-            config (Configuration): configuration object containing at least `states`, `actions`, `preprocessing` and
-                'exploration`.
-            model (Model): optional model instance. If not supplied, a new model is created.
-
+            states_spec (dict): Dict containing at least one state-component definition. In the case of a single state
+                space component, the keys `shape` and `type` are necessary (e.g. a 3D float-box with shape [3,3,3]).
+                For multiple state components, pass a dict of dicts where each component is a dict itself with a unique
+                name as its key (e.g. {cam: {shape: [84,84], type=int}, health: {shape=(), type=float}}).
+            actions_spec (dict): Dict containing at least one action-component definition.
+                Action components have types and either `num_actions` for discrete actions or a `shape`
+                for continuous actions.
+                Consult documentation and tests for more.
+            batched_observe (int): How many calls to `observe` are batched into one tensorflow session run.
+                Values of 0 or 1 indicate no batching being used and every call to `observe` triggers a tensorflow
+                session invocation to update rewards in the graph, which will lower the throughput.
+            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
         """
-        assert self.__class__.name is not None and self.__class__.model is not None
-        config.default(Agent.default_config)
 
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(util.log_levels[config.log_level])
+        # process state space
+        self.states_spec, self.unique_state = self.process_state_spec(states_spec)
 
-        # states config and preprocessing
-        self.preprocessing = dict()
-        if 'shape' in config.states:
-            # only one state
-            config.states = dict(state=config.states)
-            self.unique_state = True
-            if config.preprocessing is not None:
-                config.preprocessing = dict(state=config.preprocessing)
-        else:
-            self.unique_state = False
-        for name, state in config.states:
-            state.default(dict(type='float'))
-            if isinstance(state.shape, int):
-                state.shape = (state.shape,)
-            if config.preprocessing is not None and name in config.preprocessing:
-                preprocessing = Preprocessing.from_config(config=config.preprocessing[name])
-                self.preprocessing[name] = preprocessing
-                state.shape = preprocessing.processed_shape(shape=state.shape)
-
-        # actions config and exploration
+        # Actions config and exploration
         self.exploration = dict()
-        if 'continuous' in config.actions:
-            # only one action
-            config.actions = dict(action=config.actions)
-            if config.exploration is not None:
-                config.exploration = dict(action=config.exploration)
-            self.unique_action = True
-        else:
-            self.unique_action = False
-        for name, action in config.actions:
-            if action.continuous:
-                action.default(dict(shape=(), min_value=None, max_value=None))
-            else:
-                action.default(dict(shape=()))
-            if isinstance(action.shape, int):
-                action.shape = (action.shape,)
-            if config.exploration is not None and name in config.exploration:
-                self.exploration[name] = Exploration.from_config(config=config.exploration[name])
+        self.actions_spec, self.unique_action = self.process_action_spec(actions_spec)
 
-        # reward preprocessing config
-        self.reward_preprocessing = None
-        if config.reward_preprocessing is not None:
-            self.reward_preprocessing = Preprocessing.from_config(config=config.reward_preprocessing)
+        # Batched observe for better performance with Python.
+        self.batched_observe = batched_observe
+        if self.batched_observe is not None:
+            self.observe_terminal = list()
+            self.observe_reward = list()
 
-        self.states_config = config.states
-        self.actions_config = config.actions
+        self.scope = scope
 
-        if model is None:
-            self.model = self.__class__.model(config)
-        else:
-            if not isinstance(model, self.__class__.model):
-                raise TensorForceError("Supplied model class `{}` does not match expected agent model class `{}`".format(
-                    type(model).__name__, self.__class__.model.__name__
-                ))
-            self.model = model
+        # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
+        self.model = self.initialize_model()
 
-        not_accessed = config.not_accessed()
-        if not_accessed:
-            self.logger.warning("Configuration values not accessed: {}".format(', '.join(not_accessed)))
+        #  Define the properties used to store internal state of Agent.
+        self.current_states = None
+        self.current_actions = None
+        self.current_internals = None
+        self.next_internals = None
+        self.current_terminal = None
+        self.current_reward = None
+        self.episode = None
+        self.timestep = None
 
-        self.episode = -1
-        self.timestep = 0
         self.reset()
 
     def __str__(self):
-        return str(self.__class__.name)
+        return str(self.__class__.__name__)
+
+    def close(self):
+        self.model.close()
+
+    def initialize_model(self):
+        """
+        Creates the model for the respective agent based on specifications given by user. This is a separate
+        call after constructing the agent because the agent constructor has to perform a number of checks
+        on the specs first, sometimes adjusting them e.g. by converting to a dict.
+        """
+        raise NotImplementedError
 
     def reset(self):
-        """Reset agent after episode. Increments internal episode count, internal states and preprocessors.
-
-        Returns:
-            void
-
         """
-        self.episode += 1
-        self.current_internal = self.next_internal = self.model.reset()
-        for preprocessing in self.preprocessing.values():
-            preprocessing.reset()
+        Reset the agent to its initial state (e.g. on experiment start). Updates the Model's internal episode and
+        timestep counter, internal states, and resets preprocessors.
+        """
+        self.episode, self.timestep, self.next_internals = self.model.reset()
+        self.current_internals = self.next_internals
 
-    def act(self, state, deterministic=False):
-        """Return action(s) for given state(s). First, the states are preprocessed using the given preprocessing
-        configuration. Then, the states are passed to the model to calculate the desired action(s) to execute.
+        # TODO have to call preprocessing reset in model
+        # for preprocessing in self.preprocessing.values():
+        #     preprocessing.reset()
 
-        After obtaining the actions, exploration might be added by the agent, depending on the exploration
-        configuration.
+    def act(self, states, deterministic=False):
+        """
+        Return action(s) for given state(s). States preprocessing and exploration are applied if  
+        configured accordingly.
 
         Args:
-            state: One state (usually a value tuple) or dict of states if multiple states are expected.
-            deterministic: If true, no exploration and sampling is applied.
-
+            states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
+            deterministic (bool): If true, no exploration and sampling is applied.
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
 
         """
-        self.timestep += 1
-        self.current_internal = self.next_internal
+        self.current_internals = self.next_internals
 
         if self.unique_state:
-            self.current_state = dict(state=state)
+            self.current_states = dict(state=np.asarray(states))
         else:
-            self.current_state = state
+            self.current_states = {name: np.asarray(state) for name, state in states.items()}
 
-        # Preprocessing
-        for name, preprocessing in self.preprocessing.items():
-            self.current_state[name] = preprocessing.process(state=self.current_state[name])
-
-        # Podel action
-        self.current_action, self.next_internal = self.model.get_action(state=self.current_state, internal=self.current_internal, deterministic=deterministic)
-
-        # Exploration
-        if not deterministic:
-            for name, exploration in self.exploration.items():
-                if self.actions_config[name].continuous:
-                    explore = (lambda: exploration(episode=self.episode, timestep=self.timestep))
-                    shape = self.actions_config[name].shape
-                    exploration = np.array([explore() for _ in xrange(util.prod(shape))])
-                    self.current_action[name] += np.reshape(exploration, shape)
-                else:
-                    if random() < exploration(episode=self.episode, timestep=self.timestep):
-                        shape = self.actions_config[name].shape
-                        num_actions = self.actions_config[name].num_actions
-                        self.current_action[name] = np.random.randint(low=num_actions, size=shape)
+        # Retrieve action
+        self.current_actions, self.next_internals, self.timestep = self.model.act(
+            states=self.current_states,
+            internals=self.current_internals,
+            deterministic=deterministic
+        )
 
         if self.unique_action:
-            return self.current_action['action']
+            return self.current_actions['action']
         else:
-            return self.current_action
+            return self.current_actions
 
-    def observe(self, reward, terminal):
+    def observe(self, terminal, reward):
         """
-        Observe experience from the environment to learn from. Optionally preprocesses rewards
+        Observe experience from the environment to learn from. Optionally pre-processes rewards
         Child classes should call super to get the processed reward
-        EX: reward, terminal = super()...
+        EX: terminal, reward = super()...
 
         Args:
-            reward: scalar reward that resulted from executing the action.
-            terminal: boolean indicating if the episode terminated after the observation.
-
-        Returns:
-            processed_reward
-            terminal
+            terminal (bool): boolean indicating if the episode terminated after the observation.
+            reward (float): scalar reward that resulted from executing the action.
         """
-        if self.reward_preprocessing is not None:
-            reward = self.reward_preprocessing.process(reward)
-        return reward, terminal
+        self.current_terminal = terminal
+        self.current_reward = reward
 
-    def observe_episode_reward(self, episode_reward):
-        if self.model:
-            self.model.write_episode_reward_summary(episode_reward)
+        if self.batched_observe is not None and self.batched_observe > 1:
+            # Batched observe for better performance with Python.
+            self.observe_terminal.append(self.current_terminal)
+            self.observe_reward.append(self.current_reward)
+
+            if self.current_terminal or len(self.observe_terminal) >= self.batched_observe:
+                self.episode = self.model.observe(
+                    terminal=self.observe_terminal,
+                    reward=self.observe_reward
+                )
+                self.observe_terminal = list()
+                self.observe_reward = list()
+
+        else:
+            self.episode = self.model.observe(
+                terminal=self.current_terminal,
+                reward=self.current_reward
+            )
+
+    def should_stop(self):
+        return self.model.monitored_session.should_stop()
 
     def last_observation(self):
         return dict(
-            state=self.current_state,
-            action=self.current_action,
-            reward=self.current_reward,
+            states=self.current_states,
+            internals=self.current_internals,
+            actions=self.current_actions,
             terminal=self.current_terminal,
-            internal=self.current_internal
+            reward=self.current_reward
         )
 
-    def load_model(self, path):
-        self.model.load_model(path)
+    def save_model(self, directory=None, append_timestep=True):
+        """
+        Save TensorFlow model. If no checkpoint directory is given, the model's default saver  
+        directory is used. Optionally appends current timestep to prevent overwriting previous  
+        checkpoint files. Turn off to be able to load model from the same given path argument as  
+        given here.
 
-    def save_model(self, path):
-        self.model.save_model(path)
+        Args:
+            directory (str): Optional checkpoint directory.
+            append_timestep (bool):  Appends the current timestep to the checkpoint file if true.
+                If this is set to True, the load path must include the checkpoint timestep suffix.
+                For example, if stored to models/ and set to true, the exported file will be of the
+                form models/model.ckpt-X where X is the last timestep saved. The load path must
+                precisely match this file name. If this option is turned off, the checkpoint will
+                always overwrite the file specified in path and the model can always be loaded under
+                this path.
+
+        Returns:
+            Checkpoint path were the model was saved.
+        """
+        return self.model.save(directory=directory, append_timestep=append_timestep)
+
+    def restore_model(self, directory=None, file=None):
+        """
+        Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is  
+        restored. If no checkpoint directory is given, the model's default saver directory is  
+        used (unless file specifies the entire path).
+
+        Args:
+            directory: Optional checkpoint directory.
+            file: Optional checkpoint file, or path if directory not given.
+        """
+        self.model.restore(directory=directory, file=file)
+
+    @staticmethod
+    def from_spec(spec, kwargs):
+        """
+        Creates an agent from a specification dict.
+        """
+        agent = util.get_object(
+            obj=spec,
+            predefined_objects=tensorforce.agents.agents,
+            kwargs=kwargs
+        )
+        assert isinstance(agent, Agent)
+        return agent
+
+    @staticmethod
+    def process_state_spec(states_spec):
+        unique_state = ('shape' in states_spec)
+
+        # Leave incoming spec-dict intact.
+        states_spec_copy = deepcopy(states_spec)
+        if unique_state:
+            states_spec_copy = dict(state=states_spec_copy)
+
+        for name, state in states_spec_copy.items():
+            # Convert int to unary tuple.
+            if isinstance(state['shape'], int):
+                state['shape'] = (state['shape'],)
+
+            # Set default type to float.
+            if 'type' not in state:
+                state['type'] = 'float'
+        return states_spec_copy, unique_state
+
+    @staticmethod
+    def process_action_spec(actions_spec):
+        unique_action = ('type' in actions_spec)
+        # Leave incoming spec-dict intact.
+        actions_spec_copy = deepcopy(actions_spec)
+        if unique_action:
+            actions_spec_copy = dict(action=actions_spec_copy)
+
+        for name, action in actions_spec_copy.items():
+            # Set default type to int
+            if 'type' not in action:
+                action['type'] = 'int'
+
+            # Check required values
+            if action['type'] == 'int':
+                if 'num_actions' not in action:
+                    raise TensorForceError("Action requires value 'num_actions' set!")
+            elif action['type'] == 'float':
+                if ('min_value' in action) != ('max_value' in action):
+                    raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
+
+            # Set default shape to empty tuple (single-int, discrete action space)
+            if 'shape' not in action:
+                action['shape'] = ()
+
+            # Convert int to unary tuple
+            if isinstance(action['shape'], int):
+                action['shape'] = (action['shape'],)
+
+        return actions_spec_copy, unique_action

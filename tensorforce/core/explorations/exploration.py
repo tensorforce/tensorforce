@@ -13,18 +13,58 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
 from tensorforce import util
 import tensorforce.core.explorations
 
 
 class Exploration(object):
+    """
+    Abstract exploration object.
+    """
 
-    def __call__(self, episode=0, timestep=0):
+    def __init__(self, scope='exploration', summary_labels=None):
+        self.summary_labels = set(summary_labels or ())
+
+        self.variables = dict()
+        self.summaries = list()
+
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.variables[name] = variable
+            return variable
+
+        self.explore = tf.make_template(
+            name_=(scope + '/explore'),
+            func_=self.tf_explore,
+            custom_getter_=custom_getter
+        )
+
+    def tf_explore(self, episode, timestep, action_shape):
+        """
+        Creates exploration value, e.g. compute an epsilon for epsilon-greedy or sample normal  
+        noise.
+        """
         raise NotImplementedError
 
+    def get_variables(self):
+        """
+        Returns exploration variables.
+
+        Returns:
+            List of variables.
+        """
+        return [self.variables[key] for key in sorted(self.variables)]
+
     @staticmethod
-    def from_config(config):
-        return util.get_object(
-            obj=config,
-            predefined=tensorforce.core.explorations.explorations
+    def from_spec(spec):
+        """
+        Creates an exploration object from a specification dict.
+        """
+        exploration = util.get_object(
+            obj=spec,
+            predefined_objects=tensorforce.core.explorations.explorations
         )
+        assert isinstance(exploration, Exploration)
+        return exploration

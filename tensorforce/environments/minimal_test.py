@@ -23,30 +23,26 @@ from tensorforce.environments import Environment
 
 class MinimalTest(Environment):
 
-    def __init__(self, definition):
+    def __init__(self, specification):
         """
-        Initializes a minimal test environment.
+        Initializes a minimal test environment, which is used for the unit tests.
+        Given a specification of actions types and shapes, the environment states consist
+        of the same number of pairs (x, y). The (mean of) an action a gives the next state via (1-a, a),
+        and the 'correct' state is always (0, 1).
 
         Args:
-            definition: Takes a list of (continuous, shape) pairs specifying the state and action structure of the environment. Alternatively, a simple boolean value 'continuous' is a short-form for [(continuous, ())].
+            specification: Takes a list of (type, shape) pairs specifying the action structure of the environment.
         """
-        if isinstance(definition, bool):
-            self.definition = [(definition, ())]
-            self.single_state_action = True
-        else:
-            self.definition = list()
-            for action in definition:
-                if isinstance(action, bool):
-                    self.definition.append((action, ()))
-
-                elif len(action) == 2:
-                    if isinstance(action[1], int):
-                        self.definition.append((action[0], (action[1],)))
-                    else:
-                        self.definition.append((action[0], tuple(action[1])))
+        self.specification = dict()
+        for action_type, shape in specification.items():
+            if action_type in ('bool', 'int', 'float', 'bounded'):
+                if isinstance(shape, int):
+                    self.specification[action_type] = (shape,)
                 else:
-                    raise TensorForceError('Invalid MinimalTest definition.')
-            self.single_state_action = False
+                    self.specification[action_type] = tuple(shape)
+            else:
+                raise TensorForceError('Invalid MinimalTest specification.')
+        self.single_state_action = (len(specification) == 1)
 
     def __str__(self):
         return 'MinimalTest'
@@ -55,55 +51,58 @@ class MinimalTest(Environment):
         pass
 
     def reset(self):
-        self.state = [(1.0, 0.0) for _ in self.definition]
+        self.state = {action_type: (1.0, 0.0) for action_type in self.specification}
         if self.single_state_action:
-            return self.state[0]
+            return next(iter(self.state.values()))
         else:
-            return {'state{}'.format(n): state for n, state in enumerate(self.state)}
+            return dict(self.state)
 
-    def execute(self, action):
+    def execute(self, actions):
         if self.single_state_action:
-            action = (action,)
-        else:
-            action = tuple(action[name] for name in sorted(action))
+            actions = {next(iter(self.specification)): actions}
 
         reward = 0.0
-        for n, (continuous, shape) in enumerate(self.definition):
-            if continuous:
-                step = np.sum(action[n]) / util.prod(shape)
-                self.state[n] = (max(self.state[n][0] - step, 0.0), min(self.state[n][1] + step, 1.0))
-            else:
-                correct = np.sum(action[n])
+        for action_type, shape in self.specification.items():
+            if action_type == 'bool' or action_type == 'int':
+                correct = np.sum(actions[action_type])
                 overall = util.prod(shape)
-                self.state[n] = ((overall - correct) / overall, correct / overall)
-            reward += self.state[n][1] * 2 - 1.0
+                self.state[action_type] = ((overall - correct) / overall, correct / overall)
+            elif action_type == 'float' or action_type == 'bounded':
+                step = np.sum(actions[action_type]) / util.prod(shape)
+                self.state[action_type] = max(self.state[action_type][0] - step, 0.0), min(self.state[action_type][1] + step, 1.0)
+            reward += max(min(self.state[action_type][1], 1.0), 0.0)
 
         terminal = random() < 0.25
         if self.single_state_action:
-            return self.state[0], reward, terminal
+            return next(iter(self.state.values())), terminal, reward
         else:
-            reward = reward / len(self.definition)
-            return {'state{}'.format(n): state for n, state in enumerate(self.state)}, reward, terminal
+            reward = reward / len(self.specification)
+            return dict(self.state), terminal, reward
 
     @property
     def states(self):
         if self.single_state_action:
             return dict(shape=2, type='float')
         else:
-            return {'state{}'.format(n): dict(shape=(2,), type='float') for n in range(len(self.definition))}
+            return {action_type: dict(shape=(2,), type='float') for action_type in self.specification}
 
     @property
     def actions(self):
         if self.single_state_action:
-            if self.definition[0][0]:
-                return dict(continuous=True)
+            action_type = next(iter(self.specification))
+            if action_type == 'int':
+                return dict(type='int', num_actions=2)
+            elif action_type == 'bounded':
+                return dict(type='float', min_value=-0.5, max_value=1.5)
             else:
-                return dict(continuous=False, num_actions=2)
+                return dict(type=action_type)
         else:
             actions = dict()
-            for n, (continuous, shape) in enumerate(self.definition):
-                if continuous:
-                    actions['action{}'.format(n)] = dict(continuous=True, shape=shape)
+            for action_type, shape in self.specification.items():
+                if action_type == 'int':
+                    actions[action_type] = dict(type='int', shape=shape, num_actions=2)
+                elif action_type == 'bounded':
+                    actions[action_type] = dict(type='float', shape=shape, min_value=-0.5, max_value=1.5)
                 else:
-                    actions['action{}'.format(n)] = dict(continuous=False, shape=shape, num_actions=2)
+                    actions[action_type] = dict(type=action_type, shape=shape)
             return actions

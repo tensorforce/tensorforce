@@ -5,6 +5,72 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+14th January
+
+- Reverted back deprecated API call to be compatible with 1.4.1 in version 0.3.6.1
+
+12th January
+
+- Implemented some hot-fixes following changes in TensorFlow regarding variable registration.
+  These changes (first observed in 1.4) caused our custom getters for tf.make_template to register
+  variables differently, thus sometimes causing double registration in our variable lists.
+  The latest pip version 0.3.5 combined with TensorFlow 1.5.0rc0 address these issues.
+
+6th January
+
+- In December, a number of bugs regarding exploration and a numberical issue in generalised 
+  advantage estimation were fixed which seem to increase performance so an update is recommended.
+- Agent structure saw major refactoring to remove redundant code, introduced a ```LearningAgent```
+  to hold common fields and distinguish from non-learning agents (e.g. ```RandomAgent``)
+- We are preparing to move memories into the TensorFlow graph which will fix sequences and allow subsampling
+  in the optimizers. Further, new episode/batch semantics will be enabled (e.g. episode based instead of
+  timestep based batching). 
+
+9th December 2017
+
+- Renamed LSTM to InternalLSTM and created a new LSTM layer which implements more standard
+  sequence functionality. The ```internal_lstm``` is used for internal agent state, while
+  ```lstm``` may be used for seq2seq problems.
+
+2nd December 2017
+
+- Sequence preprocessor temporarily broken; use version 0.3.2 if required. This is because sequence sampling
+  in TensorFlow is only sensibly possible once replay memories/batches have also been moved into TensorFlow.
+- Moved pre-processing and exploration from agent (in Python logic) to TensorFlow control flow in model
+
+11th November 2017
+
+- BREAKING: We removed the Configuration object. Most users feel named arguments are far more  
+  comfortable to handle. Agents are now created specifying all non-default paremeters explicitly,  
+  see quickstart examples.
+- Agents are now specified as part of the configuration via a 'type', e.g. "type" : "dqn_agent" 
+
+8th November 2017
+
+- Layers/networks/etc now take an additional argument `update` in `tf_apply`, a boolean tensor indicating whether the call happens during an update.
+
+7th November 2017
+
+- New saver/summary/distributed config interface via entries `saver_spec`, `summary_spec`, `distributed_spec`.
+- The first two require at least a `directory` value.
+- Automatically periodically saves model/summaries with `seconds` in respective `_spec` set.
+
+22nd October 2017
+
+- BREAKING: We released a complete redesign including our new optimization module. Optimizers
+  which previously were only available in Python (natural gradients) are now available in pure
+  TensorFlow. A blogpost on this will appear soon.
+- Agent configurations are now decomposed in (```action_spec```, ```states_spec```,```network_spec```, and config). 
+  This facilitates a more clear separation between hyperparameters of the model and describing the problem.
+- Models are now heavily making use of templated graph construction.
+- Policy gradient models have been decomposed in models using likelihood ratios and log
+  likelihood (```pg_prob_ratio_model```) and (```pg_log_prob_model```)
+- Q-models are now implemented as distributional models, which enables the use of natural
+  gradients in Q-models. A blogpost on the practical implications is also on the way.
+- Baselines: It is now possible to share parameters between main networks and baselines via
+  the baseline option (```NetworkBaseline```).
+- Actions now support boolean types.
+
 2nd September 2017
 
 - Added multi-LSTM support

@@ -13,29 +13,44 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Preprocessor base class
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
-
-from tensorforce import Configuration
+import tensorflow as tf
 
 
 class Preprocessor(object):
 
-    def process(self, state):
+    def __init__(self, scope='preprocessor', summary_labels=None):
+        self.summary_labels = set(summary_labels or ())
+        self.variables = dict()
+        self.summaries = list()
+
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                self.variables[name] = variable
+            return variable
+
+        self.process = tf.make_template(
+            name_=(scope + '/process'),
+            func_=self.tf_process,
+            custom_getter_=custom_getter
+        )
+
+    def reset(self):
+        pass
+
+    def tf_process(self, tensor):
         """
         Process state.
 
         Args:
-            state: state to process.
+            tensor: tensor to process.
 
-        Returns: processed state.
+        Returns: processed tensor.
         """
-        return state
+        return tensor
 
     def processed_shape(self, shape):
         """
@@ -44,9 +59,15 @@ class Preprocessor(object):
         Args:
             shape: original shape.
 
-        Returns: processed state shape
+        Returns: processed tensor shape
         """
         return shape
 
-    def reset(self):
-        pass
+    def get_variables(self):
+        """
+        Returns the TensorFlow variables used by the preprocessor.
+
+        Returns:
+            List of variables.
+        """
+        return [self.variables[key] for key in sorted(self.variables)]

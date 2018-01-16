@@ -400,11 +400,10 @@ class Linear(Layer):
 
         elif isinstance(self.weights_init, str):
             if self.weights_init == 'xavier':
-                print('linear weights_init xavier')
                 self.weights_init = tf.contrib.layers.xavier_initializer(uniform=False, seed=None, dtype=tf.float32)
             else:
                 raise TensorForceError(
-                    'Linear Weights init spec wrong weight_init={}, expected xavier'.format(self.weights_init)
+                    'Linear Weights init spec wrong weight_init={}'.format(self.weights_init)
                 )
 
         elif isinstance(self.weights_init, float):
@@ -531,7 +530,7 @@ class Dense(Layer):
         l1_regularization=0.0,
         skip=False,
         scope='dense',
-        weights=None,
+        linear_weights=None,
         summary_labels=()
     ):
         """
@@ -545,6 +544,7 @@ class Dense(Layer):
             l1_regularization: L1 regularization weight.
             skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf),
                   doubles layers and ShortCut from Input to output
+            linear_weights: the weight_int spec for Linear part
         """
         self.skip = skip
         if self.skip and size is not None:
@@ -556,7 +556,7 @@ class Dense(Layer):
         self.linear = Linear(
             size=size,
             bias=bias,
-            weights=weights,
+            weights=linear_weights,
             l2_regularization=l2_regularization,
             l1_regularization=l1_regularization,
             summary_labels=summary_labels

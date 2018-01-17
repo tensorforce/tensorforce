@@ -157,59 +157,48 @@ class Nonlinearity(Layer):
     Non-linearity layer applying a non-linear transformation.
     """
 
-    def __init__(self, kwargs='relu', scope='nonlinearity', summary_labels=()):
+    def __init__(self,
+        name='relu',
+        alpha=None,
+        beta=1.0,
+        max=None,
+        min=None,
+        scope='nonlinearity',
+        summary_labels=()
+    ):
         """
-        Non-linearity layer.
+        Non-linearity activation layer.
 
         Args:
-            kwargs: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'softmax', 'softplus', 'tanh' or 'none'.
-                    Optional dictionary of args for activation, must include {'name':'xxx'} Currently supports;
-                        {'beta': float|int|'learn'} # for beta factor on input
-                        {'alpha': float|int}   # For leaky Relu
-                        {'max': float|int}   # Clip maximum input to activation at "max"
-                        {'min': float|int}   # Clip minimum input to activation at "min"
-            summary_labels: Requested summary labels for tensorboard export
+            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'swish', 'softmax', 
+                'leaky_relu' (or 'lrelu'), 'crelu', 'softmax', 'softplus', 'softsign', 'tanh' or 'none'.
+            alpha: (float|int) Alpha value for leaky Relu
+            beta: (float|int|'learn') Beta value or 'learn' to train value (default 1.0)
+            max: (float|int) maximum (beta * input) value passed to non-linearity function
+            min: (float|int) minimum (beta * input) value passed to non-linearity function
+            summary_labels: Requested summary labels for tensorboard export, add 'beta' to watch beta learning
         """
-        if type(kwargs) is str:
-            self.name       = kwargs
-            #kwargs          = dict()
-        else:
-            self.name       = kwargs['name']
-
+        self.name           = name
         self.alpha          = None
         self.max            = None
         self.min            = None        
         self.beta_learn     = False
         super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
 
-        if 'max' in kwargs:
-            if type(kwargs['max']) is int or type(kwargs['max']) is float:
-                self.max = float(kwargs['max'])       
-            else:
-                raise TensorForceError('Invalid non-linearity max parameter: {}'.format(kwargs['max']))     
+        if max is not None:
+            self.max = float(max)   
 
-        if 'min' in kwargs:
-            if type(kwargs['min']) is int or type(kwargs['min']) is float:
-                self.min = float(kwargs['min'])       
-            else:
-                raise TensorForceError('Invalid non-linearity min parameter: {}'.format(kwargs['min']))                     
+        if min is not None:
+            self.min = float(min)                    
 
-        if 'alpha' in kwargs:
-            if type(kwargs['alpha']) is int or type(kwargs['alpha']) is float:
-                self.alpha = float(kwargs['alpha'])       
-            else:
-                raise TensorForceError('Invalid non-linearity alpha parameter: {}'.format(kwargs['alpha']))                    
+        if alpha is not None:
+            self.alpha = float(alpha)                       
 
-        if 'beta' in kwargs:
-            if type(kwargs['beta']) is int or type(kwargs['beta']) is float:
-                self.beta = tf.constant(float(kwargs['beta']), dtype=util.tf_dtype('float'))
-            elif kwargs['beta'] == 'learn':
-                self.beta_learn = True
-                self.beta = None
-            else:
-                raise TensorForceError('Invalid non-linearity beta parameter: {}'.format(kwargs['beta']))
+        if beta == 'learn':
+            self.beta_learn = True
+            self.beta = None
         else:
-            self.beta = tf.constant(float(1.0), dtype=util.tf_dtype('float'))
+            self.beta = tf.constant(float(beta), dtype=util.tf_dtype('float'))
 
     def tf_apply(self, x, update):
         if self.beta_learn:
@@ -221,19 +210,19 @@ class Nonlinearity(Layer):
             )
 
         if self.max is not None:
-            x = tf.minimum((self.beta*x), self.max)
+            x = tf.minimum(x=(self.beta * x), y=self.max)
 
         if self.min is not None:
-            x = tf.maximum((self.beta*x), self.min)   
+            x = tf.maximum(x=(self.beta * x), y=self.min)   
 
         if self.name == 'elu':
-            x = tf.nn.elu(features=(self.beta*x))
+            x = tf.nn.elu(features=(self.beta * x))
 
         elif self.name == 'none':
-            x = tf.identity(input=(self.beta*x))
+            x = tf.identity(input=(self.beta * x))
 
         elif self.name == 'relu':
-            x = tf.nn.relu(features=(self.beta*x))
+            x = tf.nn.relu(features=(self.beta * x))
             if 'relu' in self.summary_labels:
                 non_zero = tf.cast(x=tf.count_nonzero(input_tensor=x), dtype=tf.float32)
                 size = tf.cast(x=tf.reduce_prod(input_tensor=tf.shape(input=x)), dtype=tf.float32)
@@ -242,35 +231,35 @@ class Nonlinearity(Layer):
 
         elif self.name == 'selu':
             # https://arxiv.org/pdf/1706.02515.pdf
-            x = tf.nn.selu(features=(self.beta*x))
+            x = tf.nn.selu(features=(self.beta * x))
 
         elif self.name == 'sigmoid':
-            x = tf.sigmoid(x=(self.beta*x))
+            x = tf.sigmoid(x=(self.beta * x))
 
         elif self.name == 'swish':
             # https://arxiv.org/abs/1710.05941
-            x = tf.sigmoid(x=(self.beta*x)) * x    
+            x = tf.sigmoid(x=(self.beta * x)) * x    
 
         elif self.name == 'lrelu' or self.name == 'leaky_relu':
             if self.alpha is None:
                 # Default alpha value for leaky_relu
                 self.alpha = 0.2
-            x = tf.nn.leaky_relu(features=(self.beta*x), alpha=self.alpha)
+            x = tf.nn.leaky_relu(features=(self.beta * x), alpha=self.alpha)
 
         elif self.name == 'crelu':
-            x = tf.nn.crelu(features=(self.beta*x))            
+            x = tf.nn.crelu(features=(self.beta * x))            
 
         elif self.name == 'softmax':
-            x = tf.nn.softmax(logits=(self.beta*x))
+            x = tf.nn.softmax(logits=(self.beta * x))
 
         elif self.name == 'softplus':
-            x = tf.nn.softplus(features=(self.beta*x))
+            x = tf.nn.softplus(features=(self.beta * x))
 
         elif self.name == 'softsign':
-            x = tf.nn.softsign(features=(self.beta*x))
+            x = tf.nn.softsign(features=(self.beta * x))
 
         elif self.name == 'tanh':
-            x = tf.nn.tanh(x=(self.beta*x))
+            x = tf.nn.tanh(x=(self.beta * x))
 
         else:
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))
@@ -632,7 +621,7 @@ class Dense(Layer):
             )
         # TODO: Consider creating two nonlinearity variables when skip is used and learning beta
         #       Right now, only a single beta can be learned
-        self.nonlinearity = Nonlinearity(kwargs=activation, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(**util.prepare_kwargs(activation), summary_labels=summary_labels)
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -738,7 +727,7 @@ class Dueling(Layer):
             summary_labels=summary_labels
         )
         self.output = output
-        self.nonlinearity = Nonlinearity(kwargs=activation, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(**util.prepare_kwargs(activation), summary_labels=summary_labels)
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -844,7 +833,7 @@ class Conv1d(Layer):
         self.bias = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        self.nonlinearity = Nonlinearity(kwargs=activation, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(**util.prepare_kwargs(activation), summary_labels=summary_labels)
         super(Conv1d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -953,7 +942,7 @@ class Conv2d(Layer):
         self.bias = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        self.nonlinearity = Nonlinearity(kwargs=activation, summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(**util.prepare_kwargs(activation), summary_labels=summary_labels)
         super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):

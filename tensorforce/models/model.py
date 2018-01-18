@@ -176,6 +176,14 @@ class Model(object):
         # Inputs and internals
         # Current episode number as int Tensor
         self.episode = None
+        # episode reward as float Tensor
+        self.episode_reward = None
+        # TensorFlow op incrementing `self.episode_reward`
+        self.increment_episode_reward = None
+        # TensorFlow op reset `self.episode_reward`
+        self.reset_episode_reward = None
+        # Template function calculating episode rewards
+        self.fn_episode_reward = None
         # TensorFlow op incrementing `self.episode` depending on True is-terminal signals
         self.increment_episode = None
         # Int Tensor representing the total timestep (over all episodes)
@@ -322,6 +330,20 @@ class Model(object):
                 assert len(collection) == 1
                 self.episode = collection[0]
 
+            # episode_reward
+            collection = self.graph.get_collection(name='episode_reward')
+            if len(collection) == 0:
+                self.episode_reward = tf.Variable(
+                    name='episode_reward',
+                    dtype=util.tf_dtype('float'),
+                    trainable=False,
+                    initial_value=0.
+                )
+                self.graph.add_to_collection(name='episode_reward', value=self.episode_reward)
+            else:
+                assert len(collection) == 1
+                self.episode_reward = collection[0]
+
             # Timestep
             collection = self.graph.get_collection(name='timestep')
             if len(collection) == 0:
@@ -425,9 +447,10 @@ class Model(object):
 
             # Global trainables (from global_model)
             global_variables = self.global_model.get_variables(include_non_trainable=True) +\
-                               [self.episode, self.timestep]
+                               [self.episode, self.timestep, self.episode_reward]
             # Local counterparts
-            local_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
+            local_variables = self.get_variables(include_non_trainable=True) +\
+                              [self.episode, self.timestep, self.episode_reward]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
@@ -437,7 +460,8 @@ class Model(object):
                                        for local_var, global_var in zip(local_variables, global_variables)))
         # Local variables initialize operations (no global_model).
         else:
-            global_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
+            global_variables = self.get_variables(include_non_trainable=True) +\
+                               [self.episode, self.timestep, self.episode_reward]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
             # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
@@ -755,6 +779,11 @@ class Model(object):
             func_=self.tf_preprocess_reward,
             custom_getter_=custom_getter
         )
+        # self.fn_episode_reward = tf.make_template(
+        #     name_=(self.scope + '/episode_reward'),
+        #     func_=self.tf_episode_reward,
+        #     custom_getter_=custom_getter
+        # )
 
         self.summary_configuration_op = None
         if self.summary_spec and 'meta_param_recorder_class' in self.summary_spec:
@@ -832,6 +861,24 @@ class Model(object):
             reward = self.reward_preprocessing.process(tensor=reward)
 
         return reward
+
+    def tf_episode_reward(self, terminal, reward):
+        reach_terminal = terminal[-1]
+        reward_sum = tf.reduce_sum(input_tensor=reward)
+        episode_reward = self.episode_reward.assign_add(delta=reward_sum)
+        tf.cond(pred=reach_terminal, true_fn=(lambda: self.summary_episode_reward(episode_reward=episode_reward)),
+                false_fn=(lambda: episode_reward))
+        return episode_reward
+
+    def summary_episode_reward(self, episode_reward):
+        if 'episode-reward' in self.summary_labels:
+            summary = tf.summary.scalar(name='episode-reward', tensor=episode_reward)
+            self.summaries.append(summary)
+        return episode_reward
+
+    def tf_reset_episode_reward(self):
+        assign_op = self.episode_reward.assign(0.)
+        return assign_op
 
     # TODO: this could be a utility helper function if we remove self.discount and only allow external discount-value input
     def tf_discounted_cumulative_reward(self, terminal, reward, discount=None, final_reward=0.0, horizon=0):
@@ -1163,6 +1210,11 @@ class Model(object):
         with tf.control_dependencies(control_inputs=(increment_episode,)):
             self.increment_episode = self.episode + 0
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
+        self.increment_episode_reward = self.tf_episode_reward(
+            terminal=terminal,
+            reward=reward
+        )
+        self.reset_episode_reward = self.tf_reset_episode_reward()
 
         # Tensor(s) fetched for model.update()
         self.optimization = self.fn_optimization(
@@ -1238,7 +1290,7 @@ class Model(object):
                 Current episode, timestep counter and the shallow-copied list of internal state initialization Tensors.
         """
         # TODO preprocessing reset call moved from agent
-        episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
+        episode, timestep, _ = self.monitored_session.run(fetches=(self.episode, self.timestep, self.reset_episode_reward))
         return episode, timestep, list(self.internals_init)
 
     def act(self, states, internals, deterministic=False, fetch_tensors=None):
@@ -1324,7 +1376,7 @@ class Model(object):
 
         feed_dict[self.update_input] = False  # don't update, just "observe"
 
-        episode = self.monitored_session.run(fetches=self.increment_episode, feed_dict=feed_dict)
+        episode, _ = self.monitored_session.run(fetches=(self.increment_episode, self.increment_episode_reward), feed_dict=feed_dict)
 
         return episode
 

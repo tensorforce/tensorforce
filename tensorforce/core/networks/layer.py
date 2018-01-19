@@ -189,9 +189,6 @@ class Nonlinearity(Layer):
             negative = alpha * tf.nn.elu(features=x)
             x = scale * tf.where(condition=(x >= 0.0), x=x, y=negative)
 
-        elif self.name == 'leaky_relu':
-            x = tf.nn.leaky_relu(features=x)
-
         elif self.name == 'sigmoid':
             x = tf.sigmoid(x=x)
 

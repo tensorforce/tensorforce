@@ -233,9 +233,6 @@ class Nonlinearity(Layer):
             # https://arxiv.org/pdf/1706.02515.pdf
             x = tf.nn.selu(features=(self.beta * x))
 
-        elif self.name == 'leaky_relu':
-            x = tf.nn.leaky_relu(features=x)
-
         elif self.name == 'sigmoid':
             x = tf.sigmoid(x=(self.beta * x))
 

@@ -262,6 +262,8 @@ class Model(object):
             global_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
+            # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
+            global_variables = list(set(global_variables))
             ready_for_local_init_op = None
             local_init_op = None
         else:
@@ -804,9 +806,12 @@ class Model(object):
             else:
                 reward_preprocessing_variables = list()
 
-            return model_variables + states_preprocessing_variables + actions_exploration_variables + \
-                reward_preprocessing_variables
+            variables = model_variables
+            variables.extend([v for v in states_preprocessing_variables if v not in variables])
+            variables.extend([v for v in actions_exploration_variables if v not in variables])
+            variables.extend([v for v in reward_preprocessing_variables if v not in variables])
 
+            return variables
         else:
             return [self.variables[key] for key in sorted(self.variables)]
 

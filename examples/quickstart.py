@@ -20,7 +20,7 @@ from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
 # Create an OpenAIgym environment
-env = OpenAIGym('CartPole-v0', visualize=True)
+env = OpenAIGym('CartPole-v0', visualize=False)
 
 # Network as list of layers
 # - Embedding layer:
@@ -37,27 +37,36 @@ network_spec = [
 ]
 
 agent = PPOAgent(
-    states_spec=env.states,
-    actions_spec=env.actions,
-    network_spec=network_spec,
-    batch_size=4096,
+    states=env.states,
+    actions=env.actions,
+    network=network_spec,
     # Agent
-    states_preprocessing_spec=None,
-    explorations_spec=None,
-    reward_preprocessing_spec=None,
-    # BatchAgent
-    keep_last_timestep=True,
+    states_preprocessing=None,
+    actions_exploration=None,
+    reward_preprocessing=None,
     # PPOAgent
+    update_mode=dict(
+        # 10 episodes per update
+        batch_size=10,
+        # Every 10 episodes
+        frequency=10
+    ),
+    memory=dict(
+        type='latest',
+        include_next_states=False,
+        capacity=2000
+    ),
     step_optimizer=dict(
         type='adam',
-        learning_rate=1e-3
+        learning_rate=0.0001
     ),
-    optimization_steps=10,
+    subsampling_fraction=0.1,
+    optimization_steps=50,
     # Model
     scope='ppo',
     discount=0.99,
     # DistributionModel
-    distributions_spec=None,
+    distributions=None,
     entropy_regularization=0.01,
     # PGModel
     baseline_mode=None,
@@ -65,9 +74,7 @@ agent = PPOAgent(
     baseline_optimizer=None,
     gae_lambda=None,
     # PGLRModel
-    likelihood_ratio_clipping=0.2,
-    summary_spec=None,
-    distributed_spec=None
+    likelihood_ratio_clipping=0.2
 )
 
 # Create the runner

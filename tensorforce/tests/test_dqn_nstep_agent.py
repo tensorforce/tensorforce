@@ -29,6 +29,10 @@ class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
     deterministic = True
 
     config = dict(
+        update_mode=dict(
+            batch_size=4,
+            frequency=4
+        ),
         memory=dict(
             type='latest',
             include_next_states=True,
@@ -37,8 +41,7 @@ class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
         optimizer=dict(
             type='adam',
             learning_rate=1e-2
-        ),
-        batch_size=4
+        )
     )
 
     exclude_float = True

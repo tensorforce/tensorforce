@@ -40,30 +40,32 @@ class Agent(object):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
+        states,
+        actions,
         batched_observe
     ):
         """
         Initializes the reinforcement learning agent.
 
         Args:
-            states_spec: Dict containing at least one state definition. In the case of a single state,
+            states: Dict containing at least one state definition. In the case of a single state,
                keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
                is a dict itself with a unique name as its key.
-            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
                 for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
         """
+        if states is None or actions is None:
+            raise TensorForceError("No states/actions provided.")
 
-        self.unique_state = ('shape' in states_spec)
+        self.unique_state = ('shape' in states)
         if self.unique_state:
-            states_spec = dict(state=states_spec)
+            states = dict(state=states)
 
-        self.states_spec = deepcopy(states_spec)
-        for name, state in self.states_spec.items():
+        self.states = deepcopy(states)
+        for name, state in self.states.items():
             # Convert int to unary tuple
             if isinstance(state['shape'], int):
                 state['shape'] = (state['shape'],)
@@ -74,12 +76,12 @@ class Agent(object):
 
         # Actions config and exploration
         self.exploration = dict()
-        self.unique_action = ('type' in actions_spec)
+        self.unique_action = ('type' in actions)
         if self.unique_action:
-            actions_spec = dict(action=actions_spec)
-        self.actions_spec = deepcopy(actions_spec)
+            actions = dict(action=actions)
+        self.actions = deepcopy(actions)
 
-        for name, action in self.actions_spec.items():
+        for name, action in self.actions.items():
             # Check required values
             if action['type'] == 'int':
                 if 'num_actions' not in action:
@@ -97,26 +99,26 @@ class Agent(object):
                 action['shape'] = (action['shape'],)
 
         # TensorFlow summaries & Configuration Meta Parameter Recorder options
-        if self.summary_spec is None:
-            self.summary_labels = set()
+        if self.summaries is None:
+            summary_labels = set()
         else:
-            self.summary_labels = set(self.summary_spec.get('labels', ()))
- 
+            summary_labels = set(self.summaries.get('labels', ()))
+
         self.meta_param_recorder = None
- 
+
         #if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
-        if any(k in self.summary_labels for k in ['configuration','print_configuration']):
+        if any(k in summary_labels for k in ['configuration', 'print_configuration']):
             self.meta_param_recorder = MetaParameterRecorder(inspect.currentframe())
-            if 'meta_dict' in self.summary_spec:   
+            if 'meta_dict' in self.summaries:
                 # Custom Meta Dictionary passed
-                self.meta_param_recorder.merge_custom(self.summary_spec['meta_dict'])
-            if 'configuration' in self.summary_labels:  
+                self.meta_param_recorder.merge_custom(self.summary['meta_dict'])
+            if 'configuration' in summary_labels:
                 # Setup for TensorBoard population
-                self.summary_spec['meta_param_recorder_class'] = self.meta_param_recorder
-            if 'print_configuration' in self.summary_labels: 
+                self.summary['meta_param_recorder_class'] = self.meta_param_recorder
+            if 'print_configuration' in summary_labels:
                 # Print to STDOUT (TADO: optimize output)
                 self.meta_param_recorder.text_output(format_type=1)
- 
+
         # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
         self.model = self.initialize_model()
 

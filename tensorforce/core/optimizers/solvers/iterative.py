@@ -15,6 +15,7 @@
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core.optimizers.solvers import Solver
 
 
@@ -61,6 +62,7 @@ class Iterative(Solver):
 
         # Initialization step
         args = self.initialize(x_init, *args)
+        # args = util.map_tensors(fn=tf.stop_gradient, tensors=args)
 
         # Iteration loop with termination condition
         if self.unroll_loop:

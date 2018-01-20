@@ -38,6 +38,10 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -46,8 +50,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             optimizer=dict(
                 type='adam',
                 learning_rate=1e-2
-            ),
-            batch_size=4
+            )
         )
         self.base_test_pass(name='adam', environment=environment, network=network, **config)
 
@@ -58,6 +61,10 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -66,8 +73,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             optimizer=dict(
                 type='evolutionary',
                 learning_rate=1e-2
-            ),
-            batch_size=4
+            )
         )
         self.base_test_pass(name='evolutionary', environment=environment, network=network, **config)
 
@@ -78,6 +84,10 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -86,8 +96,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             optimizer=dict(
                 type='natural_gradient',
                 learning_rate=1e-3
-            ),
-            batch_size=4
+            )
         )
         self.base_test_pass(name='natural-gradient', environment=environment, network=network, **config)
 
@@ -98,6 +107,10 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -110,8 +123,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                     learning_rate=1e-2
                 ),
                 clipping_value=0.01
-            ),
-            batch_size=4
+            )
         )
         self.base_test_pass(name='clipped-step', environment=environment, network=network, **config)
 
@@ -122,6 +134,10 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -133,8 +149,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                     type='adam',
                     learning_rate=1e-3
                 )
-            ),
-            batch_size=4
+            )
         )
         self.base_test_pass(name='multi-step', environment=environment, network=network, **config)
 
@@ -145,6 +160,10 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -156,8 +175,7 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                     type='adam',
                     learning_rate=1e-2
                 )
-            ),
-            batch_size=4
+            )
         )
         self.base_test_pass(name='optimized-step', environment=environment, network=network, **config)
 
@@ -168,6 +186,10 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -180,7 +202,6 @@ class TestVPGOptimizers(BaseTest, unittest.TestCase):
                     learning_rate=1e-3
                 ),
                 fraction=0.33
-            ),
-            batch_size=4
+            )
         )
         self.base_test_pass(name='multi-step', environment=environment, network=network, **config)

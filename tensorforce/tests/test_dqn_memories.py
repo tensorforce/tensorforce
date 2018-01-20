@@ -36,6 +36,10 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=8,
+                frequency=4
+            ),
             memory=dict(
                 type='replay',
                 include_next_states=True,
@@ -45,9 +49,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
                 type="adam",
                 learning_rate=1e-2
             ),
-            target_sync_frequency=10,
-            batch_size=8,
-            update_frequency=4
+            target_sync_frequency=10
         )
 
         self.base_test_pass(
@@ -65,6 +67,10 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
         ]
 
         config = dict(
+            update_mode=dict(
+                batch_size=8,
+                frequency=4
+            ),
             memory=dict(
                 type='prioritized_replay',
                 include_next_states=True,
@@ -74,9 +80,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
                 type="adam",
                 learning_rate=1e-2
             ),
-            target_sync_frequency=10,
-            batch_size=8,
-            update_frequency=4
+            target_sync_frequency=10
         )
 
         self.base_test_pass(
@@ -93,6 +97,10 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=8,
+                frequency=4
+            ),
             memory=dict(
                 type='naive_prioritized_replay',
                 include_next_states=True,
@@ -102,9 +110,7 @@ class TestDQNMemories(BaseTest, unittest.TestCase):
                 type="adam",
                 learning_rate=1e-2
             ),
-            target_sync_frequency=10,
-            batch_size=8,
-            update_frequency=4
+            target_sync_frequency=10
         )
 
         self.base_test_pass(

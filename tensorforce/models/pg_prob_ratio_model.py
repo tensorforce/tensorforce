@@ -30,20 +30,20 @@ class PGProbRatioModel(PGModel):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity,
         variable_noise,
         states_preprocessing,
         actions_exploration,
         reward_preprocessing,
+        update_mode,
         memory,
-        update_spec,
         optimizer,
         discount,
         network,
@@ -59,21 +59,24 @@ class PGProbRatioModel(PGModel):
         assert likelihood_ratio_clipping is None or likelihood_ratio_clipping > 0.0
         self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
+        self.reference = None
+        self.compare = None
+
         super(PGProbRatioModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration,
             reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
             memory=memory,
-            update_spec=update_spec,
             optimizer=optimizer,
             discount=discount,
             network=network,
@@ -100,7 +103,7 @@ class PGProbRatioModel(PGModel):
             custom_getter_=custom_getter
         )
 
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, update):
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         prob_ratios = list()
         for name, distribution in self.distributions.items():
@@ -125,7 +128,7 @@ class PGProbRatioModel(PGModel):
             )
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
 
-    def tf_reference(self, states, internals, actions, terminal, reward, update):
+    def tf_reference(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
         for name in sorted(self.distributions):
@@ -137,7 +140,7 @@ class PGProbRatioModel(PGModel):
             log_probs.append(log_prob)
         return tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
 
-    def tf_compare(self, reference, states, internals, actions, terminal, reward, update):
+    def tf_compare(self, reference, states, internals, actions, terminal, reward, next_states, next_internals, update):
         reward = self.fn_reward_estimation(
             states=states,
             internals=internals,

@@ -57,15 +57,15 @@ class BaseTest(object):
 
             if self.__class__.requires_network:
                 agent = self.__class__.agent(
-                    states_spec=environment.states,
-                    actions_spec=environment.actions,
+                    states=environment.states,
+                    actions=environment.actions,
                     network=network,
                     **kwargs
                 )
             else:
                 agent = self.__class__.agent(
-                    states_spec=environment.states,
-                    actions_spec=environment.actions,
+                    states=environment.states,
+                    actions=environment.actions,
                     **kwargs
                 )
 
@@ -105,15 +105,15 @@ class BaseTest(object):
 
         if self.__class__.requires_network:
             agent = self.__class__.agent(
-                states_spec=environment.states,
-                actions_spec=environment.actions,
+                states=environment.states,
+                actions=environment.actions,
                 network=network,
                 **kwargs
             )
         else:
             agent = self.__class__.agent(
-                states_spec=environment.states,
-                actions_spec=environment.actions,
+                states=environment.states,
+                actions=environment.actions,
                 **kwargs
             )
 

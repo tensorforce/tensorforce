@@ -85,7 +85,10 @@ class SubsamplingStep(MetaOptimizer):
         num_samples = tf.maximum(x=num_samples, y=1)
         indices = tf.random_uniform(shape=(num_samples,), maxval=batch_size, dtype=tf.int32)
 
-        subsampled_arguments = SubsamplingStep.subsample(argument=arguments, indices=indices)
+        subsampled_arguments = util.map_tensors(
+            fn=(lambda arg: arg if util.rank(arg) == 0 else tf.gather(params=arg, indices=indices)),
+            tensors=arguments
+        )
 
         return self.optimizer.step(
             time=time,
@@ -93,20 +96,3 @@ class SubsamplingStep(MetaOptimizer):
             arguments=subsampled_arguments,
             **kwargs
         )
-
-    @staticmethod
-    def subsample(argument, indices):
-        if isinstance(argument, tf.Tensor):
-            if util.rank(argument) == 0:
-                # Non-batched argument
-                return argument
-            else:
-                return tf.gather(params=argument, indices=indices)
-        elif isinstance(argument, dict):
-            return {name: SubsamplingStep.subsample(argument=arg, indices=indices) for name, arg in argument.items()}
-        elif isinstance(argument, list):
-            return [SubsamplingStep.subsample(argument=arg, indices=indices) for arg in argument]
-        elif argument is None:
-            return None
-        else:
-            raise TensorForceError("Invalid argument type.")

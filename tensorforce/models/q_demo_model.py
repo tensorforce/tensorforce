@@ -16,11 +16,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import tensorflow as tf
 
 from tensorforce import util, TensorForceError
-from tensorforce.core.memories import Memory
+from tensorforce.core.memories import Replay
 from tensorforce.models import QModel
 
 
@@ -32,20 +31,20 @@ class QDemoModel(QModel):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity,
         variable_noise,
         states_preprocessing,
         actions_exploration,
         reward_preprocessing,
+        update_mode,
         memory,
-        update_spec,
         optimizer,
         discount,
         network,
@@ -60,29 +59,29 @@ class QDemoModel(QModel):
         demo_memory_capacity,
         demo_batch_size
     ):
-        if any(action['type'] not in ('bool', 'int') for action in actions_spec.values()):
+        if any(action['type'] not in ('bool', 'int') for action in actions.values()):
             raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")
 
         self.expert_margin = expert_margin
         self.supervised_weight = supervised_weight
+        self.demo_memory_capacity = demo_memory_capacity
         self.demo_batch_size = demo_batch_size
-        self.demo_memory_spec = memory
 
         super(QDemoModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration,
             reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
             memory=memory,
-            update_spec=update_spec,
             optimizer=optimizer,
             discount=discount,
             network=network,
@@ -96,13 +95,14 @@ class QDemoModel(QModel):
 
     def initialize(self, custom_getter):
         super(QDemoModel, self).initialize(custom_getter=custom_getter)
-        self.demo_memory = Memory.from_spec(
-            spec=self.demo_memory_spec,
-            kwargs=dict(
-                states_spec=self.states_spec,
-                actions_spec=self.actions_spec,
-                summary_labels=self.summary_labels
-            )
+
+        self.demo_memory = Replay(
+            states=self.states_spec,
+            actions=self.actions_spec,
+            include_next_states=True,
+            capacity=self.demo_memory_capacity,
+            scope='demo-replay',
+            summary_labels=self.summary_labels
         )
         self.demo_memory.initialize()
 

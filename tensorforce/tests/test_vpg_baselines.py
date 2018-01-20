@@ -37,6 +37,10 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -46,7 +50,6 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='adam',
                 learning_rate=1e-2
             ),
-            batch_size=4,
             baseline_mode='states',
             baseline=dict(
                 type='mlp',
@@ -76,6 +79,10 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         ]
 
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -85,7 +92,6 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='adam',
                 learning_rate=1e-2
             ),
-            batch_size=4,
             baseline_mode='network',
             baseline=dict(
                 type='mlp',
@@ -115,6 +121,10 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         ]
 
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -124,7 +134,6 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='adam',
                 learning_rate=1e-2
             ),
-            batch_size=4,
             baseline_mode='states',
             baseline=dict(
                 type='mlp',
@@ -145,6 +154,10 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             dict(type='dense', size=32)
         ]
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -154,7 +167,6 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='adam',
                 learning_rate=1e-2
             ),
-            batch_size=4,
             baseline_mode='states',
             baseline=dict(
                 type='mlp',
@@ -216,6 +228,10 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
             specification={'bool': (), 'int': (2,), 'float': (1, 1), 'bounded': (1,)}
         )
         config = dict(
+            update_mode=dict(
+                batch_size=4,
+                frequency=4
+            ),
             memory=dict(
                 type='latest',
                 include_next_states=False,
@@ -225,7 +241,6 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='adam',
                 learning_rate=1e-2
             ),
-            batch_size=4,
             baseline_mode='states',
             baseline=dict(
                 type='aggregated',

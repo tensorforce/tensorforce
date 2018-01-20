@@ -32,20 +32,20 @@ class QModel(DistributionModel):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity,
         variable_noise,
         states_preprocessing,
         actions_exploration,
         reward_preprocessing,
+        update_mode,
         memory,
-        update_spec,
         optimizer,
         discount,
         network,
@@ -56,30 +56,34 @@ class QModel(DistributionModel):
         double_q_model,
         huber_loss
     ):
-        self.target_network = network
+        self.target_network_spec = network
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
-
         self.double_q_model = double_q_model
 
+        # Huber loss
         assert huber_loss is None or huber_loss > 0.0
         self.huber_loss = huber_loss
 
+        self.target_network = None
+        self.target_optimizer = None
+        self.target_distributions = None
+
         super(QModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration,
             reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
             memory=memory,
-            update_spec=update_spec,
             optimizer=optimizer,
             discount=discount,
             network=network,
@@ -102,7 +106,7 @@ class QModel(DistributionModel):
 
         # Target network
         self.target_network = Network.from_spec(
-            spec=self.target_network,
+            spec=self.target_network_spec,
             kwargs=dict(scope='target', summary_labels=self.summary_labels)
         )
 

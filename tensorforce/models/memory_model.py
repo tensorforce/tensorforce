@@ -19,7 +19,7 @@ from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce import TensorForceError
+from tensorforce import util, TensorForceError
 from tensorforce.core.memories import Memory
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.models import Model
@@ -32,37 +32,48 @@ class MemoryModel(Model):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity,
         variable_noise,
         states_preprocessing,
         actions_exploration,
         reward_preprocessing,
+        update_mode,
         memory,
-        update_spec,
         optimizer,
         discount
     ):
-        self.memory = memory
-        self.update_spec = update_spec
-        self.optimizer = optimizer
+        self.update_mode = update_mode
+        self.memory_spec = memory
+        self.optimizer_spec = optimizer
+
+        # Discount
+        assert discount is None or discount >= 0.0
         self.discount = discount
 
+        self.memory = None
+        self.optimizer = None
+        self.fn_discounted_cumulative_reward = None
+        self.fn_loss_per_instance = None
+        self.fn_regularization_losses = None
+        self.fn_loss = None
+        self.fn_optimization = None
+
         super(MemoryModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration,
@@ -74,49 +85,47 @@ class MemoryModel(Model):
 
         # Memory
         self.memory = Memory.from_spec(
-            spec=self.memory,
+            spec=self.memory_spec,
             kwargs=dict(
-                states_spec=self.states_spec,
-                actions_spec=self.actions_spec,
-                include_next_states=False,  # !!!!!!!!!!!!!!!!!!!!!!!!!!!
+                states=self.states_spec,
+                actions=self.actions_spec,
                 summary_labels=self.summary_labels
             )
         )
         self.memory.initialize()
 
         # Optimizer
-        if self.optimizer is not None:
-            self.optimizer = Optimizer.from_spec(
-                spec=self.optimizer,
-                kwargs=dict(
-                    summaries=self.summaries,
-                    summary_labels=self.summary_labels
-                )
+        self.optimizer = Optimizer.from_spec(
+            spec=self.optimizer_spec,
+            kwargs=dict(
+                summaries=self.summaries,
+                summary_labels=self.summary_labels
             )
+        )
 
         # TensorFlow functions
         self.fn_discounted_cumulative_reward = tf.make_template(
-            name_=(self.scope + '/discounted-cumulative-reward'),
+            name_='discounted-cumulative-reward',
             func_=self.tf_discounted_cumulative_reward,
             custom_getter_=custom_getter
         )
         self.fn_loss_per_instance = tf.make_template(
-            name_=(self.scope + '/loss-per-instance'),
+            name_='loss-per-instance',
             func_=self.tf_loss_per_instance,
             custom_getter_=custom_getter
         )
         self.fn_regularization_losses = tf.make_template(
-            name_=(self.scope + '/regularization-losses'),
+            name_='regularization-losses',
             func_=self.tf_regularization_losses,
             custom_getter_=custom_getter
         )
         self.fn_loss = tf.make_template(
-            name_=(self.scope + '/loss'),
+            name_='loss',
             func_=self.tf_loss,
             custom_getter_=custom_getter
         )
         self.fn_optimization = tf.make_template(
-            name_=(self.scope + '/optimization'),
+            name_='optimization',
             func_=self.tf_optimization,
             custom_getter_=custom_getter
         )
@@ -146,7 +155,7 @@ class MemoryModel(Model):
         reward = tf.reverse(tensor=reward, axis=(0,))
         terminal = tf.reverse(tensor=terminal, axis=(0,))
 
-        reward = tf.scan(fn=cumulate, elems=(reward, terminal), initializer=final_reward)
+        reward = tf.scan(fn=cumulate, elems=(reward, terminal), initializer=tf.stop_gradient(input=final_reward))
 
         return tf.reverse(tensor=reward, axis=(0,))
 
@@ -309,18 +318,20 @@ class MemoryModel(Model):
 
         # Periodic optimization
         with tf.control_dependencies(control_inputs=(stored,)):
-            mode = self.update_spec['mode']
-            batch_size = self.update_spec['batch_size']
-            frequency = self.update_spec['frequency']
+            unit = self.update_mode['unit']
+            batch_size = self.update_mode['batch_size']
+            frequency = self.update_mode['frequency']
 
-            if mode == 'timesteps':
+            if unit == 'timesteps':
+                # Timestep-based batch
                 optimize = tf.logical_and(
                     x=tf.equal(x=(self.timestep % frequency), y=0),
                     y=tf.greater_equal(x=self.timestep, y=batch_size)
                 )
                 batch = self.memory.retrieve_timesteps(n=batch_size)
 
-            elif mode == 'episodes':
+            elif unit == 'episodes':
+                # Episode-based batch
                 optimize = tf.logical_and(
                     x=tf.equal(x=(self.episode % frequency), y=0),
                     y=tf.logical_and(
@@ -331,7 +342,8 @@ class MemoryModel(Model):
                 )
                 batch = self.memory.retrieve_episodes(n=batch_size)
 
-            elif mode == 'sequences':
+            elif unit == 'sequences':
+                # Timestep-sequence-based batch
                 optimize = tf.logical_and(
                     x=tf.equal(x=(self.timestep % frequency), y=0),
                     y=tf.greater_equal(x=self.timestep, y=batch_size)
@@ -339,9 +351,14 @@ class MemoryModel(Model):
                 batch = self.memory.retrieve_sequences(n=batch_size)
 
             else:
-                raise TensorForceError("Invalid update mode: {}.".format(mode))
+                raise TensorForceError("Invalid update unit: {}.".format(unit))
 
-            # optimize = tf.Print(optimize, (optimize,))
+            # Do not calculate gradients for memory-internal operations.
+            batch = util.map_tensors(
+                fn=(lambda tensor: tf.stop_gradient(input=tensor)),
+                tensors=batch
+            )
+
             optimization = tf.cond(
                 pred=optimize,
                 true_fn=(lambda: self.tf_optimization(**batch)),

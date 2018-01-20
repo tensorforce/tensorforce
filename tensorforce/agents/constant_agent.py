@@ -35,14 +35,14 @@ class ConstantAgent(Agent):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device=None,
-        session_config=None,
+        states,
+        actions,
         scope='constant',
-        saver_spec=None,
-        summary_spec=None,
-        distributed_spec=None,
+        device=None,
+        saver=None,
+        summaries=None,
+        distributed=None,
+        batching_capacity=None,
         action_values=None,
         batched_observe=1000
     ):
@@ -50,55 +50,54 @@ class ConstantAgent(Agent):
         Initializes a constant agent which returns a constant action of the provided shape.
 
         Args:
-            states_spec: Dict containing at least one state definition. In the case of a single state,
+            states: Dict containing at least one state definition. In the case of a single state,
                keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
                is a dict itself with a unique name as its key.
-            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
                 for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
             device: Device string specifying model device.
             session_config: optional tf.ConfigProto with additional desired session configurations
             scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
+            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
+            summary: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
                 or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
                 to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
+            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
+                Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
                 cluster spec.
-            action_values: Action value specification, must match actions_spec names
+            action_values: Action value specification, must match actions names
             batched_observe: Optional int specifying how many observe calls are batched into one session run.
                 Without batching, throughput will be lower because every `observe` triggers a session invocation to
                 update rewards in the graph.
         """
-
         if action_values is None:
             raise TensorForceError("No action_values for constant model provided.")
 
-        self.device = device
-        self.session_config = session_config
         self.scope = scope
-        self.saver_spec = saver_spec
-        self.summary_spec = summary_spec
-        self.distributed_spec = distributed_spec
+        self.device = device
+        self.saver = saver
+        self.summaries = summaries
+        self.distributed = distributed
+        self.batching_capacity = batching_capacity
         self.action_values = action_values
 
         super(ConstantAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states=states,
+            actions=actions,
             batched_observe=batched_observe
         )
 
     def initialize_model(self):
         return ConstantModel(
-            states_spec=self.states_spec,
-            actions_spec=self.actions_spec,
-            device=self.device,
-            session_config=self.session_config,
+            states=self.states,
+            actions=self.actions,
             scope=self.scope,
-            saver_spec=self.saver_spec,
-            summary_spec=self.summary_spec,
-            distributed_spec=self.distributed_spec,
+            device=self.device,
+            saver=self.saver,
+            summaries=self.summaries,
+            distributed=self.distributed,
+            batching_capacity=self.batching_capacity,
             action_values=self.action_values
         )

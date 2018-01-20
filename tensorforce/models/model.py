@@ -60,47 +60,50 @@ class Model(object):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity,
         variable_noise,
         states_preprocessing,
         actions_exploration,
         reward_preprocessing
     ):
         # States and actions specifications
-        self.states_spec = states_spec
-        self.actions_spec = actions_spec
+        self.states_spec = states
+        self.actions_spec = actions
 
-        # TensorFlow device and scope
-        self.device = device
-        self.session_config = session_config
+        # TensorFlow scope, device
         self.scope = scope
+        self.device = device
 
-        # Saver/summary/distributed specifications
-        self.saver_spec = saver_spec
-        self.summary_spec = summary_spec
-        self.distributed_spec = distributed_spec
+        # Saver/summaries/distributes
+        self.saver_spec = saver
+        self.summaries_spec = summaries
+        self.distributed_spec = distributed
 
         # TensorFlow summaries
-        if summary_spec is None:
+        if summaries is None:
             self.summary_labels = set()
         else:
-            self.summary_labels = set(summary_spec.get('labels', ()))
+            self.summary_labels = set(summaries.get('labels', ()))
+
+        # Batching capacity for act/observe interface
+        assert batching_capacity is None or (isinstance(batching_capacity, int) and batching_capacity > 0)
+        self.batching_capacity = batching_capacity
 
         # Variable noise
         assert variable_noise is None or variable_noise > 0.0
         self.variable_noise = variable_noise
 
         # Preprocessing and exploration
-        self.states_preprocessing = states_preprocessing
-        self.actions_exploration = actions_exploration
-        self.reward_preprocessing = reward_preprocessing
+        self.states_preprocessing_spec = states_preprocessing
+        self.actions_exploration_spec = actions_exploration
+        self.reward_preprocessing_spec = reward_preprocessing
 
         # Setup TensorFlow graph and session
         self.setup()
@@ -148,92 +151,93 @@ class Model(object):
             self.graph = graph
 
         with tf.device(device_name_or_function=self.device):
+            with tf.name_scope(name=self.scope):
 
-            # Variables and summaries
-            self.variables = dict()
-            self.all_variables = dict()
-            self.registered_variables = set()
-            self.summaries = list()
+                # Variables and summaries
+                self.variables = dict()
+                self.all_variables = dict()
+                self.registered_variables = set()
+                self.summaries = list()
 
-            def custom_getter(getter, name, registered=False, second=False, **kwargs):
-                if registered:
-                    self.registered_variables.add(name)
-                elif name in self.registered_variables:
-                    registered = True
-                variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
-                if not registered:
-                    self.all_variables[name] = variable
-                    if kwargs.get('trainable', True) and not name.startswith('optimization'):
-                        self.variables[name] = variable
-                        if 'variables' in self.summary_labels:
-                            summary = tf.summary.histogram(name=name, values=variable)
-                            self.summaries.append(summary)
-                return variable
+                def custom_getter(getter, name, registered=False, second=False, **kwargs):
+                    if registered:
+                        self.registered_variables.add(name)
+                    elif name in self.registered_variables:
+                        registered = True
+                    variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
+                    if not registered:
+                        self.all_variables[name] = variable
+                        if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                            self.variables[name] = variable
+                            if 'variables' in self.summary_labels:
+                                summary = tf.summary.histogram(name=name, values=variable)
+                                self.summaries.append(summary)
+                    return variable
 
-            # Episode
-            collection = self.graph.get_collection(name='episode')
-            if len(collection) == 0:
-                self.episode = tf.Variable(
-                    name='episode',
-                    dtype=util.tf_dtype('int'),
-                    trainable=False,
-                    initial_value=0
-                )
-                self.graph.add_to_collection(name='episode', value=self.episode)
-            else:
-                assert len(collection) == 1
-                self.episode = collection[0]
+                # Episode
+                collection = self.graph.get_collection(name='episode')
+                if len(collection) == 0:
+                    self.episode = tf.Variable(
+                        name='episode',
+                        dtype=util.tf_dtype('int'),
+                        trainable=False,
+                        initial_value=0
+                    )
+                    self.graph.add_to_collection(name='episode', value=self.episode)
+                else:
+                    assert len(collection) == 1
+                    self.episode = collection[0]
 
-            # Timestep
-            collection = self.graph.get_collection(name='timestep')
-            if len(collection) == 0:
-                self.timestep = tf.Variable(
-                    name='timestep',
-                    dtype=util.tf_dtype('int'),
-                    trainable=False,
-                    initial_value=0
-                )
-                self.graph.add_to_collection(name='timestep', value=self.timestep)
-                self.graph.add_to_collection(name=tf.GraphKeys.GLOBAL_STEP, value=self.timestep)
-            else:
-                assert len(collection) == 1
-                self.timestep = collection[0]
+                # Timestep
+                collection = self.graph.get_collection(name='timestep')
+                if len(collection) == 0:
+                    self.timestep = tf.Variable(
+                        name='timestep',
+                        dtype=util.tf_dtype('int'),
+                        trainable=False,
+                        initial_value=0
+                    )
+                    self.graph.add_to_collection(name='timestep', value=self.timestep)
+                    self.graph.add_to_collection(name=tf.GraphKeys.GLOBAL_STEP, value=self.timestep)
+                else:
+                    assert len(collection) == 1
+                    self.timestep = collection[0]
 
-            # Create placeholders, tf functions, internals, etc
-            self.initialize(custom_getter=custom_getter)
+                # Create placeholders, tf functions, internals, etc
+                self.initialize(custom_getter=custom_getter)
 
-            # self.fn_actions_and_internals(
-            #     states=states,
-            #     internals=internals,
-            #     update=update,
-            #     deterministic=deterministic
-            # )
-            # self.fn_loss_per_instance(
-            #     states=states,
-            #     internals=internals,
-            #     actions=actions,
-            #     terminal=terminal,
-            #     reward=reward,
-            #     update=update
-            # )
+                # self.fn_actions_and_internals(
+                #     states=states,
+                #     internals=internals,
+                #     update=update,
+                #     deterministic=deterministic
+                # )
+                # self.fn_loss_per_instance(
+                #     states=states,
+                #     internals=internals,
+                #     actions=actions,
+                #     terminal=terminal,
+                #     reward=reward,
+                #     update=update
+                # )
 
-            # Create output operations
-            self.fn_initialize()
-            self.create_act_outputs()
-            self.create_observe_outputs()
+                # Create output operations
+                self.fn_initialize()
+                self.create_act_outputs()
+                self.create_observe_outputs()
 
-            # if any(k in self.summary_labels for k in ['inputs','states','actions','rewards']): 
-            #     if any(k in self.summary_labels for k in ['inputs','states']):               
-            #         for name, state in states.items():
-            #             summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=state)
-            #             self.summaries.append(summary)
-            #     if any(k in self.summary_labels for k in ['inputs','actions']):                                       
-            #         for name, action in actions.items():
-            #             summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=action)
-            #             self.summaries.append(summary)
-            #     if any(k in self.summary_labels for k in ['inputs','rewards']):                                       
-            #         summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
-            #         self.summaries.append(summary)
+                # if any(k in self.summary_labels for k in ['inputs','states','actions','rewards']): 
+                #     if any(k in self.summary_labels for k in ['inputs','states']):               
+                #         for name, state in states.items():
+                #             summary = tf.summary.histogram(name=('inputs/states/' + name), values=state)
+                #             self.summaries.append(summary)
+                #     if any(k in self.summary_labels for k in ['inputs','actions']):                                       
+                #         for name, action in actions.items():
+                #             summary = tf.summary.histogram(name=('inputs/actions/' + name), values=action)
+                #             self.summaries.append(summary)
+                #     if any(k in self.summary_labels for k in ['inputs','rewards']):                                       
+                #         summary = tf.summary.histogram(name=('inputs/rewards'), values=reward)
+                #         self.summaries.append(summary)
 
         if self.distributed_spec is not None:
             if self.distributed_spec.get('replica_model'):
@@ -290,7 +294,7 @@ class Model(object):
             summary_op = None
 
         # TensorFlow saver object
-        saver = tf.train.Saver(
+        self.saver = tf.train.Saver(
             var_list=global_variables,  # should be given?
             reshape=False,
             sharded=False,  # should be true?
@@ -317,7 +321,7 @@ class Model(object):
             ready_for_local_init_op=ready_for_local_init_op,
             local_init_op=local_init_op,
             summary_op=summary_op,
-            saver=saver,
+            saver=self.saver,
             copy_from_scaffold=None
         )
 
@@ -339,12 +343,12 @@ class Model(object):
             self.saver_directory = None
 
         # Summary saver hook
-        if self.summary_spec is None:
+        if self.summaries_spec is None:
             self.summary_writer_hook = None
         else:
             # TensorFlow summary writer object
             self.summary_writer = tf.summary.FileWriter(
-                logdir=self.summary_spec['directory'],
+                logdir=self.summaries_spec['directory'],
                 graph=self.graph,
                 max_queue=10,
                 flush_secs=120,
@@ -352,8 +356,8 @@ class Model(object):
             )
             self.summary_writer_hook = util.UpdateSummarySaverHook(
                 is_optimizing=self.is_optimizing,
-                save_steps=self.summary_spec.get('steps'),  # Either one or the other has to be set.
-                save_secs=self.summary_spec.get('seconds', None if 'steps' in self.summary_spec else 120),
+                save_steps=self.summaries_spec.get('steps'),  # Either one or the other has to be set.
+                save_secs=self.summaries_spec.get('seconds', None if 'steps' in self.summaries_spec else 120),
                 output_dir=None,  # None since given via 'summary_writer' argument.
                 summary_writer=self.summary_writer,
                 scaffold=self.scaffold,
@@ -388,7 +392,7 @@ class Model(object):
                 hooks=hooks,
                 scaffold=self.scaffold,
                 master='',  # Default value.
-                config=self.session_config,  # always the same?
+                config=None,  # self.distributed_spec.get('session_config'),
                 checkpoint_dir=None
             )
 
@@ -398,7 +402,7 @@ class Model(object):
                 job_name='worker',
                 task_index=self.distributed_spec['task_index'],
                 protocol=self.distributed_spec.get('protocol'),
-                config=self.session_config,
+                config=self.distributed_spec.get('session_config'),
                 start=True
             )
 
@@ -407,7 +411,7 @@ class Model(object):
                 session_creator = tf.train.ChiefSessionCreator(
                     scaffold=self.scaffold,
                     master=server.target,
-                    config=self.session_config,
+                    config=self.distributed_spec.get('session_config'),
                     checkpoint_dir=None,
                     checkpoint_filename_with_path=None
                 )
@@ -416,7 +420,7 @@ class Model(object):
                 session_creator = tf.train.WorkerSessionCreator(
                     scaffold=self.scaffold,
                     master=server.target,
-                    config=self.session_config,
+                    config=self.distributed_spec.get('session_config'),
                 )
 
             # TensorFlow monitored session object
@@ -463,22 +467,23 @@ class Model(object):
             )
 
         # States preprocessing
-        preprocessing = dict()
-        if self.states_preprocessing is None:
+        self.states_preprocessing = dict()
+        if self.states_preprocessing_spec is None:
             for name, state in self.states_spec.items():
                 state['processed_shape'] = state['shape']
-        elif all(name in self.states_spec for name in self.states_preprocessing):
+        elif all(name in self.states_spec for name in self.states_preprocessing_spec):
             for name, state in self.states_spec.items():
-                if name in self.states_preprocessing:
-                    preprocessing[name] = PreprocessorStack.from_spec(spec=self.states_preprocessing[name])
-                    state['processed_shape'] = preprocessing[name].processed_shape(shape=state['shape'])
+                if name in self.states_preprocessing_spec:
+                    preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec[name])
+                    state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
                 else:
                     state['processed_shape'] = state['shape']
+                self.states_preprocessing[name] = preprocessing
         else:
             for name, state in self.states_spec.items():
-                preprocessing[name] = PreprocessorStack.from_spec(spec=self.states_preprocessing)
-                state['processed_shape'] = preprocessing[name].processed_shape(shape=state['shape'])
-        self.states_preprocessing = preprocessing
+                preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
+                state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
+                self.states_preprocessing[name] = preprocessing
 
         # Actions
         self.actions_input = dict()
@@ -490,17 +495,16 @@ class Model(object):
             )
 
         # Actions exploration
-        exploration = dict()
-        if self.actions_exploration is None:
+        self.actions_exploration = dict()
+        if self.actions_exploration_spec is None:
             pass
-        elif all(name in self.actions_spec for name in self.actions_exploration):
+        elif all(name in self.actions_spec for name in self.actions_exploration_spec):
             for name, state in self.actions_spec.items():
                 if name in self.actions_exploration:
-                    exploration[name] = Exploration.from_spec(spec=self.actions_exploration[name])
+                    self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec[name])
         else:
             for name, state in self.actions_spec.items():
-                exploration[name] = Exploration.from_spec(spec=self.actions_exploration)
-        self.actions_exploration = exploration
+                self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec)
 
         # Terminal
         self.terminal_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(None,), name='terminal')
@@ -509,8 +513,10 @@ class Model(object):
         self.reward_input = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name='reward')
 
         # Reward preprocessing
-        if self.reward_preprocessing is not None:
-            self.reward_preprocessing = PreprocessorStack.from_spec(spec=self.reward_preprocessing)
+        if self.reward_preprocessing_spec is None:
+            self.reward_preprocessing = None
+        else:
+            self.reward_preprocessing = PreprocessorStack.from_spec(spec=self.reward_preprocessing_spec)
             if self.reward_preprocessing.processed_shape(shape=()) != ():
                 raise TensorForceError("Invalid reward preprocessing!")
 
@@ -523,29 +529,29 @@ class Model(object):
 
         # TensorFlow functions
         self.fn_initialize = tf.make_template(
-            name_=(self.scope + '/initialize'),
+            name_='initialize',
             func_=self.tf_initialize,
             custom_getter_=custom_getter
         )
         self.fn_actions_and_internals = tf.make_template(
-            name_=(self.scope + '/actions-and-internals'),
+            name_='actions-and-internals',
             func_=self.tf_actions_and_internals,
             custom_getter_=custom_getter
         )
         self.fn_observe_timestep = tf.make_template(
-            name_=(self.scope + '/observe-timestep'),
+            name_='observe-timestep',
             func_=self.tf_observe_timestep,
             custom_getter_=custom_getter
         )
         self.fn_action_exploration = tf.make_template(
-            name_=(self.scope + '/action-exploration'),
+            name_='action-exploration',
             func_=self.tf_action_exploration,
             custom_getter_=custom_getter
         )
 
         self.summary_configuration_op = None
-        if self.summary_spec and 'meta_param_recorder_class' in self.summary_spec:
-            self.summary_configuration_op = self.summary_spec['meta_param_recorder_class'].build_metagraph_list()
+        if self.summaries_spec and 'meta_param_recorder_class' in self.summaries_spec:
+            self.summary_configuration_op = self.summaries_spec['meta_param_recorder_class'].build_metagraph_list()
 
         # self.fn_summarization = tf.make_template(
         #     name_='summarization',
@@ -563,13 +569,17 @@ class Model(object):
             trainable=False
         )
 
+        if self.batching_capacity is None:
+            capacity = 1
+        else:
+            capacity = self.batching_capacity
+
         # Current states variable
         self.current_states = dict()
         for name, state in self.states_spec.items():
             self.current_states[name] = tf.get_variable(
-                # getter=tf.get_variable,
                 name=('state-' + name),
-                shape=((1,) + tuple(state['shape'])),  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                shape=((capacity,) + tuple(state['shape'])),
                 dtype=util.tf_dtype(state['type']),
                 trainable=False
             )
@@ -579,9 +589,8 @@ class Model(object):
         self.current_internals = list()
         for n, internal_input in enumerate(self.internals_input):
             self.current_internals.append(tf.get_variable(
-                # getter=tf.get_variable,
                 name=('internal' + str(n)),
-                shape=((1,) + tuple(util.shape(x=internal_input))[1:]),  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                shape=((capacity,) + tuple(util.shape(x=internal_input))[1:]),
                 dtype=internal_input.dtype,
                 trainable=False
             ))
@@ -590,9 +599,8 @@ class Model(object):
         self.current_actions = dict()
         for name, action in self.actions_spec.items():
             self.current_actions[name] = tf.get_variable(
-                # getter=tf.get_variable,
                 name=('action-' + name),
-                shape=((1,) + tuple(action['shape'])),  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                shape=((capacity,) + tuple(action['shape'])),
                 dtype=util.tf_dtype(action['type']),
                 trainable=False
             )
@@ -718,6 +726,7 @@ class Model(object):
 
         # Store current states, internals and actions
         operations = list()
+        state = next(iter(states.values()))
         for name, state in states.items():
             operations.append(tf.assign(ref=self.current_states[name], value=state))
         for n, internal in enumerate(internals):
@@ -824,11 +833,13 @@ class Model(object):
 
     def act(self, states, internals, deterministic=False):
         name = next(iter(self.states_spec))
-        batched = (np.asarray(states[name]).ndim != len(self.states_spec[name]['shape']))
+        state = np.asarray(states[name])
+        batched = (state.ndim != len(self.states_spec[name]['shape']))
 
         fetches = (self.actions_output, self.internals_output, self.timestep_output)
 
         if batched:
+            assert self.batching_capacity is not None and state.shape[0] <= self.batching_capacity
             feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
             feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)})
         else:
@@ -853,11 +864,13 @@ class Model(object):
         return actions, internals, timestep
 
     def observe(self, terminal, reward):
-        batched = (np.asarray(terminal).ndim == 1)
+        terminal = np.asarray(terminal)
+        batched = (terminal.ndim == 1)
 
         fetches = self.episode_output
 
         if batched:
+            assert self.batching_capacity is not None and terminal.shape[0] <= self.batching_capacity
             feed_dict = {self.terminal_input: terminal, self.reward_input: reward, }
         else:
             feed_dict = {self.terminal_input: (terminal,), self.reward_input: (reward,)}
@@ -883,7 +896,7 @@ class Model(object):
         if self.summary_writer_hook is not None:
             self.summary_writer_hook._summary_writer.flush()
 
-        return self.scaffold.saver.save(
+        return self.saver.save(
             sess=self.session,
             save_path=(self.saver_directory if directory is None else directory),
             global_step=(self.timestep if append_timestep else None),
@@ -916,4 +929,4 @@ class Model(object):
         # if not os.path.isfile(file):
         #     raise TensorForceError("Invalid model directory/file.")
 
-        self.scaffold.saver.restore(sess=self.session, save_path=file)
+        self.saver.restore(sess=self.session, save_path=file)

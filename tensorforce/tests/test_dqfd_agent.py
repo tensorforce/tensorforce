@@ -32,6 +32,10 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
     deterministic = True
 
     config = dict(
+        update_mode=dict(
+            batch_size=8,
+            frequency=4
+        ),
         memory=dict(
             type='replay',
             include_next_states=True,
@@ -42,8 +46,6 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
             learning_rate=1e-2
         ),
         target_sync_frequency=10,
-        batch_size=8,
-        update_frequency=4,
         demo_memory_capacity=100,
         demo_sampling_ratio=0.2
         # first_update=10,
@@ -61,7 +63,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
         for n in xrange(50):
             if terminal:
-                state = environment.reset()
+                states = environment.reset()
 
             actions = dict()
             # Create demonstration actions of the right shape.
@@ -106,25 +108,25 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
                         )
 
             state, terminal, reward = environment.execute(actions=actions)
-            demonstration = dict(states=state, internals=internals, actions=actions, terminal=terminal, reward=reward)
+            demonstration = dict(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
             demonstrations.append(demonstration)
 
         agent.import_demonstrations(demonstrations)
         agent.pretrain(steps=1000)
 
-    multi_config = dict(
-        memory=dict(
-            type='replay',
-            capacity=1000
-        ),
-        optimizer=dict(
-            type="adam",
-            learning_rate=0.01
-        ),
-        repeat_update=1,
-        batch_size=16,
-        first_update=16,
-        target_sync_frequency=10,
-        demo_memory_capacity=100,
-        demo_sampling_ratio=0.2
-    )
+    # multi_config = dict(
+    #     memory=dict(
+    #         type='replay',
+    #         capacity=1000
+    #     ),
+    #     optimizer=dict(
+    #         type="adam",
+    #         learning_rate=0.01
+    #     ),
+    #     repeat_update=1,
+    #     batch_size=16,
+    #     first_update=16,
+    #     target_sync_frequency=10,
+    #     demo_memory_capacity=100,
+    #     demo_sampling_ratio=0.2
+    # )

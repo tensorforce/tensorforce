@@ -25,7 +25,7 @@ from tensorforce.core.memories import Memory
 
 class Queue(Memory):
 
-    def __init__(self, states_spec, actions_spec, include_next_states, capacity, scope='queue', summary_labels=None):
+    def __init__(self, states, actions, include_next_states, capacity, scope='queue', summary_labels=None):
         """
         Args:
             states_spec: States specifiction
@@ -34,8 +34,8 @@ class Queue(Memory):
             capacity: Memory capacity
         """
         super(Queue, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states=states,
+            actions=actions,
             include_next_states=include_next_states,
             scope=scope,
             summary_labels=summary_labels

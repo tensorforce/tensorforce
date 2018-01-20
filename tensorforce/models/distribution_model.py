@@ -32,49 +32,52 @@ class DistributionModel(MemoryModel):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity,
         variable_noise,
         states_preprocessing,
         actions_exploration,
         reward_preprocessing,
+        update_mode,
         memory,
-        update_spec,
         optimizer,
         discount,
         network,
         distributions,
         entropy_regularization
     ):
-        self.network = network
-        self.distributions = distributions
-        self.fn_kl_divergence = None
+        self.network_spec = network
+        self.distributions_spec = distributions
 
         # Entropy regularization
         assert entropy_regularization is None or entropy_regularization >= 0.0
         self.entropy_regularization = entropy_regularization
 
+        self.network = None
+        self.distributions = None
+        self.fn_kl_divergence = None
+
         super(DistributionModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration,
             reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
             memory=memory,
-            update_spec=update_spec,
             optimizer=optimizer,
             discount=discount
         )
@@ -84,7 +87,7 @@ class DistributionModel(MemoryModel):
 
         # Network
         self.network = Network.from_spec(
-            spec=self.network,
+            spec=self.network_spec,
             kwargs=dict(summary_labels=self.summary_labels)
         )
 
@@ -97,7 +100,7 @@ class DistributionModel(MemoryModel):
 
         # KL divergence function
         self.fn_kl_divergence = tf.make_template(
-            name_=(self.scope + '/kl-divergence'),
+            name_='kl-divergence',
             func_=self.tf_kl_divergence,
             custom_getter_=custom_getter
         )

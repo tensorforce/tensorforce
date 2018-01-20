@@ -15,7 +15,11 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
 
     config = dict(
         actions_exploration=dict(
-            type="ornstein_uhlenbeck"
+            type='ornstein_uhlenbeck'
+        ),
+        update_mode=dict(
+            batch_size=8,
+            frequency=4
         ),
         memory=dict(
             type='replay',
@@ -26,9 +30,7 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
             type="adam",
             learning_rate=1e-2
         ),
-        target_sync_frequency=10,
-        batch_size=8,
-        update_frequency=4
+        target_sync_frequency=10
         # memory=dict(
         #     type='replay',
         #     capacity=1000

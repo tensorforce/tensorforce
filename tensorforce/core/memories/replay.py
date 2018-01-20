@@ -24,10 +24,10 @@ from tensorforce.core.memories import Queue
 
 class Replay(Queue):
 
-    def __init__(self, states_spec, actions_spec, include_next_states, capacity, scope='replay', summary_labels=None):
+    def __init__(self, states, actions, include_next_states, capacity, scope='replay', summary_labels=None):
         super(Replay, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states=states,
+            actions=actions,
             include_next_states=include_next_states,
             capacity=capacity,
             scope=scope,

@@ -29,27 +29,27 @@ class ConstantModel(Model):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity,
         action_values
     ):
         self.action_values = action_values
 
         super(ConstantModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            device=device,
-            session_config=session_config,
+            states_spec=states,
+            actions_spec=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
             variable_noise=None,
             states_preprocessing=None,
             actions_exploration=None,
@@ -65,3 +65,6 @@ class ConstantModel(Model):
             actions[name] = tf.fill(dims=shape, value=self.action_values[name])
 
         return actions, ()
+
+    def tf_observe_timestep(self, states, internals, actions, terminal, reward):
+        return tf.no_op()

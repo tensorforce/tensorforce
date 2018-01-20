@@ -117,6 +117,7 @@ class NaturalGradient(Optimizer):
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
         deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients])
+        return deltas
 
         # delta' * F
         delta_fisher_matrix_product = fisher_matrix_product(x=deltas)

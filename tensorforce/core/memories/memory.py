@@ -25,15 +25,15 @@ import tensorforce.core.memories
 
 class Memory(object):
 
-    def __init__(self, states_spec, actions_spec, include_next_states, scope='memory', summary_labels=None):
+    def __init__(self, states, actions, include_next_states, scope='memory', summary_labels=None):
         """
         Args:
             states_spec: States specifiction
             actions_spec: Actions specification
             include_next_states: Include subsequent state if true.
         """
-        self.states_spec = states_spec
-        self.actions_spec = actions_spec
+        self.states_spec = states
+        self.actions_spec = actions
         self.include_next_states = include_next_states
         self.summary_labels = set(summary_labels or ())
 

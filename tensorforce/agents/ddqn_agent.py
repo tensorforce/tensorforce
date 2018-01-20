@@ -30,21 +30,21 @@ class DDQNAgent(Agent):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
+        states,
+        actions,
         network,
-        device=None,
-        session_config=None,
         scope='ddqn',
-        saver_spec=None,
-        summary_spec=None,
-        distributed_spec=None,
+        device=None,
+        saver=None,
+        summaries=None,
+        distributed=None,
+        batching_capacity=None,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
         reward_preprocessing=None,
+        update_mode=None,
         memory=None,
-        update_spec=None,
         optimizer=None,
         discount=0.99,
         distributions=None,
@@ -53,9 +53,7 @@ class DDQNAgent(Agent):
         target_update_weight=1.0,
         double_q_model=False,
         huber_loss=None,
-        batched_observe=None,
-        batch_size=32,
-        update_frequency=4
+        batched_observe=None
         # first_update=10000,
         # repeat_update=1
     ):
@@ -63,36 +61,36 @@ class DDQNAgent(Agent):
         Double Q-learning agent where double-dqn loss is default enabled.
 
         Args:
-            states_spec: Dict containing at least one state definition. In the case of a single state,
+            states: Dict containing at least one state definition. In the case of a single state,
                keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
                is a dict itself with a unique name as its key.
-            actions_spec: Dict containing at least one action definition. Actions have types and either `num_actions`
+            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
                 for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
+            network: List of layers specifying a neural network via layer types, sizes and optional arguments
                 such as activation or regularisation. Full examples are in the examples/configs folder.
             device: Device string specifying model device.
             session_config: optional tf.ConfigProto with additional desired session configurations
             scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
+            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
+            summary: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
                 or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
                 to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
+            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
+                Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
                 cluster spec.
             optimizer: Dict specifying optimizer type and its optional parameters, typically a `learning_rate`.
                 Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
                 and `evolutionary`. Consult the optimizer test or example configurations for more.
             discount: Float specifying reward discount factor.
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing_spec: Optional list of states preprocessors to apply to state  
+            states_preprocessing: Optional list of states preprocessors to apply to state  
                 (e.g. `image_resize`, `grayscale`).
-            actions_exploration_spec: Optional dict specifying action exploration type (epsilon greedy  
+            actions_exploration: Optional dict specifying action exploration type (epsilon greedy  
                 or Gaussian noise).
-            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
-            distributions_spec: Optional dict specifying action distributions to override default distribution choices.
+            reward_preprocessing: Optional dict specifying reward preprocessing.
+            distributions: Optional dict specifying action distributions to override default distribution choices.
                 Must match action names.
             entropy_regularization: Optional positive float specifying an entropy regularization value.
             target_sync_frequency: Interval between optimization calls synchronizing the target network.
@@ -112,37 +110,48 @@ class DDQNAgent(Agent):
         if network is None:
             raise TensorForceError("No network provided.")
 
+        # Update mode
+        if update_mode is None:
+            update_mode = dict(
+                unit='timesteps',
+                batch_size=32,
+                frequency=4
+            )
+        elif 'unit' in update_mode:
+            assert update_mode['unit'] == 'timesteps'
+        else:
+            update_mode['unit'] = 'timesteps'
+
+        # Memory
         if memory is None:
+            # Default capacity of 1000 batches
             memory = dict(
                 type='replay',
                 include_next_states=True,
-                capacity=(1000 * batch_size)  # capacity of 1000 batches
+                capacity=(1000 * update_mode['batch_size'])
             )
         else:
             assert memory['include_next_states']
-        update_spec = dict(
-            mode='timesteps',
-            batch_size=batch_size,
-            frequency=update_frequency
-        )
+
+        # Optimizer
         if optimizer is None:
             optimizer = dict(
                 type='adam',
                 learning_rate=1e-3
             )
 
-        self.device = device
-        self.session_config = session_config
         self.scope = scope
-        self.saver_spec = saver_spec
-        self.summary_spec = summary_spec
-        self.distributed_spec = distributed_spec
+        self.device = device
+        self.saver = saver
+        self.summaries = summaries
+        self.distributed = distributed
+        self.batching_capacity = batching_capacity
         self.variable_noise = variable_noise
         self.states_preprocessing = states_preprocessing
         self.actions_exploration = actions_exploration
         self.reward_preprocessing = reward_preprocessing
+        self.update_mode = update_mode
         self.memory = memory
-        self.update_spec = update_spec
         self.optimizer = optimizer
         self.discount = discount
         self.network = network
@@ -154,27 +163,27 @@ class DDQNAgent(Agent):
         self.huber_loss = huber_loss
 
         super(DDQNAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states=states,
+            actions=actions,
             batched_observe=batched_observe
         )
 
     def initialize_model(self):
         return QModel(
-            states_spec=self.states_spec,
-            actions_spec=self.actions_spec,
-            device=self.device,
-            session_config=self.session_config,
+            states=self.states,
+            actions=self.actions,
             scope=self.scope,
-            saver_spec=self.saver_spec,
-            summary_spec=self.summary_spec,
-            distributed_spec=self.distributed_spec,
+            device=self.device,
+            saver=self.saver,
+            summaries=self.summaries,
+            distributed=self.distributed,
+            batching_capacity=self.batching_capacity,
             variable_noise=self.variable_noise,
             states_preprocessing=self.states_preprocessing,
             actions_exploration=self.actions_exploration,
             reward_preprocessing=self.reward_preprocessing,
+            update_mode=self.update_mode,
             memory=self.memory,
-            update_spec=self.update_spec,
             optimizer=self.optimizer,
             discount=self.discount,
             network=self.network,

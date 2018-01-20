@@ -29,6 +29,10 @@ class TestDDQNAgent(BaseAgentTest, unittest.TestCase):
     deterministic = True
 
     config = dict(
+        update_mode=dict(
+            batch_size=8,
+            frequency=4
+        ),
         memory=dict(
             type='replay',
             include_next_states=True,
@@ -38,9 +42,7 @@ class TestDDQNAgent(BaseAgentTest, unittest.TestCase):
             type='adam',
             learning_rate=1e-2
         ),
-        target_sync_frequency=10,
-        batch_size=8,
-        update_frequency=4
+        target_sync_frequency=10
         # memory=dict(
         #     type='replay',
         #     capacity=1000

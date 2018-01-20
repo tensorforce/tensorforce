@@ -57,37 +57,6 @@ def shape(x, unknown=-1):
     return tuple(unknown if dims is None else dims for dims in x.get_shape().as_list())
 
 
-def cumulative_discount(values, terminals, discount, cumulative_start=0.0):
-    """
-    Compute cumulative discounts.
-    Args:
-        values: Values to discount
-        terminals: Booleans indicating terminal states
-        discount: Discount factor
-        cumulative_start: Float or ndarray, estimated reward for state t + 1. Default 0.0
-
-    Returns:
-        dicounted_values: The cumulative discounted rewards.
-    """
-    if discount == 0.0:
-        return np.asarray(values)
-
-    # cumulative start can either be a number or ndarray
-    if type(cumulative_start) is np.ndarray:
-        discounted_values = np.zeros((len(values),) + (cumulative_start.shape))
-    else:
-        discounted_values = np.zeros(len(values))
-
-    cumulative = cumulative_start
-    for n, (value, terminal) in reversed(list(enumerate(zip(values, terminals)))):
-        if terminal:
-            cumulative = np.zeros_like(cumulative_start, dtype=np.float32)
-        cumulative = value + cumulative * discount
-        discounted_values[n] = cumulative
-
-    return discounted_values
-
-
 def np_dtype(dtype):
     """Translates dtype specifications in configurations to numpy data types.
     Args:
@@ -124,6 +93,21 @@ def tf_dtype(dtype):
         return tf.bool
     else:
         raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
+
+
+def map_tensors(fn, tensors):
+    if isinstance(tensors, tf.Tensor):
+        return fn(tensors)
+    elif isinstance(tensors, tuple):
+        return tuple(map_tensors(fn=fn, tensors=tensor) for tensor in tensors)
+    elif isinstance(tensors, list):
+        return [map_tensors(fn=fn, tensors=tensor) for tensor in tensors]
+    elif isinstance(tensors, dict):
+        return {key: map_tensors(fn=fn, tensors=tensor) for key, tensor in tensors.items()}
+    elif isinstance(tensors, set):
+        return {map_tensors(fn=fn, tensors=tensor) for tensor in tensors}
+    else:
+        return tensors
 
 
 def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):

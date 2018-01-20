@@ -30,24 +30,24 @@ class RandomModel(Model):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity
     ):
         super(RandomModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
             variable_noise=None,
             states_preprocessing=None,
             actions_exploration=None,
@@ -79,3 +79,6 @@ class RandomModel(Model):
                     actions[name] = tf.random_normal(shape=shape)
 
         return actions, ()
+
+    def tf_observe_timestep(self, states, internals, actions, terminal, reward):
+        return tf.no_op()

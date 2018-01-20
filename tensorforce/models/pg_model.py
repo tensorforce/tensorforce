@@ -33,20 +33,20 @@ class PGModel(DistributionModel):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summaries,
+        distributed,
+        batching_capacity,
         variable_noise,
         states_preprocessing,
         actions_exploration,
         reward_preprocessing,
+        update_mode,
         memory,
-        update_spec,
         optimizer,
         discount,
         network,
@@ -61,28 +61,33 @@ class PGModel(DistributionModel):
         assert baseline_mode is None or baseline_mode in ('states', 'network')
         self.baseline_mode = baseline_mode
 
-        self.baseline = baseline
-        self.baseline_optimizer = baseline_optimizer
+        self.baseline_spec = baseline
+        self.baseline_optimizer_spec = baseline_optimizer
 
         # Generalized advantage function
         assert gae_lambda is None or (0.0 <= gae_lambda <= 1.0 and self.baseline_mode is not None)
         self.gae_lambda = gae_lambda
 
+        self.baseline = None
+        self.baseline_optimizer = None
+        self.fn_reward_estimation = None
+        self.fn_pg_loss_per_instance = None
+
         super(PGModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration,
             reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
             memory=memory,
-            update_spec=update_spec,
             optimizer=optimizer,
             discount=discount,
             network=network,
@@ -94,42 +99,39 @@ class PGModel(DistributionModel):
         super(PGModel, self).initialize(custom_getter)
 
         # Baseline
-        if self.baseline is None:
+        if self.baseline_spec is None:
             assert self.baseline_mode is None
-            self.baseline = None
 
-        elif all(name in self.states_spec for name in self.baseline):
+        elif all(name in self.states_spec for name in self.baseline_spec):
             # Implies AggregatedBaseline.
             assert self.baseline_mode == 'states'
-            self.baseline = AggregatedBaseline(baselines=self.baseline)
+            self.baseline = AggregatedBaseline(baselines=self.baseline_spec)
 
         else:
             assert self.baseline_mode is not None
             self.baseline = Baseline.from_spec(
-                spec=self.baseline,
+                spec=self.baseline_spec,
                 kwargs=dict(
                     summary_labels=self.summary_labels
                 )
             )
 
         # Baseline optimizer
-        if self.baseline_optimizer is None:
-            self.baseline_optimizer = None
-        else:
+        if self.baseline_optimizer_spec is not None:
             assert self.baseline_mode is not None
-            self.baseline_optimizer = Optimizer.from_spec(spec=self.baseline_optimizer)
+            self.baseline_optimizer = Optimizer.from_spec(spec=self.baseline_optimizer_spec)
 
         # TODO: Baseline internal states !!! (see target_network q_model)
 
         # Reward estimation
         self.fn_reward_estimation = tf.make_template(
-            name_=(self.scope + '/reward-estimation'),
+            name_='reward-estimation',
             func_=self.tf_reward_estimation,
             custom_getter_=custom_getter
         )
         # PG loss per instance function
         self.fn_pg_loss_per_instance = tf.make_template(
-            name_=(self.scope + '/pg-loss-per-instance'),
+            name_='pg-loss-per-instance',
             func_=self.tf_pg_loss_per_instance,
             custom_getter_=custom_getter
         )
@@ -150,6 +152,8 @@ class PGModel(DistributionModel):
             actions=actions,
             terminal=terminal,
             reward=reward,
+            next_states=next_states,
+            next_internals=next_internals,
             update=update
         )
 
@@ -200,7 +204,7 @@ class PGModel(DistributionModel):
 
         return reward
 
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, update):
+    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         """
         Creates the TensorFlow operations for calculating the (policy-gradient-specific) loss per batch
         instance of the given input states and actions, after the specified reward/advantage calculations.
@@ -211,6 +215,8 @@ class PGModel(DistributionModel):
             actions: Dict of action tensors.
             terminal: Terminal boolean tensor.
             reward: Reward tensor.
+            next_states: Dict of successor state tensors.
+            next_internals: List of posterior internal state tensors.
             update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:

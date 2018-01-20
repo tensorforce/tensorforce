@@ -470,10 +470,12 @@ class Model(object):
 
         # States preprocessing
         self.states_preprocessing = dict()
+
         if self.states_preprocessing_spec is None:
             for name, state in self.states_spec.items():
                 state['processed_shape'] = state['shape']
-        elif all(name in self.states_spec for name in self.states_preprocessing_spec):
+        elif not isinstance(self.states_preprocessing_spec, list) and \
+                all(name in self.states_spec for name in self.states_preprocessing_spec):
             for name, state in self.states_spec.items():
                 if name in self.states_preprocessing_spec:
                     preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec[name])

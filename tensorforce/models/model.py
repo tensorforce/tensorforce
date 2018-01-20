@@ -607,6 +607,14 @@ class Model(object):
                 trainable=False
             )
 
+        # Current batch index
+        self.current_index = tf.get_variable(
+            name='batch-index',
+            shape=(),
+            dtype=util.tf_dtype('int'),
+            trainable=False
+        )
+
     def tf_action_exploration(self, action, exploration, action_spec):
         """
         Applies optional exploration to the action.
@@ -728,23 +736,34 @@ class Model(object):
 
         # Store current states, internals and actions
         operations = list()
-        state = next(iter(states.values()))
+        batched_size = tf.shape(input=next(iter(states.values())))[0]
         for name, state in states.items():
-            operations.append(tf.assign(ref=self.current_states[name], value=state))
+            operations.append(tf.assign(
+                ref=self.current_states[name][self.current_index: self.current_index + batched_size],
+                value=state
+            ))
         for n, internal in enumerate(internals):
-            operations.append(tf.assign(ref=self.current_internals[n], value=internal))
+            operations.append(tf.assign(
+                ref=self.current_internals[n][self.current_index: self.current_index + batched_size],
+                value=internal
+            ))
         for name, action in self.actions_output.items():
-            operations.append(tf.assign(ref=self.current_actions[name], value=action))
+            operations.append(tf.assign(
+                ref=self.current_actions[name][self.current_index: self.current_index + batched_size],
+                value=action
+            ))
 
-        # Increment timestep
-        increment_timestep = tf.shape(input=next(iter(states.values())))[0]
-        increment_timestep = self.timestep.assign_add(delta=increment_timestep)
-        operations.append(increment_timestep)
+        with tf.control_dependencies(control_inputs=operations):
+            operations = list()
+            operations.append(tf.assign_add(ref=self.current_index, value=batched_size))
 
-        # Subtract variable noise
-        if self.variable_noise is not None and self.variable_noise > 0.0:
-            for variable, noise_delta in zip(self.get_variables(), noise_deltas):
-                operations.append(variable.assign_sub(delta=noise_delta))
+            # Increment timestep
+            operations.append(tf.assign_add(ref=self.timestep, value=batched_size))
+
+            # Subtract variable noise
+            if self.variable_noise is not None and self.variable_noise > 0.0:
+                for variable, noise_delta in zip(self.get_variables(), noise_deltas):
+                    operations.append(variable.assign_sub(delta=noise_delta))
 
         with tf.control_dependencies(control_inputs=operations):
             # Trivial operation to enforce control dependency
@@ -763,16 +782,18 @@ class Model(object):
             reward = self.reward_preprocessing.process(tensor=reward)
 
         # Observation
+        batched_size = tf.shape(input=terminal)[0]
         observation = self.fn_observe_timestep(
-            states={name: tf.stop_gradient(input=state) for name, state in self.current_states.items()},
-            internals=[tf.stop_gradient(input=internal) for internal in self.current_internals],
-            actions={name: tf.stop_gradient(input=action) for name, action in self.current_actions.items()},
+            states={name: tf.stop_gradient(input=state[:batched_size]) for name, state in self.current_states.items()},
+            internals=[tf.stop_gradient(input=internal[:batched_size]) for internal in self.current_internals],
+            actions={name: tf.stop_gradient(input=action[:batched_size]) for name, action in self.current_actions.items()},
             terminal=tf.stop_gradient(input=terminal),
             reward=tf.stop_gradient(input=reward)
         )
+        reset_index = tf.assign(ref=self.current_index, value=0)
 
         # Increment episode
-        with tf.control_dependencies(control_inputs=(observation,)):
+        with tf.control_dependencies(control_inputs=(observation, reset_index)):
             increment_episode = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
             increment_episode = tf.assign_add(ref=self.episode, value=increment_episode)
 

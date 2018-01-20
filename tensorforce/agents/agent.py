@@ -124,7 +124,8 @@ class Agent(object):
 
         # Batched observe for better performance with Python.
         self.batched_observe = batched_observe
-        if self.batched_observe is not None:
+        if self.batched_observe:
+            assert self.batching_capacity is not None
             self.observe_terminal = list()
             self.observe_reward = list()
 
@@ -200,12 +201,12 @@ class Agent(object):
         self.current_terminal = terminal
         self.current_reward = reward
 
-        if self.batched_observe is not None and self.batched_observe > 0:
+        if self.batched_observe:
             # Batched observe for better performance with Python.
             self.observe_terminal.append(self.current_terminal)
             self.observe_reward.append(self.current_reward)
 
-            if self.current_terminal or len(self.observe_terminal) >= self.batched_observe:
+            if self.current_terminal or len(self.observe_terminal) >= self.batching_capacity:
                 self.episode = self.model.observe(
                     terminal=self.observe_terminal,
                     reward=self.observe_reward

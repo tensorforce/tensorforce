@@ -37,7 +37,7 @@ class TRPOAgent(Agent):
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=None,
+        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -52,7 +52,7 @@ class TRPOAgent(Agent):
         baseline_optimizer=None,
         gae_lambda=None,
         likelihood_ratio_clipping=None,
-        batched_observe=None,  # !!!!!!!!!!!!!
+        batched_observe=True,
         learning_rate=1e-3,
         cg_max_iterations=20,
         cg_damping=1e-3,

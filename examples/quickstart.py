@@ -20,7 +20,7 @@ from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
 # Create an OpenAIgym environment
-env = OpenAIGym('CartPole-v0', visualize=False)
+environment = OpenAIGym('CartPole-v0', visualize=False)
 
 # Network as list of layers
 # - Embedding layer:
@@ -37,14 +37,14 @@ network_spec = [
 ]
 
 agent = PPOAgent(
-    states=env.states,
-    actions=env.actions,
+    states=environment.states,
+    actions=environment.actions,
     network=network_spec,
     # Agent
     states_preprocessing=None,
     actions_exploration=None,
     reward_preprocessing=None,
-    # PPOAgent
+    # MemoryModel
     update_mode=dict(
         # 10 episodes per update
         batch_size=10,
@@ -56,15 +56,6 @@ agent = PPOAgent(
         include_next_states=False,
         capacity=2000
     ),
-    step_optimizer=dict(
-        type='adam',
-        learning_rate=0.0001
-    ),
-    subsampling_fraction=0.1,
-    optimization_steps=50,
-    # Model
-    scope='ppo',
-    discount=0.99,
     # DistributionModel
     distributions=None,
     entropy_regularization=0.01,
@@ -74,11 +65,18 @@ agent = PPOAgent(
     baseline_optimizer=None,
     gae_lambda=None,
     # PGLRModel
-    likelihood_ratio_clipping=0.2
+    likelihood_ratio_clipping=0.2,
+    # PPOAgent
+    step_optimizer=dict(
+        type='adam',
+        learning_rate=1e-4
+    ),
+    subsampling_fraction=0.1,
+    optimization_steps=50
 )
 
 # Create the runner
-runner = Runner(agent=agent, environment=env)
+runner = Runner(agent=agent, environment=environment)
 
 
 # Callback function printing episode statistics

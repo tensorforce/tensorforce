@@ -42,9 +42,9 @@ class ConstantAgent(Agent):
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=None,
+        batching_capacity=1000,
         action_values=None,
-        batched_observe=1000
+        batched_observe=True
     ):
         """
         Initializes a constant agent which returns a constant action of the provided shape.

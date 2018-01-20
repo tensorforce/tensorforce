@@ -37,7 +37,7 @@ class DQNNstepAgent(Agent):
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=None,
+        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -52,7 +52,7 @@ class DQNNstepAgent(Agent):
         target_update_weight=1.0,
         double_q_model=False,
         huber_loss=None,
-        batched_observe=None  # !!!!!!!!!!!!!
+        batched_observe=True
         # keep_last_timestep=True
     ):
         """

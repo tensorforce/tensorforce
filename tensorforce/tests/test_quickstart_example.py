@@ -53,19 +53,42 @@ class TestQuickstartExample(unittest.TestCase):
 
             # Create the agent
             agent = PPOAgent(
-                states_spec=environment.states,
-                actions_spec=environment.actions,
-                discount=0.99,
+                states=environment.states,
+                actions=environment.actions,
                 network=network,
+                # Model
+                states_preprocessing=None,
+                actions_exploration=None,
+                reward_preprocessing=None,
+                # MemoryModel
+                update_mode=dict(
+                    # 10 episodes per update
+                    batch_size=10,
+                    # Every 10 episodes
+                    frequency=10
+                ),
+                memory=dict(
+                    type='latest',
+                    include_next_states=False,
+                    capacity=2000
+                ),
+                # DistributionModel
+                distributions=None,
                 entropy_regularization=0.01,
+                # PGModel
+                baseline_mode=None,
+                baseline=None,
+                baseline_optimizer=None,
+                gae_lambda=None,
+                # PGLRModel
                 likelihood_ratio_clipping=0.2,
-                batch_size=50,
+                # PPOAgent
                 step_optimizer=dict(
                     type='adam',
                     learning_rate=1e-4
                 ),
                 subsampling_fraction=0.1,
-                optimization_steps=100
+                optimization_steps=50
             )
 
             # Initialize the runner

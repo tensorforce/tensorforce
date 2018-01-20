@@ -40,7 +40,7 @@ class DQFDAgent(Agent):
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=None,
+        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -54,7 +54,7 @@ class DQFDAgent(Agent):
         target_sync_frequency=10000,
         target_update_weight=1.0,
         huber_loss=None,
-        batched_observe=None,
+        batched_observe=True,
         # first_update=10000,
         # repeat_update=1
         expert_margin=0.5,

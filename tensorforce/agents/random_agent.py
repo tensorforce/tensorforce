@@ -35,8 +35,8 @@ class RandomAgent(Agent):
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=None,
-        batched_observe=1000
+        batching_capacity=1000,
+        batched_observe=True
     ):
         """
         Initializes a random agent. Returns random actions based of the shape

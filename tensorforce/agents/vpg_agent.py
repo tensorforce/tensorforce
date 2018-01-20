@@ -39,7 +39,7 @@ class VPGAgent(Agent):
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=None,
+        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -54,7 +54,7 @@ class VPGAgent(Agent):
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        batched_observe=None  # !!!!!!!!!!!!!
+        batched_observe=True
         # keep_last_timestep=True
     ):
         """

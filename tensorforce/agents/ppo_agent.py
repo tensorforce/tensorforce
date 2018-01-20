@@ -38,7 +38,7 @@ class PPOAgent(Agent):
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=None,
+        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -53,7 +53,7 @@ class PPOAgent(Agent):
         baseline_optimizer=None,
         gae_lambda=None,
         likelihood_ratio_clipping=None,
-        batched_observe=None,
+        batched_observe=True,
         step_optimizer=None,
         subsampling_fraction=0.1,
         optimization_steps=100

@@ -106,7 +106,6 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
                         )
 
             state, terminal, reward = environment.execute(actions=actions)
-
             demonstration = dict(states=state, internals=internals, actions=actions, terminal=terminal, reward=reward)
             demonstrations.append(demonstration)
 

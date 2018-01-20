@@ -18,11 +18,9 @@ from __future__ import print_function
 from __future__ import division
 
 from six.moves import xrange
-import numpy as np
 
 from tensorforce import TensorForceError
 from tensorforce.agents import Agent
-from tensorforce.core.memories import Replay
 from tensorforce.models import QDemoModel
 
 
@@ -215,21 +213,21 @@ class DQFDAgent(Agent):
             demo_batch_size=self.demo_batch_size
         )
 
-    def observe(self, reward, terminal):
-        """
-        Adds observations, updates via sampling from memories according to update rate.
-        DQFD samples from the online replay memory and the demo memory with
-        the fractions controlled by a hyper parameter p called 'expert sampling ratio.
-
-        Args:
-            reward:
-            terminal:
-        """
-        super(DQFDAgent, self).observe(reward=reward, terminal=terminal)
-        # TODO Where are these parameters?
-        if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
-            for _ in xrange(self.repeat_update):
-                self.model.demonstration_update()
+    # This is handled by the model now
+    # def observe(self, reward, terminal):
+    #     """
+    #     Adds observations, updates via sampling from memories according to update rate.
+    #     DQFD samples from the online replay memory and the demo memory with
+    #     the fractions controlled by a hyper parameter p called 'expert sampling ratio.
+    #
+    #     Args:
+    #         reward:
+    #         terminal:
+    #     """
+    #     super(DQFDAgent, self).observe(reward=reward, terminal=terminal)
+    #     if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
+    #         for _ in xrange(self.repeat_update):
+    #             self.model.demonstration_update()
 
     def import_demonstrations(self, demonstrations):
         """
@@ -249,14 +247,14 @@ class DQFDAgent(Agent):
                 action = dict(action=observation['actions'])
             else:
                 action = observation['actions']
-            # TODO this is undesirable now because it implies one session call per addition of sample
-            # self.demo_memory.add_observation(
-            #     states=state,
-            #     internals=observation['internals'],
-            #     actions=action,
-            #     terminal=observation['terminal'],
-            #     reward=observation['reward']
-            # )
+
+            self.model.import_experience(
+                states=state,
+                internals=observation['internals'],
+                actions=action,
+                terminal=observation['terminal'],
+                reward=observation['reward']
+            )
 
     def set_demonstrations(self, batch):
         """
@@ -274,13 +272,6 @@ class DQFDAgent(Agent):
             terminal=batch['terminal'],
             reward=batch['reward']
         )
-        # self.demo_memory.set_memory(
-        #     states=batch['states'],
-        #     internals=batch['internals'],
-        #     actions=batch['actions'],
-        #     terminal=batch['terminal'],
-        #     reward=batch['reward']
-        # )
 
     def pretrain(self, steps):
         """

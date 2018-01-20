@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-???
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -31,7 +27,7 @@ from tensorforce.models import Model
 
 class MemoryModel(Model):
     """
-    ???
+    A memory model is a generical model to accumulate and sample data.
     """
 
     def __init__(

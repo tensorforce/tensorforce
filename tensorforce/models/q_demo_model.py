@@ -145,12 +145,10 @@ class QDemoModel(QModel):
         return tf.group(optimization, self.demo_optimization)
 
     def create_observe_outputs(self):
-        super(QDemoModel, self).create_act_outputs()
         assignment = tf.assign(ref=self.is_optimizing, value=False)
 
         # Act inputs
         actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
-
         with tf.control_dependencies(control_inputs=(assignment,)):
             states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
             internals = [tf.identity(input=internal) for internal in self.internals_input]
@@ -174,6 +172,8 @@ class QDemoModel(QModel):
             terminal=terminal,
             reward=reward
         )
+
+        super(QDemoModel, self).create_act_outputs()
 
     def tf_demo_loss(self, states, actions, terminal, reward, internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)

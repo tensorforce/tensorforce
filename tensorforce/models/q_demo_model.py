@@ -145,26 +145,21 @@ class QDemoModel(QModel):
         return tf.group(optimization, self.demo_optimization)
 
     def create_observe_outputs(self):
-        assignment = tf.assign(ref=self.is_optimizing, value=False)
-
         # Act inputs
         actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
-            internals = [tf.identity(input=internal) for internal in self.internals_input]
-            deterministic = tf.identity(input=self.deterministic_input)
+        states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
+        internals = [tf.identity(input=internal) for internal in self.internals_input]
 
         # States preprocessing
         for name, preprocessing in self.states_preprocessing.items():
             states[name] = preprocessing.process(tensor=states[name])
 
-        assignment = tf.assign(ref=self.is_optimizing, value=False)
+        terminal = tf.identity(input=self.terminal_input)
+        reward = tf.identity(input=self.reward_input)
+        if self.reward_preprocessing is not None:
+            reward = self.reward_preprocessing.process(tensor=reward)
 
-        # Observe inputs
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            terminal = tf.identity(input=self.terminal_input)
-            reward = tf.identity(input=self.reward_input)
-
+        # Importing demo experiences.
         self.fn_import_experience(
             states=states,
             internals=internals,
@@ -176,6 +171,9 @@ class QDemoModel(QModel):
         super(QDemoModel, self).create_act_outputs()
 
     def tf_demo_loss(self, states, actions, terminal, reward, internals, update):
+        """
+        Extends the q-model loss via the dqfd large-margin loss.
+        """
         embedding = self.network.apply(x=states, internals=internals, update=update)
         deltas = list()
 
@@ -208,7 +206,9 @@ class QDemoModel(QModel):
         return tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
     def tf_demo_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
-
+        """
+        Combines Q-loss and demo loss.
+        """
         def fn_loss():
             # Combining q-loss with demonstration loss
             q_model_loss = self.fn_loss(
@@ -281,46 +281,3 @@ class QDemoModel(QModel):
         """
         fetches = self.demo_optimization
         self.monitored_session.run(fetches=fetches)
-
-        # terminal = np.asarray(terminal)
-        # batched = (terminal.ndim == 1)
-        # if batched:
-        #     # TEMP: Random sampling fix
-        #     if self.random_sampling_fix:
-        #         feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
-        #         feed_dict.update(
-        #             {state_input: states[name][1] for name, state_input in self.next_states_input.items()}
-        #         )
-        #     else:
-        #         feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-        #     feed_dict.update(
-        #         {internal_input: internals[n]
-        #             for n, internal_input in enumerate(self.internals_input)}
-        #     )
-        #     feed_dict.update(
-        #         {action_input: actions[name]
-        #             for name, action_input in self.actions_input.items()}
-        #     )
-        #     feed_dict[self.terminal_input] = terminal
-        #     feed_dict[self.reward_input] = reward
-        # else:
-        #     # TEMP: Random sampling fix
-        #     if self.random_sampling_fix:
-        #         raise TensorForceError("Unbatched version not covered by fix.")
-        #     else:
-        #         feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-        #     feed_dict.update(
-        #         {internal_input: (internals[n],)
-        #             for n, internal_input in enumerate(self.internals_input)}
-        #     )
-        #     feed_dict.update(
-        #         {action_input: (actions[name],)
-        #             for name, action_input in self.actions_input.items()}
-        #     )
-        #     feed_dict[self.terminal_input] = (terminal,)
-        #     feed_dict[self.reward_input] = (reward,)
-        #
-        # feed_dict[self.deterministic_input] = True
-        # feed_dict[self.update_input] = True
-        #
-        # self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)

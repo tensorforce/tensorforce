@@ -33,6 +33,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
     config = dict(
         update_mode=dict(
+            unit='timesteps',
             batch_size=8,
             frequency=4
         ),
@@ -42,7 +43,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
             capacity=100
         ),
         optimizer=dict(
-            type="adam",
+            type='adam',
             learning_rate=1e-2
         ),
         target_sync_frequency=10,
@@ -59,11 +60,15 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
         agent.reset()
         internals = agent.current_internals
+        next_states = None
         terminal = True
 
         for n in xrange(50):
             if terminal:
                 states = environment.reset()
+            else:
+                assert next_states is not None
+                states = next_states
 
             actions = dict()
             # Create demonstration actions of the right shape.
@@ -107,11 +112,18 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
                             dtype=util.np_dtype(action['type'])
                         )
 
-            state, terminal, reward = environment.execute(actions=actions)
-            demonstration = dict(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward)
+            next_states, terminal, reward = environment.execute(actions=actions)
+
+            demonstration = dict(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
+            )
             demonstrations.append(demonstration)
 
-        agent.import_demonstrations(demonstrations)
+        agent.import_demonstrations(demonstrations=demonstrations)
         agent.pretrain(steps=1000)
 
     # multi_config = dict(

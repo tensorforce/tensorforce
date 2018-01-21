@@ -61,7 +61,7 @@ class Queue(Memory):
         for name, state in self.states_spec.items():
             self.states_memory[name] = tf.get_variable(
                 name=('state-' + name),
-                shape=(self.capacity,) + tuple(state['processed_shape']),
+                shape=(self.capacity,) + tuple(state['shape']),
                 dtype=util.tf_dtype(state['type']),
                 trainable=False
             )

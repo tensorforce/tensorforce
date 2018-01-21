@@ -70,11 +70,14 @@ class Categorical(Distribution):
         _, _, state_value = distr_params
         return state_value
 
-    def state_action_value(self, distr_params, action):
+    def state_action_value(self, distr_params, action=None):
         logits, _, state_value = distr_params
-        one_hot = tf.one_hot(indices=action, depth=self.num_actions)
-        logit = tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
-        return logit + state_value
+        if action is None:
+            state_value = tf.expand_dims(input=state_value, axis=-1)
+        else:
+            one_hot = tf.one_hot(indices=action, depth=self.num_actions)
+            logits = tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
+        return state_value + logits
 
     def tf_sample(self, distr_params, deterministic):
         logits, _, _ = distr_params

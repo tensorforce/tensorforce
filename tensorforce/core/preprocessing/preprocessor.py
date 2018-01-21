@@ -29,6 +29,7 @@ class Preprocessor(object):
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
             if not registered:
+                assert not kwargs.get('trainable', False)
                 self.variables[name] = variable
             return variable
 
@@ -41,17 +42,6 @@ class Preprocessor(object):
     def reset(self):
         pass
 
-    def tf_process(self, tensor):
-        """
-        Process state.
-
-        Args:
-            tensor: tensor to process.
-
-        Returns: processed tensor.
-        """
-        return tensor
-
     def processed_shape(self, shape):
         """
         Shape of preprocessed state given original shape.
@@ -62,6 +52,17 @@ class Preprocessor(object):
         Returns: processed tensor shape
         """
         return shape
+
+    def tf_process(self, tensor):
+        """
+        Process state.
+
+        Args:
+            tensor: tensor to process.
+
+        Returns: processed tensor.
+        """
+        raise NotImplementedError
 
     def get_variables(self):
         """

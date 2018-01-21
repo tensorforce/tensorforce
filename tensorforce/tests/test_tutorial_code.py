@@ -54,6 +54,7 @@ class TestTutorialCode(unittest.TestCase):
             actions=dict(type='int', num_actions=2),
             network=[dict(type='dense', size=50), dict(type='dense', size=50)],
             update_mode=dict(
+                unit='episodes',
                 batch_size=1,
                 frequency=1
             ),
@@ -102,6 +103,7 @@ class TestTutorialCode(unittest.TestCase):
             actions=actions,
             network=network_spec,
             update_mode=dict(
+                unit='timesteps',
                 batch_size=1,
                 frequency=1
             ),
@@ -212,14 +214,15 @@ class TestTutorialCode(unittest.TestCase):
             states=states,
             actions=actions,
             network=network_spec,
+            update_mode=dict(
+                unit='timesteps',
+                batch_size=8,
+                frequency=4
+            ),
             memory=dict(
                 type='replay',
                 include_next_states=True,
                 capacity=100
-            ),
-            update_mode=dict(
-                batch_size=8,
-                frequency=4
             )
         )
 
@@ -317,14 +320,15 @@ class TestTutorialCode(unittest.TestCase):
             states=states,
             actions=actions,
             network=network_spec,
+            update_mode=dict(
+                unit='timesteps',
+                batch_size=100,
+                frequency=4
+            ),
             memory=dict(
                 type='replay',
                 include_next_states=True,
                 capacity=100
-            ),
-            update_mode=dict(
-                batch_size=100,
-                frequency=4
             )
         )
 

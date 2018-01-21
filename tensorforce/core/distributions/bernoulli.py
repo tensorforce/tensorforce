@@ -69,10 +69,14 @@ class Bernoulli(Distribution):
         _, _, _, state_value = distr_params
         return state_value
 
-    def state_action_value(self, distr_params, action):
+    def state_action_value(self, distr_params, action=None):
         true_logit, false_logit, _, state_value = distr_params
-        logit = tf.where(condition=action, x=true_logit, y=false_logit)
-        return logit + state_value
+        if action is None:
+            state_value = tf.expand_dims(input=state_value, axis=-1)
+            logits = tf.stack(values=(false_logit, true_logit), axis=-1)
+        else:
+            logits = tf.where(condition=action, x=true_logit, y=false_logit)
+        return state_value + logits
 
     def tf_sample(self, distr_params, deterministic):
         _, _, probability, _ = distr_params

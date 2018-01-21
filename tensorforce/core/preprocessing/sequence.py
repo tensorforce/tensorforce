@@ -39,6 +39,9 @@ class Sequence(Preprocessor):
         # self.index = -1 !!!!!!!!!!!!
         pass
 
+    def processed_shape(self, shape):
+        return shape[:-1] + (shape[-1] * self.length,)
+
     def tf_process(self, tensor):
         # or just always the same?
         tf.assert_equal(x=tf.shape(input=tensor)[0], y=1)
@@ -74,6 +77,3 @@ class Sequence(Preprocessor):
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.expand_dims(input=tf.concat(values=previous_states, axis=-1), axis=0)
-
-    def processed_shape(self, shape):
-        return shape[:-1] + (shape[-1] * self.length,)

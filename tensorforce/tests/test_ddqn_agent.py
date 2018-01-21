@@ -30,6 +30,7 @@ class TestDDQNAgent(BaseAgentTest, unittest.TestCase):
 
     config = dict(
         update_mode=dict(
+            unit='timesteps',
             batch_size=8,
             frequency=4
         ),

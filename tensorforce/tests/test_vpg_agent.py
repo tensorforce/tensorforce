@@ -29,6 +29,7 @@ class TestVPGAgent(BaseAgentTest, unittest.TestCase):
     deterministic = False
     config = dict(
         update_mode=dict(
+            unit='episodes',
             batch_size=4,
             frequency=4
         ),

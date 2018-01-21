@@ -17,6 +17,8 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+from six.moves import xrange
+
 from tensorforce.agents import LearningAgent
 from tensorforce.models import QDemoModel
 
@@ -233,40 +235,50 @@ class DQFDAgent(LearningAgent):
         Args:
             demonstrations: List of observation dicts
         """
-        for observation in demonstrations:
+        if isinstance(demonstrations, dict):
             if self.unique_state:
-                state = dict(state=observation['states'])
-            else:
-                state = observation['states']
+                demonstrations['states'] = dict(state=demonstrations['states'])
             if self.unique_action:
-                action = dict(action=observation['actions'])
+                demonstrations['actions'] = dict(action=demonstrations['actions'])
+
+            self.model.import_demo_experience(**demonstrations)
+
+        else:
+            if self.unique_state:
+                states = dict(state=list())
             else:
-                action = observation['actions']
+                states = {name: list() for name in demonstrations[0]['states']}
+            internals = [list() for _ in demonstrations[0]['internals']]
+            if self.unique_action:
+                actions = dict(action=list())
+            else:
+                actions = {name: list() for name in demonstrations[0]['actions']}
+            terminal = list()
+            reward = list()
 
-            self.model.import_experience(
-                states=state,
-                internals=observation['internals'],
-                actions=action,
-                terminal=observation['terminal'],
-                reward=observation['reward']
+            for demonstration in demonstrations:
+                if self.unique_state:
+                    states['state'].append(demonstration['states'])
+                else:
+                    for name, state in states.items():
+                        state.append(demonstration['states'][name])
+                for n, internal in enumerate(internals):
+                    internal.append(demonstration['internals'][n])
+                if self.unique_action:
+                    actions['action'].append(demonstration['actions'])
+                else:
+                    for name, action in actions.items():
+                        action.append(demonstration['actions'][name])
+                terminal.append(demonstration['terminal'])
+                reward.append(demonstration['reward'])
+
+            self.model.import_demo_experience(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
             )
-
-    def set_demonstrations(self, batch):
-        """
-        Set all demonstrations from batch data. Expects a dict wherein each value contains an array
-        containing all states, actions, rewards, terminals and internals respectively.
-
-        Args:
-            batch:
-
-        """
-        self.model.set_demo_memory(
-            states=batch['states'],
-            internals=batch['internals'],
-            actions=batch['actions'],
-            terminal=batch['terminal'],
-            reward=batch['reward']
-        )
 
     def pretrain(self, steps):
         """
@@ -274,7 +286,6 @@ class DQFDAgent(LearningAgent):
 
         Args:
             steps: Number of updates to execute.
-
         """
         for _ in xrange(steps):
-            self.model.demonstration_update()
+            self.model.demo_update()

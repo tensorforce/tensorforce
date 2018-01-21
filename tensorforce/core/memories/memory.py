@@ -74,6 +74,12 @@ class Memory(object):
             custom_getter_=custom_getter
         )
 
+    def tf_initialize(self):
+        """
+        ...
+        """
+        raise NotImplementedError
+
     def tf_store(self, states, internals, actions, terminal, reward):
         """
         ...
@@ -123,14 +129,6 @@ class Memory(object):
         """
         raise NotImplementedError
 
-    def update_batch(self, loss_per_instance):
-        """
-        Updates loss values for sampling strategies based on loss functions.
-        Args:
-            loss_per_instance:
-        """
-        raise NotImplementedError
-
     def get_variables(self):
         """
         Returns the TensorFlow variables used by the memory.
@@ -139,6 +137,15 @@ class Memory(object):
             List of variables.
         """
         return [self.variables[key] for key in sorted(self.variables)]
+
+    def get_summaries(self):
+        """
+        Returns the TensorFlow summaries reported by the memory.
+
+        Returns:
+            List of summaries.
+        """
+        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

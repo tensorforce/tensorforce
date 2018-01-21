@@ -28,8 +28,8 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
     agent = TRPOAgent
     deterministic = False
     config = dict(
-<<<<<<< HEAD
         update_mode=dict(
+            unit='episodes',
             batch_size=4,
             frequency=4
         ),
@@ -39,13 +39,9 @@ class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
             capacity=100
         ),
         learning_rate=1e-2
-=======
-        batch_size=16,
-        learning_rate=0.005
->>>>>>> 9f29ef5b17e94ed5ac10982583ae11c0b738ed6b
     )
 
-    multi_config = dict(
-        batch_size=64,
-        learning_rate=0.1
-    )
+    # multi_config = dict(
+    #     batch_size=64,
+    #     learning_rate=0.1
+    # )

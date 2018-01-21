@@ -29,7 +29,7 @@ environment = OpenAIGym('CartPole-v0', visualize=False)
 #     Such environments are usually identified by either:
 #     - class ...Env(discrete.DiscreteEnv):
 #     - self.observation_space = spaces.Discrete(...)
-#   
+
 network_spec = [
     # dict(type='embedding', indices=100, size=32),
     dict(type='dense', size=32, activation='tanh'),
@@ -46,10 +46,11 @@ agent = PPOAgent(
     reward_preprocessing=None,
     # MemoryModel
     update_mode=dict(
-        # 10 episodes per update.
-        batch_size=50,
-        # Every 10 episodes.
-        frequency=50
+        unit='episodes',
+        # 10 episodes per update
+        batch_size=10,
+        # Every 10 episodes
+        frequency=10
     ),
     memory=dict(
         type='latest',
@@ -60,15 +61,15 @@ agent = PPOAgent(
     distributions=None,
     entropy_regularization=0.01,
     # PGModel
-    baseline_mode="states",
+    baseline_mode='states',
     baseline=dict(
-        type="mlp",
+        type='mlp',
         sizes=[32, 32]
     ),
     baseline_optimizer=dict(
-        type="multi_step",
+        type='multi_step',
         optimizer=dict(
-            type="adam",
+            type='adam',
             learning_rate=1e-3
         ),
         num_steps=10

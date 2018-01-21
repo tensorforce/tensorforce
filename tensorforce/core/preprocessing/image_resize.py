@@ -30,8 +30,8 @@ class ImageResize(Preprocessor):
         self.size = (width, height)
         super(ImageResize, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_process(self, tensor):
-        return tf.image.resize_images(images=tensor, size=self.size)
-
     def processed_shape(self, shape):
         return self.size + (shape[-1],)
+
+    def tf_process(self, tensor):
+        return tf.image.resize_images(images=tensor, size=self.size)

@@ -31,6 +31,19 @@ class PreprocessorStack(object):
         for processor in self.preprocessors:
             processor.reset()
 
+    def processed_shape(self, shape):
+        """
+        Shape of preprocessed state given original shape.
+
+        Args:
+            shape: original state shape
+
+        Returns: processed state shape
+        """
+        for processor in self.preprocessors:
+            shape = processor.processed_shape(shape=shape)
+        return shape
+
     def process(self, tensor):
         """
         Process state.
@@ -44,19 +57,6 @@ class PreprocessorStack(object):
         for processor in self.preprocessors:
             tensor = processor.process(tensor=tensor)
         return tensor
-
-    def processed_shape(self, shape):
-        """
-        Shape of preprocessed state given original shape.
-
-        Args:
-            shape: original state shape
-
-        Returns: processed state shape
-        """
-        for processor in self.preprocessors:
-            shape = processor.processed_shape(shape=shape)
-        return shape
 
     def get_variables(self):
         return [variable for preprocessor in self.preprocessors for variable in preprocessor.get_variables()]

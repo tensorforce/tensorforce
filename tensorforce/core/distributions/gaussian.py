@@ -64,7 +64,6 @@ class Gaussian(Distribution):
 
     def state_action_value(self, distr_params, action):
         mean, stddev, log_stddev = distr_params
-
         sq_mean_distance = tf.square(x=(action - mean))
         sq_stddev = tf.maximum(x=tf.square(x=stddev), y=util.epsilon)
         return -0.5 * sq_mean_distance / sq_stddev - 2.0 * log_stddev - log(2.0 * pi)

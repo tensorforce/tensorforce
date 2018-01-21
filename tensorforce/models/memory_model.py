@@ -92,7 +92,6 @@ class MemoryModel(Model):
                 summary_labels=self.summary_labels
             )
         )
-        self.memory.initialize()
 
         # Optimizer
         self.optimizer = Optimizer.from_spec(
@@ -134,6 +133,10 @@ class MemoryModel(Model):
             func_=self.tf_import_experience,
             custom_getter_=custom_getter
         )
+
+    def tf_initialize(self):
+        super(MemoryModel, self).tf_initialize()
+        self.memory.initialize()
 
     def tf_discounted_cumulative_reward(self, terminal, reward, discount, final_reward=0.0):
         """
@@ -289,26 +292,6 @@ class MemoryModel(Model):
             Dict of regularization loss tensors.
         """
         return dict()
-
-    def tf_import_experience(self, states, internals, actions, terminal, reward):
-        """
-        Imports experiences into the TensorFlow memory structure. Can be used to import
-        off-policy data.
-
-        :param states: Dict of state values to import with keys as state names and values as values to set.
-        :param internals: Internal values to set, can be fetched from agent via agent.current_internals
-            if no values available.
-        :param actions: Dict of action values to import with keys as action names and values as values to set.
-        :param terminal: Terminal value(s)
-        :param reward: Reward value(s)
-        """
-        self.import_experience = self.memory.store(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward
-        )
 
     def tf_loss(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         """
@@ -485,6 +468,45 @@ class MemoryModel(Model):
 
         return optimization
 
+    def tf_import_experience(self, states, internals, actions, terminal, reward):
+        """
+        Imports experiences into the TensorFlow memory structure. Can be used to import
+        off-policy data.
+
+        :param states: Dict of state values to import with keys as state names and values as values to set.
+        :param internals: Internal values to set, can be fetched from agent via agent.current_internals
+            if no values available.
+        :param actions: Dict of action values to import with keys as action names and values as values to set.
+        :param terminal: Terminal value(s)
+        :param reward: Reward value(s)
+        """
+        return self.memory.store(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
+
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+        # Import experience operation.
+        self.import_experience_output = self.fn_import_experience(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
+
+        super(MemoryModel, self).create_operations(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            deterministic=deterministic
+        )
+
     def get_variables(self, include_non_trainable=False):
         """
         Returns the TensorFlow variables used by the model.
@@ -502,26 +524,23 @@ class MemoryModel(Model):
         else:
             return model_variables
 
-    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
-        # Create extra operation to import experience.
-        self.fn_import_experience(
+    def get_summaries(self):
+        model_summaries = super(MemoryModel, self).get_summaries()
+        memory_summaries = self.memory.get_summaries()
+        return model_summaries + memory_summaries
+
+    def import_experience(self, states, internals, actions, terminal, reward):
+        """
+        Stores experiences.
+        """
+        fetches = self.import_experience_output
+
+        feed_dict = self.get_feed_dict(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
             reward=reward
         )
-        super(MemoryModel, self).create_operations(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            deterministic=deterministic
-        )
 
-    def get_summaries(self):
-        model_summaries = super(MemoryModel, self).get_summaries()
-        memory_summaries = self.network.get_summaries()
-
-        return model_summaries + memory_summaries
+        self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)

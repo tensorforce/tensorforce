@@ -138,64 +138,55 @@ class Model(object):
         self.actions_exploration_spec = actions_exploration
         self.reward_preprocessing_spec = reward_preprocessing
 
-        # Define all other variables that will be initialized later
-        # (in calls to `setup` and `initialize` directly following __init__).
-        # The Network object to use to finish constructing our graph
-        self.network = None
-        # Global (proxy)-model
-        self.global_model = None
-        # TensorFlow Graph of this model
-        self.graph = None
-        # Dict of trainable tf Variables of this model (keys = names of Variables).
+        self.states_preprocessing = None
+        self.actions_exploration = None
+        self.reward_preprocessing = None
+
         self.variables = None
-        # Dict of all tf Variables of this model (keys = names of Variables).
         self.all_variables = None
-        self.registered_variables = None  # set of registered tf Variable names (str)
+        self.registered_variables = None
+        self.summaries = None
+
+        self.timestep = None
+        self.episode = None
+
+        self.states_input = None
+        self.internals_input = None
+        self.actions_input = None
+        self.terminal_input = None
+        self.reward_input = None
+        self.deterministic_input = None
+        self.update_input = None
+        self.internals_init = None
+
+        self.fn_initialize = None
+        self.fn_actions_and_internals = None
+        self.fn_observe_timestep = None
+        self.fn_action_exploration = None
+
+        self.graph = None
+        self.global_model = None
+        self.scaffold = None
+        self.saver_directory = None
+        self.session = None
+        self.monitored_session = None
+        self.summary_writer = None
+        self.summary_writer_hook = None
 
         # The tf.train.Scaffold object used to create important pieces of this model's graph
-        self.scaffold = None
         # Directory used for default export of model parameters
-        self.saver_directory = None
         # The tf MonitoredSession object (Session wrapper handling common hooks)
-        self.monitored_session = None
         # The actual tf.Session object (part of our MonitoredSession object)
-        self.session = None
         # A list of tf.summary.Summary objects defined for our Graph (for tensorboard)
-        self.summaries = None
         # TensorFlow FileWriter object that writes summaries (histograms, images, etc..) to disk
-        self.summary_writer = None
         # Summary hook to use by the MonitoredSession
-        self.summary_writer_hook = None
 
         # Inputs and internals
         # Current episode number as int Tensor
-        self.episode = None
         # TensorFlow op incrementing `self.episode` depending on True is-terminal signals
         self.increment_episode = None
         # Int Tensor representing the total timestep (over all episodes)
-        self.timestep = None
         # Dict holding placeholders for each (original/unprocessed) state component input
-        self.states_input = None
-        # Dict holding the PreprocessorStack objects (if any) for each state component
-        self.states_preprocessing = None
-        # Dict holding placeholders for each (original/unprocessed) action component input
-        self.actions_input = None
-        # Dict holding the Exploration objects (if any) for each action component
-        self.explorations = None
-        # The bool-type placeholder for a batch of is-terminal signals from the environment
-        self.terminal_input = None
-        # The float-type placeholder for a batch of reward signals from the environment
-        self.reward_input = None
-        # PreprocessorStack object (if any) for the reward
-        self.reward_preprocessing = None
-        # A list of all the Model's internal/hidden state (e.g. RNNs) initialization Tensors
-        self.internals_init = None
-        # A list of placeholders for incoming internal/hidden states (e.g. RNNs)
-        self.internals_input = None
-        # Single-bool placeholder for determining whether to not apply exploration
-        self.deterministic_input = None
-        # Single bool Tensor specifying whether sess.run should update parameters (train)
-        self.update_input = None
 
         # Outputs
         # Dict of action output Tensors (returned by fn_actions_and_internals)
@@ -204,30 +195,6 @@ class Model(object):
         self.internals_output = None
         # Int that keeps track of how many actions have been "executed" using `act`
         self.timestep_output = None
-
-        # Tf template functions created in `initialize` from `tf_` methods.
-        # Template function calculating cumulated discounted rewards
-        self.fn_discounted_cumulative_reward = None
-        # Template function returning the actual action/internal state outputs
-        self.fn_actions_and_internals = None
-        # Template function returning the loss-per-instance Tensor (axis 0 is the batch axis)
-        self.fn_loss_per_instance = None
-        # Tensor of the loss value per instance (batch sample). Axis 0 is the batch axis.
-        self.loss_per_instance = None
-        # Returns tf op for calculating the regularization losses per state comp
-        self.fn_regularization_losses = None
-        # Template function returning the single float value total loss tensor.
-        self.fn_loss = None
-        # Template function returning the optimization op used by the model to learn
-        self.fn_optimization = None
-        # Tf optimization op (e.g. `minimize`) used as 1st fetch in sess.run in self.update
-        self.optimization = None
-        # Template function applying pre-processing to a batch of states
-        self.fn_preprocess_states = None
-        # Template function applying exploration to a batch of actions
-        self.fn_action_exploration = None
-        # Template function applying pre-processing to a batch of rewards
-        self.fn_preprocess_reward = None
 
         self.summary_configuration_op = None
 
@@ -356,26 +323,20 @@ class Model(object):
                 # )
                 self.fn_initialize()
 
-                # Create output operations
                 assignment = tf.assign(ref=self.is_optimizing, value=False)
-                actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
 
-                # Act inputs
+                # Input tensors
                 with tf.control_dependencies(control_inputs=(assignment,)):
                     states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
                     internals = [tf.identity(input=internal) for internal in self.internals_input]
+                    actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
+                    terminal = tf.identity(input=self.terminal_input)
+                    reward = tf.identity(input=self.reward_input)
                     deterministic = tf.identity(input=self.deterministic_input)
 
                 # States preprocessing
                 for name, preprocessing in self.states_preprocessing.items():
                     states[name] = preprocessing.process(tensor=states[name])
-
-                assignment = tf.assign(ref=self.is_optimizing, value=False)
-
-                # Observe inputs
-                with tf.control_dependencies(control_inputs=(assignment,)):
-                    terminal = tf.identity(input=self.terminal_input)
-                    reward = tf.identity(input=self.reward_input)
 
                 # Reward preprocessing
                 if self.reward_preprocessing is not None:
@@ -389,8 +350,6 @@ class Model(object):
                     reward=reward,
                     deterministic=deterministic
                 )
-                # self.create_act_outputs()
-                # self.create_observe_outputs()
 
                 # Add all summaries specified in summary_labels
                 if any(k in self.summary_labels for k in ['inputs', 'states']):
@@ -660,20 +619,20 @@ class Model(object):
 
         if self.states_preprocessing_spec is None:
             for name, state in self.states_spec.items():
-                state['processed_shape'] = state['shape']
+                state['shape'] = state['shape']
         elif not isinstance(self.states_preprocessing_spec, list) and \
                 all(name in self.states_spec for name in self.states_preprocessing_spec):
             for name, state in self.states_spec.items():
                 if name in self.states_preprocessing_spec:
                     preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec[name])
-                    state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
+                    state['shape'] = preprocessing.processed_shape(shape=state['shape'])
                 else:
-                    state['processed_shape'] = state['shape']
+                    state['shape'] = state['shape']
                 self.states_preprocessing[name] = preprocessing
         else:
             for name, state in self.states_spec.items():
                 preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
-                state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
+                state['shape'] = preprocessing.processed_shape(shape=state['shape'])
                 self.states_preprocessing[name] = preprocessing
 
         # Actions
@@ -979,6 +938,13 @@ class Model(object):
 
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+        """
+        Creates output operations for acting, observing and interacting with the memory.
+        """
+        self.create_act_operations(states=states, internals=internals, deterministic=deterministic)
+        self.create_observe_operations(reward=reward, terminal=terminal)
+
     def get_variables(self, include_non_trainable=False):
         """
         Returns the TensorFlow variables used by the model.
@@ -1012,13 +978,6 @@ class Model(object):
         else:
             return [self.variables[key] for key in sorted(self.variables)]
 
-    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
-        """
-        Creates output operations for acting, observing and interacting with the memory.
-        """
-        self.create_act_operations(states=states, internals=internals, deterministic=deterministic)
-        self.create_observe_operations(reward=reward, terminal=terminal)
-
     def get_summaries(self):
         """
         Returns the TensorFlow summaries reported by the model
@@ -1040,6 +999,61 @@ class Model(object):
         episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
         return episode, timestep, list(self.internals_init)
 
+    def get_feed_dict(self, states=None, internals=None, actions=None, terminal=None, reward=None, deterministic=None):
+        feed_dict = dict()
+        batched = None
+
+        if states is not None:
+            if batched is None:
+                name = next(iter(states))
+                state = np.asarray(states[name])
+                batched = (state.ndim != len(self.states_spec[name]['shape']))
+            if batched:
+                feed_dict.update({state_input: states[name] for name, state_input in self.states_input.items()})
+            else:
+                feed_dict.update({state_input: (states[name],) for name, state_input in self.states_input.items()})
+
+        if internals is not None:
+            assert states is not None
+            # Can check with internals spec shape !!!
+            if batched:
+                feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)})
+            else:
+                feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)})
+
+        if actions is not None:
+            if batched is None:
+                name = next(iter(actions))
+                action = np.asarray(actions[name])
+                batched = (action.ndim != len(self.actions_spec[name]['shape']))
+            if batched:
+                feed_dict.update({action_input: actions[name] for name, action_input in self.actions_input.items()})
+            else:
+                feed_dict.update({action_input: (actions[name],) for name, action_input in self.actions_input.items()})
+
+        if terminal is not None:
+            if batched is None:
+                terminal = np.asarray(terminal)
+                batched = (terminal.ndim == 1)
+            if batched:
+                feed_dict[self.terminal_input] = terminal
+            else:
+                feed_dict[self.terminal_input] = (terminal,)
+
+        if reward is not None:
+            if batched is None:
+                reward = np.asarray(reward)
+                batched = (reward.ndim == 1)
+            if batched:
+                feed_dict[self.reward_input] = reward
+            else:
+                feed_dict[self.reward_input] = (reward,)
+
+        if deterministic is not None:
+            feed_dict[self.deterministic_input] = deterministic
+
+        return feed_dict
+
     def act(self, states, internals, deterministic=False):
         """
         Does a forward pass through the model to retrieve action (outputs) given inputs for state (and internal
@@ -1056,24 +1070,22 @@ class Model(object):
                 - Actual values of internal states (if applicable) (batched if state input is a batch).
                 - The timestep (int) after calculating the (batch of) action(s).
         """
-
-        fetches = [self.actions_output, self.internals_output, self.timestep_output]
-
-        name = next(iter(self.states_spec))
+        name = next(iter(states))
         state = np.asarray(states[name])
         batched = (state.ndim != len(self.states_spec[name]['shape']))
+        if batched:
+            assert self.batching_capacity is not None and state.shape[0] <= self.batching_capacity
 
         fetches = (self.actions_output, self.internals_output, self.timestep_output)
 
-        if batched:
-            assert self.batching_capacity is not None and state.shape[0] <= self.batching_capacity
-            feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-            feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)})
-        else:
-            feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-            feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)})
+        #     feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
+        #     feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)})
+        # else:
+        #     feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
+        #     feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)})
 
-        feed_dict[self.deterministic_input] = deterministic
+        # feed_dict[self.deterministic_input] = deterministic
+        feed_dict = self.get_feed_dict(states=states, internals=internals, deterministic=deterministic)
 
         actions, internals, timestep = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
@@ -1102,16 +1114,18 @@ class Model(object):
         Returns:
             The value of the model-internal episode counter.
         """
-        terminal = np.asarray(terminal)
-        batched = (terminal.ndim == 1)
+        # terminal = np.asarray(terminal)
+        # batched = (terminal.ndim == 1)
 
         fetches = self.episode_output
 
-        if batched:
-            assert self.batching_capacity is not None and terminal.shape[0] <= self.batching_capacity
-            feed_dict = {self.terminal_input: terminal, self.reward_input: reward, }
-        else:
-            feed_dict = {self.terminal_input: (terminal,), self.reward_input: (reward,)}
+        feed_dict = self.get_feed_dict(terminal=terminal, reward=reward)
+
+        # if batched:
+        #     assert self.batching_capacity is not None and terminal.shape[0] <= self.batching_capacity
+        #     feed_dict = {self.terminal_input: terminal, self.reward_input: reward, }
+        # else:
+        #     feed_dict = {self.terminal_input: (terminal,), self.reward_input: (reward,)}
 
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 

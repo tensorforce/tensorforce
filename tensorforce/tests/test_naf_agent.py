@@ -18,6 +18,7 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
             type='ornstein_uhlenbeck'
         ),
         update_mode=dict(
+            unit='timesteps',
             batch_size=8,
             frequency=4
         ),
@@ -27,7 +28,7 @@ class TestNAFAgent(BaseAgentTest, unittest.TestCase):
             capacity=100
         ),
         optimizer=dict(
-            type="adam",
+            type='adam',
             learning_rate=1e-2
         ),
         target_sync_frequency=10

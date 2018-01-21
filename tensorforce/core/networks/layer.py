@@ -621,7 +621,7 @@ class Dense(Layer):
             )
         # TODO: Consider creating two nonlinearity variables when skip is used and learning beta
         #       Right now, only a single beta can be learned
-        self.nonlinearity = Nonlinearity(**util.prepare_kwargs(activation), summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))
         super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -727,7 +727,7 @@ class Dueling(Layer):
             summary_labels=summary_labels
         )
         self.output = output
-        self.nonlinearity = Nonlinearity(**util.prepare_kwargs(activation), summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -833,7 +833,7 @@ class Conv1d(Layer):
         self.bias = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        self.nonlinearity = Nonlinearity(**util.prepare_kwargs(activation), summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))
         super(Conv1d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
@@ -942,7 +942,7 @@ class Conv2d(Layer):
         self.bias = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        self.nonlinearity = Nonlinearity(**util.prepare_kwargs(activation), summary_labels=summary_labels)
+        self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))
         super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):

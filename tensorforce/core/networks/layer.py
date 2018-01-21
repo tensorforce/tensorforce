@@ -221,19 +221,19 @@ class Nonlinearity(Layer):
             )
 
         if self.max is not None:
-            x = tf.minimum((self.beta*x), self.max)
+            x = tf.minimum((self.beta * x), self.max)
 
         if self.min is not None:
-            x = tf.maximum((self.beta*x), self.min)   
+            x = tf.maximum((self.beta * x), self.min)   
 
         if self.name == 'elu':
-            x = tf.nn.elu(features=(self.beta*x))
+            x = tf.nn.elu(features=(self.beta * x))
 
         elif self.name == 'none':
-            x = tf.identity(input=(self.beta*x))
+            x = tf.identity(input=(self.beta * x))
 
         elif self.name == 'relu':
-            x = tf.nn.relu(features=(self.beta*x))
+            x = tf.nn.relu(features=(self.beta * x))
             if 'relu' in self.summary_labels:
                 non_zero = tf.cast(x=tf.count_nonzero(input_tensor=x), dtype=tf.float32)
                 size = tf.cast(x=tf.reduce_prod(input_tensor=tf.shape(input=x)), dtype=tf.float32)
@@ -242,35 +242,35 @@ class Nonlinearity(Layer):
 
         elif self.name == 'selu':
             # https://arxiv.org/pdf/1706.02515.pdf
-            x = tf.nn.selu(features=(self.beta*x))
+            x = tf.nn.selu(features=(self.beta * x))
 
         elif self.name == 'sigmoid':
-            x = tf.sigmoid(x=(self.beta*x))
+            x = tf.sigmoid(x=(self.beta * x))
 
         elif self.name == 'swish':
             # https://arxiv.org/abs/1710.05941
-            x = tf.sigmoid(x=(self.beta*x)) * x    
+            x = tf.sigmoid(x=(self.beta * x)) * x    
 
         elif self.name == 'lrelu' or self.name == 'leaky_relu':
             if self.alpha is None:
                 # Default alpha value for leaky_relu
                 self.alpha = 0.2
-            x = tf.nn.leaky_relu(features=(self.beta*x), alpha=self.alpha)
+            x = tf.nn.leaky_relu(features=(self.beta * x), alpha=self.alpha)
 
         elif self.name == 'crelu':
-            x = tf.nn.crelu(features=(self.beta*x))            
+            x = tf.nn.crelu(features=(self.beta * x))            
 
         elif self.name == 'softmax':
-            x = tf.nn.softmax(logits=(self.beta*x))
+            x = tf.nn.softmax(logits=(self.beta * x))
 
         elif self.name == 'softplus':
-            x = tf.nn.softplus(features=(self.beta*x))
+            x = tf.nn.softplus(features=(self.beta * x))
 
         elif self.name == 'softsign':
-            x = tf.nn.softsign(features=(self.beta*x))
+            x = tf.nn.softsign(features=(self.beta * x))
 
         elif self.name == 'tanh':
-            x = tf.nn.tanh(x=(self.beta*x))
+            x = tf.nn.tanh(x=(self.beta * x))
 
         else:
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))

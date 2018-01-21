@@ -42,8 +42,8 @@ class ConstantModel(Model):
         self.action_values = action_values
 
         super(ConstantModel, self).__init__(
-            states_spec=states,
-            actions_spec=actions,
+            states=states,
+            actions=actions,
             scope=scope,
             device=device,
             saver=saver,

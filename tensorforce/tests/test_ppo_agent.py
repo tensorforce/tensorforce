@@ -46,10 +46,10 @@ class TestPPOAgent(BaseAgentTest, unittest.TestCase):
         optimization_steps=30
     )
 
-    multi_config = dict(
-        batch_size=32,
-        step_optimizer=dict(
-            type='adam',
-            learning_rate=0.001
-        )
-    )
+    # multi_config = dict(
+    #     batch_size=32,
+    #     step_optimizer=dict(
+    #         type='adam',
+    #         learning_rate=0.001
+    #     )
+    # )

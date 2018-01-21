@@ -95,17 +95,17 @@ class NaturalGradient(Optimizer):
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to actually calculate the entire matrix explicitly.
-        def fisher_matrix_product(x):
+        def fisher_matrix_product(deltas, kldiv_grads):
             # Gradient is not propagated through solver.
-            x = [tf.stop_gradient(input=delta) for delta in x]
+            deltas = [tf.stop_gradient(input=delta) for delta in deltas]
 
             # delta' * grad(kldiv)
-            x_kldiv_gradients = tf.add_n(inputs=[
-                tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(x, kldiv_gradients)
+            delta_kldiv_gradients = tf.add_n(inputs=[
+                tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(deltas, kldiv_grads)
             ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
-            return tf.gradients(ys=x_kldiv_gradients, xs=variables)
+            return tf.gradients(ys=delta_kldiv_gradients, xs=variables)
 
         # loss
         loss = fn_loss(**arguments)
@@ -116,8 +116,7 @@ class NaturalGradient(Optimizer):
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
-        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients])
-        return deltas
+        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients], f_args=(kldiv_gradients,))
 
         # delta' * F
         delta_fisher_matrix_product = fisher_matrix_product(x=deltas)

@@ -130,9 +130,9 @@ class OptimizedStep(MetaOptimizer):
 
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
-            def evaluate_step(x):
-                with tf.control_dependencies(control_inputs=x):
-                    applied = self.apply_step(variables=variables, deltas=x)
+            def evaluate_step(deltas):
+                with tf.control_dependencies(control_inputs=deltas):
+                    applied = self.apply_step(variables=variables, deltas=deltas)
                 with tf.control_dependencies(control_inputs=(applied,)):
                     if fn_compare is None:
                         # Negative value since line search maximizes.

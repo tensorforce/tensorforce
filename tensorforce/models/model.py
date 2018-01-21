@@ -354,11 +354,43 @@ class Model(object):
                 #     reward=reward,
                 #     update=update
                 # )
+                self.fn_initialize()
 
                 # Create output operations
-                self.fn_initialize()
-                self.create_act_outputs()
-                self.create_observe_outputs()
+                assignment = tf.assign(ref=self.is_optimizing, value=False)
+                actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
+
+                # Act inputs
+                with tf.control_dependencies(control_inputs=(assignment,)):
+                    states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
+                    internals = [tf.identity(input=internal) for internal in self.internals_input]
+                    deterministic = tf.identity(input=self.deterministic_input)
+
+                # States preprocessing
+                for name, preprocessing in self.states_preprocessing.items():
+                    states[name] = preprocessing.process(tensor=states[name])
+
+                assignment = tf.assign(ref=self.is_optimizing, value=False)
+
+                # Observe inputs
+                with tf.control_dependencies(control_inputs=(assignment,)):
+                    terminal = tf.identity(input=self.terminal_input)
+                    reward = tf.identity(input=self.reward_input)
+
+                # Reward preprocessing
+                if self.reward_preprocessing is not None:
+                    reward = self.reward_preprocessing.process(tensor=reward)
+
+                self.create_operations(
+                    states=states,
+                    internals=internals,
+                    actions=actions,
+                    terminal=terminal,
+                    reward=reward,
+                    deterministic=deterministic
+                )
+                # self.create_act_outputs()
+                # self.create_observe_outputs()
 
                 # Add all summaries specified in summary_labels
                 if any(k in self.summary_labels for k in ['inputs', 'states']):
@@ -852,19 +884,7 @@ class Model(object):
         """
         raise NotImplementedError
 
-    def create_act_outputs(self):
-        assignment = tf.assign(ref=self.is_optimizing, value=False)
-
-        # Act inputs
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
-            internals = [tf.identity(input=internal) for internal in self.internals_input]
-            deterministic = tf.identity(input=self.deterministic_input)
-
-        # States preprocessing
-        for name, preprocessing in self.states_preprocessing.items():
-            states[name] = preprocessing.process(tensor=states[name])
-
+    def create_act_operations(self, states, internals, deterministic):
         # Optional variable noise
         operations = list()
         if self.variable_noise is not None and self.variable_noise > 0.0:
@@ -936,18 +956,7 @@ class Model(object):
             # Trivial operation to enforce control dependency
             self.timestep_output = self.timestep + 0
 
-    def create_observe_outputs(self):
-        assignment = tf.assign(ref=self.is_optimizing, value=False)
-
-        # Observe inputs
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            terminal = tf.identity(input=self.terminal_input)
-            reward = tf.identity(input=self.reward_input)
-
-        # Reward preprocessing
-        if self.reward_preprocessing is not None:
-            reward = self.reward_preprocessing.process(tensor=reward)
-
+    def create_observe_operations(self, terminal, reward):
         # Observation
         batched_size = tf.shape(input=terminal)[0]
         observation = self.fn_observe_timestep(
@@ -1002,6 +1011,13 @@ class Model(object):
             return variables
         else:
             return [self.variables[key] for key in sorted(self.variables)]
+
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+        """
+        Creates output operations for acting, observing and interacting with the memory.
+        """
+        self.create_act_operations(states=states, internals=internals, deterministic=deterministic)
+        self.create_observe_operations(reward=reward, terminal=terminal)
 
     def get_summaries(self):
         """

@@ -129,6 +129,11 @@ class MemoryModel(Model):
             func_=self.tf_optimization,
             custom_getter_=custom_getter
         )
+        self.fn_import_experience = tf.make_template(
+            name_='import-experience',
+            func_=self.tf_import_experience,
+            custom_getter_=custom_getter
+        )
 
     def tf_discounted_cumulative_reward(self, terminal, reward, discount, final_reward=0.0):
         """
@@ -284,6 +289,26 @@ class MemoryModel(Model):
             Dict of regularization loss tensors.
         """
         return dict()
+
+    def tf_import_experience(self, states, internals, actions, terminal, reward):
+        """
+        Imports experiences into the TensorFlow memory structure. Can be used to import
+        off-policy data.
+
+        :param states: Dict of state values to import with keys as state names and values as values to set.
+        :param internals: Internal values to set, can be fetched from agent via agent.current_internals
+            if no values available.
+        :param actions: Dict of action values to import with keys as action names and values as values to set.
+        :param terminal: Terminal value(s)
+        :param reward: Reward value(s)
+        """
+        self.import_experience = self.memory.store(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
 
     def tf_loss(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         """
@@ -476,6 +501,24 @@ class MemoryModel(Model):
 
         else:
             return model_variables
+
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+        # Create extra operation to import experience.
+        self.fn_import_experience(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
+        super(MemoryModel, self).create_operations(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            deterministic=deterministic
+        )
 
     def get_summaries(self):
         model_summaries = super(MemoryModel, self).get_summaries()

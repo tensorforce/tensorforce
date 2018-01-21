@@ -106,10 +106,10 @@ class QDemoModel(QModel):
         )
         self.demo_memory.initialize()
 
-        # Importing experiences to the demo memory.
-        self.fn_import_experience = tf.make_template(
-            name_='import-experience',
-            func_=self.tf_import_experience,
+        # Importing experiences to the demo memory, analogue to importing into main.
+        self.fn_import_demo_experience = tf.make_template(
+            name_='import-demo-experience',
+            func_=self.tf_import_demo_experience,
             custom_getter_=custom_getter
         )
 
@@ -144,31 +144,23 @@ class QDemoModel(QModel):
 
         return tf.group(optimization, self.demo_optimization)
 
-    def create_observe_outputs(self):
-        # Act inputs
-        actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
-        states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
-        internals = [tf.identity(input=internal) for internal in self.internals_input]
-
-        # States preprocessing
-        for name, preprocessing in self.states_preprocessing.items():
-            states[name] = preprocessing.process(tensor=states[name])
-
-        terminal = tf.identity(input=self.terminal_input)
-        reward = tf.identity(input=self.reward_input)
-        if self.reward_preprocessing is not None:
-            reward = self.reward_preprocessing.process(tensor=reward)
-
-        # Importing demo experiences.
-        self.fn_import_experience(
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+        # Create extra op to import demo experience in separate demo memory.
+        self.fn_import_demo_experience(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
             reward=reward
         )
-
-        super(QDemoModel, self).create_act_outputs()
+        super(QDemoModel, self).create_operations(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            deterministic=deterministic
+        )
 
     def tf_demo_loss(self, states, actions, terminal, reward, internals, update):
         """
@@ -246,11 +238,11 @@ class QDemoModel(QModel):
 
         return tf.group(demo_optimization, target_optimization)
 
-    def tf_import_experience(self, states, internals, actions, terminal, reward):
+    def tf_import_demo_experience(self, states, internals, actions, terminal, reward):
         """
         Imports a single experience to memory.
         """
-        self.import_experience = self.memory.store(
+        self.import_demo_experience = self.memory.store(
             states=states,
             internals=internals,
             actions=actions,
@@ -262,7 +254,7 @@ class QDemoModel(QModel):
         """
         Stores demonstrations in the demo memory.
         """
-        fetches = self.import_experience
+        fetches = self.import_demo_experience
 
         feed_dict = dict(
             states=states,

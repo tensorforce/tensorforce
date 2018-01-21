@@ -38,6 +38,7 @@ class Layer(object):
         self.num_internals = num_internals
         self.summary_labels = set(summary_labels or ())
 
+        self.named_tensors = dict()
         self.variables = dict()
         self.all_variables = dict()
         self.summaries = list()
@@ -85,6 +86,18 @@ class Layer(object):
             Regularization loss tensor.
         """
         return None
+
+    def tf_tensors(self,named_tensors):
+        """
+        Attaches the named_tensors dictionary to the layer for examination and update.
+
+        Args:
+            named_tensors: Dictionary of named tensors to be used as Input's or recorded from outputs
+
+        Returns:
+            NA
+        """   
+        self.named_tensors = named_tensors
 
     def internals_input(self):
         """
@@ -535,7 +548,6 @@ class Dense(Layer):
             summary_labels=summary_labels
         )
         if self.skip:
-            print("SKIP ENABLED")
             self.linear_skip = Linear(
                 size=size,
                 bias=bias,
@@ -616,6 +628,7 @@ class Dueling(Layer):
         activation='none',
         l2_regularization=0.0,
         l1_regularization=0.0,
+        output=None,
         scope='dueling',
         summary_labels=()
     ):
@@ -631,6 +644,7 @@ class Dueling(Layer):
             activation: Type of nonlinearity.
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
+            output: None or tuple of output names for ('expectation','advantage','mean_advantage')
         """
         # Expectation is broadcast back over advantage values so output is of size 1
         self.expectation_layer = Linear(
@@ -646,6 +660,7 @@ class Dueling(Layer):
             l1_regularization=l1_regularization,
             summary_labels=summary_labels
         )
+        self.output = output
         self.nonlinearity = Nonlinearity(name=activation, summary_labels=summary_labels)
         super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
 
@@ -654,11 +669,24 @@ class Dueling(Layer):
         advantage = self.advantage_layer.apply(x=x, update=update)
         mean_advantage = tf.reduce_mean(input_tensor=advantage, axis=1, keep_dims=True)
 
+        # Record outputs in named tensor dictionary if passed
+        if type(self.output) is tuple and len(self.output) == 3:
+            self.named_tensors[self.output[0]] = expectation
+            self.named_tensors[self.output[1]] = advantage - mean_advantage
+            self.named_tensors[self.output[2]] = mean_advantage
+            if 'activations' in self.summary_labels:                  
+                summary = tf.summary.histogram(name=self.output[0], values=expectation)
+                self.summaries.append(summary)
+                summary = tf.summary.histogram(name=self.output[1], values=advantage - mean_advantage)
+                self.summaries.append(summary)                
+                summary = tf.summary.histogram(name=self.output[2], values=mean_advantage)
+                self.summaries.append(summary)
+
         x = expectation + advantage - mean_advantage
 
         x = self.nonlinearity.apply(x=x, update=update)
 
-        if 'activations' in self.summary_labels:
+        if 'activations' in self.summary_labels:            
             summary = tf.summary.histogram(name='activations', values=x)
             self.summaries.append(summary)
 

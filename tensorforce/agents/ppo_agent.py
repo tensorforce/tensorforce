@@ -17,12 +17,11 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce import TensorForceError
-from tensorforce.agents import Agent
+from tensorforce.agents import LearningAgent
 from tensorforce.models import PGProbRatioModel
 
 
-class PPOAgent(Agent):
+class PPOAgent(LearningAgent):
     """
     Proximal Policy Optimization agent ([Schulman et al., 2017]
     (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
@@ -33,12 +32,13 @@ class PPOAgent(Agent):
         states,
         actions,
         network,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='ppo',
         device=None,
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -53,7 +53,6 @@ class PPOAgent(Agent):
         baseline_optimizer=None,
         gae_lambda=None,
         likelihood_ratio_clipping=None,
-        batched_observe=True,
         step_optimizer=None,
         subsampling_fraction=0.1,
         optimization_steps=100
@@ -102,19 +101,12 @@ class PPOAgent(Agent):
             baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline following
                 the same conventions as the main optimizer.
             gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
-            batch_size: Int specifying number of samples collected via `observe` before an update is executed.
-            keep_last_timestep: Boolean flag specifying whether last sample is kept, default True.
             likelihood_ratio_clipping: Optional clipping of likelihood ratio between old and new policy.
             step_optimizer: Optimizer dict specification for optimizer used in each PPO update step, defaults to
                 Adam if None.
             optimization_steps: Int specifying number of optimization steps to execute on the collected batch using
                 the step optimizer.                `
         """
-        if network is None:
-            raise TensorForceError("No network provided.")
 
         # Update mode
         if update_mode is None:
@@ -155,23 +147,6 @@ class PPOAgent(Agent):
             num_steps=optimization_steps
         )
 
-        self.scope = scope
-        self.device = device
-        self.saver = saver
-        self.summaries = summaries
-        self.distributed = distributed
-        self.batching_capacity = batching_capacity
-        self.variable_noise = variable_noise
-        self.states_preprocessing = states_preprocessing
-        self.actions_exploration = actions_exploration
-        self.reward_preprocessing = reward_preprocessing
-        self.update_mode = update_mode
-        self.memory = memory
-        self.optimizer = optimizer
-        self.discount = discount
-        self.network = network
-        self.distributions = distributions
-        self.entropy_regularization = entropy_regularization
         self.baseline_mode = baseline_mode
         self.baseline = baseline
         self.baseline_optimizer = baseline_optimizer
@@ -181,7 +156,24 @@ class PPOAgent(Agent):
         super(PPOAgent, self).__init__(
             states=states,
             actions=actions,
-            batched_observe=batched_observe
+            network=network,
+            batched_observe=batched_observe,
+            batching_capacity=batching_capacity,
+            scope=scope,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
+            optimizer=optimizer,
+            discount=discount,
+            distributions=distributions,
+            entropy_regularization=entropy_regularization
         )
 
     def initialize_model(self):

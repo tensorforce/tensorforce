@@ -190,11 +190,10 @@ class PGModel(DistributionModel):
                 reward -= state_value
 
             else:
-                state_value_change = self.discount * state_value[1:] - state_value[:-1]
-                state_value_change = tf.concat(values=(state_value_change, (0.0,)), axis=0)
-                zeros = tf.zeros_like(tensor=state_value_change)
-                state_value_change = tf.where(condition=terminal, x=zeros, y=state_value_change)
-                td_residual = reward + state_value_change
+                next_state_value = tf.concat(values=(state_value[1:], (0.0,)), axis=0)
+                zeros = tf.zeros_like(tensor=next_state_value)
+                next_state_value = tf.where(condition=terminal, x=zeros, y=next_state_value)
+                td_residual = reward + self.discount * next_state_value - state_value
                 gae_discount = self.discount * self.gae_lambda
                 reward = self.fn_discounted_cumulative_reward(
                     terminal=terminal,

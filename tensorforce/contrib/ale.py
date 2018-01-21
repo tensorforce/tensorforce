@@ -55,20 +55,20 @@ class ALE(Environment):
         self.ale.setBool(b'color_averaging', False)
         self.ale.setInt(b'frame_skip', frame_skip)
 
-        # all set commands must be done before loading the ROM
+        # All set commands must be done before loading the ROM
         self.ale.loadROM(rom.encode())
 
-        # setup gamescreen object
+        # Setup gamescreen object
         width, height = self.ale.getScreenDims()
         self.gamescreen = np.empty((height, width, 3), dtype=np.uint8)
 
         self.frame_skip = frame_skip
 
-        # setup action converter
+        # Setup action converter
         # ALE returns legal action indexes, convert these to just numbers
         self.action_inds = self.ale.getMinimalActionSet()
 
-        # setup lives
+        # Setup lives
         self.loss_of_life_reward = loss_of_life_reward
         self.cur_lives = self.ale.lives()
         self.loss_of_life_termination = loss_of_life_termination
@@ -84,15 +84,15 @@ class ALE(Environment):
         self.ale.reset_game()
         self.cur_lives = self.ale.lives()
         self.life_lost = False
-        # clear gamescreen
+        # Clear gamescreen
         self.gamescreen = np.empty(self.gamescreen.shape, dtype=np.uint8)
         return self.current_state
 
     def execute(self, actions):
-        # convert action to ale action
+        # Convert action to ale action
         ale_actions = self.action_inds[actions]
 
-        # get reward and process terminal & next state
+        # Get reward and process terminal & next state
         rew = self.ale.act(ale_actions)
         if self.loss_of_life_termination or self.loss_of_life_reward != 0:
             new_lives = self.ale.lives()
@@ -128,8 +128,23 @@ class ALE(Environment):
     @property
     def action_names(self):
         action_names = [
-            'No-Op', 'Fire', 'Up', 'Right', 'Left', 'Down', 'Up Right', 'Up Left', 'Down Right',
-            'Down Left', 'Up Fire', 'Right Fire', 'Left Fire', 'Down Fire', 'Up Right Fire',
-            'Up Left Fire', 'Down Right Fire', 'Down Left Fire'
+            'No-Op',
+            'Fire',
+            'Up',
+            'Right',
+            'Left',
+            'Down',
+            'Up Right',
+            'Up Left',
+            'Down Right',
+            'Down Left',
+            'Up Fire',
+            'Right Fire',
+            'Left Fire',
+            'Down Fire',
+            'Up Right Fire',
+            'Up Left Fire',
+            'Down Right Fire',
+            'Down Left Fire'
         ]
         return np.asarray(action_names)[self.action_inds]

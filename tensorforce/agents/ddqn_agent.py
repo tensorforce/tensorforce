@@ -17,12 +17,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce import TensorForceError
-from tensorforce.agents import Agent
+import warnings
+from tensorforce.agents import LearningAgent
 from tensorforce.models import QModel
 
 
-class DDQNAgent(Agent):
+class DDQNAgent(LearningAgent):
     """
     Double DQN Agent based on [Van Hasselt et al.](https://arxiv.org/abs/1509.06461). Simple
     extension to DQN which improves stability.
@@ -33,12 +33,13 @@ class DDQNAgent(Agent):
         states,
         actions,
         network,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='ddqn',
         device=None,
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -52,8 +53,7 @@ class DDQNAgent(Agent):
         target_sync_frequency=10000,
         target_update_weight=1.0,
         double_q_model=False,
-        huber_loss=None,
-        batched_observe=True
+        huber_loss=None
         # first_update=10000,
         # repeat_update=1
     ):
@@ -96,19 +96,12 @@ class DDQNAgent(Agent):
             target_sync_frequency: Interval between optimization calls synchronizing the target network.
             target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
             huber_loss: Optional flat specifying Huber-loss clipping.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
-            batch_size: Int specifying batch size used to sample from memory. Should be smaller than memory size.
-            memory: Dict describing memory via `type` (e.g. `replay`) and `capacity`.
-            first_update: Int describing at which time step the first update is performed. Should be larger
-                than batch size.
-            update_frequency: Int specifying number of observe steps to perform until an update is executed.
-            repeat_update: Int specifying how many update steps are performed per update, where each update step implies
-                sampling a batch from the memory and passing it to the model.
         """
-        if network is None:
-            raise TensorForceError("No network provided.")
+        # TODO: get rid of this class if we still can. Otherwise, leave this deprecation warning in place
+        warnings.warn(
+            "WARNING: DDQNAgent is deprecated. Instead, use DQNAgent with double_q_model set to True",
+            category=DeprecationWarning
+        )
 
         # Update mode
         if update_mode is None:
@@ -140,23 +133,6 @@ class DDQNAgent(Agent):
                 learning_rate=1e-3
             )
 
-        self.scope = scope
-        self.device = device
-        self.saver = saver
-        self.summaries = summaries
-        self.distributed = distributed
-        self.batching_capacity = batching_capacity
-        self.variable_noise = variable_noise
-        self.states_preprocessing = states_preprocessing
-        self.actions_exploration = actions_exploration
-        self.reward_preprocessing = reward_preprocessing
-        self.update_mode = update_mode
-        self.memory = memory
-        self.optimizer = optimizer
-        self.discount = discount
-        self.network = network
-        self.distributions = distributions
-        self.entropy_regularization = entropy_regularization
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
         self.double_q_model = True
@@ -165,7 +141,24 @@ class DDQNAgent(Agent):
         super(DDQNAgent, self).__init__(
             states=states,
             actions=actions,
-            batched_observe=batched_observe
+            network=network,
+            batched_observe=batched_observe,
+            batching_capacity=batching_capacity,
+            scope=scope,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
+            optimizer=optimizer,
+            discount=discount,
+            distributions=distributions,
+            entropy_regularization=entropy_regularization
         )
 
     def initialize_model(self):

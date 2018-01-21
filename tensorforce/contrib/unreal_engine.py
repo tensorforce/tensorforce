@@ -32,8 +32,15 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
     objects placed in the Game
     (these could be camera pixels or other observations, e.g. a x/y/z position of some game actor).
     """
-    def __init__(self, host="localhost", port=6025, connect=True, discretize_actions=False,
-                 delta_time=1/60, num_ticks=4):
+    def __init__(
+        self,
+        host="localhost",
+        port=6025,
+        connect=True,
+        discretize_actions=False,
+        delta_time=1/60,
+        num_ticks=4
+    ):
         """
         Args:
             host (str): The hostname to connect to.
@@ -79,9 +86,9 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             raise TensorForceError("ERROR in UE4Environment.connect: no observation- or action-space-desc sent "
                                    "by remote server!")
 
-        # observers
+        # Observers
         self.observation_space_desc = response["observation_space_desc"]
-        # action-mappings
+        # Action-mappings
         self.action_space_desc = response["action_space_desc"]
 
         if self.discretize_actions:
@@ -156,7 +163,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
 
         # TODO: what if more than one actions are passed?
 
-        # discretized -> each action is an int
+        # Discretized -> each action is an int
         if self.discretize_actions:
             # Pull record from discretized_actions, which will look like: [A, Right, SpaceBar].
             combination = self.discretized_actions[actions]
@@ -168,8 +175,8 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                 # Axis mapping: always use 1.0 as value as UE4 already multiplies with the correct scaling factor.
                 else:
                     axis_mappings.append((key, value))
-        # non-discretized: Each action is a dict of action- and axis-mappings defined in UE4 game's input settings.
-        # re-translate Incoming action names into keyboard keys for the server.
+        # Non-discretized: Each action is a dict of action- and axis-mappings defined in UE4 game's input settings.
+        # Re-translate Incoming action names into keyboard keys for the server.
         elif actions:
             try:
                 action_mappings, axis_mappings = self.translate_abstract_actions_to_keys(actions)
@@ -181,8 +188,13 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         #     'actions': [('X', True), ('Y', False)],
         #     'axes': [('Left': 1.0), ('Up': -1.0)]
         # }
-        message = dict(cmd="step", delta_time=self.delta_time, num_ticks=self.num_ticks,
-                       actions=action_mappings, axes=axis_mappings)
+        message = dict(
+            cmd="step",
+            delta_time=self.delta_time,
+            num_ticks=self.num_ticks,
+            actions=action_mappings,
+            axes=axis_mappings
+        )
         self.protocol.send(message, self.socket)
         # Wait for response (blocks).
         response = self.protocol.recv(self.socket)
@@ -204,11 +216,19 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                 if type_ == "Bool":
                     space = dict(type="float", shape=())
                 elif type_ == "IntBox":
-                    space = dict(type="float", shape=desc.get("shape", ()), min_value=desc.get("min", None),
-                                 max_value=desc.get("max", None))
+                    space = dict(
+                        type="float",
+                        shape=desc.get("shape", ()),
+                        min_value=desc.get("min", None),
+                        max_value=desc.get("max", None)
+                    )
                 elif type_ == "Continuous":
-                    space = dict(type="float", shape=desc.get("shape", ()), min_value=desc.get("min", None),
-                                 max_value=desc.get("max", None))
+                    space = dict(
+                        type="float",
+                        shape=desc.get("shape", ()),
+                        min_value=desc.get("min", None),
+                         max_value=desc.get("max", None)
+                    )
                 # TODO: Enums
                 else:
                     raise TensorForceError("Unsupported space type {} coming from Environment ("
@@ -322,11 +342,11 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         for nice, record in self.action_space_desc.items():
             list_for_record = []
             if record["type"] == "axis":
-                # the main key for this record (always the first one)
+                # The main key for this record (always the first one)
                 head_key = record["keys"][0][0]
-                # the reference value (divide by this one to get the others)
+                # The reference value (divide by this one to get the others)
                 head_value = record["keys"][0][1]
-                # the zero key (idle action; axis scale=0.0)
+                # The zero key (idle action; axis scale=0.0)
                 list_for_record.append((head_key, 0.0))
                 set_ = set()
                 for key_and_scale in self.action_space_desc[nice]["keys"]:
@@ -335,7 +355,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                         list_for_record.append((head_key, key_and_scale[1] / head_value))
                         set_.add(key_and_scale[1])
             else:
-                # action-mapping
+                # Action-mapping
                 list_for_record = [(record["keys"][0], False), (record["keys"][0], True)]
             unique_list.append(list_for_record)
 

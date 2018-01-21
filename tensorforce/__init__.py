@@ -17,7 +17,7 @@
 from tensorforce.exception import TensorForceError
 
 
-__version__ = '0.3.3'
+__version__ = '0.3.5'
 
 
 # Libraries should add NullHandler() by default, as its the application code's
@@ -35,4 +35,4 @@ except ImportError:
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
-__all__ = ['TensorForceError', 'Configuration']
+__all__ = ['TensorForceError']

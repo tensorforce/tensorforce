@@ -17,12 +17,11 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce import TensorForceError
-from tensorforce.agents import Agent
+from tensorforce.agents import LearningAgent
 from tensorforce.models import PGProbRatioModel
 
 
-class TRPOAgent(Agent):
+class TRPOAgent(LearningAgent):
     """
     Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
     """
@@ -32,12 +31,13 @@ class TRPOAgent(Agent):
         states,
         actions,
         network,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='trpo',
         device=None,
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -47,12 +47,15 @@ class TRPOAgent(Agent):
         discount=0.99,
         distributions=None,
         entropy_regularization=None,
+        # parameters specific to BatchAgents
+        batch_size=1000,
+        keep_last_timestep=True,
+        # parameters specific to trust-region pol.opt. Agents
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
         likelihood_ratio_clipping=None,
-        batched_observe=True,
         learning_rate=1e-3,
         cg_max_iterations=20,
         cg_damping=1e-3,
@@ -101,11 +104,6 @@ class TRPOAgent(Agent):
             baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline
                 following the same conventions as the main optimizer.
             gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
-            batch_size: Int specifying number of samples collected via `observe` before an update is executed.
-            keep_last_timestep: Boolean flag specifying whether last sample is kept, default True.
             likelihood_ratio_clipping: Optional clipping of likelihood ratio between old and new policy.
             learning_rate: Learning rate which may be interpreted differently according to optimizer, e.g. a natural
                 gradient optimizer interprets the learning rate as the max kl-divergence between old and updated policy.
@@ -115,8 +113,6 @@ class TRPOAgent(Agent):
             cg_unroll_loop: Boolean indicating whether loop unrolling in TensorFlow is to be used which seems to
                 impact performance negatively at this point, default False.
         """
-        if network is None:
-            raise TensorForceError("No network provided.")
 
         # Update mode
         if update_mode is None:
@@ -158,23 +154,6 @@ class TRPOAgent(Agent):
             ls_unroll_loop=ls_unroll_loop
         )
 
-        self.scope = scope
-        self.device = device
-        self.saver = saver
-        self.summaries = summaries
-        self.distributed = distributed
-        self.batching_capacity = batching_capacity
-        self.variable_noise = variable_noise
-        self.states_preprocessing = states_preprocessing
-        self.actions_exploration = actions_exploration
-        self.reward_preprocessing = reward_preprocessing
-        self.update_mode = update_mode
-        self.memory = memory
-        self.optimizer = optimizer
-        self.discount = discount
-        self.network = network
-        self.distributions = distributions
-        self.entropy_regularization = entropy_regularization
         self.baseline_mode = baseline_mode
         self.baseline = baseline
         self.baseline_optimizer = baseline_optimizer
@@ -184,7 +163,24 @@ class TRPOAgent(Agent):
         super(TRPOAgent, self).__init__(
             states=states,
             actions=actions,
-            batched_observe=batched_observe
+            network=network,
+            batched_observe=batched_observe,
+            batching_capacity=batching_capacity,
+            scope=scope,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
+            optimizer=optimizer,
+            discount=discount,
+            distributions=distributions,
+            entropy_regularization=entropy_regularization
         )
 
     def initialize_model(self):

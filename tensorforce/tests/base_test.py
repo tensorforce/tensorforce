@@ -48,7 +48,6 @@ class BaseTest(object):
         """
         Basic test loop, requires an Agent to achieve a certain performance on an environment.
         """
-
         sys.stdout.write('\n{} ({}):'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()
 

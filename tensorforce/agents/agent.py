@@ -42,46 +42,91 @@ class Agent(object):
         self,
         states,
         actions,
-        batched_observe
+        batched_observe=True,
+        batching_capacity=1000
     ):
         """
         Initializes the reinforcement learning agent.
 
         Args:
-            states: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
+            states_spec (dict): Dict containing at least one state-component definition. In the case of a single state
+                space component, the keys `shape` and `type` are necessary (e.g. a 3D float-box with shape [3,3,3]).
+                For multiple state components, pass a dict of dicts where each component is a dict itself with a unique
+                name as its key (e.g. {cam: {shape: [84,84], type=int}, health: {shape=(), type=float}}).
+            actions_spec (dict): Dict containing at least one action-component definition.
+                Action components have types and either `num_actions` for discrete actions or a `shape`
+                for continuous actions.
+                Consult documentation and tests for more.
+            batched_observe (int): How many calls to `observe` are batched into one tensorflow session run.
+                Values of 0 or 1 indicate no batching being used and every call to `observe` triggers a tensorflow
+                session invocation to update rewards in the graph, which will lower the throughput.
         """
         if states is None or actions is None:
             raise TensorForceError("No states/actions provided.")
 
-        self.unique_state = ('shape' in states)
-        if self.unique_state:
-            states = dict(state=states)
+        self.set_normalized_states(states=states)
+        self.set_normalized_actions(actions=actions)
 
+        # Batched observe for better performance with Python.
+        self.batched_observe = batched_observe
+        self.batching_capacity = batching_capacity
+        if self.batched_observe:
+            assert self.batching_capacity is not None
+            self.observe_terminal = list()
+            self.observe_reward = list()
+
+        self.current_states = None
+        self.current_actions = None
+        self.current_internals = None
+        self.next_internals = None
+        self.current_terminal = None
+        self.current_reward = None
+        self.timestep = None
+        self.episode = None
+
+        self.model = self.initialize_model()
+        self.reset()
+
+    def __str__(self):
+        return str(self.__class__.__name__)
+
+    def close(self):
+        self.model.close()
+
+    def set_normalized_states(self, states):
+        # Leave incoming states dict intact.
         self.states = deepcopy(states)
+
+        # Unique state shortform.
+        self.unique_state = ('shape' in self.states)
+        if self.unique_state:
+            self.states = dict(state=self.states)
+
+        # Normalize states.
         for name, state in self.states.items():
-            # Convert int to unary tuple
+            # Convert int to unary tuple.
             if isinstance(state['shape'], int):
                 state['shape'] = (state['shape'],)
 
-            # Set default type to float
+            # Set default type to float.
             if 'type' not in state:
                 state['type'] = 'float'
 
-        # Actions config and exploration
-        self.exploration = dict()
-        self.unique_action = ('type' in actions)
-        if self.unique_action:
-            actions = dict(action=actions)
+    def set_normalized_actions(self, actions):
+        # Leave incoming spec-dict intact.
         self.actions = deepcopy(actions)
 
+        # Unique action shortform.
+        self.unique_action = ('type' in self.actions)
+        if self.unique_action:
+            self.actions = dict(action=self.actions)
+
+        # Normalize actions.
         for name, action in self.actions.items():
+            # Set default type to int
+            if 'type' not in action:
+                action['type'] = 'int'
+
             # Check required values
             if action['type'] == 'int':
                 if 'num_actions' not in action:
@@ -90,52 +135,13 @@ class Agent(object):
                 if ('min_value' in action) != ('max_value' in action):
                     raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
 
-            # Set default shape to empty tuple
+            # Set default shape to empty tuple (single-int, discrete action space)
             if 'shape' not in action:
                 action['shape'] = ()
 
             # Convert int to unary tuple
             if isinstance(action['shape'], int):
                 action['shape'] = (action['shape'],)
-
-        # TensorFlow summaries & Configuration Meta Parameter Recorder options
-        if self.summaries is None:
-            summary_labels = set()
-        else:
-            summary_labels = set(self.summaries.get('labels', ()))
-
-        self.meta_param_recorder = None
-
-        #if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
-        if any(k in summary_labels for k in ['configuration', 'print_configuration']):
-            self.meta_param_recorder = MetaParameterRecorder(inspect.currentframe())
-            if 'meta_dict' in self.summaries:
-                # Custom Meta Dictionary passed
-                self.meta_param_recorder.merge_custom(self.summary['meta_dict'])
-            if 'configuration' in summary_labels:
-                # Setup for TensorBoard population
-                self.summary['meta_param_recorder_class'] = self.meta_param_recorder
-            if 'print_configuration' in summary_labels:
-                # Print to STDOUT (TADO: optimize output)
-                self.meta_param_recorder.text_output(format_type=1)
-
-        # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
-        self.model = self.initialize_model()
-
-        # Batched observe for better performance with Python.
-        self.batched_observe = batched_observe
-        if self.batched_observe:
-            assert self.batching_capacity is not None
-            self.observe_terminal = list()
-            self.observe_reward = list()
-
-        self.reset()
-
-    def __str__(self):
-        return str(self.__class__.__name__)
-
-    def close(self):
-        self.model.close()
 
     def initialize_model(self):
         """
@@ -147,13 +153,13 @@ class Agent(object):
 
     def reset(self):
         """
-        Reset the agent to its initial state on episode start. Updates internal episode and  
-        timestep counter, internal states,  and resets preprocessors.
+        Reset the agent to its initial state (e.g. on experiment start). Updates the Model's internal episode and
+        timestep counter, internal states, and resets preprocessors.
         """
         self.episode, self.timestep, self.next_internals = self.model.reset()
         self.current_internals = self.next_internals
 
-        #TODO have to call preprocessing reset in model
+        # TODO have to call preprocessing reset in model
         # for preprocessing in self.preprocessing.values():
         #     preprocessing.reset()
 
@@ -163,8 +169,8 @@ class Agent(object):
         configured accordingly.
 
         Args:
-            states: One state (usually a value tuple) or dict of states if multiple states are expected.
-            deterministic: If true, no exploration and sampling is applied.
+            states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
+            deterministic (bool): If true, no exploration and sampling is applied.
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
 
@@ -190,13 +196,13 @@ class Agent(object):
 
     def observe(self, terminal, reward):
         """
-        Observe experience from the environment to learn from. Optionally preprocesses rewards
+        Observe experience from the environment to learn from. Optionally pre-processes rewards
         Child classes should call super to get the processed reward
         EX: terminal, reward = super()...
 
         Args:
-            terminal: boolean indicating if the episode terminated after the observation.
-            reward: scalar reward that resulted from executing the action.
+            terminal (bool): boolean indicating if the episode terminated after the observation.
+            reward (float): scalar reward that resulted from executing the action.
         """
         self.current_terminal = terminal
         self.current_reward = reward
@@ -240,14 +246,14 @@ class Agent(object):
         given here.
 
         Args:
-            directory: Optional checkpoint directory.
-            use_global_step:  Appends the current timestep to the checkpoint file if true.
-            If this is set to True, the load path must include the checkpoint timestep suffix.  
-            For example, if stored to models/ and set to true, the exported file will be of the  
-            form models/model.ckpt-X where X is the last timestep saved. The load path must  
-            precisely match this file name. If this option is turned off, the checkpoint will  
-            always overwrite the file specified in path and the model can always be loaded under  
-            this path.
+            directory (str): Optional checkpoint directory.
+            append_timestep (bool):  Appends the current timestep to the checkpoint file if true.
+                If this is set to True, the load path must include the checkpoint timestep suffix.
+                For example, if stored to models/ and set to true, the exported file will be of the
+                form models/model.ckpt-X where X is the last timestep saved. The load path must
+                precisely match this file name. If this option is turned off, the checkpoint will
+                always overwrite the file specified in path and the model can always be loaded under
+                this path.
 
         Returns:
             Checkpoint path were the model was saved.

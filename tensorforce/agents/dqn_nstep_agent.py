@@ -17,12 +17,11 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce import TensorForceError
-from tensorforce.agents import Agent
+from tensorforce.agents import LearningAgent
 from tensorforce.models import QNstepModel
 
 
-class DQNNstepAgent(Agent):
+class DQNNstepAgent(LearningAgent):
     """
     N-step Deep-Q-Network agent (DQN).
     """
@@ -32,12 +31,13 @@ class DQNNstepAgent(Agent):
         states,
         actions,
         network,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='dqn-nstep',
         device=None,
         saver=None,
         summaries=None,
         distributed=None,
-        batching_capacity=1000,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -48,11 +48,14 @@ class DQNNstepAgent(Agent):
         discount=0.99,
         distributions=None,
         entropy_regularization=None,
+        # parameters specific to BatchAgents
+        batch_size=32,
+        keep_last_timestep=True,
+        # parameters specific to DQN-n-step agents
         target_sync_frequency=10000,
         target_update_weight=1.0,
         double_q_model=False,
-        huber_loss=None,
-        batched_observe=True
+        huber_loss=None
         # keep_last_timestep=True
     ):
         """
@@ -93,15 +96,9 @@ class DQNNstepAgent(Agent):
             entropy_regularization: Optional positive float specifying an entropy regularization value.
             target_sync_frequency: Interval between optimization calls synchronizing the target network.
             target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
+            double_q_model (bool): Whether to use a double-Q-model (learning two value functions).
             huber_loss: Optional flat specifying Huber-loss clipping.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
-            batch_size:
-            keep_last_timestep:
         """
-        if network is None:
-            raise TensorForceError("No network provided.")
 
         # Update mode
         if update_mode is None:
@@ -133,23 +130,6 @@ class DQNNstepAgent(Agent):
                 learning_rate=1e-3
             )
 
-        self.scope = scope
-        self.device = device
-        self.saver = saver
-        self.summaries = summaries
-        self.distributed = distributed
-        self.batching_capacity = batching_capacity
-        self.variable_noise = variable_noise
-        self.states_preprocessing = states_preprocessing
-        self.actions_exploration = actions_exploration
-        self.reward_preprocessing = reward_preprocessing
-        self.update_mode = update_mode
-        self.memory = memory
-        self.optimizer = optimizer
-        self.discount = discount
-        self.network = network
-        self.distributions = distributions
-        self.entropy_regularization = entropy_regularization
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
         self.double_q_model = double_q_model
@@ -158,7 +138,24 @@ class DQNNstepAgent(Agent):
         super(DQNNstepAgent, self).__init__(
             states=states,
             actions=actions,
-            batched_observe=batched_observe
+            network=network,
+            batched_observe=batched_observe,
+            batching_capacity=batching_capacity,
+            scope=scope,
+            device=device,
+            saver=saver,
+            summaries=summaries,
+            distributed=distributed,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
+            optimizer=optimizer,
+            discount=discount,
+            distributions=distributions,
+            entropy_regularization=entropy_regularization
         )
 
     def initialize_model(self):

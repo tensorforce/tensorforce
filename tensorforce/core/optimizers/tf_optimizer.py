@@ -62,10 +62,10 @@ class TFOptimizer(Optimizer):
             'gradient_descent', 'momentum', 'rmsprop'.
             **kwargs: Additional arguments passed on to the TensorFlow optimizer constructor.
         """
-        super(TFOptimizer, self).__init__(summaries=summaries, summary_labels=summary_labels)
-
-        self.name = optimizer
+        self.optimizer_spec = optimizer
         self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
+
+        super(TFOptimizer, self).__init__(summaries=summaries, summary_labels=summary_labels)
 
     def tf_step(
         self,
@@ -109,7 +109,7 @@ class TFOptimizer(Optimizer):
             for key in sorted(self.optimizer._slots[slot])
         ]
 
-        if self.name in ('adam', 'nadam'):
+        if self.optimizer_spec in ('adam', 'nadam'):
             additional_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]
         else:
             additional_variables = list()

@@ -152,6 +152,61 @@ class Layer(object):
         return layer
 
 
+class TFLayer(Layer):
+    """
+    Wrapper class for TensorFlow layers.
+    """
+
+    tf_layers = dict(
+        average_pooling1d=tf.layers.AveragePooling1D,
+        average_pooling2d=tf.layers.AveragePooling2D,
+        average_pooling3d=tf.layers.AveragePooling3D,
+        batch_normalization=tf.layers.BatchNormalization,
+        conv1d=tf.layers.Conv1D,
+        conv2d=tf.layers.Conv2D,
+        conv2d_transpose=tf.layers.Conv2DTranspose,
+        conv3d=tf.layers.Conv3D,
+        conv3d_transpose=tf.layers.Conv3DTranspose,
+        dense=tf.layers.Dense,
+        dropout=tf.layers.Dropout,
+        flatten=tf.layers.Flatten,
+        max_pooling1d=tf.layers.MaxPooling1D,
+        max_pooling2d=tf.layers.MaxPooling2D,
+        max_pooling3d=tf.layers.MaxPooling3D,
+        separable_conv2d=tf.layers.SeparableConv2D
+    )
+
+    def __init__(self, layer, scope='tf-layer', summary_labels=(), **kwargs):
+        """
+        Creates a new layer instance of a TensorFlow layer.
+
+        Args:
+            name: The name of the layer, one of 'dense'.
+            **kwargs: Additional arguments passed on to the TensorFlow layer constructor.
+        """
+        self.layer_spec = layer
+        self.layer = util.get_object(obj=layer, predefined_objects=TFLayer.tf_layers, kwargs=kwargs)
+        self.first_scope = None
+
+        super(TFLayer, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        if self.first_scope is None:
+            # Store scope of first call since regularization losses will be registered there.
+            self.first_scope = tf.contrib.framework.get_name_scope()
+        return self.layer(inputs=x)
+
+    def tf_regularization_loss(self):
+        regularization_losses = tf.get_collection(
+            key=tf.GraphKeys.REGULARIZATION_LOSSES,
+            scope=self.first_scope
+        )
+        if len(regularization_losses) > 0:
+            return tf.add_n(inputs=regularization_losses)
+        else:
+            return None
+
+
 class Nonlinearity(Layer):
     """
     Non-linearity layer applying a non-linear transformation.

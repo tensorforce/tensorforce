@@ -17,28 +17,31 @@ Subpackages
 Submodules
 ----------
 
-tensorforce.exception module
-----------------------------
+tensorforce\.exception module
+-----------------------------
 
 .. automodule:: tensorforce.exception
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.meta_parameter_recorder module
-------------------------------------------
+tensorforce\.meta\_parameter\_recorder module
+---------------------------------------------
 
 .. automodule:: tensorforce.meta_parameter_recorder
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.util module
------------------------
+tensorforce\.util module
+------------------------
 
 .. automodule:: tensorforce.util
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
 
@@ -48,4 +51,5 @@ Module contents
 .. automodule:: tensorforce
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:

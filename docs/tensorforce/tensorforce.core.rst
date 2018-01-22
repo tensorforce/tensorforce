@@ -1,5 +1,5 @@
-tensorforce.core package
-========================
+tensorforce\.core package
+=========================
 
 Subpackages
 -----------
@@ -20,4 +20,5 @@ Module contents
 .. automodule:: tensorforce.core
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:

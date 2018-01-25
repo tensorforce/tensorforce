@@ -65,7 +65,7 @@ def main():
 
     args = parser.parse_args()
 
-    #logging.basicConfig(filename="logfile.txt", level=logging.INFO)
+    # logging.basicConfig(filename="logfile.txt", level=logging.INFO)
     logging.basicConfig(stream=sys.stderr)
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)

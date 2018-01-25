@@ -28,7 +28,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
     """
     A special RemoteEnvironment for UE4 game connections.
     Communicates with the remote to receive information on the definitions of action- and observation spaces.
-    Sends UE4 Action- and Axis-mappings as RL-actions and receives observations back defined by ducandu plugin Observer
+    Sends UE4 Action- and Axis-mappings as RL-actions and receives observations back defined by MLObserver
     objects placed in the Game
     (these could be camera pixels or other observations, e.g. a x/y/z position of some game actor).
     """

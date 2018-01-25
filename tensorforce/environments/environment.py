@@ -89,7 +89,7 @@ class Environment(object):
         raise NotImplementedError
 
     @staticmethod
-    def from_spec(spec,     kwargs):
+    def from_spec(spec, kwargs):
         """
         Creates an environment from a specification dict.
         """

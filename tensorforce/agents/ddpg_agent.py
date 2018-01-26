@@ -18,13 +18,13 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.agents import LearningAgent
-from tensorforce.models import PGLogProbModel
+from tensorforce.models import PGLogProbTargetModel
 
 
 class DDPGAgent(LearningAgent):
     """
-    Vanilla Policy Gradient agent as described by [Sutton et al. (1999)]
-    (https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf).
+    Deep Deterministic Policy Gradient agent as described by [Silver et al. (2014)]
+    (http://proceedings.mlr.press/v32/silver14.pdf).
 
     """
 
@@ -50,15 +50,14 @@ class DDPGAgent(LearningAgent):
         discount=0.99,
         distributions=None,
         entropy_regularization=None,
-        # parameters specific to BatchAgents
-        batch_size=1000,
-        keep_last_timestep=True,
         # parameters specific to vanilla pol.gradient Agents
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
-        gae_lambda=None
-        # keep_last_timestep=True
+        gae_lambda=None,
+        # parameters specific to ddpg agents
+        target_sync_frequency=10000,
+        target_update_weight=1.0
     ):
         """
         Creates a deep deterministic policy gradient agent.
@@ -72,14 +71,10 @@ class DDPGAgent(LearningAgent):
             network: List of layers specifying a neural network via layer types, sizes and optional arguments
                 such as activation or regularisation. Full examples are in the examples/configs folder.
             device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
             scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
             saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
-                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
             distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
                 cluster spec.
@@ -103,6 +98,8 @@ class DDPGAgent(LearningAgent):
             baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline
                 following the same conventions as the main optimizer.
             gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
+            target_sync_frequency: Interval between optimization calls synchronizing the target network.
+            target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
         """
 
         # Update mode
@@ -141,6 +138,9 @@ class DDPGAgent(LearningAgent):
         self.baseline_optimizer = baseline_optimizer
         self.gae_lambda = gae_lambda
 
+        self.target_sync_frequency = target_sync_frequency
+        self.target_update_weight = target_update_weight
+
         super(DDPGAgent, self).__init__(
             states=states,
             actions=actions,
@@ -165,7 +165,7 @@ class DDPGAgent(LearningAgent):
         )
 
     def initialize_model(self):
-        return PGLogProbModel(
+        return PGLogProbTargetModel(
             states=self.states,
             actions=self.actions,
             scope=self.scope,
@@ -188,7 +188,9 @@ class DDPGAgent(LearningAgent):
             baseline_mode=self.baseline_mode,
             baseline=self.baseline,
             baseline_optimizer=self.baseline_optimizer,
-            gae_lambda=self.gae_lambda
+            gae_lambda=self.gae_lambda,
+            target_sync_frequency=self.target_sync_frequency,
+            target_update_weight=self.target_update_weight
         )
 
     def act(self, states, deterministic=True):

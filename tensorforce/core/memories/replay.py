@@ -48,7 +48,7 @@ class Replay(Queue):
         random_episode_indices = tf.random_uniform(shape=(n,), maxval=(self.episode_count + 1), dtype=tf.int32)
         starts = tf.gather(params=self.episode_indices, indices=random_episode_indices) + 1
         limits = tf.gather(params=self.episode_indices, indices=(random_episode_indices + 1))
-        limits += tf.where(condition=(starts < limits), x=(0,), y=self.capacity)
+        limits += tf.where(condition=(starts < limits), x=0, y=self.capacity)
         episodes = [tf.range(start=starts[n], limit=limits[n]) for k in range(n)]
         indices = tf.concat(values=episodes, axis=0) % self.capacity
         return self.retrieve_indices(indices=indices)

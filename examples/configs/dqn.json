@@ -1,21 +1,35 @@
 {
     "type": "dqn_agent",
-    "batch_size": 64,
+    "update_mode": {
+        "unit": "timesteps",
+        "batch_size": 128,
+        "frequency": 4
+    },
     "memory": {
         "type": "replay",
-        "capacity": 10000
+        "capacity": 50000,
+        "include_next_states": true
     },
     "optimizer": {
-      "type": "adam",
-      "learning_rate": 1e-3
+        "type": "clipped_step",
+        "clipping_value": 0.005,
+        "optimizer": {
+            "type": "adam",
+            "learning_rate": 5e-4
+        }
     },
 
-    "discount": 0.97,
+    "discount": 0.99,
 
-    "explorations_spec": {
-        "type": "epsilon_decay",
-        "initial_epsilon": 1.0,
-        "final_epsilon": 0.1,
-        "timesteps": 100000
+    "target_sync_frequency": 500,
+    "target_update_weight": 1.0,
+
+    "double_q_model": true,
+
+    "actions_exploration": {
+        "type": "epsilon_anneal",
+        "initial_epsilon": 0.8,
+        "final_epsilon": 0.01,
+        "timesteps": 10000
     }
 }

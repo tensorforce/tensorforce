@@ -2,8 +2,8 @@
     "type": "ddpg_agent",
 
     "update_mode": {
-        "unit": "episodes",
-        "batch_size": 20,
+        "unit": "timesteps",
+        "batch_size": 200,
         "frequency": 1
     },
     "memory": {

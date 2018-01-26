@@ -105,14 +105,14 @@ class DDPGAgent(LearningAgent):
         # Update mode
         if update_mode is None:
             update_mode = dict(
-                unit='episodes',
+                unit='timesteps',
                 batch_size=10,
                 frequency=10
             )
         elif 'unit' in update_mode:
-            assert update_mode['unit'] == 'episodes'
+            assert update_mode['unit'] == 'timesteps'
         else:
-            update_mode['unit'] = 'episodes'
+            update_mode['unit'] = 'timesteps'
 
         # Memory
         if memory is None:

@@ -19,6 +19,8 @@ from __future__ import division
 
 import tensorflow as tf
 
+from tensorforce import util
+
 from tensorforce.core.baselines import Baseline, AggregatedBaseline
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.models import DistributionModel
@@ -159,8 +161,7 @@ class PGModel(DistributionModel):
 
     def tf_reward_estimation(self, states, internals, terminal, reward, update):
         if self.baseline_mode is None:
-            reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
-
+            return self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
         else:
             if self.baseline_mode == 'states':
                 state_value = self.baseline.predict(
@@ -187,7 +188,7 @@ class PGModel(DistributionModel):
                     reward=reward,
                     discount=self.discount
                 )
-                reward -= state_value
+                advantage = reward - state_value
 
             else:
                 next_state_value = tf.concat(values=(state_value[1:], (0.0,)), axis=0)
@@ -195,13 +196,17 @@ class PGModel(DistributionModel):
                 next_state_value = tf.where(condition=terminal, x=zeros, y=next_state_value)
                 td_residual = reward + self.discount * next_state_value - state_value
                 gae_discount = self.discount * self.gae_lambda
-                reward = self.fn_discounted_cumulative_reward(
+                advantage = self.fn_discounted_cumulative_reward(
                     terminal=terminal,
                     reward=td_residual,
                     discount=gae_discount
                 )
 
-        return reward
+            # Normalise advantage
+            mean, variance = tf.nn.moments(advantage, axes=[0], keep_dims=True)
+            advantage = (advantage - mean) / (tf.sqrt(variance) + util.epsilon)
+
+            return advantage
 
     def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         """

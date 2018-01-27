@@ -23,8 +23,8 @@ from tensorforce.models import PGLogProbTargetModel
 
 class DDPGAgent(LearningAgent):
     """
-    Deep Deterministic Policy Gradient agent as described by [Silver et al. (2014)]
-    (http://proceedings.mlr.press/v32/silver14.pdf).
+    Deep Deterministic Policy Gradient agent as described by [Lillicrap et al. (2016)]
+    (https://arxiv.org/pdf/1509.02971.pdf).
 
     """
 

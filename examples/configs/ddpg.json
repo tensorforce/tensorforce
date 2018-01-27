@@ -4,7 +4,7 @@
     "update_mode": {
         "unit": "timesteps",
         "batch_size": 200,
-        "frequency": 1
+        "frequency": 200
     },
     "memory": {
         "type": "replay",

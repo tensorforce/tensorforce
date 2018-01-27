@@ -4,7 +4,7 @@
     "update_mode": {
         "unit": "episodes",
         "batch_size": 20,
-        "frequency": 1
+        "frequency": 20
     },
     "memory": {
         "type": "latest",

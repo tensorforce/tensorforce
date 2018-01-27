@@ -78,7 +78,7 @@ class BaseTest(object):
                 ]
                 return r.episode < 100 or not all(episodes_passed)
 
-            runner.run(episodes=3000, deterministic=self.__class__.deterministic, episode_finished=episode_finished)
+            runner.run(episodes=3000, episode_finished=episode_finished)
 
             sys.stdout.write(' ' + str(runner.episode))
             sys.stdout.flush()
@@ -126,7 +126,7 @@ class BaseTest(object):
             ]
             return r.episode < 100 or not all(episodes_passed)
 
-        runner.run(episodes=100, deterministic=self.__class__.deterministic, episode_finished=episode_finished)
+        runner.run(episodes=100, episode_finished=episode_finished)
 
         sys.stdout.write('==> {} ran\n'.format(1))
         sys.stdout.flush()

@@ -17,9 +17,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import numpy as np
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import util, TensorForceError
 from tensorforce.core.networks import Network
 from tensorforce.core.distributions import Distribution, Bernoulli, Categorical, Gaussian, Beta
 from tensorforce.models import MemoryModel
@@ -87,20 +88,20 @@ class DistributionModel(MemoryModel):
         )
 
     def initialize(self, custom_getter):
-        super(DistributionModel, self).initialize(custom_getter)
-
         # Network
         self.network = Network.from_spec(
             spec=self.network_spec,
             kwargs=dict(summary_labels=self.summary_labels)
         )
 
+        # Before super-call since internals_spec attribute is required subsequently.
+        assert len(self.internals_spec) == 0
+        self.internals_spec = self.network.internals_spec()
+
+        super(DistributionModel, self).initialize(custom_getter)
+
         # Distributions
         self.distributions = self.create_distributions()
-
-        # Network internals
-        self.internals_input.extend(self.network.internals_input())
-        self.internals_init.extend(self.network.internals_init())
 
         # KL divergence function
         self.fn_kl_divergence = tf.make_template(

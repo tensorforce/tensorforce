@@ -25,7 +25,7 @@ import tensorforce.core.memories
 
 class Memory(object):
 
-    def __init__(self, states, actions, include_next_states, scope='memory', summary_labels=None):
+    def __init__(self, states, internals, actions, include_next_states, scope='memory', summary_labels=None):
         """
         Args:
             states_spec: States specifiction
@@ -33,6 +33,7 @@ class Memory(object):
             include_next_states: Include subsequent state if true.
         """
         self.states_spec = states
+        self.internals_spec = internals
         self.actions_spec = actions
         self.include_next_states = include_next_states
         self.summary_labels = set(summary_labels or ())

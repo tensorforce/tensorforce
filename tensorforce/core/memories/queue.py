@@ -25,7 +25,7 @@ from tensorforce.core.memories import Memory
 
 class Queue(Memory):
 
-    def __init__(self, states, actions, include_next_states, capacity, scope='queue', summary_labels=None):
+    def __init__(self, states, internals, actions, include_next_states, capacity, scope='queue', summary_labels=None):
         """
         Args:
             states_spec: States specifiction
@@ -35,6 +35,7 @@ class Queue(Memory):
         """
         super(Queue, self).__init__(
             states=states,
+            internals=internals,
             actions=actions,
             include_next_states=include_next_states,
             scope=scope,
@@ -67,7 +68,14 @@ class Queue(Memory):
             )
 
         # Internals
-        self.internals_memory = None
+        self.internals_memory = dict()
+        for name, internal in self.internals_spec.items():
+            self.internals_memory[name] = tf.get_variable(
+                name=('internal-' + name),
+                shape=(self.capacity,) + tuple(internal['shape']),
+                dtype=util.tf_dtype(internal['type']),
+                trainable=False
+            )
 
         # Actions
         self.actions_memory = dict()
@@ -122,17 +130,6 @@ class Queue(Memory):
         )
 
     def tf_store(self, states, internals, actions, terminal, reward):
-        # Initialize internals memory
-        if self.internals_memory is None:
-            self.internals_memory = list()
-            for n, internal in enumerate(internals):
-                self.internals_memory.append(tf.get_variable(
-                    name=('internal' + str(n)),
-                    shape=(self.capacity,) + util.shape(internal)[1:],
-                    dtype=internal.dtype,
-                    trainable=False
-                ))
-
         # Memory indices to overwrite
         num_instances = tf.shape(input=terminal)[0]
         indices = tf.range(start=self.memory_index, limit=(self.memory_index + num_instances)) % self.capacity
@@ -154,8 +151,8 @@ class Queue(Memory):
             assignments = list()
             for name, state in states.items():
                 assignments.append(tf.scatter_update(ref=self.states_memory[name], indices=indices, updates=state))
-            for n, internal in enumerate(internals):
-                assignments.append(tf.scatter_update(ref=self.internals_memory[n], indices=indices, updates=internal))
+            for name, internal in internals.items():
+                assignments.append(tf.scatter_update(ref=self.internals_memory[name], indices=indices, updates=internal))
             for name, action in actions.items():
                 assignments.append(tf.scatter_update(ref=self.actions_memory[name], indices=indices, updates=action))
             assignments.append(tf.scatter_update(ref=self.terminal_memory, indices=indices, updates=terminal))
@@ -194,9 +191,9 @@ class Queue(Memory):
         for name, state_memory in self.states_memory.items():
             states[name] = tf.gather(params=state_memory, indices=indices)
 
-        internals = list()
-        for internal_memory in self.internals_memory:
-            internals.append(tf.gather(params=internal_memory, indices=indices))
+        internals = dict()
+        for name, internal_memory in self.internals_memory.items():
+            internals[name] = tf.gather(params=internal_memory, indices=indices)
 
         actions = dict()
         for name, action_memory in self.actions_memory.items():
@@ -215,9 +212,9 @@ class Queue(Memory):
             for name, state_memory in self.states_memory.items():
                 next_states[name] = tf.gather(params=state_memory, indices=next_indices)
 
-            next_internals = list()
-            for internal_memory in self.internals_memory:
-                next_internals.append(tf.gather(params=internal_memory, indices=next_indices))
+            next_internals = dict()
+            for name, internal_memory in self.internals_memory.items():
+                next_internals[name] = tf.gather(params=internal_memory, indices=next_indices)
 
             return dict(
                 states=states,

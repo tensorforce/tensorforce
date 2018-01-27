@@ -88,6 +88,7 @@ class MemoryModel(Model):
             spec=self.memory_spec,
             kwargs=dict(
                 states=self.states_spec,
+                internals=self.internals_spec,
                 actions=self.actions_spec,
                 summary_labels=self.summary_labels
             )

@@ -92,7 +92,8 @@ class PGModel(DistributionModel):
             discount=discount,
             network=network,
             distributions=distributions,
-            entropy_regularization=entropy_regularization
+            entropy_regularization=entropy_regularization,
+            requires_deterministic=False
         )
 
     def initialize(self, custom_getter):

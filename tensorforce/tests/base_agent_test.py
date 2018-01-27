@@ -29,7 +29,6 @@ class BaseAgentTest(BaseTest):
     """
 
     config = None
-    multi_config = None
 
     # Exclude flags to indicate whether a certain test is excluded for a model.
     exclude_bool = False
@@ -117,6 +116,27 @@ class BaseAgentTest(BaseTest):
             **self.__class__.config
         )
 
+    def test_lstm(self):
+        """
+        Tests the case of using internal states via an LSTM layer (for one integer action).
+        """
+        if self.__class__.exclude_lstm:
+            return
+
+        environment = MinimalTest(specification={'int': ()})
+        network = [
+            dict(type='dense', size=32),
+            dict(type='dense', size=32),
+            dict(type='internal_lstm', size=32)
+        ]
+
+        self.base_test_pass(
+            name='lstm',
+            environment=environment,
+            network=network,
+            **self.__class__.config
+        )
+
     def test_multi(self):
         """
         Tests the case of multiple actions of different type and shape.
@@ -199,38 +219,9 @@ class BaseAgentTest(BaseTest):
 
         environment = MinimalTest(specification=specification)
 
-        if self.__class__.multi_config is None:
-            self.base_test_run(
-                name='multi',
-                environment=environment,
-                network=CustomNetwork,
-                **self.__class__.config
-            )
-        else:
-            self.base_test_run(
-                name='multi',
-                environment=environment,
-                network=CustomNetwork,
-                **self.__class__.multi_config
-            )
-
-    def test_lstm(self):
-        """
-        Tests the case of using internal states via an LSTM layer (for one integer action).
-        """
-        if self.__class__.exclude_lstm:
-            return
-
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32),
-            dict(type='internal_lstm', size=32)
-        ]
-
-        self.base_test_pass(
-            name='lstm',
+        self.base_test_run(
+            name='multi',
             environment=environment,
-            network=network,
+            network=CustomNetwork,
             **self.__class__.config
         )

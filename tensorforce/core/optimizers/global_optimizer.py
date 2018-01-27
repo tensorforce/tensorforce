@@ -32,18 +32,14 @@ class GlobalOptimizer(MetaOptimizer):
     major version update.
     """
 
-    def __init__(self, optimizer, summaries=None, summary_labels=None):
+    def __init__(self, optimizer, scope='global-optimizer', summary_labels=()):
         """
         Creates a new global optimizer instance.
 
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.
         """
-        super(GlobalOptimizer, self).__init__(
-            optimizer=optimizer,
-            summaries=summaries,
-            summary_labels=summary_labels
-        )
+        super(GlobalOptimizer, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
 
     def tf_step(self, time, variables, global_variables, **kwargs):
         """

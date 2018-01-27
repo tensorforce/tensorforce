@@ -96,10 +96,7 @@ class MemoryModel(Model):
         # Optimizer
         self.optimizer = Optimizer.from_spec(
             spec=self.optimizer_spec,
-            kwargs=dict(
-                summaries=self.summaries,
-                summary_labels=self.summary_labels
-            )
+            kwargs=dict(summary_labels=self.summary_labels)
         )
 
         # TensorFlow functions
@@ -533,7 +530,8 @@ class MemoryModel(Model):
     def get_summaries(self):
         model_summaries = super(MemoryModel, self).get_summaries()
         memory_summaries = self.memory.get_summaries()
-        return model_summaries + memory_summaries
+        optimizer_summaries = self.optimizer.get_summaries()
+        return model_summaries + memory_summaries + optimizer_summaries
 
     def import_experience(self, states, internals, actions, terminal, reward):
         """

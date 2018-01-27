@@ -11,8 +11,6 @@ from tensorforce.agents import NAFAgent
 class TestNAFAgent(BaseAgentTest, unittest.TestCase):
 
     agent = NAFAgent
-    deterministic = True
-
     config = dict(
         actions_exploration=dict(
             type='ornstein_uhlenbeck'

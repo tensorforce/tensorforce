@@ -50,7 +50,8 @@ class DistributionModel(MemoryModel):
         discount,
         network,
         distributions,
-        entropy_regularization
+        entropy_regularization,
+        requires_deterministic
     ):
         self.network_spec = network
         self.distributions_spec = distributions
@@ -58,6 +59,9 @@ class DistributionModel(MemoryModel):
         # Entropy regularization
         assert entropy_regularization is None or entropy_regularization >= 0.0
         self.entropy_regularization = entropy_regularization
+
+        # For deterministic action sampling (Q vs PG model)
+        self.requires_deterministic = requires_deterministic
 
         self.network = None
         self.distributions = None
@@ -154,10 +158,15 @@ class DistributionModel(MemoryModel):
             update=tf.constant(value=False),
             return_internals=True
         )
+
         actions = dict()
         for name, distribution in self.distributions.items():
             distr_params = distribution.parameterize(x=embedding)
-            actions[name] = distribution.sample(distr_params=distr_params, deterministic=deterministic)
+            actions[name] = distribution.sample(
+                distr_params=distr_params,
+                deterministic=tf.logical_or(x=deterministic, y=self.requires_deterministic)
+            )
+
         return actions, internals
 
     def tf_regularization_losses(self, states, internals, update):

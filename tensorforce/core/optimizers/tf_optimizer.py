@@ -53,7 +53,7 @@ class TFOptimizer(Optimizer):
             return TFOptimizer(optimizer=optimizer, **kwargs)
         return wrapper
 
-    def __init__(self, optimizer, summaries=None, summary_labels=None, **kwargs):
+    def __init__(self, optimizer, scope=None, summary_labels=(), **kwargs):
         """
         Creates a new optimizer instance of a TensorFlow optimizer.
 
@@ -65,7 +65,7 @@ class TFOptimizer(Optimizer):
         self.optimizer_spec = optimizer
         self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
 
-        super(TFOptimizer, self).__init__(summaries=summaries, summary_labels=summary_labels)
+        super(TFOptimizer, self).__init__(scope=(scope or optimizer), summary_labels=summary_labels)
 
     def tf_step(
         self,

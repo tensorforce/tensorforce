@@ -3,34 +3,35 @@
 
     "update_mode": {
         "unit": "timesteps",
-        "batch_size": 128,
+        "batch_size": 64,
         "frequency": 4
     },
     "memory": {
         "type": "replay",
-        "capacity": 50000,
+        "capacity": 10000,
         "include_next_states": true
     },
+
     "optimizer": {
         "type": "clipped_step",
-        "clipping_value": 0.005,
+        "clipping_value": 0.1,
         "optimizer": {
             "type": "adam",
-            "learning_rate": 5e-4
+            "learning_rate": 1e-3
         }
     },
 
     "discount": 0.99,
-
-    "target_sync_frequency": 500,
-    "target_update_weight": 1.0,
-
+    "entropy_regularization": null,
     "double_q_model": true,
+
+    "target_sync_frequency": 1000,
+    "target_update_weight": 1.0,
 
     "actions_exploration": {
         "type": "epsilon_anneal",
-        "initial_epsilon": 0.8,
-        "final_epsilon": 0.01,
+        "initial_epsilon": 0.5,
+        "final_epsilon": 0.0,
         "timesteps": 10000
     },
 

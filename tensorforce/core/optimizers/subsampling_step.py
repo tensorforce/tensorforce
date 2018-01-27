@@ -29,7 +29,7 @@ class SubsamplingStep(MetaOptimizer):
     the optimization step of another optimizer.
     """
 
-    def __init__(self, optimizer, fraction=0.1, summaries=None, summary_labels=None):
+    def __init__(self, optimizer, fraction=0.1, scope='subsampling-step', summary_labels=()):
         """
         Creates a new subsampling-step meta optimizer instance.
 
@@ -37,10 +37,10 @@ class SubsamplingStep(MetaOptimizer):
             optimizer: The optimizer which is modified by this meta optimizer.
             fraction: The fraction of instances of the batch to subsample.
         """
-        super(SubsamplingStep, self).__init__(optimizer=optimizer, summaries=summaries, summary_labels=summary_labels)
-
         assert isinstance(fraction, float) and fraction > 0.0
         self.fraction = fraction
+
+        super(SubsamplingStep, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
 
     def tf_step(
         self,

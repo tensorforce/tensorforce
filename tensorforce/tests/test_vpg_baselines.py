@@ -28,7 +28,6 @@ from tensorforce.environments.minimal_test import MinimalTest
 class TestVPGBaselines(BaseTest, unittest.TestCase):
 
     agent = VPGAgent
-    deterministic = False
 
     def test_states_baseline(self):
         environment = MinimalTest(specification={'int': ()})

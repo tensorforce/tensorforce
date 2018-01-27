@@ -27,7 +27,6 @@ from tensorforce.environments.minimal_test import MinimalTest
 class TestDQNMemories(BaseTest, unittest.TestCase):
 
     agent = DQNAgent
-    deterministic = True
 
     def test_replay(self):
         environment = MinimalTest(specification={'int': ()})

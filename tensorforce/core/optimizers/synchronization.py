@@ -29,7 +29,7 @@ class Synchronization(Optimizer):
     set of source variables.
     """
 
-    def __init__(self, sync_frequency=1, update_weight=1.0):
+    def __init__(self, sync_frequency=1, update_weight=1.0, scope='synchronization', summary_labels=()):
         """
         Creates a new synchronization optimizer instance.
 
@@ -39,13 +39,13 @@ class Synchronization(Optimizer):
             update_weight: The update weight, 1.0 meaning a full assignment of the source  
             variables values.
         """
-        super(Synchronization, self).__init__()
-
         assert isinstance(sync_frequency, int) and sync_frequency > 0
         self.sync_frequency = sync_frequency
 
         assert isinstance(update_weight, float) and update_weight > 0.0
         self.update_weight = update_weight
+
+        super(Synchronization, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_step(self, time, variables, source_variables, **kwargs):
         """

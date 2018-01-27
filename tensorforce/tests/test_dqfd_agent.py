@@ -29,8 +29,6 @@ from tensorforce.agents import DQFDAgent
 class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQFDAgent
-    deterministic = True
-
     config = dict(
         update_mode=dict(
             unit='timesteps',

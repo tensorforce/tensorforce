@@ -30,7 +30,7 @@ class Evolutionary(Optimizer):
     or negatively, depending on their improvement of the loss.
     """
 
-    def __init__(self, learning_rate, num_samples=1, unroll_loop=False, summaries=None, summary_labels=None):
+    def __init__(self, learning_rate, num_samples=1, unroll_loop=False, scope='evolutionary', summary_labels=()):
         """
         Creates a new evolutionary optimizer instance.
 
@@ -38,8 +38,6 @@ class Evolutionary(Optimizer):
             learning_rate: Learning rate.
             num_samples: Number of sampled perturbations.
         """
-        super(Evolutionary, self).__init__(summaries=summaries, summary_labels=summary_labels)
-
         assert isinstance(learning_rate, float) and learning_rate > 0.0
         self.learning_rate = learning_rate
 
@@ -48,6 +46,8 @@ class Evolutionary(Optimizer):
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
+
+        super(Evolutionary, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_step(
         self,

@@ -34,8 +34,8 @@ class NaturalGradient(Optimizer):
         cg_max_iterations=20,
         cg_damping=1e-3,
         cg_unroll_loop=False,
-        summaries=None,
-        summary_labels=None
+        scope='natural-gradient',
+        summary_labels=()
     ):
         """
         Creates a new natural gradient optimizer instance.
@@ -46,8 +46,6 @@ class NaturalGradient(Optimizer):
             cg_damping: Conjugate gradient solver damping factor.
             cg_unroll_loop: Unroll conjugate gradient loop if true.
         """
-        super(NaturalGradient, self).__init__(summaries=summaries, summary_labels=summary_labels)
-
         assert learning_rate > 0.0
         self.learning_rate = learning_rate
 
@@ -56,6 +54,8 @@ class NaturalGradient(Optimizer):
             damping=cg_damping,
             unroll_loop=cg_unroll_loop
         )
+
+        super(NaturalGradient, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_step(
         self,

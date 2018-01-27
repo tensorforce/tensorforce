@@ -26,7 +26,6 @@ from tensorforce.agents import ConstantAgent
 class TestConstantAgent(BaseAgentTest, unittest.TestCase):
 
     agent = ConstantAgent
-    deterministic = False
     requires_network = False
 
     # Just testing float and bounded test, otherwise we would have to specify constant values of  

@@ -82,8 +82,8 @@ agent = PPOAgent(
         type='adam',
         learning_rate=1e-3
     ),
-    subsampling_fraction=0.1,
-    optimization_steps=50
+    subsampling_fraction=0.2,
+    optimization_steps=25
 )
 
 # Create the runner

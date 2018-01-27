@@ -26,8 +26,6 @@ from tensorforce.agents import DQNNstepAgent
 class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQNNstepAgent
-    deterministic = True
-
     config = dict(
         update_mode=dict(
             unit='episodes',

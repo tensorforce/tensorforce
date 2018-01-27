@@ -34,7 +34,6 @@ class BaseTest(object):
     """
 
     agent = None
-    deterministic = None
     requires_network = True
     pass_threshold = 0.8
 

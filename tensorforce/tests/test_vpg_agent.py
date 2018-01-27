@@ -26,7 +26,6 @@ from tensorforce.agents import VPGAgent
 class TestVPGAgent(BaseAgentTest, unittest.TestCase):
 
     agent = VPGAgent
-    deterministic = False
     config = dict(
         update_mode=dict(
             unit='episodes',

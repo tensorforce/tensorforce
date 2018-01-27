@@ -26,7 +26,6 @@ from tensorforce.agents import TRPOAgent
 class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
 
     agent = TRPOAgent
-    deterministic = False
     config = dict(
         update_mode=dict(
             unit='episodes',

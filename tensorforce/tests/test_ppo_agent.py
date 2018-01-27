@@ -26,7 +26,6 @@ from tensorforce.agents import PPOAgent
 class TestPPOAgent(BaseAgentTest, unittest.TestCase):
 
     agent = PPOAgent
-    deterministic = False
     config = dict(
         update_mode=dict(
             unit='episodes',

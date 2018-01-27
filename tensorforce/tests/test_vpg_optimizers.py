@@ -27,7 +27,6 @@ from tensorforce.environments.minimal_test import MinimalTest
 class TestVPGOptimizers(BaseTest, unittest.TestCase):
 
     agent = VPGAgent
-    deterministic = False
 
     # TODO: Tests for other TensorFlow optimizers, necessary?
 

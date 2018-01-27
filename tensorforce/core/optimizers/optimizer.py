@@ -30,16 +30,14 @@ class Optimizer(object):
     updating a set of variables.
     """
 
-    def __init__(self, summaries=None, summary_labels=None):
+    def __init__(self, scope='optimizer', summary_labels=None):
         """
         Creates a new optimizer instance.
         """
+        self.summary_labels = set(summary_labels or ())
+
         self.variables = dict()
-        self.summaries = summaries
-        if summary_labels is None:
-            self.summary_labels = dict()
-        else:
-            self.summary_labels = summary_labels
+        self.summaries = list()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
@@ -50,7 +48,7 @@ class Optimizer(object):
 
         # TensorFlow function
         self.step = tf.make_template(
-            name_='step',
+            name_=(scope + '/step'),
             func_=self.tf_step,
             custom_getter=custom_getter
         )
@@ -97,14 +95,14 @@ class Optimizer(object):
             The optimization operation.
         """
         # Add training variable gradient histograms/scalars to summary output
-        #if 'gradients' in self.summary_labels:  
+        # if 'gradients' in self.summary_labels:
         if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram', 'gradients_scalar']):
             valid = True
             if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
                 gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
             elif isinstance(self.optimizer, tensorforce.core.optimizers.TFOptimizer):
-                ## This section handles "Multi_step" and may handle others
-                #  if failure is found, add another elif to handle that case
+                # This section handles "Multi_step" and may handle others
+                # if failure is found, add another elif to handle that case
                 gradients = self.optimizer.optimizer.compute_gradients(kwargs['fn_loss']())
             else:
                 # Didn't find proper gradient information
@@ -114,14 +112,14 @@ class Optimizer(object):
             if valid:
                 for grad, var in gradients:
                     if grad is not None:
-                        if any(k in self.summary_labels for k in ['gradients','gradients_scalar']):                                
+                        if any(k in self.summary_labels for k in ('gradients', 'gradients_scalar')):
                             axes = list(range(len(grad.shape)))
-                            mean, var = tf.nn.moments(grad,axes)
-                            summary = tf.summary.scalar(name='gradients/' + var.name+ "/mean", tensor=mean)
-                            self.summaries.append(summary)  
-                            summary = tf.summary.scalar(name='gradients/' + var.name+ "/variance", tensor=var)
-                            self.summaries.append(summary)  
-                        if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram']):
+                            mean, var = tf.nn.moments(grad, axes)
+                            summary = tf.summary.scalar(name='gradients/' + var.name + "/mean", tensor=mean)
+                            self.summaries.append(summary)
+                            summary = tf.summary.scalar(name='gradients/' + var.name + "/variance", tensor=var)
+                            self.summaries.append(summary)
+                        if any(k in self.summary_labels for k in ('gradients', 'gradients_histogram')):
                             summary = tf.summary.histogram(name='gradients/' + var.name, values=grad)
                             self.summaries.append(summary)
 
@@ -137,6 +135,15 @@ class Optimizer(object):
             List of variables.
         """
         return [self.variables[key] for key in sorted(self.variables)]
+
+    def get_summaries(self):
+        """
+        Returns the TensorFlow summaries reported by the optimizer.
+
+        Returns:
+            List of summaries.
+        """
+        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

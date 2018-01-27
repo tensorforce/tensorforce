@@ -48,9 +48,9 @@ agent = PPOAgent(
     update_mode=dict(
         unit='episodes',
         # 10 episodes per update
-        batch_size=10,
+        batch_size=20,
         # Every 10 episodes
-        frequency=10
+        frequency=20
     ),
     memory=dict(
         type='latest',
@@ -80,10 +80,10 @@ agent = PPOAgent(
     # PPOAgent
     step_optimizer=dict(
         type='adam',
-        learning_rate=0.0001
+        learning_rate=0.0025
     ),
     subsampling_fraction=0.4,
-    optimization_steps=50
+    optimization_steps=25
 )
 
 # Create the runner

@@ -20,7 +20,6 @@ from __future__ import division
 import tensorflow as tf
 
 from tensorforce import util
-
 from tensorforce.core.baselines import Baseline, AggregatedBaseline
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.models import DistributionModel
@@ -202,9 +201,9 @@ class PGModel(DistributionModel):
                     discount=gae_discount
                 )
 
-            # Normalise advantage
-            mean, variance = tf.nn.moments(advantage, axes=[0], keep_dims=True)
-            advantage = (advantage - mean) / (tf.sqrt(variance) + util.epsilon)
+            # Normalize advantage.
+            mean, variance = tf.nn.moments(x=advantage, axes=[0], keep_dims=True)
+            advantage = (advantage - mean) / tf.sqrt(x=tf.maximum(x=variance, y=util.epsilon))
 
             return advantage
 

@@ -1,19 +1,26 @@
 {
     "type": "ppo_agent",
-    "batch_size": 512,
-    "batched_observe": 512,
-    "step_optimizer": {
-        "type": "adam",
-        "learning_rate": 1e-3
+    "update_mode" : {
+        "unit" : "episodes",
+        "batch_size": 20,
+        "frequency" : 20
     },
-    "optimization_steps": 10,
-
+    "memory" : {
+        "type": "latest",
+        "include_next_states": false,
+        "capacity" : 5000
+    },
     "discount": 0.99,
 
     "entropy_regularization": 1e-2,
-    "gae_lambda": null,
+    "gae_lambda": 0.97,
     "likelihood_ratio_clipping": 0.2,
-
+    "step_optimizer": {
+        "type": "adam",
+        "learning_rate" : 0.0025
+    },
+    "subsampling_fraction": 0.4,
+    "optimization_steps": 25,
     "baseline_mode": "states",
     "baseline": {
       "type": "mlp",
@@ -26,5 +33,10 @@
             "learning_rate": 1e-4
         },
         "num_steps": 5
+    },
+    "summaries": {
+        "labels": ["total-loss"],
+            "directory": "tmp",
+            "seconds": 10
     }
 }

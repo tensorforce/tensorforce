@@ -35,7 +35,7 @@ class RandomModel(Model):
         scope,
         device,
         saver,
-        summaries,
+        summarizer,
         distributed,
         batching_capacity
     ):
@@ -45,7 +45,7 @@ class RandomModel(Model):
             scope=scope,
             device=device,
             saver=saver,
-            summaries=summaries,
+            summarizer=summarizer,
             distributed=distributed,
             batching_capacity=batching_capacity,
             variable_noise=None,

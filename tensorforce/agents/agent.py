@@ -20,7 +20,6 @@ from __future__ import division
 from copy import deepcopy
 
 import numpy as np
-import inspect
 
 from tensorforce import util, TensorForceError
 import tensorforce.agents

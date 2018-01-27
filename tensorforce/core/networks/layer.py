@@ -569,7 +569,7 @@ class Dense(Layer):
         self,
         size=None,
         bias=True,
-        activation='tanh',
+        activation='relu',
         l2_regularization=0.0,
         l1_regularization=0.0,
         skip=False,

@@ -40,7 +40,7 @@ class LearningAgent(Agent):
         scope='learning-agent',
         device=None,
         saver=None,
-        summaries=None,
+        summarizer=None,
         distributed=None,
         variable_noise=None,
         states_preprocessing=None,
@@ -57,8 +57,8 @@ class LearningAgent(Agent):
         Initializes the learning agent.
 
         Args:
-            summary_spec: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
-                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
+            summary_spec: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
+                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
                 to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
             network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
                 such as activation or regularisation. Full examples are in the examples/configs folder.
@@ -90,7 +90,7 @@ class LearningAgent(Agent):
         self.scope = scope
         self.device = device
         self.saver = saver
-        self.summaries = summaries
+        self.summarizer = summarizer
         self.distributed = distributed
         self.variable_noise = variable_noise
         self.states_preprocessing = states_preprocessing
@@ -104,23 +104,23 @@ class LearningAgent(Agent):
         self.distributions = distributions
         self.entropy_regularization = entropy_regularization
 
-        # TensorFlow summaries & Configuration Meta Parameter Recorder options
-        if self.summaries is None:
+        # TensorFlow summarizer & Configuration Meta Parameter Recorder options
+        if self.summarizer is None:
             summary_labels = set()
         else:
-            summary_labels = set(self.summaries.get('labels', ()))
+            summary_labels = set(self.summarizer.get('labels', ()))
 
         self.meta_param_recorder = None
 
         # if 'configuration' in self.summary_labels or 'print_configuration' in self.summary_labels:
         if any(k in summary_labels for k in ['configuration', 'print_configuration']):
             self.meta_param_recorder = MetaParameterRecorder(inspect.currentframe())
-            if 'meta_dict' in self.summaries:
+            if 'meta_dict' in self.summarizer:
                 # Custom Meta Dictionary passed
-                self.meta_param_recorder.merge_custom(self.summaries['meta_dict'])
+                self.meta_param_recorder.merge_custom(self.summarizer['meta_dict'])
             if 'configuration' in summary_labels:
                 # Setup for TensorBoard population
-                self.summaries['meta_param_recorder_class'] = self.meta_param_recorder
+                self.summarizer['meta_param_recorder_class'] = self.meta_param_recorder
             if 'print_configuration' in summary_labels:
                 # Print to STDOUT (TODO: optimize output)
                 self.meta_param_recorder.text_output(format_type=1)

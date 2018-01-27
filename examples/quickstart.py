@@ -32,8 +32,8 @@ environment = OpenAIGym('CartPole-v0', visualize=False)
 
 network_spec = [
     # dict(type='embedding', indices=100, size=32),
-    dict(type='dense', size=32, activation='tanh'),
-    dict(type='dense', size=32, activation='tanh')
+    dict(type='dense', size=32),
+    dict(type='dense', size=32)
 ]
 
 agent = PPOAgent(
@@ -72,7 +72,7 @@ agent = PPOAgent(
             type='adam',
             learning_rate=1e-3
         ),
-        num_steps=10
+        num_steps=5
     ),
     gae_lambda=0.97,
     # PGLRModel
@@ -80,10 +80,10 @@ agent = PPOAgent(
     # PPOAgent
     step_optimizer=dict(
         type='adam',
-        learning_rate=0.0025
+        learning_rate=1e-3
     ),
-    subsampling_fraction=0.4,
-    optimization_steps=25
+    subsampling_fraction=0.1,
+    optimization_steps=50
 )
 
 # Create the runner

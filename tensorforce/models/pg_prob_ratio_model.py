@@ -35,7 +35,7 @@ class PGProbRatioModel(PGModel):
         scope,
         device,
         saver,
-        summaries,
+        summarizer,
         distributed,
         batching_capacity,
         variable_noise,
@@ -68,7 +68,7 @@ class PGProbRatioModel(PGModel):
             scope=scope,
             device=device,
             saver=saver,
-            summaries=summaries,
+            summarizer=summarizer,
             distributed=distributed,
             batching_capacity=batching_capacity,
             variable_noise=variable_noise,
@@ -103,7 +103,7 @@ class PGProbRatioModel(PGModel):
             custom_getter_=custom_getter
         )
 
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         prob_ratios = list()
         for name, distribution in self.distributions.items():

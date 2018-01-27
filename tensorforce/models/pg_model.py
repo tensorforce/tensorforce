@@ -19,7 +19,6 @@ from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core.baselines import Baseline, AggregatedBaseline
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.models import DistributionModel
@@ -39,7 +38,7 @@ class PGModel(DistributionModel):
         scope,
         device,
         saver,
-        summaries,
+        summarizer,
         distributed,
         batching_capacity,
         variable_noise,
@@ -80,7 +79,7 @@ class PGModel(DistributionModel):
             scope=scope,
             device=device,
             saver=saver,
-            summaries=summaries,
+            summarizer=summarizer,
             distributed=distributed,
             batching_capacity=batching_capacity,
             variable_noise=variable_noise,
@@ -130,37 +129,11 @@ class PGModel(DistributionModel):
             func_=self.tf_reward_estimation,
             custom_getter_=custom_getter
         )
-        # PG loss per instance function
-        self.fn_pg_loss_per_instance = tf.make_template(
-            name_='pg-loss-per-instance',
-            func_=self.tf_pg_loss_per_instance,
-            custom_getter_=custom_getter
-        )
-
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
-        assert next_states is None and next_internals is None  # temporary
-        reward = self.fn_reward_estimation(
-            states=states,
-            internals=internals,
-            terminal=terminal,
-            reward=reward,
-            update=update
-        )
-
-        return self.fn_pg_loss_per_instance(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            next_states=next_states,
-            next_internals=next_internals,
-            update=update
-        )
 
     def tf_reward_estimation(self, states, internals, terminal, reward, update):
         if self.baseline_mode is None:
             return self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
+
         else:
             if self.baseline_mode == 'states':
                 state_value = self.baseline.predict(
@@ -176,7 +149,7 @@ class PGModel(DistributionModel):
                     update=update
                 )
                 state_value = self.baseline.predict(
-                    states=embedding,
+                    states=tf.stop_gradient(input=embedding),
                     internals=internals,
                     update=update
                 )
@@ -202,30 +175,10 @@ class PGModel(DistributionModel):
                 )
 
             # Normalize advantage.
-            mean, variance = tf.nn.moments(x=advantage, axes=[0], keep_dims=True)
-            advantage = (advantage - mean) / tf.sqrt(x=tf.maximum(x=variance, y=util.epsilon))
+            # mean, variance = tf.nn.moments(advantage, axes=[0], keep_dims=True)
+            # advantage = (advantage - mean) / tf.sqrt(x=tf.maximum(x=variance, y=util.epsilon))
 
             return advantage
-
-    def tf_pg_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
-        """
-        Creates the TensorFlow operations for calculating the (policy-gradient-specific) loss per batch
-        instance of the given input states and actions, after the specified reward/advantage calculations.
-
-        Args:
-            states: Dict of state tensors.
-            internals: List of prior internal state tensors.
-            actions: Dict of action tensors.
-            terminal: Terminal boolean tensor.
-            reward: Reward tensor.
-            next_states: Dict of successor state tensors.
-            next_internals: List of posterior internal state tensors.
-            update: Boolean tensor indicating whether this call happens during an update.
-
-        Returns:
-            Loss tensor.
-        """
-        raise NotImplementedError
 
     def tf_regularization_losses(self, states, internals, update):
         losses = super(PGModel, self).tf_regularization_losses(
@@ -242,12 +195,24 @@ class PGModel(DistributionModel):
         return losses
 
     def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
+        assert next_states is None and next_internals is None  # temporary
+
+        estimated_reward = self.fn_reward_estimation(
+            states=states,
+            internals=internals,
+            terminal=terminal,
+            reward=reward,
+            update=tf.constant(value=True)
+        )
+        if self.baseline_optimizer is not None:
+            estimated_reward = tf.stop_gradient(input=estimated_reward)
+
         optimization = super(PGModel, self).tf_optimization(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
-            reward=reward,
+            reward=estimated_reward,
             next_states=next_states,
             next_internals=next_internals
         )
@@ -255,7 +220,7 @@ class PGModel(DistributionModel):
         if self.baseline_optimizer is None:
             return optimization
 
-        reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
+        cumulative_reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
         if self.baseline_mode == 'states':
             def fn_loss(states, internals, reward, update):
@@ -292,7 +257,7 @@ class PGModel(DistributionModel):
             arguments=dict(
                 states=states,
                 internals=internals,
-                reward=reward,
+                reward=cumulative_reward,
                 update=tf.constant(value=True)
             ),
             fn_loss=fn_loss,

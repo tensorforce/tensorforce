@@ -36,7 +36,7 @@ class TRPOAgent(LearningAgent):
         scope='trpo',
         device=None,
         saver=None,
-        summaries=None,
+        summarizer=None,
         distributed=None,
         variable_noise=None,
         states_preprocessing=None,
@@ -81,8 +81,8 @@ class TRPOAgent(LearningAgent):
             saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
-                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
+            summary: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
+                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
                 to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
             distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
@@ -169,7 +169,7 @@ class TRPOAgent(LearningAgent):
             scope=scope,
             device=device,
             saver=saver,
-            summaries=summaries,
+            summarizer=summarizer,
             distributed=distributed,
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,
@@ -190,7 +190,7 @@ class TRPOAgent(LearningAgent):
             scope=self.scope,
             device=self.device,
             saver=self.saver,
-            summaries=self.summaries,
+            summarizer=self.summarizer,
             distributed=self.distributed,
             batching_capacity=self.batching_capacity,
             discount=self.discount,

@@ -159,14 +159,15 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
 
 class UpdateSummarySaverHook(tf.train.SummarySaverHook):
 
-    def __init__(self, is_optimizing, *args, **kwargs):
+    def __init__(self, model, *args, **kwargs):
         super(UpdateSummarySaverHook, self).__init__(*args, **kwargs)
-        self.is_optimizing = is_optimizing
+        self.model = model
 
     def before_run(self, run_context):
         self._request_summary = run_context.original_args[1] is not None and \
-            run_context.original_args[1].get(self.is_optimizing, False) and \
+            self.model.is_observe and \
             (self._next_step is None or self._timer.should_trigger_for_step(self._next_step))
+            # run_context.original_args[1].get(self.is_optimizing, False) and \
         requests = {'global_step': self._global_step_tensor}
         if self._request_summary:
             if self._get_summary_op() is not None:
@@ -177,7 +178,7 @@ class UpdateSummarySaverHook(tf.train.SummarySaverHook):
         if not self._summary_writer:
             return
 
-        stale_global_step = run_values.results["global_step"]
+        stale_global_step = run_values.results['global_step']
         global_step = stale_global_step + 1
         if self._next_step is None or self._request_summary:
             global_step = run_context.session.run(self._global_step_tensor)
@@ -185,9 +186,9 @@ class UpdateSummarySaverHook(tf.train.SummarySaverHook):
         if self._next_step is None:
             self._summary_writer.add_session_log(SessionLog(status=SessionLog.START), global_step)
 
-        if "summary" in run_values.results:
+        if 'summary' in run_values.results:
             self._timer.update_last_triggered_step(global_step)
-            for summary in run_values.results["summary"]:
+            for summary in run_values.results['summary']:
                 self._summary_writer.add_summary(summary, global_step)
 
         self._next_step = global_step + 1

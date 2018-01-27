@@ -74,7 +74,7 @@ class Model(object):
         scope,
         device,
         saver,
-        summaries,
+        summarizer,
         distributed,
         batching_capacity,
         variable_noise,
@@ -115,15 +115,22 @@ class Model(object):
         self.device = device
 
         # Saver/summaries/distributes
-        self.saver_spec = saver
-        self.summaries_spec = summaries
+        if saver is None or saver.get('directory') is None:
+            self.saver_spec = None
+        else:
+            self.saver_spec = saver
+        if summarizer is None or summarizer.get('directory') is None:
+            self.summarizer_spec = None
+        else:
+            self.summarizer_spec = summarizer
+
         self.distributed_spec = distributed
 
         # TensorFlow summaries
-        if summaries is None:
+        if self.summarizer_spec is None:
             self.summary_labels = set()
         else:
-            self.summary_labels = set(summaries.get('labels', ()))
+            self.summary_labels = set(self.summarizer_spec.get('labels', ()))
 
         # Batching capacity for act/observe interface
         assert batching_capacity is None or (isinstance(batching_capacity, int) and batching_capacity > 0)
@@ -137,6 +144,8 @@ class Model(object):
         self.states_preprocessing_spec = states_preprocessing
         self.actions_exploration_spec = actions_exploration
         self.reward_preprocessing_spec = reward_preprocessing
+
+        self.is_observe = False
 
         self.states_preprocessing = None
         self.actions_exploration = None
@@ -323,16 +332,13 @@ class Model(object):
                 # )
                 self.fn_initialize()
 
-                assignment = tf.assign(ref=self.is_optimizing, value=False)
-
                 # Input tensors
-                with tf.control_dependencies(control_inputs=(assignment,)):
-                    states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
-                    internals = [tf.identity(input=internal) for internal in self.internals_input]
-                    actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
-                    terminal = tf.identity(input=self.terminal_input)
-                    reward = tf.identity(input=self.reward_input)
-                    deterministic = tf.identity(input=self.deterministic_input)
+                states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
+                internals = [tf.identity(input=internal) for internal in self.internals_input]
+                actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
+                terminal = tf.identity(input=self.terminal_input)
+                reward = tf.identity(input=self.reward_input)
+                deterministic = tf.identity(input=self.deterministic_input)
 
                 # States preprocessing
                 for name, preprocessing in self.states_preprocessing.items():
@@ -491,27 +497,27 @@ class Model(object):
             self.saver_directory = None
 
         # Summary saver hook
-        if self.summaries_spec is None:
-            self.summary_writer_hook = None
+        if self.summarizer_spec is None:
+            self.summarizer_hook = None
         else:
             # TensorFlow summary writer object
-            self.summary_writer = tf.summary.FileWriter(
-                logdir=self.summaries_spec['directory'],
+            self.summarizer = tf.summary.FileWriter(
+                logdir=self.summarizer_spec['directory'],
                 graph=self.graph,
                 max_queue=10,
                 flush_secs=120,
                 filename_suffix=None
             )
-            self.summary_writer_hook = util.UpdateSummarySaverHook(
-                is_optimizing=self.is_optimizing,
-                save_steps=self.summaries_spec.get('steps'),  # Either one or the other has to be set.
-                save_secs=self.summaries_spec.get('seconds', None if 'steps' in self.summaries_spec else 120),
+            self.summarizer_hook = util.UpdateSummarySaverHook(
+                model=self,
+                save_steps=self.summarizer_spec.get('steps'),  # Either one or the other has to be set.
+                save_secs=self.summarizer_spec.get('seconds', None if 'steps' in self.summarizer_spec else 120),
                 output_dir=None,  # None since given via 'summary_writer' argument.
-                summary_writer=self.summary_writer,
+                summary_writer=self.summarizer,
                 scaffold=self.scaffold,
                 summary_op=None  # None since given via 'scaffold' argument.
             )
-            hooks.append(self.summary_writer_hook)
+            hooks.append(self.summarizer_hook)
 
         # Stop at step hook
         # hooks.append(tf.train.StopAtStepHook(
@@ -700,8 +706,8 @@ class Model(object):
         )
 
         self.summary_configuration_op = None
-        if self.summaries_spec and 'meta_param_recorder_class' in self.summaries_spec:
-            self.summary_configuration_op = self.summaries_spec['meta_param_recorder_class'].build_metagraph_list()
+        if self.summarizer_spec and 'meta_param_recorder_class' in self.summarizer_spec:
+            self.summary_configuration_op = self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
 
         # self.fn_summarization = tf.make_template(
         #     name_='summarization',
@@ -710,15 +716,6 @@ class Model(object):
         # )
 
     def tf_initialize(self):
-        # Optimization flag
-        self.is_optimizing = tf.get_variable(
-            # getter=tf.get_variable,
-            name='is-optimizing',
-            shape=(),
-            dtype=util.tf_dtype('bool'),
-            trainable=False
-        )
-
         if self.batching_capacity is None:
             capacity = 1
         else:
@@ -1096,8 +1093,8 @@ class Model(object):
 
         if self.summary_configuration_op is not None:
             summary_values = self.session.run(self.summary_configuration_op)
-            self.summary_writer.add_summary(summary_values)
-            self.summary_writer.flush()
+            self.summarizer.add_summary(summary_values)
+            self.summarizer.flush()
             # Only do this operation once to reduce duplicate data in Tensorboard
             self.summary_configuration_op = None
 
@@ -1127,7 +1124,9 @@ class Model(object):
         # else:
         #     feed_dict = {self.terminal_input: (terminal,), self.reward_input: (reward,)}
 
+        self.is_observe = True
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+        self.is_observe = False
 
         return episode
 
@@ -1145,8 +1144,8 @@ class Model(object):
         Returns:
             Checkpoint path were the model was saved.
         """
-        if self.summary_writer_hook is not None:
-            self.summary_writer_hook._summary_writer.flush()
+        if self.summarizer_hook is not None:
+            self.summarizer_hook._summary_writer.flush()
 
         return self.saver.save(
             sess=self.session,

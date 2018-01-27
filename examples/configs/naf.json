@@ -17,5 +17,15 @@
         "sigma": 0.2,
         "mu": 0.0,
         "theta": 0.15
+    },
+
+    "saver": {
+        "directory": null,
+        "seconds": 600
+    },
+    "summarizer": {
+        "directory": null,
+        "labels": [],
+        "seconds": 120
     }
 }

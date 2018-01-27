@@ -34,7 +34,7 @@ class ConstantModel(Model):
         scope,
         device,
         saver,
-        summaries,
+        summarizer,
         distributed,
         batching_capacity,
         action_values
@@ -47,7 +47,7 @@ class ConstantModel(Model):
             scope=scope,
             device=device,
             saver=saver,
-            summaries=summaries,
+            summarizer=summarizer,
             distributed=distributed,
             batching_capacity=batching_capacity,
             variable_noise=None,

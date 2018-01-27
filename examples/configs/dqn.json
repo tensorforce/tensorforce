@@ -1,5 +1,6 @@
 {
     "type": "dqn_agent",
+
     "update_mode": {
         "unit": "timesteps",
         "batch_size": 128,
@@ -31,5 +32,15 @@
         "initial_epsilon": 0.8,
         "final_epsilon": 0.01,
         "timesteps": 10000
+    },
+
+    "saver": {
+        "directory": null,
+        "seconds": 600
+    },
+    "summarizer": {
+        "directory": null,
+        "labels": [],
+        "seconds": 120
     }
 }

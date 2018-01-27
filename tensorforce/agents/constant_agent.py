@@ -40,7 +40,7 @@ class ConstantAgent(Agent):
         scope='constant',
         device=None,
         saver=None,
-        summaries=None,
+        summarizer=None,
         distributed=None,
         batching_capacity=1000,
         action_values=None,
@@ -61,8 +61,8 @@ class ConstantAgent(Agent):
             saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            summary: Dict specifying summaries for TensorBoard. Requires a 'directory' to store summaries, `steps`
-                or `seconds` to specify how often to save summaries, and a list of `labels` to indicate which values
+            summary: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
+                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
                 to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
             distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
@@ -78,7 +78,7 @@ class ConstantAgent(Agent):
         self.scope = scope
         self.device = device
         self.saver = saver
-        self.summaries = summaries
+        self.summarizer = summarizer
         self.distributed = distributed
         self.batching_capacity = batching_capacity
         self.action_values = action_values
@@ -96,7 +96,7 @@ class ConstantAgent(Agent):
             scope=self.scope,
             device=self.device,
             saver=self.saver,
-            summaries=self.summaries,
+            summarizer=self.summarizer,
             distributed=self.distributed,
             batching_capacity=self.batching_capacity,
             action_values=self.action_values

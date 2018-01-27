@@ -37,7 +37,7 @@ class DistributionModel(MemoryModel):
         scope,
         device,
         saver,
-        summaries,
+        summarizer,
         distributed,
         batching_capacity,
         variable_noise,
@@ -69,7 +69,7 @@ class DistributionModel(MemoryModel):
             scope=scope,
             device=device,
             saver=saver,
-            summaries=summaries,
+            summarizer=summarizer,
             distributed=distributed,
             batching_capacity=batching_capacity,
             variable_noise=variable_noise,
@@ -191,6 +191,9 @@ class DistributionModel(MemoryModel):
 
             entropy_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
             entropy = tf.reduce_mean(input_tensor=entropy_per_instance, axis=0)
+            if 'entropy' in self.summary_labels:
+                summary = tf.summary.scalar(name='entropy', tensor=entropy)
+                self.summaries.append(summary)
             losses['entropy'] = -self.entropy_regularization * entropy
 
         return losses

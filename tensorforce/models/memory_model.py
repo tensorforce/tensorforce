@@ -37,7 +37,7 @@ class MemoryModel(Model):
         scope,
         device,
         saver,
-        summaries,
+        summarizer,
         distributed,
         batching_capacity,
         variable_noise,
@@ -71,7 +71,7 @@ class MemoryModel(Model):
             scope=scope,
             device=device,
             saver=saver,
-            summaries=summaries,
+            summarizer=summarizer,
             distributed=distributed,
             batching_capacity=batching_capacity,
             variable_noise=variable_noise,
@@ -465,6 +465,12 @@ class MemoryModel(Model):
                 true_fn=(lambda: self.tf_optimization(**batch)),
                 false_fn=tf.no_op
             )
+
+        self.summaries = list()
+        if 'total-loss' in self.summary_labels:
+            loss = self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward, next_states=None, next_internals=None, update=tf.constant(value=False))
+            summary = tf.summary.scalar(name='total-loss', tensor=loss)
+            self.summaries.append(summary)
 
         return optimization
 

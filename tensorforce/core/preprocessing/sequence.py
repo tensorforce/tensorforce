@@ -29,18 +29,20 @@ class Sequence(Preprocessor):
     problems to create the Markov property.
     """
 
-    def __init__(self, length=2, scope='sequence', summary_labels=()):
-        raise TensorForceError("The sequence preprocessor is temporarily broken; use version 0.3.2 if required.")
+    def __init__(
+        self,
+        shape,
+        length=2,
+        scope='sequence',
+        summary_labels=()
+    ):
         self.length = length
-        super(Sequence, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Sequence, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def reset(self):
         #TODO fix
         # self.index = -1 !!!!!!!!!!!!
         pass
-
-    def processed_shape(self, shape):
-        return shape[:-1] + (shape[-1] * self.length,)
 
     def tf_process(self, tensor):
         # or just always the same?
@@ -77,3 +79,6 @@ class Sequence(Preprocessor):
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.expand_dims(input=tf.concat(values=previous_states, axis=-1), axis=0)
+
+    def processed_shape(self, shape):
+        return shape[:-1] + (shape[-1] * self.length,)

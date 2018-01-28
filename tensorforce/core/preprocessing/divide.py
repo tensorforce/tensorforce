@@ -25,9 +25,9 @@ class Divide(Preprocessor):
     Divide state by scale.
     """
 
-    def __init__(self, scale, scope='divide', summary_labels=()):
+    def __init__(self, shape, scale, scope='divide', summary_labels=()):
         self.scale = scale
-        super(Divide, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Divide, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
         return tensor / self.scale

@@ -631,14 +631,20 @@ class Model(object):
                 all(name in self.states_spec for name in self.states_preprocessing_spec):
             for name, state in self.states_spec.items():
                 if name in self.states_preprocessing_spec:
-                    preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec[name])
+                    preprocessing = PreprocessorStack.from_spec(
+                        spec=self.states_preprocessing_spec[name],
+                        kwargs=dict(shape=state['shape'])
+                    )
                     state['shape'] = preprocessing.processed_shape(shape=state['shape'])
                 else:
                     state['shape'] = state['shape']
                 self.states_preprocessing[name] = preprocessing
         else:
             for name, state in self.states_spec.items():
-                preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
+                preprocessing = PreprocessorStack.from_spec(
+                    spec=self.states_preprocessing_spec,
+                    kwargs=dict(shape=state['shape'])
+                )
                 state['shape'] = preprocessing.processed_shape(shape=state['shape'])
                 self.states_preprocessing[name] = preprocessing
 
@@ -687,7 +693,11 @@ class Model(object):
         if self.reward_preprocessing_spec is None:
             self.reward_preprocessing = None
         else:
-            self.reward_preprocessing = PreprocessorStack.from_spec(spec=self.reward_preprocessing_spec)
+            self.reward_preprocessing = PreprocessorStack.from_spec(
+                spec=self.reward_preprocessing_spec,
+                # TODO this can eventually have more complex shapes?
+                kwargs = dict(shape=())
+            )
             if self.reward_preprocessing.processed_shape(shape=()) != ():
                 raise TensorForceError("Invalid reward preprocessing!")
 

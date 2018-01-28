@@ -17,19 +17,30 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import numpy as np
+
+from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
 
-class Clip(Preprocessor):
+class RunningStandardizeDeprecated(Preprocessor):
     """
-    Clip by min/max.
+    Standardize state w.r.t past states. Subtract mean and divide by standard deviation of sequence of past states.
     """
 
-    def __init__(self, shape, min_value, max_value, scope='clip', summary_labels=()):
-        self.min_value = min_value
-        self.max_value = max_value
-        super(Clip, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+    def __init__(self, axis=None, reset_after_batch=True, scope='running_standardize', summary_labels=()):
+        self.axis = axis
+        self.reset_after_batch = reset_after_batch
+        self.history = list()
+        super(RunningStandardizeDeprecated, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def reset(self):
+        if self.reset_after_batch:
+            self.history = list()
 
     def tf_process(self, tensor):
-        return tf.clip_by_value(t=tensor, clip_value_min=self.min_value, clip_value_max=self.max_value)
+        state = tensor.astype(np.float32)
+        self.history.append(state)
+        history = np.array(self.history)
+
+        return (state - history.mean(axis=self.axis)) / (state.std(axis=self.axis) + util.epsilon)

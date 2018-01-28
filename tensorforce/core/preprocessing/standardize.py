@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
 import tensorflow as tf
 
 from tensorforce import util
@@ -28,9 +29,15 @@ class Standardize(Preprocessor):
     Standardize state. Subtract mean and divide by standard deviation.
     """
 
-    def __init__(self, across_batch=False, scope='standardize', summary_labels=()):
+    def __init__(
+        self,
+        shape,
+        across_batch=False,
+        scope='standardize',
+        summary_labels=()
+    ):
         self.across_batch = across_batch
-        super(Standardize, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Standardize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
         if self.across_batch:

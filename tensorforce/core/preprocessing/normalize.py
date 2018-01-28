@@ -28,8 +28,8 @@ class Normalize(Preprocessor):
     Normalize state. Subtract minimal value and divide by range.
     """
 
-    def __init__(self, scope='normalize', summary_labels=()):
-        super(Normalize, self).__init__(scope=scope, summary_labels=summary_labels)
+    def __init__(self, shape, scope='normalize', summary_labels=()):
+        super(Normalize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
         # Min/max across every axis except batch dimension.

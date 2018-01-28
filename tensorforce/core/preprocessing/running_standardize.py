@@ -26,17 +26,16 @@ class RunningStandardize(Preprocessor):
     """
     Standardize state w.r.t past states.
     Subtract mean and divide by standard deviation of sequence of past states.
+    Based on https://www.johndcook.com/blog/standard_deviation/.
     """
 
     def __init__(
         self,
         shape,
-        axis=None,
         reset_after_batch=True,
         scope='running_standardize',
         summary_labels=()
     ):
-        self.axis = axis
         self.reset_after_batch = reset_after_batch
         super(RunningStandardize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
@@ -46,53 +45,47 @@ class RunningStandardize(Preprocessor):
             pass
 
     def tf_process(self, tensor):
-        state = tensor
         count = tf.get_variable(
             name='count',
-            dtype=tf.int32,
-            initializer=0,
+            dtype=util.tf_dtype('float'),
+            initializer=0.0,
             trainable=False
         )
         mean_estimate = tf.get_variable(
             name='mean-estimate',
             shape=self.shape,
-            dtype=tf.float32,
+            dtype=util.tf_dtype('float'),
             initializer=tf.zeros_initializer(),
             trainable=False
         )
         variance_sum_estimate = tf.get_variable(
             name='variance-sum-estimate',
             shape=self.shape,
-            dtype=tf.float32,
+            dtype=util.tf_dtype('float'),
             initializer=tf.zeros_initializer(),
             trainable=False
         )
 
-        with tf.control_dependencies([tf.assign_add(ref=count, value=1)]):
-            # TODO Do we want to allow an axis or always standardize along time
-            update_mean = tf.reduce_sum(input_tensor=(state - mean_estimate), axis=self.axis)
+        assignment = tf.assign_add(ref=count, value=1.0)
 
-            # Update implements: https://www.johndcook.com/blog/standard_deviation/
-            # TODO check batch shapes?
-            float_count = tf.cast(x=count, dtype=tf.float32)
-            mean_estimate = tf.cond(
-                pred=(count > 1),
-                true_fn=(lambda: mean_estimate + update_mean / float_count),
-                false_fn=(lambda: mean_estimate)
-            )
-            update_variance_sum = (state - mean_estimate) * (state - update_mean)
-            variance_sum_estimate = variance_sum_estimate + \
-                tf.reduce_sum(input_tensor=update_variance_sum, axis=self.axis)
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            # Mean update
+            mean = tf.reduce_sum(input_tensor=(tensor - mean_estimate), axis=0)
+            assignment = tf.assign_add(ref=mean_estimate, value=(mean / count))
 
-            variance_estimate = tf.cond(
-                pred=(count > 1),
-                true_fn=(lambda: variance_sum_estimate / (float_count - 1.0)),
-                false_fn=(lambda: variance_estimate)
-            )
-        # print('mean estimate shape = {}'.format(tf.shape(mean_estimate)))
+        with tf.control_dependencies(control_inputs=(assignment,)):
 
-        return tf.cond(
-            pred=(count > 1),
-            true_fn=(lambda: (state - mean_estimate) / (tf.maximum(x=tf.sqrt(x=variance_estimate), y=util.epsilon))),
-            false_fn=(lambda: state)
-        )
+            def first_run():
+                # No meaningful mean and variance yet
+                return tensor
+
+            def later_run():
+                # Variance update
+                variance = tf.reduce_sum(input_tensor=((tensor - mean_estimate) * mean), axis=0)
+                assignment = tf.assign_add(ref=variance_sum_estimate, value=variance)
+                with tf.control_dependencies(control_inputs=(assignment,)):
+                    variance_estimate = variance_sum_estimate / (count - 1.0)
+                    # Standardize tensor
+                    return (tensor - mean_estimate) / tf.maximum(x=tf.sqrt(x=variance_estimate), y=util.epsilon)
+
+            return tf.cond(pred=(count > 1.0), true_fn=later_run, false_fn=first_run)

@@ -19,7 +19,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
+from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -61,17 +61,14 @@ class Sequence(Preprocessor):
             trainable=False
         )
 
-        assignment = tf.cond(
-            pred=tf.equal(x=index, y=-1),
-            true_fn=(lambda: tf.assign(
-                ref=states_buffer,
-                value=tf.tile(
-                    input=tensor,
-                    multiples=((self.length,) + tuple(1 for _ in range(util.rank(tensor) - 1)))
-                )
-            )),
-            false_fn=(lambda: tf.assign(ref=states_buffer[index], value=tensor[0]))
-        )
+        def first_run():
+            fill_buffer = (self.length,) + tuple(1 for _ in range(util.rank(tensor) - 1))
+            return tf.assign(ref=states_buffer, value=tf.tile(input=tensor, multiples=fill_buffer))
+
+        def later_run():
+            return tf.assign(ref=states_buffer[index], value=tensor[0])
+
+        assignment = tf.cond(pred=(index >= 0), true_fn=later_run, false_fn=first_run)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             previous_states = [states_buffer[(index - n - 1) % self.length] for n in range(self.length)]

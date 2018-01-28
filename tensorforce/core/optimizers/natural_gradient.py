@@ -99,6 +99,12 @@ class NaturalGradient(Optimizer):
             # Gradient is not propagated through solver.
             deltas = [tf.stop_gradient(input=delta) for delta in deltas]
 
+            # kldiv
+            kldiv = fn_kl_divergence(**arguments)
+
+            # grad(kldiv)
+            kldiv_grads = tf.gradients(ys=kldiv, xs=variables)
+
             # delta' * grad(kldiv)
             delta_kldiv_gradients = tf.add_n(inputs=[
                 tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(deltas, kldiv_grads)
@@ -119,7 +125,7 @@ class NaturalGradient(Optimizer):
         deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients], f_args=(kldiv_gradients,))
 
         # delta' * F
-        delta_fisher_matrix_product = fisher_matrix_product(x=deltas)
+        delta_fisher_matrix_product = fisher_matrix_product(deltas=deltas, kldiv_grads=kldiv_gradients)
 
         # c' = 0.5 * delta' * F * delta'  (= lambda * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?

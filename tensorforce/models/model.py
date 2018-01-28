@@ -341,13 +341,7 @@ class Model(object):
                 reward = tf.identity(input=self.reward_input)
                 deterministic = tf.identity(input=self.deterministic_input)
 
-                # States preprocessing
-                for name, preprocessing in self.states_preprocessing.items():
-                    states[name] = preprocessing.process(tensor=states[name])
-
-                # Reward preprocessing
-                if self.reward_preprocessing is not None:
-                    reward = self.reward_preprocessing.process(tensor=reward)
+                states, actions, reward = self.fn_preprocess(states=states, actions=actions, reward=reward)
 
                 self.create_operations(
                     states=states,
@@ -710,6 +704,11 @@ class Model(object):
             func_=self.tf_initialize,
             custom_getter_=custom_getter
         )
+        self.fn_preprocess = tf.make_template(
+            name_='preprocess',
+            func_=self.tf_preprocess,
+            custom_getter_=custom_getter
+        )
         self.fn_actions_and_internals = tf.make_template(
             name_='actions-and-internals',
             func_=self.tf_actions_and_internals,
@@ -779,6 +778,17 @@ class Model(object):
             dtype=util.tf_dtype('int'),
             trainable=False
         )
+
+    def tf_preprocess(self, states, actions, reward):
+        # States preprocessing
+        for name, preprocessing in self.states_preprocessing.items():
+            states[name] = preprocessing.process(tensor=states[name])
+
+        # Reward preprocessing
+        if self.reward_preprocessing is not None:
+            reward = self.reward_preprocessing.process(tensor=reward)
+
+        return states, actions, reward
 
     def tf_action_exploration(self, action, exploration, action_spec):
         """

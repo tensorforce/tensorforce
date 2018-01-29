@@ -38,6 +38,7 @@ class Network(object):
         self.variables = dict()
         self.all_variables = dict()
         self.summaries = list()
+        self.named_tensors = dict()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
@@ -123,6 +124,37 @@ class Network(object):
             List of summaries
         """
         return self.summaries
+
+    def get_named_tensor(self, name):
+        """
+        Returns a named tensor if available.
+
+        Returns:
+            valid: True if named tensor found, False otherwise
+            tensor: If valid, will be a tensor, otherwise None
+        """
+        if name in self.named_tensors:
+            return True, self.named_tensors[name]
+        else:
+            return False, None
+
+    def get_list_of_named_tensor(self):
+        """
+        Returns a list of the names of tensors available.
+
+        Returns:
+            List of the names of tensors available.
+        """
+        return list(self.named_tensors)      
+
+    def set_named_tensor(self, name, tensor):
+        """
+        Returns the TensorFlow summaries reported by the network.
+
+        Returns:
+            None
+        """
+        self.named_tensors[name] = tensor
 
     @staticmethod
     def from_spec(spec, kwargs=None):

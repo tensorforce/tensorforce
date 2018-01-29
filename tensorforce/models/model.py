@@ -108,6 +108,9 @@ class Model(object):
             reward_preprocessing_spec (dict): Dict specifying whether and how to preprocess rewards coming
                 from the Environment (e.g. reward normalization).
         """
+        # Network crated from network_spec in distribution_model.py
+        # Needed for named_tensor access
+        self.network = None
 
         # States and actions specifications
         self.states_spec = states_spec
@@ -1234,7 +1237,7 @@ class Model(object):
         episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
         return episode, timestep, list(self.internals_init)
 
-    def act(self, states, internals, deterministic=False):
+    def act(self, states, internals, deterministic=False, fetch_tensors=None):
         """
         Does a forward pass through the model to retrieve action (outputs) given inputs for state (and internal
         state, if applicable (e.g. RNNs))
@@ -1252,6 +1255,14 @@ class Model(object):
         """
 
         fetches = [self.actions_output, self.internals_output, self.timestep_output]
+        if self.network is not None and fetch_tensors is not None:
+            for name in fetch_tensors:
+                valid, tensor = self.network.get_named_tensor(name)
+                if valid:
+                    fetches.append(tensor)
+                else:
+                    keys=self.network.get_list_of_named_tensor()
+                    raise TensorForceError('Cannot fetch named tensor "{}", Available {}.'.format(name,keys))
 
         name = next(iter(self.states_spec))
         batched = (np.asarray(states[name]).ndim != len(self.states_spec[name]['shape']))
@@ -1265,7 +1276,8 @@ class Model(object):
         feed_dict[self.deterministic_input] = deterministic
         feed_dict[self.update_input] = False
 
-        actions, internals, timestep = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+        fetch_list = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+        actions, internals, timestep = fetch_list[0:3]
 
         # Extract the first (and only) action/internal from the batch to make return values non-batched
         if not batched:
@@ -1279,7 +1291,14 @@ class Model(object):
             # Only do this operation once to reduce duplicate data in Tensorboard
             self.summary_configuration_op = None
 
-        return actions, internals, timestep
+        if self.network is not None and fetch_tensors is not None:
+            fetch_dict = dict()
+            for index, tensor in enumerate(fetch_list[3:]):
+                name = fetch_tensors[index]
+                fetch_dict[name] = tensor
+            return actions, internals, timestep, fetch_dict
+        else:
+            return actions, internals, timestep
 
     def observe(self, terminal, reward):
         """

@@ -146,7 +146,7 @@ class ComplexLayeredNetwork(LayerBasedNetwork):
         """
         super(ComplexLayeredNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
         self.complex_layers_spec = complex_layers_spec
-        self.inputs = dict()
+        #self.named_tensors = dict()
 
         layer_counter = Counter()
 
@@ -164,12 +164,12 @@ class ComplexLayeredNetwork(LayerBasedNetwork):
                     kwargs=dict(scope=scope, summary_labels=summary_labels)
                 )
                 # Link named dictionary reference into Layer
-                layer.tf_tensors(named_tensors=self.inputs)
+                layer.tf_tensors(named_tensors=self.named_tensors)
                 self.add_layer(layer=layer)
 
     def tf_apply(self, x, internals, update, return_internals=False):
         if isinstance(x, dict):
-            self.inputs.update(x)
+            self.named_tensors.update(x)
             if len(x) == 1:              
                 x = next(iter(x.values()))         
 

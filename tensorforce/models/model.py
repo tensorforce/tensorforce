@@ -759,7 +759,7 @@ class Model(object):
         self.summary_configuration_op = None
         if self.summary_spec and 'meta_param_recorder_class' in self.summary_spec:
             self.summary_configuration_op = self.summary_spec['meta_param_recorder_class'].build_metagraph_list()
-          
+
         # self.fn_summarization = tf.make_template(
         #     name_='summarization',
         #     func_=self.tf_summarization,
@@ -1048,10 +1048,14 @@ class Model(object):
         kwargs = dict()
         kwargs['time'] = self.timestep
         kwargs['variables'] = self.get_variables()
-        kwargs['fn_loss'] = (
-            lambda: self.fn_loss(states=states, internals=internals, actions=actions,
-                                 terminal=terminal, reward=reward, update=update)
-        )
+        kwargs['fn_loss'] = (lambda: self.fn_loss(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            update=update
+        ))
         if self.global_model is not None:
             kwargs['global_variables'] = self.global_model.get_variables()
         return kwargs

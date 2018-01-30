@@ -16,6 +16,9 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+
+# SPHINX_APIDOC_OPTIONS=members,undoc-members,inherited-members,show-inheritance sphinx-apidoc /data/coding/reinforce.io/tensorforce -o tensorforce
+
 import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))
@@ -189,6 +192,14 @@ def process_docstring(app, what, name, obj, options, lines):
     del lines[:]
     lines.extend(rest.split("\n"))
 
+
+# https://stackoverflow.com/a/5599712
+def dont_skip_init(app, what, name, obj, skip, options):
+    if name == "__init__":
+        return False
+    return skip
+
+
 def setup(app):
     app.add_config_value('recommonmark_config', {
         'url_resolver': lambda url: url, #  lambda url: github_doc_root + url,
@@ -198,4 +209,4 @@ def setup(app):
     }, True)
     app.add_transform(AutoStructify)
     app.connect('autodoc-process-docstring', process_docstring)
-
+    app.connect("autodoc-skip-member", dont_skip_init)

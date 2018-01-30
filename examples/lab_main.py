@@ -136,6 +136,7 @@ def main():
 
     logger.info("Starting {agent} for Lab environment '{env}'".format(agent=agent, env=environment))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
+    runner.close()
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode + 1))
 
     environment.close()

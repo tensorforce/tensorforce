@@ -227,6 +227,7 @@ def main():
         deterministic=args.deterministic,
         episode_finished=episode_finished
     )
+    runner.close()
 
 
 if __name__ == '__main__':

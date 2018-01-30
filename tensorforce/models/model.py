@@ -129,10 +129,7 @@ class Model(object):
         else:
             self.summary_labels = set(summary_spec.get('labels', ()))
 
-        # Optimizer
         self.optimizer = optimizer
-
-        # Discount factor
         self.discount = discount
 
         # Variable noise
@@ -146,54 +143,94 @@ class Model(object):
 
         # Define all other variables that will be initialized later
         # (in calls to `setup` and `initialize` directly following __init__).
-        self.network = None  # the Network object to use to finish constructing our graph
-        self.global_model = None  # the global (proxy)-model
-        self.graph = None  # the tf Graph of this model
-        self.variables = None  # dict of trainable tf Variables of this model (keys = names of Variables).
-        self.all_variables = None  # dict of all tf Variables of this model (keys = names of Variables).
+        # The Network object to use to finish constructing our graph
+        self.network = None
+        # Global (proxy)-model
+        self.global_model = None
+        # TensorFlow Graph of this model
+        self.graph = None
+        # Dict of trainable tf Variables of this model (keys = names of Variables).
+        self.variables = None
+        # Dict of all tf Variables of this model (keys = names of Variables).
+        self.all_variables = None
         self.registered_variables = None  # set of registered tf Variable names (str)
 
-        self.scaffold = None  # the tf.train.Scaffold object used to create important pieces of this model's graph
-        self.saver_directory = None  # the directory in which to save our parameters
-        self.monitored_session = None  # the tf MonitoredSession object (Session wrapper handling common hooks)
-        self.session = None  # the actual tf.Session object (part of our MonitoredSession object)
-        self.summaries = None  # list of tf.summary.Summary objects defined for our Graph (for tensorboard)
-        self.summary_writer = None  # the tf FileWriter object that writes summaries (histograms, images, etc..) to disk
-        self.summary_writer_hook = None  # the summary hook to use by the MonitoredSession
+        # The tf.train.Scaffold object used to create important pieces of this model's graph
+        self.scaffold = None
+        # Directory used for default export of model parameters
+        self.saver_directory = None
+        # The tf MonitoredSession object (Session wrapper handling common hooks)
+        self.monitored_session = None
+        # The actual tf.Session object (part of our MonitoredSession object)
+        self.session = None
+        # A list of tf.summary.Summary objects defined for our Graph (for tensorboard)
+        self.summaries = None
+        # TensorFlow FileWriter object that writes summaries (histograms, images, etc..) to disk
+        self.summary_writer = None
+        # Summary hook to use by the MonitoredSession
+        self.summary_writer_hook = None
 
-        # inputs and internals
-        self.episode = None  # a single int Tensor holding the episode number
-        self.increment_episode = None  # tf op incrementing `self.episode` depending on True is-terminal signals
-        self.timestep = None  # a single int Tensor holding the total timestep (over all episodes)
-        self.states_input = None  # dict holding placeholders for each (original/unprocessed) state component input
-        self.states_preprocessing = None  # dict holding the PreprocessorStack objects (if any) for each state component
-        self.actions_input = None  # dict holding placeholders for each (original/unprocessed) action component input
-        self.explorations = None  # dict holding the Exploration objects (if any) for each action component
-        self.terminal_input = None  # the bool-type placeholder for a batch of is-terminal signals from the environment
-        self.reward_input = None  # the float-type placeholder for a batch of reward signals from the environment
-        self.reward_preprocessing = None  # the PreprocessorStack object (if any) for the reward
-        self.internals_init = None  # a list of all the Model's internal/hidden state (e.g. RNNs) initialization Tensors
-        self.internals_input = None  # a list of placeholders for incoming internal/hidden states (e.g. RNNs)
-        self.deterministic_input = None  # the single-bool placeholder for determining whether to not apply exploration
-        self.update_input = None  # single bool Tensor specifying whether sess.run should update parameters (train)
+        # Inputs and internals
+        # Current episode number as int Tensor
+        self.episode = None
+        # TensorFlow op incrementing `self.episode` depending on True is-terminal signals
+        self.increment_episode = None
+        # Int Tensor representing the total timestep (over all episodes)
+        self.timestep = None
+        # Dict holding placeholders for each (original/unprocessed) state component input
+        self.states_input = None
+        # Dict holding the PreprocessorStack objects (if any) for each state component
+        self.states_preprocessing = None
+        # Dict holding placeholders for each (original/unprocessed) action component input
+        self.actions_input = None
+        # Dict holding the Exploration objects (if any) for each action component
+        self.explorations = None
+        # The bool-type placeholder for a batch of is-terminal signals from the environment
+        self.terminal_input = None
+        # The float-type placeholder for a batch of reward signals from the environment
+        self.reward_input = None
+        # PreprocessorStack object (if any) for the reward
+        self.reward_preprocessing = None
+        # A list of all the Model's internal/hidden state (e.g. RNNs) initialization Tensors
+        self.internals_init = None
+        # A list of placeholders for incoming internal/hidden states (e.g. RNNs)
+        self.internals_input = None
+        # Single-bool placeholder for determining whether to not apply exploration
+        self.deterministic_input = None
+        # Single bool Tensor specifying whether sess.run should update parameters (train)
+        self.update_input = None
 
-        # outputs
-        self.actions_output = None  # dict of action output Tensors (returned by fn_actions_and_internals)
-        self.internals_output = None  # dict of internal state output Tensors (returned by fn_actions_and_internals)
-        self.timestep_output = None  # int that keeps track of how many actions have been "executed" using `act`
+        # Outputs
+        # Dict of action output Tensors (returned by fn_actions_and_internals)
+        self.actions_output = None
+        # Dict of internal state output Tensors (returned by fn_actions_and_internals)
+        self.internals_output = None
+        # Int that keeps track of how many actions have been "executed" using `act`
+        self.timestep_output = None
 
-        # tf template functions created in `initialize` from `tf_` methods.
-        self.fn_discounted_cumulative_reward = None  # template function calculating cumulated discounted rewards
-        self.fn_actions_and_internals = None  # template function returning the actual action/internal state outputs
-        self.fn_loss_per_instance = None  # returns the loss-per-instance Tensor (axis 0 is the batch axis)
-        self.loss_per_instance = None  # Tensor of the loss value per instance (batch sample). Axis 0 is the batch axis.
-        self.fn_regularization_losses = None  # returns tf op for calculating the regularization losses per state comp
-        self.fn_loss = None  # template function returning the single float value total loss tensor.
-        self.fn_optimization = None  # template function returning the optimization op used by the model to learn
-        self.optimization = None  # tf optimization op (e.g. `minimize`) used as 1st fetch in sess.run in self.update
-        self.fn_preprocess_states = None  # template function applying pre-processing to a batch of states
-        self.fn_action_exploration = None  # template function applying exploration to a batch of actions
-        self.fn_preprocess_reward = None  # template function applying pre-processing to a batch of rewards
+        # Tf template functions created in `initialize` from `tf_` methods.
+        # Template function calculating cumulated discounted rewards
+        self.fn_discounted_cumulative_reward = None
+        # Template function returning the actual action/internal state outputs
+        self.fn_actions_and_internals = None
+        # Template function returning the loss-per-instance Tensor (axis 0 is the batch axis)
+        self.fn_loss_per_instance = None
+        # Tensor of the loss value per instance (batch sample). Axis 0 is the batch axis.
+        self.loss_per_instance = None
+        # Returns tf op for calculating the regularization losses per state comp
+        self.fn_regularization_losses = None
+        # Template function returning the single float value total loss tensor.
+        self.fn_loss = None
+        # Template function returning the optimization op used by the model to learn
+        self.fn_optimization = None
+        # Tf optimization op (e.g. `minimize`) used as 1st fetch in sess.run in self.update
+        self.optimization = None
+        # Template function applying pre-processing to a batch of states
+        self.fn_preprocess_states = None
+        # Template function applying exploration to a batch of actions
+        self.fn_action_exploration = None
+        # Template function applying pre-processing to a batch of rewards
+        self.fn_preprocess_reward = None
 
         self.summary_configuration_op = None
 
@@ -312,10 +349,10 @@ class Model(object):
             reward = tf.stop_gradient(input=reward)
 
             # Optimizer
-            # no optimizer (non-learning model)
+            # No optimizer (non-learning model)
             if self.optimizer is None:
                 pass
-            # optimizer will be a global_optimizer
+            # Optimizer will be a global_optimizer
             elif self.distributed_spec is not None and \
                     not self.distributed_spec.get('parameter_server') and \
                     not self.distributed_spec.get('replica_model'):
@@ -365,7 +402,6 @@ class Model(object):
                 summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
                 self.summaries.append(summary)
 
-        #
         if self.distributed_spec is not None:
             # We are just a replica model: Return.
             if self.distributed_spec.get('replica_model'):
@@ -384,15 +420,16 @@ class Model(object):
                 server.join()
                 return
 
-            # global trainables (from global_model)
+            # Global trainables (from global_model)
             global_variables = self.global_model.get_variables(include_non_trainable=True) +\
                                [self.episode, self.timestep]
-            # local counterparts
+            # Local counterparts
             local_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
-            # op to assign values from the global model to local counterparts
+
+            # Op to assign values from the global model to local counterparts
             local_init_op = tf.group(*(local_var.assign(value=global_var)
                                        for local_var, global_var in zip(local_variables, global_variables)))
         # Local variables initialize operations (no global_model).
@@ -400,6 +437,9 @@ class Model(object):
             global_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
+            # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
+            global_variables = list(set(global_variables))
+
             ready_for_local_init_op = None
             local_init_op = None
 
@@ -821,11 +861,11 @@ class Model(object):
             Discounted cumulative reward tensor with the same shape as `reward`.
         """
 
-        # by default -> take Model's gamma value
+        # By default -> take Model's gamma value
         if discount is None:
             discount = self.discount
 
-        # accumulates discounted (n-step) reward (start new if terminal)
+        # Accumulates discounted (n-step) reward (start new if terminal)
         def cumulate(cumulative, reward_terminal_horizon_subtract):
             rew, is_terminal, is_over_horizon, sub = reward_terminal_horizon_subtract
             return tf.where(
@@ -840,13 +880,13 @@ class Model(object):
                 )
             )
 
-        # accumulates length of episodes (starts new if terminal)
+        # Accumulates length of episodes (starts new if terminal)
         def len_(cumulative, term):
             return tf.where(
                 condition=term,
-                # start counting from 1 after is-terminal signal
+                # Start counting from 1 after is-terminal signal
                 x=tf.ones(shape=(), dtype=tf.int32),
-                # otherwise, increase length by 1
+                # Otherwise, increase length by 1
                 y=cumulative + 1
             )
 
@@ -875,8 +915,11 @@ class Model(object):
 
         # Now do the scan, each time summing up the previous step (discounted by gamma) and
         # subtracting the respective `horizon_subtraction`.
-        reward = tf.scan(fn=cumulate, elems=(reward, terminal, off_horizon, horizon_subtractions),
-                         initializer=final_reward if horizon != 1 else 0.0)
+        reward = tf.scan(
+            fn=cumulate,
+            elems=(reward, terminal, off_horizon, horizon_subtractions),
+            initializer=final_reward if horizon != 1 else 0.0
+        )
         # Re-reverse again to match input sequences.
         return tf.reverse(tensor=reward, axis=(0,))
 
@@ -1027,7 +1070,7 @@ class Model(object):
             The optimization operation.
         """
 
-        # no optimization (non-learning model)
+        # No optimization (non-learning model)
         if self.optimizer is None:
             return tf.no_op()
 
@@ -1141,7 +1184,7 @@ class Model(object):
         """
 
         if include_non_trainable:
-                # optimizer variables and timestep/episode only included if 'include_non_trainable' set
+                # Optimizer variables and timestep/episode only included if 'include_non_trainable' set
             model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
             states_preprocessing_variables = [
                 variable for name in self.states_preprocessing.keys()
@@ -1160,9 +1203,13 @@ class Model(object):
             else:
                 optimizer_variables = self.optimizer.get_variables()
 
-            return model_variables + states_preprocessing_variables + explorations_variables + \
-                reward_preprocessing_variables + optimizer_variables
+            variables = model_variables
+            variables.extend([v for v in states_preprocessing_variables if v not in variables])
+            variables.extend([v for v in explorations_variables if v not in variables])
+            variables.extend([v for v in reward_preprocessing_variables if v not in variables])
+            variables.extend([v for v in optimizer_variables if v not in variables])
 
+            return variables
         else:
             return [self.variables[key] for key in sorted(self.variables)]
 
@@ -1220,7 +1267,7 @@ class Model(object):
 
         actions, internals, timestep = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
-        # extract the first (and only) action/internal from the batch to make return values non-batched
+        # Extract the first (and only) action/internal from the batch to make return values non-batched
         if not batched:
             actions = {name: action[0] for name, action in actions.items()}
             internals = [internal[0] for internal in internals]

@@ -69,21 +69,21 @@ class Model(object):
     """
 
     def __init__(
-            self,
-            states_spec,
-            actions_spec,
-            device=None,
-            session_config=None,
-            scope='base_model',
-            saver_spec=None,
-            summary_spec=None,
-            distributed_spec=None,
-            optimizer=None,
-            discount=0.0,
-            variable_noise=None,
-            states_preprocessing_spec=None,
-            explorations_spec=None,
-            reward_preprocessing_spec=None
+        self,
+        states_spec,
+        actions_spec,
+        device=None,
+        session_config=None,
+        scope='base_model',
+        saver_spec=None,
+        summary_spec=None,
+        distributed_spec=None,
+        optimizer=None,
+        discount=0.0,
+        variable_noise=None,
+        states_preprocessing_spec=None,
+        explorations_spec=None,
+        reward_preprocessing_spec=None
     ):
         """
 
@@ -443,11 +443,11 @@ class Model(object):
                 return
 
             # Global trainables (from global_model)
-            global_variables = self.global_model.get_variables(include_non_trainable=True) + \
-                               [self.episode, self.timestep, self.episode_reward]
+            global_variables = self.global_model.get_variables(include_non_trainable=True) +\
+                [self.episode, self.timestep, self.episode_reward]
             # Local counterparts
-            local_variables = self.get_variables(include_non_trainable=True) + \
-                              [self.episode, self.timestep, self.episode_reward]
+            local_variables = self.get_variables(include_non_trainable=True) +\
+                [self.episode, self.timestep, self.episode_reward]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
@@ -457,8 +457,8 @@ class Model(object):
                                        for local_var, global_var in zip(local_variables, global_variables)))
         # Local variables initialize operations (no global_model).
         else:
-            global_variables = self.get_variables(include_non_trainable=True) + \
-                               [self.episode, self.timestep, self.episode_reward]
+            global_variables = self.get_variables(include_non_trainable=True) +\
+                [self.episode, self.timestep, self.episode_reward]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
             # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
@@ -1062,7 +1062,7 @@ class Model(object):
             loss += tf.add_n(inputs=list(losses.values()))
             if 'regularization' in self.summary_labels:
                 for name, loss_val in losses.items():
-                    summary = tf.summary.scalar(name="regularization/" + name, tensor=loss_val)
+                    summary = tf.summary.scalar(name="regularization/"+name, tensor=loss_val)
                     self.summaries.append(summary)
 
         # Summary for the total loss (including regularization).
@@ -1283,8 +1283,7 @@ class Model(object):
                 Current episode, timestep counter and the shallow-copied list of internal state initialization Tensors.
         """
         # TODO preprocessing reset call moved from agent
-        episode, timestep, _ = self.monitored_session.run(
-            fetches=(self.episode, self.timestep, self.reset_episode_reward))
+        episode, timestep, _ = self.monitored_session.run(fetches=(self.episode, self.timestep, self.reset_episode_reward))
         return episode, timestep, list(self.internals_init)
 
     def act(self, states, internals, deterministic=False):
@@ -1354,8 +1353,7 @@ class Model(object):
 
         feed_dict[self.update_input] = False  # don't update, just "observe"
 
-        episode, _ = self.monitored_session.run(fetches=(self.increment_episode, self.increment_episode_reward),
-                                                feed_dict=feed_dict)
+        episode, _ = self.monitored_session.run(fetches=(self.increment_episode, self.increment_episode_reward), feed_dict=feed_dict)
 
         return episode
 
@@ -1385,26 +1383,22 @@ class Model(object):
         batched = (terminal.ndim == 1)
         if batched:
             feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: internals[n]
-                 for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: actions[name]
-                 for name, action_input in self.actions_input.items()}
-            )
+            feed_dict.update({
+                internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)
+            })
+            feed_dict.update({
+                action_input: actions[name] for name, action_input in self.actions_input.items()
+            })
             feed_dict[self.terminal_input] = terminal
             feed_dict[self.reward_input] = reward
         else:
             feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: (internals[n],)
-                 for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: (actions[name],)
-                 for name, action_input in self.actions_input.items()}
-            )
+            feed_dict.update({
+                internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)
+            })
+            feed_dict.update({
+                action_input: (actions[name],) for name, action_input in self.actions_input.items()
+            })
             feed_dict[self.terminal_input] = (terminal,)
             feed_dict[self.reward_input] = (reward,)
 

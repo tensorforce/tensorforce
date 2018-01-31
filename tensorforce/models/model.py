@@ -624,7 +624,7 @@ class Model(object):
 
     def initialize(self, custom_getter):
         """
-        Creates the TensorFlow placeholders and functions for this model. Moreover adds the  
+        Creates the TensorFlow placeholders and functions for this model. Moreover adds the
         internal state placeholders and initialization values to the model.
 
         Args:
@@ -1191,7 +1191,7 @@ class Model(object):
         """
 
         if include_non_trainable:
-                # Optimizer variables and timestep/episode only included if 'include_non_trainable' set
+            # Optimizer variables and timestep/episode only included if 'include_non_trainable' set
             model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
             states_preprocessing_variables = [
                 variable for name in self.states_preprocessing.keys()
@@ -1238,7 +1238,7 @@ class Model(object):
                 Current episode, timestep counter and the shallow-copied list of internal state initialization Tensors.
         """
         # TODO preprocessing reset call moved from agent
-        episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
+        episode, timestep, _ = self.monitored_session.run(fetches=(self.episode, self.timestep, self.reset_episode_reward))
         return episode, timestep, list(self.internals_init)
 
     def act(self, states, internals, deterministic=False, fetch_tensors=None):
@@ -1324,7 +1324,7 @@ class Model(object):
 
         feed_dict[self.update_input] = False  # don't update, just "observe"
 
-        episode = self.monitored_session.run(fetches=self.increment_episode, feed_dict=feed_dict)
+        episode, _ = self.monitored_session.run(fetches=(self.increment_episode, self.increment_episode_reward), feed_dict=feed_dict)
 
         return episode
 
@@ -1354,26 +1354,22 @@ class Model(object):
         batched = (terminal.ndim == 1)
         if batched:
             feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: internals[n]
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: actions[name]
-                    for name, action_input in self.actions_input.items()}
-            )
+            feed_dict.update({
+                internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)
+            })
+            feed_dict.update({
+                action_input: actions[name] for name, action_input in self.actions_input.items()
+            })
             feed_dict[self.terminal_input] = terminal
             feed_dict[self.reward_input] = reward
         else:
             feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: (internals[n],)
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: (actions[name],)
-                    for name, action_input in self.actions_input.items()}
-            )
+            feed_dict.update({
+                internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)
+            })
+            feed_dict.update({
+                action_input: (actions[name],) for name, action_input in self.actions_input.items()
+            })
             feed_dict[self.terminal_input] = (terminal,)
             feed_dict[self.reward_input] = (reward,)
 

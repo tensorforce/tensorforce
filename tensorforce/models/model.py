@@ -776,11 +776,11 @@ class Model(object):
             func_=self.tf_preprocess_reward,
             custom_getter_=custom_getter
         )
-        # self.fn_episode_reward = tf.make_template(
-        #     name_=(self.scope + '/episode_reward'),
-        #     func_=self.tf_episode_reward,
-        #     custom_getter_=custom_getter
-        # )
+        self.fn_episode_reward = tf.make_template(
+            name_=(self.scope + '/episode_reward'),
+            func_=self.tf_episode_reward,
+            custom_getter_=custom_getter
+        )
 
         self.summary_configuration_op = None
         if self.summary_spec and 'meta_param_recorder_class' in self.summary_spec:
@@ -863,9 +863,11 @@ class Model(object):
         reach_terminal = terminal[-1]
         reward_sum = tf.reduce_sum(input_tensor=reward)
         episode_reward = self.episode_reward.assign_add(delta=reward_sum)
-        tf.cond(pred=reach_terminal, true_fn=(lambda: self.summary_episode_reward(episode_reward=episode_reward)),
-                false_fn=(lambda: episode_reward))
-        return episode_reward
+        return tf.cond(
+            pred=reach_terminal,
+            true_fn=(lambda: self.summary_episode_reward(episode_reward=episode_reward)),
+            false_fn=(lambda: episode_reward)
+        )
 
     def summary_episode_reward(self, episode_reward):
         if 'episode-reward' in self.summary_labels:
@@ -1207,7 +1209,7 @@ class Model(object):
         with tf.control_dependencies(control_inputs=(increment_episode,)):
             self.increment_episode = self.episode + 0
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
-        self.increment_episode_reward = self.tf_episode_reward(
+        self.increment_episode_reward = self.fn_episode_reward(
             terminal=terminal,
             reward=reward
         )

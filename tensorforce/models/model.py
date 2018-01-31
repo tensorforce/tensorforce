@@ -440,11 +440,11 @@ class Model(object):
             global_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
-            # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
-            global_variables = list(set(global_variables))
-
             ready_for_local_init_op = None
             local_init_op = None
+
+        # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
+        global_variables = list(set(global_variables))
 
         def init_fn(scaffold, session):
             if self.saver_spec is not None and self.saver_spec.get('load', True):

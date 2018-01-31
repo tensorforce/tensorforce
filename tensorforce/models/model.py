@@ -1092,10 +1092,14 @@ class Model(object):
         kwargs = dict()
         kwargs['time'] = self.timestep
         kwargs['variables'] = self.get_variables()
-        kwargs['fn_loss'] = (
-            lambda: self.fn_loss(states=states, internals=internals, actions=actions,
-                                 terminal=terminal, reward=reward, update=update)
-        )
+        kwargs['fn_loss'] = (lambda: self.fn_loss(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            update=update
+        ))
         if self.global_model is not None:
             kwargs['global_variables'] = self.global_model.get_variables()
         return kwargs

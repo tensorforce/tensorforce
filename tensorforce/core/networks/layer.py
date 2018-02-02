@@ -470,6 +470,12 @@ class Linear(Layer):
         elif isinstance(self.weights_init, float):
             if self.weights_init == 0.0:
                 self.weights_init = tf.zeros_initializer(dtype=tf.float32)
+            elif self.weights_init == 'msra':
+                # TODO pass slope as a parameter
+                slope = 0.25
+                magnitude = 2. / (1 + slope ** 2)
+                stddev = sqrt(magnitude * 2.0 / (x.shape[1].value + self.size))
+                self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
             else:
                 self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 

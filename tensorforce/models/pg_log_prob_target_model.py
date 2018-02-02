@@ -19,7 +19,6 @@ from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.models import PGLogProbModel
 
 from tensorforce.core.baselines import Baseline, AggregatedBaseline

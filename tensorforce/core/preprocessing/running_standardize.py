@@ -70,7 +70,7 @@ class RunningStandardize(Preprocessor):
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             # Mean update
-            mean = tf.reduce_sum(input_tensor=(tensor - mean_estimate), axis=0)
+            mean = tf.reduce_sum(input_tensor=(tensor - mean_estimate), axis=0)  # reduce_mean?
             assignment = tf.assign_add(ref=mean_estimate, value=(mean / count))
 
         with tf.control_dependencies(control_inputs=(assignment,)):
@@ -81,7 +81,7 @@ class RunningStandardize(Preprocessor):
 
             def later_run():
                 # Variance update
-                variance = tf.reduce_sum(input_tensor=((tensor - mean_estimate) * mean), axis=0)
+                variance = tf.reduce_sum(input_tensor=((tensor - mean_estimate) * mean), axis=0)  # reduce_mean?
                 assignment = tf.assign_add(ref=variance_sum_estimate, value=variance)
                 with tf.control_dependencies(control_inputs=(assignment,)):
                     variance_estimate = variance_sum_estimate / (count - 1.0)

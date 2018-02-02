@@ -68,8 +68,7 @@ class OptimizedStep(MetaOptimizer):
         variables,
         arguments,
         fn_loss,
-        fn_reference=None,
-        fn_compare=None,
+        fn_reference,
         **kwargs
     ):
         """
@@ -80,24 +79,18 @@ class OptimizedStep(MetaOptimizer):
             variables: List of variables to optimize.
             arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
-            fn_reference: A callable returning the reference values necessary for comparison.
-            fn_compare: A callable comparing the current model to the reference model given by  
-                its values.
+            fn_reference: A callable returning the reference values, in case of a comparative loss.
             **kwargs: Additional arguments passed on to the internal optimizer.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        if (fn_reference is None) != (fn_compare is None):
-            raise TensorForceError("Requires both arguments 'fn_reference' and 'fn_compare'!")
 
-        if fn_reference is None:
-            # Negative value since line search maximizes.
-            loss_before = -fn_loss(**arguments)
+        # Set reference to compare with at each optimization step, in case of a comparative loss.
+        arguments['reference'] = fn_reference(**arguments)
 
-        else:
-            reference = fn_reference(**arguments)
-            loss_before = fn_compare(reference=reference, **arguments)
+        # Negative value since line search maximizes.
+        loss_before = -fn_loss(**arguments)
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
@@ -105,8 +98,6 @@ class OptimizedStep(MetaOptimizer):
                 variables=variables,
                 arguments=arguments,
                 fn_loss=fn_loss,
-                fn_reference=fn_reference,
-                fn_compare=fn_compare,
                 return_estimated_improvement=True,
                 **kwargs
             )
@@ -122,11 +113,8 @@ class OptimizedStep(MetaOptimizer):
                 estimated_improvement = None
 
         with tf.control_dependencies(control_inputs=deltas):
-            if fn_reference is None:
                 # Negative value since line search maximizes.
-                loss_step = -fn_loss(**arguments)
-            else:
-                loss_step = fn_compare(reference=reference, **arguments)
+            loss_step = -fn_loss(**arguments)
 
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
@@ -134,11 +122,8 @@ class OptimizedStep(MetaOptimizer):
                 with tf.control_dependencies(control_inputs=deltas):
                     applied = self.apply_step(variables=variables, deltas=deltas)
                 with tf.control_dependencies(control_inputs=(applied,)):
-                    if fn_compare is None:
-                        # Negative value since line search maximizes.
-                        return -fn_loss(**arguments)
-                    else:
-                        return fn_compare(reference=reference, **arguments)
+                    # Negative value since line search maximizes.
+                    return -fn_loss(**arguments)
 
             return self.solver.solve(
                 fn_x=evaluate_step,

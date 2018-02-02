@@ -98,6 +98,7 @@ class QDemoModel(QModel):
 
         self.demo_memory = Replay(
             states=self.states_spec,
+            internals=self.internals_spec,
             actions=self.actions_spec,
             include_next_states=True,
             capacity=self.demo_memory_capacity,
@@ -149,7 +150,7 @@ class QDemoModel(QModel):
             reward=reward
         )
 
-    def tf_demo_loss(self, states, actions, terminal, reward, internals, update):
+    def tf_demo_loss(self, states, actions, terminal, reward, internals, update, reference=None):
         """
         Extends the q-model loss via the dqfd large-margin loss.
         """
@@ -189,7 +190,7 @@ class QDemoModel(QModel):
 
         return tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
-    def tf_combined_loss(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_combined_loss(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
         """
         Combines Q-loss and demo loss.
         """
@@ -201,7 +202,8 @@ class QDemoModel(QModel):
             reward=reward,
             next_states=next_states,
             next_internals=next_internals,
-            update=update
+            update=update,
+            reference=reference
         )
 
         demo_loss = self.fn_demo_loss(
@@ -210,7 +212,8 @@ class QDemoModel(QModel):
             actions=actions,
             terminal=terminal,
             reward=reward,
-            update=update
+            update=update,
+            reference=reference
         )
 
         return q_model_loss + self.supervised_weight * demo_loss

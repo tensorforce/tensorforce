@@ -36,13 +36,13 @@ class CNNBaseline(NetworkBaseline):
 
         layers_spec = []
         for size in conv_sizes:
-            layers_spec.append({'type': 'conv2d', 'size': size, 'stride': 1, 'window': 3})
+            layers_spec.append(dict(type='conv2d', size=size))
 
-        # First layer has a larger window by convention.
+        # First layer has a larger window.
         layers_spec[0]['window'] = 5
 
-        layers_spec.append({'type': 'flatten'})  # TODO: change to max pooling!
+        layers_spec.append(dict(type='flatten'))  # TODO: change to max pooling!
         for size in dense_sizes:
-            layers_spec.append({'type': 'dense', 'size': size})
+            layers_spec.append(dict(type='dense', size=size))
 
         super(CNNBaseline, self).__init__(layers_spec, scope, summary_labels)

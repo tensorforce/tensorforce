@@ -52,6 +52,11 @@ class Baseline(object):
             func_=self.tf_predict,
             custom_getter_=custom_getter
         )
+        self.reference = tf.make_template(
+            name_=(scope + '/reference'),
+            func_=self.tf_reference,
+            custom_getter_=custom_getter
+        )
         self.loss = tf.make_template(
             name_=(scope + '/loss'),
             func_=self.tf_loss,
@@ -75,7 +80,23 @@ class Baseline(object):
         """
         raise NotImplementedError
 
-    def tf_loss(self, states, internals, reward, update):
+    def tf_reference(self, states, internals, reward, update):
+        """
+        Creates the TensorFlow operations for obtaining the reference tensor(s), in case of a  
+        comparative loss.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            reward: Reward tensor.
+            update: Boolean tensor indicating whether this call happens during an update.
+
+        Returns:
+            Reference tensor(s).
+        """
+        return None
+
+    def tf_loss(self, states, internals, reward, update, reference=None):
         """
         Creates the TensorFlow operations for calculating the L2 loss between predicted
         state values and actual rewards.
@@ -85,6 +106,8 @@ class Baseline(object):
             internals: List of prior internal state tensors.
             reward: Reward tensor.
             update: Boolean tensor indicating whether this call happens during an update.
+            reference: Optional reference tensor(s), in case of a comparative loss.
+
         Returns:
             Loss tensor
         """

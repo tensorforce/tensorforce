@@ -143,7 +143,7 @@ class QModel(DistributionModel):
 
         return reward + next_q_value - q_value  # tf.stop_gradient(q_target)
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
         embedding = self.network.apply(x=states, internals=internals, update=update)
 
         # fix

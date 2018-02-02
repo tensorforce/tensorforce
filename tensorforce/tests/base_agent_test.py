@@ -205,7 +205,10 @@ class BaseAgentTest(BaseTest):
                 for y in xs[1:]:
                     x *= y
 
-                return (x, list()) if return_internals else x
+                if return_internals:
+                    return x, dict()
+                else:
+                    return x
 
         specification = dict()
         if not exclude_bool:

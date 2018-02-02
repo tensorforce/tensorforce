@@ -17,10 +17,9 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import numpy as np
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
+from tensorforce import util
 from tensorforce.core.networks import Network
 from tensorforce.core.distributions import Distribution, Bernoulli, Categorical, Gaussian, Beta
 from tensorforce.models import MemoryModel
@@ -208,7 +207,7 @@ class DistributionModel(MemoryModel):
 
         return losses
 
-    def tf_kl_divergence(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_kl_divergence(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         kl_divergences = list()
 

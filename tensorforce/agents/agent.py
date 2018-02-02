@@ -23,7 +23,6 @@ import numpy as np
 
 from tensorforce import util, TensorForceError
 import tensorforce.agents
-from tensorforce.meta_parameter_recorder import MetaParameterRecorder
 
 
 class Agent(object):
@@ -156,7 +155,7 @@ class Agent(object):
         timestep counter, internal states, and resets preprocessors.
         """
         self.episode, self.timestep, self.next_internals = self.model.reset()
-        # self.current_internals = self.next_internals
+        self.current_internals = self.next_internals
 
         # TODO have to call preprocessing reset in model
         # for preprocessing in self.preprocessing.values():

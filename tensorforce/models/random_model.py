@@ -78,7 +78,7 @@ class RandomModel(Model):
                 else:
                     actions[name] = tf.random_normal(shape=shape)
 
-        return actions, ()
+        return actions, dict()
 
     def tf_observe_timestep(self, states, internals, actions, terminal, reward):
         return tf.no_op()

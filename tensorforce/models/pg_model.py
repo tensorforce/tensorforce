@@ -71,7 +71,6 @@ class PGModel(DistributionModel):
         self.baseline = None
         self.baseline_optimizer = None
         self.fn_reward_estimation = None
-        self.fn_pg_loss_per_instance = None
 
         super(PGModel, self).__init__(
             states=states,
@@ -224,12 +223,13 @@ class PGModel(DistributionModel):
         cumulative_reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
         if self.baseline_mode == 'states':
-            def fn_loss(states, internals, reward, update):
+            def fn_loss(states, internals, reward, update, reference=None):
                 loss = self.baseline.loss(
                     states=states,
                     internals=internals,
                     reward=reward,
-                    update=update
+                    update=update,
+                    reference=reference
                 )
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
@@ -238,12 +238,13 @@ class PGModel(DistributionModel):
                     return loss + regularization_loss
 
         elif self.baseline_mode == 'network':
-            def fn_loss(states, internals, reward, update):
+            def fn_loss(states, internals, reward, update, reference=None):
                 loss = self.baseline.loss(
                     states=self.network.apply(x=states, internals=internals, update=update),
                     internals=internals,
                     reward=reward,
-                    update=update
+                    update=update,
+                    reference=reference
                 )
                 regularization_loss = self.baseline.regularization_loss()
                 if regularization_loss is None:
@@ -259,8 +260,9 @@ class PGModel(DistributionModel):
                 states=states,
                 internals=internals,
                 reward=cumulative_reward,
-                update=tf.constant(value=True)
+                update=tf.constant(value=True),
             ),
+            fn_reference=self.baseline.reference,
             fn_loss=fn_loss,
             source_variables=self.network.get_variables()
         )

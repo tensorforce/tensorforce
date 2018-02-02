@@ -85,7 +85,11 @@ class NaturalGradient(Optimizer):
         """
 
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
-        # For more details, see our blogpost: [LINK]
+        # For more details, see our blogpost:
+        # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/
+
+        from tensorforce import util
+        arguments = util.map_tensors(fn=tf.stop_gradient, tensors=arguments)
 
         # kldiv
         kldiv = fn_kl_divergence(**arguments)
@@ -94,20 +98,14 @@ class NaturalGradient(Optimizer):
         kldiv_gradients = tf.gradients(ys=kldiv, xs=variables)
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
-        # Incorporating the product prevents having to actually calculate the entire matrix explicitly.
-        def fisher_matrix_product(deltas, kldiv_grads):
+        # Incorporating the product prevents having to calculate the entire matrix explicitly.
+        def fisher_matrix_product(deltas):
             # Gradient is not propagated through solver.
             deltas = [tf.stop_gradient(input=delta) for delta in deltas]
 
-            # kldiv
-            kldiv = fn_kl_divergence(**arguments)
-
-            # grad(kldiv)
-            kldiv_grads = tf.gradients(ys=kldiv, xs=variables)
-
             # delta' * grad(kldiv)
             delta_kldiv_gradients = tf.add_n(inputs=[
-                tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(deltas, kldiv_grads)
+                tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(deltas, kldiv_gradients)
             ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
@@ -122,10 +120,10 @@ class NaturalGradient(Optimizer):
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
-        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients], f_args=(kldiv_gradients,))
+        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients], f_args=())
 
         # delta' * F
-        delta_fisher_matrix_product = fisher_matrix_product(deltas=deltas, kldiv_grads=kldiv_gradients)
+        delta_fisher_matrix_product = fisher_matrix_product(deltas=deltas)
 
         # c' = 0.5 * delta' * F * delta'  (= lambda * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?

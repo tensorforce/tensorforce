@@ -459,9 +459,23 @@ class Linear(Layer):
             stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + self.size)))
             self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
 
+        elif isinstance(self.weights_init, str):
+            if self.weights_init == 'xavier':
+                self.weights_init = tf.contrib.layers.xavier_initializer(uniform=False, seed=None, dtype=tf.float32)
+            else:
+                raise TensorForceError(
+                    'Linear Weights init spec wrong weight_init={}'.format(self.weights_init)
+                )
+
         elif isinstance(self.weights_init, float):
             if self.weights_init == 0.0:
                 self.weights_init = tf.zeros_initializer(dtype=tf.float32)
+            elif self.weights_init == 'msra':
+                # TODO pass slope as a parameter
+                slope = 0.25
+                magnitude = 2. / (1 + slope ** 2)
+                stddev = sqrt(magnitude * 2.0 / (x.shape[1].value + self.size))
+                self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
             else:
                 self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 
@@ -583,6 +597,7 @@ class Dense(Layer):
         l1_regularization=0.0,
         skip=False,
         scope='dense',
+        linear_weights=None,
         summary_labels=()
     ):
         """
@@ -596,6 +611,7 @@ class Dense(Layer):
             l1_regularization: L1 regularization weight.
             skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf),
                   doubles layers and ShortCut from Input to output
+            linear_weights: the weight_int spec for Linear part
         """
         self.skip = skip
         if self.skip and size is not None:
@@ -607,6 +623,7 @@ class Dense(Layer):
         self.linear = Linear(
             size=size,
             bias=bias,
+            weights=linear_weights,
             l2_regularization=l2_regularization,
             l1_regularization=l1_regularization,
             summary_labels=summary_labels

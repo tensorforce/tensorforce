@@ -76,7 +76,7 @@ class RunningStandardize(Preprocessor):
         with tf.control_dependencies(control_inputs=(assignment,)):
 
             def first_run():
-                # No meaningful mean and variance yet
+                # No meaningful mean and variance yet.
                 return tensor
 
             def later_run():

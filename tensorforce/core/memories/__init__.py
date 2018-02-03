@@ -15,6 +15,7 @@
 
 
 from tensorforce.core.memories.memory import Memory
+from tensorforce.core.memories.prioritized_replay import PrioritizedReplay
 from tensorforce.core.memories.queue import Queue
 from tensorforce.core.memories.latest import Latest
 from tensorforce.core.memories.replay import Replay
@@ -23,8 +24,9 @@ from tensorforce.core.memories.replay import Replay
 memories = dict(
     latest=Latest,
     replay=Replay,
+    prioritized_replay=PrioritizedReplay
     # prioritized_replay=PrioritizedReplay,
     # naive_prioritized_replay=NaivePrioritizedReplay
 )
 
-__all__ = ['memories', 'Memory', 'Queue', 'Latest', 'Replay']
+__all__ = ['memories', 'Memory', 'Queue', 'Latest', 'Replay', 'PrioritizedReplay']

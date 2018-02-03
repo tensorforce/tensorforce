@@ -61,7 +61,7 @@ class Replay(Queue):
         indices = (self.memory_index - 1 - indices - sequence_length) % self.capacity
         sequence_indices = [tf.range(start=indices[n], limit=(indices[n] + sequence_length)) for k in range(n)]
         sequence_indices = tf.stack(values=sequence_indices, axis=0) % self.capacity
-        sequence_indices = tf.Print(sequence_indices, (self.memory_index, sequence_indices, n))
+        # sequence_indices = tf.Print(sequence_indices, (self.memory_index, sequence_indices, n))
         terminal = tf.gather(params=self.terminal_memory, indices=indices)
         sequence_indices = tf.boolean_mask(tensor=sequence_indices, mask=tf.logical_not(x=terminal))
         return self.retrieve_indices(indices=sequence_indices)

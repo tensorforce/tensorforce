@@ -77,13 +77,13 @@ class Memory(object):
 
     def tf_initialize(self):
         """
-        ...
+        Initializes TensorFlow variables used to store experiences.
         """
         raise NotImplementedError
 
     def tf_store(self, states, internals, actions, terminal, reward):
-        """
-        ...
+        """"
+        Stores experiences to respective TensorFlow variables.
 
         Args:
             states:

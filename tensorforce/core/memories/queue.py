@@ -92,7 +92,10 @@ class Queue(Memory):
             name='terminal',
             shape=(self.capacity,),
             dtype=util.tf_dtype('bool'),
-            initializer=tf.constant_initializer(value=tuple(n == self.capacity - 1 for n in range(self.capacity)), dtype=util.tf_dtype('bool')),
+            initializer=tf.constant_initializer(
+                value=tuple(n == self.capacity - 1 for n in range(self.capacity)),
+                dtype=util.tf_dtype('bool')
+            ),
             trainable=False
         )
 
@@ -130,39 +133,47 @@ class Queue(Memory):
         )
 
     def tf_store(self, states, internals, actions, terminal, reward):
-        # Memory indices to overwrite
+        # Memory indices to overwrite.
         num_instances = tf.shape(input=terminal)[0]
         indices = tf.range(start=self.memory_index, limit=(self.memory_index + num_instances)) % self.capacity
 
-        # Remove episode indices
-        num_episodes = tf.count_nonzero(input_tensor=tf.gather(params=self.terminal_memory, indices=indices), axis=0, dtype=util.tf_dtype('int'))
+        # Remove episode indices.
+        num_episodes = tf.count_nonzero(
+            input_tensor=tf.gather(params=self.terminal_memory, indices=indices),
+            axis=0,
+            dtype=util.tf_dtype('int')
+        )
         num_episodes = tf.minimum(x=num_episodes, y=self.episode_count)
         assignment = tf.assign(
             ref=self.episode_indices[:self.episode_count + 1 - num_episodes],
             value=self.episode_indices[num_episodes: self.episode_count + 1]
         )
 
-        # Decrement episode count
+        # Decrement episode count.
         with tf.control_dependencies(control_inputs=(assignment,)):
             assignment = tf.assign_sub(ref=self.episode_count, value=num_episodes)
 
-        # Assign new observations
+        # Assign new observations.
         with tf.control_dependencies(control_inputs=(assignment,)):
             assignments = list()
             for name, state in states.items():
                 assignments.append(tf.scatter_update(ref=self.states_memory[name], indices=indices, updates=state))
             for name, internal in internals.items():
-                assignments.append(tf.scatter_update(ref=self.internals_memory[name], indices=indices, updates=internal))
+                assignments.append(tf.scatter_update(
+                    ref=self.internals_memory[name],
+                    indices=indices,
+                    updates=internal
+                ))
             for name, action in actions.items():
                 assignments.append(tf.scatter_update(ref=self.actions_memory[name], indices=indices, updates=action))
             assignments.append(tf.scatter_update(ref=self.terminal_memory, indices=indices, updates=terminal))
             assignments.append(tf.scatter_update(ref=self.reward_memory, indices=indices, updates=reward))
 
-        # Increment memory index
+        # Increment memory index.
         with tf.control_dependencies(control_inputs=assignments):
             assignment = tf.assign(ref=self.memory_index, value=((self.memory_index + num_instances) % self.capacity))
 
-        # Add episode indices
+        # Add episode indices.
         with tf.control_dependencies(control_inputs=(assignment,)):
             num_episodes = tf.count_nonzero(input_tensor=terminal, axis=0, dtype=util.tf_dtype('int'))
             assignment = tf.assign(
@@ -170,7 +181,7 @@ class Queue(Memory):
                 value=tf.boolean_mask(tensor=indices, mask=terminal)
             )
 
-        # Increment episode count
+        # Increment episode count.
         with tf.control_dependencies(control_inputs=(assignment,)):
             assignment = tf.assign_add(ref=self.episode_count, value=num_episodes)
 
@@ -179,13 +190,12 @@ class Queue(Memory):
 
     def tf_retrieve_indices(self, indices):
         """
-        ...
+        Fetches experiences for given indices.
 
         Args:
-            indices:
+            indices: Index tensor
 
-        Returns:
-            ...
+        Returns: Batch of experiences
         """
         states = dict()
         for name, state_memory in self.states_memory.items():
@@ -225,7 +235,6 @@ class Queue(Memory):
                 next_states=next_states,
                 next_internals=next_internals
             )
-
         else:
             return dict(
                 states=states,

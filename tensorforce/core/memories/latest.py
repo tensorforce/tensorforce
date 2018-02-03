@@ -23,6 +23,9 @@ from tensorforce.core.memories import Queue
 
 
 class Latest(Queue):
+    """
+    Queue which always fetches most recently added entries.
+    """
 
     def __init__(self, states, internals, actions, include_next_states, capacity, scope='latest', summary_labels=None):
         super(Latest, self).__init__(

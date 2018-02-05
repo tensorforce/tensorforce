@@ -459,23 +459,23 @@ class Linear(Layer):
             stddev = min(0.1, sqrt(2.0 / (x.shape[1].value + self.size)))
             self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
 
-        elif isinstance(self.weights_init, str):
-            if self.weights_init == 'xavier':
-                self.weights_init = tf.contrib.layers.xavier_initializer(uniform=False, seed=None, dtype=tf.float32)
+        elif isinstance(self.weights_init, dict):
+            if 'name' in self.weights_init:
+                if self.weights_init['name'] == 'msra':
+                    slope = 0.25
+                    if 'slope' in self.weights_init:
+                        slope = self.weights_init['slope']
+                    magnitude = 2. / (1 + slope ** 2)
+                    stddev = sqrt(magnitude * 2.0 / (x.shape[1].value + self.size))
+                    self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
             else:
                 raise TensorForceError(
-                    'Linear Weights init spec wrong weight_init={}'.format(self.weights_init)
+                    'Linear weights init with dict does not has name attribute, weight_init={}'.format(self.weights_init)
                 )
 
         elif isinstance(self.weights_init, float):
             if self.weights_init == 0.0:
                 self.weights_init = tf.zeros_initializer(dtype=tf.float32)
-            elif self.weights_init == 'msra':
-                # TODO pass slope as a parameter
-                slope = 0.25
-                magnitude = 2. / (1 + slope ** 2)
-                stddev = sqrt(magnitude * 2.0 / (x.shape[1].value + self.size))
-                self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
             else:
                 self.weights_init = tf.constant_initializer(value=self.weights_init, dtype=tf.float32)
 

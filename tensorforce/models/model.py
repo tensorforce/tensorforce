@@ -1238,7 +1238,7 @@ class Model(object):
                 Current episode, timestep counter and the shallow-copied list of internal state initialization Tensors.
         """
         # TODO preprocessing reset call moved from agent
-        episode, timestep, _ = self.monitored_session.run(fetches=(self.episode, self.timestep, self.reset_episode_reward))
+        episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
         return episode, timestep, list(self.internals_init)
 
     def act(self, states, internals, deterministic=False, fetch_tensors=None):
@@ -1324,7 +1324,7 @@ class Model(object):
 
         feed_dict[self.update_input] = False  # don't update, just "observe"
 
-        episode, _ = self.monitored_session.run(fetches=(self.increment_episode, self.increment_episode_reward), feed_dict=feed_dict)
+        episode = self.monitored_session.run(fetches=self.increment_episode, feed_dict=feed_dict)
 
         return episode
 
@@ -1354,22 +1354,26 @@ class Model(object):
         batched = (terminal.ndim == 1)
         if batched:
             feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-            feed_dict.update({
-                internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)
-            })
-            feed_dict.update({
-                action_input: actions[name] for name, action_input in self.actions_input.items()
-            })
+            feed_dict.update(
+                {internal_input: internals[n]
+                    for n, internal_input in enumerate(self.internals_input)}
+            )
+            feed_dict.update(
+                {action_input: actions[name]
+                    for name, action_input in self.actions_input.items()}
+            )
             feed_dict[self.terminal_input] = terminal
             feed_dict[self.reward_input] = reward
         else:
             feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-            feed_dict.update({
-                internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)
-            })
-            feed_dict.update({
-                action_input: (actions[name],) for name, action_input in self.actions_input.items()
-            })
+            feed_dict.update(
+                {internal_input: (internals[n],)
+                    for n, internal_input in enumerate(self.internals_input)}
+            )
+            feed_dict.update(
+                {action_input: (actions[name],)
+                    for name, action_input in self.actions_input.items()}
+            )
             feed_dict[self.terminal_input] = (terminal,)
             feed_dict[self.reward_input] = (reward,)
 

@@ -55,6 +55,7 @@ class ThreadedRunner(object):
         # init some stats for the parallel runs
         self.episode_rewards = None  # global episode-rewards collected by the different workers
         self.episode_lengths = None  # global episode-lengths collected by the different workers
+        self.episode_list_lock = threading.Lock()
         self.start_time = None  # start time of a run (with many worker threads)
         self.global_step = None  # global step counter (sum over all workers)
         self.global_episode = None  # global episode counter (sum over all workers)
@@ -107,9 +108,12 @@ class ThreadedRunner(object):
                     return
 
             #agent.observe_episode_reward(episode_reward)
-            # TODO: Could cause a race condition where order in episode_rewards won't match order in episode_lengths.
+
+            # Avoid race condition where order in episode_rewards won't match order in episode_lengths.
+            self.episode_list_lock.acquire()
             self.episode_rewards.append(episode_reward)
             self.episode_lengths.append(timestep)
+            self.episode_list_lock.release()
 
             summary_data = {
                 "thread_id": thread_id,

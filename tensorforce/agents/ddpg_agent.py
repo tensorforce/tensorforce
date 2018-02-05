@@ -18,7 +18,7 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.agents import LearningAgent
-from tensorforce.models import PGLogProbTargetModel
+from tensorforce.models import DPGTargetModel
 
 
 class DDPGAgent(LearningAgent):
@@ -50,12 +50,9 @@ class DDPGAgent(LearningAgent):
         discount=0.99,
         distributions=None,
         entropy_regularization=None,
-        # parameters specific to vanilla pol.gradient Agents
-        baseline_mode=None,
-        baseline=None,
-        baseline_optimizer=None,
-        gae_lambda=None,
         # parameters specific to ddpg agents
+        critic_network=None,
+        critic_optimizer=None,
         target_sync_frequency=10000,
         target_update_weight=1.0
     ):
@@ -91,13 +88,8 @@ class DDPGAgent(LearningAgent):
             distributions: Optional dict specifying action distributions to override default distribution choices.
                 Must match action names.
             entropy_regularization: Optional positive float specifying an entropy regularization value.
-            baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
-                for sharing parameters with the training network.
-            baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
-             examples/configs for full example configurations.
-            baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline
-                following the same conventions as the main optimizer.
-            gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
+            critic_network: Network definition for the critic.
+            critic_optimizer: Specs for the critic optimizer.
             target_sync_frequency: Interval between optimization calls synchronizing the target network.
             target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
         """
@@ -119,11 +111,11 @@ class DDPGAgent(LearningAgent):
             # Assumed episode length of 1000 timesteps.
             memory = dict(
                 type='replay',
-                include_next_states=False,
+                include_next_states=True,
                 capacity=(1000 * update_mode['batch_size'])
             )
         else:
-            assert not memory['include_next_states']
+            assert memory['include_next_states']
             assert memory['type'] == 'replay'
 
         # Optimizer
@@ -133,10 +125,18 @@ class DDPGAgent(LearningAgent):
                 learning_rate=1e-3
             )
 
-        self.baseline_mode = baseline_mode
-        self.baseline = baseline
-        self.baseline_optimizer = baseline_optimizer
-        self.gae_lambda = gae_lambda
+        if critic_network is None:
+            critic_network = network
+
+        self.critic_network = critic_network
+
+        if critic_optimizer is None:
+            critic_optimizer = dict(
+                type='adam',
+                learning_rate=1e-3
+            )
+
+        self.critic_optimizer = critic_optimizer
 
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
@@ -165,7 +165,7 @@ class DDPGAgent(LearningAgent):
         )
 
     def initialize_model(self):
-        return PGLogProbTargetModel(
+        return DPGTargetModel(
             states=self.states,
             actions=self.actions,
             scope=self.scope,
@@ -185,10 +185,8 @@ class DDPGAgent(LearningAgent):
             network=self.network,
             distributions=self.distributions,
             entropy_regularization=self.entropy_regularization,
-            baseline_mode=self.baseline_mode,
-            baseline=self.baseline,
-            baseline_optimizer=self.baseline_optimizer,
-            gae_lambda=self.gae_lambda,
+            critic_network=self.critic_network,
+            critic_optimizer=self.critic_optimizer,
             target_sync_frequency=self.target_sync_frequency,
             target_update_weight=self.target_update_weight
         )

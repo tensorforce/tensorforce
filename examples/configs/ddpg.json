@@ -3,40 +3,33 @@
 
     "update_mode": {
         "unit": "timesteps",
-        "batch_size": 200,
-        "frequency": 200
+        "batch_size": 64,
+        "frequency": 64
     },
     "memory": {
         "type": "replay",
-        "capacity": 4000,
-        "include_next_states": false
+        "capacity": 100000,
+        "include_next_states": true
     },
 
     "optimizer": {
         "type": "adam",
-        "learning_rate": 1e-2
+        "learning_rate": 1e-4
     },
 
     "discount": 0.99,
     "entropy_regularization": null,
-    "gae_lambda": null,
 
-    "baseline_mode": "states",
-    "baseline": {
-        "type": "mlp",
-        "sizes": [
-            32,
-            32
-        ]
+    "critic_network": {
+        "size_t0": 400,
+        "size_t1": 300
     },
-    "baseline_optimizer": {
-        "type": "multi_step",
-        "optimizer": {
-            "type": "adam",
-            "learning_rate": 1e-3
-        },
-        "num_steps": 5
+    "critic_optimizer": {
+        "type": "adam",
+        "learning_rate": 1e-3
     },
+    "target_sync_frequency": 64,
+    "target_update_weight": 0.999,
 
     "saver": {
         "directory": null,

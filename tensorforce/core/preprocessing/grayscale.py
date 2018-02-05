@@ -34,7 +34,7 @@ class Grayscale(Preprocessor):
 
     def tf_process(self, tensor):
         weights = tf.reshape(tensor=self.weights, shape=(tuple(1 for _ in range(util.rank(tensor) - 1)) + (3,)))
-        return tf.reduce_sum(input_tensor=(weights * tensor), axis=-1, keep_dims=True)
+        return tf.reduce_sum(input_tensor=(weights * tensor), axis=-1, keepdims=True)
 
     def processed_shape(self, shape):
         return tuple(shape[:-1]) + (1,)

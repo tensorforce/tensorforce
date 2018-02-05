@@ -128,7 +128,7 @@ class ThreadedRunner(object):
         """
 
         Args:
-            episodes (List[Episode]):
+            episodes (int): Max. number of episodes to run in total (across all threads).
             max_episode_timesteps (int): Max. number of timesteps per episode.
             episode_finished (callable):
             summary_report (callable): Function that produces a tensorboard summary update.
@@ -199,7 +199,7 @@ def WorkerAgentGenerator(agent_class):
         def __init__(self, model=None, **kwargs):
             # set our model externally
             self.model = model
-            # call super c'tor (which will call initialize_model and assing self.model to the return value)
+            # call super c'tor (which will call initialize_model and assign self.model to the return value)
             super(WorkerAgent, self).__init__(**kwargs)
 
         def initialize_model(self):

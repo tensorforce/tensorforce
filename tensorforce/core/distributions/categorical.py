@@ -56,7 +56,7 @@ class Categorical(Distribution):
 
         # Softmax for corresponding probabilities
         # TODO deprecated call, update when >1.5 becomes default install
-        probabilities = tf.nn.softmax(logits=logits, dim=-1)
+        probabilities = tf.nn.softmax(logits=logits, axis=-1)
 
         # Min epsilon probability for numerical stability
         probabilities = tf.maximum(x=probabilities, y=util.epsilon)

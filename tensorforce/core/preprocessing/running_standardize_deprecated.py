@@ -17,32 +17,30 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import numpy as np
 
 from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
 
-class Standardize(Preprocessor):
+class RunningStandardizeDeprecated(Preprocessor):
     """
-    Standardize state. Subtract mean and divide by standard deviation.
+    Standardize state w.r.t past states. Subtract mean and divide by standard deviation of sequence of past states.
     """
 
-    def __init__(
-        self,
-        shape,
-        across_batch=False,
-        scope='standardize',
-        summary_labels=()
-    ):
-        self.across_batch = across_batch
-        super(Standardize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+    def __init__(self, axis=None, reset_after_batch=True, scope='running_standardize', summary_labels=()):
+        self.axis = axis
+        self.reset_after_batch = reset_after_batch
+        self.history = list()
+        super(RunningStandardizeDeprecated, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def reset(self):
+        if self.reset_after_batch:
+            self.history = list()
 
     def tf_process(self, tensor):
-        if self.across_batch:
-            axes = tuple(range(util.rank(tensor)))
-        else:
-            axes = tuple(range(1, util.rank(tensor)))
+        state = tensor.astype(np.float32)
+        self.history.append(state)
+        history = np.array(self.history)
 
-        mean, variance = tf.nn.moments(x=tensor, axes=axes, keep_dims=True)
-        return (tensor - mean) / tf.maximum(x=tf.sqrt(variance), y=util.epsilon)
+        return (state - history.mean(axis=self.axis)) / (state.std(axis=self.axis) + util.epsilon)

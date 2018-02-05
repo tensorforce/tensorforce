@@ -87,20 +87,20 @@ class DistributionModel(MemoryModel):
         )
 
     def initialize(self, custom_getter):
-        super(DistributionModel, self).initialize(custom_getter)
-
         # Network
         self.network = Network.from_spec(
             spec=self.network_spec,
             kwargs=dict(summary_labels=self.summary_labels)
         )
 
+        # Before super-call since internals_spec attribute is required subsequently.
+        assert len(self.internals_spec) == 0
+        self.internals_spec = self.network.internals_spec()
+
+        super(DistributionModel, self).initialize(custom_getter)
+
         # Distributions
         self.distributions = self.create_distributions()
-
-        # Network internals
-        self.internals_input.extend(self.network.internals_input())
-        self.internals_init.extend(self.network.internals_init())
 
         # KL divergence function
         self.fn_kl_divergence = tf.make_template(
@@ -207,7 +207,7 @@ class DistributionModel(MemoryModel):
 
         return losses
 
-    def tf_kl_divergence(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_kl_divergence(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         kl_divergences = list()
 

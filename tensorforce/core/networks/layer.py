@@ -34,8 +34,8 @@ class Layer(object):
     Base class for network layers.
     """
 
-    def __init__(self, num_internals=0, scope='layer', summary_labels=None):
-        self.num_internals = num_internals
+    def __init__(self, scope='layer', summary_labels=None):
+        self.scope = scope
         self.summary_labels = set(summary_labels or ())
 
         self.named_tensors = dict()
@@ -87,7 +87,7 @@ class Layer(object):
         """
         return None
 
-    def tf_tensors(self,named_tensors):
+    def tf_tensors(self, named_tensors):
         """
         Attaches the named_tensors dictionary to the layer for examination and update.
 
@@ -96,26 +96,17 @@ class Layer(object):
 
         Returns:
             NA
-        """   
+        """
         self.named_tensors = named_tensors
 
-    def internals_input(self):
+    def internals_spec(self):
         """
-        Returns the TensorFlow placeholders for internal state inputs.
+        Returns the internal states specification.
 
         Returns:
-            List of internal state input placeholders.
+            Internal states specification
         """
-        return list()
-
-    def internals_init(self):
-        """
-        Returns the TensorFlow tensors for internal state initializations.
-
-        Returns:
-            List of internal state initialization tensors.
-        """
-        return list()
+        return dict()
 
     def get_variables(self, include_non_trainable=False):
         """
@@ -1013,7 +1004,7 @@ class InternalLstm(Layer):
         """
         self.size = size
         self.dropout = dropout
-        super(InternalLstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
+        super(InternalLstm, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update, state):
         if util.rank(x) != 2:
@@ -1031,20 +1022,20 @@ class InternalLstm(Layer):
 
         x, state = self.lstm_cell(inputs=x, state=state)
 
-        internal_output = tf.stack(values=(state.c, state.h), axis=1)
+        state = tf.stack(values=(state.c, state.h), axis=1)
 
         if 'activations' in self.summary_labels:
             summary = tf.summary.histogram(name='activations', values=x)
             self.summaries.append(summary)
 
-        return x, (internal_output,)
+        return x, dict(state=state)
 
-    def internals_input(self):
-        return super(InternalLstm, self).internals_input() \
-               + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
-
-    def internals_init(self):
-        return super(InternalLstm, self).internals_init() + [np.zeros(shape=(2, self.size))]
+    def internals_spec(self):
+        return dict(state=dict(
+            type='float',
+            shape=(2, self.size),
+            initialization='zeros'
+        ))
 
 
 class Lstm(Layer):
@@ -1060,7 +1051,7 @@ class Lstm(Layer):
         self.size = size
         self.dropout = dropout
         self.return_final_state = return_final_state
-        super(Lstm, self).__init__(num_internals=0, scope=scope, summary_labels=summary_labels)
+        super(Lstm, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update, sequence_length=None):
         if util.rank(x) != 3:

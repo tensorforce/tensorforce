@@ -88,6 +88,7 @@ class MemoryModel(Model):
             spec=self.memory_spec,
             kwargs=dict(
                 states=self.states_spec,
+                internals=self.internals_spec,
                 actions=self.actions_spec,
                 summary_labels=self.summary_labels
             )
@@ -103,6 +104,11 @@ class MemoryModel(Model):
         self.fn_discounted_cumulative_reward = tf.make_template(
             name_='discounted-cumulative-reward',
             func_=self.tf_discounted_cumulative_reward,
+            custom_getter_=custom_getter
+        )
+        self.fn_reference = tf.make_template(
+            name_='reference',
+            func_=self.tf_reference,
             custom_getter_=custom_getter
         )
         self.fn_loss_per_instance = tf.make_template(
@@ -257,9 +263,10 @@ class MemoryModel(Model):
     #     # Re-reverse again to match input sequences.
     #     return tf.reverse(tensor=reward, axis=(0,))
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_reference(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         """
-        Creates the TensorFlow operations for calculating the loss per batch instance.
+        Creates the TensorFlow operations for obtaining the reference tensor(s), in case of a  
+        comparative loss.
 
         Args:
             states: Dict of state tensors.
@@ -272,7 +279,27 @@ class MemoryModel(Model):
             update: Boolean tensor indicating whether this call happens during an update.
 
         Returns:
-            Loss tensor.
+            Reference tensor(s).
+        """
+        return None
+
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
+        """
+        Creates the TensorFlow operations for calculating the loss per batch instance.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+            next_states: Dict of successor state tensors.
+            next_internals: List of posterior internal state tensors.
+            update: Boolean tensor indicating whether this call happens during an update.
+            reference: Optional reference tensor(s), in case of a comparative loss.
+
+        Returns:
+            Loss per instance tensor.
         """
         raise NotImplementedError
 
@@ -290,7 +317,7 @@ class MemoryModel(Model):
         """
         return dict()
 
-    def tf_loss(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_loss(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
         """
         Creates the TensorFlow operations for calculating the full loss of a batch.
 
@@ -303,6 +330,7 @@ class MemoryModel(Model):
             next_states: Dict of successor state tensors.
             next_internals: List of posterior internal state tensors.
             update: Boolean tensor indicating whether this call happens during an update.
+            reference: Optional reference tensor(s), in case of a comparative loss.
 
         Returns:
             Loss tensor.
@@ -316,7 +344,8 @@ class MemoryModel(Model):
             reward=reward,
             next_states=next_states,
             next_internals=next_internals,
-            update=update
+            update=update,
+            reference=reference
         )
         loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
@@ -359,20 +388,22 @@ class MemoryModel(Model):
         Returns:
             Optimizer arguments as dict.
         """
-        arguments = dict()
-        arguments['time'] = self.timestep
-        arguments['variables'] = self.get_variables()
-        arguments['arguments'] = dict(
-            states=states,
-            internals=internals,
-            actions=actions,
-            terminal=terminal,
-            reward=reward,
-            next_states=next_states,
-            next_internals=next_internals,
-            update=tf.constant(value=True)
+        arguments = dict(
+            time=self.timestep,
+            variables=self.get_variables(),
+            arguments=dict(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward,
+                next_states=next_states,
+                next_internals=next_internals,
+                update=tf.constant(value=True)
+            ),
+            fn_reference=self.fn_reference,
+            fn_loss=self.fn_loss
         )
-        arguments['fn_loss'] = self.fn_loss
         if self.global_model is not None:
             arguments['global_variables'] = self.global_model.get_variables()
         return arguments
@@ -459,7 +490,7 @@ class MemoryModel(Model):
 
             optimization = tf.cond(
                 pred=optimize,
-                true_fn=(lambda: self.tf_optimization(**batch)),
+                true_fn=(lambda: self.fn_optimization(**batch)),
                 false_fn=tf.no_op
             )
 

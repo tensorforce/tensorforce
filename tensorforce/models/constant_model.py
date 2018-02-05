@@ -64,7 +64,7 @@ class ConstantModel(Model):
             shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
             actions[name] = tf.fill(dims=shape, value=self.action_values[name])
 
-        return actions, ()
+        return actions, dict()
 
     def tf_observe_timestep(self, states, internals, actions, terminal, reward):
         return tf.no_op()

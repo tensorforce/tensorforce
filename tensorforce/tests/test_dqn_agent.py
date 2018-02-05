@@ -41,6 +41,10 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
             type='adam',
             learning_rate=1e-2
         ),
+        # states_preprocessing=[
+        #     dict(type='running_standardize'),
+        #     dict(type='sequence')
+        # ],
         target_sync_frequency=10,
         # first_update=64,
         # repeat_update=4,

@@ -55,7 +55,7 @@ class PPOAgent(LearningAgent):
         likelihood_ratio_clipping=None,
         step_optimizer=None,
         subsampling_fraction=0.1,
-        optimization_steps=100
+        optimization_steps=50
     ):
 
         # random_sampling=True  # Sampling strategy for replay memory
@@ -135,7 +135,7 @@ class PPOAgent(LearningAgent):
         if step_optimizer is None:
             step_optimizer = dict(
                 type='adam',
-                learning_rate=1e-4
+                learning_rate=1e-3
             )
         optimizer = dict(
             type='multi_step',

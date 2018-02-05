@@ -19,7 +19,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
+from tensorforce import util
 from tensorforce.core.preprocessing import Preprocessor
 
 
@@ -29,18 +29,20 @@ class Sequence(Preprocessor):
     problems to create the Markov property.
     """
 
-    def __init__(self, length=2, scope='sequence', summary_labels=()):
-        raise TensorForceError("The sequence preprocessor is temporarily broken; use version 0.3.2 if required.")
+    def __init__(
+        self,
+        shape,
+        length=2,
+        scope='sequence',
+        summary_labels=()
+    ):
         self.length = length
-        super(Sequence, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Sequence, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def reset(self):
         #TODO fix
         # self.index = -1 !!!!!!!!!!!!
         pass
-
-    def processed_shape(self, shape):
-        return shape[:-1] + (shape[-1] * self.length,)
 
     def tf_process(self, tensor):
         # or just always the same?
@@ -59,17 +61,14 @@ class Sequence(Preprocessor):
             trainable=False
         )
 
-        assignment = tf.cond(
-            pred=tf.equal(x=index, y=-1),
-            true_fn=(lambda: tf.assign(
-                ref=states_buffer,
-                value=tf.tile(
-                    input=tensor,
-                    multiples=((self.length,) + tuple(1 for _ in range(util.rank(tensor) - 1)))
-                )
-            )),
-            false_fn=(lambda: tf.assign(ref=states_buffer[index], value=tensor[0]))
-        )
+        def first_run():
+            fill_buffer = (self.length,) + tuple(1 for _ in range(util.rank(tensor) - 1))
+            return tf.assign(ref=states_buffer, value=tf.tile(input=tensor, multiples=fill_buffer))
+
+        def later_run():
+            return tf.assign(ref=states_buffer[index], value=tensor[0])
+
+        assignment = tf.cond(pred=(index >= 0), true_fn=later_run, false_fn=first_run)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             previous_states = [states_buffer[(index - n - 1) % self.length] for n in range(self.length)]
@@ -77,3 +76,6 @@ class Sequence(Preprocessor):
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.expand_dims(input=tf.concat(values=previous_states, axis=-1), axis=0)
+
+    def processed_shape(self, shape):
+        return shape[:-1] + (shape[-1] * self.length,)

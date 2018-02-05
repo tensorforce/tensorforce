@@ -42,7 +42,7 @@ class TestPPOAgent(BaseAgentTest, unittest.TestCase):
             learning_rate=1e-3
         ),
         subsampling_fraction=0.3,
-        optimization_steps=30
+        optimization_steps=20
     )
 
     # multi_config = dict(

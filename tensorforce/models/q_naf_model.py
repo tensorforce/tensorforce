@@ -135,7 +135,7 @@ class QNAFModel(QModel):
 
         return tf.reshape(tensor=q_value, shape=((-1,) + self.actions_spec[name]['shape']))
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
         # Michael: doubling this function because NAF needs V'(s) not Q'(s), see comment below
         embedding = self.network.apply(x=states, internals=internals, update=update)
 

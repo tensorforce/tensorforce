@@ -23,7 +23,6 @@ import numpy as np
 
 from tensorforce import util, TensorForceError
 import tensorforce.agents
-from tensorforce.meta_parameter_recorder import MetaParameterRecorder
 
 
 class Agent(object):

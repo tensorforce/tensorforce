@@ -3,8 +3,8 @@
 
     "update_mode": {
         "unit": "episodes",
-        "batch_size": 20,
-        "frequency": 20
+        "batch_size": 10,
+        "frequency": 10
     },
     "memory": {
         "type": "latest",
@@ -16,8 +16,8 @@
         "type": "adam",
         "learning_rate": 1e-3
     },
-    "subsampling_fraction": 0.2,
-    "optimization_steps": 25,
+    "subsampling_fraction": 0.1,
+    "optimization_steps": 50,
 
     "discount": 0.99,
     "entropy_regularization": 0.01,

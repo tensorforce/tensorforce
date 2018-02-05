@@ -248,7 +248,7 @@ class DQFDAgent(LearningAgent):
                 states = dict(state=list())
             else:
                 states = {name: list() for name in demonstrations[0]['states']}
-            internals = [list() for _ in demonstrations[0]['internals']]
+            internals = {name: list() for name in demonstrations[0]['internals']}
             if self.unique_action:
                 actions = dict(action=list())
             else:
@@ -262,8 +262,8 @@ class DQFDAgent(LearningAgent):
                 else:
                     for name, state in states.items():
                         state.append(demonstration['states'][name])
-                for n, internal in enumerate(internals):
-                    internal.append(demonstration['internals'][n])
+                for name, internal in internals.items():
+                    internal.append(demonstration['internals'][name])
                 if self.unique_action:
                     actions['action'].append(demonstration['actions'])
                 else:

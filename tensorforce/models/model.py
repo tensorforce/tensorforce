@@ -106,8 +106,9 @@ class Model(object):
                 from the Environment (e.g. reward normalization).
         """
 
-        # States and actions specifications
+        # States/internals/actions specifications
         self.states_spec = states
+        self.internals_spec = dict()
         self.actions_spec = actions
 
         # TensorFlow scope, device
@@ -334,19 +335,13 @@ class Model(object):
 
                 # Input tensors
                 states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
-                internals = [tf.identity(input=internal) for internal in self.internals_input]
+                internals = {name: tf.identity(input=internal) for name, internal in self.internals_input.items()}
                 actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
                 terminal = tf.identity(input=self.terminal_input)
                 reward = tf.identity(input=self.reward_input)
                 deterministic = tf.identity(input=self.deterministic_input)
 
-                # States preprocessing
-                for name, preprocessing in self.states_preprocessing.items():
-                    states[name] = preprocessing.process(tensor=states[name])
-
-                # Reward preprocessing
-                if self.reward_preprocessing is not None:
-                    reward = self.reward_preprocessing.process(tensor=reward)
+                states, actions, reward = self.fn_preprocess(states=states, actions=actions, reward=reward)
 
                 self.create_operations(
                     states=states,
@@ -630,16 +625,36 @@ class Model(object):
                 all(name in self.states_spec for name in self.states_preprocessing_spec):
             for name, state in self.states_spec.items():
                 if name in self.states_preprocessing_spec:
-                    preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec[name])
+                    preprocessing = PreprocessorStack.from_spec(
+                        spec=self.states_preprocessing_spec[name],
+                        kwargs=dict(shape=state['shape'])
+                    )
                     state['shape'] = preprocessing.processed_shape(shape=state['shape'])
                 else:
                     state['shape'] = state['shape']
                 self.states_preprocessing[name] = preprocessing
         else:
             for name, state in self.states_spec.items():
-                preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
+                preprocessing = PreprocessorStack.from_spec(
+                    spec=self.states_preprocessing_spec,
+                    kwargs=dict(shape=state['shape'])
+                )
                 state['shape'] = preprocessing.processed_shape(shape=state['shape'])
                 self.states_preprocessing[name] = preprocessing
+
+        # Internals
+        self.internals_input = dict()
+        self.internals_init = dict()
+        for name, internal in self.internals_spec.items():
+            self.internals_input[name] = tf.placeholder(
+                dtype=util.tf_dtype(internal['type']),
+                shape=(None,) + tuple(internal['shape']),
+                name=('internal-' + name)
+            )
+            if internal['initialization'] == 'zeros':
+                self.internals_init[name] = np.zeros(shape=internal['shape'])
+            else:
+                raise TensorForceError("Invalid internal initialization value.")
 
         # Actions
         self.actions_input = dict()
@@ -672,21 +687,26 @@ class Model(object):
         if self.reward_preprocessing_spec is None:
             self.reward_preprocessing = None
         else:
-            self.reward_preprocessing = PreprocessorStack.from_spec(spec=self.reward_preprocessing_spec)
+            self.reward_preprocessing = PreprocessorStack.from_spec(
+                spec=self.reward_preprocessing_spec,
+                # TODO this can eventually have more complex shapes?
+                kwargs = dict(shape=())
+            )
             if self.reward_preprocessing.processed_shape(shape=()) != ():
                 raise TensorForceError("Invalid reward preprocessing!")
 
         # Deterministic action flag
         self.deterministic_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='deterministic')
 
-        # Internal states
-        self.internals_input = list()
-        self.internals_init = list()
-
         # TensorFlow functions
         self.fn_initialize = tf.make_template(
             name_='initialize',
             func_=self.tf_initialize,
+            custom_getter_=custom_getter
+        )
+        self.fn_preprocess = tf.make_template(
+            name_='preprocess',
+            func_=self.tf_preprocess,
             custom_getter_=custom_getter
         )
         self.fn_actions_and_internals = tf.make_template(
@@ -732,15 +752,14 @@ class Model(object):
             )
 
         # Current internals variable
-        # Internal states spec !!!
-        self.current_internals = list()
-        for n, internal_input in enumerate(self.internals_input):
-            self.current_internals.append(tf.get_variable(
-                name=('internal' + str(n)),
-                shape=((capacity,) + tuple(util.shape(x=internal_input))[1:]),
-                dtype=internal_input.dtype,
+        self.current_internals = dict()
+        for name, internal in self.internals_spec.items():
+            self.current_internals[name] = tf.get_variable(
+                name=('internal-' + name),
+                shape=((capacity,) + tuple(internal['shape'])),
+                dtype=util.tf_dtype(internal['type']),
                 trainable=False
-            ))
+            )
 
         # Current actions variable
         self.current_actions = dict()
@@ -759,6 +778,17 @@ class Model(object):
             dtype=util.tf_dtype('int'),
             trainable=False
         )
+
+    def tf_preprocess(self, states, actions, reward):
+        # States preprocessing
+        for name, preprocessing in self.states_preprocessing.items():
+            states[name] = preprocessing.process(tensor=states[name])
+
+        # Reward preprocessing
+        if self.reward_preprocessing is not None:
+            reward = self.reward_preprocessing.process(tensor=reward)
+
+        return states, actions, reward
 
     def tf_action_exploration(self, action, exploration, action_spec):
         """
@@ -885,9 +915,9 @@ class Model(object):
                 ref=self.current_states[name][self.current_index: self.current_index + batched_size],
                 value=state
             ))
-        for n, internal in enumerate(internals):
+        for name, internal in internals.items():
             operations.append(tf.assign(
-                ref=self.current_internals[n][self.current_index: self.current_index + batched_size],
+                ref=self.current_internals[name][self.current_index: self.current_index + batched_size],
                 value=internal
             ))
         for name, action in self.actions_output.items():
@@ -917,7 +947,7 @@ class Model(object):
         batched_size = tf.shape(input=terminal)[0]
         observation = self.fn_observe_timestep(
             states={name: tf.stop_gradient(input=state[:batched_size]) for name, state in self.current_states.items()},
-            internals=[tf.stop_gradient(input=internal[:batched_size]) for internal in self.current_internals],
+            internals={name: tf.stop_gradient(input=internal[:batched_size]) for name, internal in self.current_internals.items()},
             actions={name: tf.stop_gradient(input=action[:batched_size]) for name, action in self.current_actions.items()},
             terminal=tf.stop_gradient(input=terminal),
             reward=tf.stop_gradient(input=reward)
@@ -994,7 +1024,7 @@ class Model(object):
         """
         # TODO preprocessing reset call moved from agent
         episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
-        return episode, timestep, list(self.internals_init)
+        return episode, timestep, dict(self.internals_init)
 
     def get_feed_dict(self, states=None, internals=None, actions=None, terminal=None, reward=None, deterministic=None):
         feed_dict = dict()
@@ -1011,12 +1041,14 @@ class Model(object):
                 feed_dict.update({state_input: (states[name],) for name, state_input in self.states_input.items()})
 
         if internals is not None:
-            assert states is not None
-            # Can check with internals spec shape !!!
+            if batched is None:
+                name = next(iter(internals))
+                internal = np.asarray(internals[name])
+                batched = (internal.ndim != len(self.internals_spec[name]['shape']))
             if batched:
-                feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)})
+                feed_dict.update({internal_input: internals[name] for name, internal_input in self.internals_input.items()})
             else:
-                feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)})
+                feed_dict.update({internal_input: (internals[name],) for name, internal_input in self.internals_input.items()})
 
         if actions is not None:
             if batched is None:
@@ -1089,7 +1121,7 @@ class Model(object):
         # Extract the first (and only) action/internal from the batch to make return values non-batched
         if not batched:
             actions = {name: action[0] for name, action in actions.items()}
-            internals = [internal[0] for internal in internals]
+            internals = {name: internal[0] for name, internal in internals.items()}
 
         if self.summary_configuration_op is not None:
             summary_values = self.session.run(self.summary_configuration_op)

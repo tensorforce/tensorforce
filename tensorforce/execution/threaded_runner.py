@@ -30,7 +30,8 @@ class ThreadedRunner(object):
     Runner for non-realtime threaded execution of multiple agents.
     """
 
-    def __init__(self, agents, environments, repeat_actions=1, save_path=None, save_episodes=None):
+    def __init__(self, agents, environments, repeat_actions=1, save_path=None, save_episodes=None, save_frequency=None,
+                 save_frequency_unit=None):
         """
         Initialize a ThreadedRunner object.
 
@@ -42,6 +43,8 @@ class ThreadedRunner(object):
                 as a sum in the following call to Agent's `observe` method.
             save_path (str): Path where to save the shared model.
             save_episodes (int): Every how many (global) episodes do we save the shared model?
+            save_frequency (int): The frequency with which to save the model (could be sec, steps, or episodes).
+            save_frequency_unit (str): "s" (sec), "t" (timesteps), "e" (episodes)
         """
         if len(agents) != len(environments):
             raise TensorForceError("Each agent must have its own environment. Got {a} agents and {e} environments.".
@@ -51,6 +54,15 @@ class ThreadedRunner(object):
         self.repeat_actions = repeat_actions
         self.save_path = save_path
         self.save_episodes = save_episodes
+        if self.save_episodes is not None:
+            warnings.warn("WARNING: `save_episodes` parameter is deprecated, use `save_frequency` AND "
+                          "`save_frequency_unit` instead.",
+                          category=DeprecationWarning)
+            self.save_frequency = self.save_episodes
+            self.save_frequency_unit = "e"
+        else:
+            self.save_frequency = save_frequency
+            self.save_frequency_unit = save_frequency_unit
 
         # init some stats for the parallel runs
         self.episode_rewards = None  # global episode-rewards collected by the different workers
@@ -58,6 +70,7 @@ class ThreadedRunner(object):
         self.episode_list_lock = threading.Lock()
         self.start_time = None  # start time of a run (with many worker threads)
         self.global_step = None  # global step counter (sum over all workers)
+        self.global_time = None  # global time counter (sec)
         self.global_episode = None  # global episode counter (sum over all workers)
         self.global_should_stop = False  # global stop-condition flag that each worker abides to (aborts if True)
 
@@ -172,13 +185,19 @@ class ThreadedRunner(object):
             next_summary = 0
             next_save = 0
             while self.global_episode < episodes or episodes == -1:
+                self.global_time = time.time()
                 if self.global_episode > next_summary:
                     summary_report(self)
                     next_summary += summary_interval
-                if self.save_path and self.save_episodes is not None and self.global_episode > next_save:
-                    print("Saving agent after episode {}".format(self.global_episode))
+                if self.save_path and self.save_frequency is not None:
+                    if self.save_frequency_unit == "e" and self.global_episode > next_save:
+                        print("Saving agent after episode {}".format(self.global_episode))
+                    elif self.save_frequency_unit == "s" and self.global_time > next_save:
+                        print("Saving agent after {} sec".format(self.save_frequency))
+                    elif self.global_step > next_save:
+                        print("Saving agent after {} time steps".format(self.save_frequency))
                     self.agents[0].save_model(self.save_path)
-                    next_save += self.save_episodes
+                    next_save += self.save_frequency
                 time.sleep(1)
         except KeyboardInterrupt:
             print('Keyboard interrupt, sending stop command to threads')

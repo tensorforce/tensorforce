@@ -175,7 +175,8 @@ def main():
 
     # Create runners
     threaded_runner = ThreadedRunner(
-        agents, environments,
+        agents,
+        environments,
         repeat_actions=1,
         save_path=args.save,
         save_episodes=args.save_episodes
@@ -183,9 +184,8 @@ def main():
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environments[0]))
     threaded_runner.run(summary_interval=100, episode_finished=episode_finished, summary_report=summary_report)
+    threaded_runner.close()
     logger.info("Learning finished. Total episodes: {ep}".format(ep=threaded_runner.global_episode))
-
-    [environments[t].close() for t in range(args.workers)]
 
 
 if __name__ == '__main__':

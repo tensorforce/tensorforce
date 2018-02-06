@@ -42,3 +42,5 @@ class TestConstantAgent(BaseAgentTest, unittest.TestCase):
     exclude_bounded = True
     exclude_multi = True
     exclude_lstm = True
+
+    run_type = "multi-threaded"

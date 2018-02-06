@@ -38,6 +38,8 @@ class BaseAgentTest(BaseTest):
     exclude_bounded = False
     exclude_multi = False
     exclude_lstm = False
+    # Run-type flag
+    run_type = "single"  # normally run in single mode (possible also: 'multi-threaded', 'distributed')
 
     def test_bool(self):
         """
@@ -56,6 +58,7 @@ class BaseAgentTest(BaseTest):
             name='bool',
             environment=environment,
             network_spec=network_spec,
+            multithreaded=(self.__class__.run_type == "multi-threaded"),
             **self.__class__.config
         )
 
@@ -76,6 +79,7 @@ class BaseAgentTest(BaseTest):
             name='int',
             environment=environment,
             network_spec=network_spec,
+            multithreaded=(self.__class__.run_type == "multi-threaded"),
             **self.__class__.config
         )
 
@@ -95,6 +99,7 @@ class BaseAgentTest(BaseTest):
             name='float',
             environment=environment,
             network_spec=network_spec,
+            multithreaded=(self.__class__.run_type == "multi-threaded"),
             **self.__class__.config
         )
 
@@ -114,6 +119,7 @@ class BaseAgentTest(BaseTest):
             name='bounded',
             environment=environment,
             network_spec=network_spec,
+            multithreaded=(self.__class__.run_type == "multi-threaded"),
             **self.__class__.config
         )
 
@@ -204,6 +210,7 @@ class BaseAgentTest(BaseTest):
                 name='multi',
                 environment=environment,
                 network_spec=CustomNetwork,
+                multithreaded=(not self.__class__.run_type == "multi-threaded"),
                 **self.__class__.config
             )
         else:
@@ -211,6 +218,7 @@ class BaseAgentTest(BaseTest):
                 name='multi',
                 environment=environment,
                 network_spec=CustomNetwork,
+                multithreaded=(self.__class__.run_type == "multi-threaded"),
                 **self.__class__.multi_config
             )
 
@@ -232,5 +240,6 @@ class BaseAgentTest(BaseTest):
             name='lstm',
             environment=environment,
             network_spec=network_spec,
+            multithreaded=(self.__class__.run_type == "multi-threaded"),
             **self.__class__.config
         )

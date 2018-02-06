@@ -15,10 +15,10 @@
 
 
 from tensorforce.core.memories.memory import Memory
-from tensorforce.core.memories.prioritized_replay import PrioritizedReplay
 from tensorforce.core.memories.queue import Queue
 from tensorforce.core.memories.latest import Latest
 from tensorforce.core.memories.replay import Replay
+from tensorforce.core.memories.prioritized_replay import PrioritizedReplay
 
 
 memories = dict(

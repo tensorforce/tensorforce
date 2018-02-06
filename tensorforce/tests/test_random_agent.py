@@ -35,3 +35,5 @@ class TestRandomAgent(BaseAgentTest, unittest.TestCase):
 
     # Not using a network so no point in testing LSTM
     exclude_lstm = True
+
+    run_type = "multi-threaded"

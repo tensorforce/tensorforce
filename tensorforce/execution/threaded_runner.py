@@ -21,7 +21,7 @@ import time
 import threading
 from six.moves import xrange
 import warnings
-from inspect import getfullargspec
+from inspect import getargspec
 
 from tensorforce import TensorForceError
 from tensorforce.execution.base_runner import BaseRunner
@@ -177,7 +177,7 @@ class ThreadedRunner(BaseRunner):
 
         # figure out whether we are using the deprecated way of "episode_finished" reporting
         old_episode_finished = False
-        if episode_finished is not None and len(getfullargspec(episode_finished).args) == 1:
+        if episode_finished is not None and len(getargspec(episode_finished).args) == 1:
             old_episode_finished = True
 
         episode = 1

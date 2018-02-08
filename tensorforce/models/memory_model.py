@@ -80,6 +80,13 @@ class MemoryModel(Model):
             reward_preprocessing=reward_preprocessing
         )
 
+    def as_local_model(self):
+        super(MemoryModel, self).as_local_model()
+        self.optimizer_spec = dict(
+            type='global_optimizer',
+            optimizer=self.optimizer_spec
+        )
+
     def initialize(self, custom_getter):
         super(MemoryModel, self).initialize(custom_getter)
 
@@ -373,8 +380,7 @@ class MemoryModel(Model):
     def optimizer_arguments(self, states, internals, actions, terminal, reward, next_states, next_internals):
         """
         Returns the optimizer arguments including the time, the list of variables to optimize,
-        and various argument-free functions (in particular `fn_loss` returning the combined
-        0-dim batch loss tensor) which the optimizer might require to perform an update step.
+        and various functions which the optimizer might require to perform an update step.
 
         Args:
             states: Dict of state tensors.
@@ -389,7 +395,7 @@ class MemoryModel(Model):
             Optimizer arguments as dict.
         """
         arguments = dict(
-            time=self.timestep,
+            time=self.global_timestep,
             variables=self.get_variables(),
             arguments=dict(
                 states=states,
@@ -425,7 +431,7 @@ class MemoryModel(Model):
         Returns:
             The optimization operation.
         """
-        return self.optimizer.minimize(**self.optimizer_arguments(
+        arguments = self.optimizer_arguments(
             states=states,
             internals=internals,
             actions=actions,
@@ -433,7 +439,8 @@ class MemoryModel(Model):
             reward=reward,
             next_states=next_states,
             next_internals=next_internals
-        ))
+        )
+        return self.optimizer.minimize(**arguments)
 
     def tf_observe_timestep(self, states, internals, actions, terminal, reward):
         # Store timestep in memory
@@ -541,22 +548,24 @@ class MemoryModel(Model):
             deterministic=deterministic
         )
 
-    def get_variables(self, include_non_trainable=False):
-        """
-        Returns the TensorFlow variables used by the model.
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
+        model_variables = super(MemoryModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
+        )
 
-        Returns:
-            List of variables.
-        """
-        model_variables = super(MemoryModel, self).get_variables(include_non_trainable=include_non_trainable)
-
-        if include_non_trainable:
+        if include_nontrainable:
             memory_variables = self.memory.get_variables()
-            optimizer_variables = self.optimizer.get_variables()
-            return model_variables + memory_variables + optimizer_variables
+            model_variables += memory_variables
 
-        else:
-            return model_variables
+            optimizer_variables = self.optimizer.get_variables()
+            # For some reason, some optimizer variables are only registered in the model.
+            for variable in optimizer_variables:
+                if variable in model_variables:
+                    model_variables.remove(variable)
+            model_variables += optimizer_variables
+
+        return model_variables
 
     def get_summaries(self):
         model_summaries = super(MemoryModel, self).get_summaries()

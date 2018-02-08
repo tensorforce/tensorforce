@@ -88,21 +88,6 @@ class PGProbRatioModel(PGModel):
             gae_lambda=gae_lambda
         )
 
-    # def initialize(self, custom_getter):
-    #     super(PGProbRatioModel, self).initialize(custom_getter)
-
-    #     # Model comparison functions
-    #     self.fn_reference = tf.make_template(
-    #         name_='reference',
-    #         func_=self.tf_reference,
-    #         custom_getter_=custom_getter
-    #     )
-    #     self.fn_compare = tf.make_template(
-    #         name_='compare',
-    #         func_=self.tf_compare,
-    #         custom_getter_=custom_getter
-    #     )
-
     def tf_reference(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)
 
@@ -128,9 +113,6 @@ class PGProbRatioModel(PGModel):
             collapsed_size = util.prod(util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))
             log_probs.append(log_prob)
-            # works the same?
-            # fixed_distr_params = tuple(tf.stop_gradient(input=x) for x in distr_params)
-            # fixed_log_prob = distribution.log_probability(distr_params=fixed_distr_params, action=actions[name])
 
         log_prob = tf.concat(values=log_probs, axis=1)
         if reference is None:
@@ -151,67 +133,3 @@ class PGProbRatioModel(PGModel):
                 clip_value_max=(1.0 + self.likelihood_ratio_clipping)
             )
             return -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
-
-    # def tf_compare(self, reference, states, internals, actions, terminal, reward, next_states, next_internals, update):
-    #     embedding = self.network.apply(x=states, internals=internals, update=update)
-
-    #     log_probs = list()
-    #     for name in sorted(self.distributions):
-    #         distribution = self.distributions[name]
-    #         distr_params = distribution.parameterize(x=embedding)
-    #         log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
-    #         collapsed_size = util.prod(util.shape(log_prob)[1:])
-    #         log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))
-    #         log_probs.append(log_prob)
-
-    #     log_prob = tf.concat(values=log_probs, axis=1)
-    #     prob_ratio = tf.exp(x=(log_prob - reference))
-    #     prob_ratio = tf.reduce_mean(input_tensor=prob_ratio, axis=1)
-
-    #     if self.likelihood_ratio_clipping is None:
-    #         loss_per_instance = -prob_ratio * reward
-
-    #     else:
-    #         clipped_prob_ratio = tf.clip_by_value(
-    #             t=prob_ratio,
-    #             clip_value_min=(1.0 / (1.0 + self.likelihood_ratio_clipping)),
-    #             clip_value_max=(1.0 + self.likelihood_ratio_clipping)
-    #         )
-    #         loss_per_instance = -tf.minimum(x=(prob_ratio * reward), y=(clipped_prob_ratio * reward))
-
-    #     loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
-
-    #     # Loss without regularization summary
-    #     if 'losses' in self.summary_labels:
-    #         summary = tf.summary.scalar(name='loss-without-regularization', tensor=loss)
-    #         self.summaries.append(summary)
-
-    #     # Regularization losses
-    #     losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
-    #     if len(losses) > 0:
-    #         loss += tf.add_n(inputs=list(losses.values()))
-    #         if 'regularization' in self.summary_labels:
-    #             for name, loss_val in losses.items():
-    #                 summary = tf.summary.scalar(name=('regularization/' + name), tensor=loss_val)
-    #                 self.summaries.append(summary)
-
-    #     # Total loss summary
-    #     if 'losses' in self.summary_labels or 'total-loss' in self.summary_labels:
-    #         summary = tf.summary.scalar(name='total-loss', tensor=loss)
-    #         self.summaries.append(summary)
-
-    #     return loss
-
-    # def optimizer_arguments(self, states, actions, terminal, reward, internals, next_states, next_internals):
-    #     arguments = super(PGProbRatioModel, self).optimizer_arguments(
-    #         states=states,
-    #         internals=internals,
-    #         actions=actions,
-    #         terminal=terminal,
-    #         reward=reward,
-    #         next_states=next_states,
-    #         next_internals=next_internals
-    #     )
-    #     arguments['fn_reference'] = self.fn_reference
-    #     arguments['fn_compare'] = self.fn_compare
-    #     return arguments

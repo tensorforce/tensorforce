@@ -96,8 +96,8 @@ def tf_dtype(dtype):
 
 
 def map_tensors(fn, tensors):
-    if isinstance(tensors, tf.Tensor):
-        return fn(tensors)
+    if tensors is None:
+        return None
     elif isinstance(tensors, tuple):
         return tuple(map_tensors(fn=fn, tensors=tensor) for tensor in tensors)
     elif isinstance(tensors, list):
@@ -107,7 +107,7 @@ def map_tensors(fn, tensors):
     elif isinstance(tensors, set):
         return {map_tensors(fn=fn, tensors=tensor) for tensor in tensors}
     else:
-        return tensors
+        return fn(tensors)
 
 
 def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
@@ -143,8 +143,10 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
             module = importlib.import_module(module_name)
             obj = getattr(module, function_name)
         else:
-            predef_obj_keys = list(predefined_objects.keys())
-            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(obj, predef_obj_keys))
+            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(
+                obj,
+                list(predefined_objects or ())
+            ))
     elif callable(obj):
         pass
     elif default_object is not None:

@@ -113,11 +113,11 @@ class DistributionModel(MemoryModel):
         distributions = dict()
         for name, action in self.actions_spec.items():
 
-            if self.distributions is not None and name in self.distributions:
+            if self.distributions_spec is not None and name in self.distributions_spec:
                 kwargs = dict(action)
                 kwargs['summary_labels'] = self.summary_labels
                 distributions[name] = Distribution.from_spec(
-                    spec=self.distributions[name],
+                    spec=self.distributions_spec[name],
                     kwargs=kwargs
                 )
 
@@ -235,32 +235,29 @@ class DistributionModel(MemoryModel):
         arguments['fn_kl_divergence'] = self.fn_kl_divergence
         return arguments
 
-    def get_variables(self, include_non_trainable=False):
-        model_variables = super(DistributionModel, self).get_variables(include_non_trainable=include_non_trainable)
-        network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
-        distribution_variables = self.get_distributions_variables(self.distributions, include_non_trainable=include_non_trainable)
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
+        model_variables = super(DistributionModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
+        )
 
-        return model_variables + network_variables + distribution_variables
+        network_variables = self.network.get_variables(include_nontrainable=include_nontrainable)
+        model_variables += network_variables
+
+        distribution_variables = [
+            variable for name in sorted(self.distributions)
+            for variable in self.distributions[name].get_variables(include_nontrainable=include_nontrainable)
+        ]
+        model_variables += distribution_variables
+
+        return model_variables
 
     def get_summaries(self):
         model_summaries = super(DistributionModel, self).get_summaries()
         network_summaries = self.network.get_summaries()
-        distribution_summaries = self.get_distributions_summaries(self.distributions)
+        distribution_summaries = [
+            summary for name in sorted(self.distributions)
+            for summary in self.distributions[name].get_summaries()
+        ]
 
         return model_summaries + network_summaries + distribution_summaries
-
-    @staticmethod
-    def get_distributions_variables(distributions, include_non_trainable=False):
-        distribution_variables = [
-            variable for name in sorted(distributions)
-            for variable in distributions[name].get_variables(include_non_trainable=include_non_trainable)
-        ]
-        return distribution_variables
-
-    @staticmethod
-    def get_distributions_summaries(distributions):
-        distribution_summaries = [
-            summary for name in sorted(distributions)
-            for summary in distributions[name].get_summaries()
-        ]
-        return distribution_summaries

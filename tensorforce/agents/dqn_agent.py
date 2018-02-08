@@ -57,7 +57,7 @@ class DQNAgent(LearningAgent):
         entropy_regularization=None,
         target_sync_frequency=10000,
         target_update_weight=1.0,
-        double_q_model=False,
+        double_q_model=True,
         huber_loss=None
         # first_update=10000,
         # repeat_update=1

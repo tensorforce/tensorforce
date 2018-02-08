@@ -42,8 +42,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="Id of the Gym environment")
-    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
+    parser.add_argument('-a', '--agent', help="Agent configuration file")
+    parser.add_argument('-n', '--network', default=None, help="Network specification file")
     parser.add_argument('-e', '--episodes', type=int, default=None, help="Number of episodes")
     parser.add_argument('-t', '--timesteps', type=int, default=None, help="Number of timesteps")
     parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None, help="Maximum number of timesteps per episode")
@@ -68,25 +68,25 @@ def main():
         monitor_video=args.monitor_video
     )
 
-    if args.agent_config is not None:
-        with open(args.agent_config, 'r') as fp:
-            agent_config = json.load(fp=fp)
+    if args.agent is not None:
+        with open(args.agent, 'r') as fp:
+            agent = json.load(fp=fp)
     else:
         raise TensorForceError("No agent configuration provided.")
 
-    if args.network_spec is not None:
-        with open(args.network_spec, 'r') as fp:
-            network_spec = json.load(fp=fp)
+    if args.network is not None:
+        with open(args.network, 'r') as fp:
+            network = json.load(fp=fp)
     else:
-        network_spec = None
+        network = None
         logger.info("No network configuration provided.")
 
     agent = Agent.from_spec(
-        spec=agent_config,
+        spec=agent,
         kwargs=dict(
             states=environment.states,
             actions=environment.actions,
-            network=network_spec
+            network=network
         )
     )
     if args.load:
@@ -98,7 +98,7 @@ def main():
     if args.debug:
         logger.info("-" * 16)
         logger.info("Configuration:")
-        logger.info(agent_config)
+        logger.info(agent)
 
     runner = Runner(
         agent=agent,

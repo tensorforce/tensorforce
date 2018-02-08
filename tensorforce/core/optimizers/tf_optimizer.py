@@ -92,13 +92,16 @@ class TFOptimizer(Optimizer):
 
         with tf.control_dependencies(control_inputs=(loss,)):
             # Trivial operation to enforce control dependency
-            vars_before = [var + 0.0 for var in variables]
+            previous_variables = [variable + 0.0 for variable in variables]
 
-        with tf.control_dependencies(control_inputs=vars_before):
-            applied = self.optimizer.minimize(loss=loss, var_list=variables)
+        with tf.control_dependencies(control_inputs=previous_variables):
+            applied = self.optimizer.minimize(loss=loss, var_list=variables)  # colocate_gradients_with_ops=True
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [var - var_before for var, var_before in zip(variables, vars_before)]
+            return [
+                variable - previous_variable
+                for variable, previous_variable in zip(variables, previous_variables)
+            ]
 
     def get_variables(self):
         optimizer_variables = super(TFOptimizer, self).get_variables()

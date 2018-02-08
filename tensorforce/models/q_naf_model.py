@@ -203,17 +203,22 @@ class QNAFModel(QModel):
 
         return losses
 
-    def get_variables(self, include_non_trainable=False):
-        model_variables = super(QNAFModel, self).get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
+        model_variables = super(QNAFModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
+        )
 
         state_values_variables = [
             variable for name in sorted(self.state_values)
             for variable in self.state_values[name].get_variables()
         ]
+        model_variables += state_values_variables
 
         l_entries_variables = [
             variable for name in sorted(self.l_entries)
             for variable in self.l_entries[name].get_variables()
         ]
+        model_variables += l_entries_variables
 
-        return model_variables + state_values_variables + l_entries_variables
+        return model_variables

@@ -47,7 +47,7 @@ class Layer(object):
             variable = getter(name=name, registered=True, **kwargs)
             if not registered:
                 self.all_variables[name] = variable
-                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -108,14 +108,14 @@ class Layer(object):
         """
         return dict()
 
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_nontrainable=False):
         """
         Returns the TensorFlow variables used by the layer.
 
         Returns:
             List of variables.
         """
-        if include_non_trainable:
+        if include_nontrainable:
             return [self.all_variables[key] for key in sorted(self.all_variables)]
         else:
             return [self.variables[key] for key in sorted(self.variables)]
@@ -644,13 +644,13 @@ class Dense(Layer):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Dense, self).get_variables(include_non_trainable=include_non_trainable)
-        linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        layer_variables = super(Dense, self).get_variables(include_nontrainable=include_nontrainable)
+        linear_variables = self.linear.get_variables(include_nontrainable=include_nontrainable)
         if self.skip:
             linear_variables = linear_variables \
-                               + self.linear_skip.get_variables(include_non_trainable=include_non_trainable)
-        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+                               + self.linear_skip.get_variables(include_nontrainable=include_nontrainable)
+        nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + linear_variables + nonlinearity_variables
 
@@ -758,11 +758,11 @@ class Dueling(Layer):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Dueling, self).get_variables(include_non_trainable=include_non_trainable)
-        expectation_layer_variables = self.expectation_layer.get_variables(include_non_trainable=include_non_trainable)
-        advantage_layer_variables = self.advantage_layer.get_variables(include_non_trainable=include_non_trainable)
-        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        layer_variables = super(Dueling, self).get_variables(include_nontrainable=include_nontrainable)
+        expectation_layer_variables = self.expectation_layer.get_variables(include_nontrainable=include_nontrainable)
+        advantage_layer_variables = self.advantage_layer.get_variables(include_nontrainable=include_nontrainable)
+        nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + expectation_layer_variables + advantage_layer_variables + nonlinearity_variables
 
@@ -866,9 +866,9 @@ class Conv1d(Layer):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Conv1d, self).get_variables(include_non_trainable=include_non_trainable)
-        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        layer_variables = super(Conv1d, self).get_variables(include_nontrainable=include_nontrainable)
+        nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + nonlinearity_variables
 
@@ -976,9 +976,9 @@ class Conv2d(Layer):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Conv2d, self).get_variables(include_non_trainable=include_non_trainable)
-        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        layer_variables = super(Conv2d, self).get_variables(include_nontrainable=include_nontrainable)
+        nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + nonlinearity_variables
 

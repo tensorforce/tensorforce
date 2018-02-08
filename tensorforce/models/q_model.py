@@ -22,7 +22,7 @@ import tensorflow as tf
 from tensorforce import util
 from tensorforce.models import DistributionModel
 from tensorforce.core.networks import Network
-from tensorforce.core.optimizers import Synchronization
+from tensorforce.core.optimizers import Optimizer
 
 
 class QModel(DistributionModel):
@@ -57,8 +57,11 @@ class QModel(DistributionModel):
         huber_loss
     ):
         self.target_network_spec = network
-        self.target_sync_frequency = target_sync_frequency
-        self.target_update_weight = target_update_weight
+        self.target_optimizer_spec = dict(
+            type='synchronization',
+            sync_frequency=target_sync_frequency,
+            update_weight=target_update_weight
+        )
         self.double_q_model = double_q_model
 
         # Huber loss
@@ -92,6 +95,13 @@ class QModel(DistributionModel):
             requires_deterministic=True
         )
 
+    def as_local_model(self):
+        super(QModel, self).as_local_model()
+        self.target_optimizer_spec = dict(
+            type='global_optimizer',
+            optimizer=self.target_optimizer_spec
+        )
+
     def initialize(self, custom_getter):
         super(QModel, self).initialize(custom_getter)
 
@@ -112,10 +122,7 @@ class QModel(DistributionModel):
         )
 
         # Target network optimizer
-        self.target_optimizer = Synchronization(
-            sync_frequency=self.target_sync_frequency,
-            update_weight=self.target_update_weight
-        )
+        self.target_optimizer = Optimizer.from_spec(spec=self.target_optimizer_spec)
 
         # Target network distributions
         self.target_distributions = self.create_distributions()
@@ -200,6 +207,35 @@ class QModel(DistributionModel):
         else:
             return tf.square(x=loss_per_instance)
 
+    def target_optimizer_arguments(self):
+        """
+        Returns the target optimizer arguments including the time, the list of variables to  
+        optimize, and various functions which the optimizer might require to perform an update  
+        step.
+
+        Returns:
+            Target optimizer arguments as dict.
+        """
+        variables = self.target_network.get_variables() + [
+            variable for name in sorted(self.target_distributions)
+            for variable in self.target_distributions[name].get_variables()
+        ]
+        source_variables = self.network.get_variables() + [
+            variable for name in sorted(self.distributions)
+            for variable in self.distributions[name].get_variables()
+        ]
+        arguments = dict(
+            time=self.global_timestep,
+            variables=variables,
+            source_variables=source_variables
+        )
+        if self.global_model is not None:
+            arguments['global_variables'] = self.global_model.target_network.get_variables() + [
+                variable for name in sorted(self.global_model.target_distributions)
+                for variable in self.global_model.target_distributions[name].get_variables()
+            ]
+        return arguments
+
     def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
         optimization = super(QModel, self).tf_optimization(
             states=states,
@@ -211,34 +247,41 @@ class QModel(DistributionModel):
             next_internals=next_internals
         )
 
-        network_distributions_variables = self.get_distributions_variables(self.distributions)
-        target_distributions_variables = self.get_distributions_variables(self.target_distributions)
-
-        target_optimization = self.target_optimizer.minimize(
-            time=self.timestep,
-            variables=self.target_network.get_variables() + target_distributions_variables,
-            source_variables=self.network.get_variables() + network_distributions_variables
-        )
+        arguments = self.target_optimizer_arguments()
+        target_optimization = self.target_optimizer.minimize(**arguments)
 
         return tf.group(optimization, target_optimization)
 
-    def get_variables(self, include_non_trainable=False):
-        model_variables = super(QModel, self).get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
+        model_variables = super(QModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
+        )
 
-        if include_non_trainable:
-            # Target network and optimizer variables only included if 'include_non_trainable' set
-            target_variables = self.target_network.get_variables(include_non_trainable=include_non_trainable)
-            target_distributions_variables = self.get_distributions_variables(self.target_distributions)
-            target_optimizer_variables = self.target_optimizer.get_variables()
+        if include_submodules:
+            target_variables = self.target_network.get_variables(include_nontrainable=include_nontrainable)
+            model_variables += target_variables
 
-            return model_variables + target_variables + target_optimizer_variables + target_distributions_variables
+            target_distributions_variables = [
+                variable for name in sorted(self.target_distributions)
+                for variable in self.target_distributions[name].get_variables(include_nontrainable=include_nontrainable)
+            ]
+            model_variables += target_distributions_variables
 
-        else:
-            return model_variables
+            if include_nontrainable:
+                target_optimizer_variables = self.target_optimizer.get_variables()
+                model_variables += target_optimizer_variables
+
+        return model_variables
 
     def get_summaries(self):
-        target_distributions_summaries = self.get_distributions_summaries(self.target_distributions)
-        return super(QModel, self).get_summaries() + self.target_network.get_summaries() + target_distributions_summaries
+        target_network_summaries = self.target_network.get_summaries()
+        target_distributions_summaries = [
+            summary for name in sorted(self.target_distributions)
+            for summary in self.target_distributions[name].get_summaries()
+        ]
+
+        return super(QModel, self).get_summaries() + target_network_summaries + target_distributions_summaries
 
     # # TEMP: Random sampling fix
     # def update(self, states, internals, actions, terminal, reward, return_loss_per_instance=False):

@@ -42,8 +42,7 @@ class Memory(object):
         self.summaries = list()
 
         def custom_getter(getter, name, registered=False, **kwargs):
-            variable = getter(name=name, **kwargs)
-            # variable = getter(name=name, registered=True, **kwargs)
+            variable = getter(name=name, registered=True, **kwargs)
             if not registered:
                 assert not kwargs.get('trainable', False)
                 self.variables[name] = variable

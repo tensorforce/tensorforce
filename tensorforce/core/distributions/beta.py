@@ -125,10 +125,10 @@ class Beta(Distribution):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        distribution_variables = super(Beta, self).get_variables(include_non_trainable=include_non_trainable)
-        alpha_variables = self.alpha.get_variables(include_non_trainable=include_non_trainable)
-        beta_variables = self.beta.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        distribution_variables = super(Beta, self).get_variables(include_nontrainable=include_nontrainable)
+        alpha_variables = self.alpha.get_variables(include_nontrainable=include_nontrainable)
+        beta_variables = self.beta.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + alpha_variables + beta_variables
 

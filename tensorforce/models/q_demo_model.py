@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -219,9 +220,8 @@ class QDemoModel(QModel):
         return q_model_loss + self.supervised_weight * demo_loss
 
     def tf_demo_optimization(self, states, internals, actions, terminal, reward, next_states, next_internals):
-
-        demo_optimization = self.optimizer.minimize(
-            time=self.timestep,
+        arguments = dict(
+            time=self.global_timestep,
             variables=self.get_variables(),
             arguments=dict(
                 states=states,
@@ -233,14 +233,12 @@ class QDemoModel(QModel):
                 next_internals=next_internals,
                 update=tf.constant(value=True)
             ),
-            fn_loss=self.fn_combined_loss,
+            fn_loss=self.fn_combined_loss
         )
+        demo_optimization = self.optimizer.minimize(**arguments)
 
-        target_optimization = self.target_optimizer.minimize(
-            time=self.timestep,
-            variables=self.target_network.get_variables(),
-            source_variables=self.network.get_variables()
-        )
+        arguments = self.target_optimizer_arguments()
+        target_optimization = self.target_optimizer.minimize(**arguments)
 
         return tf.group(demo_optimization, target_optimization)
 
@@ -284,25 +282,28 @@ class QDemoModel(QModel):
         demo_batch = self.demo_memory.retrieve_timesteps(n=self.demo_batch_size)
         self.demo_optimization_output = self.fn_demo_optimization(**demo_batch)
 
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
         """
         Returns the TensorFlow variables used by the model.
 
         Returns:
             List of variables.
         """
-        model_variables = super(QDemoModel, self).get_variables(include_non_trainable=include_non_trainable)
+        model_variables = super(QDemoModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
+        )
 
-        if include_non_trainable:
+        if include_nontrainable:
             demo_memory_variables = self.demo_memory.get_variables()
-            return model_variables + demo_memory_variables
+            model_variables += demo_memory_variables
 
-        else:
-            return model_variables
+        return model_variables
 
     def get_summaries(self):
         model_summaries = super(QDemoModel, self).get_summaries()
         demo_memory_summaries = self.demo_memory.get_summaries()
+
         return model_summaries + demo_memory_summaries
 
     def import_demo_experience(self, states, internals, actions, terminal, reward):

@@ -121,9 +121,9 @@ class Bernoulli(Distribution):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        distribution_variables = super(Bernoulli, self).get_variables(include_non_trainable=include_non_trainable)
-        logit_variables = self.logit.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        distribution_variables = super(Bernoulli, self).get_variables(include_nontrainable=include_nontrainable)
+        logit_variables = self.logit.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + logit_variables
 

@@ -39,7 +39,7 @@ class Distribution(object):
             variable = getter(name=name, registered=True, **kwargs)
             if not registered:
                 self.all_variables[name] = variable
-                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -153,14 +153,14 @@ class Distribution(object):
         """
         return None
 
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_nontrainable=False):
         """
         Returns the TensorFlow variables used by the distribution.
 
         Returns:
             List of variables.
         """
-        if include_non_trainable:
+        if include_nontrainable:
             return [self.all_variables[key] for key in sorted(self.all_variables)]
         else:
             return [self.variables[key] for key in sorted(self.variables)]

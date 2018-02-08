@@ -68,6 +68,23 @@ class Optimizer(object):
         """
         raise NotImplementedError
 
+    def apply_step(self, variables, deltas):
+        """
+        Applies step deltas to variable values.
+
+        Args:
+            variables: List of variables.
+            deltas: List of deltas of same length.
+
+        Returns:
+            The step-applied operation.
+        """
+        if len(variables) != len(deltas):
+            raise TensorForceError("Invalid variables and deltas lists.")
+        return tf.group(
+            *(tf.assign_add(ref=variable, value=delta) for variable, delta in zip(variables, deltas))
+        )
+
     def minimize(self, time, variables, **kwargs):
         """
         Performs an optimization step.
@@ -93,34 +110,34 @@ class Optimizer(object):
         Returns:
             The optimization operation.
         """
-        # Add training variable gradient histograms/scalars to summary output
-        # if 'gradients' in self.summary_labels:
-        if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram', 'gradients_scalar']):
-            valid = True
-            if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
-                gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
-            elif isinstance(self.optimizer, tensorforce.core.optimizers.TFOptimizer):
-                # This section handles "Multi_step" and may handle others
-                # if failure is found, add another elif to handle that case
-                gradients = self.optimizer.optimizer.compute_gradients(kwargs['fn_loss']())
-            else:
-                # Didn't find proper gradient information
-                valid = False
+        # # Add training variable gradient histograms/scalars to summary output
+        # # if 'gradients' in self.summary_labels:
+        # if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram', 'gradients_scalar']):
+        #     valid = True
+        #     if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
+        #         gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
+        #     elif isinstance(self.optimizer, tensorforce.core.optimizers.TFOptimizer):
+        #         # This section handles "Multi_step" and may handle others
+        #         # if failure is found, add another elif to handle that case
+        #         gradients = self.optimizer.optimizer.compute_gradients(kwargs['fn_loss']())
+        #     else:
+        #         # Didn't find proper gradient information
+        #         valid = False
 
-            # Valid gradient data found, create summary data items
-            if valid:
-                for grad, var in gradients:
-                    if grad is not None:
-                        if any(k in self.summary_labels for k in ('gradients', 'gradients_scalar')):
-                            axes = list(range(len(grad.shape)))
-                            mean, var = tf.nn.moments(grad, axes)
-                            summary = tf.summary.scalar(name='gradients/' + var.name + "/mean", tensor=mean)
-                            self.summaries.append(summary)
-                            summary = tf.summary.scalar(name='gradients/' + var.name + "/variance", tensor=var)
-                            self.summaries.append(summary)
-                        if any(k in self.summary_labels for k in ('gradients', 'gradients_histogram')):
-                            summary = tf.summary.histogram(name='gradients/' + var.name, values=grad)
-                            self.summaries.append(summary)
+        #     # Valid gradient data found, create summary data items
+        #     if valid:
+        #         for grad, var in gradients:
+        #             if grad is not None:
+        #                 if any(k in self.summary_labels for k in ('gradients', 'gradients_scalar')):
+        #                     axes = list(range(len(grad.shape)))
+        #                     mean, var = tf.nn.moments(grad, axes)
+        #                     summary = tf.summary.scalar(name='gradients/' + var.name + "/mean", tensor=mean)
+        #                     self.summaries.append(summary)
+        #                     summary = tf.summary.scalar(name='gradients/' + var.name + "/variance", tensor=var)
+        #                     self.summaries.append(summary)
+        #                 if any(k in self.summary_labels for k in ('gradients', 'gradients_histogram')):
+        #                     summary = tf.summary.histogram(name='gradients/' + var.name, values=grad)
+        #                     self.summaries.append(summary)
 
         deltas = self.step(time=time, variables=variables, **kwargs)
         with tf.control_dependencies(control_inputs=deltas):
@@ -156,18 +173,3 @@ class Optimizer(object):
         )
         assert isinstance(optimizer, Optimizer)
         return optimizer
-
-    def apply_step(self, variables, deltas):
-        """
-        Applies step deltas to variable values.
-
-        Args:
-            variables: List of variables.
-            deltas: List of deltas of same length.
-
-        Returns:
-            The step-applied operation.
-        """
-        if len(variables) != len(deltas):
-            raise TensorForceError("Invalid variables and deltas lists.")
-        return tf.group(*(variable.assign_add(delta=delta) for variable, delta in zip(variables, deltas)))

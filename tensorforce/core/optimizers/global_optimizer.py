@@ -54,8 +54,10 @@ class GlobalOptimizer(MetaOptimizer):
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        assert all(util.shape(global_var) == util.shape(local_var) for global_var, local_var
-                   in zip(global_variables, variables))
+        assert all(
+            util.shape(global_variable) == util.shape(local_variable)
+            for global_variable, local_variable in zip(global_variables, variables)
+        )
 
         local_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
 
@@ -64,8 +66,8 @@ class GlobalOptimizer(MetaOptimizer):
 
         with tf.control_dependencies(control_inputs=(applied,)):
             update_deltas = list()
-            for global_var, local_var in zip(global_variables, variables):
-                delta = global_var - local_var
+            for global_variable, local_variable in zip(global_variables, variables):
+                delta = global_variable - local_variable
                 update_deltas.append(delta)
 
             applied = self.apply_step(variables=variables, deltas=update_deltas)

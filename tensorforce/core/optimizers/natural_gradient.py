@@ -88,8 +88,8 @@ class NaturalGradient(Optimizer):
         # For more details, see our blogpost:
         # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/
 
-        from tensorforce import util
-        arguments = util.map_tensors(fn=tf.stop_gradient, tensors=arguments)
+        # from tensorforce import util
+        # arguments = util.map_tensors(fn=tf.stop_gradient, tensors=arguments)
 
         # kldiv
         kldiv = fn_kl_divergence(**arguments)
@@ -120,7 +120,7 @@ class NaturalGradient(Optimizer):
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
-        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients], f_args=())
+        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients])
 
         # delta' * F
         delta_fisher_matrix_product = fisher_matrix_product(deltas=deltas)

@@ -159,6 +159,8 @@ class Model(object):
 
         self.timestep = None
         self.episode = None
+        self.global_timestep = None
+        self.global_episode = None
 
         self.states_input = None
         self.internals_input = None
@@ -223,36 +225,34 @@ class Model(object):
         # and already initialized model is handed to the worker Agents via the ThreadedRunner's
         # WorkerAgentGenerator factory.
         if self.distributed_spec is None:
-            self.global_model = None
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
+            self.global_model = None
         # Distributed tensorflow setup (each process gets its own (identical) graph).
         # We are the parameter server.
         elif self.distributed_spec.get('parameter_server'):
             if self.distributed_spec.get('replica_model'):
                 raise TensorForceError("Invalid config value for distributed mode.")
-            self.global_model = None
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
+            self.global_model = None
+            self.scope = self.scope + '-ps'
         # We are a worker's replica model.
         # Place our ops round-robin on all worker devices.
         elif self.distributed_spec.get('replica_model'):
+            self.graph = tf.get_default_graph()
+            self.global_model = None
+            # The graph is the parent model's graph, hence no new graph here.
             self.device = tf.train.replica_device_setter(
                 worker_device=self.device,
                 cluster=self.distributed_spec['cluster_spec']
             )
-            # The graph is the parent model's graph, hence no new graph here.
-            self.global_model = None
-            self.graph = tf.get_default_graph()
+            self.scope = self.scope + '-ps'
         # We are a worker:
         # Construct the global model (deepcopy of ourselves), set it up via `setup` and link to it (global_model).
         else:
-            self.optimizer = dict(
-                type='global_optimizer',
-                optimizer=self.optimizer
-            )
             graph = tf.Graph()
             default_graph = graph.as_default()
             default_graph.__enter__()
@@ -260,9 +260,11 @@ class Model(object):
             self.global_model.distributed_spec['replica_model'] = True
             self.global_model.setup()
             self.graph = graph
+            self.as_local_model()
+            self.scope = self.scope + '-worker' + str(self.distributed_spec['task_index'])
 
         with tf.device(device_name_or_function=self.device):
-            with tf.name_scope(name=self.scope):
+            with tf.variable_scope(name_or_scope=self.scope, reuse=False):
 
                 # Variables and summaries
                 self.variables = dict()
@@ -270,49 +272,50 @@ class Model(object):
                 self.registered_variables = set()
                 self.summaries = list()
 
-                def custom_getter(getter, name, registered=False, second=False, **kwargs):
+                def custom_getter(getter, name, registered=False, **kwargs):
                     if registered:
                         self.registered_variables.add(name)
                     elif name in self.registered_variables:
                         registered = True
-                    variable = getter(name=name, **kwargs)  # Top-level, hence no 'registered'
+                    # Top-level, hence no 'registered' argument.
+                    variable = getter(name=name, **kwargs)
                     if not registered:
                         self.all_variables[name] = variable
-                        if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                        if kwargs.get('trainable', True):
                             self.variables[name] = variable
                             if 'variables' in self.summary_labels:
                                 summary = tf.summary.histogram(name=name, values=variable)
                                 self.summaries.append(summary)
                     return variable
 
-                # Episode
-                collection = self.graph.get_collection(name='episode')
+                # Global timestep
+                collection = self.graph.get_collection(name='global-timestep')
                 if len(collection) == 0:
-                    self.episode = tf.Variable(
-                        name='episode',
+                    self.global_timestep = tf.Variable(
+                        name='global-timestep',
                         dtype=util.tf_dtype('int'),
                         trainable=False,
                         initial_value=0
                     )
-                    self.graph.add_to_collection(name='episode', value=self.episode)
+                    self.graph.add_to_collection(name='global-timestep', value=self.global_timestep)
+                    self.graph.add_to_collection(name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep)
                 else:
                     assert len(collection) == 1
-                    self.episode = collection[0]
+                    self.global_timestep = collection[0]
 
-                # Timestep
-                collection = self.graph.get_collection(name='timestep')
+                # Global episode
+                collection = self.graph.get_collection(name='global-episode')
                 if len(collection) == 0:
-                    self.timestep = tf.Variable(
-                        name='timestep',
+                    self.global_episode = tf.Variable(
+                        name='global-episode',
                         dtype=util.tf_dtype('int'),
                         trainable=False,
                         initial_value=0
                     )
-                    self.graph.add_to_collection(name='timestep', value=self.timestep)
-                    self.graph.add_to_collection(name=tf.GraphKeys.GLOBAL_STEP, value=self.timestep)
+                    self.graph.add_to_collection(name='global-episode', value=self.global_episode)
                 else:
                     assert len(collection) == 1
-                    self.timestep = collection[0]
+                    self.global_episode = collection[0]
 
                 # Create placeholders, tf functions, internals, etc
                 self.initialize(custom_getter=custom_getter)
@@ -334,9 +337,9 @@ class Model(object):
                 self.fn_initialize()
 
                 # Input tensors
-                states = {name: tf.identity(input=state) for name, state in self.states_input.items()}
-                internals = {name: tf.identity(input=internal) for name, internal in self.internals_input.items()}
-                actions = {name: tf.identity(input=action) for name, action in self.actions_input.items()}
+                states = util.map_tensors(fn=tf.identity, tensors=self.states_input)
+                internals = util.map_tensors(fn=tf.identity, tensors=self.internals_input)
+                actions = util.map_tensors(fn=tf.identity, tensors=self.actions_input)
                 terminal = tf.identity(input=self.terminal_input)
                 reward = tf.identity(input=self.reward_input)
                 deterministic = tf.identity(input=self.deterministic_input)
@@ -365,24 +368,15 @@ class Model(object):
                     summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
                     self.summaries.append(summary)
 
-            # # Optimizer
-            # # No optimizer (non-learning model)
-            # if self.optimizer is None:
-            #     pass
-            # # Optimizer will be a global_optimizer
-            # elif self.distributed_spec is not None and \
-            #         not self.distributed_spec.get('parameter_server') and \
-            #         not self.distributed_spec.get('replica_model'):
-            #     # If not internal global model
-            #     self.optimizer = GlobalOptimizer(optimizer=self.optimizer)
-            # else:
-            #     kwargs_opt = dict(
-            #         summaries=self.summaries,
-            #         summary_labels=self.summary_labels
-            #     )
-            #     self.optimizer = Optimizer.from_spec(spec=self.optimizer, kwargs=kwargs_opt)
+        if self.distributed_spec is None:
+            global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
+            global_variables += [self.global_episode, self.global_timestep]
+            init_op = tf.variables_initializer(var_list=global_variables)
+            ready_op = tf.report_uninitialized_variables(var_list=global_variables)
+            ready_for_local_init_op = None
+            local_init_op = None
 
-        if self.distributed_spec is not None:
+        else:
             # We are just a replica model: Return.
             if self.distributed_spec.get('replica_model'):
                 return
@@ -396,30 +390,28 @@ class Model(object):
                     config=None,
                     start=True
                 )
-                # Param server does nothing actively
+                # Param server does nothing actively.
                 server.join()
                 return
 
-            # Global trainables (from global_model)
-            global_variables = self.global_model.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
-            # Local counterparts
-            local_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
+            # Global and local variable initializers.
+            global_variables = self.global_model.get_variables(
+                include_submodules=True,
+                include_nontrainable=True
+            )
+            global_variables += [self.global_episode, self.global_timestep]
+            local_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
-
-            # Op to assign values from the global model to local counterparts
-            local_init_op = tf.group(*(local_var.assign(value=global_var)
-                                       for local_var, global_var in zip(local_variables, global_variables)))
-        # Local variables initialize operations (no global_model).
-        else:
-            global_variables = self.get_variables(include_non_trainable=True) + [self.episode, self.timestep]
-            init_op = tf.variables_initializer(var_list=global_variables)
-            ready_op = tf.report_uninitialized_variables(var_list=global_variables)
-            # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
-            global_variables = list(set(global_variables))
-            ready_for_local_init_op = None
-            local_init_op = None
+            local_init_op = tf.group(
+                tf.variables_initializer(var_list=local_variables),
+                # Synchronize values of trainable variables.
+                *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
+                    self.get_variables(include_submodules=True),
+                    self.global_model.get_variables(include_submodules=True)
+                ))
+            )
 
         def init_fn(scaffold, session):
             if self.saver_spec is not None and self.saver_spec.get('load', True):
@@ -555,22 +547,22 @@ class Model(object):
                 start=True
             )
 
-            if self.distributed_spec['task_index'] == 0:
-                # TensorFlow chief session creator object
-                session_creator = tf.train.ChiefSessionCreator(
-                    scaffold=self.scaffold,
-                    master=server.target,
-                    config=self.distributed_spec.get('session_config'),
-                    checkpoint_dir=None,
-                    checkpoint_filename_with_path=None
-                )
-            else:
-                # TensorFlow worker session creator object
-                session_creator = tf.train.WorkerSessionCreator(
-                    scaffold=self.scaffold,
-                    master=server.target,
-                    config=self.distributed_spec.get('session_config'),
-                )
+            # if self.distributed_spec['task_index'] == 0:
+            # TensorFlow chief session creator object
+            session_creator = tf.train.ChiefSessionCreator(
+                scaffold=self.scaffold,
+                master=server.target,
+                config=self.distributed_spec.get('session_config'),
+                checkpoint_dir=None,
+                checkpoint_filename_with_path=None
+            )
+            # else:
+            #     # TensorFlow worker session creator object
+            #     session_creator = tf.train.WorkerSessionCreator(
+            #         scaffold=self.scaffold,
+            #         master=server.target,
+            #         config=self.distributed_spec.get('session_config'),
+            #     )
 
             # TensorFlow monitored session object
             self.monitored_session = tf.train.MonitoredSession(
@@ -596,6 +588,9 @@ class Model(object):
         if self.saver_directory is not None:
             self.save(append_timestep=True)
         self.monitored_session.close()
+
+    def as_local_model(self):
+        pass
 
     def initialize(self, custom_getter):
         """
@@ -690,7 +685,7 @@ class Model(object):
             self.reward_preprocessing = PreprocessorStack.from_spec(
                 spec=self.reward_preprocessing_spec,
                 # TODO this can eventually have more complex shapes?
-                kwargs = dict(shape=())
+                kwargs=dict(shape=())
             )
             if self.reward_preprocessing.processed_shape(shape=()) != ():
                 raise TensorForceError("Invalid reward preprocessing!")
@@ -736,44 +731,60 @@ class Model(object):
         # )
 
     def tf_initialize(self):
+        # Timestep
+        self.timestep = tf.get_variable(
+            name='timestep',
+            dtype=util.tf_dtype('int'),
+            initializer=0,
+            trainable=False
+        )
+
+        # Episode
+        self.episode = tf.get_variable(
+            name='episode',
+            dtype=util.tf_dtype('int'),
+            initializer=0,
+            trainable=False
+        )
+
         if self.batching_capacity is None:
             capacity = 1
         else:
             capacity = self.batching_capacity
 
-        # Current states variable
-        self.current_states = dict()
+        # States buffer variable
+        self.states_buffer = dict()
         for name, state in self.states_spec.items():
-            self.current_states[name] = tf.get_variable(
+            self.states_buffer[name] = tf.get_variable(
                 name=('state-' + name),
                 shape=((capacity,) + tuple(state['shape'])),
                 dtype=util.tf_dtype(state['type']),
                 trainable=False
             )
 
-        # Current internals variable
-        self.current_internals = dict()
+        # Internals buffer variable
+        self.internals_buffer = dict()
         for name, internal in self.internals_spec.items():
-            self.current_internals[name] = tf.get_variable(
+            self.internals_buffer[name] = tf.get_variable(
                 name=('internal-' + name),
                 shape=((capacity,) + tuple(internal['shape'])),
                 dtype=util.tf_dtype(internal['type']),
                 trainable=False
             )
 
-        # Current actions variable
-        self.current_actions = dict()
+        # Actions buffer variable
+        self.actions_buffer = dict()
         for name, action in self.actions_spec.items():
-            self.current_actions[name] = tf.get_variable(
+            self.actions_buffer[name] = tf.get_variable(
                 name=('action-' + name),
                 shape=((capacity,) + tuple(action['shape'])),
                 dtype=util.tf_dtype(action['type']),
                 trainable=False
             )
 
-        # Current batch index
-        self.current_index = tf.get_variable(
-            name='batch-index',
+        # Buffer index
+        self.buffer_index = tf.get_variable(
+            name='buffer-index',
             shape=(),
             dtype=util.tf_dtype('int'),
             trainable=False
@@ -803,8 +814,8 @@ class Model(object):
         """
         action_shape = tf.shape(input=action)
         exploration_value = exploration.tf_explore(
-            episode=self.episode,
-            timestep=self.timestep,
+            episode=self.global_episode,
+            timestep=self.global_timestep,
             action_shape=action_shape
         )
 
@@ -895,43 +906,45 @@ class Model(object):
                 deterministic=deterministic
             )
 
-        # Actions exploration
-        for name, exploration in self.actions_exploration.items():
-            self.actions_output[name] = tf.cond(
-                pred=self.deterministic_input,
-                true_fn=(lambda: self.actions_output[name]),
-                false_fn=(lambda: self.fn_action_exploration(
-                    action=self.actions_output[name],
-                    exploration=exploration,
-                    action_spec=self.actions_spec[name]
-                ))
-            )
+            # Actions exploration
+            for name, exploration in self.actions_exploration.items():
+                self.actions_output[name] = tf.cond(
+                    pred=self.deterministic_input,
+                    true_fn=(lambda: self.actions_output[name]),
+                    false_fn=(lambda: self.fn_action_exploration(
+                        action=self.actions_output[name],
+                        exploration=exploration,
+                        action_spec=self.actions_spec[name]
+                    ))
+                )
 
-        # Store current states, internals and actions
-        operations = list()
-        batched_size = tf.shape(input=next(iter(states.values())))[0]
-        for name, state in states.items():
-            operations.append(tf.assign(
-                ref=self.current_states[name][self.current_index: self.current_index + batched_size],
-                value=state
-            ))
-        for name, internal in internals.items():
-            operations.append(tf.assign(
-                ref=self.current_internals[name][self.current_index: self.current_index + batched_size],
-                value=internal
-            ))
-        for name, action in self.actions_output.items():
-            operations.append(tf.assign(
-                ref=self.current_actions[name][self.current_index: self.current_index + batched_size],
-                value=action
-            ))
+            # Store current states, internals and actions
+            operations = list()
+            batch_size = tf.shape(input=next(iter(states.values())))[0]
+            for name, state in states.items():
+                operations.append(tf.assign(
+                    ref=self.states_buffer[name][self.buffer_index: self.buffer_index + batch_size],
+                    value=state
+                ))
+            for name, internal in internals.items():
+                operations.append(tf.assign(
+                    ref=self.internals_buffer[name][self.buffer_index: self.buffer_index + batch_size],
+                    value=internal
+                ))
+            for name, action in self.actions_output.items():
+                operations.append(tf.assign(
+                    ref=self.actions_buffer[name][self.buffer_index: self.buffer_index + batch_size],
+                    value=action
+                ))
 
         with tf.control_dependencies(control_inputs=operations):
             operations = list()
-            operations.append(tf.assign_add(ref=self.current_index, value=batched_size))
+
+            operations.append(tf.assign_add(ref=self.buffer_index, value=batch_size))
 
             # Increment timestep
-            operations.append(tf.assign_add(ref=self.timestep, value=batched_size))
+            operations.append(tf.assign_add(ref=self.timestep, value=batch_size))
+            operations.append(tf.assign_add(ref=self.global_timestep, value=batch_size))
 
             # Subtract variable noise
             if self.variable_noise is not None and self.variable_noise > 0.0:
@@ -940,28 +953,39 @@ class Model(object):
 
         with tf.control_dependencies(control_inputs=operations):
             # Trivial operation to enforce control dependency
-            self.timestep_output = self.timestep + 0
+            self.timestep_output = self.global_timestep + 0
 
     def create_observe_operations(self, terminal, reward):
-        # Observation
-        batched_size = tf.shape(input=terminal)[0]
-        observation = self.fn_observe_timestep(
-            states={name: tf.stop_gradient(input=state[:batched_size]) for name, state in self.current_states.items()},
-            internals={name: tf.stop_gradient(input=internal[:batched_size]) for name, internal in self.current_internals.items()},
-            actions={name: tf.stop_gradient(input=action[:batched_size]) for name, action in self.current_actions.items()},
-            terminal=tf.stop_gradient(input=terminal),
-            reward=tf.stop_gradient(input=reward)
-        )
-        reset_index = tf.assign(ref=self.current_index, value=0)
-
         # Increment episode
-        with tf.control_dependencies(control_inputs=(observation, reset_index)):
-            increment_episode = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
-            increment_episode = tf.assign_add(ref=self.episode, value=increment_episode)
+        num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
+        increment_episode = tf.assign_add(ref=self.episode, value=num_episodes)
+        increment_global_episode = tf.assign_add(ref=self.global_episode, value=num_episodes)
 
-        with tf.control_dependencies(control_inputs=(increment_episode,)):
+        with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
+            # Stop gradients
+            fn = (lambda x: tf.stop_gradient(input=x[:self.buffer_index]))
+            states = util.map_tensors(fn=fn, tensors=self.states_buffer)
+            internals = util.map_tensors(fn=fn, tensors=self.internals_buffer)
+            actions = util.map_tensors(fn=fn, tensors=self.actions_buffer)
+            terminal = tf.stop_gradient(input=terminal)
+            reward = tf.stop_gradient(input=reward)
+
+            # Observation
+            observation = self.fn_observe_timestep(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
+            )
+
+        with tf.control_dependencies(control_inputs=(observation,)):
+            # Reset index
+            reset_index = tf.assign(ref=self.buffer_index, value=0)
+
+        with tf.control_dependencies(control_inputs=(reset_index,)):
             # Trivial operation to enforce control dependency
-            self.episode_output = self.episode + 0
+            self.episode_output = self.global_episode + 0
 
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
@@ -972,38 +996,41 @@ class Model(object):
         self.create_act_operations(states=states, internals=internals, deterministic=deterministic)
         self.create_observe_operations(reward=reward, terminal=terminal)
 
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
         """
         Returns the TensorFlow variables used by the model.
+
+        Args:
+            include_submodules: Includes variables of submodules (e.g. baseline, target network)  
+                if true.
+            include_nontrainable: Includes non-trainable variables if true.
 
         Returns:
             List of variables.
         """
-
-        if include_non_trainable:
-                # Optimizer variables and timestep/episode only included if 'include_non_trainable' set
+        if include_nontrainable:
             model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
+
             states_preprocessing_variables = [
-                variable for name in self.states_preprocessing.keys()
-                for variable in self.states_preprocessing[name].get_variables()
+                variable for preprocessing in self.states_preprocessing.values()
+                for variable in preprocessing.get_variables()
             ]
+            model_variables += states_preprocessing_variables
+
             actions_exploration_variables = [
-                variable for name in self.actions_exploration.keys()
-                for variable in self.actions_exploration[name].get_variables()
+                variable for exploration in self.actions_exploration.values()
+                for variable in exploration.get_variables()
             ]
+            model_variables += actions_exploration_variables
+
             if self.reward_preprocessing is not None:
                 reward_preprocessing_variables = self.reward_preprocessing.get_variables()
-            else:
-                reward_preprocessing_variables = list()
+                model_variables += reward_preprocessing_variables
 
-            variables = model_variables
-            variables.extend([v for v in states_preprocessing_variables if v not in variables])
-            variables.extend([v for v in actions_exploration_variables if v not in variables])
-            variables.extend([v for v in reward_preprocessing_variables if v not in variables])
-
-            return variables
         else:
-            return [self.variables[key] for key in sorted(self.variables)]
+            model_variables = [self.variables[key] for key in sorted(self.variables)]
+
+        return model_variables
 
     def get_summaries(self):
         """
@@ -1023,7 +1050,7 @@ class Model(object):
                 Current episode, timestep counter and the shallow-copied list of internal state initialization Tensors.
         """
         # TODO preprocessing reset call moved from agent
-        episode, timestep = self.monitored_session.run(fetches=(self.episode, self.timestep))
+        episode, timestep = self.monitored_session.run(fetches=(self.global_episode, self.global_timestep))
         return episode, timestep, dict(self.internals_init)
 
     def get_feed_dict(self, states=None, internals=None, actions=None, terminal=None, reward=None, deterministic=None):
@@ -1182,7 +1209,7 @@ class Model(object):
         return self.saver.save(
             sess=self.session,
             save_path=(self.saver_directory if directory is None else directory),
-            global_step=(self.timestep if append_timestep else None),
+            global_step=(self.global_timestep if append_timestep else None),
             # latest_filename=None,  # Defaults to 'checkpoint'.
             meta_graph_suffix='meta',
             write_meta_graph=True,

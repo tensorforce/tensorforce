@@ -17,7 +17,6 @@ from tensorforce.agents.agent import Agent
 from tensorforce.agents.constant_agent import ConstantAgent
 from tensorforce.agents.random_agent import RandomAgent
 from tensorforce.agents.learning_agent import LearningAgent
-from tensorforce.agents.ddqn_agent import DDQNAgent
 from tensorforce.agents.dqfd_agent import DQFDAgent
 from tensorforce.agents.dqn_agent import DQNAgent
 from tensorforce.agents.dqn_nstep_agent import DQNNstepAgent
@@ -32,7 +31,6 @@ from tensorforce.agents.ddpg_agent import DDPGAgent
 agents = dict(
     constant_agent=ConstantAgent,
     random_agent=RandomAgent,
-    ddqn_agent=DDQNAgent,
     dqfd_agent=DQFDAgent,
     dqn_agent=DQNAgent,
     dqn_nstep_agent=DQNNstepAgent,
@@ -50,7 +48,6 @@ __all__ = [
     'ConstantAgent',
     'RandomAgent',
     'LearningAgent',
-    'DDQNAgent',
     'DQFDAgent',
     'DQNAgent',
     'DQNNstepAgent',

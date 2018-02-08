@@ -121,10 +121,10 @@ class Gaussian(Distribution):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        distribution_variables = super(Gaussian, self).get_variables(include_non_trainable=include_non_trainable)
-        mean_variables = self.mean.get_variables(include_non_trainable=include_non_trainable)
-        log_stddev_variables = self.log_stddev.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        distribution_variables = super(Gaussian, self).get_variables(include_nontrainable=include_nontrainable)
+        mean_variables = self.mean.get_variables(include_nontrainable=include_nontrainable)
+        log_stddev_variables = self.log_stddev.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + mean_variables + log_stddev_variables
 

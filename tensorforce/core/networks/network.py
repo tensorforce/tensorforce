@@ -43,7 +43,7 @@ class Network(object):
             variable = getter(name=name, registered=True, **kwargs)
             if not registered:
                 self.all_variables[name] = variable
-                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -94,14 +94,14 @@ class Network(object):
         """
         return dict()
 
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_nontrainable=False):
         """
         Returns the TensorFlow variables used by the network.
 
         Returns:
             List of variables
         """
-        if include_non_trainable:
+        if include_nontrainable:
             return [self.all_variables[key] for key in sorted(self.all_variables)]
         else:
             return [self.variables[key] for key in sorted(self.variables)]
@@ -185,13 +185,13 @@ class LayerBasedNetwork(Network):
                 internals_spec['{}_{}'.format(layer.scope, name)] = internal_spec
         return internals_spec
 
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_nontrainable=False):
         network_variables = super(LayerBasedNetwork, self).get_variables(
-            include_non_trainable=include_non_trainable
+            include_nontrainable=include_nontrainable
         )
         layer_variables = [
             variable for layer in self.layers
-            for variable in layer.get_variables(include_non_trainable=include_non_trainable)
+            for variable in layer.get_variables(include_nontrainable=include_nontrainable)
         ]
 
         return network_variables + layer_variables

@@ -95,6 +95,14 @@ class PGModel(DistributionModel):
             requires_deterministic=False
         )
 
+    def as_local_model(self):
+        super(PGModel, self).as_local_model()
+        if self.baseline_optimizer_spec is not None:
+            self.baseline_optimizer_spec = dict(
+                type='global_optimizer',
+                optimizer=self.baseline_optimizer_spec
+            )
+
     def initialize(self, custom_getter):
         super(PGModel, self).initialize(custom_getter)
 
@@ -127,6 +135,12 @@ class PGModel(DistributionModel):
         self.fn_reward_estimation = tf.make_template(
             name_='reward-estimation',
             func_=self.tf_reward_estimation,
+            custom_getter_=custom_getter
+        )
+        # Baseline loss
+        self.fn_baseline_loss = tf.make_template(
+            name_='baseline-loss',
+            func_=self.tf_baseline_loss,
             custom_getter_=custom_getter
         )
 
@@ -194,6 +208,74 @@ class PGModel(DistributionModel):
 
         return losses
 
+    def tf_baseline_loss(self, states, internals, reward, update, reference=None):
+        """
+        Creates the TensorFlow operations for calculating the baseline loss of a batch.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            reward: Reward tensor.
+            update: Boolean tensor indicating whether this call happens during an update.
+            reference: Optional reference tensor(s), in case of a comparative loss.
+
+        Returns:
+            Loss tensor.
+        """
+        if self.baseline_mode == 'states':
+            loss = self.baseline.loss(
+                states=states,
+                internals=internals,
+                reward=reward,
+                update=update,
+                reference=reference
+            )
+
+        elif self.baseline_mode == 'network':
+            loss = self.baseline.loss(
+                states=self.network.apply(x=states, internals=internals, update=update),
+                internals=internals,
+                reward=reward,
+                update=update,
+                reference=reference
+            )
+
+        regularization_loss = self.baseline.regularization_loss()
+        if regularization_loss is not None:
+            loss += regularization_loss
+
+        return loss
+
+    def baseline_optimizer_arguments(self, states, internals, reward):
+        """
+        Returns the baseline optimizer arguments including the time, the list of variables to  
+        optimize, and various functions which the optimizer might require to perform an update  
+        step.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            reward: Reward tensor.
+
+        Returns:
+            Baseline optimizer arguments as dict.
+        """
+        arguments = dict(
+            time=self.global_timestep,
+            variables=self.baseline.get_variables(),
+            arguments=dict(
+                states=states,
+                internals=internals,
+                reward=reward,
+                update=tf.constant(value=True),
+            ),
+            fn_reference=self.baseline.reference,
+            fn_loss=self.fn_baseline_loss,
+            # source_variables=self.network.get_variables()
+        )
+        if self.global_model is not None:
+            arguments['global_variables'] = self.global_model.baseline.get_variables()
+
     def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
         assert next_states is None and next_internals is None  # temporary
 
@@ -217,77 +299,39 @@ class PGModel(DistributionModel):
             next_internals=next_internals
         )
 
-        if self.baseline_optimizer is None:
-            return optimization
+        if self.baseline_optimizer is not None:
+            cumulative_reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
 
-        cumulative_reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
-
-        if self.baseline_mode == 'states':
-            def fn_loss(states, internals, reward, update, reference=None):
-                loss = self.baseline.loss(
-                    states=states,
-                    internals=internals,
-                    reward=reward,
-                    update=update,
-                    reference=reference
-                )
-                regularization_loss = self.baseline.regularization_loss()
-                if regularization_loss is None:
-                    return loss
-                else:
-                    return loss + regularization_loss
-
-        elif self.baseline_mode == 'network':
-            def fn_loss(states, internals, reward, update, reference=None):
-                loss = self.baseline.loss(
-                    states=self.network.apply(x=states, internals=internals, update=update),
-                    internals=internals,
-                    reward=reward,
-                    update=update,
-                    reference=reference
-                )
-                regularization_loss = self.baseline.regularization_loss()
-                if regularization_loss is None:
-                    return loss
-                else:
-                    return loss + regularization_loss
-
-        # TODO: time as argument?
-        baseline_optimization = self.baseline_optimizer.minimize(
-            time=self.timestep,
-            variables=self.baseline.get_variables(),
-            arguments=dict(
+            arguments = self.baseline_optimizer_arguments(
                 states=states,
                 internals=internals,
                 reward=cumulative_reward,
-                update=tf.constant(value=True),
-            ),
-            fn_reference=self.baseline.reference,
-            fn_loss=fn_loss,
-            source_variables=self.network.get_variables()
+            )
+            baseline_optimization = self.baseline_optimizer.minimize(**arguments)
+
+            optimization = tf.group(optimization, baseline_optimization)
+
+        return optimization
+
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
+        model_variables = super(PGModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
         )
 
-        return tf.group(optimization, baseline_optimization)
+        if self.baseline_mode is not None and (include_submodules or self.baseline_optimizer is None):
+            baseline_variables = self.baseline.get_variables(include_nontrainable=include_nontrainable)
+            model_variables += baseline_variables
 
-    def get_variables(self, include_non_trainable=False):
-        model_variables = super(PGModel, self).get_variables(include_non_trainable=include_non_trainable)
+            if include_nontrainable and self.baseline_optimizer is not None:
+                baseline_optimizer_variables = self.baseline_optimizer.get_variables()
+                # For some reason, some optimizer variables are only registered in the model.
+                for variable in baseline_optimizer_variables:
+                    if variable in model_variables:
+                        model_variables.remove(variable)
+                model_variables += baseline_optimizer_variables
 
-        if include_non_trainable and self.baseline_optimizer is not None:
-            # Baseline and optimizer variables included if 'include_non_trainable' set
-            baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)
-
-            baseline_optimizer_variables = self.baseline_optimizer.get_variables()
-
-            return model_variables + baseline_variables + baseline_optimizer_variables
-
-        elif self.baseline_mode is not None and self.baseline_optimizer is None:
-            # Baseline variables included if baseline_optimizer not set
-            baseline_variables = self.baseline.get_variables(include_non_trainable=include_non_trainable)
-
-            return model_variables + baseline_variables
-
-        else:
-            return model_variables
+        return model_variables
 
     def get_summaries(self):
         if self.baseline_mode is None:

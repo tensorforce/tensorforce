@@ -275,6 +275,7 @@ class PGModel(DistributionModel):
         )
         if self.global_model is not None:
             arguments['global_variables'] = self.global_model.baseline.get_variables()
+        return arguments
 
     def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
         assert next_states is None and next_internals is None  # temporary

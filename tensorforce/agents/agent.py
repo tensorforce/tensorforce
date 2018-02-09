@@ -127,7 +127,7 @@ class Agent(object):
         Args:
             states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
             deterministic (bool): If true, no exploration and sampling is applied.
-            fetch_tensors (list): Optional String of namd tensors to fetch
+            fetch_tensors (list): Optional String of named tensors to fetch
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
             (fetched_tensors) Optional dict() with named tensors fetched

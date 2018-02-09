@@ -99,8 +99,6 @@ class Runner(object):
             timesteps += self.agent.timestep
 
         # episode loop
-        import numpy as np
-        actions = list()
         while True:
             episode_start_time = time.time()
 
@@ -112,7 +110,7 @@ class Runner(object):
             # timestep (within episode) loop
             while True:
                 action = self.agent.act(states=state, deterministic=deterministic)
-                actions.append(action)
+
                 if self.repeat_actions > 1:
                     reward = 0
                     for repeat in xrange(self.repeat_actions):
@@ -122,11 +120,6 @@ class Runner(object):
                             break
                 else:
                     state, terminal, reward = self.environment.execute(actions=action)
-
-                if len(actions) > 0 and len(actions) % 1000 == 0:
-                    print("mean/sd: {:.6f} ({:.6f})".format(np.mean(actions), np.std(actions)))
-
-                    actions=list()
 
                 if max_episode_timesteps is not None and self.episode_timestep >= max_episode_timesteps:
                     terminal = True

@@ -27,12 +27,12 @@ from tensorforce.core.optimizers import Optimizer, Synchronization
 
 
 class DDPGCriticNetwork(LayerBasedNetwork):
-    def __init__(self, scope='layerbased-network', summary_labels=(), size_t0=400, size_t1=300):
+    def __init__(self, scope='ddpg-critic-network', summary_labels=(), size_t0=400, size_t1=300):
         super(DDPGCriticNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
 
-        self.t0 = Dense(size=size_t0, activation='relu')
-        self.t1 = Dense(size=size_t1, activation='relu')
-        self.t2 = Dense(size=1, activation='tanh')
+        self.t0 = Dense(size=size_t0, activation='relu', scope=scope + '/dense0')
+        self.t1 = Dense(size=size_t1, activation='relu', scope=scope + '/dense1')
+        self.t2 = Dense(size=1, activation='tanh', scope=scope + '/dense2')
 
         self.add_layer(self.t0)
         self.add_layer(self.t1)
@@ -176,7 +176,7 @@ class DPGTargetModel(DistributionModel):
         #     spec=self.critic_network_spec,
         #     kwargs=dict(scope='target-critic', summary_labels=self.summary_labels)
         # )
-        self.target_critic = DDPGCriticNetwork(scope='critic', size_t0=size_t0, size_t1=size_t1)
+        self.target_critic = DDPGCriticNetwork(scope='target-critic', size_t0=size_t0, size_t1=size_t1)
 
         # Target critic optimizer
         self.target_critic_optimizer = Synchronization(
@@ -220,7 +220,7 @@ class DPGTargetModel(DistributionModel):
 
         return actions, internals
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
         # Same as PGLogProbModel
         embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
@@ -279,8 +279,15 @@ class DPGTargetModel(DistributionModel):
         )
 
         # Update target network and baseline
-        network_distributions_variables = self.get_distributions_variables(self.distributions)
-        target_distributions_variables = self.get_distributions_variables(self.target_distributions)
+        network_distributions_variables = [
+            variable for name in sorted(self.distributions)
+            for variable in self.distributions[name].get_variables(include_nontrainable=False)
+        ]
+
+        target_distributions_variables = [
+            variable for name in sorted(self.target_distributions)
+            for variable in self.target_distributions[name].get_variables(include_nontrainable=False)
+        ]
 
         target_optimization = self.target_network_optimizer.minimize(
             time=self.timestep,
@@ -296,24 +303,52 @@ class DPGTargetModel(DistributionModel):
 
         return tf.group(critic_optimization, optimization, target_optimization, target_critic_optimization)
 
-    def get_variables(self, include_non_trainable=False):
-        model_variables = super(DPGTargetModel, self).get_variables(include_non_trainable=include_non_trainable)
-        critic_variables = self.critic.get_variables() + self.critic_optimizer.get_variables()
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
+        model_variables = super(DPGTargetModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
+        )
+        critic_variables = self.critic.get_variables(include_nontrainable=include_nontrainable)
+        model_variables += critic_variables
 
-        if include_non_trainable:
-            # Target network and optimizer variables only included if 'include_non_trainable' set
-            target_variables = self.target_network.get_variables(include_non_trainable=include_non_trainable) \
-                               + self.get_distributions_variables(self.target_distributions)\
-                               + self.target_network_optimizer.get_variables()
+        if include_nontrainable:
+            critic_optimizer_variables = self.critic_optimizer.get_variables()
 
-            target_critic_variables = self.target_critic.get_variables() + self.target_critic_optimizer.get_variables()
+            for variable in critic_optimizer_variables:
+                if variable in model_variables:
+                    model_variables.remove(variable)
 
-            return model_variables + critic_variables + target_variables + target_critic_variables
-        else:
-            return model_variables + critic_variables
+            model_variables += critic_optimizer_variables
+
+        if include_submodules:
+            target_variables = self.target_network.get_variables(include_nontrainable=include_nontrainable)
+            model_variables += target_variables
+
+            target_distributions_variables = [
+                variable for name in sorted(self.target_distributions)
+                for variable in self.target_distributions[name].get_variables(include_nontrainable=include_nontrainable)
+            ]
+            model_variables += target_distributions_variables
+
+            target_critic_variables = self.target_critic.get_variables()
+            model_variables += target_critic_variables
+
+            if include_nontrainable:
+                target_optimizer_variables = self.target_network_optimizer.get_variables()
+                model_variables += target_optimizer_variables
+
+                target_critic_optimizer_variables = self.target_critic_optimizer.get_variables()
+                model_variables += target_critic_optimizer_variables
+
+        return model_variables
 
     def get_summaries(self):
+        target_network_summaries = self.target_network.get_summaries()
+        target_distributions_summaries = [
+            summary for name in sorted(self.target_distributions)
+            for summary in self.target_distributions[name].get_summaries()
+        ]
+
         # Todo: Critic summaries
-        target_distributions_summaries = self.get_distributions_summaries(self.target_distributions)
-        return super(DPGTargetModel, self).get_summaries() + self.target_network.get_summaries() \
+        return super(DPGTargetModel, self).get_summaries() + target_network_summaries \
             + target_distributions_summaries

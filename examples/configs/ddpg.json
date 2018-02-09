@@ -21,8 +21,8 @@
     "entropy_regularization": null,
 
     "critic_network": {
-        "size_t0": 400,
-        "size_t1": 300
+        "size_t0": 64,
+        "size_t1": 64
     },
     "critic_optimizer": {
         "type": "adam",

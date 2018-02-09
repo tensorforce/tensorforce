@@ -120,8 +120,6 @@ def main():
     runner.close()
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
-    if args.monitor:
-        environment.gym.monitor.close()
     environment.close()
 
 

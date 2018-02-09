@@ -1,0 +1,35 @@
+{
+    "type": "ppo_agent",
+    "batch_size": 512,
+    "batched_observe": 512,
+    "step_optimizer": {
+        "type": "adam",
+        "learning_rate": 1e-3
+    },
+    "optimization_steps": 10,
+
+    "discount": 0.99,
+
+    "entropy_regularization": 1e-2,
+    "gae_lambda": null,
+    "likelihood_ratio_clipping": 0.2,
+
+    "baseline_mode": "states",
+    "baseline": {
+      "type": "mlp",
+      "sizes": [64, 64]
+    },
+    "baseline_optimizer": {
+        "type": "multi_step",
+        "optimizer": {
+            "type": "adam",
+            "learning_rate": 1e-4
+        },
+        "num_steps": 5
+    },
+    "states_preprocessing_spec": [
+        {
+            "type": "flatten"
+        }
+    ]
+}

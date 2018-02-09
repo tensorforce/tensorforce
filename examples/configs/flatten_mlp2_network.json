@@ -1,0 +1,13 @@
+[
+    {
+        "type": "flatten"
+    },
+    {
+        "type": "dense",
+        "size": 8
+    },
+    {
+        "type": "dense",
+        "size": 8
+    }
+]

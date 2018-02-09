@@ -190,12 +190,6 @@ class DPGTargetModel(DistributionModel):
             custom_getter_=custom_getter
         )
 
-        self.fn_predict_q = tf.make_template(
-            name_='predict-q',
-            func_=self.tf_predict_q,
-            custom_getter_=custom_getter
-        )
-
         self.fn_predict_target_q = tf.make_template(
             name_='predict-target-q',
             func_=self.tf_predict_target_q,
@@ -221,42 +215,30 @@ class DPGTargetModel(DistributionModel):
         return actions, internals
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
-        # Same as PGLogProbModel
-        embedding = self.network.apply(x=states, internals=internals, update=update)
-        log_probs = list()
+        q = self.critic.apply(dict(states=states, actions=actions), internals=internals, update=update)
 
-        for name, distribution in self.distributions.items():
-            distr_params = distribution.parameterize(x=embedding)
-            log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
-            collapsed_size = util.prod(util.shape(log_prob)[1:])
-            log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))
-            log_probs.append(log_prob)
-        log_prob = tf.reduce_mean(input_tensor=tf.concat(values=log_probs, axis=1), axis=1)
-        return -log_prob * reward
+        return -q
 
-    def tf_predict_q(self, states, internals, actions, reward, update):
-        q_value = self.critic.apply(dict(states=states, actions=actions), internals=internals, update=update)
-        return reward + self.discount * q_value
-
-    def tf_predict_target_q(self, states, internals, actions, reward, update):
+    def tf_predict_target_q(self, states, internals, terminal, actions, reward, update):
         q_value = self.target_critic.apply(dict(states=states, actions=actions), internals=internals, update=update)
-        return reward + self.discount * q_value
+        return reward + (1. - tf.cast(terminal, dtype=tf.float32)) * self.discount * q_value
 
     def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
         update = tf.constant(value=True)
         # Predict actions from target actor
         target_actions, target_internals = self.fn_target_actions_and_internals(
-            states=next_states, internals=next_internals, deterministic=True)
+            states=next_states, internals=next_internals, deterministic=True
+        )
 
         predicted_q = self.fn_predict_target_q(states=next_states, internals=next_internals,
-                                               actions=target_actions, reward=reward, update=update)
+                                               actions=target_actions, terminal=terminal, reward=reward, update=update)
         predicted_q = tf.stop_gradient(input=predicted_q)
 
-        real_q = self.fn_predict_q(states=states, internals=internals, actions=actions, reward=reward, update=update)
+        real_q = self.critic.apply(dict(states=states, actions=actions), internals=internals, update=update)
 
         # Update critic
         def fn_critic_loss(predicted_q, real_q):
-            return tf.nn.l2_loss(t=predicted_q - real_q)
+            return tf.reduce_mean(tf.square(real_q - predicted_q))
 
         critic_optimization = self.critic_optimizer.minimize(
             time=self.timestep,
@@ -268,12 +250,16 @@ class DPGTargetModel(DistributionModel):
             fn_loss=fn_critic_loss)
 
         # Update actor
+        predicted_actions, predicted_internals = self.fn_actions_and_internals(
+            states=states, internals=internals, deterministic=True
+        )
+
         optimization = super(DPGTargetModel, self).tf_optimization(
             states=states,
             internals=internals,
-            actions=actions,
+            actions=predicted_actions,
             terminal=terminal,
-            reward=real_q,
+            reward=reward,
             next_states=next_states,
             next_internals=next_internals
         )

@@ -190,6 +190,3 @@ class DDPGAgent(LearningAgent):
             target_sync_frequency=self.target_sync_frequency,
             target_update_weight=self.target_update_weight
         )
-
-    def act(self, states, deterministic=True):
-        return super(DDPGAgent, self).act(states=states, deterministic=True)

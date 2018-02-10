@@ -220,40 +220,35 @@ class PrioritizedReplay(Memory):
     def tf_store(self, states, internals, actions, terminal, reward):
         # We first store new experiences into a buffer that is separate from main memory.
         # We insert these into the main memory once we have computed priorities on a given batch.
-
-        # Buffer indices to overwrite.
         num_instances = tf.shape(input=terminal)[0]
-        indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_instances))
+        start_index = self.buffer_index
+        end_index = self.buffer_index + num_instances
 
         # Assign new observations.
         assignments = list()
         for name, state in states.items():
-            assignments.append(tf.scatter_update(ref=self.states_buffer[name], indices=indices, updates=state))
+            assignments.append(tf.assign(ref=self.states_buffer[name][start_index:end_index], value=state))
         for name, internal in internals.items():
-            assignments.append(tf.scatter_update(
-                ref=self.internals_buffer[name],
-                indices=indices,
-                updates=internal
+            assignments.append(tf.assign(
+                ref=self.internals_buffer[name][start_index:end_index],
+                value=internal
             ))
+
         for name, action in actions.items():
-            assignments.append(tf.scatter_update(ref=self.actions_buffer[name], indices=indices, updates=action))
-        assignments.append(tf.scatter_update(ref=self.terminal_buffer, indices=indices, updates=terminal))
-        assignments.append(tf.scatter_update(ref=self.reward_buffer, indices=indices, updates=reward))
+            assignments.append(tf.assign(ref=self.actions_buffer[name][start_index:end_index], value=action))
+
+        assignments.append(tf.assign(ref=self.terminal_buffer[start_index:end_index], value=terminal))
+        assignments.append(tf.assign(ref=self.reward_buffer[start_index:end_index], value=reward))
 
         # Increment memory index.
         with tf.control_dependencies(control_inputs=assignments):
-            assignment = tf.assign(ref=self.buffer_index, value=((self.buffer_index + num_instances) % self.capacity))
+            assignment = tf.assign(ref=self.buffer_index, value=(self.buffer_index + num_instances))
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.no_op()
 
     def tf_retrieve_timesteps(self, n):
         num_buffer_elems = min(self.buffer_index, n)
-
-        buffer_indices = tf.range(
-            start=(self.buffer_index - 1 - num_buffer_elems),
-            limit=(self.buffer_index - 1)
-        )
         num_priority_elements = n - num_buffer_elems
 
         # Vectorized sampling.
@@ -261,19 +256,24 @@ class PrioritizedReplay(Memory):
         sample = tf.random_uniform(shape=(num_priority_elements,),dtype=tf.float32)
         indices = tf.constant(value=0, shape=(num_priority_elements,))
 
-        def cond(loop_index, sample, priorities):
-            return tf.reduce_all(input_tensor=(sample <= 0))
+        def cond(loop_index, sample):
+            return tf.reduce_all(input_tensor=(sample <= 0.0))
 
-        def sampling_fn(loop_index, sample, priorities):
+        def sampling_fn(loop_index, sample):
             priority = self.priorities[loop_index]
-            sample -= priority / priorities
+            sample -= priority / sum_priorities
 
-            return (tf.add(loop_index, 1), sample, priorities)
+            loop_index = loop_index + tf.where(
+                cond=sample > 0.0,
+                x=1,
+                y=0
+            )
+            return loop_index, sample
 
         priority_indices = tf.while_loop(
             cond=cond,
             body=sampling_fn,
-            loop_vars=(indices, sample, sum_priorities)
+            loop_vars=(indices, sample)
         )[0]
 
         priority_terminal = tf.gather(params=self.terminal_memory, indices=priority_indices)

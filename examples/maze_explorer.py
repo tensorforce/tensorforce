@@ -108,7 +108,7 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            sps = r.total_timesteps / (time.time() - r.start_time)
+            sps = r.timestep / (time.time() - r.start_time)
             logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep, sps=sps))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
@@ -117,10 +117,9 @@ def main():
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
+    runner.close()
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
-    if args.monitor:
-        environment.gym.monitor.close()
     environment.close()
 
 

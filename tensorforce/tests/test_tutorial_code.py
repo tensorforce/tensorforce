@@ -292,22 +292,21 @@ class TestTutorialCode(unittest.TestCase):
 
             def __init__(self, size, scope='lstm', summary_labels=()):
                 self.size = size
-                super(Lstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
+                super(Lstm, self).__init__(scope=scope, summary_labels=summary_labels)
 
             def tf_apply(self, x, update, state):
                 state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
                 self.lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
-
                 x, state = self.lstm_cell(inputs=x, state=state)
+                state = tf.stack(values=(state.c, state.h), axis=1)
+                return x, dict(state=state)
 
-                internal_output = tf.stack(values=(state.c, state.h), axis=1)
-                return x, (internal_output,)
-
-            def internals_input(self):
-                return super(Lstm, self).internals_input() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
-
-            def internals_init(self):
-                return super(Lstm, self).internals_init() + [np.zeros(shape=(2, self.size))]
+            def internals_spec(self):
+                return dict(state=dict(
+                    type='float',
+                    shape=(2, self.size),
+                    initialization='zeros'
+                ))
 
         ### Test LSTM
         states = dict(shape=(10,), type='float')
@@ -453,6 +452,7 @@ class TestTutorialCode(unittest.TestCase):
 
         # runner.run(episodes=1000, episode_finished=episode_finished)
         runner.run(episodes=10, episode_finished=episode_finished)  # Only 10 episodes for this test
+        runner.close()
 
         ### Code block: next
         agent = DQNAgent(

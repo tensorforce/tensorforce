@@ -166,6 +166,15 @@ class DistributionModel(MemoryModel):
                 distr_params=distr_params,
                 deterministic=tf.logical_or(x=deterministic, y=self.requires_deterministic)
             )
+            # Prefix named variable with "name_" if more than 1 distribution
+            if len(self.distributions.items()) > 1:
+                name_prefix = name + "_"
+            else:
+                name_prefix = ""
+            # parameterize() returns list as [logits, probabilities, state_value]
+            self.network.set_named_tensor(name_prefix + "logits", distr_params[0])
+            self.network.set_named_tensor(name_prefix + "probabilities", distr_params[1])
+            self.network.set_named_tensor(name_prefix + "state_value", distr_params[2])
 
         return actions, internals
 

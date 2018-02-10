@@ -71,22 +71,33 @@ class TestQuickstartExample(unittest.TestCase):
                 memory=dict(
                     type='latest',
                     include_next_states=False,
-                    capacity=2000
+                    capacity=5000
                 ),
+                discount=0.99,
                 # DistributionModel
                 distributions=None,
                 entropy_regularization=0.01,
                 # PGModel
-                baseline_mode=None,
-                baseline=None,
-                baseline_optimizer=None,
+                baseline_mode='states',
+                baseline=dict(
+                    type='mlp',
+                    sizes=[32, 32]
+                ),
+                baseline_optimizer=dict(
+                    type='multi_step',
+                    optimizer=dict(
+                        type='adam',
+                        learning_rate=1e-3
+                    ),
+                    num_steps=5
+                ),
                 gae_lambda=None,
                 # PGLRModel
                 likelihood_ratio_clipping=0.2,
                 # PPOAgent
                 step_optimizer=dict(
                     type='adam',
-                    learning_rate=1e-4
+                    learning_rate=1e-3
                 ),
                 subsampling_fraction=0.1,
                 optimization_steps=50
@@ -103,6 +114,7 @@ class TestQuickstartExample(unittest.TestCase):
 
             # Start the runner
             runner.run(episodes=2000, max_episode_timesteps=200, episode_finished=episode_finished)
+            runner.close()
 
             sys.stdout.write('episodes: {}\n'.format(runner.episode))
             sys.stdout.flush()

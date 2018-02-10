@@ -225,7 +225,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 x2 = self.layer_float2.apply(x=self.layer_float1.apply(x=x['float'], update=update), update=update)
                 x3 = self.layer_bounded2.apply(x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update)
                 x = x0 * x1 * x2 * x3
-                return (x, list()) if return_internals else x
+                return (x, dict()) if return_internals else x
 
         environment = MinimalTest(
             specification={'bool': (), 'int': (2,), 'float': (1, 1), 'bounded': (1,)}

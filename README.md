@@ -25,6 +25,12 @@ More information on architecture can also be found [on our blog](https://reinfor
 Please also read the [TensorForce FAQ](https://github.com/reinforceio/tensorforce/blob/master/FAQ.md)
 if you encounter problems or have questions.
 
+We are currently in the process of finalising a major update which improves various performance issues,
+removes inconsistencies and enables new features by moving memories into the TensorFlow graph.
+You can follow development of the branch on github [here](https://github.com/reinforceio/tensorforce/tree/memory)
+and begin using it or wait for a merge which should be completed by end February.
+
+
 Finally, read the latest update notes (UPDATE_NOTES.md) for an idea of
 how the project is evolving, especially concerning majorAPI breaking updates.
 

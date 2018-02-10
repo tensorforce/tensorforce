@@ -161,7 +161,7 @@ class Agent(object):
         # for preprocessing in self.preprocessing.values():
         #     preprocessing.reset()
 
-    def act(self, states, deterministic=False):
+    def act(self, states, deterministic=False, fetch_tensors=None):
         """
         Return action(s) for given state(s). States preprocessing and exploration are applied if  
         configured accordingly.
@@ -169,9 +169,10 @@ class Agent(object):
         Args:
             states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
             deterministic (bool): If true, no exploration and sampling is applied.
+            fetch_tensors (list): Optional String of named tensors to fetch
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
-
+            (fetched_tensors) Optional dict() with named tensors fetched
         """
         self.current_internals = self.next_internals
 
@@ -180,17 +181,31 @@ class Agent(object):
         else:
             self.current_states = {name: np.asarray(state) for name, state in states.items()}
 
-        # Retrieve action
-        self.current_actions, self.next_internals, self.timestep = self.model.act(
-            states=self.current_states,
-            internals=self.current_internals,
-            deterministic=deterministic
-        )
+        if fetch_tensors is not None:
+            # Retrieve action
+            self.current_actions, self.next_internals, self.timestep, self.fetched_tensors = self.model.act(
+                states=self.current_states,
+                internals=self.current_internals,
+                deterministic=deterministic,
+                fetch_tensors=fetch_tensors
+            )
 
-        if self.unique_action:
-            return self.current_actions['action']
+            if self.unique_action:
+                return self.current_actions['action'], self.fetched_tensors
+            else:
+                return self.current_actions, self.fetched_tensors            
         else:
-            return self.current_actions
+            # Retrieve action
+            self.current_actions, self.next_internals, self.timestep = self.model.act(
+                states=self.current_states,
+                internals=self.current_internals,
+                deterministic=deterministic
+            )
+
+            if self.unique_action:
+                return self.current_actions['action']
+            else:
+                return self.current_actions
 
     def observe(self, terminal, reward):
         """

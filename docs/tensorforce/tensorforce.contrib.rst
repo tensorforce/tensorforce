@@ -1,71 +1,79 @@
-tensorforce.contrib package
-===========================
+tensorforce\.contrib package
+============================
 
 Submodules
 ----------
 
-tensorforce.contrib.ale module
-------------------------------
+tensorforce\.contrib\.ale module
+--------------------------------
 
 .. automodule:: tensorforce.contrib.ale
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.contrib.deepmind_lab module
----------------------------------------
+tensorforce\.contrib\.deepmind\_lab module
+------------------------------------------
 
 .. automodule:: tensorforce.contrib.deepmind_lab
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.contrib.maze_explorer module
-----------------------------------------
+tensorforce\.contrib\.maze\_explorer module
+-------------------------------------------
 
 .. automodule:: tensorforce.contrib.maze_explorer
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.contrib.openai_gym module
--------------------------------------
+tensorforce\.contrib\.openai\_gym module
+----------------------------------------
 
 .. automodule:: tensorforce.contrib.openai_gym
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.contrib.openai_universe module
-------------------------------------------
+tensorforce\.contrib\.openai\_universe module
+---------------------------------------------
 
 .. automodule:: tensorforce.contrib.openai_universe
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.contrib.remote_environment module
----------------------------------------------
+tensorforce\.contrib\.remote\_environment module
+------------------------------------------------
 
 .. automodule:: tensorforce.contrib.remote_environment
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.contrib.state_settable_environment module
------------------------------------------------------
+tensorforce\.contrib\.state\_settable\_environment module
+---------------------------------------------------------
 
 .. automodule:: tensorforce.contrib.state_settable_environment
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
-tensorforce.contrib.unreal_engine module
-----------------------------------------
+tensorforce\.contrib\.unreal\_engine module
+-------------------------------------------
 
 .. automodule:: tensorforce.contrib.unreal_engine
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:
 
 
@@ -75,4 +83,5 @@ Module contents
 .. automodule:: tensorforce.contrib
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:

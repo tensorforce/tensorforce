@@ -624,7 +624,7 @@ class Model(object):
 
     def initialize(self, custom_getter):
         """
-        Creates the TensorFlow placeholders and functions for this model. Moreover adds the  
+        Creates the TensorFlow placeholders and functions for this model. Moreover adds the
         internal state placeholders and initialization values to the model.
 
         Args:
@@ -1191,7 +1191,7 @@ class Model(object):
         """
 
         if include_non_trainable:
-                # Optimizer variables and timestep/episode only included if 'include_non_trainable' set
+            # Optimizer variables and timestep/episode only included if 'include_non_trainable' set
             model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
             states_preprocessing_variables = [
                 variable for name in self.states_preprocessing.keys()

@@ -22,11 +22,23 @@ import logging
 from six.moves import xrange
 import sys
 import copy
+import enum
 
 from tensorforce.execution import SingleRunner, ThreadedRunner
 from tensorforce.execution.threaded_runner import clone_worker_agent
 
 logging.getLogger('tensorflow').disabled = True
+
+
+class RunMode(enum.IntEnum):
+    """
+    The `run_mode` bitfield flags for a test agent.
+    The default run-mode for test agents is RunMode.SINGLE (only one model and no parallel learning),
+    but the other flags (e.g. multi-threaded) can be added as needed.
+    """
+    SINGLE = 0x1
+    MULTI_THREADED = 0x2
+    # DISTRIBUTED_TF = 0x4  # TODO: Add support for distributed tf to test cases.
 
 
 class BaseTest(object):
@@ -45,7 +57,7 @@ class BaseTest(object):
         """
         pass
 
-    def base_test_pass(self, name, environment, network_spec, **kwargs):
+    def base_test_pass(self, name, environment, network_spec, run_mode=RunMode.SINGLE, num_workers=5, **kwargs):
         """
         Basic test loop, requires an Agent to achieve a certain performance on an environment.
 
@@ -53,13 +65,13 @@ class BaseTest(object):
             name (str): The name of the test.
             environment (Environment): The Environment object to use for the test.
             network_spec (LayerBasedNetwork): The Network to use for the agent's model.
+            run_mode (int): The run-mode (value of enum RunMode) for this test.
+            num_workers (int): For parallel run-modes, how many workers do we use?
             kwargs (any):
                 'multithreaded'=True if this run should be made using the ThreadedRunner.
         """
         sys.stdout.write('\n{} ({}):'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()
-
-        threaded = kwargs.pop("multithreaded", False)
 
         passed = 0
         for _ in xrange(3):
@@ -77,10 +89,9 @@ class BaseTest(object):
                     **kwargs
                 )
 
-            if threaded:
-                num_workers = 5
+            if run_mode == RunMode.MULTI_THREADED:
                 agents = clone_worker_agent(agent, num_workers, environment,
-                                                network_spec if self.__class__.requires_network else None, kwargs)
+                                            network_spec if self.__class__.requires_network else None, kwargs)
                 environments = [environment]
                 for _ in range(num_workers - 1):
                     environments.append(copy.deepcopy(environment))
@@ -111,7 +122,7 @@ class BaseTest(object):
         sys.stdout.flush()
         self.assertTrue(passed >= 2)
 
-    def base_test_run(self, name, environment, network_spec, **kwargs):
+    def base_test_run(self, name, environment, network_spec, run_mode=RunMode.SINGLE, num_workers=5, **kwargs):
         """
         Run test, tests whether algorithm can run and update without compilation errors,
         not whether it passes.
@@ -120,14 +131,14 @@ class BaseTest(object):
             name (str): The name of the test.
             environment (Environment): The Environment object to use for the test.
             network_spec (LayerBasedNetwork): The Network to use for the agent's model.
+            run_mode (int): The run-mode (value of enum RunMode) for this test.
+            num_workers (int): For parallel run-modes, how many workers do we use?
             kwargs (any):
                 'multithreaded'=True if this run should be made using the ThreadedRunner.
         """
 
         sys.stdout.write('\n{} ({}):'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()
-
-        threaded = kwargs.pop("multithreaded", False)
 
         if self.__class__.requires_network:
             agent = self.__class__.agent(
@@ -143,10 +154,9 @@ class BaseTest(object):
                 **kwargs
             )
 
-        if threaded:
-            num_workers = 5
-            agents = duplicate_worker_agent(agent, num_workers, environment,
-                                            network_spec if self.__class__.requires_network else None, kwargs)
+        if run_mode == RunMode.MULTI_THREADED:
+            agents = clone_worker_agent(agent, num_workers, environment,
+                                        network_spec if self.__class__.requires_network else None, kwargs)
             environments = [environment]
             for _ in range(num_workers - 1):
                 environments.append(copy.deepcopy(environment))

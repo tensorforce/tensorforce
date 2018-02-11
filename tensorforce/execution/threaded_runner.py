@@ -22,10 +22,12 @@ import threading
 from six.moves import xrange
 import warnings
 from inspect import getargspec
+import importlib
 
 from tensorforce import TensorForceError
 from tensorforce.execution.base_runner import BaseRunner
 from tensorforce.agents.learning_agent import LearningAgent
+from tensorforce.agents import agents as AgentsDictionary
 
 
 class ThreadedRunner(BaseRunner):
@@ -259,6 +261,15 @@ def WorkerAgentGenerator(agent_class):
     """
     Worker Agent generator, receives an Agent class and creates a Worker Agent class that inherits from that Agent.
     """
+
+    # Support special case where class is given as type-string (AgentsDictionary) or class-name-string.
+    if isinstance(agent_class, str):
+        agent_class = AgentsDictionary.get(agent_class)
+        # Last resort: Class name given as string?
+        if not agent_class and agent_class.find('.') != -1:
+            module_name, function_name = agent_class.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            agent_class = getattr(module, function_name)
 
     class WorkerAgent(agent_class):
         """

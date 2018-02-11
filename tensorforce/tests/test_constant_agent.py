@@ -19,7 +19,7 @@ from __future__ import print_function
 from __future__ import division
 
 import unittest
-from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.tests.base_agent_test import BaseAgentTest, RunMode
 from tensorforce.agents import ConstantAgent
 
 
@@ -43,4 +43,4 @@ class TestConstantAgent(BaseAgentTest, unittest.TestCase):
     exclude_multi = True
     exclude_lstm = True
 
-    run_type = "multi-threaded"
+    run_mode = RunMode.SINGLE | RunMode.MULTI_THREADED

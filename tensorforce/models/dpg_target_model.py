@@ -160,6 +160,7 @@ class DPGTargetModel(DistributionModel):
         )
 
         assert self.memory_spec["include_next_states"]
+        assert self.requires_deterministic == True
 
     def initialize(self, custom_getter):
         super(DPGTargetModel, self).initialize(custom_getter)

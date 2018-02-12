@@ -280,7 +280,7 @@ def WorkerAgentGenerator(agent_class):
             # set our model externally
             self.model = model
             # be robust against `network_spec` coming in from kwargs even though this agent doesn't have one
-            if not isinstance(agent_class, LearningAgent):
+            if not issubclass(agent_class, LearningAgent):
                 kwargs.pop("network_spec")
             # call super c'tor (which will call initialize_model and assign self.model to the return value)
             super(WorkerAgent, self).__init__(**kwargs)

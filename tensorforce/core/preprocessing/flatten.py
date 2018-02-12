@@ -31,7 +31,9 @@ class Flatten(Preprocessor):
     def __init__(self, scope='flatten', summary_labels=()):
         super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
 
+    def processed_shape(self, shape):
+        return -1, util.prod(shape[1:])
 
     def tf_process(self, tensor):
         # Flatten tensor
-        return tf.reshape(tensor=tensor, shape=(-1, util.prod(util.shape(tensor)[1:])))
+        return tf.reshape(tensor=tensor, shape=self.processed_shape(util.shape(tensor)))

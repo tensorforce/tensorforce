@@ -22,7 +22,7 @@ import tensorflow as tf
 from tensorforce import util, TensorForceError
 from tensorforce.models import DistributionModel
 
-from tensorforce.core.networks import Network, LayerBasedNetwork, Dense
+from tensorforce.core.networks import Network, LayerBasedNetwork, Dense, Linear, TFLayer, Nonlinearity
 from tensorforce.core.optimizers import Optimizer, Synchronization
 
 
@@ -30,13 +30,26 @@ class DDPGCriticNetwork(LayerBasedNetwork):
     def __init__(self, scope='ddpg-critic-network', summary_labels=(), size_t0=400, size_t1=300):
         super(DDPGCriticNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
 
-        self.t0 = Dense(size=size_t0, activation='relu', scope=scope + '/dense0')
-        self.t1 = Dense(size=size_t1, activation='relu', scope=scope + '/dense1')
-        self.t2 = Dense(size=1, activation='tanh', scope=scope + '/dense2')
+        self.t0l = Linear(size=size_t0, scope='linear0')
+        self.t0b = TFLayer(layer='batch_normalization', scope='batchnorm0', center=True, scale=True)
+        self.t0n = Nonlinearity(name='relu', scope='relu0')
 
-        self.add_layer(self.t0)
-        self.add_layer(self.t1)
-        self.add_layer(self.t2)
+        self.t1l = Linear(size=size_t1, scope='linear1')
+        self.t1b = TFLayer(layer='batch_normalization', scope='batchnorm1', center=True, scale=True)
+        self.t1n = Nonlinearity(name='relu', scope='relu1')
+
+        self.t2d = Dense(size=1, activation='tanh', scope='dense0',
+                         weights=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
+
+        self.add_layer(self.t0l)
+        self.add_layer(self.t0b)
+        self.add_layer(self.t0n)
+
+        self.add_layer(self.t1l)
+        self.add_layer(self.t1b)
+        self.add_layer(self.t1n)
+
+        self.add_layer(self.t2d)
 
     def tf_apply(self, x, internals, update, return_internals=False):
         assert x['states'], x['actions']
@@ -59,13 +72,21 @@ class DDPGCriticNetwork(LayerBasedNetwork):
 
         x_actions = tf.reshape(tf.cast(x_actions, dtype=tf.float32), (-1, 1))
 
-        out = self.t0.tf_apply(x=x_states, update=update)
+        out = self.t0l.apply(x=x_states, update=update)
+        out = self.t0b.apply(x=out, update=update)
+        out = self.t0n.apply(x=out, update=update)
 
-        out = self.t1.tf_apply(x=tf.concat([out, x_actions], axis=-1), update=update)
+        out = self.t1l.apply(x=tf.concat([out, x_actions], axis=-1), update=update)
+        out = self.t1b.apply(x=out, update=update)
+        out = self.t1n.apply(x=out, update=update)
 
-        out = self.t2.tf_apply(x=out, update=update)
+        out = self.t2d.apply(x=out, update=update)
 
-        return out
+        if return_internals:
+            # Todo: Internals management
+            return out, None
+        else:
+            return out
 
 
 class DPGTargetModel(DistributionModel):
@@ -139,6 +160,7 @@ class DPGTargetModel(DistributionModel):
         )
 
         assert self.memory_spec["include_next_states"]
+        assert self.requires_deterministic == True
 
     def initialize(self, custom_getter):
         super(DPGTargetModel, self).initialize(custom_getter)
@@ -159,10 +181,6 @@ class DPGTargetModel(DistributionModel):
         self.target_distributions = self.create_distributions()
 
         # Critic
-        # self.critic = Network.from_spec(
-        #     spec=self.critic_network_spec,
-        #     kwargs=dict(scope='critic', summary_labels=self.summary_labels)
-        # )
         size_t0 = self.critic_network_spec['size_t0']
         size_t1 = self.critic_network_spec['size_t1']
 
@@ -172,10 +190,6 @@ class DPGTargetModel(DistributionModel):
             kwargs=dict(summary_labels=self.summary_labels)
         )
 
-        # self.target_critic = Network.from_spec(
-        #     spec=self.critic_network_spec,
-        #     kwargs=dict(scope='target-critic', summary_labels=self.summary_labels)
-        # )
         self.target_critic = DDPGCriticNetwork(scope='target-critic', size_t0=size_t0, size_t1=size_t1)
 
         # Target critic optimizer
@@ -216,7 +230,6 @@ class DPGTargetModel(DistributionModel):
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
         q = self.critic.apply(dict(states=states, actions=actions), internals=internals, update=update)
-
         return -q
 
     def tf_predict_target_q(self, states, internals, terminal, actions, reward, update):
@@ -225,13 +238,17 @@ class DPGTargetModel(DistributionModel):
 
     def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
         update = tf.constant(value=True)
+
         # Predict actions from target actor
-        target_actions, target_internals = self.fn_target_actions_and_internals(
+        next_target_actions, next_target_internals = self.fn_target_actions_and_internals(
             states=next_states, internals=next_internals, deterministic=True
         )
 
-        predicted_q = self.fn_predict_target_q(states=next_states, internals=next_internals,
-                                               actions=target_actions, terminal=terminal, reward=reward, update=update)
+        # Predicted Q value of next states
+        predicted_q = self.fn_predict_target_q(
+            states=next_states, internals=next_internals, actions=next_target_actions, terminal=terminal,
+            reward=reward, update=update
+        )
         predicted_q = tf.stop_gradient(input=predicted_q)
 
         real_q = self.critic.apply(dict(states=states, actions=actions), internals=internals, update=update)
@@ -264,7 +281,7 @@ class DPGTargetModel(DistributionModel):
             next_internals=next_internals
         )
 
-        # Update target network and baseline
+        # Update target actor (network) and critic
         network_distributions_variables = [
             variable for name in sorted(self.distributions)
             for variable in self.distributions[name].get_variables(include_nontrainable=False)
@@ -316,7 +333,7 @@ class DPGTargetModel(DistributionModel):
             ]
             model_variables += target_distributions_variables
 
-            target_critic_variables = self.target_critic.get_variables()
+            target_critic_variables = self.target_critic.get_variables(include_nontrainable=include_nontrainable)
             model_variables += target_critic_variables
 
             if include_nontrainable:

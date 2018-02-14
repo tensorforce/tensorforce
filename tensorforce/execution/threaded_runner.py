@@ -191,6 +191,7 @@ class ThreadedRunner(BaseRunner):
 
             # time step (within episode) loop
             time_step = 0
+            time_start = time.time()
             while True:
                 action = agent.act(states=state, deterministic=deterministic)
                 reward = 0
@@ -219,6 +220,7 @@ class ThreadedRunner(BaseRunner):
             self.episode_list_lock.acquire()
             self.episode_rewards.append(episode_reward)
             self.episode_timesteps.append(time_step)
+            self.episode_times.append(time.time() - time_start)
             self.episode_list_lock.release()
 
             if episode_finished is not None:

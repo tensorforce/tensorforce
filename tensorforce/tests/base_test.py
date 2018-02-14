@@ -90,8 +90,7 @@ class BaseTest(object):
                 )
 
             if run_mode == RunMode.MULTI_THREADED:
-                agents = clone_worker_agent(agent, num_workers, environment,
-                                            network_spec if self.__class__.requires_network else None, kwargs)
+                agents = clone_worker_agent(agent, num_workers, environment, network_spec, kwargs)
                 environments = [environment]
                 for _ in range(num_workers - 1):
                     environments.append(copy.deepcopy(environment))
@@ -155,8 +154,7 @@ class BaseTest(object):
             )
 
         if run_mode == RunMode.MULTI_THREADED:
-            agents = clone_worker_agent(agent, num_workers, environment,
-                                        network_spec if self.__class__.requires_network else None, kwargs)
+            agents = clone_worker_agent(agent, num_workers, environment, network_spec, kwargs)
             environments = [environment]
             for _ in range(num_workers - 1):
                 environments.append(copy.deepcopy(environment))

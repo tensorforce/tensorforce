@@ -146,7 +146,7 @@ class ThreadedRunner(BaseRunner):
                         print("Saving agent after episode {}".format(self.global_episode))
                     elif self.save_frequency_unit == "s" and self.time > next_save:
                         print("Saving agent after {} sec".format(self.save_frequency))
-                    elif self.global_timestep > next_save:
+                    elif self.save_frequency_unit == "t" and self.global_timestep > next_save:
                         print("Saving agent after {} time steps".format(self.save_frequency))
                     self.agent[0].save_model(self.save_path)
                     next_save += self.save_frequency

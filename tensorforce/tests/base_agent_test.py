@@ -60,7 +60,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='bool',
                     environment=environment,
-                    network_spec=network_spec,
+                    network=network_spec,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config
@@ -84,7 +84,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='int',
                     environment=environment,
-                    network_spec=network_spec,
+                    network=network_spec,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config
@@ -107,7 +107,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='float',
                     environment=environment,
-                    network_spec=network_spec,
+                    network=network_spec,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config
@@ -130,7 +130,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='bounded',
                     environment=environment,
-                    network_spec=network_spec,
+                    network=network_spec,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config
@@ -227,7 +227,7 @@ class BaseAgentTest(BaseTest):
                     self.base_test_run(
                         name='multi',
                         environment=environment,
-                        network_spec=CustomNetwork,
+                        network=CustomNetwork,
                         run_mode=mode.value,
                         num_workers=self.__class__.num_parallel_workers,
                         **self.__class__.config
@@ -238,7 +238,7 @@ class BaseAgentTest(BaseTest):
                     self.base_test_run(
                         name='multi',
                         environment=environment,
-                        network_spec=CustomNetwork,
+                        network=CustomNetwork,
                         run_mode=mode.value,
                         num_workers=self.__class__.num_parallel_workers,
                         **self.__class__.multi_config
@@ -263,7 +263,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='lstm',
                     environment=environment,
-                    network_spec=network_spec,
+                    network=network_spec,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config

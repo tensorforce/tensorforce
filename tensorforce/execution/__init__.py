@@ -13,7 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.execution.runner import Runner
-from tensorforce.execution.threaded_runner import ThreadedRunner
+from tensorforce.execution.base_runner import BaseRunner
+from tensorforce.execution.runner import Runner, SingleRunner, DistributedTFRunner
+from tensorforce.execution.threaded_runner import ThreadedRunner, WorkerAgentGenerator
 
-__all__ = ['Runner', 'ThreadedRunner']
+__all__ = ['BaseRunner', 'SingleRunner', 'DistributedTFRunner', 'Runner', 'ThreadedRunner', 'WorkerAgentGenerator']

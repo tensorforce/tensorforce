@@ -65,7 +65,7 @@ def main():
 
     args = parser.parse_args()
 
-    #logging.basicConfig(filename="logfile.txt", level=logging.INFO)
+    # logging.basicConfig(filename="logfile.txt", level=logging.INFO)
     logging.basicConfig(stream=sys.stderr)
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
@@ -83,7 +83,7 @@ def main():
     if args.random_test_run:
         # Reset the env.
         s = environment.reset()
-        img = Image.fromarray(s, "RGB")
+        img = Image.fromarray(s, "RGB" if len(environment.states["shape"]) == 3 else "L")
         # Save first received image as a sanity-check.
         img.save("reset.png")
         for i in range(1000):

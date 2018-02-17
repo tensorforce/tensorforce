@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce.tests.base_test import BaseTest
+from tensorforce.tests.base_test import BaseTest, RunMode
 from tensorforce.core.networks import Dense, LayerBasedNetwork
 from tensorforce.environments.minimal_test import MinimalTest
 
@@ -38,6 +38,9 @@ class BaseAgentTest(BaseTest):
     exclude_bounded = False
     exclude_multi = False
     exclude_lstm = False
+    # Run-type flags
+    run_mode = RunMode.SINGLE  # normally run in single mode (possible also: 'multi-threaded', 'distributed')
+    num_parallel_workers = 5  # the number of parallel workers if run_mode is not SINGLE
 
     def test_bool(self):
         """
@@ -52,12 +55,16 @@ class BaseAgentTest(BaseTest):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        self.base_test_pass(
-            name='bool',
-            environment=environment,
-            network_spec=network_spec,
-            **self.__class__.config
-        )
+        for mode in RunMode:
+            if self.__class__.run_mode & mode.value:
+                self.base_test_pass(
+                    name='bool',
+                    environment=environment,
+                    network_spec=network_spec,
+                    run_mode=mode.value,
+                    num_workers=self.__class__.num_parallel_workers,
+                    **self.__class__.config
+                )
 
     def test_int(self):
         """
@@ -72,12 +79,16 @@ class BaseAgentTest(BaseTest):
             dict(type='dense', size=32)
         ]
 
-        self.base_test_pass(
-            name='int',
-            environment=environment,
-            network_spec=network_spec,
-            **self.__class__.config
-        )
+        for mode in RunMode:
+            if self.__class__.run_mode & mode.value:
+                self.base_test_pass(
+                    name='int',
+                    environment=environment,
+                    network_spec=network_spec,
+                    run_mode=mode.value,
+                    num_workers=self.__class__.num_parallel_workers,
+                    **self.__class__.config
+                )
 
     def test_float(self):
         """
@@ -91,12 +102,16 @@ class BaseAgentTest(BaseTest):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        self.base_test_pass(
-            name='float',
-            environment=environment,
-            network_spec=network_spec,
-            **self.__class__.config
-        )
+        for mode in RunMode:
+            if self.__class__.run_mode & mode.value:
+                self.base_test_pass(
+                    name='float',
+                    environment=environment,
+                    network_spec=network_spec,
+                    run_mode=mode.value,
+                    num_workers=self.__class__.num_parallel_workers,
+                    **self.__class__.config
+                )
 
     def test_bounded_float(self):
         """
@@ -110,12 +125,16 @@ class BaseAgentTest(BaseTest):
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
-        self.base_test_pass(
-            name='bounded',
-            environment=environment,
-            network_spec=network_spec,
-            **self.__class__.config
-        )
+        for mode in RunMode:
+            if self.__class__.run_mode & mode.value:
+                self.base_test_pass(
+                    name='bounded',
+                    environment=environment,
+                    network_spec=network_spec,
+                    run_mode=mode.value,
+                    num_workers=self.__class__.num_parallel_workers,
+                    **self.__class__.config
+                )
 
     def test_multi(self):
         """
@@ -200,19 +219,27 @@ class BaseAgentTest(BaseTest):
         environment = MinimalTest(specification=specification)
 
         if self.__class__.multi_config is None:
-            self.base_test_run(
-                name='multi',
-                environment=environment,
-                network_spec=CustomNetwork,
-                **self.__class__.config
-            )
+            for mode in RunMode:
+                if self.__class__.run_mode & mode.value:
+                    self.base_test_run(
+                        name='multi',
+                        environment=environment,
+                        network_spec=CustomNetwork,
+                        run_mode=mode.value,
+                        num_workers=self.__class__.num_parallel_workers,
+                        **self.__class__.config
+                    )
         else:
-            self.base_test_run(
-                name='multi',
-                environment=environment,
-                network_spec=CustomNetwork,
-                **self.__class__.multi_config
-            )
+            for mode in RunMode:
+                if self.__class__.run_mode & mode.value:
+                    self.base_test_run(
+                        name='multi',
+                        environment=environment,
+                        network_spec=CustomNetwork,
+                        run_mode=mode.value,
+                        num_workers=self.__class__.num_parallel_workers,
+                        **self.__class__.multi_config
+                    )
 
     def test_lstm(self):
         """
@@ -228,9 +255,13 @@ class BaseAgentTest(BaseTest):
             dict(type='internal_lstm', size=32)
         ]
 
-        self.base_test_pass(
-            name='lstm',
-            environment=environment,
-            network_spec=network_spec,
-            **self.__class__.config
-        )
+        for mode in RunMode:
+            if self.__class__.run_mode & mode.value:
+                self.base_test_pass(
+                    name='lstm',
+                    environment=environment,
+                    network_spec=network_spec,
+                    run_mode=mode.value,
+                    num_workers=self.__class__.num_parallel_workers,
+                    **self.__class__.config
+                )

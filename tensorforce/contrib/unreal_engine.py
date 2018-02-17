@@ -28,7 +28,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
     """
     A special RemoteEnvironment for UE4 game connections.
     Communicates with the remote to receive information on the definitions of action- and observation spaces.
-    Sends UE4 Action- and Axis-mappings as RL-actions and receives observations back defined by ducandu plugin Observer
+    Sends UE4 Action- and Axis-mappings as RL-actions and receives observations back defined by MLObserver
     objects placed in the Game
     (these could be camera pixels or other observations, e.g. a x/y/z position of some game actor).
     """
@@ -86,6 +86,8 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             raise TensorForceError("ERROR in UE4Environment.connect: no observation- or action-space-desc sent "
                                    "by remote server!")
 
+        # Game's name
+        self.game_name = response.get("game_name")  # keep non-mandatory for now
         # Observers
         self.observation_space_desc = response["observation_space_desc"]
         # Action-mappings

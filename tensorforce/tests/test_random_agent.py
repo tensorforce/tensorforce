@@ -19,7 +19,7 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.tests.base_agent_test import BaseAgentTest, RunMode
 from tensorforce.agents import RandomAgent
 
 
@@ -34,3 +34,5 @@ class TestRandomAgent(BaseAgentTest, unittest.TestCase):
 
     # Not using a network so no point in testing LSTM
     exclude_lstm = True
+
+    run_mode = RunMode.SINGLE | RunMode.MULTI_THREADED

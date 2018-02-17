@@ -19,7 +19,7 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.tests.base_agent_test import BaseAgentTest
+from tensorforce.tests.base_agent_test import BaseAgentTest, RunMode
 from tensorforce.agents import PPOAgent
 
 
@@ -52,3 +52,5 @@ class TestPPOAgent(BaseAgentTest, unittest.TestCase):
     #         learning_rate=0.001
     #     )
     # )
+
+    run_mode = RunMode.SINGLE | RunMode.MULTI_THREADED

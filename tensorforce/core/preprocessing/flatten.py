@@ -1,4 +1,3 @@
-
 # Copyright 2017 reinforce.io. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,30 +14,26 @@
 # ==============================================================================
 
 from __future__ import absolute_import
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
-import unittest
-from tensorforce.tests.base_agent_test import BaseAgentTest, RunMode
-from tensorforce.agents import ConstantAgent
+import tensorflow as tf
+
+from tensorforce import util
+from tensorforce.core.preprocessing import Preprocessor
 
 
-class TestConstantAgent(BaseAgentTest, unittest.TestCase):
+class Flatten(Preprocessor):
+    """
+    Normalize state. Subtract minimal value and divide by range.
+    """
 
-    agent = ConstantAgent
-    requires_network = False
+    def __init__(self, scope='flatten', summary_labels=()):
+        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    # Just testing float and bounded test, otherwise we would have to specify constant values of  
-    # every type for every test and override all base tests
-    config = dict(
-        action_values=dict(
-            action=1.0
-        )
-    )
+    def processed_shape(self, shape):
+        return -1, util.prod(shape[1:])
 
-    exclude_bool = True
-    exclude_int = True
-    exclude_multi = True
-    exclude_lstm = True
-
-    run_mode = RunMode.SINGLE | RunMode.MULTI_THREADED
+    def tf_process(self, tensor):
+        # Flatten tensor
+        return tf.reshape(tensor=tensor, shape=self.processed_shape(util.shape(tensor)))

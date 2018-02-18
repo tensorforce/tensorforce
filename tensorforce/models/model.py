@@ -847,7 +847,7 @@ class Model(object):
 
         elif action_spec['type'] == 'float':
             for _ in range(util.rank(action) - 1):
-                exploration_value = tf.expand_dims(input=exploration_value, axis=1)
+                exploration_value = tf.expand_dims(input=exploration_value, axis=-1)
             action += exploration_value
             if 'min_value' in action_spec:
                 action = tf.clip_by_value(

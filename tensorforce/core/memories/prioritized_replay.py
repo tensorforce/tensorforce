@@ -228,7 +228,6 @@ class PrioritizedReplay(Memory):
                 ref=self.internals_buffer[name][start_index:end_index],
                 value=internal
             ))
-
         for name, action in actions.items():
             assignments.append(tf.assign(ref=self.actions_buffer[name][start_index:end_index], value=action))
 
@@ -245,10 +244,10 @@ class PrioritizedReplay(Memory):
     def tf_retrieve_timesteps(self, n):
         num_buffer_elems = tf.minimum(x=self.buffer_index, y=n)
         num_priority_elements = n - num_buffer_elems
-        # Vectorized sampling.
-        sum_priorities = tf.reduce_sum(input_tensor=self.priorities, axis=0)
 
         def sampling_fn():
+            # Vectorized sampling.
+            sum_priorities = tf.reduce_sum(input_tensor=self.priorities, axis=0)
             sample = tf.random_uniform(shape=(num_priority_elements,), dtype=tf.float32)
             indices = tf.zeros(shape=(num_priority_elements,), dtype=tf.int32)
 
@@ -277,22 +276,22 @@ class PrioritizedReplay(Memory):
             true_fn=sampling_fn,
             false_fn=lambda: tf.zeros(shape=(num_priority_elements,), dtype=tf.int32)
         )
-
         priority_terminal = tf.gather(params=self.terminal_memory, indices=priority_indices)
         priority_indices = tf.boolean_mask(tensor=priority_indices, mask=tf.logical_not(x=priority_terminal))
 
         # Store how many elements we retrieved from the buffer for updating priorities.
+        # Note that this is just the count, as we can reconstruct the indices from that.
         assignments = list()
-        assignments.append(tf.assign(ref=self.buffer_index, value=num_buffer_elems))
+        assignments.append(tf.assign(ref=self.last_batch_buffer_elems, value=num_buffer_elems))
 
-        # Store indices from priority memory.
+        # Store indices used from priority memory. Note that these are the full indices
+        # as they were not taken in order.
         assignments.append(tf.scatter_update(
             ref=self.batch_indices,
             indices=priority_indices,
             updates=tf.ones(shape=tf.shape(input=priority_indices), dtype=tf.int32))
         )
-        # assignment = tf.assign(ref=self.batch_indices, value=priority_indices)
-
+        # Fetch results.
         with tf.control_dependencies(control_inputs=assignments):
             return self.retrieve_indices(buffer_elements=num_buffer_elems, priority_indices=priority_indices)
 
@@ -308,13 +307,18 @@ class PrioritizedReplay(Memory):
         Returns: Batch of experiences
         """
         states = dict()
-        buffer_start = (self.buffer_index - 1 - buffer_elements)
-        buffer_end = (self.buffer_index - 1)
+
+        buffer_start = (self.buffer_index - buffer_elements)
+        buffer_start = tf.Print(buffer_start, [buffer_start], 'buffer start=', summarize=100)
+        buffer_end = (self.buffer_index)
+        buffer_end = tf.Print(buffer_end, [buffer_end], 'buffer_end=', summarize=100)
         # Fetch entries from respective memories, concat.
         for name, state_memory in self.states_memory.items():
             buffer_state_memory = self.states_buffer[name]
             buffer_states = buffer_state_memory[buffer_start:buffer_end]
             memory_states = tf.gather(params=state_memory, indices=priority_indices)
+            # buffer_states = tf.Print(buffer_states, [buffer_states], "buffer states=", summarize=100)
+            # memory_states = tf.Print(memory_states, [memory_states], "memory states=", summarize=100)
             states[name] = tf.concat(values=(buffer_states, memory_states), axis=0)
 
         internals = dict()
@@ -335,7 +339,7 @@ class PrioritizedReplay(Memory):
         priority_terminal = tf.gather(params=self.terminal_memory, indices=priority_indices)
         terminal = tf.concat(values=(buffer_terminal, priority_terminal), axis=0)
 
-        buffer_reward = tf.gather(params=self.reward_buffer, indices=priority_indices)
+        buffer_reward = self.reward_buffer[buffer_start:buffer_end]
         priority_reward = tf.gather(params=self.reward_memory, indices=priority_indices)
         reward = tf.concat(values=(buffer_reward, priority_reward), axis=0)
 
@@ -361,7 +365,6 @@ class PrioritizedReplay(Memory):
                 memory_next_internals = tf.gather(params=internal_memory, indices=next_priority_indices)
                 next_internals[name] = tf.concat(values=(buffer_next_internals, memory_next_internals), axis=0)
 
-            states = tf.Print(states, [states], message="states:")
             return dict(
                 states=states,
                 internals=internals,
@@ -387,16 +390,24 @@ class PrioritizedReplay(Memory):
         :param loss_per_instance: Losses for last recent batch
         """
         # 1. We reconstruct the batch from the buffer and the priority memory.
+        mask = tf.not_equal(
+            x=self.batch_indices,
+            y=tf.zeros(shape=tf.shape(input=self.batch_indices), dtype=tf.int32)
+        )
+        priority_indices = tf.where(condition=mask)
+        priority_indices = tf.Print(priority_indices, [priority_indices], message="Priority indices")
         sampled_batch = self.tf_retrieve_indices(
             buffer_elements=self.last_batch_buffer_elems,
-            priority_indices=self.batch_indices
+            priority_indices=priority_indices
         )
-        sampled_batch = tf.Print(sampled_batch, [sampled_batch], message="samppled batch: ")
+        sampled_batch = tf.Print(sampled_batch, [sampled_batch], message="sampled batch: ")
         states = sampled_batch['states']
         internals = sampled_batch['internals']
         actions = sampled_batch['actions']
         terminal = sampled_batch['terminal']
         reward = sampled_batch['reward']
+
+        # TODO this is incorrect
         start_index = 0
         end_index = self.last_batch_buffer_elems
         priorities = loss_per_instance ** self.prioritization_weight

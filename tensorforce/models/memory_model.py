@@ -51,6 +51,11 @@ class MemoryModel(Model):
     ):
         self.update_mode = update_mode
         self.memory_spec = memory
+        # Add other memories requiring loss info here later.
+        if self.memory_spec['type'] in ['prioritized_replay']:
+            self.update_batch = True
+        else:
+            self.update_batch = False
         self.optimizer_spec = optimizer
 
         # Discount

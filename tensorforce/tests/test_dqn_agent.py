@@ -32,17 +32,17 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
             batch_size=8,
             frequency=4
         ),
-        # memory=dict(
-        #     type='replay',
-        #     include_next_states=True,
-        #     capacity=100
-        # ),
         memory=dict(
-            type='prioritized_replay',
+            type='replay',
             include_next_states=True,
-            buffer_size=20,
-            capacity=10000
+            capacity=100
         ),
+        # memory=dict(
+        #     type='prioritized_replay',
+        #     include_next_states=True,
+        #     buffer_size=20,
+        #     capacity=1000
+        # ),
         optimizer=dict(
             type='adam',
             learning_rate=1e-2

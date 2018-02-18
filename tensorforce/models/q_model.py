@@ -196,16 +196,20 @@ class QModel(DistributionModel):
 
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
         loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
-
         # Optional Huber loss
         if self.huber_loss is not None and self.huber_loss > 0.0:
-            return tf.where(
+            loss = tf.where(
                 condition=(tf.abs(x=loss_per_instance) <= self.huber_loss),
                 x=(0.5 * tf.square(x=loss_per_instance)),
                 y=(self.huber_loss * (tf.abs(x=loss_per_instance) - 0.5 * self.huber_loss))
             )
         else:
-            return tf.square(x=loss_per_instance)
+            loss = tf.square(x=loss_per_instance)
+
+        if self.update_batch:
+            self.memory.update_batch(loss_per_instance=loss)
+
+        return loss
 
     def target_optimizer_arguments(self):
         """

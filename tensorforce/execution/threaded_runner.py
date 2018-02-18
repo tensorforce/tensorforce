@@ -73,18 +73,30 @@ class ThreadedRunner(BaseRunner):
             self.save_frequency = save_frequency
             self.save_frequency_unit = save_frequency_unit
 
-        # init some stats for the parallel runs
+        # Initialize stats for parallel runs.
         self.episode_list_lock = threading.Lock()
-        self.should_stop = False  # stop-condition flag that each worker abides to (aborts if True)
-        self.time = None  # global time counter (sec)
+        # Stop-condition flag that each worker abides to (aborts if True).
+        self.should_stop = False
+        # Global time counter (sec).
+        self.time = None
 
     def close(self):
         self.agent[0].close()  # only close first agent as we just have one shared model
         for e in self.environment:
             e.close()
 
-    def run(self, num_episodes=-1, max_episode_timesteps=-1, episode_finished=None, summary_report=None,
-            summary_interval=0, num_timesteps=None, deterministic=False, episodes=None, max_timesteps=None):
+    def run(
+        self,
+        num_episodes=-1,
+        max_episode_timesteps=-1,
+        episode_finished=None,
+        summary_report=None,
+        summary_interval=0,
+        num_timesteps=None,
+        deterministic=False,
+        episodes=None,
+        max_timesteps=None
+    ):
         """
         Executes this runner by starting all Agents in parallel (each one in one thread).
 
@@ -118,14 +130,14 @@ class ThreadedRunner(BaseRunner):
         self.global_timestep = 0
         self.should_stop = False
 
-        # Create threads
+        # Create threads.
         threads = [threading.Thread(target=self._run_single, args=(t, self.agent[t], self.environment[t],),
                                     kwargs={"deterministic": deterministic,
                                             "max_episode_timesteps": max_episode_timesteps,
                                             "episode_finished": episode_finished})
                    for t in range(len(self.agent))]
 
-        # Start threads
+        # Start threads.
         self.start_time = time.time()
         [t.start() for t in threads]
 
@@ -136,7 +148,7 @@ class ThreadedRunner(BaseRunner):
             while any([t.is_alive() for t in threads]) and self.global_episode < num_episodes or num_episodes == -1:
                 self.time = time.time()
 
-                # this is deprecated (but still supported) and should be covered by the `episode_finished` callable
+                # This is deprecated (but still supported) and should be covered by the `episode_finished` callable.
                 if summary_report is not None and self.global_episode > next_summary:
                     summary_report(self)
                     next_summary += summary_interval
@@ -165,7 +177,7 @@ class ThreadedRunner(BaseRunner):
 
         self.should_stop = True
 
-        # Join threads
+        # Join threads.
         [t.join() for t in threads]
         print('All threads stopped')
 
@@ -198,7 +210,7 @@ class ThreadedRunner(BaseRunner):
             self.global_timestep, self.global_episode = agent.timestep, agent.episode
             episode_reward = 0
 
-            # time step (within episode) loop
+            # Time step (within episode) loop
             time_step = 0
             time_start = time.time()
             while True:
@@ -218,7 +230,7 @@ class ThreadedRunner(BaseRunner):
                 if terminal or time_step == max_episode_timesteps:
                     break
 
-                # abort the episode (discard its results) when global says so
+                # Abort the episode (discard its results) when global says so.
                 if self.should_stop:
                     return
 
@@ -242,13 +254,13 @@ class ThreadedRunner(BaseRunner):
                     }
                     if not episode_finished(summary_data):
                         return
-                # new way with BasicRunner (self) and thread-id
+                # New way with BasicRunner (self) and thread-id.
                 elif not episode_finished(self, thread_id):
                     return
 
             episode += 1
 
-    # backwards compatibility for deprecated properties (in case someone directly references these)
+    # Backwards compatibility for deprecated properties (in case someone directly references these).
     @property
     def agents(self):
         return self.agent
@@ -286,16 +298,16 @@ def WorkerAgentGenerator(agent_class):
         """
 
         def __init__(self, model=None, **kwargs):
-            # set our model externally
+            # Set our model externally.
             self.model = model
-            # be robust against `network_spec` coming in from kwargs even though this agent doesn't have one
+            # Be robust against `network` coming in from kwargs even though this agent doesn't have one
             if not issubclass(agent_class, LearningAgent):
                 kwargs.pop("network")
-            # call super c'tor (which will call initialize_model and assign self.model to the return value)
+            # Call super c'tor (which will call initialize_model and assign self.model to the return value).
             super(WorkerAgent, self).__init__(**kwargs)
 
         def initialize_model(self):
-            # return our model (already given and initialized)
+            # Return our model (already given and initialized).
             return self.model
 
     return WorkerAgent

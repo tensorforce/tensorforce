@@ -41,7 +41,7 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
         #     type='prioritized_replay',
         #     include_next_states=True,
         #     buffer_size=20,
-        #     capacity=10000
+        #     capacity=1000
         # ),
         optimizer=dict(
             type='adam',
@@ -52,8 +52,6 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
              dict(type='sequence')
         ],
         target_sync_frequency=10,
-        # first_update=64,
-        # repeat_update=4,
         # Comment in to test exploration types
         # actions_exploration_spec=dict(
         #     type="epsilon_decay",

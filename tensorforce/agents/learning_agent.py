@@ -57,30 +57,30 @@ class LearningAgent(Agent):
         Initializes the learning agent.
 
         Args:
-            summary_spec: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
+            summarizer: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
                 or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
                 to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            network_spec: List of layers specifying a neural network via layer types, sizes and optional arguments
+            network: List of layers specifying a neural network via layer types, sizes and optional arguments
                 such as activation or regularisation. Full examples are in the examples/configs folder.
             discount (float): The reward discount factor.
             device: Device string specifying model device.
             session_config: optional tf.ConfigProto with additional desired session configurations
-            saver_spec: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
+            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
                 either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
                 if a model is initially loaded (set to True) from a file `file`.
-            distributed_spec: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
+            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
                 Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
                 cluster spec.
             optimizer: Dict specifying optimizer type and its optional parameters, typically a `learning_rate`.
                 Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
                 and `evolutionary`. Consult the optimizer test or example configurations for more.
             variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing_spec: Optional list of states preprocessors to apply to state
+            states_preprocessing: Optional list of states preprocessors to apply to state
                 (e.g. `image_resize`, `greyscale`).
-            explorations_spec: Optional dict specifying action exploration type (epsilon greedy
+            actions_exploration: Optional dict specifying action exploration type (epsilon greedy
                 or Gaussian noise).
-            reward_preprocessing_spec: Optional dict specifying reward preprocessing.
-            distributions_spec: Optional dict specifying action distributions to override default distribution choices.
+            reward_preprocessing: Optional dict specifying reward preprocessing.
+            distributions: Optional dict specifying action distributions to override default distribution choices.
                 Must match action names.
             entropy_regularization: Optional positive float specifying an entropy regularization value.
         """

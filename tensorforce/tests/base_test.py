@@ -56,14 +56,14 @@ class BaseTest(object):
         """
         pass
 
-    def base_test_pass(self, name, environment, network_spec, run_mode=RunMode.SINGLE, num_workers=5, **kwargs):
+    def base_test_pass(self, name, environment, network, run_mode=RunMode.SINGLE, num_workers=5, **kwargs):
         """
         Basic test loop, requires an Agent to achieve a certain performance on an environment.
 
         Args:
             name (str): The name of the test.
             environment (Environment): The Environment object to use for the test.
-            network_spec (LayerBasedNetwork): The Network to use for the agent's model.
+            network (LayerBasedNetwork): The Network to use for the agent's model.
             run_mode (int): The run-mode (value of enum RunMode) for this test.
             num_workers (int): For parallel run-modes, how many workers do we use?
             kwargs (any):
@@ -89,7 +89,7 @@ class BaseTest(object):
                 )
 
             if run_mode == RunMode.MULTI_THREADED:
-                agents = clone_worker_agent(agent, num_workers, environment, network_spec, kwargs)
+                agents = clone_worker_agent(agent, num_workers, environment, network, kwargs)
                 environments = [environment]
                 for _ in range(num_workers - 1):
                     environments.append(copy.deepcopy(environment))
@@ -120,7 +120,7 @@ class BaseTest(object):
         sys.stdout.flush()
         self.assertTrue(passed >= 2)
 
-    def base_test_run(self, name, environment, network_spec, run_mode=RunMode.SINGLE, num_workers=5, **kwargs):
+    def base_test_run(self, name, environment, network, run_mode=RunMode.SINGLE, num_workers=5, **kwargs):
         """
         Run test, tests whether algorithm can run and update without compilation errors,
         not whether it passes.
@@ -128,7 +128,7 @@ class BaseTest(object):
         Args:
             name (str): The name of the test.
             environment (Environment): The Environment object to use for the test.
-            network_spec (LayerBasedNetwork): The Network to use for the agent's model.
+            network (LayerBasedNetwork): The Network to use for the agent's model.
             run_mode (int): The run-mode (value of enum RunMode) for this test.
             num_workers (int): For parallel run-modes, how many workers do we use?
             kwargs (any):
@@ -153,7 +153,7 @@ class BaseTest(object):
             )
 
         if run_mode == RunMode.MULTI_THREADED:
-            agents = clone_worker_agent(agent, num_workers, environment, network_spec, kwargs)
+            agents = clone_worker_agent(agent, num_workers, environment, network, kwargs)
             environments = [environment]
             for _ in range(num_workers - 1):
                 environments.append(copy.deepcopy(environment))
@@ -169,7 +169,7 @@ class BaseTest(object):
             ]
             return r.episode < 100 or not all(episodes_passed)
 
-        runner.run(num_episodes=100, deterministic=self.__class__.deterministic, episode_finished=episode_finished)
+        runner.run(num_episodes=100, episode_finished=episode_finished)
         runner.close()
 
         sys.stdout.write('==> {} ran\n'.format(1))

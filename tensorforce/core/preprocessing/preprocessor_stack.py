@@ -23,13 +23,24 @@ import tensorforce.core.preprocessing
 
 
 class PreprocessorStack(object):
-
+    """
+    A class to handle many Preprocessor objects applied in a sequence to some state. For example: An image
+    tensor as state signal could be re-sized first, then grayscaled, then normalized.
+    """
     def __init__(self):
         self.preprocessors = list()
 
     def reset(self):
+        """
+        Calls `reset` on all our Preprocessor objects.
+
+        Returns:
+            A list of tensors to be fetched.
+        """
+        fetches = []
         for processor in self.preprocessors:
-            processor.reset()
+            fetches.extend(processor.reset() or [])
+        return fetches
 
     def process(self, tensor):
         """

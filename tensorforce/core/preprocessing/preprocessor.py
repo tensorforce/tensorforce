@@ -20,7 +20,14 @@ import tensorflow as tf
 
 
 class Preprocessor(object):
+    """
+    A Preprocessor is an object used to map input state signals to some RL-model
+    to some "preprocessed state signals". For example: If the input state is an RGB image of 84x84px (3 color
+    channels; 84x84x3 tensor), a preprocessor could make this image a grayscale 84x84x1 tensor, instead.
 
+    Each preprocessor is fully integrated into the model's graph, has its own scope and owns some
+    variables that live under that scope in the graph.
+    """
     def __init__(self, shape, scope='preprocessor', summary_labels=None):
         self.shape = shape
         self.summary_labels = set(summary_labels or ())
@@ -38,18 +45,28 @@ class Preprocessor(object):
             func_=self.tf_process,
             custom_getter_=custom_getter
         )
+        self.reset = tf.make_template(
+            name_=(scope + '/reset'),
+            func_=self.tf_reset,
+            custom_getter_=custom_getter
+        )
 
-    def reset(self):
+    def tf_reset(self):
+        """
+        Resets this preprocessor to some initial state. This method is called whenever an episode ends.
+        This could be useful if the preprocessor stores certain episode-sequence information to do the processing
+        and this information has to be reset after the episode terminates.
+        """
         pass
 
     def tf_process(self, tensor):
         """
-        Process state.
+        Process state (tensor).
 
         Args:
-            tensor: tensor to process.
+            tensor (tf.Tensor): The Tensor to process.
 
-        Returns: processed tensor.
+        Returns: The pre-processed Tensor.
         """
         return tensor
 
@@ -58,9 +75,9 @@ class Preprocessor(object):
         Shape of preprocessed state given original shape.
 
         Args:
-            shape: original shape.
+            shape (tuple): The original (unprocessed) shape.
 
-        Returns: processed tensor shape
+        Returns: The processed tensor shape.
         """
         return shape
 

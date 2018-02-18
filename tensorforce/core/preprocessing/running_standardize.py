@@ -37,12 +37,13 @@ class RunningStandardize(Preprocessor):
         summary_labels=()
     ):
         self.reset_after_batch = reset_after_batch
+        # The op that resets our stats variables.
+        self.reset_op = None
         super(RunningStandardize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
-    def reset(self):
+    def tf_reset(self):
         if self.reset_after_batch:
-            # TODO is this being called as a tf op?
-            pass
+            return [self.reset_op]
 
     def tf_process(self, tensor):
         count = tf.get_variable(
@@ -65,6 +66,7 @@ class RunningStandardize(Preprocessor):
             initializer=tf.zeros_initializer(),
             trainable=False
         )
+        self.reset_op = tf.variables_initializer([count, mean_estimate, variance_sum_estimate], name='reset-op')
 
         assignment = tf.assign_add(ref=count, value=1.0)
 

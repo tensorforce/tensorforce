@@ -47,11 +47,11 @@ class Agent(object):
         Initializes the reinforcement learning agent.
 
         Args:
-            states_spec (dict): Dict containing at least one state-component definition. In the case of a single state
+            states (dict): Dict containing at least one state-component definition. In the case of a single state
                 space component, the keys `shape` and `type` are necessary (e.g. a 3D float-box with shape [3,3,3]).
                 For multiple state components, pass a dict of dicts where each component is a dict itself with a unique
                 name as its key (e.g. {cam: {shape: [84,84], type=int}, health: {shape=(), type=float}}).
-            actions_spec (dict): Dict containing at least one action-component definition.
+            actions (dict): Dict containing at least one action-component definition.
                 Action components have types and either `num_actions` for discrete actions or a `shape`
                 for continuous actions.
                 Consult documentation and tests for more.
@@ -156,10 +156,6 @@ class Agent(object):
         """
         self.episode, self.timestep, self.next_internals = self.model.reset()
         self.current_internals = self.next_internals
-
-        # TODO have to call preprocessing reset in model
-        # for preprocessing in self.preprocessing.values():
-        #     preprocessing.reset()
 
     def act(self, states, deterministic=False, fetch_tensors=None):
         """

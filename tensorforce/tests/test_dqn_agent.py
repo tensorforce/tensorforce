@@ -47,10 +47,10 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
             type='adam',
             learning_rate=1e-2
         ),
-        # states_preprocessing=[
-        #     dict(type='running_standardize'),
-        #     dict(type='sequence')
-        # ],
+        states_preprocessing=[
+             dict(type='running_standardize'),
+             dict(type='sequence')
+        ],
         target_sync_frequency=10,
         # Comment in to test exploration types
         # actions_exploration_spec=dict(

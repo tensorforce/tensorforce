@@ -85,24 +85,24 @@ class Model(object):
         """
 
         Args:
-            states_spec (dict): The state-space description dictionary.
-            actions_spec (dict): The action-space description dictionary.
+            states (dict): The state-space description dictionary.
+            actions (dict): The action-space description dictionary.
             device (str): The name of the device to run the graph of this model on.
             session_config (dict): Dict specifying the tf monitored session to create when calling `setup`.
             scope (str): The root scope str to use for tf variable scoping.
-            saver_spec (dict): Dict specifying whether and how to save the model's parameters.
-            summary_spec (dict): Dict specifying which tensorboard summaries should be created and added to the graph.
-            distributed_spec (dict): Dict specifying whether and how to do distributed training on the model's graph.
+            saver (dict): Dict specifying whether and how to save the model's parameters.
+            summarizer (dict): Dict specifying which tensorboard summaries should be created and added to the graph.
+            distributed (dict): Dict specifying whether and how to do distributed training on the model's graph.
             optimizer (dict): Dict specifying the tf optimizer to use for tuning the model's trainable parameters.
             discount (float): The RL reward discount factor (gamma).
             variable_noise (float): The stddev value of a Normal distribution used for adding random
                 noise to the model's output (for each batch, noise can be toggled and - if active - will be resampled).
                 Use None for not adding any noise.
-            states_preprocessing_spec (dict): Dict specifying whether and how to preprocess state signals
+            states_preprocessing (dict): Dict specifying whether and how to preprocess state signals
                 (e.g. normalization, greyscale, etc..).
-            explorations_spec (dict): Dict specifying whether and how to add exploration to the model's
+            actions_exploration (dict): Dict specifying whether and how to add exploration to the model's
                 "action outputs" (e.g. epsilon-greedy).
-            reward_preprocessing_spec (dict): Dict specifying whether and how to preprocess rewards coming
+            reward_preprocessing (dict): Dict specifying whether and how to preprocess rewards coming
                 from the Environment (e.g. reward normalization).
         """
         # Network crated from network_spec in distribution_model.py
@@ -631,8 +631,14 @@ class Model(object):
                         kwargs=dict(shape=state['shape'])
                     )
                     state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+                    self.states_preprocessing[name] = preprocessing
                 else:
                     state['shape'] = state['shape']
+        # single preprocessor for all components of our state space
+        elif "type" in self.states_preprocessing_spec:
+            preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
+            for name, state in self.states_spec.items():
+                state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
                 self.states_preprocessing[name] = preprocessing
         else:
             for name, state in self.states_spec.items():
@@ -1049,15 +1055,26 @@ class Model(object):
 
     def reset(self):
         """
-        Resets the model to its initial state on episode start.
+        Resets the model to its initial state on episode start. This should also reset all preprocessor(s).
 
         Returns:
             tuple:
                 Current episode, timestep counter and the shallow-copied list of internal state initialization Tensors.
         """
-        # TODO preprocessing reset call moved from agent
-        episode, timestep = self.monitored_session.run(fetches=(self.global_episode, self.global_timestep))
-        return episode, timestep, dict(self.internals_init)
+
+        fetches = [self.global_episode, self.global_timestep]
+
+        # Loop through all preprocessors and reset them as well.
+        for preprocessing in self.states_preprocessing.values():
+            fetch = preprocessing.reset()
+            if fetch is not None:
+                fetches.extend(fetch)
+
+        # Get the updated episode and timestep counts.
+        fetch_list = self.monitored_session.run(fetches=fetches)
+        episode, timestep = fetch_list[:2]
+
+        return episode, timestep, self.internals_init
 
     def get_feed_dict(self, states=None, internals=None, actions=None, terminal=None, reward=None, deterministic=None):
         feed_dict = dict()
@@ -1122,8 +1139,8 @@ class Model(object):
         state, if applicable (e.g. RNNs))
 
         Args:
-            states (dict): Dict of state tensors (each key represents one state space component).
-            internals: List of incoming internal state tensors.
+            states (dict): Dict of state values (each key represents one state space component).
+            internals (dict): Dict of internal state values (each key represents one internal state component).
             deterministic (bool): If True, will not apply exploration after actions are calculated.
 
         Returns:

@@ -51,7 +51,7 @@ class BaseAgentTest(BaseTest):
 
         environment = MinimalTest(specification={'bool': ()})
 
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
@@ -60,7 +60,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='bool',
                     environment=environment,
-                    network=network_spec,
+                    network=network,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config
@@ -74,7 +74,7 @@ class BaseAgentTest(BaseTest):
             return
 
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
@@ -84,7 +84,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='int',
                     environment=environment,
-                    network=network_spec,
+                    network=network,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config
@@ -98,7 +98,7 @@ class BaseAgentTest(BaseTest):
             return
 
         environment = MinimalTest(specification={'float': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
@@ -107,7 +107,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='float',
                     environment=environment,
-                    network=network_spec,
+                    network=network,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config
@@ -121,7 +121,7 @@ class BaseAgentTest(BaseTest):
             return
 
         environment = MinimalTest(specification={'bounded': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
@@ -130,7 +130,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='bounded',
                     environment=environment,
-                    network=network_spec,
+                    network=network,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config
@@ -252,7 +252,7 @@ class BaseAgentTest(BaseTest):
             return
 
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32),
             dict(type='internal_lstm', size=32)
@@ -263,7 +263,7 @@ class BaseAgentTest(BaseTest):
                 self.base_test_pass(
                     name='lstm',
                     environment=environment,
-                    network=network_spec,
+                    network=network,
                     run_mode=mode.value,
                     num_workers=self.__class__.num_parallel_workers,
                     **self.__class__.config

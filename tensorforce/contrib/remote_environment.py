@@ -133,7 +133,8 @@ class MsgPackNumpyProtocol(object):
 
     def send(self, message, socket_):
         """
-        Sends a message (dict) to the socket. Message is encoded via msgpack-numpy.
+        Sends a message (dict) to the socket. Message consists of a 80byte len header followed by a msgpack-numpy
+            encoded dict.
 
         Args:
             message: The message dict (e.g. {"cmd": "reset"})
@@ -141,7 +142,12 @@ class MsgPackNumpyProtocol(object):
         """
         if not socket_:
             raise TensorForceError("No socket given in call to `send`!")
-        socket_.send(msgpack.packb(message))
+        elif not isinstance(message, dict):
+            raise TensorForceError("Message to be sent must be a dict!")
+        message = msgpack.packb(message)
+        len_ = len(message)
+        # prepend 8-byte len field to all our messages
+        socket_.write(bytes("{:08d}".format(len_), encoding="ascii") + message)
 
     def recv(self, socket_):
         """

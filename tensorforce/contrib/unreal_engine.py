@@ -75,8 +75,8 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         return "UE4Environment({}:{}{})".format(self.host, self.port, "[connected; {}]".
                                                 format(self.game_name) if self.socket else "")
 
-    def connect(self):
-        RemoteEnvironment.connect(self)
+    def connect(self, timeout=600):
+        RemoteEnvironment.connect(self, timeout)
 
         # Get action- and state-specs from our game.
         self.protocol.send({"cmd": "get_spec"}, self.socket)

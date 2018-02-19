@@ -18,6 +18,7 @@ from tensorforce.core.explorations.exploration import Exploration
 from tensorforce.core.explorations.constant import Constant
 from tensorforce.core.explorations.epsilon_anneal import EpsilonAnneal
 from tensorforce.core.explorations.epsilon_decay import EpsilonDecay
+from tensorforce.core.explorations.gaussian_noise import GaussianNoise
 from tensorforce.core.explorations.ornstein_uhlenbeck_process import OrnsteinUhlenbeckProcess
 
 
@@ -25,8 +26,17 @@ explorations = dict(
     constant=Constant,
     epsilon_anneal=EpsilonAnneal,
     epsilon_decay=EpsilonDecay,
+    gaussian_noise=GaussianNoise,
     ornstein_uhlenbeck=OrnsteinUhlenbeckProcess
 )
 
 
-__all__ = ['Exploration', 'Constant', 'EpsilonAnneal', 'EpsilonDecay', 'OrnsteinUhlenbeckProcess', 'explorations']
+__all__ = [
+    'Exploration',
+    'Constant',
+    'EpsilonAnneal',
+    'EpsilonDecay',
+    'GaussianNoise',
+    'OrnsteinUhlenbeckProcess',
+    'explorations'
+]

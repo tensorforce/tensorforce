@@ -32,10 +32,9 @@
     "target_update_weight": 0.999,
 
     "actions_exploration": {
-        "type": "ornstein_uhlenbeck",
+        "type": "gaussian_noise",
         "sigma": 0.2,
-        "mu": 0.0,
-        "theta": 0.15
+        "mu": 0.0
     },
 
     "saver": {

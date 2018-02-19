@@ -28,7 +28,15 @@ class Distribution(object):
     Base class for policy distributions.
     """
 
-    def __init__(self, scope='distribution', summary_labels=None):
+    def __init__(self, shape, scope='distribution', summary_labels=None):
+        """
+        Distribution.
+
+        Args:
+            shape: Action shape.
+        """
+        self.shape = shape
+
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
@@ -79,7 +87,7 @@ class Distribution(object):
 
     def tf_parameterize(self, x):
         """
-        Creates the TensorFlow operations for parameterizing a distribution conditioned on the  
+        Creates the TensorFlow operations for parameterizing a distribution conditioned on the
         given input.
 
         Args:
@@ -96,8 +104,8 @@ class Distribution(object):
 
         Args:
             distr_params: Tuple of distribution parameter tensors.
-            deterministic: Boolean input tensor indicating whether the maximum likelihood action  
-            should be returned.
+            deterministic: Boolean input tensor indicating whether the maximum likelihood action
+                should be returned.
 
         Returns:
             Sampled action tensor.

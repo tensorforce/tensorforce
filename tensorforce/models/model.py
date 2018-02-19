@@ -83,26 +83,25 @@ class Model(object):
         reward_preprocessing
     ):
         """
+        Model.
 
         Args:
-            states (dict): The state-space description dictionary.
-            actions (dict): The action-space description dictionary.
-            device (str): The name of the device to run the graph of this model on.
-            session_config (dict): Dict specifying the tf monitored session to create when calling `setup`.
+            states (spec): The state-space description dictionary.
+            actions (spec): The action-space description dictionary.
             scope (str): The root scope str to use for tf variable scoping.
-            saver (dict): Dict specifying whether and how to save the model's parameters.
-            summarizer (dict): Dict specifying which tensorboard summaries should be created and added to the graph.
-            distributed (dict): Dict specifying whether and how to do distributed training on the model's graph.
-            optimizer (dict): Dict specifying the tf optimizer to use for tuning the model's trainable parameters.
-            discount (float): The RL reward discount factor (gamma).
+            device (str): The name of the device to run the graph of this model on.
+            saver (spec): Dict specifying whether and how to save the model's parameters.
+            summarizer (spec): Dict specifying which tensorboard summaries should be created and added to the graph.
+            distributed (spec): Dict specifying whether and how to do distributed training on the model's graph.
+            batching_capacity (int): Batching capacity.
             variable_noise (float): The stddev value of a Normal distribution used for adding random
                 noise to the model's output (for each batch, noise can be toggled and - if active - will be resampled).
                 Use None for not adding any noise.
-            states_preprocessing (dict): Dict specifying whether and how to preprocess state signals
+            states_preprocessing (spec / dict of specs): Dict specifying whether and how to preprocess state signals
                 (e.g. normalization, greyscale, etc..).
-            actions_exploration (dict): Dict specifying whether and how to add exploration to the model's
+            actions_exploration (spec / dict of specs): Dict specifying whether and how to add exploration to the model's
                 "action outputs" (e.g. epsilon-greedy).
-            reward_preprocessing (dict): Dict specifying whether and how to preprocess rewards coming
+            reward_preprocessing (spec): Dict specifying whether and how to preprocess rewards coming
                 from the Environment (e.g. reward normalization).
         """
         # Network crated from network_spec in distribution_model.py
@@ -188,27 +187,10 @@ class Model(object):
         self.summary_writer = None
         self.summary_writer_hook = None
 
-        # The tf.train.Scaffold object used to create important pieces of this model's graph
-        # Directory used for default export of model parameters
-        # The tf MonitoredSession object (Session wrapper handling common hooks)
-        # The actual tf.Session object (part of our MonitoredSession object)
-        # A list of tf.summary.Summary objects defined for our Graph (for tensorboard)
-        # TensorFlow FileWriter object that writes summaries (histograms, images, etc..) to disk
-        # Summary hook to use by the MonitoredSession
-
-        # Inputs and internals
-        # Current episode number as int Tensor
-        # TensorFlow op incrementing `self.episode` depending on True is-terminal signals
         self.increment_episode = None
-        # Int Tensor representing the total timestep (over all episodes)
-        # Dict holding placeholders for each (original/unprocessed) state component input
 
-        # Outputs
-        # Dict of action output Tensors (returned by fn_actions_and_internals)
         self.actions_output = None
-        # Dict of internal state output Tensors (returned by fn_actions_and_internals)
         self.internals_output = None
-        # Int that keeps track of how many actions have been "executed" using `act`
         self.timestep_output = None
 
         self.summary_configuration_op = None
@@ -583,13 +565,6 @@ class Model(object):
         self.monitored_session.__enter__()
         self.session = self.monitored_session._tf_sess()
 
-        # # tf.ConfigProto(device_filters=['/job:ps', '/job:worker/task:{}/cpu:0'.format(self.task_index)])
-        #         # config=tf.ConfigProto(device_filters=["/job:ps"])
-        #         # config=tf.ConfigProto(
-        #         #     inter_op_parallelism_threads=2,
-        #         #     log_device_placement=True
-        #         # )
-
     def close(self):
         if self.saver_directory is not None:
             self.save(append_timestep=True)
@@ -866,7 +841,7 @@ class Model(object):
         Args:
             states (dict): Dict of state tensors (each key represents one state space component).
             internals: List of prior internal state tensors.
-            deterministic: Boolean tensor indicating whether action should be chosen  
+            deterministic: Boolean tensor indicating whether action should be chosen
                 deterministically.
 
         Returns:

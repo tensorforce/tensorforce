@@ -33,6 +33,9 @@ class Network(object):
     """
 
     def __init__(self, scope='network', summary_labels=None):
+        """
+        Neural network.
+        """
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
@@ -136,7 +139,7 @@ class Network(object):
         Returns:
             List of the names of tensors available.
         """
-        return list(self.named_tensors)      
+        return list(self.named_tensors)
 
     def set_named_tensor(self, name, tensor):
         """
@@ -187,6 +190,9 @@ class LayerBasedNetwork(Network):
     """
 
     def __init__(self, scope='layerbased-network', summary_labels=()):
+        """
+        Layer-based network.
+        """
         super(LayerBasedNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
         self.layers = list()
 
@@ -240,14 +246,14 @@ class LayeredNetwork(LayerBasedNetwork):
     Network consisting of a sequence of layers, which can be created from a specification dict.
     """
 
-    def __init__(self, layers_spec, scope='layered-network', summary_labels=()):
+    def __init__(self, layers, scope='layered-network', summary_labels=()):
         """
-        Layered network.
+        Single-stack layered network.
 
         Args:
-            layers_spec: List of layer specification dicts
+            layers: List of layer specification dicts.
         """
-        self.layers_spec = layers_spec
+        self.layers_spec = layers
         super(LayeredNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
 
         layer_counter = Counter()

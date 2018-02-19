@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Collection of custom layer implementations. We prefer not to use contrib-layers to retain full control over shapes and internal states.
+Collection of custom layer implementations.
 """
 
 from __future__ import absolute_import
@@ -35,6 +35,9 @@ class Layer(object):
     """
 
     def __init__(self, scope='layer', summary_labels=None):
+        """
+        Layer.
+        """
         self.scope = scope
         self.summary_labels = set(summary_labels or ())
 
@@ -331,7 +334,7 @@ class Dropout(Layer):
         return tf.cond(
             pred=update,
             true_fn=(lambda: tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))),
-            false_fn=(lambda: x)
+            false_fn=(lambda: tf.identity(input=x))
         )
 
 

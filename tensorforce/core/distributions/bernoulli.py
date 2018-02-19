@@ -27,16 +27,23 @@ from tensorforce.core.distributions import Distribution
 
 class Bernoulli(Distribution):
     """
-    Bernoulli distribution for binary actions.
+    Bernoulli distribution, for binary boolean actions.
     """
 
     def __init__(self, shape, probability=0.5, scope='bernoulli', summary_labels=()):
+        """
+        Bernoulli distribution.
+
+        Args:
+            shape: Action shape.
+            probability: Optional distribution bias.
+        """
         self.shape = shape
         action_size = util.prod(self.shape)
 
         self.logit = Linear(size=action_size, bias=log(probability), scope='logit')
 
-        super(Bernoulli, self).__init__(scope, summary_labels)
+        super(Bernoulli, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_parameterize(self, x):
         # Flat logit
@@ -46,7 +53,7 @@ class Bernoulli(Distribution):
         shape = (-1,) + self.shape
         logit = tf.reshape(tensor=logit, shape=shape)
 
-        #TODO rename
+        # TODO rename
         state_value = logit
 
         # Sigmoid for corresponding probability

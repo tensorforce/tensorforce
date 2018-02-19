@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -38,9 +37,9 @@ class AggregatedBaseline(Baseline):
         """
 
         self.baselines = dict()
-        for name, baseline_spec in baselines.items():
+        for name, baseline in baselines.items():
             self.baselines[name] = Baseline.from_spec(
-                spec=baseline_spec,
+                spec=baseline,
                 kwargs=dict(summary_labels=summary_labels))
 
         self.linear = Linear(size=1, bias=0.0, scope='prediction')

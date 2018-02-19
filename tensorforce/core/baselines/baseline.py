@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -30,6 +29,9 @@ class Baseline(object):
     """
 
     def __init__(self, scope='baseline', summary_labels=None):
+        """
+        Baseline.
+        """
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
@@ -82,7 +84,7 @@ class Baseline(object):
 
     def tf_reference(self, states, internals, reward, update):
         """
-        Creates the TensorFlow operations for obtaining the reference tensor(s), in case of a  
+        Creates the TensorFlow operations for obtaining the reference tensor(s), in case of a
         comparative loss.
 
         Args:

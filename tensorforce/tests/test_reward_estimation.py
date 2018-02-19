@@ -18,9 +18,9 @@ from __future__ import print_function
 from __future__ import division
 
 import logging
-
-import unittest
 import numpy as np
+import unittest
+
 from tensorforce.agents import VPGAgent
 from tensorforce.core.baselines import Baseline
 

@@ -31,13 +31,21 @@ class Gaussian(Distribution):
     """
 
     def __init__(self, shape, mean=0.0, log_stddev=0.0, scope='gaussian', summary_labels=()):
+        """
+        Categorical distribution.
+
+        Args:
+            shape: Action shape.
+            mean: Optional distribution bias for the mean.
+            log_stddev: Optional distribution bias for the standard deviation.
+        """
         self.shape = shape
         action_size = util.prod(self.shape)
 
         self.mean = Linear(size=action_size, bias=mean, scope='mean')
         self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev')
 
-        super(Gaussian, self).__init__(scope, summary_labels)
+        super(Gaussian, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_parameterize(self, x):
         # Flat mean and log standard deviation

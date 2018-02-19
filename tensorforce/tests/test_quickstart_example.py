@@ -18,12 +18,10 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-
-import sys
-import unittest
-
 import numpy as np
 from six.moves import xrange
+import sys
+import unittest
 
 from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner

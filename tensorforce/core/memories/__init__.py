@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from tensorforce.core.memories.memory import Memory
 from tensorforce.core.memories.queue import Queue
 from tensorforce.core.memories.latest import Latest
@@ -25,8 +24,14 @@ memories = dict(
     latest=Latest,
     replay=Replay,
     prioritized_replay=PrioritizedReplay
-    # prioritized_replay=PrioritizedReplay,
-    # naive_prioritized_replay=NaivePrioritizedReplay
 )
 
-__all__ = ['memories', 'Memory', 'Queue', 'Latest', 'Replay', 'PrioritizedReplay']
+
+__all__ = [
+    'memories',
+    'Memory',
+    'Queue',
+    'Latest',
+    'Replay',
+    'PrioritizedReplay'
+]

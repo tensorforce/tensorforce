@@ -24,10 +24,10 @@ from tensorforce.core.memories import Memory
 
 class PrioritizedReplay(Memory):
     """
-    Naive prioritized replay in TensorFlow. Works by first inserting all new experiences
-    into a buffer. When sampling, we first use the buffer of new experiences, then experiences
-    from the actual memory for which we have computed priorities.
+    Memory organized as a priority queue, which randomly retrieves experiences sampled according
+    their priority values.
     """
+
     def __init__(
         self,
         states,
@@ -40,6 +40,18 @@ class PrioritizedReplay(Memory):
         scope='queue',
         summary_labels=None
     ):
+        """
+        Prioritized queue memory.
+
+        Args:
+            states: States specifiction.
+            internals: Internal states specification.
+            actions: Actions specification.
+            include_next_states: Include subsequent state if true.
+            capacity: Memory capacity.
+            prioritization_weight: Prioritization weight.
+            buffer_size: Buffer size.
+        """
         super(PrioritizedReplay, self).__init__(
             states=states,
             internals=internals,
@@ -62,12 +74,6 @@ class PrioritizedReplay(Memory):
         self.retrieve_indices = tf.make_template(
             name_=(scope + '/retrieve_indices'),
             func_=self.tf_retrieve_indices,
-            custom_getter_=custom_getter
-        )
-
-        self.update_batch = tf.make_template(
-            name_=(scope + '/update_batch'),
-            func_=self.tf_update_batch,
             custom_getter_=custom_getter
         )
 
@@ -384,11 +390,6 @@ class PrioritizedReplay(Memory):
             )
 
     def tf_update_batch(self, loss_per_instance):
-        """
-        Updates priorities and moves respective elements from buffer to priority memory.
-
-        :param loss_per_instance: Losses for last recent batch
-        """
         # 1. We reconstruct the batch from the buffer and the priority memory.
         mask = tf.not_equal(
             x=self.batch_indices,

@@ -113,7 +113,9 @@ class VPGAgent(LearningAgent):
                 frequency=10
             )
         elif 'unit' in update_mode:
-            assert update_mode['unit'] == 'episodes'
+            # Tests check all modes for VPG.
+            # assert update_mode['unit'] == 'episodes'
+            pass
         else:
             update_mode['unit'] = 'episodes'
 

@@ -27,21 +27,28 @@ from tensorforce.core.distributions import Distribution
 
 class Categorical(Distribution):
     """
-    Categorical distribution, for discrete actions
+    Categorical distribution, for discrete actions.
     """
 
     def __init__(self, shape, num_actions, probabilities=None, scope='categorical', summary_labels=()):
-        self.shape = shape
+        """
+        Categorical distribution.
+
+        Args:
+            shape: Action shape.
+            num_actions: Number of discrete action alternatives.
+            probabilities: Optional distribution bias.
+        """
         self.num_actions = num_actions
+
+        action_size = util.prod(shape) * self.num_actions
         if probabilities is None:
             logits = 0.0
         else:
             logits = [log(prob) for _ in range(util.prod(shape)) for prob in probabilities]
-        action_size = util.prod(self.shape) * self.num_actions
-
         self.logits = Linear(size=action_size, bias=logits, scope='logits')
 
-        super(Categorical, self).__init__(scope, summary_labels)
+        super(Categorical, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_parameterize(self, x):
         # Flat logits

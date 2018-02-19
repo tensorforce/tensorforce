@@ -24,14 +24,20 @@ from tensorforce.core.memories import Memory
 
 
 class Queue(Memory):
+    """
+    Base class for memories organized as a queue (FIFO).
+    """
 
     def __init__(self, states, internals, actions, include_next_states, capacity, scope='queue', summary_labels=None):
         """
+        Queue memory.
+
         Args:
-            states_spec: States specifiction
-            actions_spec: Actions specification
+            states: States specifiction.
+            internals: Internal states specification.
+            actions: Actions specification.
             include_next_states: Include subsequent state if true.
-            capacity: Memory capacity
+            capacity: Memory capacity.
         """
         super(Queue, self).__init__(
             states=states,
@@ -223,8 +229,6 @@ class Queue(Memory):
         if self.include_next_states:
             assert util.rank(indices) == 1
             next_indices = (indices + 1) % self.capacity
-            # else:
-            #     next_indices = (indices[:, -1] + 1) % self.capacity
 
             next_states = dict()
             for name, state_memory in self.states_memory.items():

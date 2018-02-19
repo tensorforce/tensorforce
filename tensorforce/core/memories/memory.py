@@ -24,12 +24,18 @@ import tensorforce.core.memories
 
 
 class Memory(object):
+    """
+    Base class for memories.
+    """
 
     def __init__(self, states, internals, actions, include_next_states, scope='memory', summary_labels=None):
         """
+        Memory.
+
         Args:
-            states_spec: States specifiction
-            actions_spec: Actions specification
+            states: States specifiction.
+            internals: Internal states specification.
+            actions: Actions specification.
             include_next_states: Include subsequent state if true.
         """
         self.states_spec = states
@@ -73,61 +79,77 @@ class Memory(object):
             func_=self.tf_retrieve_sequences,
             custom_getter_=custom_getter
         )
+        self.update_batch = tf.make_template(
+            name_=(scope + '/update_batch'),
+            func_=self.tf_update_batch,
+            custom_getter_=custom_getter
+        )
 
     def tf_initialize(self):
         """
-        Initializes TensorFlow variables used to store experiences.
+        Initializes memory.
         """
         raise NotImplementedError
 
     def tf_store(self, states, internals, actions, terminal, reward):
         """"
-        Stores experiences to respective TensorFlow variables.
+        Stores experiences, i.e. a batch of timesteps.
 
         Args:
-            states:
-            internals:
-            actions:
-            terminal:
-            reward:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
         """
         raise NotImplementedError
 
     def tf_retrieve_timesteps(self, n):
         """
-        ...
+        Retrieves a given number of timesteps from the stored experiences.
 
         Args:
-            n:
+            n: Number of timesteps to retrieve.
 
         Returns:
-            ...
+            Dicts containing the retrieved experiences.
         """
         raise NotImplementedError
 
     def tf_retrieve_episodes(self, n):
         """
-        ...
+        Retrieves a given number of episodesrom the stored experiences.
 
         Args:
-            n:
+            n: Number of episodes to retrieve.
 
         Returns:
-            ...
+            Dicts containing the retrieved experiences.
         """
         raise NotImplementedError
 
     def tf_retrieve_sequences(self, n, sequence_length):
         """
-        ...
+        Retrieves a given number of temporally consistent timestep sequences from the stored
+        experiences.
 
         Args:
-            n:
+            n: Number of sequences to retrieve.
+            sequence_length: Length of timestep sequences.
 
         Returns:
-            ...
+            Dicts containing the retrieved experiences.
         """
         raise NotImplementedError
+
+    def tf_update_batch(self, loss_per_instance):
+        """
+        Updates the internal information of the latest batch instances based on their loss.
+
+        Args:
+            loss_per_instance: Loss per instance tensor.
+        """
+        pass
 
     def get_variables(self):
         """

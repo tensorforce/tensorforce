@@ -206,9 +206,6 @@ class QModel(DistributionModel):
         else:
             loss = tf.square(x=loss_per_instance)
 
-        if self.update_batch:
-            self.memory.update_batch(loss_per_instance=loss)
-
         return loss
 
     def target_optimizer_arguments(self):

@@ -49,13 +49,34 @@ class MemoryModel(Model):
         optimizer,
         discount
     ):
+        """
+        Memory model.
+
+        Args:
+            states (spec): The state-space description dictionary.
+            actions (spec): The action-space description dictionary.
+            scope (str): The root scope str to use for tf variable scoping.
+            device (str): The name of the device to run the graph of this model on.
+            saver (spec): Dict specifying whether and how to save the model's parameters.
+            summarizer (spec): Dict specifying which tensorboard summaries should be created and added to the graph.
+            distributed (spec): Dict specifying whether and how to do distributed training on the model's graph.
+            batching_capacity (int): Batching capacity.
+            variable_noise (float): The stddev value of a Normal distribution used for adding random
+                noise to the model's output (for each batch, noise can be toggled and - if active - will be resampled).
+                Use None for not adding any noise.
+            states_preprocessing (spec / dict of specs): Dict specifying whether and how to preprocess state signals
+                (e.g. normalization, greyscale, etc..).
+            actions_exploration (spec / dict of specs): Dict specifying whether and how to add exploration to the model's
+                "action outputs" (e.g. epsilon-greedy).
+            reward_preprocessing (spec): Dict specifying whether and how to preprocess rewards coming
+                from the Environment (e.g. reward normalization).
+            update_mode (spec): Update mode.
+            memory (spec): Memory.
+            optimizer (spec): Dict specifying the tf optimizer to use for tuning the model's trainable parameters.
+            discount (float): The RL reward discount factor (gamma).
+        """
         self.update_mode = update_mode
         self.memory_spec = memory
-        # Add other memories requiring loss info here later.
-        if self.memory_spec['type'] in ['prioritized_replay']:
-            self.update_batch = True
-        else:
-            self.update_batch = False
         self.optimizer_spec = optimizer
 
         # Discount
@@ -359,6 +380,9 @@ class MemoryModel(Model):
             update=update,
             reference=reference
         )
+
+        self.memory.update_batch(loss_per_instance=loss_per_instance)
+
         loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
         # Loss without regularization summary
@@ -485,11 +509,12 @@ class MemoryModel(Model):
 
             elif unit == 'sequences':
                 # Timestep-sequence-based batch
+                sequence_length = self.update_mode['length']
                 optimize = tf.logical_and(
                     x=tf.equal(x=(self.timestep % frequency), y=0),
-                    y=tf.greater_equal(x=self.timestep, y=batch_size)
+                    y=tf.greater_equal(x=self.timestep, y=(batch_size + sequence_length - 1))
                 )
-                batch = self.memory.retrieve_sequences(n=batch_size)
+                batch = self.memory.retrieve_sequences(n=batch_size, sequence_length=sequence_length)
 
             else:
                 raise TensorForceError("Invalid update unit: {}.".format(unit))
@@ -505,12 +530,6 @@ class MemoryModel(Model):
                 true_fn=(lambda: self.fn_optimization(**batch)),
                 false_fn=tf.no_op
             )
-
-        self.summaries = list()
-        if 'total-loss' in self.summary_labels:
-            loss = self.fn_loss(states=states, internals=internals, actions=actions, terminal=terminal, reward=reward, next_states=None, next_internals=None, update=tf.constant(value=False))
-            summary = tf.summary.scalar(name='total-loss', tensor=loss)
-            self.summaries.append(summary)
 
         return optimization
 

@@ -17,12 +17,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import time
-import threading
-from six.moves import xrange
-import warnings
-from inspect import getargspec
 import importlib
+from inspect import getargspec
+from six.moves import xrange
+import threading
+import time
+import warnings
 
 from tensorforce import TensorForceError
 from tensorforce.execution.base_runner import BaseRunner
@@ -339,4 +339,3 @@ def clone_worker_agent(agent, factor, environment, network, agent_config):
         ret.append(worker)
 
     return ret
-

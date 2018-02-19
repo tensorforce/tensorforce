@@ -28,7 +28,7 @@
 
     {
         "type": "dense",
-        "size": 1,
-        "activation": "tanh"
+        "size": 64,
+        "activation": null
     }
 ]

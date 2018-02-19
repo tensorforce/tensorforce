@@ -190,7 +190,3 @@ class DDPGAgent(LearningAgent):
             target_sync_frequency=self.target_sync_frequency,
             target_update_weight=self.target_update_weight
         )
-
-    def act(self, states, deterministic=False, fetch_tensors=None):
-        # Always return deterministic action from model, add exploration separately
-        return super(DDPGAgent, self).act(states=states, deterministic=True, fetch_tensors=fetch_tensors)

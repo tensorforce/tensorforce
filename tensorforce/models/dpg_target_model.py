@@ -82,6 +82,9 @@ class DDPGCriticNetwork(LayerBasedNetwork):
 
         out = self.t2d.apply(x=out, update=update)
 
+        # Remove last dimension because we only return Q values for one state and action
+        out = tf.squeeze(out)
+
         if return_internals:
             # Todo: Internals management
             return out, None
@@ -249,6 +252,7 @@ class DPGTargetModel(DistributionModel):
             states=next_states, internals=next_internals, actions=next_target_actions, terminal=terminal,
             reward=reward, update=update
         )
+
         predicted_q = tf.stop_gradient(input=predicted_q)
 
         real_q = self.critic.apply(dict(states=states, actions=actions), internals=internals, update=update)

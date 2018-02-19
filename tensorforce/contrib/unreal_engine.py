@@ -50,8 +50,8 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                 This would be necessary e.g. for agents that use q-networks where the output are q-values per discrete
                 state-action pair.
             delta_time (float): The fake delta time to use for each single game tick.
-            num_ticks (int): The number of ticks to be executed in this step (each tick will repeat the same given
-            actions).
+            num_ticks (int): The number of ticks to be executed in a single act call (each tick will
+                repeat the same given actions).
         """
         RemoteEnvironment.__init__(self, host, port)
 

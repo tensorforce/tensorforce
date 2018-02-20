@@ -89,8 +89,12 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         # Game's name
         self.game_name = response.get("game_name")  # keep non-mandatory for now
         # Observers
+        if "observation_space_desc" not in response:
+            raise TensorForceError("Response to `get_spec` does not contain field `observation_space_desc`!")
         self.observation_space_desc = response["observation_space_desc"]
         # Action-mappings
+        if "action_space_desc" not in response:
+            raise TensorForceError("Response to `get_spec` does not contain field `action_space_desc`!")
         self.action_space_desc = response["action_space_desc"]
 
         if self.discretize_actions:
@@ -110,9 +114,9 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         # Wait for response.
         response = self.protocol.recv(self.socket)
         if "status" not in response:
-            raise RuntimeError("Message without field 'status' received!")
+            raise TensorForceError("Message without field 'status' received!")
         elif response["status"] != "ok":
-            raise RuntimeError("Message 'status' for seed command is not 'ok' ({})!".format(response["status"]))
+            raise TensorForceError("Message 'status' for seed command is not 'ok' ({})!".format(response["status"]))
         return seed
 
     def reset(self):

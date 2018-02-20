@@ -147,7 +147,7 @@ class MsgPackNumpyProtocol(object):
         message = msgpack.packb(message)
         len_ = len(message)
         # prepend 8-byte len field to all our messages
-        socket_.write(bytes("{:08d}".format(len_), encoding="ascii") + message)
+        socket_.send(bytes("{:08d}".format(len_), encoding="ascii") + message)
 
     def recv(self, socket_):
         """

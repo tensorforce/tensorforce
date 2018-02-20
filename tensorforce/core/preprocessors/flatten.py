@@ -17,17 +17,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorforce.core.preprocessing import Preprocessor
+import tensorflow as tf
+
+from tensorforce import util
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class Divide(Preprocessor):
+class Flatten(Preprocessor):
     """
-    Divide state by scale.
+    Normalize state. Subtract minimal value and divide by range.
     """
 
-    def __init__(self, shape, scale, scope='divide', summary_labels=()):
-        self.scale = scale
-        super(Divide, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+    def __init__(self, scope='flatten', summary_labels=()):
+        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def processed_shape(self, shape):
+        return -1, util.prod(shape[1:])
 
     def tf_process(self, tensor):
-        return tensor / self.scale
+        # Flatten tensor
+        return tf.reshape(tensor=tensor, shape=self.processed_shape(util.shape(tensor)))

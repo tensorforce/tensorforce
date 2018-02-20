@@ -18,20 +18,23 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from tensorforce.core.preprocessing import Preprocessor
+
+from tensorforce import util
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class ImageResize(Preprocessor):
+class Grayscale(Preprocessor):
     """
-    Resize image to width x height.
+    Turn 3D color state into grayscale.
     """
 
-    def __init__(self, shape, width, height, scope='image_resize', summary_labels=()):
-        self.size = (width, height)
-        super(ImageResize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+    def __init__(self, shape, weights=(0.299, 0.587, 0.114), scope='grayscale', summary_labels=()):
+        self.weights = weights
+        super(Grayscale, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
-        return tf.image.resize_images(images=tensor, size=self.size)
+        weights = tf.reshape(tensor=self.weights, shape=(tuple(1 for _ in range(util.rank(tensor) - 1)) + (3,)))
+        return tf.reduce_sum(input_tensor=(weights * tensor), axis=-1, keepdims=True)
 
     def processed_shape(self, shape):
-        return self.size + (shape[-1],)
+        return tuple(shape[:-1]) + (1,)

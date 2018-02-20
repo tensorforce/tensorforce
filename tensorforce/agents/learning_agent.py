@@ -26,8 +26,7 @@ from tensorforce.meta_parameter_recorder import MetaParameterRecorder
 
 class LearningAgent(Agent):
     """
-    An Agent that actually learns by optimizing the parameters of its tensorflow model.
-
+    Base class for learning agents, using as model a subclass of MemoryModel and DistributionModel.
     """
 
     def __init__(
@@ -35,6 +34,9 @@ class LearningAgent(Agent):
         states,
         actions,
         network,
+        update_mode,
+        memory,
+        optimizer,
         batched_observe=True,
         batching_capacity=1000,
         scope='learning-agent',
@@ -46,9 +48,6 @@ class LearningAgent(Agent):
         states_preprocessing=None,
         actions_exploration=None,
         reward_preprocessing=None,
-        update_mode=None,
-        memory=None,
-        optimizer=None,
         discount=0.99,
         distributions=None,
         entropy_regularization=None
@@ -57,35 +56,53 @@ class LearningAgent(Agent):
         Initializes the learning agent.
 
         Args:
-            summarizer: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
-                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            network: List of layers specifying a neural network via layer types, sizes and optional arguments
-                such as activation or regularisation. Full examples are in the examples/configs folder.
-            discount (float): The reward discount factor.
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster_spec` key to pass a TensorFlow
-                cluster spec.
-            optimizer: Dict specifying optimizer type and its optional parameters, typically a `learning_rate`.
-                Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
-                and `evolutionary`. Consult the optimizer test or example configurations for more.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing: Optional list of states preprocessors to apply to state
-                (e.g. `image_resize`, `greyscale`).
-            actions_exploration: Optional dict specifying action exploration type (epsilon greedy
-                or Gaussian noise).
-            reward_preprocessing: Optional dict specifying reward preprocessing.
-            distributions: Optional dict specifying action distributions to override default distribution choices.
-                Must match action names.
-            entropy_regularization: Optional positive float specifying an entropy regularization value.
+            update_mode (spec): Update mode specification, with the following attributes
+                (required):
+                - unit: one of 'timesteps', 'episodes', 'sequences' (required).
+                - batch_size: integer (required).
+                - frequency: integer (default: batch_size).
+                - length: integer (optional if unit == 'sequences', default: 8).
+            memory (spec): Memory specification, see core.memories module for more information
+                (required).
+            optimizer (spec): Optimizer specification, see core.optimizers module for more
+                information (required).
+            network (spec): Network specification, usually a list of layer specifications, see
+                core.networks module for more information (required).
+            scope (str): TensorFlow scope (default: name of agent).
+            device: TensorFlow device (default: none)
+            saver (spec): Saver specification, with the following attributes (default: none):
+                - directory: model directory.
+                - file: model filename (optional).
+                - seconds or steps: save frequency (default: 600 seconds).
+                - load: specifies whether model is loaded, if existent (default: true).
+                - basename: optional file basename (default: 'model.ckpt').
+            summarizer (spec): Summarizer specification, with the following attributes (default:
+                none):
+                - directory: summaries directory.
+                - seconds or steps: summarize frequency (default: 120 seconds).
+                - labels: list of summary labels to record (default: []).
+                - meta_param_recorder_class: ???.
+            distributed (spec): Distributed specification, with the following attributes (default:
+                none):
+                - cluster_spec: TensorFlow ClusterSpec object (required).
+                - task_index: integer (required).
+                - parameter_server: specifies whether this instance is a parameter server (default:
+                    false).
+                - protocol: communication protocol (default: none, i.e. 'grpc').
+                - config: TensorFlow ConfigProto object (default: none).
+                - replica_model: internal.
+            variable_noise (float): Standard deviation of variable noise (default: none).
+            states_preprocessing (spec, or dict of specs): States preprocessing specification, see
+                core.preprocessors module for more information (default: none)
+            actions_exploration (spec, or dict of specs): Actions exploration specification, see
+                core.explorations module for more information (default: none).
+            reward_preprocessing (spec): Reward preprocessing specification, see core.preprocessors
+                module for more information (default: none).
+            discount (float): Discount factor for future rewards (default: 0.99).
+            distributions (spec / dict of specs): Distributions specifications, see
+                core.distributions module for more information (default: none).
+            entropy_regularization (float): Entropy regularization weight (default: none).
         """
-        if network is None:
-            raise TensorForceError("No network provided.")
 
         self.scope = scope
         self.device = device

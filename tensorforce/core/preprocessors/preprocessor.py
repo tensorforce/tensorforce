@@ -16,7 +16,11 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
+
 import tensorflow as tf
+
+from tensorforce import util
+import tensorforce.core.preprocessors
 
 
 class Preprocessor(object):
@@ -28,6 +32,7 @@ class Preprocessor(object):
     Each preprocessor is fully integrated into the model's graph, has its own scope and owns some
     variables that live under that scope in the graph.
     """
+
     def __init__(self, shape, scope='preprocessor', summary_labels=None):
         self.shape = shape
         self.summary_labels = set(summary_labels or ())
@@ -89,3 +94,75 @@ class Preprocessor(object):
             List of variables.
         """
         return [self.variables[key] for key in sorted(self.variables)]
+
+
+class PreprocessorStack(object):
+    """
+    A class to handle many Preprocessor objects applied in a sequence to some state. For example: An image
+    tensor as state signal could be re-sized first, then grayscaled, then normalized.
+    """
+
+    def __init__(self):
+        self.preprocessors = list()
+
+    def reset(self):
+        """
+        Calls `reset` on all our Preprocessor objects.
+
+        Returns:
+            A list of tensors to be fetched.
+        """
+        fetches = []
+        for processor in self.preprocessors:
+            fetches.extend(processor.reset() or [])
+        return fetches
+
+    def process(self, tensor):
+        """
+        Process state.
+
+        Args:
+            tensor: tensor to process
+
+        Returns: processed state
+
+        """
+        for processor in self.preprocessors:
+            tensor = processor.process(tensor=tensor)
+        return tensor
+
+    def processed_shape(self, shape):
+        """
+        Shape of preprocessed state given original shape.
+
+        Args:
+            shape: original state shape
+
+        Returns: processed state shape
+        """
+        for processor in self.preprocessors:
+            shape = processor.processed_shape(shape=shape)
+        return shape
+
+    def get_variables(self):
+        return [variable for preprocessor in self.preprocessors for variable in preprocessor.get_variables()]
+
+    @staticmethod
+    def from_spec(spec, kwargs=None):
+        """
+        Creates a preprocessing stack from a specification dict.
+        """
+        if isinstance(spec, dict):
+            spec = [spec]
+
+        stack = PreprocessorStack()
+        for spec in spec:
+            preprocessor = util.get_object(
+                obj=spec,
+                predefined_objects=tensorforce.core.preprocessors.preprocessors,
+                kwargs=kwargs
+            )
+            assert isinstance(preprocessor, Preprocessor)
+            stack.preprocessors.append(preprocessor)
+
+        return stack

@@ -23,9 +23,8 @@ from tensorforce.models import DPGTargetModel
 
 class DDPGAgent(LearningAgent):
     """
-    Deep Deterministic Policy Gradient agent as described by [Lillicrap et al. (2016)]
-    (https://arxiv.org/pdf/1509.02971.pdf).
-
+    Deep Deterministic Policy Gradient agent
+    ([Lillicrap et al., 2015](https://arxiv.org/abs/1509.02971)).
     """
 
     def __init__(
@@ -50,56 +49,36 @@ class DDPGAgent(LearningAgent):
         discount=0.99,
         distributions=None,
         entropy_regularization=None,
-        # parameters specific to ddpg agents
         critic_network=None,
         critic_optimizer=None,
         target_sync_frequency=10000,
         target_update_weight=1.0
     ):
         """
-        Creates a deep deterministic policy gradient agent.
+        Initializes the DDPG agent.
 
         Args:
-            states: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            network: List of layers specifying a neural network via layer types, sizes and optional arguments
-                such as activation or regularisation. Full examples are in the examples/configs folder.
-            device: Device string specifying model device.
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
-                cluster spec.
-            optimizer: Dict specifying optimizer type and its optional parameters, typically a `learning_rate`.
-                Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
-                and `evolutionary`. Consult the optimizer test or example configurations for more.
-            discount: Float specifying reward discount factor.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            actions_exploration: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing: Optional dict specifying reward preprocessing.
-            distributions: Optional dict specifying action distributions to override default distribution choices.
-                Must match action names.
-            entropy_regularization: Optional positive float specifying an entropy regularization value.
-            critic_network: Network definition for the critic.
-            critic_optimizer: Specs for the critic optimizer.
-            target_sync_frequency: Interval between optimization calls synchronizing the target network.
-            target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
+            update_mode (spec): Update mode specification, with the following attributes:
+                - unit: 'timesteps' if given (default: 'timesteps').
+                - batch_size: integer (default: 10).
+                - frequency: integer (default: batch_size).
+            memory (spec): Memory specification, see core.memories module for more information
+                (default: {type='replay', include_next_states=true, capacity=1000*batch_size}).
+            optimizer (spec): Optimizer specification, see core.optimizers module for more
+                information (default: {type='adam', learning_rate=1e-3}).
+            critic_network (spec): Critic network specification, usually a list of layer specifications,
+                see core.networks module for more information (default: network).
+            critic_optimizer (spec): Critic optimizer specification, see core.optimizers module for
+                more information (default: {type='adam', learning_rate=1e-3}).
+            target_sync_frequency (int): Target network sync frequency (default: 10000).
+            target_update_weight (float): Target network update weight (default: 1.0).
         """
 
         # Update mode
         if update_mode is None:
             update_mode = dict(
                 unit='timesteps',
-                batch_size=10,
-                frequency=10
+                batch_size=10
             )
         elif 'unit' in update_mode:
             assert update_mode['unit'] == 'timesteps'
@@ -116,7 +95,6 @@ class DDPGAgent(LearningAgent):
             )
         else:
             assert memory['include_next_states']
-            assert memory['type'] == 'replay'
 
         # Optimizer
         if optimizer is None:
@@ -128,23 +106,20 @@ class DDPGAgent(LearningAgent):
         if critic_network is None:
             critic_network = network
 
-        self.critic_network = critic_network
-
         if critic_optimizer is None:
             critic_optimizer = dict(
                 type='adam',
                 learning_rate=1e-3
             )
 
+        self.critic_network = critic_network
         self.critic_optimizer = critic_optimizer
-
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
 
         super(DDPGAgent, self).__init__(
             states=states,
             actions=actions,
-            network=network,
             batched_observe=batched_observe,
             batching_capacity=batching_capacity,
             scope=scope,
@@ -160,6 +135,7 @@ class DDPGAgent(LearningAgent):
             memory=memory,
             optimizer=optimizer,
             discount=discount,
+            network=network,
             distributions=distributions,
             entropy_regularization=entropy_regularization
         )

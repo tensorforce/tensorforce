@@ -5,6 +5,12 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+20th February
+
+- Merge of memory branch with major library-internal changes: core.memories module, memory_model,
+  adapted handling of batching/losses/optimization, etc.
+- Updated and standardized agent parameters, see documentation of agent classes.
+
 14th January
 
 - Reverted back deprecated API call to be compatible with 1.4.1 in version 0.3.6.1

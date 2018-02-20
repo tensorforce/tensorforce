@@ -23,8 +23,7 @@ from tensorforce.models import PGProbRatioModel
 
 class PPOAgent(LearningAgent):
     """
-    Proximal Policy Optimization agent ([Schulman et al., 2017]
-    (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
+    Proximal Policy Optimization agent ([Schulman et al., 2017](https://arxiv.org/abs/1707.06347)).
     """
 
     def __init__(
@@ -52,68 +51,44 @@ class PPOAgent(LearningAgent):
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        likelihood_ratio_clipping=None,
+        likelihood_ratio_clipping=0.2,
         step_optimizer=None,
         subsampling_fraction=0.1,
         optimization_steps=50
     ):
-
-        # random_sampling=True  # Sampling strategy for replay memory
-
         """
-        Creates a proximal policy optimization agent (PPO), ([Schulman et al., 2017]
-        (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
+        Initializes the PPO agent.
 
         Args:
-            states: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            network: List of layers specifying a neural network via layer types, sizes and optional arguments
-                such as activation or regularisation. Full examples are in the examples/configs folder.
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            summary: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
-                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
-                cluster spec.
-            discount: Float specifying reward discount factor.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            actions_exploration: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing: Optional dict specifying reward preprocessing.
-            distributions: Optional dict specifying action distributions to override default distribution choices.
-                Must match action names.
-            entropy_regularization: Optional positive float specifying an entropy regularization value.
-            baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
-                for sharing parameters with the training network.
-            baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
-                examples/configs for full example configurations.
-            baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline following
-                the same conventions as the main optimizer.
-            gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
-            likelihood_ratio_clipping: Optional clipping of likelihood ratio between old and new policy.
-            step_optimizer: Optimizer dict specification for optimizer used in each PPO update step, defaults to
-                Adam if None.
-            optimization_steps: Int specifying number of optimization steps to execute on the collected batch using
-                the step optimizer.                `
+            update_mode (spec): Update mode specification, with the following attributes:
+                - unit: 'episodes' if given (default: 'episodes').
+                - batch_size: integer (default: 10).
+                - frequency: integer (default: batch_size).
+            memory (spec): Memory specification, see core.memories module for more information
+                (default: {type='latest', include_next_states=false, capacity=1000*batch_size}).
+            optimizer (spec): PPO agent implicitly defines a multi-step subsampling optimizer.
+            baseline_mode (str): One of 'states', 'network' (default: none).
+            baseline (spec): Baseline specification, see core.baselines module for more information
+                (default: none).
+            baseline_optimizer (spec): Baseline optimizer specification, see core.optimizers module
+                for more information (default: none).
+            gae_lambda (float): Lambda factor for generalized advantage estimation (default: none).
+            likelihood_ratio_clipping (float): Likelihood ratio clipping for policy gradient
+                (default: 0.2).
+            step_optimizer (spec): Step optimizer specification of implicit multi-step subsampling
+                optimizer, see core.optimizers module for more information (default: {type='adam',
+                learning_rate=1e-3}).
+            subsampling_fraction (float): Subsampling fraction of implicit subsampling optimizer
+                (default: 0.1).
+            optimization_steps (int): Number of optimization steps for implicit multi-step
+                optimizer (default: 50).
         """
 
         # Update mode
         if update_mode is None:
             update_mode = dict(
                 unit='episodes',
-                batch_size=10,
-                frequency=10
+                batch_size=10
             )
         elif 'unit' in update_mode:
             assert update_mode['unit'] == 'episodes'
@@ -156,7 +131,6 @@ class PPOAgent(LearningAgent):
         super(PPOAgent, self).__init__(
             states=states,
             actions=actions,
-            network=network,
             batched_observe=batched_observe,
             batching_capacity=batching_capacity,
             scope=scope,
@@ -172,6 +146,7 @@ class PPOAgent(LearningAgent):
             memory=memory,
             optimizer=optimizer,
             discount=discount,
+            network=network,
             distributions=distributions,
             entropy_regularization=entropy_regularization
         )

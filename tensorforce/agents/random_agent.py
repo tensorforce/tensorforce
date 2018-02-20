@@ -23,58 +23,61 @@ from tensorforce.models.random_model import RandomModel
 
 class RandomAgent(Agent):
     """
-    Random agent, useful as a baseline and sanity check.
+    Agent returning random action values.
     """
 
     def __init__(
         self,
         states,
         actions,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='random',
         device=None,
         saver=None,
         summarizer=None,
         distributed=None,
-        batching_capacity=1000,
-        batched_observe=True
     ):
         """
-        Initializes a random agent. Returns random actions based of the shape
-        provided in the 'actions'.
+        Initializes the random agent.
 
         Args:
-            states: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            summary: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
-                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
-                cluster spec.
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
+            scope (str): TensorFlow scope (default: name of agent).
+            device: TensorFlow device (default: none)
+            saver (spec): Saver specification, with the following attributes (default: none):
+                - directory: model directory.
+                - file: model filename (optional).
+                - seconds or steps: save frequency (default: 600 seconds).
+                - load: specifies whether model is loaded, if existent (default: true).
+                - basename: optional file basename (default: 'model.ckpt').
+            summarizer (spec): Summarizer specification, with the following attributes (default:
+                none):
+                - directory: summaries directory.
+                - seconds or steps: summarize frequency (default: 120 seconds).
+                - labels: list of summary labels to record (default: []).
+                - meta_param_recorder_class: ???.
+            distributed (spec): Distributed specification, with the following attributes (default:
+                none):
+                - cluster_spec: TensorFlow ClusterSpec object (required).
+                - task_index: integer (required).
+                - parameter_server: specifies whether this instance is a parameter server (default:
+                    false).
+                - protocol: communication protocol (default: none, i.e. 'grpc').
+                - config: TensorFlow ConfigProto object (default: none).
+                - replica_model: internal.
         """
+
         self.scope = scope
         self.device = device
         self.saver = saver
         self.summarizer = summarizer
         self.distributed = distributed
-        self.batching_capacity = batching_capacity
 
         super(RandomAgent, self).__init__(
             states=states,
             actions=actions,
-            batched_observe=batched_observe
+            batched_observe=batched_observe,
+            batching_capacity=batching_capacity
         )
 
     def initialize_model(self):

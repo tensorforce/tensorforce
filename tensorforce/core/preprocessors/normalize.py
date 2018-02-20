@@ -18,18 +18,25 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from tensorforce.core.preprocessing import Preprocessor
+
+from tensorforce import util
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class Clip(Preprocessor):
+class Normalize(Preprocessor):
     """
-    Clip by min/max.
+    Normalize state. Subtract minimal value and divide by range.
     """
 
-    def __init__(self, shape, min_value, max_value, scope='clip', summary_labels=()):
-        self.min_value = min_value
-        self.max_value = max_value
-        super(Clip, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+    def __init__(self, shape, scope='normalize', summary_labels=()):
+        super(Normalize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
-        return tf.clip_by_value(t=tensor, clip_value_min=self.min_value, clip_value_max=self.max_value)
+        # Min/max across every axis except batch dimension.
+        min_value = tensor
+        max_value = tensor
+        for axis in range(1, util.rank(tensor)):
+            min_value = tf.reduce_min(input_tensor=min_value, axis=axis, keep_dims=True)
+            max_value = tf.reduce_max(input_tensor=max_value, axis=axis, keep_dims=True)
+
+        return (tensor - min_value) / (max_value - min_value + util.epsilon)

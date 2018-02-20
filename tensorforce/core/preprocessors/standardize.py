@@ -20,21 +20,29 @@ from __future__ import print_function
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.preprocessing import Preprocessor
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class Grayscale(Preprocessor):
+class Standardize(Preprocessor):
     """
-    Turn 3D color state into grayscale.
+    Standardize state. Subtract mean and divide by standard deviation.
     """
 
-    def __init__(self, shape, weights=(0.299, 0.587, 0.114), scope='grayscale', summary_labels=()):
-        self.weights = weights
-        super(Grayscale, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+    def __init__(
+        self,
+        shape,
+        across_batch=False,
+        scope='standardize',
+        summary_labels=()
+    ):
+        self.across_batch = across_batch
+        super(Standardize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
-        weights = tf.reshape(tensor=self.weights, shape=(tuple(1 for _ in range(util.rank(tensor) - 1)) + (3,)))
-        return tf.reduce_sum(input_tensor=(weights * tensor), axis=-1, keepdims=True)
+        if self.across_batch:
+            axes = tuple(range(util.rank(tensor)))
+        else:
+            axes = tuple(range(1, util.rank(tensor)))
 
-    def processed_shape(self, shape):
-        return tuple(shape[:-1]) + (1,)
+        mean, variance = tf.nn.moments(x=tensor, axes=axes, keep_dims=True)
+        return (tensor - mean) / tf.maximum(x=tf.sqrt(variance), y=util.epsilon)

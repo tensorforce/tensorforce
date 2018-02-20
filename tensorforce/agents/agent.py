@@ -27,13 +27,7 @@ import tensorforce.agents
 
 class Agent(object):
     """
-    Basic Reinforcement learning agent. An agent encapsulates execution logic
-    of a particular reinforcement learning algorithm and defines the external interface
-    to the environment.
-
-    The agent hence acts as an intermediate layer between environment
-    and backend execution (value function or policy updates).
-
+    Base class for TensorForce agents.
     """
 
     def __init__(
@@ -44,23 +38,23 @@ class Agent(object):
         batching_capacity=1000
     ):
         """
-        Initializes the reinforcement learning agent.
+        Initializes the agent.
 
         Args:
-            states (dict): Dict containing at least one state-component definition. In the case of a single state
-                space component, the keys `shape` and `type` are necessary (e.g. a 3D float-box with shape [3,3,3]).
-                For multiple state components, pass a dict of dicts where each component is a dict itself with a unique
-                name as its key (e.g. {cam: {shape: [84,84], type=int}, health: {shape=(), type=float}}).
-            actions (dict): Dict containing at least one action-component definition.
-                Action components have types and either `num_actions` for discrete actions or a `shape`
-                for continuous actions.
-                Consult documentation and tests for more.
-            batched_observe (int): How many calls to `observe` are batched into one tensorflow session run.
-                Values of 0 or 1 indicate no batching being used and every call to `observe` triggers a tensorflow
-                session invocation to update rewards in the graph, which will lower the throughput.
+            states (spec, or dict of specs): States specification, with the following attributes
+                (required):
+                - type: one of 'bool', 'int', 'float' (default: 'float').
+                - shape: integer, or list/tuple of integers (required).
+            actions (spec, or dict of specs): Actions specification, with the following attributes
+                (required):
+                - type: one of 'bool', 'int', 'float' (required).
+                - shape: integer, or list/tuple of integers (default: []).
+                - num_actions: integer (required if type == 'int').
+                - min_value and max_value: float (optional if type == 'float', default: none).
+            batched_observe (bool): Specifies whether calls to model.observe() are batched, for
+                improved performance (default: true).
+            batching_capacity (int): Batching capacity of agent and model (default: 1000).
         """
-        if states is None or actions is None:
-            raise TensorForceError("No states/actions provided.")
 
         self.set_normalized_states(states=states)
         self.set_normalized_actions(actions=actions)

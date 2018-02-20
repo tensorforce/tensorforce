@@ -59,7 +59,7 @@ import tensorflow as tf
 
 from tensorforce import TensorForceError, util
 from tensorforce.core.explorations import Exploration
-from tensorforce.core.preprocessing import PreprocessorStack
+from tensorforce.core.preprocessors import PreprocessorStack
 
 
 class Model(object):
@@ -397,9 +397,6 @@ class Model(object):
                     self.global_model.get_variables(include_submodules=True)
                 ))
             )
-
-        # TODO(Michael) TensorFlow template hotfix following 1.5.0rc0
-        global_variables = list(set(global_variables))
 
         def init_fn(scaffold, session):
             if self.saver_spec is not None and self.saver_spec.get('load', True):

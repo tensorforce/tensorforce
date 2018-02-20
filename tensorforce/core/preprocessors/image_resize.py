@@ -18,22 +18,20 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
-from tensorforce import util
-from tensorforce.core.preprocessing import Preprocessor
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class Flatten(Preprocessor):
+class ImageResize(Preprocessor):
     """
-    Normalize state. Subtract minimal value and divide by range.
+    Resize image to width x height.
     """
 
-    def __init__(self, scope='flatten', summary_labels=()):
-        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
-
-    def processed_shape(self, shape):
-        return -1, util.prod(shape[1:])
+    def __init__(self, shape, width, height, scope='image_resize', summary_labels=()):
+        self.size = (width, height)
+        super(ImageResize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
-        # Flatten tensor
-        return tf.reshape(tensor=tensor, shape=self.processed_shape(util.shape(tensor)))
+        return tf.image.resize_images(images=tensor, size=self.size)
+
+    def processed_shape(self, shape):
+        return self.size + (shape[-1],)

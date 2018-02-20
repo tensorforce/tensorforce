@@ -20,7 +20,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.preprocessing import Preprocessor
+from tensorforce.core.preprocessors import Preprocessor
 
 
 class Sequence(Preprocessor):

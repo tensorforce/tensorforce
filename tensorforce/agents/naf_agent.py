@@ -23,8 +23,7 @@ from tensorforce.models import QNAFModel
 
 class NAFAgent(LearningAgent):
     """
-    Normalized Advantage Functions (NAF) for continuous DQN: https://arxiv.org/abs/1603.00748
-
+    Normalized Advantage Function agent ([Gu et al., 2016](https://arxiv.org/abs/1603.00748)).
     """
 
     def __init__(
@@ -57,46 +56,21 @@ class NAFAgent(LearningAgent):
         # repeat_update=1
     ):
         """
-        Creates a NAF-agent which is DQN-variant for continuous actions:
-        https://arxiv.org/abs/1603.00748
+        Initializes the NAF agent.
 
         Args:
-            states: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            network: List of layers specifying a neural network via layer types, sizes and optional arguments
-                such as activation or regularisation. Full examples are in the examples/configs folder.
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            summary: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
-                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
-                cluster spec.
-            optimizer: Dict specifying optimizer type and its optional parameters, typically a `learning_rate`.
-                Available optimizer types include standard TensorFlow optimizers, `natural_gradient`,
-                and `evolutionary`. Consult the optimizer test or example configurations for more.
-            discount: Float specifying reward discount factor.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            actions_exploration: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing: Optional dict specifying reward preprocessing.
-            distributions: Optional dict specifying action distributions to override default distribution choices.
-                Must match action names.
-            entropy_regularization: Optional positive float specifying an entropy regularization value.
-            target_sync_frequency: Interval between optimization calls synchronizing the target network.
-            target_update_weight: Update weight, 1.0 meaning a full assignment to target network from training network.
-            double_q_model (bool): Whether to use a double-Q-model (learning two value functions).
-            huber_loss: Optional flat specifying Huber-loss clipping.
+            update_mode (spec): Update mode specification, with the following attributes:
+                - unit: 'timesteps' if given (default: 'timesteps').
+                - batch_size: integer (default: 32).
+                - frequency: integer (default: 4).
+            memory (spec): Memory specification, see core.memories module for more information
+                (default: {type='replay', include_next_states=true, capacity=1000*batch_size}).
+            optimizer (spec): Optimizer specification, see core.optimizers module for more
+                information (default: {type='adam', learning_rate=1e-3}).
+            target_sync_frequency (int): Target network sync frequency (default: 10000).
+            target_update_weight (float): Target network update weight (default: 1.0).
+            double_q_model (bool): Specifies whether double DQN mode is used (default: false).
+            huber_loss (float): Huber loss clipping (default: none).
         """
 
         # Update mode
@@ -137,7 +111,6 @@ class NAFAgent(LearningAgent):
         super(NAFAgent, self).__init__(
             states=states,
             actions=actions,
-            network=network,
             batched_observe=batched_observe,
             batching_capacity=batching_capacity,
             scope=scope,
@@ -153,6 +126,7 @@ class NAFAgent(LearningAgent):
             memory=memory,
             optimizer=optimizer,
             discount=discount,
+            network=network,
             distributions=distributions,
             entropy_regularization=entropy_regularization
         )

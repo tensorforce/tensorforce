@@ -25,8 +25,8 @@ import tensorforce.core.optimizers
 
 class Optimizer(object):
     """
-    Generic TensorFlow optimizer which minimizes a not yet further specified expression, usually  
-    some kind of loss function. More generally, an optimizer can be considered as some method of  
+    Base class for optimizers which minimize a not yet further specified expression, usually some
+    kind of loss function. More generally, an optimizer can be considered as some method of
     updating a set of variables.
     """
 

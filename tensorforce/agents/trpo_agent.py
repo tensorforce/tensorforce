@@ -23,7 +23,8 @@ from tensorforce.models import PGProbRatioModel
 
 class TRPOAgent(LearningAgent):
     """
-    Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
+    Trust Region Policy Optimization agent
+    ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)).
     """
 
     def __init__(
@@ -47,10 +48,6 @@ class TRPOAgent(LearningAgent):
         discount=0.99,
         distributions=None,
         entropy_regularization=None,
-        # parameters specific to BatchAgents
-        batch_size=1000,
-        keep_last_timestep=True,
-        # parameters specific to trust-region pol.opt. Agents
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
@@ -65,61 +62,39 @@ class TRPOAgent(LearningAgent):
         ls_unroll_loop=False
     ):
         """
-        Creates a Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
+        Initializes the TRPO agent.
 
         Args:
-            states: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            network: List of layers specifying a neural network via layer types, sizes and optional arguments
-                such as activation or regularisation. Full examples are in the examples/configs folder.
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            summary: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
-                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
-                cluster spec.
-            discount: Float specifying reward discount factor.
-            variable_noise: Experimental optional parameter specifying variable noise (NoisyNet).
-            states_preprocessing: Optional list of states preprocessors to apply to state  
-                (e.g. `image_resize`, `grayscale`).
-            actions_exploration: Optional dict specifying action exploration type (epsilon greedy  
-                or Gaussian noise).
-            reward_preprocessing: Optional dict specifying reward preprocessing.
-            distributions: Optional dict specifying action distributions to override default distribution choices.
-                Must match action names.
-            entropy_regularization: Optional positive float specifying an entropy regularization value.
-            baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
-                for sharing parameters with the training network.
-            baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
-             examples/configs for full example configurations.
-            baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline
-                following the same conventions as the main optimizer.
-            gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
-            likelihood_ratio_clipping: Optional clipping of likelihood ratio between old and new policy.
-            learning_rate: Learning rate which may be interpreted differently according to optimizer, e.g. a natural
-                gradient optimizer interprets the learning rate as the max kl-divergence between old and updated policy.
-            cg_max_iterations: Int > 0 specifying conjugate gradient iterations, typically 10-20 are sufficient to
-                find effective approximate solutions.
-            cg_damping: Conjugate gradient damping value to increase numerical stability.
-            cg_unroll_loop: Boolean indicating whether loop unrolling in TensorFlow is to be used which seems to
-                impact performance negatively at this point, default False.
+            update_mode (spec): Update mode specification, with the following attributes:
+                - unit: 'episodes' if given (default: 'episodes').
+                - batch_size: integer (default: 10).
+                - frequency: integer (default: batch_size).
+            memory (spec): Memory specification, see core.memories module for more information
+                (default: {type='latest', include_next_states=false, capacity=1000*batch_size}).
+            optimizer (spec): TRPO agent implicitly defines a optimized-step natural-gradient
+                optimizer.
+            baseline_mode (str): One of 'states', 'network' (default: none).
+            baseline (spec): Baseline specification, see core.baselines module for more information
+                (default: none).
+            baseline_optimizer (spec): Baseline optimizer specification, see core.optimizers module
+                for more information (default: none).
+            gae_lambda (float): Lambda factor for generalized advantage estimation (default: none).
+            likelihood_ratio_clipping (float): Likelihood ratio clipping for policy gradient
+                (default: none).
+            learning_rate (float): Learning rate of natural-gradient optimizer (default: 1e-3).
+            cg_max_iterations (int): Conjugate-gradient max iterations (default: 20).
+            cg_damping (float): Conjugate-gradient damping (default: 1e-3).
+            cg_unroll_loop (bool): Conjugate-gradient unroll loop (default: false).
+            ls_max_iterations (int): Line-search max iterations (default: 10).
+            ls_accept_ratio (float): Line-search accept ratio (default: 0.9).
+            ls_unroll_loop (bool): Line-search unroll loop (default: false).
         """
 
         # Update mode
         if update_mode is None:
             update_mode = dict(
                 unit='episodes',
-                batch_size=10,
-                frequency=10
+                batch_size=10
             )
         elif 'unit' in update_mode:
             assert update_mode['unit'] == 'episodes'
@@ -163,7 +138,6 @@ class TRPOAgent(LearningAgent):
         super(TRPOAgent, self).__init__(
             states=states,
             actions=actions,
-            network=network,
             batched_observe=batched_observe,
             batching_capacity=batching_capacity,
             scope=scope,
@@ -179,6 +153,7 @@ class TRPOAgent(LearningAgent):
             memory=memory,
             optimizer=optimizer,
             discount=discount,
+            network=network,
             distributions=distributions,
             entropy_regularization=entropy_regularization
         )

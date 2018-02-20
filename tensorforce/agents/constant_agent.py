@@ -13,11 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Random agent that always returns a random action. Useful to be able to get random
-agents with specific shapes.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -29,51 +24,52 @@ from tensorforce.models.constant_model import ConstantModel
 
 class ConstantAgent(Agent):
     """
-    Constant action agent for sanity checks. Returns a constant value at every
-    step, useful to debug continuous problems.
+    Agent returning constant action values.
     """
 
     def __init__(
         self,
         states,
         actions,
+        action_values,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='constant',
         device=None,
         saver=None,
         summarizer=None,
-        distributed=None,
-        batching_capacity=1000,
-        action_values=None,
-        batched_observe=True
+        distributed=None
     ):
         """
-        Initializes a constant agent which returns a constant action of the provided shape.
+        Initializes the constant agent.
 
         Args:
-            states: Dict containing at least one state definition. In the case of a single state,
-               keys `shape` and `type` are necessary. For multiple states, pass a dict of dicts where each state
-               is a dict itself with a unique name as its key.
-            actions: Dict containing at least one action definition. Actions have types and either `num_actions`
-                for discrete actions or a `shape` for continuous actions. Consult documentation and tests for more.
-            device: Device string specifying model device.
-            session_config: optional tf.ConfigProto with additional desired session configurations
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
-            saver: Dict specifying automated saving. Use `directory` to specify where checkpoints are saved. Use
-                either `seconds` or `steps` to specify how often the model should be saved. The `load` flag specifies
-                if a model is initially loaded (set to True) from a file `file`.
-            summary: Dict specifying summarizer for TensorBoard. Requires a 'directory' to store summarizer, `steps`
-                or `seconds` to specify how often to save summarizer, and a list of `labels` to indicate which values
-                to export, e.g. `losses`, `variables`. Consult neural network class and model for all available labels.
-            distributed: Dict specifying distributed functionality. Use `parameter_server` and `replica_model`
-                Boolean flags to indicate workers and parameter servers. Use a `cluster` key to pass a TensorFlow
-                cluster spec.
-            action_values: Action value specification, must match actions names
-            batched_observe: Optional int specifying how many observe calls are batched into one session run.
-                Without batching, throughput will be lower because every `observe` triggers a session invocation to
-                update rewards in the graph.
+            action_values (value, or dict of values): Action values returned by the agent
+                (required).
+            scope (str): TensorFlow scope (default: name of agent).
+            device: TensorFlow device (default: none)
+            saver (spec): Saver specification, with the following attributes (default: none):
+                - directory: model directory.
+                - file: model filename (optional).
+                - seconds or steps: save frequency (default: 600 seconds).
+                - load: specifies whether model is loaded, if existent (default: true).
+                - basename: optional file basename (default: 'model.ckpt').
+            summarizer (spec): Summarizer specification, with the following attributes (default:
+                none):
+                - directory: summaries directory.
+                - seconds or steps: summarize frequency (default: 120 seconds).
+                - labels: list of summary labels to record (default: []).
+                - meta_param_recorder_class: ???.
+            distributed (spec): Distributed specification, with the following attributes (default:
+                none):
+                - cluster_spec: TensorFlow ClusterSpec object (required).
+                - task_index: integer (required).
+                - parameter_server: specifies whether this instance is a parameter server (default:
+                    false).
+                - protocol: communication protocol (default: none, i.e. 'grpc').
+                - config: TensorFlow ConfigProto object (default: none).
+                - replica_model: internal.
         """
-        if action_values is None:
-            raise TensorForceError("No action_values for constant model provided.")
 
         self.scope = scope
         self.device = device
@@ -86,7 +82,8 @@ class ConstantAgent(Agent):
         super(ConstantAgent, self).__init__(
             states=states,
             actions=actions,
-            batched_observe=batched_observe
+            batched_observe=batched_observe,
+            batching_capacity=batching_capacity
         )
 
     def initialize_model(self):

@@ -176,11 +176,15 @@ def main():
         network = None
         logger.info("No network configuration provided.")
 
+    if args.parameter_server:
+        agent['device'] = '/job:ps/task:{}'.format(args.task_index)  # '/cpu:0'
+    else:
+        agent['device'] = '/job:worker/task:{}'.format(args.task_index)  # '/cpu:0'
+
     agent['distributed'] = dict(
         cluster_spec=cluster_spec,
         task_index=args.task_index,
-        parameter_server=args.parameter_server,
-        device=('/job:{}/task:{}'.format('ps' if args.parameter_server else 'worker', args.task_index)),  # '/cpu:0'
+        parameter_server=args.parameter_server
     )
 
     agent = Agent.from_spec(

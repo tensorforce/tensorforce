@@ -485,7 +485,7 @@ class MemoryModel(Model):
         with tf.control_dependencies(control_inputs=(stored,)):
             unit = self.update_mode['unit']
             batch_size = self.update_mode['batch_size']
-            frequency = self.update_mode['frequency']
+            frequency = self.update_mode.get('frequency', batch_size)
 
             if unit == 'timesteps':
                 # Timestep-based batch
@@ -509,7 +509,7 @@ class MemoryModel(Model):
 
             elif unit == 'sequences':
                 # Timestep-sequence-based batch
-                sequence_length = self.update_mode['length']
+                sequence_length = self.update_mode.get('length', 8)
                 optimize = tf.logical_and(
                     x=tf.equal(x=(self.timestep % frequency), y=0),
                     y=tf.greater_equal(x=self.timestep, y=(batch_size + sequence_length - 1))

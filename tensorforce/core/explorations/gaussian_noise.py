@@ -15,14 +15,28 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core.explorations import Exploration
 
 
-class LinearDecay(Exploration):
+class GaussianNoise(Exploration):
     """
-    Linear decay based on episode number.
+    Explores via gaussian noise.
     """
 
+    def __init__(
+        self,
+        sigma=0.3,
+        mu=0.0,
+        scope='gaussian_noise',
+        summary_labels=()
+    ):
+        """
+        Initializes distribution values for gaussian noise
+        """
+        self.sigma = sigma
+        self.mu = float(mu)  # need to add cast to float to avoid tf type-mismatch error in case mu=0.0
+
+        super(GaussianNoise, self).__init__(scope=scope, summary_labels=summary_labels)
+
     def tf_explore(self, episode, timestep, action_shape):
-        return tf.random_uniform(shape=action_shape) / (tf.cast(x=episode, dtype=util.tf_dtype('float') + 1.0))
+        return tf.random_normal(shape=action_shape[1:], mean=self.mu, stddev=self.sigma)

@@ -85,9 +85,13 @@ class Runner(BaseRunner):
         # episode loop
         while True:
             episode_start_time = time.time()
-
-            self.agent.reset()
             state = self.environment.reset()
+            self.agent.reset()
+
+            # Update global counters.
+            self.global_episode = self.agent.episode  # global value (across all agents)
+            self.global_timestep = self.agent.timestep  # global value (across all agents)
+
             episode_reward = 0
             self.current_timestep = 0
 
@@ -107,8 +111,8 @@ class Runner(BaseRunner):
 
                 self.agent.observe(terminal=terminal, reward=reward)
 
+                self.global_timestep += 1
                 self.current_timestep += 1
-                #self.global_timestep += 1
                 episode_reward += reward
 
                 if terminal or self.agent.should_stop():  # TODO: should_stop also terminate?
@@ -120,10 +124,7 @@ class Runner(BaseRunner):
             self.episode_timesteps.append(self.current_timestep)
             self.episode_times.append(time_passed)
 
-            # Update global counters.
-            #self.global_episode += 1
-            self.global_episode = self.agent.episode  # global value (across all agents)
-            self.global_timestep = self.agent.timestep  # global value (across all agents)
+            self.global_episode += 1
 
             # Check, whether we should stop this run.
             if episode_finished is not None:

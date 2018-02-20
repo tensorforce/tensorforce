@@ -19,18 +19,16 @@ from __future__ import print_function
 from __future__ import division
 
 import unittest
-from tensorforce.tests.base_agent_test import BaseAgentTest, RunMode
+from tensorforce.tests.base_agent_test import BaseAgentTest
 from tensorforce.agents import ConstantAgent
 
 
 class TestConstantAgent(BaseAgentTest, unittest.TestCase):
 
     agent = ConstantAgent
-    deterministic = False
     requires_network = False
 
-    # Just testing one test, otherwise we would have to specify constant values of every type for every
-    # test and override all base tests
+    # Just testing float/bounded test (otherwise would have to use different config for each test)
     config = dict(
         action_values=dict(
             action=1.0
@@ -39,8 +37,5 @@ class TestConstantAgent(BaseAgentTest, unittest.TestCase):
 
     exclude_bool = True
     exclude_int = True
-    exclude_bounded = True
     exclude_multi = True
     exclude_lstm = True
-
-    run_mode = RunMode.SINGLE | RunMode.MULTI_THREADED

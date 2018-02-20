@@ -17,13 +17,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
+from tensorforce import util
 from tensorforce.models import DistributionModel
 from tensorforce.core.networks import Network
-from tensorforce.core.optimizers import Synchronization
+from tensorforce.core.optimizers import Optimizer
 
 
 class QModel(DistributionModel):
@@ -33,85 +32,97 @@ class QModel(DistributionModel):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        network_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summarizer,
+        distributed,
+        batching_capacity,
+        variable_noise,
+        states_preprocessing,
+        actions_exploration,
+        reward_preprocessing,
+        update_mode,
+        memory,
         optimizer,
         discount,
-        variable_noise,
-        states_preprocessing_spec,
-        explorations_spec,
-        reward_preprocessing_spec,
-        distributions_spec,
+        network,
+        distributions,
         entropy_regularization,
         target_sync_frequency,
         target_update_weight,
         double_q_model,
-        huber_loss,
-        # TEMP: Random sampling fix
-        random_sampling_fix
+        huber_loss
     ):
-        self.target_sync_frequency = target_sync_frequency
-        self.target_update_weight = target_update_weight
-
+        self.target_network_spec = network
+        self.target_optimizer_spec = dict(
+            type='synchronization',
+            sync_frequency=target_sync_frequency,
+            update_weight=target_update_weight
+        )
         self.double_q_model = double_q_model
 
+        # Huber loss
         assert huber_loss is None or huber_loss > 0.0
         self.huber_loss = huber_loss
 
-        # TEMP: Random sampling fix
-        self.random_sampling_fix = random_sampling_fix
+        self.target_network = None
+        self.target_optimizer = None
+        self.target_distributions = None
 
         super(QModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            network_spec=network_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summarizer=summarizer,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
             optimizer=optimizer,
             discount=discount,
-            variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec,
-            distributions_spec=distributions_spec,
+            network=network,
+            distributions=distributions,
             entropy_regularization=entropy_regularization,
+            requires_deterministic=True
+        )
+
+    def as_local_model(self):
+        super(QModel, self).as_local_model()
+        self.target_optimizer_spec = dict(
+            type='global_optimizer',
+            optimizer=self.target_optimizer_spec
         )
 
     def initialize(self, custom_getter):
         super(QModel, self).initialize(custom_getter)
 
-        # TEMP: Random sampling fix
-        if self.random_sampling_fix:
-            self.next_states_input = dict()
-            for name, state in self.states_spec.items():
-                self.next_states_input[name] = tf.placeholder(
-                    dtype=util.tf_dtype(state['type']),
-                    shape=(None,) + tuple(state['shape']),
-                    name=('next-' + name)
-                )
+        # # TEMP: Random sampling fix
+        # if self.random_sampling_fix:
+        #     self.next_states_input = dict()
+        #     for name, state in self.states_spec.items():
+        #         self.next_states_input[name] = tf.placeholder(
+        #             dtype=util.tf_dtype(state['type']),
+        #             shape=(None,) + tuple(state['shape']),
+        #             name=('next-' + name)
+        #         )
 
         # Target network
         self.target_network = Network.from_spec(
-            spec=self.network_spec,
+            spec=self.target_network_spec,
             kwargs=dict(scope='target', summary_labels=self.summary_labels)
         )
 
         # Target network optimizer
-        self.target_optimizer = Synchronization(
-            sync_frequency=self.target_sync_frequency,
-            update_weight=self.target_update_weight
-        )
+        self.target_optimizer = Optimizer.from_spec(spec=self.target_optimizer_spec)
 
         # Target network distributions
         self.target_distributions = self.create_distributions()
@@ -139,60 +150,24 @@ class QModel(DistributionModel):
 
         return reward + next_q_value - q_value  # tf.stop_gradient(q_target)
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
-        # TEMP: Random sampling fix
-        if self.random_sampling_fix:
-            next_states = {name: tf.identity(input=state) for name, state in self.next_states_input.items()}
-            next_states = self.fn_preprocess_states(states=next_states)
-            next_states = {name: tf.stop_gradient(input=state) for name, state in next_states.items()}
+    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
 
-            embedding, next_internals = self.network.apply(
-                x=states,
-                internals=internals,
-                update=update,
-                return_internals=True
-            )
-
-            if self.double_q_model:
-                next_embedding = self.network.apply(
-                    x=next_states,
-                    internals=next_internals,
-                    update=update
-                )
-
-            # Both networks can use the same internals, could that be a problem?
-            # Otherwise need to handle internals indices correctly everywhere
-            target_embedding = self.target_network.apply(
+        # fix
+        if self.double_q_model:
+            next_embedding = self.network.apply(
                 x=next_states,
                 internals=next_internals,
                 update=update
             )
 
-        else:
-            embedding = self.network.apply(
-                x={name: state[:-1] for name, state in states.items()},
-                internals=[internal[:-1] for internal in internals],
-                update=update
-            )
-
-            if self.double_q_model:
-                next_embedding = self.network.apply(
-                    x={name: state[1:] for name, state in states.items()},
-                    internals=[internal[1:] for internal in internals],
-                    update=update
-                )
-
-            # Both networks can use the same internals, could that be a problem?
-            # Otherwise need to handle internals indices correctly everywhere
-            target_embedding = self.target_network.apply(
-                x={name: state[1:] for name, state in states.items()},
-                internals=[internal[1:] for internal in internals],
-                update=update
-            )
-
-            actions = {name: action[:-1] for name, action in actions.items()}
-            terminal = terminal[:-1]
-            reward = reward[:-1]
+        # Both networks can use the same internals, could that be a problem?
+        # Otherwise need to handle internals indices correctly everywhere
+        target_embedding = self.target_network.apply(
+            x=next_states,
+            internals=next_internals,
+            update=update
+        )
 
         deltas = list()
         for name, distribution in self.distributions.items():
@@ -204,6 +179,7 @@ class QModel(DistributionModel):
             q_value = self.tf_q_value(embedding=embedding, distr_params=distr_params, action=actions[name], name=name)
 
             if self.double_q_model:
+                # fix
                 next_distr_params = distribution.parameterize(x=next_embedding)
                 action_taken = distribution.sample(distr_params=next_distr_params, deterministic=True)
             else:
@@ -220,104 +196,142 @@ class QModel(DistributionModel):
 
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
         loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
-
         # Optional Huber loss
         if self.huber_loss is not None and self.huber_loss > 0.0:
-            return tf.where(
+            loss = tf.where(
                 condition=(tf.abs(x=loss_per_instance) <= self.huber_loss),
                 x=(0.5 * tf.square(x=loss_per_instance)),
                 y=(self.huber_loss * (tf.abs(x=loss_per_instance) - 0.5 * self.huber_loss))
             )
         else:
-            return tf.square(x=loss_per_instance)
+            loss = tf.square(x=loss_per_instance)
 
-    def tf_optimization(self, states, internals, actions, terminal, reward, update):
+        return loss
+
+    def target_optimizer_arguments(self):
+        """
+        Returns the target optimizer arguments including the time, the list of variables to  
+        optimize, and various functions which the optimizer might require to perform an update  
+        step.
+
+        Returns:
+            Target optimizer arguments as dict.
+        """
+        variables = self.target_network.get_variables() + [
+            variable for name in sorted(self.target_distributions)
+            for variable in self.target_distributions[name].get_variables()
+        ]
+        source_variables = self.network.get_variables() + [
+            variable for name in sorted(self.distributions)
+            for variable in self.distributions[name].get_variables()
+        ]
+        arguments = dict(
+            time=self.global_timestep,
+            variables=variables,
+            source_variables=source_variables
+        )
+        if self.global_model is not None:
+            arguments['global_variables'] = self.global_model.target_network.get_variables() + [
+                variable for name in sorted(self.global_model.target_distributions)
+                for variable in self.global_model.target_distributions[name].get_variables()
+            ]
+        return arguments
+
+    def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
         optimization = super(QModel, self).tf_optimization(
             states=states,
             internals=internals,
             actions=actions,
             terminal=terminal,
             reward=reward,
-            update=update
+            next_states=next_states,
+            next_internals=next_internals
         )
 
-        network_distributions_variables = self.get_distributions_variables(self.distributions)
-        target_distributions_variables = self.get_distributions_variables(self.target_distributions)
-
-        target_optimization = self.target_optimizer.minimize(
-            time=self.timestep,
-            variables=self.target_network.get_variables() + target_distributions_variables,
-            source_variables=self.network.get_variables() + network_distributions_variables
-        )
+        arguments = self.target_optimizer_arguments()
+        target_optimization = self.target_optimizer.minimize(**arguments)
 
         return tf.group(optimization, target_optimization)
 
-    def get_variables(self, include_non_trainable=False):
-        model_variables = super(QModel, self).get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
+        model_variables = super(QModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
+        )
 
-        if include_non_trainable:
-            # Target network and optimizer variables only included if 'include_non_trainable' set
-            target_variables = self.target_network.get_variables(include_non_trainable=include_non_trainable)
-            target_distributions_variables = self.get_distributions_variables(self.target_distributions)
-            target_optimizer_variables = self.target_optimizer.get_variables()
+        if include_submodules:
+            target_variables = self.target_network.get_variables(include_nontrainable=include_nontrainable)
+            model_variables += target_variables
 
-            return model_variables + target_variables + target_optimizer_variables + target_distributions_variables
+            target_distributions_variables = [
+                variable for name in sorted(self.target_distributions)
+                for variable in self.target_distributions[name].get_variables(include_nontrainable=include_nontrainable)
+            ]
+            model_variables += target_distributions_variables
 
-        else:
-            return model_variables
+            if include_nontrainable:
+                target_optimizer_variables = self.target_optimizer.get_variables()
+                model_variables += target_optimizer_variables
+
+        return model_variables
 
     def get_summaries(self):
-        target_distributions_summaries = self.get_distributions_summaries(self.target_distributions)
-        return super(QModel, self).get_summaries() + self.target_network.get_summaries() + target_distributions_summaries
+        target_network_summaries = self.target_network.get_summaries()
+        target_distributions_summaries = [
+            summary for name in sorted(self.target_distributions)
+            for summary in self.target_distributions[name].get_summaries()
+        ]
 
-    # TEMP: Random sampling fix
-    def update(self, states, internals, actions, terminal, reward, return_loss_per_instance=False):
-        fetches = [self.optimization]
+        return super(QModel, self).get_summaries() + target_network_summaries + target_distributions_summaries
 
-        # Optionally fetch loss per instance
-        if return_loss_per_instance:
-            fetches.append(self.loss_per_instance)
+    # # TEMP: Random sampling fix
+    # def update(self, states, internals, actions, terminal, reward, return_loss_per_instance=False):
+    #     fetches = [self.optimization]
 
-        terminal = np.asarray(terminal)
-        batched = (terminal.ndim == 1)
-        if batched:
-            # TEMP: Random sampling fix
-            if self.random_sampling_fix:
-                feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
-                feed_dict.update({state_input: states[name][1] for name, state_input in self.next_states_input.items()})
-            else:
-                feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: internals[n]
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: actions[name]
-                    for name, action_input in self.actions_input.items()}
-            )
-            feed_dict[self.terminal_input] = terminal
-            feed_dict[self.reward_input] = reward
-        else:
-            # TEMP: Random sampling fix
-            if self.random_sampling_fix:
-                raise TensorForceError("Unbatched version not covered by fix.")
-            else:
-                feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: (internals[n],)
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: (actions[name],)
-                    for name, action_input in self.actions_input.items()}
-            )
-            feed_dict[self.terminal_input] = (terminal,)
-            feed_dict[self.reward_input] = (reward,)
+    #     # Optionally fetch loss per instance
+    #     if return_loss_per_instance:
+    #         fetches.append(self.loss_per_instance)
 
-        feed_dict[self.deterministic_input] = True
-        feed_dict[self.update_input] = True
+    #     terminal = np.asarray(terminal)
+    #     batched = (terminal.ndim == 1)
+    #     if batched:
+    #         # TEMP: Random sampling fix
+    #         if self.random_sampling_fix:
+    #             feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
+    #             feed_dict.update({state_input: states[name][1] for name, state_input in self.next_states_input.items()})
+    #         else:
+    #             feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
+    #         feed_dict.update(
+    #             {internal_input: internals[n]
+    #                 for n, internal_input in enumerate(self.internals_input)}
+    #         )
+    #         feed_dict.update(
+    #             {action_input: actions[name]
+    #                 for name, action_input in self.actions_input.items()}
+    #         )
+    #         feed_dict[self.terminal_input] = terminal
+    #         feed_dict[self.reward_input] = reward
+    #     else:
+    #         # TEMP: Random sampling fix
+    #         if self.random_sampling_fix:
+    #             raise TensorForceError("Unbatched version not covered by fix.")
+    #         else:
+    #             feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
+    #         feed_dict.update(
+    #             {internal_input: (internals[n],)
+    #                 for n, internal_input in enumerate(self.internals_input)}
+    #         )
+    #         feed_dict.update(
+    #             {action_input: (actions[name],)
+    #                 for name, action_input in self.actions_input.items()}
+    #         )
+    #         feed_dict[self.terminal_input] = (terminal,)
+    #         feed_dict[self.reward_input] = (reward,)
 
-        fetched = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+    #     feed_dict[self.deterministic_input] = True
+    #     feed_dict[self.update_input] = True
 
-        if return_loss_per_instance:
-            return fetched[1]
+    #     fetched = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+
+    #     if return_loss_per_instance:
+    #         return fetched[1]

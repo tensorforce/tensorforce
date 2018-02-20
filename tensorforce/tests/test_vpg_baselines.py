@@ -22,22 +22,34 @@ import unittest
 from tensorforce.tests.base_test import BaseTest
 from tensorforce.agents import VPGAgent
 from tensorforce.core.networks import Dense, LayerBasedNetwork
-from tensorforce.environments.minimal_test import MinimalTest
+from tensorforce.environments import MinimalTest
 
 
 class TestVPGBaselines(BaseTest, unittest.TestCase):
 
     agent = VPGAgent
-    deterministic = False
 
     def test_states_baseline(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
+            optimizer=dict(
+                type='adam',
+                learning_rate=1e-2
+            ),
             baseline_mode='states',
             baseline=dict(
                 type='mlp',
@@ -47,7 +59,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='multi_step',
                 optimizer=dict(
                     type='adam',
-                    learning_rate=0.001
+                    learning_rate=1e-3
                 ),
                 num_steps=5
             )
@@ -55,19 +67,32 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         self.base_test_pass(
             name='states-baseline',
             environment=environment,
-            network_spec=network_spec,
+            network=network,
             **config
         )
 
     def test_network_baseline(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
 
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
+            optimizer=dict(
+                type='adam',
+                learning_rate=1e-2
+            ),
             baseline_mode='network',
             baseline=dict(
                 type='mlp',
@@ -77,7 +102,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='multi_step',
                 optimizer=dict(
                     type='adam',
-                    learning_rate=0.001
+                    learning_rate=1e-3
                 ),
                 num_steps=5
             )
@@ -85,19 +110,32 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         self.base_test_pass(
             name='network-baseline',
             environment=environment,
-            network_spec=network_spec,
+            network=network,
             **config
         )
 
     def test_baseline_no_optimizer(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
 
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
+            optimizer=dict(
+                type='adam',
+                learning_rate=1e-2
+            ),
             baseline_mode='states',
             baseline=dict(
                 type='mlp',
@@ -107,18 +145,31 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         self.base_test_pass(
             name='baseline-no-optimizer',
             environment=environment,
-            network_spec=network_spec,
+            network=network,
             **config
         )
 
     def test_gae_baseline(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
+            optimizer=dict(
+                type='adam',
+                learning_rate=1e-2
+            ),
             baseline_mode='states',
             baseline=dict(
                 type='mlp',
@@ -128,7 +179,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='multi_step',
                 optimizer=dict(
                     type='adam',
-                    learning_rate=0.001
+                    learning_rate=1e-3
                 ),
                 num_steps=5
             ),
@@ -137,7 +188,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         self.base_test_pass(
             name='gae-baseline',
             environment=environment,
-            network_spec=network_spec,
+            network=network,
             **config
         )
 
@@ -174,13 +225,26 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 x2 = self.layer_float2.apply(x=self.layer_float1.apply(x=x['float'], update=update), update=update)
                 x3 = self.layer_bounded2.apply(x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update)
                 x = x0 * x1 * x2 * x3
-                return (x, list()) if return_internals else x
+                return (x, dict()) if return_internals else x
 
         environment = MinimalTest(
             specification={'bool': (), 'int': (2,), 'float': (1, 1), 'bounded': (1,)}
         )
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
+            optimizer=dict(
+                type='adam',
+                learning_rate=1e-2
+            ),
             baseline_mode='states',
             baseline=dict(
                 type='aggregated',
@@ -207,7 +271,7 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
                 type='multi_step',
                 optimizer=dict(
                     type='adam',
-                    learning_rate=0.001
+                    learning_rate=1e-3
                 ),
                 num_steps=5
             )
@@ -216,6 +280,6 @@ class TestVPGBaselines(BaseTest, unittest.TestCase):
         self.base_test_pass(
             name='multi-baseline',
             environment=environment,
-            network_spec=CustomNetwork,
+            network=CustomNetwork,
             **config
         )

@@ -13,8 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from math import log
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
 
+from math import log
 import tensorflow as tf
 
 from tensorforce import util
@@ -24,20 +27,19 @@ from tensorforce.core.distributions import Distribution
 
 class Beta(Distribution):
     """
-    Beta distribution, for bounded continuous actions
+    Beta distribution, for bounded continuous actions.
     """
 
     def __init__(self, shape, min_value, max_value, alpha=0.0, beta=0.0, scope='beta', summary_labels=()):
         """
-        Beta distribution used for continuous actions. In particular, the Beta distribution
-        allows to bound action values with min and max values.
+        Beta distribution.
 
         Args:
-            shape: Shape of actions
-            min_value: Min value of all actions for the given shape
-            max_value: Max value of all actions for the given shape
-            alpha: Concentration parameter of the Beta distribution
-            beta: Concentration parameter of the Beta distribution
+            shape: Action shape.
+            min_value: Minimum value of continuous actions.
+            max_value: Maximum value of continuous actions.
+            alpha: Optional distribution bias for the alpha value.
+            beta: Optional distribution bias for the beta value.
         """
         assert min_value is None or max_value > min_value
         self.shape = shape
@@ -48,7 +50,7 @@ class Beta(Distribution):
         self.alpha = Linear(size=action_size, bias=alpha, scope='alpha')
         self.beta = Linear(size=action_size, bias=beta, scope='beta')
 
-        super(Beta, self).__init__(scope, summary_labels)
+        super(Beta, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_parameterize(self, x):
         # Softplus to ensure alpha and beta >= 1
@@ -125,10 +127,10 @@ class Beta(Distribution):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        distribution_variables = super(Beta, self).get_variables(include_non_trainable=include_non_trainable)
-        alpha_variables = self.alpha.get_variables(include_non_trainable=include_non_trainable)
-        beta_variables = self.beta.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        distribution_variables = super(Beta, self).get_variables(include_nontrainable=include_nontrainable)
+        alpha_variables = self.alpha.get_variables(include_nontrainable=include_nontrainable)
+        beta_variables = self.beta.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + alpha_variables + beta_variables
 

@@ -26,13 +26,20 @@ from tensorforce.agents import DQNNstepAgent
 class TestDQNNstepAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQNNstepAgent
-    deterministic = True
-
     config = dict(
-        batch_size=8,
+        update_mode=dict(
+            unit='episodes',
+            batch_size=4,
+            frequency=4
+        ),
+        memory=dict(
+            type='latest',
+            include_next_states=True,
+            capacity=100
+        ),
         optimizer=dict(
             type='adam',
-            learning_rate=0.01
+            learning_rate=1e-2
         )
     )
 

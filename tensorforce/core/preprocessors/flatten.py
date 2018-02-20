@@ -17,30 +17,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
+import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.preprocessing import Preprocessor
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class RunningStandardize(Preprocessor):
+class Flatten(Preprocessor):
     """
-    Standardize state w.r.t past states. Subtract mean and divide by standard deviation of sequence of past states.
+    Normalize state. Subtract minimal value and divide by range.
     """
 
-    def __init__(self, axis=None, reset_after_batch=True, scope='running_standardize', summary_labels=()):
-        self.axis = axis
-        self.reset_after_batch = reset_after_batch
-        self.history = list()
-        super(RunningStandardize, self).__init__(scope=scope, summary_labels=summary_labels)
+    def __init__(self, scope='flatten', summary_labels=()):
+        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def reset(self):
-        if self.reset_after_batch:
-            self.history = list()
+    def processed_shape(self, shape):
+        return -1, util.prod(shape[1:])
 
     def tf_process(self, tensor):
-        state = tensor.astype(np.float32)
-        self.history.append(state)
-        history = np.array(self.history)
-
-        return (state - history.mean(axis=self.axis)) / (state.std(axis=self.axis) + util.epsilon)
+        # Flatten tensor
+        return tf.reshape(tensor=tensor, shape=self.processed_shape(util.shape(tensor)))

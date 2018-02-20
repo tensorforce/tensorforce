@@ -13,271 +13,364 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import random
-from six.moves import xrange
-import numpy as np
-from collections import namedtuple
-
-from tensorforce import util, TensorForceError
+import tensorflow as tf
+from tensorforce import util
 from tensorforce.core.memories import Memory
 
-_SumRow = namedtuple('SumRow', ['item', 'priority'])
 
-#TODO move to util/rename methods to conform to naming scheme
-class SumTree(object):
-    """
-    Sum tree data structure where data is stored in leaves and each node on the
-    tree contains a sum of the children.
-
-    Items and priorities are stored in leaf nodes, while internal nodes store
-    the sum of priorities from all its descendants. Internally a single list
-    stores the internal nodes followed by leaf nodes.
-
-    See:
-    - [Binary heap trees](https://en.wikipedia.org/wiki/Binary_heap)
-    - [Section B.2.1 in the prioritized replay paper](https://arxiv.org/pdf/1511.05952.pdf)
-    - [The CNTK implementation](https://github.com/Microsoft/CNTK/blob/258fbec7600fe525b50c3e12d4df0c971a42b96a/bindings/python/cntk/contrib/deeprl/agent/shared/replay_memory.py)
-
-    Usage:
-        tree = SumTree(100)
-        tree.push('item1', priority=0.5)
-        tree.push('item2', priority=0.6)
-        item, priority = tree[0]
-        batch = tree.sample_minibatch(2)
-    """
-
-    def __init__(self, capacity):
-        self._capacity = capacity
-
-        # Initializes all internal nodes to have value 0.
-        self._memory = [0] * (capacity - 1)
-        self._position = 0
-        self._actual_capacity = 2 * self._capacity - 1
-
-    def put(self, item, priority=None):
-        """
-        Stores a transition in replay memory.
-
-        If the memory is full, the oldest entry is replaced.
-        """
-        if not self._isfull():
-            self._memory.append(None)
-        position = self._next_position_then_increment()
-        old_priority = 0 if self._memory[position] is None \
-            else (self._memory[position].priority or 0)
-        row = _SumRow(item, priority)
-        self._memory[position] = row
-        self._update_internal_nodes(
-            position, (row.priority or 0) - old_priority)
-
-    def move(self, external_index, new_priority):
-        """
-        Change the priority of a leaf node
-        """
-        index = external_index + (self._capacity - 1)
-        return self._move(index, new_priority)
-
-    def _move(self, index, new_priority):
-        """
-        Change the priority of a leaf node.
-        """
-        item, old_priority = self._memory[index]
-        old_priority = old_priority or 0
-        self._memory[index] = _SumRow(item, new_priority)
-        self._update_internal_nodes(index, new_priority - old_priority)
-
-    def _update_internal_nodes(self, index, delta):
-        """
-        Update internal priority sums when leaf priority has been changed.
-        Args:
-            index: leaf node index
-            delta: change in priority
-        """
-        # Move up tree, increasing position, updating sum
-        while index > 0:
-            index = (index - 1) // 2
-            self._memory[index] += delta
-
-    def _isfull(self):
-        return len(self) == self._capacity
-
-    def _next_position_then_increment(self):
-        """
-        Similar to position++.
-        """
-        start = self._capacity - 1
-        position = start + self._position
-        self._position = (self._position + 1) % self._capacity
-        return position
-
-    def _sample_with_priority(self, p):
-        """
-        Sample random element with priority greater than p.
-        """
-        parent = 0
-        while True:
-            left = 2 * parent + 1
-            if left >= len(self._memory):
-                # parent points to a leaf node already.
-                return parent
-
-            left_p = self._memory[left] if left < self._capacity - 1 \
-                else (self._memory[left].priority or 0)
-            if p <= left_p:
-                parent = left
-            else:
-                if left + 1 >= len(self._memory):
-                    raise RuntimeError('Right child is expected to exist.')
-                p -= left_p
-                parent = left + 1
-
-    def sample_minibatch(self, batch_size):
-        """
-        Sample minibatch of size batch_size.
-        """
-        pool_size = len(self)
-        if pool_size == 0:
-            return []
-
-        delta_p = self._memory[0] / batch_size
-        chosen_idx = []
-        # if all priorities sum to ~0  choose randomly otherwise random sample
-        if abs(self._memory[0]) < util.epsilon:
-            chosen_idx = np.random.randint(self._capacity - 1, self._capacity - 1 + len(self), size=batch_size).tolist()
-        else:
-            for i in xrange(batch_size):
-                lower = max(i * delta_p, 0)
-                upper = min((i + 1) * delta_p, self._memory[0])
-                p = random.uniform(lower, upper)
-                chosen_idx.append(self._sample_with_priority(p))
-        return [(i, self._memory[i]) for i in chosen_idx]
-
-    def __len__(self):
-        """
-        Return the current number of transitions.
-        """
-        return len(self._memory) - (self._capacity - 1)
-
-    def __getitem__(self, index):
-        return self._memory[self._capacity - 1:][index]
-
-    def __getslice__(self, start, end):
-        self.memory[self._capacity - 1:][start:end]
-
-
-#TODO implement in TF
 class PrioritizedReplay(Memory):
     """
-    Prioritised replay sampling based on loss per experience.
+    Memory organized as a priority queue, which randomly retrieves experiences sampled according
+    their priority values.
     """
 
-    def __init__(self, states_spec, actions_spec, capacity, prioritization_weight=1.0, prioritization_constant=0.0):
-        super(PrioritizedReplay, self).__init__(states_spec=states_spec, actions_spec=actions_spec)
-        self.capacity = capacity
-        self.prioritization_weight = prioritization_weight
-        self.prioritization_constant = prioritization_constant
-        self.internals_spec = None
-        self.batch_indices = None
-
-        # Stores (priority, observation) pairs
-        self.observations = SumTree(capacity)
-
-        # Queue index where seen observations end and unseen ones begin.
-        self.none_priority_index = 0
-
-        # Stores last observation until next_state value is known.
-        self.last_observation = None
-
-    def add_observation(self, states, internals, actions, terminal, reward):
-        if self.internals_spec is None and internals is not None:
-            self.internals_spec = [(internal.shape, internal.dtype) for internal in internals]
-
-        if self.last_observation is not None:
-            observation = self.last_observation + (states, internals)
-
-            # We are above capacity and have some seen observations
-            if self.observations._isfull():
-                if self.none_priority_index <= 0:
-                    raise TensorForceError(
-                        "Trying to replace unseen observations: "
-                        "Memory is at capacity and contains only unseen observations."
-                    )
-                self.none_priority_index -= 1
-
-            self.observations.put(observation, None)
-
-        self.last_observation = (states, internals, actions, terminal, reward)
-
-    def get_batch(self, batch_size, next_states=False):
+    def __init__(
+        self,
+        states,
+        internals,
+        actions,
+        include_next_states,
+        capacity,
+        prioritization_weight=1.0,
+        buffer_size=100,
+        scope='queue',
+        summary_labels=None
+    ):
         """
-        Samples a batch of the specified size according to priority.
+        Prioritized queue memory.
 
         Args:
-            batch_size: The batch size
-            next_states: A boolean flag indicating whether 'next_states' values should be included
-
-        Returns: A dict containing states, actions, rewards, terminals, internal states (and next states)
-
+            states: States specifiction.
+            internals: Internal states specification.
+            actions: Actions specification.
+            include_next_states: Include subsequent state if true.
+            capacity: Memory capacity.
+            prioritization_weight: Prioritization weight.
+            buffer_size: Buffer size.
         """
-        if batch_size > len(self.observations):
-            raise TensorForceError(
-                "Requested batch size is larger than observations in memory: increase config.first_update.")
-
-        # Init empty states
-        states = {name: np.zeros((batch_size,) + tuple(state['shape']), dtype=util.np_dtype(
-            state['type'])) for name, state in self.states_spec.items()}
-        internals = [np.zeros((batch_size,) + shape, dtype)
-                     for shape, dtype in self.internals_spec]
-        actions = {name: np.zeros((batch_size,) + tuple(action['shape']), dtype=util.np_dtype(action['type'])) for name, action in self.actions_spec.items()}
-        terminal = np.zeros((batch_size,), dtype=util.np_dtype('bool'))
-        reward = np.zeros((batch_size,), dtype=util.np_dtype('float'))
-        if next_states:
-            next_states = {name: np.zeros((batch_size,) + tuple(state['shape']), dtype=util.np_dtype(
-                state['type'])) for name, state in self.states_spec.items()}
-            next_internals = [np.zeros((batch_size,) + shape, dtype)
-                              for shape, dtype in self.internals_spec]
-
-        # Start with unseen observations
-        unseen_indices = list(xrange(
-            self.none_priority_index + self.observations._capacity - 1,
-            len(self.observations) + self.observations._capacity - 1)
+        super(PrioritizedReplay, self).__init__(
+            states=states,
+            internals=internals,
+            actions=actions,
+            include_next_states=include_next_states,
+            scope=scope,
+            summary_labels=summary_labels
         )
-        self.batch_indices = unseen_indices[:batch_size]
+        self.capacity = capacity
+        self.buffer_size = buffer_size
+        self.prioritization_weight = prioritization_weight
 
-        # Get remaining observations using weighted sampling
-        remaining = batch_size - len(self.batch_indices)
-        if remaining:
-            samples = self.observations.sample_minibatch(remaining)
-            sample_indices = [i for i, o in samples]
-            self.batch_indices += sample_indices
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                assert not kwargs.get('trainable', False)
+                self.variables[name] = variable
+            return variable
 
-        # Shuffle
-        np.random.shuffle(self.batch_indices)
+        self.retrieve_indices = tf.make_template(
+            name_=(scope + '/retrieve_indices'),
+            func_=self.tf_retrieve_indices,
+            custom_getter_=custom_getter
+        )
 
-        # Collect observations
-        for n, index in enumerate(self.batch_indices):
-            observation, _ = self.observations._memory[index]
+    def tf_initialize(self):
+        # States
+        self.states_memory = dict()
+        for name, state in self.states_spec.items():
+            self.states_memory[name] = tf.get_variable(
+                name=('state-' + name),
+                shape=(self.capacity,) + tuple(state['shape']),
+                dtype=util.tf_dtype(state['type']),
+                trainable=False
+            )
 
-            for name, state in states.items():
-                state[n] = observation[0][name]
-            for k, internal in enumerate(internals):
-                internal[n] = observation[1][k]
-            for name, action in actions.items():
-                action[n] = observation[2][name]
-            terminal[n] = observation[3]
-            reward[n] = observation[4]
-            if next_states:
-                for name, next_state in next_states.items():
-                    next_state[n] = observation[5][name]
-                for k, next_internal in enumerate(next_internals):
-                    next_internal[n] = observation[6][k]
+        # Internals
+        self.internals_memory = dict()
+        for name, internal in self.internals_spec.items():
+            self.internals_memory[name] = tf.get_variable(
+                name=('internal-' + name),
+                shape=(self.capacity,) + tuple(internal['shape']),
+                dtype=util.tf_dtype(internal['type']),
+                trainable=False
+            )
 
-        if next_states:
+        # Actions
+        self.actions_memory = dict()
+        for name, action in self.actions_spec.items():
+            self.actions_memory[name] = tf.get_variable(
+                name=('action-' + name),
+                shape=(self.capacity,) + tuple(action['shape']),
+                dtype=util.tf_dtype(action['type']),
+                trainable=False
+            )
+
+        # Terminal
+        self.terminal_memory = tf.get_variable(
+            name='terminal',
+            shape=(self.capacity,),
+            dtype=util.tf_dtype('bool'),
+            initializer=tf.constant_initializer(
+                value=tuple(n == self.capacity - 1 for n in range(self.capacity)),
+                dtype=util.tf_dtype('bool')
+            ),
+            trainable=False
+        )
+
+        # Reward
+        self.reward_memory = tf.get_variable(
+            name='reward',
+            shape=(self.capacity,),
+            dtype=util.tf_dtype('float'),
+            trainable=False
+        )
+
+        # Memory index
+        self.memory_index = tf.get_variable(
+            name='memory-index',
+            dtype=util.tf_dtype('int'),
+            initializer=0,
+            trainable=False
+        )
+
+        # Priorities
+        self.priorities = tf.get_variable(
+            name='priorities',
+            shape=(self.capacity,),
+            dtype=util.tf_dtype('float'),
+            trainable=False
+        )
+
+        # Buffer variables. The buffer is used to insert data for which we
+        # do not have priorities yet.
+        self.buffer_index = tf.get_variable(
+            name='buffer-index',
+            dtype=util.tf_dtype('int'),
+            initializer=0,
+            trainable=False
+        )
+
+        self.states_buffer = dict()
+        for name, state in self.states_spec.items():
+            self.states_buffer[name] = tf.get_variable(
+                name=('state-buffer-' + name),
+                shape=(self.buffer_size,) + tuple(state['shape']),
+                dtype=util.tf_dtype(state['type']),
+                trainable=False
+            )
+
+        # Internals
+        self.internals_buffer = dict()
+        for name, internal in self.internals_spec.items():
+            self.internals_buffer[name] = tf.get_variable(
+                name=('internal-buffer-' + name),
+                shape=(self.capacity,) + tuple(internal['shape']),
+                dtype=util.tf_dtype(internal['type']),
+                trainable=False
+            )
+
+        # Actions
+        self.actions_buffer = dict()
+        for name, action in self.actions_spec.items():
+            self.actions_buffer[name] = tf.get_variable(
+                name=('action-buffer-' + name),
+                shape=(self.buffer_size,) + tuple(action['shape']),
+                dtype=util.tf_dtype(action['type']),
+                trainable=False
+            )
+
+        # Terminal
+        self.terminal_buffer = tf.get_variable(
+            name='terminal-buffer',
+            shape=(self.capacity,),
+            dtype=util.tf_dtype('bool'),
+            initializer=tf.constant_initializer(
+                value=tuple(n == self.buffer_size - 1 for n in range(self.capacity)),
+                dtype=util.tf_dtype('bool')
+            ),
+            trainable=False
+        )
+
+        # Reward
+        self.reward_buffer = tf.get_variable(
+            name='reward-buffer',
+            shape=(self.buffer_size,),
+            dtype=util.tf_dtype('float'),
+            trainable=False
+        )
+
+        # Indices of batch experiences in main memory.
+        self.batch_indices = tf.get_variable(
+            name='batch-indices',
+            dtype=util.tf_dtype('int'),
+            shape=(self.capacity,),
+            trainable=False
+        )
+
+        # Indices of batch experiences in buffer..
+        self.last_batch_buffer_elems = tf.get_variable(
+            name='last-batch-buffer-elems',
+            dtype=util.tf_dtype('int'),
+            initializer=0,
+            trainable=False
+        )
+
+    def tf_store(self, states, internals, actions, terminal, reward):
+        # We first store new experiences into a buffer that is separate from main memory.
+        # We insert these into the main memory once we have computed priorities on a given batch.
+        num_instances = tf.shape(input=terminal)[0]
+        start_index = self.buffer_index
+        end_index = self.buffer_index + num_instances
+
+        # Assign new observations.
+        assignments = list()
+        for name, state in states.items():
+            assignments.append(tf.assign(ref=self.states_buffer[name][start_index:end_index], value=state))
+        for name, internal in internals.items():
+            assignments.append(tf.assign(
+                ref=self.internals_buffer[name][start_index:end_index],
+                value=internal
+            ))
+        for name, action in actions.items():
+            assignments.append(tf.assign(ref=self.actions_buffer[name][start_index:end_index], value=action))
+
+        assignments.append(tf.assign(ref=self.terminal_buffer[start_index:end_index], value=terminal))
+        assignments.append(tf.assign(ref=self.reward_buffer[start_index:end_index], value=reward))
+
+        # Increment memory index.
+        with tf.control_dependencies(control_inputs=assignments):
+            assignment = tf.assign(ref=self.buffer_index, value=(self.buffer_index + num_instances))
+
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            return tf.no_op()
+
+    def tf_retrieve_timesteps(self, n):
+        num_buffer_elems = tf.minimum(x=self.buffer_index, y=n)
+        num_priority_elements = n - num_buffer_elems
+
+        def sampling_fn():
+            # Vectorized sampling.
+            sum_priorities = tf.reduce_sum(input_tensor=self.priorities, axis=0)
+            sample = tf.random_uniform(shape=(num_priority_elements,), dtype=tf.float32)
+            indices = tf.zeros(shape=(num_priority_elements,), dtype=tf.int32)
+
+            def cond(loop_index, sample):
+                return tf.reduce_all(input_tensor=(sample <= 0.0))
+
+            def sampling_body(loop_index, sample):
+                priority = tf.gather(params=self.priorities, indices=loop_index)
+                sample -= priority / sum_priorities
+                loop_index += tf.cast(
+                    x=(sample > 0.0),
+                    dtype=tf.int32,
+                )
+
+                return loop_index, sample
+
+            priority_indices = tf.while_loop(
+                cond=cond,
+                body=sampling_body,
+                loop_vars=(indices, sample)
+            )[0]
+            return priority_indices
+
+        priority_indices = tf.cond(
+            pred=num_priority_elements > 0,
+            true_fn=sampling_fn,
+            false_fn=lambda: tf.zeros(shape=(num_priority_elements,), dtype=tf.int32)
+        )
+        priority_terminal = tf.gather(params=self.terminal_memory, indices=priority_indices)
+        priority_indices = tf.boolean_mask(tensor=priority_indices, mask=tf.logical_not(x=priority_terminal))
+
+        # Store how many elements we retrieved from the buffer for updating priorities.
+        # Note that this is just the count, as we can reconstruct the indices from that.
+        assignments = list()
+        assignments.append(tf.assign(ref=self.last_batch_buffer_elems, value=num_buffer_elems))
+
+        # Store indices used from priority memory. Note that these are the full indices
+        # as they were not taken in order.
+        assignments.append(tf.scatter_update(
+            ref=self.batch_indices,
+            indices=priority_indices,
+            updates=tf.ones(shape=tf.shape(input=priority_indices), dtype=tf.int32))
+        )
+        # Fetch results.
+        with tf.control_dependencies(control_inputs=assignments):
+            return self.retrieve_indices(buffer_elements=num_buffer_elems, priority_indices=priority_indices)
+
+    def tf_retrieve_indices(self, buffer_elements, priority_indices):
+        """
+        Fetches experiences for given indices by combining entries from buffer
+        which have no priorities, and entries from priority memory.
+
+        Args:
+            buffer_elements: Number of buffer elements to retrieve
+            priority_indices: Index tensor for priority memory
+
+        Returns: Batch of experiences
+        """
+        states = dict()
+
+        buffer_start = (self.buffer_index - buffer_elements)
+        buffer_start = tf.Print(buffer_start, [buffer_start], 'buffer start=', summarize=100)
+        buffer_end = (self.buffer_index)
+        buffer_end = tf.Print(buffer_end, [buffer_end], 'buffer_end=', summarize=100)
+        # Fetch entries from respective memories, concat.
+        for name, state_memory in self.states_memory.items():
+            buffer_state_memory = self.states_buffer[name]
+            buffer_states = buffer_state_memory[buffer_start:buffer_end]
+            memory_states = tf.gather(params=state_memory, indices=priority_indices)
+            # buffer_states = tf.Print(buffer_states, [buffer_states], "buffer states=", summarize=100)
+            # memory_states = tf.Print(memory_states, [memory_states], "memory states=", summarize=100)
+            states[name] = tf.concat(values=(buffer_states, memory_states), axis=0)
+
+        internals = dict()
+        for name, internal_memory in self.internals_memory.items():
+            internal_buffer_memory = self.internals_buffer[name]
+            buffer_internals = internal_buffer_memory[buffer_start:buffer_end]
+            memory_internals = tf.gather(params=internal_memory, indices=priority_indices)
+            internals[name] = tf.concat(values=(buffer_internals, memory_internals), axis=0)
+
+        actions = dict()
+        for name, action_memory in self.actions_memory.items():
+            action_buffer_memory = self.actions_buffer[name]
+            buffer_action = action_buffer_memory[buffer_start:buffer_end]
+            memory_action = tf.gather(params=action_memory, indices=priority_indices)
+            actions[name] = tf.concat(values=(buffer_action, memory_action), axis=0)
+
+        buffer_terminal = self.terminal_buffer[buffer_start:buffer_end]
+        priority_terminal = tf.gather(params=self.terminal_memory, indices=priority_indices)
+        terminal = tf.concat(values=(buffer_terminal, priority_terminal), axis=0)
+
+        buffer_reward = self.reward_buffer[buffer_start:buffer_end]
+        priority_reward = tf.gather(params=self.reward_memory, indices=priority_indices)
+        reward = tf.concat(values=(buffer_reward, priority_reward), axis=0)
+
+        if self.include_next_states:
+            assert util.rank(priority_indices) == 1
+            next_priority_indices = (priority_indices + 1) % self.capacity
+            next_buffer_start = (buffer_start + 1) % self.buffer_size
+            next_buffer_end = (buffer_end + 1) % self.buffer_size
+            # else:
+            #     next_indices = (indices[:, -1] + 1) % self.capacity
+
+            next_states = dict()
+            for name, state_memory in self.states_memory.items():
+                buffer_state_memory = self.states_buffer[name]
+                buffer_next_states = buffer_state_memory[next_buffer_start:next_buffer_end]
+                memory_next_states = tf.gather(params=state_memory, indices=next_priority_indices)
+                next_states[name] = tf.concat(values=(buffer_next_states, memory_next_states), axis=0)
+
+            next_internals = dict()
+            for name, internal_memory in self.internals_memory.items():
+                buffer_internal_memory = self.internals_buffer[name]
+                buffer_next_internals = buffer_internal_memory[next_buffer_start:next_buffer_end]
+                memory_next_internals = tf.gather(params=internal_memory, indices=next_priority_indices)
+                next_internals[name] = tf.concat(values=(buffer_next_internals, memory_next_internals), axis=0)
+
             return dict(
                 states=states,
                 internals=internals,
@@ -296,21 +389,61 @@ class PrioritizedReplay(Memory):
                 reward=reward
             )
 
-    def update_batch(self, loss_per_instance):
-        """
-        Computes priorities according to loss.
+    def tf_update_batch(self, loss_per_instance):
+        # 1. We reconstruct the batch from the buffer and the priority memory.
+        mask = tf.not_equal(
+            x=self.batch_indices,
+            y=tf.zeros(shape=tf.shape(input=self.batch_indices), dtype=tf.int32)
+        )
+        priority_indices = tf.where(condition=mask)
+        priority_indices = tf.Print(priority_indices, [priority_indices], message="Priority indices")
+        sampled_batch = self.tf_retrieve_indices(
+            buffer_elements=self.last_batch_buffer_elems,
+            priority_indices=priority_indices
+        )
+        sampled_batch = tf.Print(sampled_batch, [sampled_batch], message="sampled batch: ")
+        states = sampled_batch['states']
+        internals = sampled_batch['internals']
+        actions = sampled_batch['actions']
+        terminal = sampled_batch['terminal']
+        reward = sampled_batch['reward']
 
-        Args:
-            loss_per_instance:
+        # TODO this is incorrect
+        start_index = 0
+        end_index = self.last_batch_buffer_elems
+        priorities = loss_per_instance ** self.prioritization_weight
+        # How do we map batch indices to memory indices and insert?
 
-        """
-        if self.batch_indices is None:
-            raise TensorForceError("Need to call get_batch before each update_batch call.")
-        # if len(loss_per_instance) != len(self.batch_indices):
-        #     raise TensorForceError("For all instances a loss value has to be provided.")
+        # For testing retrieval loop, no priority inserts yet.
+        assignments = list()
+        for name, state in states.items():
+            assignments.append(tf.assign(ref=self.states_memory[name][start_index:end_index], value=state))
+        for name, internal in internals.items():
+            assignments.append(tf.assign(
+                ref=self.internals_buffer[name][start_index:end_index],
+                value=internal
+            ))
+        assignments.append(tf.assign(ref=self.terminal_memory[start_index:end_index], value=terminal))
+        assignments.append(tf.assign(ref=self.reward_memory[start_index:end_index], value=reward))
+        assignments.append(tf.assign(ref=self.priorities[start_index:end_index], value=priorities))
 
-        for index, loss in zip(self.batch_indices, loss_per_instance):
-            # Sampling priority is proportional to the largest absolute temporal difference error.
-            new_priority = (np.abs(loss) + self.prioritization_constant) ** self.prioritization_weight
-            self.observations._move(index, new_priority)
-            self.none_priority_index += 1
+        for name, action in actions.items():
+            assignments.append(tf.assign(ref=self.actions_memory[name][start_index:end_index], value=action))
+
+        # 2. We delete entries from the priority memory. There is no need
+        # to delete entries from the buffer because we just move the idnex.
+
+        # Start index for inserting
+        # buffer_end_insert = tf.constant(value=)
+
+        # Reset buffer index.
+        with tf.control_dependencies(control_inputs=assignments):
+            assignment = tf.assign_sub(ref=self.buffer_index, value=self.last_batch_buffer_elems)
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            return tf.no_op()
+
+    def tf_retrieve_episodes(self, n):
+        pass
+
+    def tf_retrieve_sequences(self, n, sequence_length):
+        pass

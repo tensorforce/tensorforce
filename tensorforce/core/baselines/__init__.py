@@ -22,9 +22,9 @@ from tensorforce.core.baselines.cnn_baseline import CNNBaseline
 
 baselines = dict(
     aggregated=AggregatedBaseline,
+    custom=NetworkBaseline,
     mlp=MLPBaseline,
-    cnn=CNNBaseline,
-    custom=NetworkBaseline
+    cnn=CNNBaseline
 )
 
 

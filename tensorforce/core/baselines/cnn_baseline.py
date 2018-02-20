@@ -34,15 +34,15 @@ class CNNBaseline(NetworkBaseline):
             dense_sizes: List of dense layer sizes
         """
 
-        layers_spec = []
+        network = []
         for size in conv_sizes:
-            layers_spec.append({'type': 'conv2d', 'size': size, 'stride': 1, 'window': 3})
+            network.append(dict(type='conv2d', size=size))
 
-        # First layer has a larger window by convention.
-        layers_spec[0]['window'] = 5
+        # First layer has a larger window.
+        network[0]['window'] = 5
 
-        layers_spec.append({'type': 'flatten'})  # TODO: change to max pooling!
+        network.append(dict(type='flatten'))  # TODO: change to max pooling!
         for size in dense_sizes:
-            layers_spec.append({'type': 'dense', 'size': size})
+            network.append(dict(type='dense', size=size))
 
-        super(CNNBaseline, self).__init__(layers_spec, scope, summary_labels)
+        super(CNNBaseline, self).__init__(network=network, scope=scope, summary_labels=summary_labels)

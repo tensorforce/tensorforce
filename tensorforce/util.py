@@ -57,37 +57,6 @@ def shape(x, unknown=-1):
     return tuple(unknown if dims is None else dims for dims in x.get_shape().as_list())
 
 
-def cumulative_discount(values, terminals, discount, cumulative_start=0.0):
-    """
-    Compute cumulative discounts.
-    Args:
-        values: Values to discount
-        terminals: Booleans indicating terminal states
-        discount: Discount factor
-        cumulative_start: Float or ndarray, estimated reward for state t + 1. Default 0.0
-
-    Returns:
-        dicounted_values: The cumulative discounted rewards.
-    """
-    if discount == 0.0:
-        return np.asarray(values)
-
-    # cumulative start can either be a number or ndarray
-    if type(cumulative_start) is np.ndarray:
-        discounted_values = np.zeros((len(values),) + (cumulative_start.shape))
-    else:
-        discounted_values = np.zeros(len(values))
-
-    cumulative = cumulative_start
-    for n, (value, terminal) in reversed(list(enumerate(zip(values, terminals)))):
-        if terminal:
-            cumulative = np.zeros_like(cumulative_start, dtype=np.float32)
-        cumulative = value + cumulative * discount
-        discounted_values[n] = cumulative
-
-    return discounted_values
-
-
 def np_dtype(dtype):
     """Translates dtype specifications in configurations to numpy data types.
     Args:
@@ -126,6 +95,21 @@ def tf_dtype(dtype):
         raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
 
 
+def map_tensors(fn, tensors):
+    if tensors is None:
+        return None
+    elif isinstance(tensors, tuple):
+        return tuple(map_tensors(fn=fn, tensors=tensor) for tensor in tensors)
+    elif isinstance(tensors, list):
+        return [map_tensors(fn=fn, tensors=tensor) for tensor in tensors]
+    elif isinstance(tensors, dict):
+        return {key: map_tensors(fn=fn, tensors=tensor) for key, tensor in tensors.items()}
+    elif isinstance(tensors, set):
+        return {map_tensors(fn=fn, tensors=tensor) for tensor in tensors}
+    else:
+        return fn(tensors)
+
+
 def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
     """
     Utility method to map some kind of object specification to its content,
@@ -159,8 +143,10 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
             module = importlib.import_module(module_name)
             obj = getattr(module, function_name)
         else:
-            predef_obj_keys = list(predefined_objects.keys())
-            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(obj, predef_obj_keys))
+            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(
+                obj,
+                list(predefined_objects or ())
+            ))
     elif callable(obj):
         pass
     elif default_object is not None:
@@ -195,14 +181,15 @@ def prepare_kwargs(raw, string_parameter='name'):
 
 class UpdateSummarySaverHook(tf.train.SummarySaverHook):
 
-    def __init__(self, update_input, *args, **kwargs):
+    def __init__(self, model, *args, **kwargs):
         super(UpdateSummarySaverHook, self).__init__(*args, **kwargs)
-        self.update_input = update_input
+        self.model = model
 
     def before_run(self, run_context):
         self._request_summary = run_context.original_args[1] is not None and \
-            run_context.original_args[1].get(self.update_input, False) and \
+            self.model.is_observe and \
             (self._next_step is None or self._timer.should_trigger_for_step(self._next_step))
+            # run_context.original_args[1].get(self.is_optimizing, False) and \
         requests = {'global_step': self._global_step_tensor}
         if self._request_summary:
             if self._get_summary_op() is not None:
@@ -213,7 +200,7 @@ class UpdateSummarySaverHook(tf.train.SummarySaverHook):
         if not self._summary_writer:
             return
 
-        stale_global_step = run_values.results["global_step"]
+        stale_global_step = run_values.results['global_step']
         global_step = stale_global_step + 1
         if self._next_step is None or self._request_summary:
             global_step = run_context.session.run(self._global_step_tensor)
@@ -221,9 +208,9 @@ class UpdateSummarySaverHook(tf.train.SummarySaverHook):
         if self._next_step is None:
             self._summary_writer.add_session_log(SessionLog(status=SessionLog.START), global_step)
 
-        if "summary" in run_values.results:
+        if 'summary' in run_values.results:
             self._timer.update_last_triggered_step(global_step)
-            for summary in run_values.results["summary"]:
+            for summary in run_values.results['summary']:
                 self._summary_writer.add_summary(summary, global_step)
 
         self._next_step = global_step + 1

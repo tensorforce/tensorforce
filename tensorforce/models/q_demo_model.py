@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import tensorflow as tf
 
 from tensorforce import util, TensorForceError
+from tensorforce.core.memories import Replay
 from tensorforce.models import QModel
 
 
@@ -31,210 +32,302 @@ class QDemoModel(QModel):
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        device,
-        session_config,
+        states,
+        actions,
         scope,
-        saver_spec,
-        summary_spec,
-        distributed_spec,
+        device,
+        saver,
+        summarizer,
+        distributed,
+        batching_capacity,
+        variable_noise,
+        states_preprocessing,
+        actions_exploration,
+        reward_preprocessing,
+        update_mode,
+        memory,
         optimizer,
         discount,
-        variable_noise,
-        states_preprocessing_spec,
-        explorations_spec,
-        reward_preprocessing_spec,
-        network_spec,
-        distributions_spec,
+        network,
+        distributions,
         entropy_regularization,
         target_sync_frequency,
         target_update_weight,
         double_q_model,
         huber_loss,
-        # TEMP: Random sampling fix
-        random_sampling_fix,
         expert_margin,
-        supervised_weight
+        supervised_weight,
+        demo_memory_capacity,
+        demo_batch_size
     ):
-        if any(action['type'] not in ('bool', 'int') for action in actions_spec.values()):
+        if any(action['type'] not in ('bool', 'int') for action in actions.values()):
             raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")
 
         self.expert_margin = expert_margin
         self.supervised_weight = supervised_weight
+        self.demo_memory_capacity = demo_memory_capacity
+        self.demo_batch_size = demo_batch_size
 
         super(QDemoModel, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
-            network_spec=network_spec,
-            device=device,
-            session_config=session_config,
+            states=states,
+            actions=actions,
             scope=scope,
-            saver_spec=saver_spec,
-            summary_spec=summary_spec,
-            distributed_spec=distributed_spec,
+            device=device,
+            saver=saver,
+            summarizer=summarizer,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
+            variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
             optimizer=optimizer,
             discount=discount,
-            variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec,
-            distributions_spec=distributions_spec,
+            network=network,
+            distributions=distributions,
             entropy_regularization=entropy_regularization,
             target_sync_frequency=target_sync_frequency,
             target_update_weight=target_update_weight,
             double_q_model=double_q_model,
-            huber_loss=huber_loss,
-            # TEMP: Random sampling fix
-            random_sampling_fix=random_sampling_fix
+            huber_loss=huber_loss
         )
 
     def initialize(self, custom_getter):
         super(QDemoModel, self).initialize(custom_getter=custom_getter)
 
-        # Demonstration loss
+        self.demo_memory = Replay(
+            states=self.states_spec,
+            internals=self.internals_spec,
+            actions=self.actions_spec,
+            include_next_states=True,
+            capacity=self.demo_memory_capacity,
+            scope='demo-replay',
+            summary_labels=self.summary_labels
+        )
+
+        # Import demonstration optimization.
+        self.fn_import_demo_experience = tf.make_template(
+            name_='import-demo-experience',
+            func_=self.tf_import_demo_experience,
+            custom_getter_=custom_getter
+        )
+
+        # Demonstration loss.
         self.fn_demo_loss = tf.make_template(
             name_='demo-loss',
             func_=self.tf_demo_loss,
             custom_getter_=custom_getter
         )
 
-        # Demonstration optimization
+        # Combined loss.
+        self.fn_combined_loss = tf.make_template(
+            name_='combined-loss',
+            func_=self.tf_combined_loss,
+            custom_getter_=custom_getter
+        )
+
+        # Demonstration optimization.
         self.fn_demo_optimization = tf.make_template(
             name_='demo-optimization',
             func_=self.tf_demo_optimization,
             custom_getter_=custom_getter
         )
 
-    def create_output_operations(self, states, internals, actions, terminal, reward, update, deterministic):
-        super(QDemoModel, self).create_output_operations(
+    def tf_initialize(self):
+        super(QDemoModel, self).tf_initialize()
+        self.demo_memory.initialize()
+
+    def tf_import_demo_experience(self, states, internals, actions, terminal, reward):
+        """
+        Imports a single experience to memory.
+        """
+        return self.demo_memory.store(
             states=states,
             internals=internals,
             actions=actions,
-            reward=reward,
             terminal=terminal,
-            update=update,
-            deterministic=deterministic
+            reward=reward
         )
 
-        self.demo_optimization = self.fn_optimization(
-            states=states,
-            internals=internals,
-            actions=actions,
-            reward=reward,
-            terminal=terminal,
-            update=update
-        )
-
-    def tf_demo_loss(self, states, actions, terminal, reward, internals, update):
+    def tf_demo_loss(self, states, actions, terminal, reward, internals, update, reference=None):
+        """
+        Extends the q-model loss via the dqfd large-margin loss.
+        """
         embedding = self.network.apply(x=states, internals=internals, update=update)
         deltas = list()
 
-        for name, distribution in self.distributions.items():
-            distr_params = distribution.parameters(x=embedding)
-            state_action_values = distribution.state_action_values(distr_params=distr_params)
+        for name, action in actions.items():
+            distr_params = self.distributions[name].parameterize(x=embedding)
+            state_action_value = self.distributions[name].state_action_value(distr_params=distr_params, action=action)
 
             # Create the supervised margin loss
             # Zero for the action taken, one for all other actions, now multiply by expert margin
             if self.actions_spec[name]['type'] == 'bool':
                 num_actions = 2
+                action = tf.cast(x=action, dtype=util.tf_dtype('int'))
             else:
                 num_actions = self.actions_spec[name]['num_actions']
-            one_hot = tf.one_hot(indices=actions[name], depth=num_actions)
+
+            one_hot = tf.one_hot(indices=action, depth=num_actions)
             ones = tf.ones_like(tensor=one_hot, dtype=tf.float32)
             inverted_one_hot = ones - one_hot
 
             # max_a([Q(s,a) + l(s,a_E,a)], l(s,a_E, a) is 0 for expert action and margin value for others
-            expert_margin = distr_params + inverted_one_hot * self.expert_margin
+            state_action_values = self.distributions[name].state_action_value(distr_params=distr_params)
+            state_action_values = state_action_values + inverted_one_hot * self.expert_margin
+            supervised_selector = tf.reduce_max(input_tensor=state_action_values, axis=-1)
 
             # J_E(Q) = max_a([Q(s,a) + l(s,a_E,a)] - Q(s,a_E)
-            supervised_selector = tf.reduce_max(input_tensor=expert_margin, axis=-1)
-            delta = supervised_selector - state_action_values
-            delta = tf.reshape(tensor=delta, shape=(-1, util.prod(self.actions_spec[name]['shape'])))
+            delta = supervised_selector - state_action_value
+
+            action_size = util.prod(self.actions_spec[name]['shape'])
+            delta = tf.reshape(tensor=delta, shape=(-1, action_size))
             deltas.append(delta)
 
         loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
         loss_per_instance = tf.square(x=loss_per_instance)
+
         return tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
-    def tf_demo_optimization(self, states, internals, actions, terminal, reward, update):
+    def tf_combined_loss(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
+        """
+        Combines Q-loss and demo loss.
+        """
+        q_model_loss = self.fn_loss(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            next_states=next_states,
+            next_internals=next_internals,
+            update=update,
+            reference=reference
+        )
 
-        def fn_loss():
-            # Combining q-loss with demonstration loss
-            q_model_loss = self.fn_loss(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                update=update
-            )
-            demo_loss = self.fn_demo_loss(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                update=update
-            )
-            return q_model_loss + self.supervised_weight * demo_loss
+        demo_loss = self.fn_demo_loss(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            update=update,
+            reference=reference
+        )
 
-        demo_optimization = self.optimizer.minimize(
-            time=self.timestep,
+        return q_model_loss + self.supervised_weight * demo_loss
+
+    def tf_demo_optimization(self, states, internals, actions, terminal, reward, next_states, next_internals):
+        arguments = dict(
+            time=self.global_timestep,
             variables=self.get_variables(),
-            fn_loss=fn_loss
+            arguments=dict(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward,
+                next_states=next_states,
+                next_internals=next_internals,
+                update=tf.constant(value=True)
+            ),
+            fn_loss=self.fn_combined_loss
         )
+        demo_optimization = self.optimizer.minimize(**arguments)
 
-        target_optimization = self.target_optimizer.minimize(
-            time=self.timestep,
-            variables=self.target_network.get_variables(),
-            source_variables=self.network.get_variables()
-        )
+        arguments = self.target_optimizer_arguments()
+        target_optimization = self.target_optimizer.minimize(**arguments)
 
         return tf.group(demo_optimization, target_optimization)
 
-    def demonstration_update(self, states, internals, actions, terminal, reward):
-        fetches = self.demo_optimization
+    def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
+        optimization = super(QDemoModel, self).tf_optimization(
+            states=states,
+            internals=internals,
+            actions=actions,
+            reward=reward,
+            terminal=terminal,
+            next_states=next_states,
+            next_internals=next_internals
+        )
 
-        terminal = np.asarray(terminal)
-        batched = (terminal.ndim == 1)
-        if batched:
-            # TEMP: Random sampling fix
-            if self.random_sampling_fix:
-                feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
-                feed_dict.update(
-                    {state_input: states[name][1] for name, state_input in self.next_states_input.items()}
-                )
-            else:
-                feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: internals[n]
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: actions[name]
-                    for name, action_input in self.actions_input.items()}
-            )
-            feed_dict[self.terminal_input] = terminal
-            feed_dict[self.reward_input] = reward
-        else:
-            # TEMP: Random sampling fix
-            if self.random_sampling_fix:
-                raise TensorForceError("Unbatched version not covered by fix.")
-            else:
-                feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-            feed_dict.update(
-                {internal_input: (internals[n],)
-                    for n, internal_input in enumerate(self.internals_input)}
-            )
-            feed_dict.update(
-                {action_input: (actions[name],)
-                    for name, action_input in self.actions_input.items()}
-            )
-            feed_dict[self.terminal_input] = (terminal,)
-            feed_dict[self.reward_input] = (reward,)
+        demo_batch = self.demo_memory.retrieve_timesteps(n=self.demo_batch_size)
+        demo_optimization = self.fn_demo_optimization(**demo_batch)
 
-        feed_dict[self.deterministic_input] = True
-        feed_dict[self.update_input] = True
+        return tf.group(optimization, demo_optimization)
+
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+        # Import demo experience operation.
+        self.import_demo_experience_output = self.fn_import_demo_experience(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
+
+        # !!!
+        super(QDemoModel, self).create_operations(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward,
+            deterministic=deterministic
+        )
+
+        # Demo optimization operation.
+        demo_batch = self.demo_memory.retrieve_timesteps(n=self.demo_batch_size)
+        self.demo_optimization_output = self.fn_demo_optimization(**demo_batch)
+
+    def get_variables(self, include_submodules=False, include_nontrainable=False):
+        """
+        Returns the TensorFlow variables used by the model.
+
+        Returns:
+            List of variables.
+        """
+        model_variables = super(QDemoModel, self).get_variables(
+            include_submodules=include_submodules,
+            include_nontrainable=include_nontrainable
+        )
+
+        if include_nontrainable:
+            demo_memory_variables = self.demo_memory.get_variables()
+            model_variables += demo_memory_variables
+
+        return model_variables
+
+    def get_summaries(self):
+        model_summaries = super(QDemoModel, self).get_summaries()
+        demo_memory_summaries = self.demo_memory.get_summaries()
+
+        return model_summaries + demo_memory_summaries
+
+    def import_demo_experience(self, states, internals, actions, terminal, reward):
+        """
+        Stores demonstrations in the demo memory.
+        """
+        fetches = self.import_demo_experience_output
+
+        feed_dict = self.get_feed_dict(
+            states=states,
+            internals=internals,
+            actions=actions,
+            terminal=terminal,
+            reward=reward
+        )
 
         self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+
+    def demo_update(self):
+        """
+        Performs a demonstration update by calling the demo optimization operation.
+        Note that the batch data does not have to be fetched from the demo memory as this is now part of
+        the TensorFlow operation of the demo update.
+        """
+        fetches = self.demo_optimization_output
+
+        self.monitored_session.run(fetches=fetches)

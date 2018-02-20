@@ -20,77 +20,63 @@ from __future__ import division
 from copy import deepcopy
 
 import numpy as np
-import inspect
 
 from tensorforce import util, TensorForceError
 import tensorforce.agents
-from tensorforce.meta_parameter_recorder import MetaParameterRecorder
 
 
 class Agent(object):
     """
-    Basic Reinforcement learning agent. An agent encapsulates execution logic
-    of a particular reinforcement learning algorithm and defines the external interface
-    to the environment.
-
-    The agent hence acts as an intermediate layer between environment
-    and backend execution (value function or policy updates).
-
+    Base class for TensorForce agents.
     """
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        batched_observe=1000,
-        scope='base_agent'
+        states,
+        actions,
+        batched_observe=True,
+        batching_capacity=1000
     ):
         """
-        Initializes the reinforcement learning agent.
+        Initializes the agent.
 
         Args:
-            states_spec (dict): Dict containing at least one state-component definition. In the case of a single state
-                space component, the keys `shape` and `type` are necessary (e.g. a 3D float-box with shape [3,3,3]).
-                For multiple state components, pass a dict of dicts where each component is a dict itself with a unique
-                name as its key (e.g. {cam: {shape: [84,84], type=int}, health: {shape=(), type=float}}).
-            actions_spec (dict): Dict containing at least one action-component definition.
-                Action components have types and either `num_actions` for discrete actions or a `shape`
-                for continuous actions.
-                Consult documentation and tests for more.
-            batched_observe (int): How many calls to `observe` are batched into one tensorflow session run.
-                Values of 0 or 1 indicate no batching being used and every call to `observe` triggers a tensorflow
-                session invocation to update rewards in the graph, which will lower the throughput.
-            scope: TensorFlow scope, defaults to agent name (e.g. `dqn`).
+            states (spec, or dict of specs): States specification, with the following attributes
+                (required):
+                - type: one of 'bool', 'int', 'float' (default: 'float').
+                - shape: integer, or list/tuple of integers (required).
+            actions (spec, or dict of specs): Actions specification, with the following attributes
+                (required):
+                - type: one of 'bool', 'int', 'float' (required).
+                - shape: integer, or list/tuple of integers (default: []).
+                - num_actions: integer (required if type == 'int').
+                - min_value and max_value: float (optional if type == 'float', default: none).
+            batched_observe (bool): Specifies whether calls to model.observe() are batched, for
+                improved performance (default: true).
+            batching_capacity (int): Batching capacity of agent and model (default: 1000).
         """
 
-        # process state space
-        self.states_spec, self.unique_state = self.process_state_spec(states_spec)
-
-        # Actions config and exploration
-        self.exploration = dict()
-        self.actions_spec, self.unique_action = self.process_action_spec(actions_spec)
+        self.set_normalized_states(states=states)
+        self.set_normalized_actions(actions=actions)
 
         # Batched observe for better performance with Python.
         self.batched_observe = batched_observe
-        if self.batched_observe is not None:
+        self.batching_capacity = batching_capacity
+        if self.batched_observe:
+            assert self.batching_capacity is not None
             self.observe_terminal = list()
             self.observe_reward = list()
 
-        self.scope = scope
-
-        # Init Model, this must follow the Summary Configuration section above to cary meta_param_recorder
-        self.model = self.initialize_model()
-
-        #  Define the properties used to store internal state of Agent.
         self.current_states = None
         self.current_actions = None
         self.current_internals = None
         self.next_internals = None
         self.current_terminal = None
         self.current_reward = None
-        self.episode = None
         self.timestep = None
+        self.episode = None
 
+        self.model = self.initialize_model()
         self.reset()
 
     def __str__(self):
@@ -98,6 +84,56 @@ class Agent(object):
 
     def close(self):
         self.model.close()
+
+    def set_normalized_states(self, states):
+        # Leave incoming states dict intact.
+        self.states = deepcopy(states)
+
+        # Unique state shortform.
+        self.unique_state = ('shape' in self.states)
+        if self.unique_state:
+            self.states = dict(state=self.states)
+
+        # Normalize states.
+        for name, state in self.states.items():
+            # Convert int to unary tuple.
+            if isinstance(state['shape'], int):
+                state['shape'] = (state['shape'],)
+
+            # Set default type to float.
+            if 'type' not in state:
+                state['type'] = 'float'
+
+    def set_normalized_actions(self, actions):
+        # Leave incoming spec-dict intact.
+        self.actions = deepcopy(actions)
+
+        # Unique action shortform.
+        self.unique_action = ('type' in self.actions)
+        if self.unique_action:
+            self.actions = dict(action=self.actions)
+
+        # Normalize actions.
+        for name, action in self.actions.items():
+            # Set default type to int
+            if 'type' not in action:
+                action['type'] = 'int'
+
+            # Check required values
+            if action['type'] == 'int':
+                if 'num_actions' not in action:
+                    raise TensorForceError("Action requires value 'num_actions' set!")
+            elif action['type'] == 'float':
+                if ('min_value' in action) != ('max_value' in action):
+                    raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
+
+            # Set default shape to empty tuple (single-int, discrete action space)
+            if 'shape' not in action:
+                action['shape'] = ()
+
+            # Convert int to unary tuple
+            if isinstance(action['shape'], int):
+                action['shape'] = (action['shape'],)
 
     def initialize_model(self):
         """
@@ -114,10 +150,6 @@ class Agent(object):
         """
         self.episode, self.timestep, self.next_internals = self.model.reset()
         self.current_internals = self.next_internals
-
-        # TODO have to call preprocessing reset in model
-        # for preprocessing in self.preprocessing.values():
-        #     preprocessing.reset()
 
     def act(self, states, deterministic=False, fetch_tensors=None):
         """
@@ -178,12 +210,12 @@ class Agent(object):
         self.current_terminal = terminal
         self.current_reward = reward
 
-        if self.batched_observe is not None and self.batched_observe > 1:
+        if self.batched_observe:
             # Batched observe for better performance with Python.
             self.observe_terminal.append(self.current_terminal)
             self.observe_reward.append(self.current_reward)
 
-            if self.current_terminal or len(self.observe_terminal) >= self.batched_observe:
+            if self.current_terminal or len(self.observe_terminal) >= self.batching_capacity:
                 self.episode = self.model.observe(
                     terminal=self.observe_terminal,
                     reward=self.observe_reward
@@ -255,53 +287,3 @@ class Agent(object):
         )
         assert isinstance(agent, Agent)
         return agent
-
-    @staticmethod
-    def process_state_spec(states_spec):
-        unique_state = ('shape' in states_spec)
-
-        # Leave incoming spec-dict intact.
-        states_spec_copy = deepcopy(states_spec)
-        if unique_state:
-            states_spec_copy = dict(state=states_spec_copy)
-
-        for name, state in states_spec_copy.items():
-            # Convert int to unary tuple.
-            if isinstance(state['shape'], int):
-                state['shape'] = (state['shape'],)
-
-            # Set default type to float.
-            if 'type' not in state:
-                state['type'] = 'float'
-        return states_spec_copy, unique_state
-
-    @staticmethod
-    def process_action_spec(actions_spec):
-        unique_action = ('type' in actions_spec)
-        # Leave incoming spec-dict intact.
-        actions_spec_copy = deepcopy(actions_spec)
-        if unique_action:
-            actions_spec_copy = dict(action=actions_spec_copy)
-
-        for name, action in actions_spec_copy.items():
-            # Set default type to int
-            if 'type' not in action:
-                action['type'] = 'int'
-
-            # Check required values
-            if action['type'] == 'int':
-                if 'num_actions' not in action:
-                    raise TensorForceError("Action requires value 'num_actions' set!")
-            elif action['type'] == 'float':
-                if ('min_value' in action) != ('max_value' in action):
-                    raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
-
-            # Set default shape to empty tuple (single-int, discrete action space)
-            if 'shape' not in action:
-                action['shape'] = ()
-
-            # Convert int to unary tuple
-            if isinstance(action['shape'], int):
-                action['shape'] = (action['shape'],)
-
-        return actions_spec_copy, unique_action

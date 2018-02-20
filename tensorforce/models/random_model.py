@@ -28,9 +28,36 @@ class RandomModel(Model):
     Utility class to return random actions of a desired shape and with given bounds.
     """
 
-    def tf_actions_and_internals(self, states, internals, update, deterministic):
-        actions = dict()
+    def __init__(
+        self,
+        states,
+        actions,
+        scope,
+        device,
+        saver,
+        summarizer,
+        distributed,
+        batching_capacity
+    ):
+        super(RandomModel, self).__init__(
+            states=states,
+            actions=actions,
+            scope=scope,
+            device=device,
+            saver=saver,
+            summarizer=summarizer,
+            distributed=distributed,
+            batching_capacity=batching_capacity,
+            variable_noise=None,
+            states_preprocessing=None,
+            actions_exploration=None,
+            reward_preprocessing=None
+        )
 
+    def tf_actions_and_internals(self, states, internals, deterministic):
+        assert len(internals) == 0
+
+        actions = dict()
         for name, action in self.actions_spec.items():
             shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
 
@@ -51,8 +78,7 @@ class RandomModel(Model):
                 else:
                     actions[name] = tf.random_normal(shape=shape)
 
-        return actions, internals
+        return actions, dict()
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, update):
-        # Nothing to be done here, loss is 0.
-        return tf.zeros_like(tensor=reward)
+    def tf_observe_timestep(self, states, internals, actions, terminal, reward):
+        return tf.no_op()

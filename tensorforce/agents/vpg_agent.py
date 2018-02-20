@@ -17,60 +17,93 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce import TensorForceError
-from tensorforce.agents import BatchAgent
+from tensorforce.agents import LearningAgent
 from tensorforce.models import PGLogProbModel
 
 
-class VPGAgent(BatchAgent):
+class VPGAgent(LearningAgent):
     """
-    Vanilla Policy Gradient agent as described by [Sutton et al. (1999)]
-    (https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf).
-
+    Vanilla policy gradient agent
+    ([Williams, 1992)](https://link.springer.com/article/10.1007/BF00992696)).
     """
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        batched_observe=1000,
+        states,
+        actions,
+        network,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='vpg',
-        # parameters specific to LearningAgents
-        summary_spec=None,
-        network_spec=None,
         device=None,
-        session_config=None,
-        saver_spec=None,
-        distributed_spec=None,
+        saver=None,
+        summarizer=None,
+        distributed=None,
+        variable_noise=None,
+        states_preprocessing=None,
+        actions_exploration=None,
+        reward_preprocessing=None,
+        update_mode=None,
+        memory=None,
         optimizer=None,
         discount=0.99,
-        variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
-        distributions_spec=None,
+        distributions=None,
         entropy_regularization=None,
-        # parameters specific to BatchAgents
-        batch_size=1000,
-        keep_last_timestep=True,
-        # parameters specific to vanilla pol.gradient Agents
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
-        gae_lambda=None,
+        gae_lambda=None
     ):
         """
-        Creates a vanilla policy gradient agent.
+        Initializes the VPG agent.
 
         Args:
-            baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
-                for sharing parameters with the training network.
-            baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
-             examples/configs for full example configurations.
-            baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline
-                following the same conventions as the main optimizer.
-            gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
+            update_mode (spec): Update mode specification, with the following attributes:
+                - unit: 'episodes' if given (default: 'episodes').
+                - batch_size: integer (default: 10).
+                - frequency: integer (default: batch_size).
+            memory (spec): Memory specification, see core.memories module for more information
+                (default: {type='latest', include_next_states=false, capacity=1000*batch_size}).
+            optimizer (spec): Optimizer specification, see core.optimizers module for more
+                information (default: {type='adam', learning_rate=1e-3}).
+            baseline_mode (str): One of 'states', 'network' (default: none).
+            baseline (spec): Baseline specification, see core.baselines module for more information
+                (default: none).
+            baseline_optimizer (spec): Baseline optimizer specification, see core.optimizers module
+                for more information (default: none).
+            gae_lambda (float): Lambda factor for generalized advantage estimation (default: none).
         """
+
+        # Update mode
+        if update_mode is None:
+            update_mode = dict(
+                unit='episodes',
+                batch_size=10
+            )
+        elif 'unit' in update_mode:
+            # Tests check all modes for VPG.
+            # assert update_mode['unit'] == 'episodes'
+            pass
+        else:
+            update_mode['unit'] = 'episodes'
+
+        # Memory
+        if memory is None:
+            # Assumed episode length of 1000 timesteps.
+            memory = dict(
+                type='latest',
+                include_next_states=False,
+                capacity=(1000 * update_mode['batch_size'])
+            )
+        else:
+            assert not memory['include_next_states']
+
+        # Optimizer
+        if optimizer is None:
+            optimizer = dict(
+                type='adam',
+                learning_rate=1e-3
+            )
 
         self.baseline_mode = baseline_mode
         self.baseline = baseline
@@ -78,48 +111,48 @@ class VPGAgent(BatchAgent):
         self.gae_lambda = gae_lambda
 
         super(VPGAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states=states,
+            actions=actions,
             batched_observe=batched_observe,
+            batching_capacity=batching_capacity,
             scope=scope,
-            # parameters specific to LearningAgent
-            summary_spec=summary_spec,
-            network_spec=network_spec,
-            discount=discount,
             device=device,
-            session_config=session_config,
-            saver_spec=saver_spec,
-            distributed_spec=distributed_spec,
-            optimizer=optimizer,
+            saver=saver,
+            summarizer=summarizer,
+            distributed=distributed,
             variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec,
-            distributions_spec=distributions_spec,
-            entropy_regularization=entropy_regularization,
-            # parameters specific to BatchAgents
-            batch_size=batch_size,
-            keep_last_timestep=keep_last_timestep
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
+            optimizer=optimizer,
+            discount=discount,
+            network=network,
+            distributions=distributions,
+            entropy_regularization=entropy_regularization
         )
 
     def initialize_model(self):
         return PGLogProbModel(
-            states_spec=self.states_spec,
-            actions_spec=self.actions_spec,
-            network_spec=self.network_spec,
-            device=self.device,
-            session_config=self.session_config,
+            states=self.states,
+            actions=self.actions,
             scope=self.scope,
-            saver_spec=self.saver_spec,
-            summary_spec=self.summary_spec,
-            distributed_spec=self.distributed_spec,
+            device=self.device,
+            saver=self.saver,
+            summarizer=self.summarizer,
+            distributed=self.distributed,
+            batching_capacity=self.batching_capacity,
+            variable_noise=self.variable_noise,
+            states_preprocessing=self.states_preprocessing,
+            actions_exploration=self.actions_exploration,
+            reward_preprocessing=self.reward_preprocessing,
+            update_mode=self.update_mode,
+            memory=self.memory,
             optimizer=self.optimizer,
             discount=self.discount,
-            variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec,
-            distributions_spec=self.distributions_spec,
+            network=self.network,
+            distributions=self.distributions,
             entropy_regularization=self.entropy_regularization,
             baseline_mode=self.baseline_mode,
             baseline=self.baseline,

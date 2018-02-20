@@ -33,6 +33,9 @@ class Network(object):
     """
 
     def __init__(self, scope='network', summary_labels=None):
+        """
+        Neural network.
+        """
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
@@ -44,7 +47,7 @@ class Network(object):
             variable = getter(name=name, registered=True, **kwargs)
             if not registered:
                 self.all_variables[name] = variable
-                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -86,32 +89,23 @@ class Network(object):
         """
         return None
 
-    def internals_input(self):
+    def internals_spec(self):
         """
-        Returns the TensorFlow placeholders for internal state inputs.
+        Returns the internal states specification.
 
         Returns:
-            List of internal state input placeholders
+            Internal states specification
         """
-        return list()
+        return dict()
 
-    def internals_init(self):
-        """
-        Returns the TensorFlow tensors for internal state initializations.
-
-        Returns:
-            List of internal state initialization tensors
-        """
-        return list()
-
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_nontrainable=False):
         """
         Returns the TensorFlow variables used by the network.
 
         Returns:
             List of variables
         """
-        if include_non_trainable:
+        if include_nontrainable:
             return [self.all_variables[key] for key in sorted(self.all_variables)]
         else:
             return [self.variables[key] for key in sorted(self.variables)]
@@ -145,7 +139,7 @@ class Network(object):
         Returns:
             List of the names of tensors available.
         """
-        return list(self.named_tensors)      
+        return list(self.named_tensors)
 
     def set_named_tensor(self, name, tensor):
         """
@@ -196,6 +190,9 @@ class LayerBasedNetwork(Network):
     """
 
     def __init__(self, scope='layerbased-network', summary_labels=()):
+        """
+        Layer-based network.
+        """
         super(LayerBasedNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
         self.layers = list()
 
@@ -219,25 +216,20 @@ class LayerBasedNetwork(Network):
         else:
             return None
 
-    def internals_input(self):
-        internals_input = super(LayerBasedNetwork, self).internals_input()
+    def internals_spec(self):
+        internals_spec = dict()
         for layer in self.layers:
-            internals_input.extend(layer.internals_input())
-        return internals_input
+            for name, internal_spec in layer.internals_spec().items():
+                internals_spec['{}_{}'.format(layer.scope, name)] = internal_spec
+        return internals_spec
 
-    def internals_init(self):
-        internals_init = super(LayerBasedNetwork, self).internals_init()
-        for layer in self.layers:
-            internals_init.extend(layer.internals_init())
-        return internals_init
-
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_nontrainable=False):
         network_variables = super(LayerBasedNetwork, self).get_variables(
-            include_non_trainable=include_non_trainable
+            include_nontrainable=include_nontrainable
         )
         layer_variables = [
             variable for layer in self.layers
-            for variable in layer.get_variables(include_non_trainable=include_non_trainable)
+            for variable in layer.get_variables(include_nontrainable=include_nontrainable)
         ]
 
         return network_variables + layer_variables
@@ -254,17 +246,17 @@ class LayeredNetwork(LayerBasedNetwork):
     Network consisting of a sequence of layers, which can be created from a specification dict.
     """
 
-    def __init__(self, layers_spec, scope='layered-network', summary_labels=()):
+    def __init__(self, layers, scope='layered-network', summary_labels=()):
         """
-        Layered network.
+        Single-stack layered network.
 
         Args:
-            layers_spec: List of layer specification dicts
+            layers: List of layer specification dicts.
         """
+        self.layers_spec = layers
         super(LayeredNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
-        self.layers_spec = layers_spec
-        layer_counter = Counter()
 
+        layer_counter = Counter()
         for layer_spec in self.layers_spec:
             if isinstance(layer_spec['type'], str):
                 name = layer_spec['type']
@@ -285,19 +277,20 @@ class LayeredNetwork(LayerBasedNetwork):
                 raise TensorForceError('Layered network must have only one input, but {} given.'.format(len(x)))
             x = next(iter(x.values()))
 
-        internal_outputs = list()
-        index = 0
+        next_internals = dict()
         for layer in self.layers:
-            layer_internals = [internals[index + n] for n in range(layer.num_internals)]
-            index += layer.num_internals
-            x = layer.apply(x, update, *layer_internals)
+            layer_internals = {name: internals['{}_{}'.format(layer.scope, name)] for name in layer.internals_spec()}
 
-            if not isinstance(x, tf.Tensor):
-                internal_outputs.extend(x[1])
-                x = x[0]
+            if len(layer_internals) > 0:
+                x, layer_internals = layer.apply(x=x, update=update, **layer_internals)
+                for name, internal in layer_internals.items():
+                    next_internals['{}_{}'.format(layer.scope, name)] = internal
+
+            else:
+                x = layer.apply(x=x, update=update)
 
         if return_internals:
-            return x, internal_outputs
+            return x, next_internals
         else:
             return x
 

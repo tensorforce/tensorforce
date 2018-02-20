@@ -1,0 +1,34 @@
+[
+    {
+        "type": "linear",
+        "size": 64
+    },
+    {
+        "type": "tf_layer",
+        "layer": "batch_normalization"
+    },
+    {
+        "type": "nonlinearity",
+        "name": "relu"
+    },
+
+
+    {
+        "type": "linear",
+        "size": 64
+    },
+    {
+        "type": "tf_layer",
+        "layer": "batch_normalization"
+    },
+    {
+        "type": "nonlinearity",
+        "name": "relu"
+    },
+
+    {
+        "type": "dense",
+        "size": 64,
+        "activation": null
+    }
+]

@@ -17,80 +17,157 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
+import tensorflow as tf
+
 from tensorforce import util
 import tensorforce.core.memories
 
 
-# TODO: implement in TensorFlow
-
 class Memory(object):
     """
-    Abstract memory class.
+    Base class for memories.
     """
 
-    def __init__(self, states_spec, actions_spec):
+    def __init__(self, states, internals, actions, include_next_states, scope='memory', summary_labels=None):
         """
-        Generic memory without sampling strategy implemented.
+        Memory.
 
         Args:
-            states_spec: State specifiction
-            actions_spec: Action specification
+            states: States specifiction.
+            internals: Internal states specification.
+            actions: Actions specification.
+            include_next_states: Include subsequent state if true.
         """
-        self.states_spec = states_spec
-        self.actions_spec = actions_spec
+        self.states_spec = states
+        self.internals_spec = internals
+        self.actions_spec = actions
+        self.include_next_states = include_next_states
+        self.summary_labels = set(summary_labels or ())
 
-    def add_observation(self, states, internals, actions, terminal, reward):
+        self.variables = dict()
+        self.summaries = list()
+
+        def custom_getter(getter, name, registered=False, **kwargs):
+            variable = getter(name=name, registered=True, **kwargs)
+            if not registered:
+                assert not kwargs.get('trainable', False)
+                self.variables[name] = variable
+            return variable
+
+        self.initialize = tf.make_template(
+            name_=(scope + '/initialize'),
+            func_=self.tf_initialize,
+            custom_getter_=custom_getter
+        )
+        self.store = tf.make_template(
+            name_=(scope + '/store'),
+            func_=self.tf_store,
+            custom_getter_=custom_getter
+        )
+        self.retrieve_timesteps = tf.make_template(
+            name_=(scope + '/retrieve_timesteps'),
+            func_=self.tf_retrieve_timesteps,
+            custom_getter_=custom_getter
+        )
+        self.retrieve_episodes = tf.make_template(
+            name_=(scope + '/retrieve_episodes'),
+            func_=self.tf_retrieve_episodes,
+            custom_getter_=custom_getter
+        )
+        self.retrieve_sequences = tf.make_template(
+            name_=(scope + '/retrieve_sequences'),
+            func_=self.tf_retrieve_sequences,
+            custom_getter_=custom_getter
+        )
+        self.update_batch = tf.make_template(
+            name_=(scope + '/update_batch'),
+            func_=self.tf_update_batch,
+            custom_getter_=custom_getter
+        )
+
+    def tf_initialize(self):
         """
-        Inserts a single experience to the memory.
+        Initializes memory.
+        """
+        raise NotImplementedError
+
+    def tf_store(self, states, internals, actions, terminal, reward):
+        """"
+        Stores experiences, i.e. a batch of timesteps.
 
         Args:
-            states:
-            internals:
-            actions:
-            terminal:
-            reward:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+        """
+        raise NotImplementedError
+
+    def tf_retrieve_timesteps(self, n):
+        """
+        Retrieves a given number of timesteps from the stored experiences.
+
+        Args:
+            n: Number of timesteps to retrieve.
 
         Returns:
-
+            Dicts containing the retrieved experiences.
         """
         raise NotImplementedError
 
-    def get_batch(self, batch_size, next_states=False):
+    def tf_retrieve_episodes(self, n):
         """
-        Samples a batch from the memory.
+        Retrieves a given number of episodesrom the stored experiences.
 
         Args:
-            batch_size: The batch size
-            next_states: A boolean flag indicating whether 'next_states' values should be included
+            n: Number of episodes to retrieve.
 
-        Returns: A dict containing states, internal states, actions, terminals, rewards (and next states)
-
+        Returns:
+            Dicts containing the retrieved experiences.
         """
         raise NotImplementedError
 
-    def update_batch(self, loss_per_instance):
+    def tf_retrieve_sequences(self, n, sequence_length):
         """
-        Updates loss values for sampling strategies based on loss functions.
+        Retrieves a given number of temporally consistent timestep sequences from the stored
+        experiences.
 
         Args:
-            loss_per_instance:
+            n: Number of sequences to retrieve.
+            sequence_length: Length of timestep sequences.
 
+        Returns:
+            Dicts containing the retrieved experiences.
         """
         raise NotImplementedError
 
-    def set_memory(self, states, internals, actions, terminals, rewards):
+    def tf_update_batch(self, loss_per_instance):
         """
-        Deletes memory content and sets content to provided observations.
+        Updates the internal information of the latest batch instances based on their loss.
 
         Args:
-            states:
-            internals:
-            actions:
-            terminals:
-            rewards:
-
+            loss_per_instance: Loss per instance tensor.
         """
-        raise NotImplementedError
+        pass
+
+    def get_variables(self):
+        """
+        Returns the TensorFlow variables used by the memory.
+
+        Returns:
+            List of variables.
+        """
+        return [self.variables[key] for key in sorted(self.variables)]
+
+    def get_summaries(self):
+        """
+        Returns the TensorFlow summaries reported by the memory.
+
+        Returns:
+            List of summaries.
+        """
+        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

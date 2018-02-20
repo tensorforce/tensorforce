@@ -11,24 +11,36 @@ from tensorforce.agents import NAFAgent
 class TestNAFAgent(BaseAgentTest, unittest.TestCase):
 
     agent = NAFAgent
-    deterministic = True
-
     config = dict(
+        actions_exploration=dict(
+            type='ornstein_uhlenbeck'
+        ),
+        update_mode=dict(
+            unit='timesteps',
+            batch_size=8,
+            frequency=4
+        ),
         memory=dict(
             type='replay',
-            capacity=1000
+            include_next_states=True,
+            capacity=100
         ),
         optimizer=dict(
             type='adam',
-            learning_rate=0.001
+            learning_rate=1e-2
         ),
-        explorations_spec=dict(
-            type="ornstein_uhlenbeck"
-        ),
-        repeat_update=4,
-        batch_size=8,
-        first_update=8,
         target_sync_frequency=10
+        # memory=dict(
+        #     type='replay',
+        #     capacity=1000
+        # ),
+        # optimizer=dict(
+        #     type='adam',
+        #     learning_rate=0.001
+        # ),
+        # batch_size=8,
+        # first_update=8,
+        # repeat_update=4
     )
 
     exclude_bool = True

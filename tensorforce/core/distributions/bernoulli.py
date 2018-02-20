@@ -27,16 +27,23 @@ from tensorforce.core.distributions import Distribution
 
 class Bernoulli(Distribution):
     """
-    Bernoulli distribution for binary actions.
+    Bernoulli distribution, for binary boolean actions.
     """
 
     def __init__(self, shape, probability=0.5, scope='bernoulli', summary_labels=()):
+        """
+        Bernoulli distribution.
+
+        Args:
+            shape: Action shape.
+            probability: Optional distribution bias.
+        """
         self.shape = shape
         action_size = util.prod(self.shape)
 
         self.logit = Linear(size=action_size, bias=log(probability), scope='logit')
 
-        super(Bernoulli, self).__init__(scope, summary_labels)
+        super(Bernoulli, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_parameterize(self, x):
         # Flat logit
@@ -46,7 +53,7 @@ class Bernoulli(Distribution):
         shape = (-1,) + self.shape
         logit = tf.reshape(tensor=logit, shape=shape)
 
-        #TODO rename
+        # TODO rename
         state_value = logit
 
         # Sigmoid for corresponding probability
@@ -69,10 +76,14 @@ class Bernoulli(Distribution):
         _, _, _, state_value = distr_params
         return state_value
 
-    def state_action_value(self, distr_params, action):
+    def state_action_value(self, distr_params, action=None):
         true_logit, false_logit, _, state_value = distr_params
-        logit = tf.where(condition=action, x=true_logit, y=false_logit)
-        return logit + state_value
+        if action is None:
+            state_value = tf.expand_dims(input=state_value, axis=-1)
+            logits = tf.stack(values=(false_logit, true_logit), axis=-1)
+        else:
+            logits = tf.where(condition=action, x=true_logit, y=false_logit)
+        return state_value + logits
 
     def tf_sample(self, distr_params, deterministic):
         _, _, probability, _ = distr_params
@@ -117,9 +128,9 @@ class Bernoulli(Distribution):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        distribution_variables = super(Bernoulli, self).get_variables(include_non_trainable=include_non_trainable)
-        logit_variables = self.logit.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        distribution_variables = super(Bernoulli, self).get_variables(include_nontrainable=include_nontrainable)
+        logit_variables = self.logit.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + logit_variables
 

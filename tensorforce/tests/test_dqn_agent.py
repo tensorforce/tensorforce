@@ -26,50 +26,46 @@ from tensorforce.agents import DQNAgent
 class TestDQNAgent(BaseAgentTest, unittest.TestCase):
 
     agent = DQNAgent
-    deterministic = True
-
     config = dict(
+        update_mode=dict(
+            unit='timesteps',
+            batch_size=8,
+            frequency=4
+        ),
         memory=dict(
             type='replay',
-            capacity=1000
+            include_next_states=True,
+            capacity=100
         ),
+        # memory=dict(
+        #     type='prioritized_replay',
+        #     include_next_states=True,
+        #     buffer_size=20,
+        #     capacity=1000
+        # ),
         optimizer=dict(
-            type="adam",
-            learning_rate=0.002
+            type='adam',
+            learning_rate=1e-2
         ),
+        states_preprocessing=[
+            dict(type='running_standardize'),
+            dict(type='sequence')
+        ],
+        target_sync_frequency=10,
         # Comment in to test exploration types
-        # explorations_spec=dict(
+        # actions_exploration_spec=dict(
         #     type="epsilon_decay",
         #     initial_epsilon=1.0,
         #     final_epsilon=0.1,
         #     timesteps=10
         # ),
-        # explorations_spec=dict(
+        # actions_exploration_spec=dict(
         #     type="epsilon_anneal",
         #     initial_epsilon=1.0,
         #     final_epsilon=0.1,
         #     timesteps=10
-        # ),
-        repeat_update=4,
-        batch_size=32,
-        first_update=64,
-        target_sync_frequency=10
+        # )
     )
 
     exclude_float = True
     exclude_bounded = True
-
-    multi_config = dict(
-        memory=dict(
-            type='replay',
-            capacity=1000
-        ),
-        optimizer=dict(
-            type="adam",
-            learning_rate=0.01
-        ),
-        repeat_update=1,
-        batch_size=16,
-        first_update=16,
-        target_sync_frequency=10
-    )

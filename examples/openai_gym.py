@@ -42,8 +42,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="Id of the Gym environment")
-    parser.add_argument('-a', '--agent-config', help="Agent configuration file")
-    parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
+    parser.add_argument('-a', '--agent', help="Agent configuration file")
+    parser.add_argument('-n', '--network', default=None, help="Network specification file")
     parser.add_argument('-e', '--episodes', type=int, default=None, help="Number of episodes")
     parser.add_argument('-t', '--timesteps', type=int, default=None, help="Number of timesteps")
     parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None, help="Maximum number of timesteps per episode")
@@ -56,7 +56,9 @@ def main():
 
     args = parser.parse_args()
 
-    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+
+    logger = logging.getLogger(__file__)
     logger.setLevel(logging.INFO)
 
     environment = OpenAIGym(
@@ -66,25 +68,25 @@ def main():
         monitor_video=args.monitor_video
     )
 
-    if args.agent_config is not None:
-        with open(args.agent_config, 'r') as fp:
-            agent_config = json.load(fp=fp)
+    if args.agent is not None:
+        with open(args.agent, 'r') as fp:
+            agent = json.load(fp=fp)
     else:
         raise TensorForceError("No agent configuration provided.")
 
-    if args.network_spec is not None:
-        with open(args.network_spec, 'r') as fp:
-            network_spec = json.load(fp=fp)
+    if args.network is not None:
+        with open(args.network, 'r') as fp:
+            network = json.load(fp=fp)
     else:
-        network_spec = None
+        network = None
         logger.info("No network configuration provided.")
 
     agent = Agent.from_spec(
-        spec=agent_config,
+        spec=agent,
         kwargs=dict(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec
+            states=environment.states,
+            actions=environment.actions,
+            network=network
         )
     )
     if args.load:
@@ -96,7 +98,7 @@ def main():
     if args.debug:
         logger.info("-" * 16)
         logger.info("Configuration:")
-        logger.info(agent_config)
+        logger.info(agent)
 
     runner = Runner(
         agent=agent,
@@ -114,12 +116,12 @@ def main():
     def episode_finished(r):
         if r.episode % report_episodes == 0:
             steps_per_second = r.timestep / (time.time() - r.start_time)
-            logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(
+            logger.info("Finished episode {:d} after {:d} timesteps. Steps Per Second {:0.2f}".format(
                 r.agent.episode, r.episode_timestep, steps_per_second
             ))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
-            logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / min(500, len(r.episode_rewards))))
-            logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / min(100, len(r.episode_rewards))))
+            logger.info("Average of last 500 rewards: {:0.2f}".format(sum(r.episode_rewards[-500:]) / min(500, len(r.episode_rewards))))
+            logger.info("Average of last 100 rewards: {:0.2f}".format(sum(r.episode_rewards[-100:]) / min(100, len(r.episode_rewards))))
         return True
 
     runner.run(

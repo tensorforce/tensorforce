@@ -53,7 +53,7 @@ class TFOptimizer(Optimizer):
             return TFOptimizer(optimizer=optimizer, **kwargs)
         return wrapper
 
-    def __init__(self, optimizer, summaries=None, summary_labels=None, **kwargs):
+    def __init__(self, optimizer, scope=None, summary_labels=(), **kwargs):
         """
         Creates a new optimizer instance of a TensorFlow optimizer.
 
@@ -62,35 +62,46 @@ class TFOptimizer(Optimizer):
             'gradient_descent', 'momentum', 'rmsprop'.
             **kwargs: Additional arguments passed on to the TensorFlow optimizer constructor.
         """
-        super(TFOptimizer, self).__init__(summaries=summaries, summary_labels=summary_labels)     
-
-        self.name = optimizer
+        self.optimizer_spec = optimizer
         self.optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
 
-    def tf_step(self, time, variables, fn_loss, **kwargs):
+        super(TFOptimizer, self).__init__(scope=(scope or optimizer), summary_labels=summary_labels)
+
+    def tf_step(
+        self,
+        time,
+        variables,
+        arguments,
+        fn_loss,
+        **kwargs
+    ):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
+            arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
             **kwargs: Additional arguments, not used.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        loss = fn_loss()
+        loss = fn_loss(**arguments)
 
         with tf.control_dependencies(control_inputs=(loss,)):
             # Trivial operation to enforce control dependency
-            vars_before = [var + 0.0 for var in variables]
+            previous_variables = [variable + 0.0 for variable in variables]
 
-        with tf.control_dependencies(control_inputs=vars_before):
-            applied = self.optimizer.minimize(loss=loss, var_list=variables)
+        with tf.control_dependencies(control_inputs=previous_variables):
+            applied = self.optimizer.minimize(loss=loss, var_list=variables)  # colocate_gradients_with_ops=True
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [var - var_before for var, var_before in zip(variables, vars_before)]
+            return [
+                variable - previous_variable
+                for variable, previous_variable in zip(variables, previous_variables)
+            ]
 
     def get_variables(self):
         optimizer_variables = super(TFOptimizer, self).get_variables()
@@ -101,7 +112,7 @@ class TFOptimizer(Optimizer):
             for key in sorted(self.optimizer._slots[slot])
         ]
 
-        if self.name in ('adam', 'nadam'):
+        if self.optimizer_spec in ('adam', 'nadam'):
             additional_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]
         else:
             additional_variables = list()

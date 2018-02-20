@@ -17,80 +17,108 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce import TensorForceError
-from tensorforce.agents import BatchAgent
+from tensorforce.agents import LearningAgent
 from tensorforce.models import PGProbRatioModel
 
 
-class PPOAgent(BatchAgent):
+class PPOAgent(LearningAgent):
     """
-    Proximal Policy Optimization agent ([Schulman et al., 2017]
-    (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
+    Proximal Policy Optimization agent ([Schulman et al., 2017](https://arxiv.org/abs/1707.06347)).
     """
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        batched_observe=1000,
+        states,
+        actions,
+        network,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='ppo',
-        # parameters specific to LearningAgents (except optimizer)
-        summary_spec=None,
-        network_spec=None,
         device=None,
-        session_config=None,
-        saver_spec=None,
-        distributed_spec=None,
-        discount=0.99,
+        saver=None,
+        summarizer=None,
+        distributed=None,
         variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
-        distributions_spec=None,
-        entropy_regularization=1e-2,
-        # parameters specific to BatchAgents
-        batch_size=1000,
-        keep_last_timestep=True,
-        # parameters specific to proximal-policy-opt Agents
+        states_preprocessing=None,
+        actions_exploration=None,
+        reward_preprocessing=None,
+        update_mode=None,
+        memory=None,
+        discount=0.99,
+        distributions=None,
+        entropy_regularization=None,
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
         gae_lambda=None,
-        likelihood_ratio_clipping=None,
+        likelihood_ratio_clipping=0.2,
         step_optimizer=None,
-        optimization_steps=10
+        subsampling_fraction=0.1,
+        optimization_steps=50
     ):
-
-        # random_sampling=True  # Sampling strategy for replay memory
-
         """
-        Creates a proximal policy optimization agent (PPO), ([Schulman et al., 2017]
-        (https://openai-public.s3-us-west-2.amazonaws.com/blog/2017-07/ppo/ppo-arxiv.pdf).
+        Initializes the PPO agent.
 
         Args:
-            baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
-                for sharing parameters with the training network.
-            baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
-                examples/configs for full example configurations.
-            baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline following
-                the same conventions as the main optimizer.
-            gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
-            likelihood_ratio_clipping: Optional clipping of likelihood ratio between old and new policy.
-            step_optimizer: Optimizer dict specification for optimizer used in each PPO update step, defaults to
-                Adam if None.
-            optimization_steps: Int specifying number of optimization steps to execute on the collected batch using
-                the step optimizer.                `
+            update_mode (spec): Update mode specification, with the following attributes:
+                - unit: 'episodes' if given (default: 'episodes').
+                - batch_size: integer (default: 10).
+                - frequency: integer (default: batch_size).
+            memory (spec): Memory specification, see core.memories module for more information
+                (default: {type='latest', include_next_states=false, capacity=1000*batch_size}).
+            optimizer (spec): PPO agent implicitly defines a multi-step subsampling optimizer.
+            baseline_mode (str): One of 'states', 'network' (default: none).
+            baseline (spec): Baseline specification, see core.baselines module for more information
+                (default: none).
+            baseline_optimizer (spec): Baseline optimizer specification, see core.optimizers module
+                for more information (default: none).
+            gae_lambda (float): Lambda factor for generalized advantage estimation (default: none).
+            likelihood_ratio_clipping (float): Likelihood ratio clipping for policy gradient
+                (default: 0.2).
+            step_optimizer (spec): Step optimizer specification of implicit multi-step subsampling
+                optimizer, see core.optimizers module for more information (default: {type='adam',
+                learning_rate=1e-3}).
+            subsampling_fraction (float): Subsampling fraction of implicit subsampling optimizer
+                (default: 0.1).
+            optimization_steps (int): Number of optimization steps for implicit multi-step
+                optimizer (default: 50).
         """
 
-        # define our step-optimizer (the actual optimizer is always a multi-step optimizer)
+        # Update mode
+        if update_mode is None:
+            update_mode = dict(
+                unit='episodes',
+                batch_size=10
+            )
+        elif 'unit' in update_mode:
+            assert update_mode['unit'] == 'episodes'
+        else:
+            update_mode['unit'] = 'episodes'
+
+        # Memory
+        if memory is None:
+            # Assumed episode length of 1000 timesteps.
+            memory = dict(
+                type='latest',
+                include_next_states=False,
+                capacity=(1000 * update_mode['batch_size'])
+            )
+        else:
+            assert not memory['include_next_states']
+
+        # Optimizer
         if step_optimizer is None:
             step_optimizer = dict(
                 type='adam',
-                learning_rate=2.5e-4
+                learning_rate=1e-3
             )
-        self.optimizer = dict(
+        optimizer = dict(
             type='multi_step',
-            optimizer=step_optimizer,
+            optimizer=dict(
+                type='subsampling_step',
+                optimizer=step_optimizer,
+                fraction=subsampling_fraction
+            ),
             num_steps=optimization_steps
         )
 
@@ -101,48 +129,48 @@ class PPOAgent(BatchAgent):
         self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
         super(PPOAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states=states,
+            actions=actions,
             batched_observe=batched_observe,
+            batching_capacity=batching_capacity,
             scope=scope,
-            # parameters specific to LearningAgent
-            summary_spec=summary_spec,
-            network_spec=network_spec,
-            discount=discount,
             device=device,
-            session_config=session_config,
-            saver_spec=saver_spec,
-            distributed_spec=distributed_spec,
-            optimizer=self.optimizer,  # use our fixed parametrized optimizer
+            saver=saver,
+            summarizer=summarizer,
+            distributed=distributed,
             variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec,
-            distributions_spec=distributions_spec,
-            entropy_regularization=entropy_regularization,
-            # parameters specific to BatchAgents
-            batch_size=batch_size,
-            keep_last_timestep=keep_last_timestep
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
+            optimizer=optimizer,
+            discount=discount,
+            network=network,
+            distributions=distributions,
+            entropy_regularization=entropy_regularization
         )
 
     def initialize_model(self):
         return PGProbRatioModel(
-            states_spec=self.states_spec,
-            actions_spec=self.actions_spec,
-            network_spec=self.network_spec,
-            device=self.device,
-            session_config=self.session_config,
+            states=self.states,
+            actions=self.actions,
             scope=self.scope,
-            saver_spec=self.saver_spec,
-            summary_spec=self.summary_spec,
-            distributed_spec=self.distributed_spec,
+            device=self.device,
+            saver=self.saver,
+            summarizer=self.summarizer,
+            distributed=self.distributed,
+            batching_capacity=self.batching_capacity,
+            variable_noise=self.variable_noise,
+            states_preprocessing=self.states_preprocessing,
+            actions_exploration=self.actions_exploration,
+            reward_preprocessing=self.reward_preprocessing,
+            update_mode=self.update_mode,
+            memory=self.memory,
             optimizer=self.optimizer,
             discount=self.discount,
-            variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec,
-            distributions_spec=self.distributions_spec,
+            network=self.network,
+            distributions=self.distributions,
             entropy_regularization=self.entropy_regularization,
             baseline_mode=self.baseline_mode,
             baseline=self.baseline,

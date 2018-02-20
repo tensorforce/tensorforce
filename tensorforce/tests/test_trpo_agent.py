@@ -26,14 +26,21 @@ from tensorforce.agents import TRPOAgent
 class TestTRPOAgent(BaseAgentTest, unittest.TestCase):
 
     agent = TRPOAgent
-    deterministic = False
-
     config = dict(
-        batch_size=16,
-        learning_rate=0.005
+        update_mode=dict(
+            unit='episodes',
+            batch_size=4,
+            frequency=4
+        ),
+        memory=dict(
+            type='latest',
+            include_next_states=False,
+            capacity=100
+        ),
+        learning_rate=1e-2
     )
 
-    multi_config = dict(
-        batch_size=64,
-        learning_rate=0.1
-    )
+    # multi_config = dict(
+    #     batch_size=64,
+    #     learning_rate=0.1
+    # )

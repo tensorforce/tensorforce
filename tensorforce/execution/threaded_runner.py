@@ -17,12 +17,12 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import time
-import threading
-from six.moves import xrange
-import warnings
-from inspect import getargspec
 import importlib
+from inspect import getargspec
+from six.moves import xrange
+import threading
+import time
+import warnings
 
 from tensorforce import TensorForceError
 from tensorforce.execution.base_runner import BaseRunner
@@ -73,18 +73,30 @@ class ThreadedRunner(BaseRunner):
             self.save_frequency = save_frequency
             self.save_frequency_unit = save_frequency_unit
 
-        # init some stats for the parallel runs
+        # Initialize stats for parallel runs.
         self.episode_list_lock = threading.Lock()
-        self.should_stop = False  # stop-condition flag that each worker abides to (aborts if True)
-        self.time = None  # global time counter (sec)
+        # Stop-condition flag that each worker abides to (aborts if True).
+        self.should_stop = False
+        # Global time counter (sec).
+        self.time = None
 
     def close(self):
         self.agent[0].close()  # only close first agent as we just have one shared model
         for e in self.environment:
             e.close()
 
-    def run(self, num_episodes=-1, max_episode_timesteps=-1, episode_finished=None, summary_report=None,
-            summary_interval=0, num_timesteps=None, deterministic=False, episodes=None, max_timesteps=None):
+    def run(
+        self,
+        num_episodes=-1,
+        max_episode_timesteps=-1,
+        episode_finished=None,
+        summary_report=None,
+        summary_interval=0,
+        num_timesteps=None,
+        deterministic=False,
+        episodes=None,
+        max_timesteps=None
+    ):
         """
         Executes this runner by starting all Agents in parallel (each one in one thread).
 
@@ -114,42 +126,50 @@ class ThreadedRunner(BaseRunner):
         self.reset()
 
         # Reset counts/stop-condition for this run.
-        self.global_episode = 1
+        self.global_episode = 0
         self.global_timestep = 0
         self.should_stop = False
 
-        # Create threads
+        # Create threads.
         threads = [threading.Thread(target=self._run_single, args=(t, self.agent[t], self.environment[t],),
                                     kwargs={"deterministic": deterministic,
                                             "max_episode_timesteps": max_episode_timesteps,
                                             "episode_finished": episode_finished})
                    for t in range(len(self.agent))]
 
-        # Start threads
+        # Start threads.
         self.start_time = time.time()
         [t.start() for t in threads]
 
         # Stay idle until killed by SIGINT or a global stop condition is met.
         try:
             next_summary = 0
-            next_save = 0
+            next_save = 0 if self.save_frequency_unit != "s" else time.time()
             while any([t.is_alive() for t in threads]) and self.global_episode < num_episodes or num_episodes == -1:
                 self.time = time.time()
 
-                # this is deprecated (but still supported) and should be covered by the `episode_finished` callable
+                # This is deprecated (but still supported) and should be covered by the `episode_finished` callable.
                 if summary_report is not None and self.global_episode > next_summary:
                     summary_report(self)
                     next_summary += summary_interval
 
                 if self.save_path and self.save_frequency is not None:
+                    do_save = True
+                    current = None
                     if self.save_frequency_unit == "e" and self.global_episode > next_save:
-                        print("Saving agent after episode {}".format(self.global_episode))
+                        current = self.global_episode
                     elif self.save_frequency_unit == "s" and self.time > next_save:
-                        print("Saving agent after {} sec".format(self.save_frequency))
+                        current = self.time
                     elif self.save_frequency_unit == "t" and self.global_timestep > next_save:
-                        print("Saving agent after {} time steps".format(self.save_frequency))
-                    self.agent[0].save_model(self.save_path)
-                    next_save += self.save_frequency
+                        current = self.global_timestep
+                    else:
+                        do_save = False
+
+                    if do_save:
+                        self.agent[0].save_model(self.save_path)
+                        # Make sure next save is later than right now.
+                        while next_save < current:
+                            next_save += self.save_frequency
                 time.sleep(1)
 
         except KeyboardInterrupt:
@@ -157,7 +177,7 @@ class ThreadedRunner(BaseRunner):
 
         self.should_stop = True
 
-        # Join threads
+        # Join threads.
         [t.join() for t in threads]
         print('All threads stopped')
 
@@ -182,14 +202,15 @@ class ThreadedRunner(BaseRunner):
         if episode_finished is not None and len(getargspec(episode_finished).args) == 1:
             old_episode_finished = True
 
-        episode = 1
-        # Run this single worker (episodes) as long as global count thresholds have not been reached.
+        episode = 0
+        # Run this single worker (episode loop) as long as global count thresholds have not been reached.
         while not self.should_stop:
             state = environment.reset()
             agent.reset()
+            self.global_timestep, self.global_episode = agent.timestep, agent.episode
             episode_reward = 0
 
-            # time step (within episode) loop
+            # Time step (within episode) loop
             time_step = 0
             time_start = time.time()
             while True:
@@ -204,17 +225,16 @@ class ThreadedRunner(BaseRunner):
                 agent.observe(reward=reward, terminal=terminal)
 
                 time_step += 1
-                self.global_timestep += 1
                 episode_reward += reward
 
                 if terminal or time_step == max_episode_timesteps:
                     break
 
-                # abort the episode (discard its results) when global says so
+                # Abort the episode (discard its results) when global says so.
                 if self.should_stop:
                     return
 
-            #agent.observe_episode_reward(episode_reward)
+            self.global_timestep += time_step
 
             # Avoid race condition where order in episode_rewards won't match order in episode_timesteps.
             self.episode_list_lock.acquire()
@@ -234,14 +254,13 @@ class ThreadedRunner(BaseRunner):
                     }
                     if not episode_finished(summary_data):
                         return
-                # new way with BasicRunner (self) and thread-id
+                # New way with BasicRunner (self) and thread-id.
                 elif not episode_finished(self, thread_id):
                     return
 
             episode += 1
-            self.global_episode += 1
 
-    # backwards compatibility for deprecated properties (in case someone directly references these)
+    # Backwards compatibility for deprecated properties (in case someone directly references these).
     @property
     def agents(self):
         return self.agent
@@ -279,22 +298,22 @@ def WorkerAgentGenerator(agent_class):
         """
 
         def __init__(self, model=None, **kwargs):
-            # set our model externally
+            # Set our model externally.
             self.model = model
-            # be robust against `network_spec` coming in from kwargs even though this agent doesn't have one
+            # Be robust against `network` coming in from kwargs even though this agent doesn't have one
             if not issubclass(agent_class, LearningAgent):
-                kwargs.pop("network_spec")
-            # call super c'tor (which will call initialize_model and assign self.model to the return value)
+                kwargs.pop("network")
+            # Call super c'tor (which will call initialize_model and assign self.model to the return value).
             super(WorkerAgent, self).__init__(**kwargs)
 
         def initialize_model(self):
-            # return our model (already given and initialized)
+            # Return our model (already given and initialized).
             return self.model
 
     return WorkerAgent
 
 
-def clone_worker_agent(agent, factor, environment, network_spec, agent_config):
+def clone_worker_agent(agent, factor, environment, network, agent_config):
     """
     Clones a given Agent (`factor` times) and returns a list of the cloned Agents with the original Agent
     in the first slot.
@@ -303,7 +322,7 @@ def clone_worker_agent(agent, factor, environment, network_spec, agent_config):
         agent (Agent): The Agent object to clone.
         factor (int): The length of the final list.
         environment (Environment): The Environment to use for all cloned agents.
-        network_spec (LayeredNetwork): The Network to use (or None) for an Agent's Model.
+        network (LayeredNetwork): The Network to use (or None) for an Agent's Model.
         agent_config (dict): A dict of Agent specifications passed into the Agent's c'tor as kwargs.
     Returns:
         The list with `factor` cloned agents (including the original one).
@@ -311,13 +330,12 @@ def clone_worker_agent(agent, factor, environment, network_spec, agent_config):
     ret = [agent]
     for i in xrange(factor - 1):
         worker = WorkerAgentGenerator(type(agent))(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec,
+            states=environment.states,
+            actions=environment.actions,
+            network=network,
             model=agent.model,
             **agent_config
         )
         ret.append(worker)
 
     return ret
-

@@ -23,43 +23,71 @@ from tensorforce.models.random_model import RandomModel
 
 class RandomAgent(Agent):
     """
-    Random agent, useful as a baseline and sanity check.
+    Agent returning random action values.
     """
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        batched_observe=1000,
+        states,
+        actions,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='random',
+        device=None,
+        saver=None,
+        summarizer=None,
+        distributed=None,
     ):
         """
-        Initializes a random agent. Returns random actions based of the shape
-        provided in the 'actions_spec'.
+        Initializes the random agent.
 
+        Args:
+            scope (str): TensorFlow scope (default: name of agent).
+            device: TensorFlow device (default: none)
+            saver (spec): Saver specification, with the following attributes (default: none):
+                - directory: model directory.
+                - file: model filename (optional).
+                - seconds or steps: save frequency (default: 600 seconds).
+                - load: specifies whether model is loaded, if existent (default: true).
+                - basename: optional file basename (default: 'model.ckpt').
+            summarizer (spec): Summarizer specification, with the following attributes (default:
+                none):
+                - directory: summaries directory.
+                - seconds or steps: summarize frequency (default: 120 seconds).
+                - labels: list of summary labels to record (default: []).
+                - meta_param_recorder_class: ???.
+            distributed (spec): Distributed specification, with the following attributes (default:
+                none):
+                - cluster_spec: TensorFlow ClusterSpec object (required).
+                - task_index: integer (required).
+                - parameter_server: specifies whether this instance is a parameter server (default:
+                    false).
+                - protocol: communication protocol (default: none, i.e. 'grpc').
+                - config: TensorFlow ConfigProto object (default: none).
+                - replica_model: internal.
         """
 
+        self.scope = scope
+        self.device = device
+        self.saver = saver
+        self.summarizer = summarizer
+        self.distributed = distributed
+
         super(RandomAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states=states,
+            actions=actions,
             batched_observe=batched_observe,
-            scope=scope
+            batching_capacity=batching_capacity
         )
 
     def initialize_model(self):
         return RandomModel(
-            states_spec=self.states_spec,
-            actions_spec=self.actions_spec,
-            device=None,
-            session_config=None,
+            states=self.states,
+            actions=self.actions,
             scope=self.scope,
-            saver_spec=None,
-            summary_spec=None,  # TODO: remove from RandomModel or make Model c'tor more flexible (add default values)
-            distributed_spec=None,
-            optimizer=None,
-            discount=0.0,  # TODO: remove from RandomModel or make Model c'tor more flexible (add default values)
-            variable_noise=None,
-            states_preprocessing_spec=None,
-            explorations_spec=None,
-            reward_preprocessing_spec=None
+            device=self.device,
+            saver=self.saver,
+            summarizer=self.summarizer,
+            distributed=self.distributed,
+            batching_capacity=self.batching_capacity
         )

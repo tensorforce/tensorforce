@@ -13,13 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.networks.layer import Layer, Nonlinearity, Dropout, Flatten, Pool2d, Embedding, Linear, Dense, \
+from tensorforce.core.networks.layer import Layer, TFLayer, Nonlinearity, Dropout, Flatten, Pool2d, Embedding, Linear, Dense, \
     Dueling, Conv1d, Conv2d, InternalLstm, Lstm
 from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
 from tensorforce.core.networks.complex_network import Input, Output
 
 
 layers = dict(
+    tf_layer=TFLayer,
     nonlinearity=Nonlinearity,
     dropout=Dropout,
     flatten=Flatten,
@@ -33,13 +34,14 @@ layers = dict(
     internal_lstm=InternalLstm,
     lstm=Lstm,
     input=Input,
-    output=Output   
+    output=Output
 )
 
 
 __all__ = [
     'layers',
     'Layer',
+    'TFLayer',
     'Nonlinearity',
     'Dropout',
     'Flatten',

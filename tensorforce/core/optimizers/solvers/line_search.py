@@ -131,7 +131,7 @@ class LineSearch(Iterative):
             next_deltas = [delta * self.parameter for delta in deltas]
             next_estimated_improvement = estimated_improvement * self.parameter
 
-        target_value = self.fn_x(x=next_deltas)
+        target_value = self.fn_x(next_deltas)
 
         next_improvement = tf.divide(
             x=(target_value - self.base_value),
@@ -161,7 +161,7 @@ class LineSearch(Iterative):
         )
 
         def undo_deltas():
-            value = self.fn_x(x=[-delta for delta in deltas])
+            value = self.fn_x([-delta for delta in deltas])
             with tf.control_dependencies(control_inputs=(value,)):
                 # Trivial operation to enforce control dependency
                 return tf.less(x=value, y=value)  # == False

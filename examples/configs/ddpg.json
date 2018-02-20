@@ -1,0 +1,49 @@
+{
+    "type": "ddpg_agent",
+
+    "update_mode": {
+        "unit": "timesteps",
+        "batch_size": 64,
+        "frequency": 64
+    },
+    "memory": {
+        "type": "replay",
+        "capacity": 100000,
+        "include_next_states": true
+    },
+
+    "optimizer": {
+        "type": "adam",
+        "learning_rate": 1e-4
+    },
+
+    "discount": 0.99,
+    "entropy_regularization": null,
+
+    "critic_network": {
+        "size_t0": 64,
+        "size_t1": 64
+    },
+    "critic_optimizer": {
+        "type": "adam",
+        "learning_rate": 1e-3
+    },
+    "target_sync_frequency": 1,
+    "target_update_weight": 0.999,
+
+    "actions_exploration": {
+        "type": "gaussian_noise",
+        "sigma": 0.2,
+        "mu": 0.0
+    },
+
+    "saver": {
+        "directory": null,
+        "seconds": 600
+    },
+    "summarizer": {
+        "directory": null,
+        "labels": [],
+        "seconds": 120
+    }
+}

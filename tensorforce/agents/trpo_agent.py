@@ -17,40 +17,37 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce import TensorForceError
-from tensorforce.agents import BatchAgent
+from tensorforce.agents import LearningAgent
 from tensorforce.models import PGProbRatioModel
 
 
-class TRPOAgent(BatchAgent):
+class TRPOAgent(LearningAgent):
     """
-    Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
+    Trust Region Policy Optimization agent
+    ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)).
     """
 
     def __init__(
         self,
-        states_spec,
-        actions_spec,
-        batched_observe=1000,
+        states,
+        actions,
+        network,
+        batched_observe=True,
+        batching_capacity=1000,
         scope='trpo',
-        # parameters specific to LearningAgents (except optimizer)
-        summary_spec=None,
-        network_spec=None,
         device=None,
-        session_config=None,
-        saver_spec=None,
-        distributed_spec=None,
-        discount=0.99,
+        saver=None,
+        summarizer=None,
+        distributed=None,
         variable_noise=None,
-        states_preprocessing_spec=None,
-        explorations_spec=None,
-        reward_preprocessing_spec=None,
-        distributions_spec=None,
+        states_preprocessing=None,
+        actions_exploration=None,
+        reward_preprocessing=None,
+        update_mode=None,
+        memory=None,
+        discount=0.99,
+        distributions=None,
         entropy_regularization=None,
-        # parameters specific to BatchAgents
-        batch_size=1000,
-        keep_last_timestep=True,
-        # parameters specific to trust-region pol.opt. Agents
         baseline_mode=None,
         baseline=None,
         baseline_optimizer=None,
@@ -59,30 +56,64 @@ class TRPOAgent(BatchAgent):
         learning_rate=1e-3,
         cg_max_iterations=20,
         cg_damping=1e-3,
-        cg_unroll_loop=False
+        cg_unroll_loop=False,
+        ls_max_iterations=10,
+        ls_accept_ratio=0.9,
+        ls_unroll_loop=False
     ):
         """
-        Creates a Trust Region Policy Optimization ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)) agent.
+        Initializes the TRPO agent.
 
         Args:
-            baseline_mode: String specifying baseline mode, `states` for a separate baseline per state, `network`
-                for sharing parameters with the training network.
-            baseline: Optional dict specifying baseline type (e.g. `mlp`, `cnn`), and its layer sizes. Consult
-             examples/configs for full example configurations.
-            baseline_optimizer: Optional dict specifying an optimizer and its parameters for the baseline
-                following the same conventions as the main optimizer.
-            gae_lambda: Optional float specifying lambda parameter for generalized advantage estimation.
-            likelihood_ratio_clipping: Optional clipping of likelihood ratio between old and new policy.
-            learning_rate: Learning rate which may be interpreted differently according to optimizer, e.g. a natural
-                gradient optimizer interprets the learning rate as the max kl-divergence between old and updated policy.
-            cg_max_iterations: Int > 0 specifying conjugate gradient iterations, typically 10-20 are sufficient to
-                find effective approximate solutions.
-            cg_damping: Conjugate gradient damping value to increase numerical stability.
-            cg_unroll_loop: Boolean indicating whether loop unrolling in TensorFlow is to be used which seems to
-                impact performance negatively at this point, default False.
+            update_mode (spec): Update mode specification, with the following attributes:
+                - unit: 'episodes' if given (default: 'episodes').
+                - batch_size: integer (default: 10).
+                - frequency: integer (default: batch_size).
+            memory (spec): Memory specification, see core.memories module for more information
+                (default: {type='latest', include_next_states=false, capacity=1000*batch_size}).
+            optimizer (spec): TRPO agent implicitly defines a optimized-step natural-gradient
+                optimizer.
+            baseline_mode (str): One of 'states', 'network' (default: none).
+            baseline (spec): Baseline specification, see core.baselines module for more information
+                (default: none).
+            baseline_optimizer (spec): Baseline optimizer specification, see core.optimizers module
+                for more information (default: none).
+            gae_lambda (float): Lambda factor for generalized advantage estimation (default: none).
+            likelihood_ratio_clipping (float): Likelihood ratio clipping for policy gradient
+                (default: none).
+            learning_rate (float): Learning rate of natural-gradient optimizer (default: 1e-3).
+            cg_max_iterations (int): Conjugate-gradient max iterations (default: 20).
+            cg_damping (float): Conjugate-gradient damping (default: 1e-3).
+            cg_unroll_loop (bool): Conjugate-gradient unroll loop (default: false).
+            ls_max_iterations (int): Line-search max iterations (default: 10).
+            ls_accept_ratio (float): Line-search accept ratio (default: 0.9).
+            ls_unroll_loop (bool): Line-search unroll loop (default: false).
         """
 
-        self.optimizer = dict(
+        # Update mode
+        if update_mode is None:
+            update_mode = dict(
+                unit='episodes',
+                batch_size=10
+            )
+        elif 'unit' in update_mode:
+            assert update_mode['unit'] == 'episodes'
+        else:
+            update_mode['unit'] = 'episodes'
+
+        # Memory
+        if memory is None:
+            # Assumed episode length of 1000 timesteps.
+            memory = dict(
+                type='latest',
+                include_next_states=False,
+                capacity=(1000 * update_mode['batch_size'])
+            )
+        else:
+            assert not memory['include_next_states']
+
+        # Optimizer
+        optimizer = dict(
             type='optimized_step',
             optimizer=dict(
                 type='natural_gradient',
@@ -91,11 +122,11 @@ class TRPOAgent(BatchAgent):
                 cg_damping=cg_damping,
                 cg_unroll_loop=cg_unroll_loop,
             ),
-            ls_max_iterations=10,
-            ls_accept_ratio=0.9,
-            ls_mode='exponential',
-            ls_parameter=0.5,
-            ls_unroll_loop=False
+            ls_max_iterations=ls_max_iterations,
+            ls_accept_ratio=ls_accept_ratio,
+            ls_mode='exponential',  # !!!!!!!!!!!!!
+            ls_parameter=0.5,  # !!!!!!!!!!!!!
+            ls_unroll_loop=ls_unroll_loop
         )
 
         self.baseline_mode = baseline_mode
@@ -105,48 +136,48 @@ class TRPOAgent(BatchAgent):
         self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
         super(TRPOAgent, self).__init__(
-            states_spec=states_spec,
-            actions_spec=actions_spec,
+            states=states,
+            actions=actions,
             batched_observe=batched_observe,
-            # parameters specific to LearningAgent
-            summary_spec=summary_spec,
-            network_spec=network_spec,
-            discount=discount,
-            device=device,
-            session_config=session_config,
+            batching_capacity=batching_capacity,
             scope=scope,
-            saver_spec=saver_spec,
-            distributed_spec=distributed_spec,
-            optimizer=self.optimizer,  # use our fixed parametrized optimizer
+            device=device,
+            saver=saver,
+            summarizer=summarizer,
+            distributed=distributed,
             variable_noise=variable_noise,
-            states_preprocessing_spec=states_preprocessing_spec,
-            explorations_spec=explorations_spec,
-            reward_preprocessing_spec=reward_preprocessing_spec,
-            distributions_spec=distributions_spec,
-            entropy_regularization=entropy_regularization,
-            # parameters specific to BatchAgents
-            batch_size=batch_size,
-            keep_last_timestep=keep_last_timestep
+            states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration,
+            reward_preprocessing=reward_preprocessing,
+            update_mode=update_mode,
+            memory=memory,
+            optimizer=optimizer,
+            discount=discount,
+            network=network,
+            distributions=distributions,
+            entropy_regularization=entropy_regularization
         )
 
     def initialize_model(self):
         return PGProbRatioModel(
-            states_spec=self.states_spec,
-            actions_spec=self.actions_spec,
-            network_spec=self.network_spec,
-            device=self.device,
-            session_config=self.session_config,
+            states=self.states,
+            actions=self.actions,
             scope=self.scope,
-            saver_spec=self.saver_spec,
-            summary_spec=self.summary_spec,
-            distributed_spec=self.distributed_spec,
-            optimizer=self.optimizer,
+            device=self.device,
+            saver=self.saver,
+            summarizer=self.summarizer,
+            distributed=self.distributed,
+            batching_capacity=self.batching_capacity,
             discount=self.discount,
             variable_noise=self.variable_noise,
-            states_preprocessing_spec=self.states_preprocessing_spec,
-            explorations_spec=self.explorations_spec,
-            reward_preprocessing_spec=self.reward_preprocessing_spec,
-            distributions_spec=self.distributions_spec,
+            states_preprocessing=self.states_preprocessing,
+            actions_exploration=self.actions_exploration,
+            reward_preprocessing=self.reward_preprocessing,
+            update_mode=self.update_mode,
+            memory=self.memory,
+            optimizer=self.optimizer,
+            network=self.network,
+            distributions=self.distributions,
             entropy_regularization=self.entropy_regularization,
             baseline_mode=self.baseline_mode,
             baseline=self.baseline,

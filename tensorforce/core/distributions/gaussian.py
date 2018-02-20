@@ -31,13 +31,21 @@ class Gaussian(Distribution):
     """
 
     def __init__(self, shape, mean=0.0, log_stddev=0.0, scope='gaussian', summary_labels=()):
+        """
+        Categorical distribution.
+
+        Args:
+            shape: Action shape.
+            mean: Optional distribution bias for the mean.
+            log_stddev: Optional distribution bias for the standard deviation.
+        """
         self.shape = shape
         action_size = util.prod(self.shape)
 
         self.mean = Linear(size=action_size, bias=mean, scope='mean')
         self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev')
 
-        super(Gaussian, self).__init__(scope, summary_labels)
+        super(Gaussian, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_parameterize(self, x):
         # Flat mean and log standard deviation
@@ -64,7 +72,6 @@ class Gaussian(Distribution):
 
     def state_action_value(self, distr_params, action):
         mean, stddev, log_stddev = distr_params
-
         sq_mean_distance = tf.square(x=(action - mean))
         sq_stddev = tf.maximum(x=tf.square(x=stddev), y=util.epsilon)
         return -0.5 * sq_mean_distance / sq_stddev - 2.0 * log_stddev - log(2.0 * pi)
@@ -122,10 +129,10 @@ class Gaussian(Distribution):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        distribution_variables = super(Gaussian, self).get_variables(include_non_trainable=include_non_trainable)
-        mean_variables = self.mean.get_variables(include_non_trainable=include_non_trainable)
-        log_stddev_variables = self.log_stddev.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        distribution_variables = super(Gaussian, self).get_variables(include_nontrainable=include_nontrainable)
+        mean_variables = self.mean.get_variables(include_nontrainable=include_nontrainable)
+        log_stddev_variables = self.log_stddev.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + mean_variables + log_stddev_variables
 

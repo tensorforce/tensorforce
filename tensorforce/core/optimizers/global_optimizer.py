@@ -32,18 +32,14 @@ class GlobalOptimizer(MetaOptimizer):
     major version update.
     """
 
-    def __init__(self, optimizer, summaries=None, summary_labels=None):
+    def __init__(self, optimizer, scope='global-optimizer', summary_labels=()):
         """
         Creates a new global optimizer instance.
 
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.
         """
-        super(GlobalOptimizer, self).__init__(
-            optimizer=optimizer,
-            summaries=summaries,
-            summary_labels=summary_labels
-        )
+        super(GlobalOptimizer, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
 
     def tf_step(self, time, variables, global_variables, **kwargs):
         """
@@ -58,8 +54,10 @@ class GlobalOptimizer(MetaOptimizer):
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        assert all(util.shape(global_var) == util.shape(local_var) for global_var, local_var
-                   in zip(global_variables, variables))
+        assert all(
+            util.shape(global_variable) == util.shape(local_variable)
+            for global_variable, local_variable in zip(global_variables, variables)
+        )
 
         local_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
 
@@ -68,8 +66,8 @@ class GlobalOptimizer(MetaOptimizer):
 
         with tf.control_dependencies(control_inputs=(applied,)):
             update_deltas = list()
-            for global_var, local_var in zip(global_variables, variables):
-                delta = global_var - local_var
+            for global_variable, local_variable in zip(global_variables, variables):
+                delta = global_variable - local_variable
                 update_deltas.append(delta)
 
             applied = self.apply_step(variables=variables, deltas=update_deltas)

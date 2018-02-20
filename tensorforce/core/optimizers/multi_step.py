@@ -29,7 +29,7 @@ class MultiStep(MetaOptimizer):
     optimizer a number of times.
     """
 
-    def __init__(self, optimizer, num_steps=5, summaries=None, summary_labels=None):
+    def __init__(self, optimizer, num_steps=10, unroll_loop=False, scope='multi-step', summary_labels=()):
         """
         Creates a new multi-step meta optimizer instance.
 
@@ -37,33 +37,55 @@ class MultiStep(MetaOptimizer):
             optimizer: The optimizer which is modified by this meta optimizer.
             num_steps: Number of optimization steps to perform.
         """
-        super(MultiStep, self).__init__(optimizer=optimizer, summaries=summaries, summary_labels=summary_labels)
-
         assert isinstance(num_steps, int) and num_steps > 0
         self.num_steps = num_steps
 
-    def tf_step(self, time, variables, **kwargs):
+        assert isinstance(unroll_loop, bool)
+        self.unroll_loop = unroll_loop
+
+        super(MultiStep, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
+
+    def tf_step(self, time, variables, arguments, fn_reference=None, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
+            arguments: Dict of arguments for callables, like fn_loss.
+            fn_reference: A callable returning the reference values, in case of a comparative loss.
             **kwargs: Additional arguments passed on to the internal optimizer.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
-        overall_deltas = None
-        deltas = ()
-        for _ in xrange(self.num_steps):
 
-            with tf.control_dependencies(control_inputs=deltas):
-                deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
+        # Set reference to compare with at each optimization step, in case of a comparative loss.
+        arguments['reference'] = fn_reference(**arguments)
 
-                if overall_deltas is None:
-                    overall_deltas = deltas
-                else:
-                    overall_deltas = [delta1 + delta2 for delta1, delta2 in zip(overall_deltas, deltas)]
+        # First step
+        deltas = self.optimizer.step(time=time, variables=variables, arguments=arguments, **kwargs)
 
-        return overall_deltas
+        if self.unroll_loop:
+            # Unrolled for loop
+            for _ in xrange(self.num_steps - 1):
+                with tf.control_dependencies(control_inputs=deltas):
+                    step_deltas = self.optimizer.step(time=time, variables=variables, arguments=arguments, **kwargs)
+                    deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
+
+            return deltas
+
+        else:
+            # TensorFlow while loop
+            def body(iteration, deltas):
+                with tf.control_dependencies(control_inputs=deltas):
+                    step_deltas = self.optimizer.step(time=time, variables=variables, arguments=arguments, **kwargs)
+                    deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
+                    return iteration + 1, deltas
+
+            def cond(iteration, deltas):
+                return iteration < self.num_steps - 1
+
+            _, deltas = tf.while_loop(cond=cond, body=body, loop_vars=(0, deltas))
+
+            return deltas

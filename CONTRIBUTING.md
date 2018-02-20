@@ -88,6 +88,8 @@ kwargs['fn_loss'] = (
 
 - Binary operators should always be surrounded by a single space: `z = x + y` instead of `z=x+y`.
 
+- Numbers should always be explicitly given according to their intended type, so floats always with period, `1.0`, and integers without, `1`. Floats should furthermore explicitly add single leading/trailing zeros where applicable, so `1.0` instead of `1.` and `0.1` instead of `.1`.
+
 - Lines (apart from documentation comments), including empty lines, should never contain trailing
 spaces.
 

@@ -14,7 +14,7 @@
 # ==============================================================================
 
 """
-Collection of custom layer implementations. We prefer not to use contrib-layers to retain full control over shapes and internal states.
+Collection of custom layer implementations.
 """
 
 from __future__ import absolute_import
@@ -34,8 +34,11 @@ class Layer(object):
     Base class for network layers.
     """
 
-    def __init__(self, num_internals=0, scope='layer', summary_labels=None):
-        self.num_internals = num_internals
+    def __init__(self, scope='layer', summary_labels=None):
+        """
+        Layer.
+        """
+        self.scope = scope
         self.summary_labels = set(summary_labels or ())
 
         self.named_tensors = dict()
@@ -47,7 +50,7 @@ class Layer(object):
             variable = getter(name=name, registered=True, **kwargs)
             if not registered:
                 self.all_variables[name] = variable
-                if kwargs.get('trainable', True) and not name.startswith('optimization'):
+                if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
                         summary = tf.summary.histogram(name=name, values=variable)
@@ -87,7 +90,7 @@ class Layer(object):
         """
         return None
 
-    def tf_tensors(self,named_tensors):
+    def tf_tensors(self, named_tensors):
         """
         Attaches the named_tensors dictionary to the layer for examination and update.
 
@@ -96,35 +99,26 @@ class Layer(object):
 
         Returns:
             NA
-        """   
+        """
         self.named_tensors = named_tensors
 
-    def internals_input(self):
+    def internals_spec(self):
         """
-        Returns the TensorFlow placeholders for internal state inputs.
+        Returns the internal states specification.
 
         Returns:
-            List of internal state input placeholders.
+            Internal states specification
         """
-        return list()
+        return dict()
 
-    def internals_init(self):
-        """
-        Returns the TensorFlow tensors for internal state initializations.
-
-        Returns:
-            List of internal state initialization tensors.
-        """
-        return list()
-
-    def get_variables(self, include_non_trainable=False):
+    def get_variables(self, include_nontrainable=False):
         """
         Returns the TensorFlow variables used by the layer.
 
         Returns:
             List of variables.
         """
-        if include_non_trainable:
+        if include_nontrainable:
             return [self.all_variables[key] for key in sorted(self.all_variables)]
         else:
             return [self.variables[key] for key in sorted(self.variables)]
@@ -150,6 +144,61 @@ class Layer(object):
         )
         assert isinstance(layer, Layer)
         return layer
+
+
+class TFLayer(Layer):
+    """
+    Wrapper class for TensorFlow layers.
+    """
+
+    tf_layers = dict(
+        average_pooling1d=tf.layers.AveragePooling1D,
+        average_pooling2d=tf.layers.AveragePooling2D,
+        average_pooling3d=tf.layers.AveragePooling3D,
+        batch_normalization=tf.layers.BatchNormalization,
+        conv1d=tf.layers.Conv1D,
+        conv2d=tf.layers.Conv2D,
+        conv2d_transpose=tf.layers.Conv2DTranspose,
+        conv3d=tf.layers.Conv3D,
+        conv3d_transpose=tf.layers.Conv3DTranspose,
+        dense=tf.layers.Dense,
+        dropout=tf.layers.Dropout,
+        flatten=tf.layers.Flatten,
+        max_pooling1d=tf.layers.MaxPooling1D,
+        max_pooling2d=tf.layers.MaxPooling2D,
+        max_pooling3d=tf.layers.MaxPooling3D,
+        separable_conv2d=tf.layers.SeparableConv2D
+    )
+
+    def __init__(self, layer, scope='tf-layer', summary_labels=(), **kwargs):
+        """
+        Creates a new layer instance of a TensorFlow layer.
+
+        Args:
+            name: The name of the layer, one of 'dense'.
+            **kwargs: Additional arguments passed on to the TensorFlow layer constructor.
+        """
+        self.layer_spec = layer
+        self.layer = util.get_object(obj=layer, predefined_objects=TFLayer.tf_layers, kwargs=kwargs)
+        self.first_scope = None
+
+        super(TFLayer, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        if self.first_scope is None:
+            # Store scope of first call since regularization losses will be registered there.
+            self.first_scope = tf.contrib.framework.get_name_scope()
+        return self.layer(inputs=x, training=update)
+
+    def tf_regularization_loss(self):
+        regularization_losses = tf.get_collection(
+            key=tf.GraphKeys.REGULARIZATION_LOSSES,
+            scope=self.first_scope
+        )
+        if len(regularization_losses) > 0:
+            return tf.add_n(inputs=regularization_losses)
+        else:
+            return None
 
 
 class Nonlinearity(Layer):
@@ -285,7 +334,7 @@ class Dropout(Layer):
         return tf.cond(
             pred=update,
             true_fn=(lambda: tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))),
-            false_fn=(lambda: x)
+            false_fn=(lambda: tf.identity(input=x))
         )
 
 
@@ -465,7 +514,7 @@ class Linear(Layer):
                     slope = 0.25
                     if 'slope' in self.weights_init:
                         slope = self.weights_init['slope']
-                    magnitude = 2. / (1 + slope ** 2)
+                    magnitude = 2.0 / (1.0 + slope ** 2)
                     stddev = sqrt(magnitude * 2.0 / (x.shape[1].value + self.size))
                     self.weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
             else:
@@ -591,13 +640,13 @@ class Dense(Layer):
     def __init__(
         self,
         size=None,
+        weights=None,
         bias=True,
-        activation='tanh',
+        activation='relu',
         l2_regularization=0.0,
         l1_regularization=0.0,
         skip=False,
         scope='dense',
-        linear_weights=None,
         summary_labels=()
     ):
         """
@@ -605,13 +654,13 @@ class Dense(Layer):
 
         Args:
             size: Layer size, if None than input size matches the output size of the layer
+            weights: Weight initialization, random if None.
             bias: If true, bias is added.
             activation: Type of nonlinearity, or dict with name & arguments
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
             skip: Add skip connection like ResNet (https://arxiv.org/pdf/1512.03385.pdf),
                   doubles layers and ShortCut from Input to output
-            linear_weights: the weight_int spec for Linear part
         """
         self.skip = skip
         if self.skip and size is not None:
@@ -622,8 +671,8 @@ class Dense(Layer):
 
         self.linear = Linear(
             size=size,
+            weights=weights,
             bias=bias,
-            weights=linear_weights,
             l2_regularization=l2_regularization,
             l1_regularization=l1_regularization,
             summary_labels=summary_labels
@@ -681,13 +730,13 @@ class Dense(Layer):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Dense, self).get_variables(include_non_trainable=include_non_trainable)
-        linear_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        layer_variables = super(Dense, self).get_variables(include_nontrainable=include_nontrainable)
+        linear_variables = self.linear.get_variables(include_nontrainable=include_nontrainable)
         if self.skip:
             linear_variables = linear_variables \
-                               + self.linear_skip.get_variables(include_non_trainable=include_non_trainable)
-        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+                               + self.linear_skip.get_variables(include_nontrainable=include_nontrainable)
+        nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + linear_variables + nonlinearity_variables
 
@@ -795,11 +844,11 @@ class Dueling(Layer):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Dueling, self).get_variables(include_non_trainable=include_non_trainable)
-        expectation_layer_variables = self.expectation_layer.get_variables(include_non_trainable=include_non_trainable)
-        advantage_layer_variables = self.advantage_layer.get_variables(include_non_trainable=include_non_trainable)
-        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        layer_variables = super(Dueling, self).get_variables(include_nontrainable=include_nontrainable)
+        expectation_layer_variables = self.expectation_layer.get_variables(include_nontrainable=include_nontrainable)
+        advantage_layer_variables = self.advantage_layer.get_variables(include_nontrainable=include_nontrainable)
+        nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + expectation_layer_variables + advantage_layer_variables + nonlinearity_variables
 
@@ -903,9 +952,9 @@ class Conv1d(Layer):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Conv1d, self).get_variables(include_non_trainable=include_non_trainable)
-        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        layer_variables = super(Conv1d, self).get_variables(include_nontrainable=include_nontrainable)
+        nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + nonlinearity_variables
 
@@ -1013,9 +1062,9 @@ class Conv2d(Layer):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        layer_variables = super(Conv2d, self).get_variables(include_non_trainable=include_non_trainable)
-        nonlinearity_variables = self.nonlinearity.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        layer_variables = super(Conv2d, self).get_variables(include_nontrainable=include_nontrainable)
+        nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + nonlinearity_variables
 
@@ -1041,7 +1090,7 @@ class InternalLstm(Layer):
         """
         self.size = size
         self.dropout = dropout
-        super(InternalLstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
+        super(InternalLstm, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update, state):
         if util.rank(x) != 2:
@@ -1059,20 +1108,20 @@ class InternalLstm(Layer):
 
         x, state = self.lstm_cell(inputs=x, state=state)
 
-        internal_output = tf.stack(values=(state.c, state.h), axis=1)
+        state = tf.stack(values=(state.c, state.h), axis=1)
 
         if 'activations' in self.summary_labels:
             summary = tf.summary.histogram(name='activations', values=x)
             self.summaries.append(summary)
 
-        return x, (internal_output,)
+        return x, dict(state=state)
 
-    def internals_input(self):
-        return super(InternalLstm, self).internals_input() \
-               + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
-
-    def internals_init(self):
-        return super(InternalLstm, self).internals_init() + [np.zeros(shape=(2, self.size))]
+    def internals_spec(self):
+        return dict(state=dict(
+            type='float',
+            shape=(2, self.size),
+            initialization='zeros'
+        ))
 
 
 class Lstm(Layer):
@@ -1088,7 +1137,7 @@ class Lstm(Layer):
         self.size = size
         self.dropout = dropout
         self.return_final_state = return_final_state
-        super(Lstm, self).__init__(num_internals=0, scope=scope, summary_labels=summary_labels)
+        super(Lstm, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update, sequence_length=None):
         if util.rank(x) != 3:

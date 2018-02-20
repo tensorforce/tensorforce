@@ -17,21 +17,17 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-from tensorforce.core.preprocessing import Preprocessor
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class ImageResize(Preprocessor):
+class Divide(Preprocessor):
     """
-    Resize image to width x height.
+    Divide state by scale.
     """
 
-    def __init__(self, width, height, scope='image_resize', summary_labels=()):
-        self.size = (width, height)
-        super(ImageResize, self).__init__(scope=scope, summary_labels=summary_labels)
+    def __init__(self, shape, scale, scope='divide', summary_labels=()):
+        self.scale = scale
+        super(Divide, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
-        return tf.image.resize_images(images=tensor, size=self.size)
-
-    def processed_shape(self, shape):
-        return self.size + (shape[-1],)
+        return tensor / self.scale

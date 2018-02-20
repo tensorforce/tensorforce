@@ -21,112 +21,193 @@ import unittest
 
 from tensorforce.tests.base_test import BaseTest
 from tensorforce.agents import VPGAgent
-from tensorforce.environments.minimal_test import MinimalTest
+from tensorforce.environments import MinimalTest
 
 
 class TestVPGOptimizers(BaseTest, unittest.TestCase):
 
     agent = VPGAgent
-    deterministic = False
 
     # TODO: Tests for other TensorFlow optimizers, necessary?
 
     def test_adam(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
             optimizer=dict(
                 type='adam',
-                learning_rate=1e-3
+                learning_rate=1e-2
             )
         )
-        self.base_test_pass(name='adam', environment=environment, network_spec=network_spec, **config)
+        self.base_test_pass(name='adam', environment=environment, network=network, **config)
 
     def test_evolutionary(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
             optimizer=dict(
                 type='evolutionary',
                 learning_rate=1e-2
             )
         )
-        self.base_test_pass(name='evolutionary', environment=environment, network_spec=network_spec, **config)
+        self.base_test_pass(name='evolutionary', environment=environment, network=network, **config)
 
     def test_natural_gradient(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
             optimizer=dict(
                 type='natural_gradient',
                 learning_rate=1e-3
             )
         )
-        self.base_test_pass(name='natural-gradient', environment=environment, network_spec=network_spec, **config)
-
-    def test_multi_step(self):
-        environment = MinimalTest(specification={'int': ()})
-        network_spec = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            batch_size=8,
-            optimizer=dict(
-                type='multi_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-4
-                )
-            )
-        )
-        self.base_test_pass(name='multi-step', environment=environment, network_spec=network_spec, **config)
-
-    def test_optimized_step(self):
-        environment = MinimalTest(specification={'int': ()})
-        network_spec = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            batch_size=8,
-            optimizer=dict(
-                type='optimized_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-3
-                )
-            )
-        )
-        self.base_test_pass(name='optimized-step', environment=environment, network_spec=network_spec, **config)
+        self.base_test_pass(name='natural-gradient', environment=environment, network=network, **config)
 
     def test_clipped_step(self):
         environment = MinimalTest(specification={'int': ()})
-        network_spec = [
+        network = [
             dict(type='dense', size=32),
             dict(type='dense', size=32)
         ]
         config = dict(
-            batch_size=8,
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
             optimizer=dict(
                 type='clipped_step',
                 optimizer=dict(
                     type='adam',
-                    learning_rate=1e-3
+                    learning_rate=1e-2
                 ),
                 clipping_value=0.01
             )
         )
-        self.base_test_pass(name='clipped-step', environment=environment, network_spec=network_spec, **config)
+        self.base_test_pass(name='clipped-step', environment=environment, network=network, **config)
+
+    def test_multi_step(self):
+        environment = MinimalTest(specification={'int': ()})
+        network = [
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
+        ]
+        config = dict(
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
+            optimizer=dict(
+                type='multi_step',
+                optimizer=dict(
+                    type='adam',
+                    learning_rate=1e-3
+                )
+            )
+        )
+        self.base_test_pass(name='multi-step', environment=environment, network=network, **config)
+
+    def test_optimized_step(self):
+        environment = MinimalTest(specification={'int': ()})
+        network = [
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
+        ]
+        config = dict(
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
+            optimizer=dict(
+                type='optimized_step',
+                optimizer=dict(
+                    type='adam',
+                    learning_rate=1e-2
+                )
+            )
+        )
+        self.base_test_pass(name='optimized-step', environment=environment, network=network, **config)
+
+    def test_subsampling_step(self):
+        environment = MinimalTest(specification={'int': ()})
+        network = [
+            dict(type='dense', size=32),
+            dict(type='dense', size=32)
+        ]
+        config = dict(
+            update_mode=dict(
+                unit='episodes',
+                batch_size=4,
+                frequency=4
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            ),
+            optimizer=dict(
+                type='subsampling_step',
+                optimizer=dict(
+                    type='adam',
+                    learning_rate=1e-3
+                ),
+                fraction=0.33
+            )
+        )
+        self.base_test_pass(name='multi-step', environment=environment, network=network, **config)

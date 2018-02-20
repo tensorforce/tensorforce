@@ -258,10 +258,10 @@ class MetaParameterRecorder(object):
 
             if len(value) == 0:
                 continue
-            if isinstance(value,str):
-                ops.append(tf.summary.text(key, tf.convert_to_tensor(str(value)))) 
+            if isinstance(value, str):
+                ops.append(tf.summary.text(name=key, tensor=tf.convert_to_tensor(str(value))))
             else:
-                ops.append(tf.summary.text(key, tf.as_string(tf.convert_to_tensor(value))))
+                ops.append(tf.summary.text(name=key, tensor=tf.as_string(tf.convert_to_tensor(value))))
 
         with tf.control_dependencies(tf.tuple(ops)):
             self.summary_merged = tf.summary.merge_all()

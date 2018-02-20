@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from tensorforce.core.distributions.distribution import Distribution
 from tensorforce.core.distributions.bernoulli import Bernoulli
 from tensorforce.core.distributions.categorical import Categorical
@@ -29,4 +28,11 @@ distributions = dict(
 )
 
 
-__all__ = ['distributions', 'Distribution', 'Bernoulli', 'Categorical', 'Gaussian', 'Beta']
+__all__ = [
+    'distributions',
+    'Distribution',
+    'Bernoulli',
+    'Categorical',
+    'Gaussian',
+    'Beta'
+]

@@ -27,21 +27,28 @@ from tensorforce.core.distributions import Distribution
 
 class Categorical(Distribution):
     """
-    Categorical distribution, for discrete actions
+    Categorical distribution, for discrete actions.
     """
 
     def __init__(self, shape, num_actions, probabilities=None, scope='categorical', summary_labels=()):
-        self.shape = shape
+        """
+        Categorical distribution.
+
+        Args:
+            shape: Action shape.
+            num_actions: Number of discrete action alternatives.
+            probabilities: Optional distribution bias.
+        """
         self.num_actions = num_actions
+
+        action_size = util.prod(shape) * self.num_actions
         if probabilities is None:
             logits = 0.0
         else:
             logits = [log(prob) for _ in range(util.prod(shape)) for prob in probabilities]
-        action_size = util.prod(self.shape) * self.num_actions
-
         self.logits = Linear(size=action_size, bias=logits, scope='logits')
 
-        super(Categorical, self).__init__(scope, summary_labels)
+        super(Categorical, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_parameterize(self, x):
         # Flat logits
@@ -70,11 +77,14 @@ class Categorical(Distribution):
         _, _, state_value = distr_params
         return state_value
 
-    def state_action_value(self, distr_params, action):
+    def state_action_value(self, distr_params, action=None):
         logits, _, state_value = distr_params
-        one_hot = tf.one_hot(indices=action, depth=self.num_actions)
-        logit = tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
-        return logit + state_value
+        if action is None:
+            state_value = tf.expand_dims(input=state_value, axis=-1)
+        else:
+            one_hot = tf.one_hot(indices=action, depth=self.num_actions)
+            logits = tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
+        return state_value + logits
 
     def tf_sample(self, distr_params, deterministic):
         logits, _, _ = distr_params
@@ -124,9 +134,9 @@ class Categorical(Distribution):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        distribution_variables = super(Categorical, self).get_variables(include_non_trainable=include_non_trainable)
-        logits_variables = self.logits.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        distribution_variables = super(Categorical, self).get_variables(include_nontrainable=include_nontrainable)
+        logits_variables = self.logits.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + logits_variables
 

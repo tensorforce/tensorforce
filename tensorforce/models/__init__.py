@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
 from tensorforce.models.model import Model
+from tensorforce.models.memory_model import MemoryModel
 from tensorforce.models.distribution_model import DistributionModel
 from tensorforce.models.pg_model import PGModel
 from tensorforce.models.pg_log_prob_model import PGLogProbModel
+from tensorforce.models.dpg_target_model import DPGTargetModel
 from tensorforce.models.pg_prob_ratio_model import PGProbRatioModel
 from tensorforce.models.q_model import QModel
 from tensorforce.models.q_nstep_model import QNstepModel
@@ -25,6 +28,7 @@ from tensorforce.models.q_demo_model import QDemoModel
 
 models = dict(
     pg_log_prob_model=PGLogProbModel,
+    pg_log_prob_target_model=DPGTargetModel,
     pg_prob_ratio_model=PGProbRatioModel,
     q_model=QModel,
     q_nstep_model=QNstepModel,
@@ -35,9 +39,11 @@ models = dict(
 
 __all__ = [
     'Model',
+    'MemoryModel',
     'DistributionModel',
     'PGModel',
     'PGProbRatioModel',
+    'DPGTargetModel',
     'PGLogProbModel',
     'QModel',
     'QNstepModel',

@@ -15,18 +15,20 @@
 
 from tensorforce.core.optimizers.optimizer import Optimizer
 from tensorforce.core.optimizers.meta_optimizer import MetaOptimizer
+from tensorforce.core.optimizers.global_optimizer import GlobalOptimizer
 from tensorforce.core.optimizers.tf_optimizer import TFOptimizer
 from tensorforce.core.optimizers.evolutionary import Evolutionary
 from tensorforce.core.optimizers.natural_gradient import NaturalGradient
+from tensorforce.core.optimizers.clipped_step import ClippedStep
 from tensorforce.core.optimizers.multi_step import MultiStep
 from tensorforce.core.optimizers.optimized_step import OptimizedStep
+from tensorforce.core.optimizers.subsampling_step import SubsamplingStep
 from tensorforce.core.optimizers.synchronization import Synchronization
-from tensorforce.core.optimizers.global_optimizer import GlobalOptimizer
-from tensorforce.core.optimizers.clipped_step import ClippedStep
 
 
 # This can register any class inheriting from tf.train.Optimizer
 optimizers = dict(
+    global_optimizer=GlobalOptimizer,
     adadelta=TFOptimizer.get_wrapper(optimizer='adadelta'),
     adagrad=TFOptimizer.get_wrapper(optimizer='adagrad'),
     adam=TFOptimizer.get_wrapper(optimizer='adam'),
@@ -36,13 +38,25 @@ optimizers = dict(
     rmsprop=TFOptimizer.get_wrapper(optimizer='rmsprop'),
     evolutionary=Evolutionary,
     natural_gradient=NaturalGradient,
+    clipped_step=ClippedStep,
     multi_step=MultiStep,
     optimized_step=OptimizedStep,
-    synchronization=Synchronization,
-    clipped_step=ClippedStep
-    # GlobalOptimizer not (yet) a valid choice
+    subsampling_step=SubsamplingStep,
+    synchronization=Synchronization
 )
 
 
-__all__ = ['optimizers', 'Optimizer', 'MetaOptimizer', 'TFOptimizer', 'Evolutionary', 'NaturalGradient', 'MultiStep', 'OptimizedStep', 'Synchronization',
-           'ClippedStep', 'GlobalOptimizer']
+__all__ = [
+    'optimizers',
+    'Optimizer',
+    'MetaOptimizer',
+    'GlobalOptimizer',
+    'TFOptimizer',
+    'Evolutionary',
+    'NaturalGradient',
+    'ClippedStep',
+    'MultiStep',
+    'OptimizedStep',
+    'SubsamplingStep',
+    'Synchronization'
+]

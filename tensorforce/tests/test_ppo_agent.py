@@ -19,24 +19,28 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.tests.base_agent_test import BaseAgentTest, RunMode
+from tensorforce.tests.base_agent_test import BaseAgentTest
 from tensorforce.agents import PPOAgent
 
 
 class TestPPOAgent(BaseAgentTest, unittest.TestCase):
 
     agent = PPOAgent
-    deterministic = False
     config = dict(
-        batch_size=8
-    )
-
-    multi_config = dict(
-        batch_size=32,
+        update_mode=dict(
+            unit='episodes',
+            batch_size=4,
+            frequency=4
+        ),
+        memory=dict(
+            type='latest',
+            include_next_states=False,
+            capacity=100
+        ),
         step_optimizer=dict(
             type='adam',
-            learning_rate=0.001
-        )
+            learning_rate=1e-3
+        ),
+        subsampling_fraction=0.3,
+        optimization_steps=20
     )
-
-    run_mode = RunMode.SINGLE | RunMode.MULTI_THREADED

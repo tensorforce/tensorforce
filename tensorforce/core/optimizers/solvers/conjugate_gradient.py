@@ -99,7 +99,7 @@ class ConjugateGradient(Iterative):
 
         # r_0 := b - A * x_0
         # c_0 := r_0
-        conjugate = residual = [t - fx for t, fx in zip(b, self.fn_x(x=x_init))]
+        conjugate = residual = [t - fx for t, fx in zip(b, self.fn_x(x_init))]
 
         # r_0^2 := r^T * r
         squared_residual = tf.add_n(inputs=[tf.reduce_sum(input_tensor=(res * res)) for res in residual])
@@ -125,7 +125,7 @@ class ConjugateGradient(Iterative):
         )
 
         # Ac := A * c_t
-        A_conjugate = self.fn_x(x=conjugate)
+        A_conjugate = self.fn_x(conjugate)
 
         # TODO: reference?
         if self.damping > 0.0:

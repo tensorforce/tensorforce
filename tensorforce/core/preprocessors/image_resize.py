@@ -17,27 +17,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import tensorflow as tf
-
-from tensorforce import util
-from tensorforce.core.preprocessing import Preprocessor
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class Standardize(Preprocessor):
+class ImageResize(Preprocessor):
     """
-    Standardize state. Subtract mean and divide by standard deviation.
+    Resize image to width x height.
     """
 
-    def __init__(self, across_batch=False, scope='standardize', summary_labels=()):
-        self.across_batch = across_batch
-        super(Standardize, self).__init__(scope=scope, summary_labels=summary_labels)
+    def __init__(self, shape, width, height, scope='image_resize', summary_labels=()):
+        self.size = (width, height)
+        super(ImageResize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
-        if self.across_batch:
-            axes = tuple(range(util.rank(tensor)))
-        else:
-            axes = tuple(range(1, util.rank(tensor)))
+        return tf.image.resize_images(images=tensor, size=self.size)
 
-        mean, variance = tf.nn.moments(x=tensor, axes=axes, keep_dims=True)
-        return (tensor - mean) / tf.maximum(x=tf.sqrt(variance), y=util.epsilon)
+    def processed_shape(self, shape):
+        return self.size + (shape[-1],)

@@ -20,20 +20,29 @@ from __future__ import print_function
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.preprocessing import Preprocessor
+from tensorforce.core.preprocessors import Preprocessor
 
 
-class Flatten(Preprocessor):
+class Standardize(Preprocessor):
     """
-    Normalize state. Subtract minimal value and divide by range.
+    Standardize state. Subtract mean and divide by standard deviation.
     """
 
-    def __init__(self, scope='flatten', summary_labels=()):
-        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
-
-    def processed_shape(self, shape):
-        return -1, util.prod(shape[1:])
+    def __init__(
+        self,
+        shape,
+        across_batch=False,
+        scope='standardize',
+        summary_labels=()
+    ):
+        self.across_batch = across_batch
+        super(Standardize, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def tf_process(self, tensor):
-        # Flatten tensor
-        return tf.reshape(tensor=tensor, shape=self.processed_shape(util.shape(tensor)))
+        if self.across_batch:
+            axes = tuple(range(util.rank(tensor)))
+        else:
+            axes = tuple(range(1, util.rank(tensor)))
+
+        mean, variance = tf.nn.moments(x=tensor, axes=axes, keep_dims=True)
+        return (tensor - mean) / tf.maximum(x=tf.sqrt(variance), y=util.epsilon)

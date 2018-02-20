@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -26,11 +25,11 @@ from tensorforce.core.baselines import Baseline
 
 class NetworkBaseline(Baseline):
     """
-    Baseline based on a TensorForce network, used when parameters are shared between
-    the value function and the baseline.
+    Baseline based on a TensorForce network, used when parameters are shared between the value
+    function and the baseline.
     """
 
-    def __init__(self, network_spec, scope='network-baseline', summary_labels=()):
+    def __init__(self, network, scope='network-baseline', summary_labels=()):
         """
         Network baseline.
 
@@ -38,27 +37,21 @@ class NetworkBaseline(Baseline):
             network_spec: Network specification dict
         """
         self.network = Network.from_spec(
-            spec=network_spec,
+            spec=network,
             kwargs=dict(summary_labels=summary_labels)
         )
-        assert len(self.network.internals_input()) == 0
+        assert len(self.network.internals_spec()) == 0
 
         self.linear = Linear(size=1, bias=0.0, scope='prediction')
 
-        super(NetworkBaseline, self).__init__(scope, summary_labels)
+        super(NetworkBaseline, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_predict(self, states, update):
-        embedding = self.network.apply(x=states, internals=(), update=update)
+    def tf_predict(self, states, internals, update):
+        embedding = self.network.apply(x=states, internals=internals, update=update)
         prediction = self.linear.apply(x=embedding)
         return tf.squeeze(input=prediction, axis=1)
 
     def tf_regularization_loss(self):
-        """
-        Creates the TensorFlow operations for the baseline regularization loss.
-
-        Returns:
-            Regularization loss tensor
-        """
         regularization_loss = super(NetworkBaseline, self).tf_regularization_loss()
         if regularization_loss is None:
             losses = list()
@@ -78,10 +71,10 @@ class NetworkBaseline(Baseline):
         else:
             return None
 
-    def get_variables(self, include_non_trainable=False):
-        baseline_variables = super(NetworkBaseline, self).get_variables(include_non_trainable=include_non_trainable)
-        network_variables = self.network.get_variables(include_non_trainable=include_non_trainable)
-        layer_variables = self.linear.get_variables(include_non_trainable=include_non_trainable)
+    def get_variables(self, include_nontrainable=False):
+        baseline_variables = super(NetworkBaseline, self).get_variables(include_nontrainable=include_nontrainable)
+        network_variables = self.network.get_variables(include_nontrainable=include_nontrainable)
+        layer_variables = self.linear.get_variables(include_nontrainable=include_nontrainable)
 
         return baseline_variables + network_variables + layer_variables
 

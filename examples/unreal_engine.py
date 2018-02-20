@@ -141,11 +141,11 @@ def main():
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
 
-    def episode_finished(r):
+    def episode_finished(r, id_):
         if r.episode % report_episodes == 0:
-            steps_per_second = r.timestep / (time.time() - r.start_time)
-            logger.info("Finished episode {} after {} timesteps. Steps Per Second {}".format(
-                r.agent.episode, r.episode_timestep, steps_per_second
+            steps_per_second = r.global_timestep / (time.time() - r.start_time)
+            logger.info("Finished episode {} after {} timesteps. SPS={}".format(
+                r.global_episode, r.episode_timestep, steps_per_second
             ))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) /

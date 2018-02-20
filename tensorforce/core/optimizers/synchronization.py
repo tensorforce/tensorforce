@@ -29,7 +29,7 @@ class Synchronization(Optimizer):
     set of source variables.
     """
 
-    def __init__(self, sync_frequency=1, update_weight=1.0):
+    def __init__(self, sync_frequency=1, update_weight=1.0, scope='synchronization', summary_labels=()):
         """
         Creates a new synchronization optimizer instance.
 
@@ -39,13 +39,13 @@ class Synchronization(Optimizer):
             update_weight: The update weight, 1.0 meaning a full assignment of the source  
             variables values.
         """
-        super(Synchronization, self).__init__()
-
         assert isinstance(sync_frequency, int) and sync_frequency > 0
         self.sync_frequency = sync_frequency
 
         assert isinstance(update_weight, float) and update_weight > 0.0
         self.update_weight = update_weight
+
+        super(Synchronization, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def tf_step(self, time, variables, source_variables, **kwargs):
         """
@@ -62,7 +62,7 @@ class Synchronization(Optimizer):
         """
         assert all(util.shape(source) == util.shape(target) for source, target in zip(source_variables, variables))
 
-        self.last_sync = tf.get_variable(
+        last_sync = tf.get_variable(
             name='last-sync',
             dtype=tf.int32,
             initializer=(-self.sync_frequency),
@@ -71,12 +71,12 @@ class Synchronization(Optimizer):
 
         def sync():
             deltas = list()
-            for source, target in zip(source_variables, variables):
-                delta = self.update_weight * (source - target)
+            for source_variable, target_variable in zip(source_variables, variables):
+                delta = self.update_weight * (source_variable - target_variable)
                 deltas.append(delta)
 
             applied = self.apply_step(variables=variables, deltas=deltas)
-            last_sync_updated = self.last_sync.assign(value=time)
+            last_sync_updated = last_sync.assign(value=time)
 
             with tf.control_dependencies(control_inputs=(applied, last_sync_updated)):
                 # Trivial operation to enforce control dependency
@@ -89,8 +89,5 @@ class Synchronization(Optimizer):
                 deltas.append(delta)
             return deltas
 
-        do_sync = (time - self.last_sync >= self.sync_frequency)
+        do_sync = (time - last_sync >= self.sync_frequency)
         return tf.cond(pred=do_sync, true_fn=sync, false_fn=no_sync)
-
-    def get_variables(self):
-        return super(Synchronization, self).get_variables() + [self.last_sync]

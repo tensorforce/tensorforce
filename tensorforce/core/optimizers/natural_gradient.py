@@ -34,8 +34,8 @@ class NaturalGradient(Optimizer):
         cg_max_iterations=20,
         cg_damping=1e-3,
         cg_unroll_loop=False,
-        summaries=None,
-        summary_labels=None
+        scope='natural-gradient',
+        summary_labels=()
     ):
         """
         Creates a new natural gradient optimizer instance.
@@ -46,8 +46,6 @@ class NaturalGradient(Optimizer):
             cg_damping: Conjugate gradient solver damping factor.
             cg_unroll_loop: Unroll conjugate gradient loop if true.
         """
-        super(NaturalGradient, self).__init__(summaries=summaries, summary_labels=summary_labels)
-
         assert learning_rate > 0.0
         self.learning_rate = learning_rate
 
@@ -57,13 +55,25 @@ class NaturalGradient(Optimizer):
             unroll_loop=cg_unroll_loop
         )
 
-    def tf_step(self, time, variables, fn_loss, fn_kl_divergence, return_estimated_improvement=False, **kwargs):
+        super(NaturalGradient, self).__init__(scope=scope, summary_labels=summary_labels)
+
+    def tf_step(
+        self,
+        time,
+        variables,
+        arguments,
+        fn_loss,
+        fn_kl_divergence,
+        return_estimated_improvement=False,
+        **kwargs
+    ):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
             time: Time tensor.
             variables: List of variables to optimize.
+            arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
             fn_kl_divergence: A callable returning the KL-divergence relative to the current model.
             return_estimated_improvement: Returns the estimated improvement resulting from the  
@@ -75,27 +85,37 @@ class NaturalGradient(Optimizer):
         """
 
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
-        # For more details, see our blogpost: [LINK]
+        # For more details, see our blogpost:
+        # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/
+
+        # from tensorforce import util
+        # arguments = util.map_tensors(fn=tf.stop_gradient, tensors=arguments)
+
+        # kldiv
+        kldiv = fn_kl_divergence(**arguments)
 
         # grad(kldiv)
-        kldiv_gradients = tf.gradients(ys=fn_kl_divergence(), xs=variables)
+        kldiv_gradients = tf.gradients(ys=kldiv, xs=variables)
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
-        # Incorporating the product prevents having to actually calculate the entire matrix explicitly.
-        def fisher_matrix_product(x):
+        # Incorporating the product prevents having to calculate the entire matrix explicitly.
+        def fisher_matrix_product(deltas):
             # Gradient is not propagated through solver.
-            x = [tf.stop_gradient(input=delta) for delta in x]
+            deltas = [tf.stop_gradient(input=delta) for delta in deltas]
 
             # delta' * grad(kldiv)
-            x_kldiv_gradients = tf.add_n(inputs=[
-                tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(x, kldiv_gradients)
+            delta_kldiv_gradients = tf.add_n(inputs=[
+                tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(deltas, kldiv_gradients)
             ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
-            return tf.gradients(ys=x_kldiv_gradients, xs=variables)
+            return tf.gradients(ys=delta_kldiv_gradients, xs=variables)
+
+        # loss
+        loss = fn_loss(**arguments)
 
         # grad(loss)
-        loss_gradients = tf.gradients(ys=fn_loss(), xs=variables)
+        loss_gradients = tf.gradients(ys=loss, xs=variables)
 
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
@@ -103,7 +123,7 @@ class NaturalGradient(Optimizer):
         deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients])
 
         # delta' * F
-        delta_fisher_matrix_product = fisher_matrix_product(x=deltas)
+        delta_fisher_matrix_product = fisher_matrix_product(deltas=deltas)
 
         # c' = 0.5 * delta' * F * delta'  (= lambda * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?

@@ -50,10 +50,19 @@ class TestTutorialCode(unittest.TestCase):
 
         # Create a Trust Region Policy Optimization agent
         agent = TRPOAgent(
-            states_spec=dict(shape=(10,), type='float'),
-            actions_spec=dict(type='int', num_actions=2),
-            network_spec=[dict(type='dense', size=50), dict(type='dense', size=50)],
-            batch_size=100,
+            states=dict(shape=(10,), type='float'),
+            actions=dict(type='int', num_actions=2),
+            network=[dict(type='dense', size=50), dict(type='dense', size=50)],
+            update_mode=dict(
+                unit='episodes',
+                batch_size=1,
+                frequency=1
+            ),
+            memory=dict(
+                type='latest',
+                include_next_states=False,
+                capacity=100
+            )
         )
 
         # Get new data from somewhere, e.g. a client to a web app
@@ -90,15 +99,19 @@ class TestTutorialCode(unittest.TestCase):
         actions = dict(type='int', num_actions=5)
 
         agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
-            memory=dict(
-                type='replay',
-                capacity=1000
+            states=states,
+            actions=actions,
+            network=network_spec,
+            update_mode=dict(
+                unit='timesteps',
+                batch_size=1,
+                frequency=1
             ),
-            batch_size=8,
-            first_update=100,
+            memory=dict(
+                type='latest',
+                include_next_states=True,
+                capacity=100
+            ),
             target_sync_frequency=10
         )
 
@@ -198,14 +211,19 @@ class TestTutorialCode(unittest.TestCase):
         ]
 
         agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
+            states=states,
+            actions=actions,
+            network=network_spec,
+            update_mode=dict(
+                unit='timesteps',
+                batch_size=8,
+                frequency=4
+            ),
             memory=dict(
                 type='replay',
-                capacity=1000
-            ),
-            batch_size=8
+                include_next_states=True,
+                capacity=100
+            )
         )
 
         agent.close()
@@ -255,14 +273,14 @@ class TestTutorialCode(unittest.TestCase):
         )
 
         agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=CustomNetwork,
+            states=states,
+            actions=actions,
+            network=CustomNetwork,
             memory=dict(
                 type='replay',
-                capacity=1000
-            ),
-            batch_size=8
+                include_next_states=True,
+                capacity=100
+            )
         )
 
         agent.close()
@@ -274,22 +292,21 @@ class TestTutorialCode(unittest.TestCase):
 
             def __init__(self, size, scope='lstm', summary_labels=()):
                 self.size = size
-                super(Lstm, self).__init__(num_internals=1, scope=scope, summary_labels=summary_labels)
+                super(Lstm, self).__init__(scope=scope, summary_labels=summary_labels)
 
             def tf_apply(self, x, update, state):
                 state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
                 self.lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
-
                 x, state = self.lstm_cell(inputs=x, state=state)
+                state = tf.stack(values=(state.c, state.h), axis=1)
+                return x, dict(state=state)
 
-                internal_output = tf.stack(values=(state.c, state.h), axis=1)
-                return x, (internal_output,)
-
-            def internals_input(self):
-                return super(Lstm, self).internals_input() + [tf.placeholder(dtype=tf.float32, shape=(None, 2, self.size))]
-
-            def internals_init(self):
-                return super(Lstm, self).internals_init() + [np.zeros(shape=(2, self.size))]
+            def internals_spec(self):
+                return dict(state=dict(
+                    type='float',
+                    shape=(2, self.size),
+                    initialization='zeros'
+                ))
 
         ### Test LSTM
         states = dict(shape=(10,), type='float')
@@ -299,14 +316,19 @@ class TestTutorialCode(unittest.TestCase):
         ]
 
         agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
+            states=states,
+            actions=actions,
+            network=network_spec,
+            update_mode=dict(
+                unit='timesteps',
+                batch_size=100,
+                frequency=4
+            ),
             memory=dict(
                 type='replay',
-                capacity=1000
-            ),
-            batch_size=8
+                include_next_states=True,
+                capacity=100
+            )
         )
 
         agent.close()
@@ -336,17 +358,16 @@ class TestTutorialCode(unittest.TestCase):
         ### Test preprocessing configuration
 
         agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
+            states=states,
+            actions=actions,
+            network=network_spec,
             memory=dict(
                 type='replay',
-                capacity=1000
+                include_next_states=True,
+                capacity=100
             ),
-            batch_size=8,
-            first_update=100,
             target_sync_frequency=50,
-            states_preprocessing_spec=states_preprocessing_spec
+            states_preprocessing=states_preprocessing_spec
         )
 
         agent.close()
@@ -356,21 +377,21 @@ class TestTutorialCode(unittest.TestCase):
         exploration = dict(
             type='ornstein_uhlenbeck',
             sigma=0.1,
-            mu=0,
+            mu=0.0,
             theta=0.1
         )
 
          ### Test continuous action exploration
         agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
+            states=states,
+            actions=actions,
+            network=network_spec,
             memory=dict(
                 type='replay',
-                capacity=1000
+                include_next_states=True,
+                capacity=100
             ),
-            batch_size=8,
-            explorations_spec=exploration
+            actions_exploration=exploration
         )
 
         agent.close()
@@ -386,15 +407,15 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Test discrete action exploration
         agent = DQNAgent(
-            states_spec=states,
-            actions_spec=actions,
-            network_spec=network_spec,
+            states=states,
+            actions=actions,
+            network=network_spec,
             memory=dict(
                 type='replay',
-                capacity=1000
+                include_next_states=True,
+                capacity=100
             ),
-            batch_size=8,
-            explorations_spec=exploration
+            actions_exploration=exploration
         )
 
         agent.close()
@@ -411,15 +432,14 @@ class TestTutorialCode(unittest.TestCase):
         ]
 
         agent = DQNAgent(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec,
+            states=environment.states,
+            actions=environment.actions,
+            network=network_spec,
             memory=dict(
                 type='replay',
-                capacity=1000
+                include_next_states=True,
+                capacity=100
             ),
-            batch_size=8,
-            first_update=100,
             target_sync_frequency=50
         )
         runner = Runner(agent=agent, environment=environment)
@@ -436,15 +456,14 @@ class TestTutorialCode(unittest.TestCase):
 
         ### Code block: next
         agent = DQNAgent(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec,
+            states=environment.states,
+            actions=environment.actions,
+            network=network_spec,
             memory=dict(
                 type='replay',
-                capacity=1000
+                include_next_states=True,
+                capacity=100
             ),
-            batch_size=8,
-            first_update=100,
             target_sync_frequency=50
         )
 

@@ -13,18 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.preprocessing.preprocessor import Preprocessor
-from tensorforce.core.preprocessing.sequence import Sequence
-from tensorforce.core.preprocessing.standardize import Standardize
-from tensorforce.core.preprocessing.running_standardize import RunningStandardize
-from tensorforce.core.preprocessing.normalize import Normalize
-from tensorforce.core.preprocessing.grayscale import Grayscale
-from tensorforce.core.preprocessing.image_resize import ImageResize
-from tensorforce.core.preprocessing.divide import Divide
-from tensorforce.core.preprocessing.clip import Clip
-from tensorforce.core.preprocessing.flatten import Flatten
-from tensorforce.core.preprocessing.preprocessor_stack import PreprocessorStack
-
+from tensorforce.core.preprocessors.preprocessor import Preprocessor, PreprocessorStack
+from tensorforce.core.preprocessors.sequence import Sequence
+from tensorforce.core.preprocessors.standardize import Standardize
+from tensorforce.core.preprocessors.running_standardize import RunningStandardize
+from tensorforce.core.preprocessors.normalize import Normalize
+from tensorforce.core.preprocessors.grayscale import Grayscale
+from tensorforce.core.preprocessors.image_resize import ImageResize
+from tensorforce.core.preprocessors.divide import Divide
+from tensorforce.core.preprocessors.clip import Clip
+from tensorforce.core.preprocessors.flatten import Flatten
 
 
 preprocessors = dict(
@@ -41,16 +39,16 @@ preprocessors = dict(
 
 
 __all__ = [
+    'preprocessors',
     'Preprocessor',
+    'PreprocessorStack',
     'Sequence',
     'Standardize',
     'RunningStandardize',
     'Normalize',
     'Grayscale',
     'ImageResize',
-    'PreprocessorStack',
     'Divide',
     'Clip',
-    'Flatten',
-    'preprocessors'
+    'Flatten'
 ]

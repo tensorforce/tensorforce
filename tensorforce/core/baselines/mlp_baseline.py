@@ -33,8 +33,8 @@ class MLPBaseline(NetworkBaseline):
             sizes: List of dense layer sizes
         """
 
-        layers_spec = []
+        network = []
         for size in sizes:
-            layers_spec.append({'type': 'dense', 'size': size})
+            network.append(dict(type='dense', size=size))
 
-        super(MLPBaseline, self).__init__(layers_spec, scope, summary_labels)
+        super(MLPBaseline, self).__init__(network=network, scope=scope, summary_labels=summary_labels)

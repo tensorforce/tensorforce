@@ -18,12 +18,10 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-
-import sys
-import unittest
-
 import numpy as np
 from six.moves import xrange
+import sys
+import unittest
 
 from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner
@@ -46,25 +44,61 @@ class TestQuickstartExample(unittest.TestCase):
             environment = OpenAIGym('CartPole-v0')
 
             # Network specification for the model
-            network_spec = [
+            network = [
                 dict(type='dense', size=32),
                 dict(type='dense', size=32)
             ]
 
             # Create the agent
             agent = PPOAgent(
-                states_spec=environment.states,
-                actions_spec=environment.actions,
-                network_spec=network_spec,
-                batch_size=4000,
+                states=environment.states,
+                actions=environment.actions,
+                network=network,
+                # Model
+                states_preprocessing=None,
+                actions_exploration=None,
+                reward_preprocessing=None,
+                # MemoryModel
+                update_mode=dict(
+                    unit='episodes',
+                    # 10 episodes per update
+                    batch_size=10,
+                    # Every 10 episodes
+                    frequency=10
+                ),
+                memory=dict(
+                    type='latest',
+                    include_next_states=False,
+                    capacity=5000
+                ),
+                discount=0.99,
+                # DistributionModel
+                distributions=None,
+                entropy_regularization=0.01,
+                # PGModel
+                baseline_mode='states',
+                baseline=dict(
+                    type='mlp',
+                    sizes=[32, 32]
+                ),
+                baseline_optimizer=dict(
+                    type='multi_step',
+                    optimizer=dict(
+                        type='adam',
+                        learning_rate=1e-3
+                    ),
+                    num_steps=5
+                ),
+                gae_lambda=None,
+                # PGLRModel
+                likelihood_ratio_clipping=0.2,
+                # PPOAgent
                 step_optimizer=dict(
                     type='adam',
-                    learning_rate=1e-2
+                    learning_rate=1e-3
                 ),
-                optimization_steps=5,
-                discount=0.99,
-                entropy_regularization=0.01,
-                likelihood_ratio_clipping=0.2
+                subsampling_fraction=0.1,
+                optimization_steps=50
             )
 
             # Initialize the runner

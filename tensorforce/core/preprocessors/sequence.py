@@ -80,7 +80,12 @@ class Sequence(Preprocessor):
             assignment = tf.assign(ref=index, value=((tf.maximum(x=index, y=0) + 1) % self.length))
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf.expand_dims(input=tf.concat(values=previous_states, axis=-1), axis=0)
+            if self.add_rank:
+                stack = tf.stack(values=previous_states, axis=-1)
+            else:
+                stack = tf.concat(values=previous_states, axis=-1)
+            batch_one = tf.expand_dims(input=stack, axis=0)
+            return batch_one
 
     def processed_shape(self, shape):
         if self.add_rank:

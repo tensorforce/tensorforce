@@ -133,7 +133,7 @@ class MsgPackNumpyProtocol(object):
 
     def send(self, message, socket_):
         """
-        Sends a message (dict) to the socket. Message consists of a 80byte len header followed by a msgpack-numpy
+        Sends a message (dict) to the socket. Message consists of a 8-byte len header followed by a msgpack-numpy
             encoded dict.
 
         Args:

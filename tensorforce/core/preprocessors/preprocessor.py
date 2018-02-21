@@ -156,9 +156,9 @@ class PreprocessorStack(object):
             spec = [spec]
 
         stack = PreprocessorStack()
-        for spec in spec:
+        for spec_ in spec:
             preprocessor = util.get_object(
-                obj=spec,
+                obj=spec_,
                 predefined_objects=tensorforce.core.preprocessors.preprocessors,
                 kwargs=kwargs
             )

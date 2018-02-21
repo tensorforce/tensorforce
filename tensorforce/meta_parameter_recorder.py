@@ -81,7 +81,7 @@ class MetaParameterRecorder(object):
                 )
             self.meta_params[key] = custom_dict[key]
         # This line assumes the merge data came from summary_spec['meta_dict'], remove this from summary_spec
-        del self.meta_params['summary_spec']['meta_dict']
+        del self.meta_params['summarizer']['meta_dict']
 
     def text_output(self, format_type=1):
         print('======================= ' + self.meta_params['AgentName'] + ' ====================================')

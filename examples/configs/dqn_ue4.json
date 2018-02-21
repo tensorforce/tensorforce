@@ -1,0 +1,43 @@
+{
+    "type": "dqn_agent",
+    "batch_size": 64,
+    "memory": {
+        "type": "replay",
+        "capacity": 10000
+    },
+    "optimizer": {
+      "type": "adam",
+      "learning_rate": 1e-3
+    },
+
+    "discount": 0.97,
+
+    "states_preprocessing": [
+        {
+            "type": "divide",
+            "scale": 255
+        },
+        {
+            "type": "sequence",
+            "length": 4,
+            "add_rank": true
+        }
+    ],
+
+    "actions_exploration": {
+        "type": "epsilon_decay",
+        "initial_epsilon": 1.0,
+        "final_epsilon": 0.1,
+        "timesteps": 100000
+    },
+
+    "saver": {
+        "directory": null,
+        "seconds": 600
+    },
+    "summarizer": {
+        "directory": null,
+        "labels": [],
+        "seconds": 120
+    }
+}

@@ -24,7 +24,7 @@
         "num_steps": 5
     },
 
-    "states_preprocessing_spec": [
+    "states_preprocessing": [
         {
             "type": "image_resize",
             "width": 84,

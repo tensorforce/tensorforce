@@ -12,7 +12,7 @@
 
     "discount": 0.97,
 
-    "states_preprocessing_spec": [
+    "states_preprocessing": [
         {
             "type": "image_resize",
             "width": 84,
@@ -27,7 +27,7 @@
         }
     ],
 
-    "explorations_spec": {
+    "actions_exploration": {
         "type": "epsilon_decay",
         "initial_epsilon": 1.0,
         "final_epsilon": 0.1,

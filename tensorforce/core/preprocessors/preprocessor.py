@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
+import copy
 
 from tensorforce import util
 import tensorforce.core.preprocessors
@@ -157,10 +158,12 @@ class PreprocessorStack(object):
 
         stack = PreprocessorStack()
         for spec_ in spec:
+            # need to deep copy, otherwise will add first processors spec_ to kwargs to second processor
+            kwargs_ = copy.deepcopy(kwargs)
             preprocessor = util.get_object(
                 obj=spec_,
                 predefined_objects=tensorforce.core.preprocessors.preprocessors,
-                kwargs=kwargs
+                kwargs=kwargs_
             )
             assert isinstance(preprocessor, Preprocessor)
             stack.preprocessors.append(preprocessor)

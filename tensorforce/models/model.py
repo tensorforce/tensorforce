@@ -593,7 +593,7 @@ class Model(object):
 
         if self.states_preprocessing_spec is None:
             for name, state in self.states_spec.items():
-                state['shape'] = state['shape']
+                state['processed_shape'] = state['shape']
         elif not isinstance(self.states_preprocessing_spec, list) and \
                 all(name in self.states_spec for name in self.states_preprocessing_spec):
             for name, state in self.states_spec.items():
@@ -602,10 +602,10 @@ class Model(object):
                         spec=self.states_preprocessing_spec[name],
                         kwargs=dict(shape=state['shape'])
                     )
-                    state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+                    state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
                     self.states_preprocessing[name] = preprocessing
                 else:
-                    state['shape'] = state['shape']
+                    state['processed_shape'] = state['shape']
         # single preprocessor for all components of our state space
         elif "type" in self.states_preprocessing_spec:
             preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
@@ -618,7 +618,7 @@ class Model(object):
                     spec=self.states_preprocessing_spec,
                     kwargs=dict(shape=state['shape'])
                 )
-                state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+                state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
                 self.states_preprocessing[name] = preprocessing
 
         # Internals
@@ -649,11 +649,11 @@ class Model(object):
         if self.actions_exploration_spec is None:
             pass
         elif all(name in self.actions_spec for name in self.actions_exploration_spec):
-            for name, state in self.actions_spec.items():
+            for name, action in self.actions_spec.items():
                 if name in self.actions_exploration:
                     self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec[name])
         else:
-            for name, state in self.actions_spec.items():
+            for name, action in self.actions_spec.items():
                 self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec)
 
         # Terminal
@@ -741,7 +741,7 @@ class Model(object):
         for name, state in self.states_spec.items():
             self.states_buffer[name] = tf.get_variable(
                 name=('state-' + name),
-                shape=((capacity,) + tuple(state['shape'])),
+                shape=((capacity,) + tuple(state['processed_shape'])),
                 dtype=util.tf_dtype(state['type']),
                 trainable=False
             )

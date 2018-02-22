@@ -27,7 +27,7 @@ be tracked here in detail but through github issues.
 - In December, a number of bugs regarding exploration and a numberical issue in generalised 
   advantage estimation were fixed which seem to increase performance so an update is recommended.
 - Agent structure saw major refactoring to remove redundant code, introduced a ```LearningAgent```
-  to hold common fields and distinguish from non-learning agents (e.g. ```RandomAgent``)
+  to hold common fields and distinguish from non-learning agents (e.g. ```RandomAgent```)
 - We are preparing to move memories into the TensorFlow graph which will fix sequences and allow subsampling
   in the optimizers. Further, new episode/batch semantics will be enabled (e.g. episode based instead of
   timestep based batching). 

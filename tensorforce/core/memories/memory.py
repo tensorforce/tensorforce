@@ -118,7 +118,7 @@ class Memory(object):
 
     def tf_retrieve_episodes(self, n):
         """
-        Retrieves a given number of episodesrom the stored experiences.
+        Retrieves a given number of episodes from the stored experiences.
 
         Args:
             n: Number of episodes to retrieve.

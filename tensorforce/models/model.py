@@ -593,7 +593,7 @@ class Model(object):
 
         if self.states_preprocessing_spec is None:
             for name, state in self.states_spec.items():
-                state['shape'] = state['shape']
+                state['unprocessed_shape'] = state['shape']
         elif not isinstance(self.states_preprocessing_spec, list) and \
                 all(name in self.states_spec for name in self.states_preprocessing_spec):
             for name, state in self.states_spec.items():
@@ -602,15 +602,17 @@ class Model(object):
                         spec=self.states_preprocessing_spec[name],
                         kwargs=dict(shape=state['shape'])
                     )
-                    state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+                    state['unprocessed_shape'] = state['shape']
+                    state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
                     self.states_preprocessing[name] = preprocessing
                 else:
-                    state['shape'] = state['shape']
+                    state['unprocessed_shape'] = state['shape']
         # single preprocessor for all components of our state space
         elif "type" in self.states_preprocessing_spec:
             preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
             for name, state in self.states_spec.items():
-                state['processed_shape'] = preprocessing.processed_shape(shape=state['shape'])
+                state['unprocessed_shape'] = state['shape']
+                state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
                 self.states_preprocessing[name] = preprocessing
         else:
             for name, state in self.states_spec.items():
@@ -618,7 +620,8 @@ class Model(object):
                     spec=self.states_preprocessing_spec,
                     kwargs=dict(shape=state['shape'])
                 )
-                state['shape'] = preprocessing.processed_shape(shape=state['shape'])
+                state['unprocessed_shape'] = state['shape']
+                state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
                 self.states_preprocessing[name] = preprocessing
 
         # Internals
@@ -649,11 +652,11 @@ class Model(object):
         if self.actions_exploration_spec is None:
             pass
         elif all(name in self.actions_spec for name in self.actions_exploration_spec):
-            for name, state in self.actions_spec.items():
+            for name, action in self.actions_spec.items():
                 if name in self.actions_exploration:
                     self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec[name])
         else:
-            for name, state in self.actions_spec.items():
+            for name, action in self.actions_spec.items():
                 self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec)
 
         # Terminal
@@ -1056,7 +1059,7 @@ class Model(object):
             if batched is None:
                 name = next(iter(states))
                 state = np.asarray(states[name])
-                batched = (state.ndim != len(self.states_spec[name]['shape']))
+                batched = (state.ndim != len(self.states_spec[name]['unprocessed_shape']))
             if batched:
                 feed_dict.update({state_input: states[name] for name, state_input in self.states_input.items()})
             else:
@@ -1123,7 +1126,7 @@ class Model(object):
         """
         name = next(iter(states))
         state = np.asarray(states[name])
-        batched = (state.ndim != len(self.states_spec[name]['shape']))
+        batched = (state.ndim != len(self.states_spec[name]['unprocessed_shape']))
         if batched:
             assert self.batching_capacity is not None and state.shape[0] <= self.batching_capacity
 

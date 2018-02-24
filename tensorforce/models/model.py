@@ -170,6 +170,7 @@ class Model(object):
         self.terminal_input = None
         self.reward_input = None
         self.deterministic_input = None
+        self.independent_input = None
         self.update_input = None
         self.internals_init = None
 
@@ -327,7 +328,9 @@ class Model(object):
                 actions = util.map_tensors(fn=tf.identity, tensors=self.actions_input)
                 terminal = tf.identity(input=self.terminal_input)
                 reward = tf.identity(input=self.reward_input)
+                # Probably both deterministic and independent should be the same at some point.
                 deterministic = tf.identity(input=self.deterministic_input)
+                independent = tf.identity(input=self.independent_input)
 
                 states, actions, reward = self.fn_preprocess(states=states, actions=actions, reward=reward)
 
@@ -337,7 +340,8 @@ class Model(object):
                     actions=actions,
                     terminal=terminal,
                     reward=reward,
-                    deterministic=deterministic
+                    deterministic=deterministic,
+                    independent=independent
                 )
 
                 # Add all summaries specified in summary_labels
@@ -677,8 +681,9 @@ class Model(object):
             if self.reward_preprocessing.processed_shape(shape=()) != ():
                 raise TensorForceError("Invalid reward preprocessing!")
 
-        # Deterministic action flag
+        # Deterministic/independent action flag (should probably be the same)
         self.deterministic_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='deterministic')
+        self.independent_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='independent')
 
         # TensorFlow functions
         self.fn_initialize = tf.make_template(
@@ -868,7 +873,7 @@ class Model(object):
         """
         raise NotImplementedError
 
-    def create_act_operations(self, states, internals, deterministic):
+    def create_act_operations(self, states, internals, deterministic, independent):
         # Optional variable noise
         operations = list()
         if self.variable_noise is not None and self.variable_noise > 0.0:
@@ -893,7 +898,15 @@ class Model(object):
                 deterministic=deterministic
             )
 
-            # Actions exploration
+        # Subtract variable noise
+        with tf.control_dependencies(control_inputs=list(self.actions_output.values())):
+            operations = list()
+            if self.variable_noise is not None and self.variable_noise > 0.0:
+                for variable, noise_delta in zip(self.get_variables(), noise_deltas):
+                    operations.append(variable.assign_sub(delta=noise_delta))
+
+        # Actions exploration
+        with tf.control_dependencies(control_inputs=operations):
             for name, exploration in self.actions_exploration.items():
                 self.actions_output[name] = tf.cond(
                     pred=self.deterministic_input,
@@ -905,6 +918,12 @@ class Model(object):
                     ))
                 )
 
+        # Independent act not followed by observe.
+        def independent_act():
+            return self.global_timestep
+
+        # Normal act followed by observe, with additional operations.
+        def normal_act():
             # Store current states, internals and actions
             operations = list()
             batch_size = tf.shape(input=next(iter(states.values())))[0]
@@ -924,23 +943,21 @@ class Model(object):
                     value=action
                 ))
 
-        with tf.control_dependencies(control_inputs=operations):
-            operations = list()
+            with tf.control_dependencies(control_inputs=operations):
+                operations = list()
 
-            operations.append(tf.assign_add(ref=self.buffer_index, value=batch_size))
+                operations.append(tf.assign_add(ref=self.buffer_index, value=batch_size))
 
-            # Increment timestep
-            operations.append(tf.assign_add(ref=self.timestep, value=batch_size))
-            operations.append(tf.assign_add(ref=self.global_timestep, value=batch_size))
+                # Increment timestep
+                operations.append(tf.assign_add(ref=self.timestep, value=batch_size))
+                operations.append(tf.assign_add(ref=self.global_timestep, value=batch_size))
 
-            # Subtract variable noise
-            if self.variable_noise is not None and self.variable_noise > 0.0:
-                for variable, noise_delta in zip(self.get_variables(), noise_deltas):
-                    operations.append(variable.assign_sub(delta=noise_delta))
+            with tf.control_dependencies(control_inputs=operations):
+                # Trivial operation to enforce control dependency
+                return self.global_timestep + 0
 
-        with tf.control_dependencies(control_inputs=operations):
-            # Trivial operation to enforce control dependency
-            self.timestep_output = self.global_timestep + 0
+        # Only increment timestep and update buffer if act not independent
+        self.timestep_output = tf.cond(pred=independent, true_fn=independent_act, false_fn=normal_act)
 
     def create_observe_operations(self, terminal, reward):
         # Increment episode
@@ -976,11 +993,16 @@ class Model(object):
 
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
-    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent):
         """
         Creates output operations for acting, observing and interacting with the memory.
         """
-        self.create_act_operations(states=states, internals=internals, deterministic=deterministic)
+        self.create_act_operations(
+            states=states,
+            internals=internals,
+            deterministic=deterministic,
+            independent=independent
+        )
         self.create_observe_operations(reward=reward, terminal=terminal)
 
     def get_variables(self, include_submodules=False, include_nontrainable=False):
@@ -1051,7 +1073,16 @@ class Model(object):
 
         return episode, timestep, self.internals_init
 
-    def get_feed_dict(self, states=None, internals=None, actions=None, terminal=None, reward=None, deterministic=None):
+    def get_feed_dict(
+        self,
+        states=None,
+        internals=None,
+        actions=None,
+        terminal=None,
+        reward=None,
+        deterministic=None,
+        independent=None
+    ):
         feed_dict = dict()
         batched = None
 
@@ -1106,9 +1137,12 @@ class Model(object):
         if deterministic is not None:
             feed_dict[self.deterministic_input] = deterministic
 
+        if independent is not None:
+            feed_dict[self.independent_input] = independent
+
         return feed_dict
 
-    def act(self, states, internals, deterministic=False, fetch_tensors=None):
+    def act(self, states, internals, deterministic=False, independent=False, fetch_tensors=None):
         """
         Does a forward pass through the model to retrieve action (outputs) given inputs for state (and internal
         state, if applicable (e.g. RNNs))
@@ -1117,6 +1151,8 @@ class Model(object):
             states (dict): Dict of state values (each key represents one state space component).
             internals (dict): Dict of internal state values (each key represents one internal state component).
             deterministic (bool): If True, will not apply exploration after actions are calculated.
+            independent (bool): If true, action is not followed by observe (and hence not included
+                in updates).
 
         Returns:
             tuple:
@@ -1147,7 +1183,12 @@ class Model(object):
         #     feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)})
 
         # feed_dict[self.deterministic_input] = deterministic
-        feed_dict = self.get_feed_dict(states=states, internals=internals, deterministic=deterministic)
+        feed_dict = self.get_feed_dict(
+            states=states,
+            internals=internals,
+            deterministic=deterministic,
+            independent=independent
+        )
 
         fetch_list = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
         actions, internals, timestep = fetch_list[0:3]

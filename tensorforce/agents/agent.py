@@ -151,7 +151,7 @@ class Agent(object):
         self.episode, self.timestep, self.next_internals = self.model.reset()
         self.current_internals = self.next_internals
 
-    def act(self, states, deterministic=False, fetch_tensors=None):
+    def act(self, states, deterministic=False, independent=False, fetch_tensors=None):
         """
         Return action(s) for given state(s). States preprocessing and exploration are applied if  
         configured accordingly.
@@ -159,6 +159,8 @@ class Agent(object):
         Args:
             states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
             deterministic (bool): If true, no exploration and sampling is applied.
+            independent (bool): If true, action is not followed by observe (and hence not included
+                in updates).
             fetch_tensors (list): Optional String of named tensors to fetch
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
@@ -177,19 +179,22 @@ class Agent(object):
                 states=self.current_states,
                 internals=self.current_internals,
                 deterministic=deterministic,
+                independent=independent,
                 fetch_tensors=fetch_tensors
             )
 
             if self.unique_action:
                 return self.current_actions['action'], self.fetched_tensors
             else:
-                return self.current_actions, self.fetched_tensors            
+                return self.current_actions, self.fetched_tensors
+
         else:
             # Retrieve action
             self.current_actions, self.next_internals, self.timestep = self.model.act(
                 states=self.current_states,
                 internals=self.current_internals,
-                deterministic=deterministic
+                deterministic=deterministic,
+                independent=independent
             )
 
             if self.unique_action:

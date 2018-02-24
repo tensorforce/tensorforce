@@ -157,13 +157,13 @@ class PreprocessorStack(object):
             spec = [spec]
 
         stack = PreprocessorStack()
-        for spec_ in spec:
+        for preprocessor_spec in spec:
             # need to deep copy, otherwise will add first processors spec_ to kwargs to second processor
-            kwargs_ = copy.deepcopy(kwargs)
+            preprocessor_kwargs = copy.deepcopy(kwargs)
             preprocessor = util.get_object(
-                obj=spec_,
+                obj=preprocessor_spec,
                 predefined_objects=tensorforce.core.preprocessors.preprocessors,
-                kwargs=kwargs_
+                kwargs=preprocessor_kwargs
             )
             assert isinstance(preprocessor, Preprocessor)
             stack.preprocessors.append(preprocessor)

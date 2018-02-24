@@ -258,7 +258,7 @@ class QDemoModel(QModel):
 
         return tf.group(optimization, demo_optimization)
 
-    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent):
         # Import demo experience operation.
         self.import_demo_experience_output = self.fn_import_demo_experience(
             states=states,
@@ -275,7 +275,8 @@ class QDemoModel(QModel):
             actions=actions,
             terminal=terminal,
             reward=reward,
-            deterministic=deterministic
+            deterministic=deterministic,
+            independent=independent
         )
 
         # Demo optimization operation.

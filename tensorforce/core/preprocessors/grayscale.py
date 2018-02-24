@@ -28,11 +28,11 @@ class Grayscale(Preprocessor):
     Turn 3D color state into grayscale.
     """
 
-    def __init__(self, shape, weights=(0.299, 0.587, 0.114), scope='grayscale', summary_labels=(), remove_rank=False):
+    def __init__(self, shape, weights=(0.299, 0.587, 0.114), remove_rank=False, scope='grayscale', summary_labels=()):
         """
         Args:
             weights (tuple): The weights to multiply each color channel with (in order: red, blue, green).
-            remove_rank (bool): If True, will remove the color channel rank from the input tensor. Default: False.
+            remove_rank (bool): If True, will remove the color channel rank from the input tensor.
         """
         self.weights = weights
         self.remove_rank = remove_rank
@@ -40,7 +40,7 @@ class Grayscale(Preprocessor):
 
     def tf_process(self, tensor):
         weights = tf.reshape(tensor=self.weights, shape=(tuple(1 for _ in range(util.rank(tensor) - 1)) + (3,)))
-        weighted_sum = tf.reduce_sum(input_tensor=(weights * tensor), axis=-1, keepdims=not self.remove_rank)
+        weighted_sum = tf.reduce_sum(input_tensor=(weights * tensor), axis=-1, keepdims=(not self.remove_rank))
         return weighted_sum
 
     def processed_shape(self, shape):

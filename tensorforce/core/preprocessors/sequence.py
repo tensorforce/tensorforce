@@ -29,7 +29,7 @@ class Sequence(Preprocessor):
     problems to create the Markov property (velocity of game objects as they move across the screen).
     """
 
-    def __init__(self, shape, length=2, scope='sequence', summary_labels=(), add_rank=False):
+    def __init__(self, shape, length=2, add_rank=False, scope='sequence', summary_labels=()):
         """
         Args:
             length (int): The number of states to concatenate. In the beginning, when no previous state is available,

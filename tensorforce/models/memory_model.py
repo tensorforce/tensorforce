@@ -553,7 +553,7 @@ class MemoryModel(Model):
             reward=reward
         )
 
-    def create_operations(self, states, internals, actions, terminal, reward, deterministic):
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent):
         # Import experience operation.
         self.import_experience_output = self.fn_import_experience(
             states=states,
@@ -569,7 +569,8 @@ class MemoryModel(Model):
             actions=actions,
             terminal=terminal,
             reward=reward,
-            deterministic=deterministic
+            deterministic=deterministic,
+            independent=independent
         )
 
     def get_variables(self, include_submodules=False, include_nontrainable=False):

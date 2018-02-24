@@ -15,7 +15,7 @@
 
 
 from tensorforce.environments.environment import Environment
-from tensorforce.environments.minimal_test import MinimalTest
+from tensorforce.tests.minimal_test import MinimalTest
 
 
 environments = dict(

@@ -17,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 from tensorforce.models.constant_model import ConstantModel
 

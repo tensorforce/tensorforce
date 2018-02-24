@@ -31,7 +31,8 @@ class MinimalTest(Environment):
         and the 'correct' state is always (0, 1).
 
         Args:
-            specification: Takes a list of (type, shape) pairs specifying the action structure of the environment.
+            specification: Takes a dict type (keys)-> shape (values specifying the action
+                structure of the environment. Use shape () for single scalar actions.
         """
         self.specification = dict()
         for action_type, shape in specification.items():

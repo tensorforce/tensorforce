@@ -84,7 +84,6 @@ class TestTutorialCode(unittest.TestCase):
         Test of introduction blog post examples.
         """
         import tensorflow as tf
-        import numpy as np
 
         ### DQN agent example
         from tensorforce.agents import DQNAgent
@@ -421,7 +420,7 @@ class TestTutorialCode(unittest.TestCase):
         agent.close()
 
     def test_blogpost_introduction_runner(self):
-        from tensorforce.environments.minimal_test import MinimalTest
+        from tensorforce.tests.minimal_test import MinimalTest
         from tensorforce.agents import DQNAgent
         from tensorforce.execution import Runner
 

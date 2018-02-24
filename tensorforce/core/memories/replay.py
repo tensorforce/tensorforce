@@ -32,7 +32,7 @@ class Replay(Queue):
         Replay memory.
 
         Args:
-            states: States specifiction.
+            states: States specification.
             internals: Internal states specification.
             actions: Actions specification.
             include_next_states: Include subsequent state if true.

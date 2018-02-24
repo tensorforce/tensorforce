@@ -29,17 +29,19 @@ class Sequence(Preprocessor):
     problems to create the Markov property (velocity of game objects as they move across the screen).
     """
 
-    def __init__(self, shape, length=2, scope='sequence', summary_labels=()):
+    def __init__(self, shape, length=2, scope='sequence', summary_labels=(), add_rank=False):
         """
         Args:
             length (int): The number of states to concatenate. In the beginning, when no previous state is available,
                 concatenate the given first state with itself `length` times.
+            add_rank (bool): Whether to add another rank to the end of the input with dim=length-of-the-sequence.
+                This could be useful if e.g. a grayscale image of w x h pixels is coming from the env
+                (no color channel). The output of the preprocessor would then be of shape [batch] x w x h x [length].
         """
         # raise TensorForceError("The sequence preprocessor is temporarily broken; use version 0.3.2 if required.")
         self.length = length
-        ## The index tensor pointing to the previous location in the single-state buffer.
-        #self.index = None
-        # The that resets index back to -1.
+        self.add_rank = add_rank
+        # The op that resets index back to -1.
         self.reset_op = None
         super(Sequence, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
@@ -78,7 +80,15 @@ class Sequence(Preprocessor):
             assignment = tf.assign(ref=index, value=((tf.maximum(x=index, y=0) + 1) % self.length))
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf.expand_dims(input=tf.concat(values=previous_states, axis=-1), axis=0)
+            if self.add_rank:
+                stack = tf.stack(values=previous_states, axis=-1)
+            else:
+                stack = tf.concat(values=previous_states, axis=-1)
+            batch_one = tf.expand_dims(input=stack, axis=0)
+            return batch_one
 
     def processed_shape(self, shape):
-        return shape[:-1] + (shape[-1] * self.length,)
+        if self.add_rank:
+            return shape + (self.length,)
+        else:
+            return shape[:-1] + (shape[-1] * self.length,)

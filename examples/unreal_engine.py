@@ -66,7 +66,7 @@ def main():
     args = parser.parse_args()
 
     # logging.basicConfig(filename="logfile.txt", level=logging.INFO)
-    logging.basicConfig(stream=sys.stderr)
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
@@ -83,13 +83,14 @@ def main():
     if args.random_test_run:
         # Reset the env.
         s = environment.reset()
-        img = Image.fromarray(s, "RGB" if len(environment.states["shape"]) == 3 else "L")
+        img_format = "RGB" if len(environment.states["shape"]) == 3 else "L"
+        img = Image.fromarray(s, img_format)
         # Save first received image as a sanity-check.
         img.save("reset.png")
         for i in range(1000):
             s, is_terminal, r = environment.execute(actions=random.choice(range(environment.actions["num_actions"])))
             if i < 10:
-                img = Image.fromarray(s, "RGB")
+                img = Image.fromarray(s, img_format)
                 img.save("{:03d}.png".format(i))
             logging.debug("i={} r={} term={}".format(i, r, is_terminal))
             if is_terminal:
@@ -112,9 +113,9 @@ def main():
     agent = Agent.from_spec(
         spec=agent_config,
         kwargs=dict(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec
+            states=environment.states,
+            actions=environment.actions,
+            network=network_spec
         )
     )
     if args.load:

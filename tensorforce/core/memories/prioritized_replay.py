@@ -395,13 +395,13 @@ class PrioritizedReplay(Memory):
             x=self.batch_indices,
             y=tf.zeros(shape=tf.shape(input=self.batch_indices), dtype=tf.int32)
         )
-        priority_indices = tf.where(condition=mask)
+        priority_indices = tf.squeeze(tf.where(condition=mask))
         priority_indices = tf.Print(priority_indices, [priority_indices], message="Priority indices")
         sampled_batch = self.tf_retrieve_indices(
             buffer_elements=self.last_batch_buffer_elems,
             priority_indices=priority_indices
         )
-        sampled_batch = tf.Print(sampled_batch, [sampled_batch], message="sampled batch: ")
+        #sampled_batch = tf.Print(sampled_batch, [sampled_batch], message="sampled batch: ")
         states = sampled_batch['states']
         internals = sampled_batch['internals']
         actions = sampled_batch['actions']

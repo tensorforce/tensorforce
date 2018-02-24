@@ -96,6 +96,47 @@ via their greedy maximisation.
 When evaluating the final trained model, one would typically act deterministically to
 avoid sampling random actions.
 
-### 6. I really need a certain feature or help with my application.
+### 6. How do I specify multiple actions?
+
+Actions can either be specified as single actions which just require a dict specifying
+a ```type``` and ```shape```, or a ```num_actions``` parameter in the case of discrete actions. 
+A ```shape``` can be used to specify multiple actions of the same type, e.g.
+```actions=dict(type='float', shape=(5,), min=-2, max=2)``` specifies 5 float actions
+with the same range. Please note that using the min/max parameter results in
+a Beta distribution instead of a Gaussian distribution being used for continuous 
+actions. If a single action is desired, use ```shape=()```.
+
+The parameter ```num_actions``` is only used for discrete
+actions and describes the number of different options for a single discrete action. That is,
+```dict(type='int', shape=(2,), num_actions=4)``` means the agent will output two actions
+per step, each giving values in [0, 1, 2, 3].
+
+There are no restrictions on combining multiple action types. Available action types
+are ```float,int,bool```. In the case of multiple actions, the agent expects a dict containing
+action names and their types. For example,
+
+```python
+actions=dict(
+   discrete_action=dict(type='int', num_actions=15),
+   continous_action=dict(type='float', shape=()),
+)
+```  
+
+will lead to the agent outputting the following action dict (example action):
+
+```python
+actions = agent.act(states=state)
+
+>>> print actions
+>>> dict(discrete_action=3, continuous_action=0.332)
+``` 
+
+In the case of multiple actions, the values will be arrays. It is a good idea
+to use expressive action names within your application to keep track of 
+each action and its purpose.
+
+
+
+### 7. I really need a certain feature or help with my application.
 
 Please contact ```contact@reinforce.io``` for commercial support.

@@ -184,7 +184,8 @@ def main():
     agent['distributed'] = dict(
         cluster_spec=cluster_spec,
         task_index=args.task_index,
-        parameter_server=args.parameter_server
+        parameter_server=args.parameter_server,
+        protocol='grpc'
     )
 
     agent = Agent.from_spec(

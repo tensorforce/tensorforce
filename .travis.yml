@@ -21,7 +21,7 @@ before_install:
 install:
   - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'python -m pip install -U pip';
   - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'python -m pip install pytest-xdist';
-  - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'python -m pip install gym';
+  - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'python -m pip install gym==0.9.5';
   - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'cd /tensorforce && python -m pip install .';
 
 script:

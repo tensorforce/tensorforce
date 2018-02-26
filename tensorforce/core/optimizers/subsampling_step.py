@@ -64,18 +64,24 @@ class SubsamplingStep(MetaOptimizer):
         # Get some (batched) argument to determine batch size.
         arguments_iter = iter(arguments.values())
         some_argument = next(arguments_iter)
-        while not isinstance(some_argument, tf.Tensor) or util.rank(some_argument) == 0:
-            if isinstance(some_argument, dict):
-                arguments_iter = iter(some_argument.values())
-                some_argument = next(arguments_iter)
-            elif isinstance(some_argument, list):
-                arguments_iter = iter(some_argument)
-                some_argument = next(arguments_iter)
-            elif util.rank(some_argument) == 0:
-                # Non-batched argument
-                some_argument = next(arguments_iter)
-            else:
-                raise TensorForceError("Invalid argument type.")
+
+        try:
+            while not isinstance(some_argument, tf.Tensor) or util.rank(some_argument) == 0:
+                if isinstance(some_argument, dict):
+                    if some_argument:
+                        arguments_iter = iter(some_argument.values())
+                    some_argument = next(arguments_iter)
+                elif isinstance(some_argument, list):
+                    if some_argument:
+                        arguments_iter = iter(some_argument)
+                    some_argument = next(arguments_iter)
+                elif some_argument is None or util.rank(some_argument) == 0:
+                    # Non-batched argument
+                    some_argument = next(arguments_iter)
+                else:
+                    raise TensorForceError("Invalid argument type.")
+        except StopIteration:
+            raise TensorForceError("Invalid argument type.")
 
         batch_size = tf.shape(input=some_argument)[0]
         num_samples = tf.cast(

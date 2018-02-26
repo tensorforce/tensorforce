@@ -486,12 +486,16 @@ class MemoryModel(Model):
             unit = self.update_mode['unit']
             batch_size = self.update_mode['batch_size']
             frequency = self.update_mode.get('frequency', batch_size)
+            first_update = self.update_mode.get('first_update', 0)
 
             if unit == 'timesteps':
                 # Timestep-based batch
                 optimize = tf.logical_and(
                     x=tf.equal(x=(self.timestep % frequency), y=0),
-                    y=tf.greater_equal(x=self.timestep, y=batch_size)
+                    y=tf.logical_and(
+                        x=tf.greater_equal(x=self.timestep, y=batch_size),
+                        y=tf.greater_equal(x=self.timestep, y=first_update)
+                    )
                 )
                 batch = self.memory.retrieve_timesteps(n=batch_size)
 
@@ -502,7 +506,10 @@ class MemoryModel(Model):
                     y=tf.logical_and(
                         # Only update once per episode increment.
                         x=tf.greater(x=tf.count_nonzero(input_tensor=terminal), y=0),
-                        y=tf.greater_equal(x=self.episode, y=batch_size)
+                        y=tf.logical_and(
+                            x=tf.greater_equal(x=self.episode, y=batch_size),
+                            y=tf.greater_equal(x=self.episode, y=first_update)
+                        )
                     )
                 )
                 batch = self.memory.retrieve_episodes(n=batch_size)
@@ -512,7 +519,10 @@ class MemoryModel(Model):
                 sequence_length = self.update_mode.get('length', 8)
                 optimize = tf.logical_and(
                     x=tf.equal(x=(self.timestep % frequency), y=0),
-                    y=tf.greater_equal(x=self.timestep, y=(batch_size + sequence_length - 1))
+                    y=tf.logical_and(
+                        x=tf.greater_equal(x=self.timestep, y=(batch_size + sequence_length - 1)),
+                        y=tf.greater_equal(x=self.timestep, y=first_update)
+                    )
                 )
                 batch = self.memory.retrieve_sequences(n=batch_size, sequence_length=sequence_length)
 

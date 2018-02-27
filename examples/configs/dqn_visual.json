@@ -3,7 +3,8 @@
     "batch_size": 64,
     "memory": {
         "type": "replay",
-        "capacity": 10000
+        "capacity": 10000,
+        "include_next_states": true
     },
     "optimizer": {
       "type": "adam",

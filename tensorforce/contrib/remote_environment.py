@@ -149,16 +149,17 @@ class MsgPackNumpyProtocol(object):
         # prepend 8-byte len field to all our messages
         socket_.send(bytes("{:08d}".format(len_), encoding="ascii") + message)
 
-    def recv(self, socket_):
+    def recv(self, socket_, encoding=None):
         """
         Receives a message as msgpack-numpy encoded byte-string from the given socket object.
         Blocks until something was received.
 
         Args:
             socket_: The python socket object to use.
+            encoding (str): The encoding to use for unpacking messages from the socket.
         Returns: The decoded (as dict) message received.
         """
-        unpacker = msgpack.Unpacker(encoding="utf-8")
+        unpacker = msgpack.Unpacker(encoding=encoding)
 
         # Wait for an immediate response.
         response = socket_.recv(8)  # get the length of the message
@@ -182,8 +183,9 @@ class MsgPackNumpyProtocol(object):
 
         # Get the data.
         for message in unpacker:
-            if "status" in message:
-                if message["status"] == "ok":
+            sts = message.get("status", message.get(b"status"))
+            if sts:
+                if sts == "ok" or sts == b"ok":
                     return message
                 else:
                     raise TensorForceError("RemoteEnvironment server error: {}".

@@ -80,11 +80,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
 
         # Get action- and state-specs from our game.
         self.protocol.send({"cmd": "get_spec"}, self.socket)
-        response = self.protocol.recv(self.socket)
-
-        if "observation_space_desc" not in response or "action_space_desc" not in response:
-            raise TensorForceError("ERROR in UE4Environment.connect: no observation- or action-space-desc sent "
-                                   "by remote server!")
+        response = self.protocol.recv(self.socket, "utf-8")
 
         # Game's name
         self.game_name = response.get("game_name")  # keep non-mandatory for now
@@ -112,7 +108,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         # Send command.
         self.protocol.send({"cmd": "seed", "value": int(seed)}, self.socket)
         # Wait for response.
-        response = self.protocol.recv(self.socket)
+        response = self.protocol.recv(self.socket, "utf-8")
         if "status" not in response:
             raise TensorForceError("Message without field 'status' received!")
         elif response["status"] != "ok":
@@ -204,8 +200,8 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         self.protocol.send(message, self.socket)
         # Wait for response (blocks).
         response = self.protocol.recv(self.socket)
-        r = response.pop("_reward", 0.0)
-        is_terminal = response.pop("_is_terminal", False)
+        r = response.pop(b"_reward", 0.0)
+        is_terminal = response.pop(b"_is_terminal", False)
 
         obs = self.extract_observation(response)
         # Cache last observation
@@ -381,10 +377,10 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
 
     @staticmethod
     def extract_observation(message):
-        if "obs_dict" not in message:
+        if b"obs_dict" not in message:
             raise TensorForceError("Message without field 'obs_dict' received!")
 
-        ret = message["obs_dict"]
+        ret = message[b"obs_dict"]
         # Only one observer -> use that one (no dict of dicts).
         if len(ret) == 1:
             ret = list(ret.values())[0]

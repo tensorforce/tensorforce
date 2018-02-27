@@ -1239,7 +1239,7 @@ class Model(object):
         #     feed_dict = {self.terminal_input: (terminal,), self.reward_input: (reward,)}
 
         self.is_observe = True
-        episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+        episode = self.monitored_session.raw_session().run(fetches=fetches, feed_dict=feed_dict)
         self.is_observe = False
 
         return episode

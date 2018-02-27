@@ -43,6 +43,7 @@
         "directory": null,
         "seconds": 600
     },
+
     "summarizer": {
         "directory": null,
         "labels": [],

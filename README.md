@@ -161,13 +161,13 @@ from tensorforce.agents import PPOAgent
 
 # Create a Proximal Policy Optimization agent
 agent = PPOAgent(
-    states_spec=dict(type='float', shape=(10,)),
-    actions_spec=dict(type='int', num_actions=10),
-    network_spec=[
+    states=dict(type='float', shape=(10,)),
+    actions=dict(type='int', num_actions=10),
+    network=[
         dict(type='dense', size=64),
         dict(type='dense', size=64)
     ],
-    batch_size=1000,
+    batching_capacity=1000,
     step_optimizer=dict(
         type='adam',
         learning_rate=1e-4

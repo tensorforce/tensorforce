@@ -35,8 +35,8 @@ setup_requires = [
 ]
 
 extras_require = {
-    'tf': ['tensorflow>=1.4.0'],
-    'tf_gpu': ['tensorflow-gpu>=1.4.0'],
+    'tf': ['tensorflow>=1.6.0'],
+    'tf_gpu': ['tensorflow-gpu>=1.6.0'],
     'gym': ['gym==0.9.5'],
     'universe': ['universe>=0.21.3'],
     'mazeexp': ['mazeexp>=0.0.1'],

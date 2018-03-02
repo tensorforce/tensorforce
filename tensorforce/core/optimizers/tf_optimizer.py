@@ -113,7 +113,7 @@ class TFOptimizer(Optimizer):
         ]
 
         if self.optimizer_spec in ('adam', 'nadam'):
-            additional_variables = [self.optimizer._beta1_power, self.optimizer._beta2_power]
+            additional_variables = list(self.optimizer._get_beta_accumulators())
         else:
             additional_variables = list()
 

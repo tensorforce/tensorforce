@@ -42,12 +42,12 @@ class OrnsteinUhlenbeckProcess(Exploration):
 
         super(OrnsteinUhlenbeckProcess, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode, timestep, action_shape):
-        normal_sample = tf.random_normal(shape=action_shape.shape, mean=0.0, stddev=1.0)
+    def tf_explore(self, episode, timestep, action_spec):
+        normal_sample = tf.random_normal(shape=action_spec['shape'], mean=0.0, stddev=1.0)
         state = tf.get_variable(
             name='ornstein_uhlenbeck',
             dtype=util.tf_dtype('float'),
-            shape=action_shape.shape,
+            shape=action_spec['shape'],
             initializer=tf.constant_initializer(self.mu)
         )
         return tf.assign_add(ref=state, value=(self.theta * (self.mu - state) + self.sigma * normal_sample))

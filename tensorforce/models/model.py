@@ -808,7 +808,7 @@ class Model(object):
         exploration_value = exploration.tf_explore(
             episode=self.global_episode,
             timestep=self.global_timestep,
-            action_shape=action_shape
+            action_spec=action_spec
         )
 
         if action_spec['type'] == 'bool':

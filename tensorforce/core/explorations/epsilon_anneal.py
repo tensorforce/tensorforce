@@ -40,7 +40,7 @@ class EpsilonAnneal(Exploration):
 
         super(EpsilonAnneal, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode, timestep, action_shape):
+    def tf_explore(self, episode, timestep, action_spec=None):
 
         def true_fn():
             # Know if first is not true second must be true from outer cond check.

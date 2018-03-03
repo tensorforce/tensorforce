@@ -25,5 +25,5 @@ class Constant(Exploration):
         self.constant = constant
         super(Constant, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode, timestep, action_shape):
+    def tf_explore(self, episode, timestep, action_spec=None):
         return self.constant

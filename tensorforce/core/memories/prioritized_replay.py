@@ -390,32 +390,57 @@ class PrioritizedReplay(Memory):
             )
 
     def tf_update_batch(self, loss_per_instance):
-        # 1. We reconstruct the batch from the buffer and the priority memory.
+        """
+        Updates priority memory by performing the following steps:
+        1. Use saved indices from prior retrieval to reconstruct the batch
+        elements which will have their priorities updated.
+        2. Compute priorities for these elements.
+        3. If existing memory elements were part of batch, update their order
+           according to priorities
+        4. Insert elements from buffer according to their priorities.
+        5. Update buffer insertion index.
+
+        :param loss_per_instance: Losses from recent batch to perform priority update
+        """
+        # 1. We reconstruct the batch from the buffer and the priority memory via
+        # the TensorFlow variables ohlding the respective indices.
         mask = tf.not_equal(
             x=self.batch_indices,
             y=tf.zeros(shape=tf.shape(input=self.batch_indices), dtype=tf.int32)
         )
         priority_indices = tf.squeeze(tf.where(condition=mask))
-        priority_indices = tf.Print(priority_indices, [priority_indices], message="Priority indices")
+        # priority_indices = tf.Print(priority_indices, [priority_indices], message="Priority indices")
         sampled_batch = self.tf_retrieve_indices(
             buffer_elements=self.last_batch_buffer_elems,
             priority_indices=priority_indices
         )
-        #sampled_batch = tf.Print(sampled_batch, [sampled_batch], message="sampled batch: ")
+        # sampled_batch = tf.Print(sampled_batch, [sampled_batch], message="sampled batch: ")
         states = sampled_batch['states']
         internals = sampled_batch['internals']
         actions = sampled_batch['actions']
         terminal = sampled_batch['terminal']
         reward = sampled_batch['reward']
 
-        # TODO this is incorrect
+        # 2. Compute the priorities for these elements.
+        priorities = loss_per_instance ** self.prioritization_weight
+
+        # 3. Update memory elements according to priority:
+        # - Update priority tensor via assign
+        # - Build an overall tensor I can sort via concat
+        assignments = list()
+
+        # These are the new priorities of the elements already in the memory.
+        main_memory_priorities = priorities[0:tf.shape(priority_indices)[0] - 1]
+        assignments.append(tf.scatter_update(
+            ref=self.priorities,
+            indices=priority_indices,
+            updates=main_memory_priorities
+        ))
+        # Sort elements priorities and indices.
         start_index = 0
         end_index = self.last_batch_buffer_elems
-        priorities = loss_per_instance ** self.prioritization_weight
-        # How do we map batch indices to memory indices and insert?
 
         # For testing retrieval loop, no priority inserts yet.
-        assignments = list()
         for name, state in states.items():
             assignments.append(tf.assign(ref=self.states_memory[name][start_index:end_index], value=state))
         for name, internal in internals.items():
@@ -430,18 +455,16 @@ class PrioritizedReplay(Memory):
         for name, action in actions.items():
             assignments.append(tf.assign(ref=self.actions_memory[name][start_index:end_index], value=action))
 
-        # 2. We delete entries from the priority memory. There is no need
-        # to delete entries from the buffer because we just move the idnex.
-
         # Start index for inserting
         # buffer_end_insert = tf.constant(value=)
 
-        # Reset buffer index.
+        # 5. Reset buffer index.
         with tf.control_dependencies(control_inputs=assignments):
             assignment = tf.assign_sub(ref=self.buffer_index, value=self.last_batch_buffer_elems)
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.no_op()
 
+    # These are not supported for prioritised replay currently.
     def tf_retrieve_episodes(self, n):
         pass
 

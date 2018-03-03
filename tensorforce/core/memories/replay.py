@@ -52,9 +52,48 @@ class Replay(Queue):
         num_timesteps = (self.memory_index - self.episode_indices[0] - 2) % self.capacity + 1
         indices = tf.random_uniform(shape=(n,), maxval=num_timesteps, dtype=tf.int32)
         indices = (self.memory_index - 1 - indices) % self.capacity
-        terminal = tf.gather(params=self.terminal_memory, indices=indices)
-        indices = tf.boolean_mask(tensor=indices, mask=tf.logical_not(x=terminal))
-        return self.retrieve_indices(indices=indices)
+
+        if self.include_next_states:
+            # Ensure consistent next state semantics for Q models.
+            terminal = tf.gather(params=self.terminal_memory, indices=indices)
+            indices = tf.boolean_mask(tensor=indices, mask=tf.logical_not(x=terminal))
+
+            # Simple rejection sampling in case masking out terminals yielded
+            # no indices.
+            def resample_fn():
+                def cond(sampled_indices):
+                    # Any index contained after masking?
+                    return tf.reduce_any(input_tensor=(sampled_indices >= 0))
+
+                def sampling_body(sampled_indices):
+                    # Resample. Note that we could also try up to fill
+                    # masked out indices.
+                    sampled_indices = tf.random_uniform(shape=(n,), maxval=num_timesteps, dtype=tf.int32)
+                    sampled_indices = (self.memory_index - 1 - sampled_indices) % self.capacity
+
+                    terminal = tf.gather(params=self.terminal_memory, indices=sampled_indices)
+                    sampled_indices = tf.boolean_mask(tensor=sampled_indices, mask=tf.logical_not(x=terminal))
+
+                    return sampled_indices
+
+                sampled_indices = tf.while_loop(
+                    cond=cond,
+                    body=sampling_body,
+                    loop_vars=[indices],
+                    maximum_iterations=10
+                )
+                return sampled_indices
+
+            # If there are still indices after masking, return these, otherwise resample.
+            indices = tf.cond(
+                pred=tf.reduce_any(input_tensor=(indices >= 0)),
+                true_fn=(lambda: indices),
+                false_fn=resample_fn
+            )
+            return self.retrieve_indices(indices=indices)
+        else:
+            # No masking necessary if next-state semantics are not relevant.
+            return self.retrieve_indices(indices=indices)
 
     def tf_retrieve_episodes(self, n):
         random_episode_indices = tf.random_uniform(shape=(n,), maxval=(self.episode_count + 1), dtype=tf.int32)

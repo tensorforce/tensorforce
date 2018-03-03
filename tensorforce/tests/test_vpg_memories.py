@@ -210,33 +210,33 @@ class TestVPGMemories(BaseTest, unittest.TestCase):
             **config
         )
 
-    def test_prioritized_replay_timesteps(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-
-        config = dict(
-            update_mode=dict(
-                unit='timesteps',
-                batch_size=8,
-                frequency=4
-            ),
-            memory=dict(
-                type='prioritized_replay',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            )
-        )
-
-        self.base_test_run(
-            name='prioritized-replay-timesteps',
-            environment=environment,
-            network=network,
-            **config
-        )
+    # def test_prioritized_replay_timesteps(self):
+    #     environment = MinimalTest(specification={'int': ()})
+    #     network = [
+    #         dict(type='dense', size=32),
+    #         dict(type='dense', size=32)
+    #     ]
+    #
+    #     config = dict(
+    #         update_mode=dict(
+    #             unit='timesteps',
+    #             batch_size=8,
+    #             frequency=4
+    #         ),
+    #         memory=dict(
+    #             type='prioritized_replay',
+    #             include_next_states=False,
+    #             capacity=100
+    #         ),
+    #         optimizer=dict(
+    #             type='adam',
+    #             learning_rate=1e-2
+    #         )
+    #     )
+    #
+    #     self.base_test_run(
+    #         name='prioritized-replay-timesteps',
+    #         environment=environment,
+    #         network=network,
+    #         **config
+    #     )

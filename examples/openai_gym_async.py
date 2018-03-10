@@ -14,7 +14,8 @@
 # ==============================================================================
 
 """
-OpenAI gym execution
+Asynchronous OpenAI gym execution - this currently implements A3C semantics
+but execution semantics will be changed to have more explicit control.
 
 To run this script with 3 workers on Pong-ram-v0:
 $ python examples/openai_gym_async.py Pong-ram-v0 -a examples/configs/vpg.json -n examples/configs/mlp2_network.json -e 50000 -m 2000 -W 3

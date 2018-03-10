@@ -134,9 +134,3 @@ actions = agent.act(states=state)
 In the case of multiple actions, the values will be arrays. It is a good idea
 to use expressive action names within your application to keep track of 
 each action and its purpose.
-
-
-
-### 7. I really need a certain feature or help with my application.
-
-Please contact ```contact@reinforce.io``` for commercial support.

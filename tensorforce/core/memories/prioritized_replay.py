@@ -60,6 +60,8 @@ class PrioritizedReplay(Memory):
             scope=scope,
             summary_labels=summary_labels
         )
+        # Under construction
+        raise NotImplementedError("Prioritized replay is currently under construction and")
         self.capacity = capacity
         self.buffer_size = buffer_size
         self.prioritization_weight = prioritization_weight

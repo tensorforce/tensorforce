@@ -28,7 +28,9 @@ from tensorforce.core.memories import Memory
 
 _SumRow = namedtuple('SumRow', ['item', 'priority'])
 
-#TODO move to util/rename methods to conform to naming scheme
+# TODO deprecated as not in TensorFlow, kept for
+# reference purpose if someone wants to start an efficient
+# pure TensorFlow implementation
 class SumTree(object):
     """
     Sum tree data structure where data is stored in leaves and each node on the

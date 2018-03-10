@@ -166,7 +166,7 @@ class ComplexLayeredNetwork(LayerBasedNetwork):
                     spec=layer_spec,
                     kwargs=dict(scope=scope, summary_labels=summary_labels)
                 )
-                # Link named dictionary reference into Layer
+                # Link named dictionary reference into Layer.
                 layer.tf_tensors(named_tensors=self.named_tensors)
                 self.add_layer(layer=layer)
 

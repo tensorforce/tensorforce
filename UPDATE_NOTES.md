@@ -5,6 +5,13 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+10th March
+
+- Added Prototype of prioritised replay in pure TensorFlow, still under construction and not
+  usable. 
+- Recently fixed bug which occasionally returned empty batches from replay memory due to
+  masking out terminal entries.
+
 20th February
 
 - Merge of memory branch with major library-internal changes: core.memories module, memory_model,

@@ -22,7 +22,7 @@ from tensorforce import TensorForceError
 
 class MetaParameterRecorder(object):
     """
-    Class to record MetaParameters as well as Summary/Description for TensorBoard (TEXT & FILE will come later)
+    Class to record MetaParameters as well as Summary/Description for TensorBoard (TEXT & FILE will come later).
 
     General:
 
@@ -31,17 +31,17 @@ class MetaParameterRecorder(object):
 
     def __init__(self, current_frame):
         """
-        Init the MetaPrameterRecord with "Agent" parameters by passing inspect.currentframe() from Agent Class
+        Init the MetaPrameterRecord with "Agent" parameters by passing inspect.currentframe() from Agent Class.
         
         The Init will search back to find the parent class to capture all passed parameters and store
         them in "self.meta_params".
 
-        NOTE: Currently only optimized for TensorBoard output
+        NOTE: Currently only optimized for TensorBoard output.
 
         TODO: Add JSON Export, TEXT EXPORT
 
         Args:
-            current_frame: frame value from class to obtain metaparameters[= inspect.currentframe()]
+            current_frame: Frame value from class to obtain metaparameters[= inspect.currentframe()]
 
         """
         self.ignore_unknown_dtypes = False
@@ -58,13 +58,13 @@ class MetaParameterRecorder(object):
         frame_list = inspect.getouterframes(current_frame)
         
         for frame in frame_list:           
-            # Rather than frame.frame (named tuple), use [0] for python2
+            # Rather than frame.frame (named tuple), use [0] for python2.
             args, varargs, keywords, vals =inspect.getargvalues(frame[0])   
             if 'self' in vals:
                 if self.recorded_class_type == vals['self']:
                     for i in args:
                         self.meta_params[i] = vals[i]
-        # Remove the "CLASS" from the dictionary, has no value "AgentName" contains STR of Class
+        # Remove the "CLASS" from the dictionary, has no value "AgentName" contains STR of Class.
         del self.meta_params['self']  
 
     def merge_custom(self, custom_dict):
@@ -80,7 +80,7 @@ class MetaParameterRecorder(object):
                     " please change passed key.".format(str(key))
                 )
             self.meta_params[key] = custom_dict[key]
-        # This line assumes the merge data came from summary_spec['meta_dict'], remove this from summary_spec
+        # This line assumes the merge data came from summary_spec['meta_dict'], remove this from summary_spec.
         del self.meta_params['summarizer']['meta_dict']
 
     def text_output(self, format_type=1):
@@ -104,7 +104,7 @@ class MetaParameterRecorder(object):
         if separator is None:
             separator = ", "
         
-        # This should not ever occur but here as a catch
+        # This should not ever occur but here as a catch.
         if type(data) is not dict:
             raise TensorForceError(
                 "Error:  MetaParameterRecorder Dictionary conversion was passed a type {}"
@@ -140,7 +140,7 @@ class MetaParameterRecorder(object):
         if eol is None:
             eol = os.linesep
 
-        # This should not ever occur but here as a catch
+        # This should not ever occur but here as a catch.
         if type(data) is not list:
             raise TensorForceError(
                 "Error:  MetaParameterRecorder List conversion was passed a type {}"
@@ -153,7 +153,7 @@ class MetaParameterRecorder(object):
                 data_string_prefix = str(index+1)+". "
             # TensorBoard
             if format_type == 0:
-                # Only add indent for 2nd item and beyond as this is likely a dictionary entry
+                # Only add indent for 2nd item and beyond as this is likely a dictionary entry.
                 if indent > 0 and index>0:
                     data_string_prefix = "    | "+data_string_prefix
             if index == (len(data)-1):
@@ -171,7 +171,7 @@ class MetaParameterRecorder(object):
         if eol is None:
             eol = os.linesep
 
-        # This should not ever occur but here as a catch
+        # This should not ever occur but here as a catch.
         if type(data) is not np.ndarray: 
             raise TensorForceError(
                 "Error:  MetaParameterRecorder ndarray conversion was passed"
@@ -241,13 +241,10 @@ class MetaParameterRecorder(object):
 
     def build_metagraph_list(self): 
         """
-        Convert MetaParams into TF Summary Format and create summary_op
-
-        Args:
-            None
+        Convert MetaParams into TF Summary Format and create summary_op.
 
         Returns:
-            Merged TF Op for TEXT summary elements, should only be executed once to reduce data duplication
+            Merged TF Op for TEXT summary elements, should only be executed once to reduce data duplication.
 
         """    
         ops = []

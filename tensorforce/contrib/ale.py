@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-"""
-Arcade Learning Environment (ALE). https://github.com/mgbellemare/Arcade-Learning-Environment
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -24,15 +20,24 @@ from __future__ import division
 import numpy as np
 from ale_python_interface import ALEInterface
 
-from tensorforce import TensorForceError
 from tensorforce.environments import Environment
 
 
 class ALE(Environment):
+    """
+    Arcade Learning Environment (ALE). https://github.com/mgbellemare/Arcade-Learning-Environment
+    """
 
-    def __init__(self, rom, frame_skip=1, repeat_action_probability=0.0,
-                 loss_of_life_termination=False, loss_of_life_reward=0, display_screen=False,
-                 seed=np.random.RandomState()):
+    def __init__(
+        self,
+        rom,
+        frame_skip=1,
+        repeat_action_probability=0.0,
+        loss_of_life_termination=False,
+        loss_of_life_reward=0,
+        display_screen=False,
+        seed=np.random.RandomState()
+    ):
         """
         Initialize ALE.
 
@@ -55,17 +60,17 @@ class ALE(Environment):
         self.ale.setBool(b'color_averaging', False)
         self.ale.setInt(b'frame_skip', frame_skip)
 
-        # All set commands must be done before loading the ROM
+        # All set commands must be done before loading the ROM.
         self.ale.loadROM(rom.encode())
 
-        # Setup gamescreen object
+        # Setup gamescreen object.
         width, height = self.ale.getScreenDims()
         self.gamescreen = np.empty((height, width, 3), dtype=np.uint8)
 
         self.frame_skip = frame_skip
 
-        # Setup action converter
-        # ALE returns legal action indexes, convert these to just numbers
+        # Setup action converter.
+        # ALE returns legal action indexes, convert these to just numbers.
         self.action_inds = self.ale.getMinimalActionSet()
 
         # Setup lives
@@ -84,15 +89,15 @@ class ALE(Environment):
         self.ale.reset_game()
         self.cur_lives = self.ale.lives()
         self.life_lost = False
-        # Clear gamescreen
+        # Clear gamescreen.
         self.gamescreen = np.empty(self.gamescreen.shape, dtype=np.uint8)
         return self.current_state
 
     def execute(self, actions):
-        # Convert action to ale action
+        # Convert action to ale action.
         ale_actions = self.action_inds[actions]
 
-        # Get reward and process terminal & next state
+        # Get reward and process terminal & next state.
         rew = self.ale.act(ale_actions)
         if self.loss_of_life_termination or self.loss_of_life_reward != 0:
             new_lives = self.ale.lives()

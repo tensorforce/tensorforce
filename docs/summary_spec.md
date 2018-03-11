@@ -112,7 +112,7 @@ metaparams['My1D'] = np.ones((9))   # Column of 9   1.0's
 # Create a Proximal Policy Optimization agent
 agent = PPOAgent(
     states=...,
-    action=...,
+    actions=...,
     network=...,
     summarizer=dict(directory="./board/",
                         steps=50,

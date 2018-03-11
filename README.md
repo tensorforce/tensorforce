@@ -102,7 +102,7 @@ pip install -e .
 ```
 
 TensorForce is built on [Google's Tensorflow](https://www.tensorflow.org/). The installation command assumes
-that you have `tensorflow` or `tensorflow-gpu` installed.
+that you have `tensorflow` or `tensorflow-gpu` installed. Tensorforce requires Tensorflow version 1.5 or later
 
 Alternatively, you can use the following commands to install the tensorflow dependency.
 

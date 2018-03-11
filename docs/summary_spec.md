@@ -6,14 +6,14 @@ TensorForce: Details for "summary_spec" agent parameters
 [![Build Status](https://travis-ci.org/reinforceio/tensorforce.svg?branch=master)](https://travis-ci.org/reinforceio/tensorforce)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/reinforceio/tensorforce/blob/master/LICENSE)
 
-summary_spec
+summarizer
 ------------
 
 TensorForce has the ability to record summary data for use with TensorBoard
 as well STDIO and file export.  This is accomplished through dictionary
-parameter called "summary_spec" passed to the agent on initialization.
+parameter called "summarizer" passed to the agent on initialization.
 
-"summary_spec" supports the following optional dictionary entries:
+"summarizer" supports the following optional dictionary entries:
 
 ```eval_rst
 +--------------+------------------------------------------------------------+
@@ -74,10 +74,10 @@ from tensorforce.agents import PPOAgent
 
 # Create a Proximal Policy Optimization agent
 agent = PPOAgent(
-    states_spec=...,
-    actions_spec=...,
-    network_spec=...,
-    summary_spec=dict(directory="./board/", 
+    states=...,
+    actions=...,
+    network=...,
+    summarizer=dict(directory="./board/",
                         steps=50,
                         labels=['configuration',
                             'gradients_scalar',
@@ -95,11 +95,11 @@ Configuration Export
 
 Adding the "configuration" label will create a "TEXT" tab in TensorBoard
 that contains all the parameters passed to the Agent.  By using the additional
-"summary_spec" dictionary key "meta_dict", custom keys and values can be added
+"summarizer" dictionary key "meta_dict", custom keys and values can be added
 to the data export.  The user may want to pass "Description", "Experiement #",
  "InputDataSet", etc.
 
-If a key is already in use within TensorForce an error will be raised to 
+If a key is already in use within TensorForce an error will be raised to
 notify you to change the key value.  To use the custom feature, create a
 dictionary with keys to export:
 ```python
@@ -111,10 +111,10 @@ metaparams['My1D'] = np.ones((9))   # Column of 9   1.0's
 
 # Create a Proximal Policy Optimization agent
 agent = PPOAgent(
-    states_spec=...,
-    actions_spec=...,
-    network_spec=...,
-    summary_spec=dict(directory="./board/", 
+    states=...,
+    action=...,
+    network=...,
+    summarizer=dict(directory="./board/",
                         steps=50,
                         meta_dict=metaparams,  #Add custom keys to export
                         labels=['configuration',

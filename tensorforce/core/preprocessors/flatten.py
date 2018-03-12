@@ -28,11 +28,13 @@ class Flatten(Preprocessor):
     Normalize state. Subtract minimal value and divide by range.
     """
 
-    def __init__(self, scope='flatten', summary_labels=()):
-        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
+    def __init__(self, shape, scope='flatten', summary_labels=()):
+        super(Flatten, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 
     def processed_shape(self, shape):
-        return -1, util.prod(shape[1:])
+        if shape[0] == -1:
+            return -1, util.prod(shape[1:])
+        return util.prod(shape),
 
     def tf_process(self, tensor):
         # Flatten tensor

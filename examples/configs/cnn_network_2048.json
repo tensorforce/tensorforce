@@ -1,0 +1,24 @@
+[
+    {
+        "type": "conv2d",
+        "size": 64,
+        "window": 2,
+        "stride": 1,
+        "padding": "VALID"
+    },
+    {
+        "type": "conv2d",
+        "size": 64,
+        "window": 2,
+        "stride": 1,
+        "padding": "VALID"
+    },
+    {
+        "type": "flatten"
+    },
+    {
+        "type": "dense",
+        "size": 64,
+        "activation": "relu"
+    }
+]

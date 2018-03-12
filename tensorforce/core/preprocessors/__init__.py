@@ -23,6 +23,7 @@ from tensorforce.core.preprocessors.image_resize import ImageResize
 from tensorforce.core.preprocessors.divide import Divide
 from tensorforce.core.preprocessors.clip import Clip
 from tensorforce.core.preprocessors.flatten import Flatten
+from tensorforce.core.preprocessors.increase_dimension import IncreaseDimension
 
 
 preprocessors = dict(
@@ -34,7 +35,8 @@ preprocessors = dict(
     image_resize=ImageResize,
     divide=Divide,
     clip=Clip,
-    flatten=Flatten
+    flatten=Flatten,
+    increase_dimension=IncreaseDimension
 )
 
 
@@ -50,5 +52,6 @@ __all__ = [
     'ImageResize',
     'Divide',
     'Clip',
-    'Flatten'
+    'Flatten',
+    'IncreaseDimension'
 ]

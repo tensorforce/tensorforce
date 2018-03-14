@@ -47,7 +47,8 @@ class MemoryModel(Model):
         update_mode,
         memory,
         optimizer,
-        discount
+        discount,
+        session_config=None
     ):
         """
         Memory model.
@@ -74,6 +75,7 @@ class MemoryModel(Model):
             memory (spec): Memory.
             optimizer (spec): Dict specifying the tf optimizer to use for tuning the model's trainable parameters.
             discount (float): The RL reward discount factor (gamma).
+            session_config: optional tf.ConfigProto with additional desired session configurations
         """
         self.update_mode = update_mode
         self.memory_spec = memory
@@ -103,7 +105,8 @@ class MemoryModel(Model):
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration,
-            reward_preprocessing=reward_preprocessing
+            reward_preprocessing=reward_preprocessing,
+            session_config=session_config
         )
 
     def as_local_model(self):

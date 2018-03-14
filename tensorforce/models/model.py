@@ -81,7 +81,7 @@ class Model(object):
         states_preprocessing,
         actions_exploration,
         reward_preprocessing,
-        session_config=None,
+        session_config=None
     ):
         """
         Model.

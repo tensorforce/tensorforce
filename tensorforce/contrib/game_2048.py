@@ -26,7 +26,7 @@ class Game2048(Environment):
     """
 
     def __str__(self):
-        self.print_state
+        self.print_state()
 
     def reset(self):
         self.__init__()
@@ -34,7 +34,6 @@ class Game2048(Environment):
 
     def execute(self, actions):
         reward = 0
-        terminal = False
 
         # Terminal
         terminal = self.game_over()
@@ -135,7 +134,7 @@ class Game2048(Environment):
         return reward
 
     def _do_action_left(self, state):
-        """Exectures action 'Left'."""
+        """Executes action 'Left'."""
 
         reward = 0
 

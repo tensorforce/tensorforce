@@ -1,3 +1,7 @@
+"""
+Game 2048 execution
+"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -23,7 +27,8 @@ def main():
     logger.setLevel(logging.DEBUG)
 
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"))
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s"))
     logger.addHandler(console_handler)
 
     parser = argparse.ArgumentParser()
@@ -47,7 +52,8 @@ def main():
         logger.info("No network configuration provided.")
 
     if network_spec[0]['type'] == 'conv2d':
-        agent_config['states_preprocessing'] = [{'type': 'increase_dimension'}]
+        agent_config['states_preprocessing'] = [{'type': 'expand_dims',
+                                                 'axis': -1}]
     else:
         agent_config['states_preprocessing'] = [{'type': 'flatten'}]
 
@@ -73,7 +79,9 @@ def main():
     def episode_finished(r):
         if r.episode % 100 == 0:
             sps = r.timestep / (time.time() - r.start_time)
-            logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep, sps=sps))
+            logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode,
+                                                                                                    ts=r.timestep,
+                                                                                                    sps=sps))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Episode timesteps: {}".format(r.episode_timestep))
             logger.info("Episode largest tile: {}".format(r.environment.largest_tile))

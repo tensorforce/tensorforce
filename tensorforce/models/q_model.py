@@ -284,6 +284,11 @@ class QModel(DistributionModel):
 
         return super(QModel, self).get_summaries() + target_network_summaries + target_distributions_summaries
 
+    def get_components(self):
+        model_components = super(QModel, self).get_components()
+        target_distribution_components = list(self.target_distributions.values())
+        return model_components + [self.target_network] + target_distribution_components
+
     # # TEMP: Random sampling fix
     # def update(self, states, internals, actions, terminal, reward, return_loss_per_instance=False):
     #     fetches = [self.optimization]

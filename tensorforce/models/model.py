@@ -181,6 +181,7 @@ class Model(object):
 
         self.graph = None
         self.global_model = None
+        self.saver = None
         self.scaffold = None
         self.saver_directory = None
         self.session = None
@@ -422,6 +423,9 @@ class Model(object):
             summary_op = tf.summary.merge(inputs=summaries)
         else:
             summary_op = None
+
+        for c in self.get_savable_components():
+            c.register_saver_ops()
 
         # TensorFlow saver object
         self.saver = tf.train.Saver(
@@ -1256,7 +1260,7 @@ class Model(object):
             append_timestep: Appends the current timestep to the checkpoint file if true.
 
         Returns:
-            Checkpoint path were the model was saved.
+            Checkpoint path where the model was saved.
         """
         if self.summarizer_hook is not None:
             self.summarizer_hook._summary_writer.flush()
@@ -1295,3 +1299,22 @@ class Model(object):
         #     raise TensorForceError("Invalid model directory/file.")
 
         self.saver.restore(sess=self.session, save_path=file)
+
+    def get_components(self):
+        """
+        Returns the list of all the components within this model.
+
+        Returns:
+            The list of components.
+        """
+        return list()
+
+    def get_savable_components(self):
+        """
+        Returns the list of all of the components this model consists of that can be individually saved and restored.
+        For instance the network or distribution.
+
+        Returns:
+            List of util.SavableComponent
+        """
+        return filter(lambda x: isinstance(x, util.SavableComponent), self.get_components())

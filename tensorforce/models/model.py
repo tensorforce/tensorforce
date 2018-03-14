@@ -80,7 +80,8 @@ class Model(object):
         variable_noise,
         states_preprocessing,
         actions_exploration,
-        reward_preprocessing
+        reward_preprocessing,
+        session_config=None
     ):
         """
         Model.
@@ -103,6 +104,7 @@ class Model(object):
                 "action outputs" (e.g. epsilon-greedy).
             reward_preprocessing (spec): Dict specifying whether and how to preprocess rewards coming
                 from the Environment (e.g. reward normalization).
+            session_config: optional tf.ConfigProto with additional desired session configurations
         """
         # Network crated from network_spec in distribution_model.py
         # Needed for named_tensor access
@@ -128,6 +130,7 @@ class Model(object):
             self.summarizer_spec = summarizer
 
         self.distributed_spec = distributed
+        self.session_config = session_config
 
         # TensorFlow summaries
         if self.summarizer_spec is None:
@@ -522,7 +525,7 @@ class Model(object):
                 hooks=hooks,
                 scaffold=self.scaffold,
                 master='',  # Default value.
-                config=None,  # self.distributed_spec.get('session_config'),
+                config=self.session_config,
                 checkpoint_dir=None
             )
 
@@ -532,7 +535,7 @@ class Model(object):
                 job_name='worker',
                 task_index=self.distributed_spec['task_index'],
                 protocol=self.distributed_spec.get('protocol'),
-                config=self.distributed_spec.get('session_config'),
+                config=self.session_config,
                 start=True
             )
 
@@ -541,7 +544,7 @@ class Model(object):
             session_creator = tf.train.ChiefSessionCreator(
                 scaffold=self.scaffold,
                 master=server.target,
-                config=self.distributed_spec.get('session_config'),
+                config=self.session_config,
                 checkpoint_dir=None,
                 checkpoint_filename_with_path=None
             )
@@ -550,7 +553,7 @@ class Model(object):
             #     session_creator = tf.train.WorkerSessionCreator(
             #         scaffold=self.scaffold,
             #         master=server.target,
-            #         config=self.distributed_spec.get('session_config'),
+            #         config=self.session_config,
             #     )
 
             # TensorFlow monitored session object

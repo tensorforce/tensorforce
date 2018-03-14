@@ -270,3 +270,7 @@ class DistributionModel(MemoryModel):
         ]
 
         return model_summaries + network_summaries + distribution_summaries
+
+    def get_components(self):
+        model_components = super(DistributionModel, self).get_components()
+        return model_components + [self.network] + list(self.distributions.values())

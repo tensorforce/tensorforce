@@ -214,3 +214,103 @@ class UpdateSummarySaverHook(tf.train.SummarySaverHook):
                 self._summary_writer.add_summary(summary, global_step)
 
         self._next_step = global_step + 1
+
+
+def strip_name_scope(name, base_scope):
+    if name.startswith(base_scope):
+        return name[len(base_scope):]
+    else:
+        return name
+
+
+class SavableComponent(object):
+    """
+    Component that can save and restore its own state.
+    """
+
+    def register_saver_ops(self):
+        """
+        Registers the saver operations to the graph in context.
+        """
+
+        variables = self.get_savable_variables()
+        if variables is None or len(variables) == 0:
+            self._saver = None
+            return
+
+        base_scope = self._get_base_variable_scope()
+        variables_map = {strip_name_scope(v.name, base_scope): v for v in variables}
+
+        self._saver = tf.train.Saver(
+            var_list=variables_map,
+            reshape=False,
+            sharded=False,
+            max_to_keep=5,
+            keep_checkpoint_every_n_hours=10000.0,
+            name=None,
+            restore_sequentially=False,
+            saver_def=None,
+            builder=None,
+            defer_build=False,
+            allow_empty=True,
+            write_version=tf.train.SaverDef.V2,
+            pad_step_number=False,
+            save_relative_paths=True
+        )
+
+    def get_savable_variables(self):
+        """
+        Returns the list of all the variables this component is responsible to save and restore.
+
+        Returns:
+            The list of variables that will be saved or restored.
+        """
+
+        raise NotImplementedError()
+
+    def save(self, sess, save_path, timestep=None):
+        """
+        Saves this component's managed variables.
+
+        Args:
+            sess: The session for which to save the managed variables.
+            save_path: The path to save data to.
+            timestep: Optional, the timestep to append to the file name.
+
+        Returns:
+            Checkpoint path where the model was saved.
+        """
+
+        if self._saver is None:
+            raise TensorForceError("register_saver_ops should be called before save")
+        return self._saver.save(
+            sess=sess,
+            save_path=save_path,
+            global_step=timestep,
+            write_meta_graph=False,
+            write_state=True,  # Do we need this?
+        )
+
+    def restore(self, sess, save_path):
+        """
+        Restores the values of the managed variables from disk location.
+
+        Args:
+            sess: The session for which to save the managed variables.
+            save_path: The path used to save the data to.
+        """
+
+        if self._saver is None:
+            raise TensorForceError("register_saver_ops should be called before restore")
+        self._saver.restore(sess=sess, save_path=save_path)
+
+    def _get_base_variable_scope(self):
+        """
+        Returns the portion of the variable scope that is considered a base for this component. The variables will be
+        saved with names relative to that scope.
+
+        Returns:
+            The name of the base variable scope, should always end with "/".
+        """
+
+        raise NotImplementedError()

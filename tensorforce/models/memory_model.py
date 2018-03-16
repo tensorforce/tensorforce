@@ -623,7 +623,3 @@ class MemoryModel(Model):
         )
 
         self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-
-    def get_components(self):
-        components = super(MemoryModel, self).get_components()
-        return components + [self.memory]

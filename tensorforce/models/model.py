@@ -1302,12 +1302,12 @@ class Model(object):
 
     def get_components(self):
         """
-        Returns the list of all the components within this model.
+        Returns a dictionary of component name to component of all the components within this model.
 
         Returns:
-            The list of components.
+            (dict) The mapping of name to component.
         """
-        return list()
+        return dict()
 
     def get_savable_components(self):
         """
@@ -1317,4 +1317,49 @@ class Model(object):
         Returns:
             List of util.SavableComponent
         """
-        return filter(lambda x: isinstance(x, util.SavableComponent), self.get_components())
+        return set(filter(lambda x: isinstance(x, util.SavableComponent), self.get_components().values()))
+
+    @staticmethod
+    def _validate_savable(component, component_name):
+        if not isinstance(component, util.SavableComponent):
+            raise TensorForceError(
+                "Component %s must implement SavableComponent but is %s" % (component_name, component)
+            )
+
+    def save_component(self, component_name, save_path):
+        """
+        Saves a component of this model to the designated location.
+
+        Args:
+            component_name: The component to save.
+            save_path: The location to save to.
+        Returns:
+            Checkpoint path where the component was saved.
+        """
+        component = self.get_component(component_name=component_name)
+        self._validate_savable(component=component, component_name=component_name)
+        return component.save(sess=self.session, save_path=save_path)
+
+    def restore_component(self, component_name, save_path):
+        """
+        Restores a component's parameters from a save location.
+
+        Args:
+            component_name: The component to restore.
+            save_path: The save location.
+        """
+        component = self.get_component(component_name=component_name)
+        self._validate_savable(component=component, component_name=component_name)
+        component.restore(sess=self.session, save_path=save_path)
+
+    def get_component(self, component_name):
+        """
+        Looks up a component by its name.
+
+        Args:
+            component_name: The name of the component to look up.
+        Returns:
+            The component for the provided name or None if there is no such component.
+        """
+        mapping = self.get_components()
+        return mapping[component_name] if component_name in mapping else None

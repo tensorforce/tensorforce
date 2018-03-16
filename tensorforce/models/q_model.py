@@ -30,6 +30,9 @@ class QModel(DistributionModel):
     Q-value model.
     """
 
+    COMPONENT_TARGET_NETWORK = "target_network"
+    COMPONENT_TARGET_DISTRIBUTION = "target_distribution"
+
     def __init__(
         self,
         states,
@@ -285,9 +288,13 @@ class QModel(DistributionModel):
         return super(QModel, self).get_summaries() + target_network_summaries + target_distributions_summaries
 
     def get_components(self):
-        model_components = super(QModel, self).get_components()
-        target_distribution_components = list(self.target_distributions.values())
-        return model_components + [self.target_network] + target_distribution_components
+        result = dict(super(QModel, self).get_components())
+        result[QModel.COMPONENT_TARGET_NETWORK] = self.target_network
+        for action, distribution in self.target_distributions.items():
+            result["%s_%s" % (QModel.COMPONENT_TARGET_DISTRIBUTION, action)] = distribution
+        if len(self.target_distributions) == 1:
+            result[QModel.COMPONENT_TARGET_DISTRIBUTION] = next(iter(self.target_distributions.values()))
+        return result
 
     # # TEMP: Random sampling fix
     # def update(self, states, internals, actions, terminal, reward, return_loss_per_instance=False):

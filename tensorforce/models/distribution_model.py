@@ -30,6 +30,9 @@ class DistributionModel(MemoryModel):
     Base class for models using distributions parametrized by a neural network.
     """
 
+    COMPONENT_NETWORK = "network"
+    COMPONENT_DISTRIBUTION = "distribution"
+
     def __init__(
         self,
         states,
@@ -272,5 +275,10 @@ class DistributionModel(MemoryModel):
         return model_summaries + network_summaries + distribution_summaries
 
     def get_components(self):
-        model_components = super(DistributionModel, self).get_components()
-        return model_components + [self.network] + list(self.distributions.values())
+        result = dict(super(DistributionModel, self).get_components())
+        result[DistributionModel.COMPONENT_NETWORK] = self.network
+        for action, distribution in self.distributions.items():
+            result["%s_%s" % (DistributionModel.COMPONENT_DISTRIBUTION, action)] = distribution
+        if len(self.distributions) == 1:
+            result[DistributionModel.COMPONENT_DISTRIBUTION] = next(iter(self.distributions.values()))
+        return result

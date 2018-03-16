@@ -31,6 +31,8 @@ class PGModel(DistributionModel):
     subclasses to implement `tf_pg_loss_per_instance`.
     """
 
+    COMPONENT_BASELINE = "baseline"
+
     def __init__(
         self,
         states,
@@ -341,8 +343,9 @@ class PGModel(DistributionModel):
             return super(PGModel, self).get_summaries() + self.baseline.get_summaries()
 
     def get_components(self):
-        model_components = super(PGModel, self).get_components()
         if self.baseline is None:
-            return model_components
+            return super(PGModel, self).get_components()
         else:
-            return model_components + [self.baseline]
+            result = dict(super(PGModel, self).get_components())
+            result[PGModel.COMPONENT_BASELINE] = self.baseline
+            return result

@@ -97,6 +97,10 @@ class DPGTargetModel(DistributionModel):
     Policy gradient model log likelihood model with target network (e.g. DDPG)
     """
 
+    COMPONENT_CRITIC = "critic"
+    COMPONENT_TARGET_NETWORK = "target_network"
+    COMPONENT_TARGET_DISTRIBUTION = "target_distribution"
+
     def __init__(
         self,
         states,
@@ -361,6 +365,11 @@ class DPGTargetModel(DistributionModel):
             + target_distributions_summaries
 
     def get_components(self):
-        model_components = super(DPGTargetModel, self).get_components()
-        target_distribution_components = list(self.target_distributions.values())
-        return model_components + [self.critic, self.target_network] + target_distribution_components
+        result = dict(super(DPGTargetModel, self).get_components())
+        result[DPGTargetModel.COMPONENT_CRITIC] = self.critic
+        result[DPGTargetModel.COMPONENT_TARGET_NETWORK] = self.target_network
+        for action, distribution in self.target_distributions.items():
+            result["%s_%s" % (DPGTargetModel.COMPONENT_TARGET_DISTRIBUTION, action)] = distribution
+        if len(self.target_distributions) == 1:
+            result[DPGTargetModel.COMPONENT_TARGET_DISTRIBUTION] = next(iter(self.target_distributions.values()))
+        return result

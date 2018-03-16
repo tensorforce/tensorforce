@@ -4,7 +4,10 @@ from __future__ import division
 
 import unittest
 import pytest
+
+from tensorforce import TensorForceError
 from tensorforce.core.networks import LayeredNetwork
+from tensorforce.models import DistributionModel
 from tensorforce.tests.minimal_test import MinimalTest
 from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner
@@ -111,17 +114,14 @@ class TestModelSaveRestore(unittest.TestCase):
         distribution = next(iter(agent.model.distributions.values()))
         distribution_values = agent.model.session.run(distribution.get_variables())
         save_path = self._tmp_dir_path + "/network"
-        agent.model.network.save(sess=agent.model.session, save_path=save_path)
+        agent.model.save_component(component_name=DistributionModel.COMPONENT_NETWORK, save_path=save_path)
         runner.close()
 
         assert os.path.isfile(save_path + ".data-00000-of-00001")
         assert os.path.isfile(save_path + ".index")
 
         agent = create_agent(environment, network_spec)
-        agent.model.network.restore(
-            sess=agent.model.session,
-            save_path=save_path
-        )
+        agent.model.restore_component(component_name=DistributionModel.COMPONENT_NETWORK, save_path=save_path)
 
         # Ensure only the network variables are loaded
         restored_network_values = agent.model.session.run(agent.model.network.get_variables(include_nontrainable=True))
@@ -177,5 +177,26 @@ class TestModelSaveRestore(unittest.TestCase):
             layers=[dict(type='dense', size=output_size)],
         )
         agent = create_agent(environment, network_spec)
-        agent.model.network.restore(sess=agent.model.session, save_path=save_path)
+        agent.model.restore_component(component_name=agent.model.COMPONENT_NETWORK, save_path=save_path)
+        agent.close()
+
+    def test_non_savable_component(self):
+        environment_spec = {"float": ()}
+        environment = create_environment(environment_spec)
+        network_spec = [dict(type='dense', size=32)]
+        agent = create_agent(environment, network_spec)
+        expected_message = "Component network must implement SavableComponent but is "
+
+        with pytest.raises(TensorForceError) as excinfo:
+            agent.model.restore_component(component_name="network", save_path=self._tmp_dir_path + "/network")
+        assert expected_message in str(excinfo.value)
+
+        with pytest.raises(TensorForceError) as excinfo:
+            agent.model.save_component(component_name="network", save_path=self._tmp_dir_path + "/network")
+        assert expected_message in str(excinfo.value)
+
+        with pytest.raises(TensorForceError) as excinfo:
+            agent.model.restore_component(component_name="non-existent", save_path=self._tmp_dir_path + "/network")
+        assert "Component non-existent must implement SavableComponent but is None" == str(excinfo.value)
+
         agent.close()

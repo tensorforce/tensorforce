@@ -134,3 +134,82 @@ actions = agent.act(states=state)
 In the case of multiple actions, the values will be arrays. It is a good idea
 to use expressive action names within your application to keep track of 
 each action and its purpose.
+
+### 7. How do I preload values in my model?
+
+There are scenarios where you might want to initialize the model or parts of the model with values
+learnt from training on another task or completely outside of the Tensorforce framework. Here is a
+simple recipe of how to do this:
+
+1) You need to define the component of the model that you want to save or restore as
+`SavableComponent`. The example below adds the `SavableComponent` mixin to `LayeredNetwork` so that
+the network component can be saved and restored independently.
+
+   ```python
+   from tensorforce.util import SavableComponent
+   from tensorforce.core.networks import LayeredNetwork
+   
+   
+   class SavableNetwork(LayeredNetwork, SavableComponent):
+       """
+       Minimal implementation of a Network that can be saved and restored independently of the Model.
+       """
+       def get_savable_variables(self):
+           return super(SavableNetwork, self).get_variables(include_nontrainable=False)
+   
+       def _get_base_variable_scope(self):
+           return self.apply.variable_scope_name
+   ```
+
+2) Specify the savable components in your agent's definition:
+
+   ```python
+   from tensorforce.agents import PPOAgent
+   
+   agent = PPOAgent(
+       update_mode=dict(...),
+       memory=dict(...),
+       step_optimizer=dict(...),
+       states=...,
+       actions=...,
+       network=dict(
+           # The type we defined above
+           type=SavableNetwork,
+           layers=[...]
+       )
+   )
+   ```
+
+3) You can utilize the model's `save_component` and `restore_component` methods to save or restore
+the parameters of the individual components. Following the example you can restore the network
+values right after the agent is initialized like this:
+
+   ```python
+   agent.model.restore_component(
+       component_name="network",
+       save_path=...
+   )
+   ```
+   
+   Note the use of `"network"` as the component's name. You can also use the constants defined by
+   the specific model implementation for instance: `agent.model.COMPONENT_NETWORK` or
+   `DistributionModel.COMPONENT_NETWORK`.
+
+*Note on variable names*  
+If you plan to use parameters trained and saved outside Tensorforce you need to make sure that the
+variables are saved with names that match the names used by Tensorforce. For instance:
+
+```python
+layer = tf.layers.Dense(units=output_size)
+
+# Train the network
+...
+
+# Save the parameters
+var_map = {
+    "dense0/apply/linear/apply/W:0": layer.kernel,
+    "dense0/apply/linear/apply/b:0": layer.bias
+}
+saver = tf.train.Saver(var_list=var_map)
+saver.save(sess=sess, write_meta_graph=False, save_path=save_path)
+```

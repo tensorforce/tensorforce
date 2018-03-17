@@ -149,7 +149,7 @@ class Memory(object):
         Args:
             loss_per_instance: Loss per instance tensor.
         """
-        pass
+        return tf.no_op()
 
     def get_variables(self):
         """

@@ -5,6 +5,12 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+17th March
+
+- Merged PR to allow component loading. This now enables loading of pretrained
+  networks without having to load a matching graph, thus enabling supervised
+  pretraining. See FAQ for examples.
+
 10th March
 
 - Added Prototype of prioritised replay in pure TensorFlow, still under construction and not

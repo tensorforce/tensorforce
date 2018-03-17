@@ -381,30 +381,31 @@ class MemoryModel(Model):
             reference=reference
         )
 
-        self.memory.update_batch(loss_per_instance=loss_per_instance)
+        # Returns no-op.
+        updated = self.memory.update_batch(loss_per_instance=loss_per_instance)
+        with tf.control_dependencies(control_inputs=(updated,)):
+            loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
 
-        loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
+            # Loss without regularization summary.
+            if 'losses' in self.summary_labels:
+                summary = tf.summary.scalar(name='loss-without-regularization', tensor=loss)
+                self.summaries.append(summary)
 
-        # Loss without regularization summary
-        if 'losses' in self.summary_labels:
-            summary = tf.summary.scalar(name='loss-without-regularization', tensor=loss)
-            self.summaries.append(summary)
+            # Regularization losses.
+            losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
+            if len(losses) > 0:
+                loss += tf.add_n(inputs=list(losses.values()))
+                if 'regularization' in self.summary_labels:
+                    for name, loss_val in losses.items():
+                        summary = tf.summary.scalar(name=('regularization/' + name), tensor=loss_val)
+                        self.summaries.append(summary)
 
-        # Regularization losses
-        losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
-        if len(losses) > 0:
-            loss += tf.add_n(inputs=list(losses.values()))
-            if 'regularization' in self.summary_labels:
-                for name, loss_val in losses.items():
-                    summary = tf.summary.scalar(name=('regularization/' + name), tensor=loss_val)
-                    self.summaries.append(summary)
+            # Total loss summary.
+            if 'losses' in self.summary_labels or 'total-loss' in self.summary_labels:
+                summary = tf.summary.scalar(name='total-loss', tensor=loss)
+                self.summaries.append(summary)
 
-        # Total loss summary
-        if 'losses' in self.summary_labels or 'total-loss' in self.summary_labels:
-            summary = tf.summary.scalar(name='total-loss', tensor=loss)
-            self.summaries.append(summary)
-
-        return loss
+            return loss
 
     def optimizer_arguments(self, states, internals, actions, terminal, reward, next_states, next_internals):
         """

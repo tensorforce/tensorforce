@@ -88,6 +88,6 @@ class RandomAgent(Agent):
             device=self.device,
             saver=self.saver,
             summarizer=self.summarizer,
-            distributed=self.distributed,
+            execution=self.distributed,
             batching_capacity=self.batching_capacity
         )

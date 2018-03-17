@@ -75,7 +75,7 @@ class Model(object):
         device,
         saver,
         summarizer,
-        distributed,
+        execution,
         batching_capacity,
         variable_noise,
         states_preprocessing,
@@ -92,7 +92,7 @@ class Model(object):
             device (str): The name of the device to run the graph of this model on.
             saver (spec): Dict specifying whether and how to save the model's parameters.
             summarizer (spec): Dict specifying which tensorboard summaries should be created and added to the graph.
-            distributed (spec): Dict specifying whether and how to do distributed training on the model's graph.
+            execution (spec): Dict specifying whether and how to do distributed training on the model's graph.
             batching_capacity (int): Batching capacity.
             variable_noise (float): The stddev value of a Normal distribution used for adding random
                 noise to the model's output (for each batch, noise can be toggled and - if active - will be resampled).
@@ -127,7 +127,17 @@ class Model(object):
         else:
             self.summarizer_spec = summarizer
 
-        self.distributed_spec = distributed
+        self.execution_spec = execution
+        # TODO (SVEN) Modify to read other execution spec args here
+        if self.execution_spec:
+            self.session_config = self.execution_spec.get('session_config', None)
+            # Default single-process execution.
+            self.execution_type = self.execution_spec.get('type', 'single')
+            self.distributed_spec = self.execution_spec.get('distributed_spec', None)
+        else:
+            self.execution_type = 'single'
+            self.session_config = None
+            self.distributed_spec = None
 
         # TensorFlow summaries
         if self.summarizer_spec is None:
@@ -211,14 +221,14 @@ class Model(object):
         # Build single graph and work with that from here on. In the case of threaded RL, the central
         # and already initialized model is handed to the worker Agents via the ThreadedRunner's
         # WorkerAgentGenerator factory.
-        if self.distributed_spec is None:
+        if self.execution_type == 'single':
             self.graph = tf.Graph()
             default_graph = self.graph.as_default()
             default_graph.__enter__()
             self.global_model = None
         # Distributed tensorflow setup (each process gets its own (identical) graph).
         # We are the parameter server.
-        elif self.distributed_spec.get('parameter_server'):
+        elif self.execution_type == 'distributed' and self.distributed_spec.get('parameter_server'):
             if self.distributed_spec.get('replica_model'):
                 raise TensorForceError("Invalid config value for distributed mode.")
             self.graph = tf.Graph()
@@ -228,7 +238,7 @@ class Model(object):
             self.scope = self.scope + '-ps'
         # We are a worker's replica model.
         # Place our ops round-robin on all worker devices.
-        elif self.distributed_spec.get('replica_model'):
+        elif self.execution_type == 'distributed' and self.distributed_spec.get('replica_model'):
             self.graph = tf.get_default_graph()
             self.global_model = None
             # The graph is the parent model's graph, hence no new graph here.
@@ -358,7 +368,7 @@ class Model(object):
                     summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
                     self.summaries.append(summary)
 
-        if self.distributed_spec is None:
+        if self.execution_type == 'single':
             global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
@@ -462,7 +472,7 @@ class Model(object):
         hooks = list()
 
         # Checkpoint saver hook
-        if self.saver_spec is not None and (self.distributed_spec is None or self.distributed_spec['task_index'] == 0):
+        if self.saver_spec is not None and (self.execution_type == 'single' or self.distributed_spec['task_index'] == 0):
             self.saver_directory = self.saver_spec['directory']
             hooks.append(tf.train.CheckpointSaverHook(
                 checkpoint_dir=self.saver_directory,
@@ -520,13 +530,13 @@ class Model(object):
         # tf.train.NanTensorHook(loss_tensor, fail_on_nan_loss=True)
         # tf.train.ProfilerHook(save_steps=None, save_secs=None, output_dir='', show_dataflow=True, show_memory=False)
 
-        if self.distributed_spec is None:
+        if self.execution_type == 'single':
             # TensorFlow non-distributed monitored session object
             self.monitored_session = tf.train.SingularMonitoredSession(
                 hooks=hooks,
                 scaffold=self.scaffold,
                 master='',  # Default value.
-                config=None,  # self.distributed_spec.get('session_config'),
+                config=self.session_config,  # self.execution_spec.get('session_config'),
                 checkpoint_dir=None
             )
 
@@ -536,16 +546,16 @@ class Model(object):
                 job_name='worker',
                 task_index=self.distributed_spec['task_index'],
                 protocol=self.distributed_spec.get('protocol'),
-                config=self.distributed_spec.get('session_config'),
+                config=self.session_config,
                 start=True
             )
 
-            # if self.distributed_spec['task_index'] == 0:
+            # if self.execution_spec['task_index'] == 0:
             # TensorFlow chief session creator object
             session_creator = tf.train.ChiefSessionCreator(
                 scaffold=self.scaffold,
                 master=server.target,
-                config=self.distributed_spec.get('session_config'),
+                config=self.session_config,
                 checkpoint_dir=None,
                 checkpoint_filename_with_path=None
             )
@@ -554,7 +564,7 @@ class Model(object):
             #     session_creator = tf.train.WorkerSessionCreator(
             #         scaffold=self.scaffold,
             #         master=server.target,
-            #         config=self.distributed_spec.get('session_config'),
+            #         config=self.execution_spec.get('session_config'),
             #     )
 
             # TensorFlow monitored session object

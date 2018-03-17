@@ -43,7 +43,7 @@ class LearningAgent(Agent):
         device=None,
         saver=None,
         summarizer=None,
-        distributed=None,
+        execution=None,
         variable_noise=None,
         states_preprocessing=None,
         actions_exploration=None,
@@ -82,7 +82,7 @@ class LearningAgent(Agent):
                 - seconds or steps: summarize frequency (default: 120 seconds).
                 - labels: list of summary labels to record (default: []).
                 - meta_param_recorder_class: ???.
-            distributed (spec): Distributed specification, with the following attributes (default:
+            execution (spec): Distributed specification, with the following attributes (default:
                 none):
                 - cluster_spec: TensorFlow ClusterSpec object (required).
                 - task_index: integer (required).
@@ -108,7 +108,7 @@ class LearningAgent(Agent):
         self.device = device
         self.saver = saver
         self.summarizer = summarizer
-        self.distributed = distributed
+        self.distributed = execution
         self.variable_noise = variable_noise
         self.states_preprocessing = states_preprocessing
         self.actions_exploration = actions_exploration

@@ -83,7 +83,12 @@ agent = PPOAgent(
         learning_rate=1e-3
     ),
     subsampling_fraction=0.2,
-    optimization_steps=25
+    optimization_steps=25,
+    execution=dict(
+        type='single',
+        session_config=None,
+        distributed_spec=None
+    )
 )
 
 # Create the runner

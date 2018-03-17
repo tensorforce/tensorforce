@@ -46,5 +46,10 @@
         "directory": null,
         "labels": [],
         "seconds": 120
+    },
+    "execution": {
+        "type": "single",
+        "session_config": null,
+        "distributed_spec": null
     }
 }

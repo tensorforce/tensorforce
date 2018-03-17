@@ -182,11 +182,14 @@ def main():
     else:
         agent['device'] = '/job:worker/task:{}'.format(args.task_index)  # '/cpu:0'
 
-    agent['distributed'] = dict(
-        cluster_spec=cluster_spec,
-        task_index=args.task_index,
-        parameter_server=args.parameter_server,
-        protocol='grpc'
+    agent['execution'] = dict(
+        type='distributed',
+        distributed_spec=dict(
+            cluster_spec=cluster_spec,
+            task_index=args.task_index,
+            parameter_server=args.parameter_server,
+            protocol='grpc'
+        )
     )
 
     agent = Agent.from_spec(

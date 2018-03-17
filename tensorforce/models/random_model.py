@@ -36,7 +36,7 @@ class RandomModel(Model):
         device,
         saver,
         summarizer,
-        distributed,
+        execution,
         batching_capacity
     ):
         super(RandomModel, self).__init__(
@@ -46,7 +46,7 @@ class RandomModel(Model):
             device=device,
             saver=saver,
             summarizer=summarizer,
-            distributed=distributed,
+            execution=execution,
             batching_capacity=batching_capacity,
             variable_noise=None,
             states_preprocessing=None,

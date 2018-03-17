@@ -38,7 +38,7 @@ class MemoryModel(Model):
         device,
         saver,
         summarizer,
-        distributed,
+        execution,
         batching_capacity,
         variable_noise,
         states_preprocessing,
@@ -59,7 +59,7 @@ class MemoryModel(Model):
             device (str): The name of the device to run the graph of this model on.
             saver (spec): Dict specifying whether and how to save the model's parameters.
             summarizer (spec): Dict specifying which tensorboard summaries should be created and added to the graph.
-            distributed (spec): Dict specifying whether and how to do distributed training on the model's graph.
+            execution (spec): Dict specifying whether and how to do distributed training on the model's graph.
             batching_capacity (int): Batching capacity.
             variable_noise (float): The stddev value of a Normal distribution used for adding random
                 noise to the model's output (for each batch, noise can be toggled and - if active - will be resampled).
@@ -98,7 +98,7 @@ class MemoryModel(Model):
             device=device,
             saver=saver,
             summarizer=summarizer,
-            distributed=distributed,
+            execution=execution,
             batching_capacity=batching_capacity,
             variable_noise=variable_noise,
             states_preprocessing=states_preprocessing,

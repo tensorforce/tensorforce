@@ -40,5 +40,10 @@
             "type": "sequence",
             "length": 4
         }
-    ]
+    ],
+    "execution": {
+        "type": "single",
+        "session_config": null,
+        "distributed_spec": null
+    }
 }

@@ -10,6 +10,8 @@ be tracked here in detail but through github issues.
 - Merged PR to allow component loading. This now enables loading of pretrained
   networks without having to load a matching graph, thus enabling supervised
   pretraining. See FAQ for examples.
+- Renamed ```distributed``` argument to ```execution``` in agent which will handle
+  all execution settings going forward.
 
 10th March
 

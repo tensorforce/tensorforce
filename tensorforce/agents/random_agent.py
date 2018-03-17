@@ -19,6 +19,7 @@ from __future__ import division
 
 from tensorforce.agents import Agent
 from tensorforce.models.random_model import RandomModel
+from tensorforce.contrib.sanity_check_specs import sanity_check_execution_spec
 
 
 class RandomAgent(Agent):
@@ -36,7 +37,7 @@ class RandomAgent(Agent):
         device=None,
         saver=None,
         summarizer=None,
-        distributed=None,
+        execution=None,
     ):
         """
         Initializes the random agent.
@@ -56,22 +57,14 @@ class RandomAgent(Agent):
                 - seconds or steps: summarize frequency (default: 120 seconds).
                 - labels: list of summary labels to record (default: []).
                 - meta_param_recorder_class: ???.
-            distributed (spec): Distributed specification, with the following attributes (default:
-                none):
-                - cluster_spec: TensorFlow ClusterSpec object (required).
-                - task_index: integer (required).
-                - parameter_server: specifies whether this instance is a parameter server (default:
-                    false).
-                - protocol: communication protocol (default: none, i.e. 'grpc').
-                - config: TensorFlow ConfigProto object (default: none).
-                - replica_model: internal.
+            execution (spec): Execution specification (see sanity_check_execution_spec for details).
         """
 
         self.scope = scope
         self.device = device
         self.saver = saver
         self.summarizer = summarizer
-        self.distributed = distributed
+        self.execution = sanity_check_execution_spec(execution)
 
         super(RandomAgent, self).__init__(
             states=states,
@@ -88,6 +81,6 @@ class RandomAgent(Agent):
             device=self.device,
             saver=self.saver,
             summarizer=self.summarizer,
-            execution=self.distributed,
+            execution=self.execution,
             batching_capacity=self.batching_capacity
         )

@@ -19,9 +19,9 @@ from __future__ import division
 
 import inspect
 
-from tensorforce import TensorForceError
 from tensorforce.agents.agent import Agent
 from tensorforce.meta_parameter_recorder import MetaParameterRecorder
+from tensorforce.contrib.sanity_check_specs import sanity_check_execution_spec
 
 
 class LearningAgent(Agent):
@@ -82,15 +82,7 @@ class LearningAgent(Agent):
                 - seconds or steps: summarize frequency (default: 120 seconds).
                 - labels: list of summary labels to record (default: []).
                 - meta_param_recorder_class: ???.
-            execution (spec): Distributed specification, with the following attributes (default:
-                none):
-                - cluster_spec: TensorFlow ClusterSpec object (required).
-                - task_index: integer (required).
-                - parameter_server: specifies whether this instance is a parameter server (default:
-                    false).
-                - protocol: communication protocol (default: none, i.e. 'grpc').
-                - config: TensorFlow ConfigProto object (default: none).
-                - replica_model: internal.
+            execution (spec): Execution specification (see sanity_check_execution_spec for details).
             variable_noise (float): Standard deviation of variable noise (default: none).
             states_preprocessing (spec, or dict of specs): States preprocessing specification, see
                 core.preprocessors module for more information (default: none)
@@ -108,7 +100,7 @@ class LearningAgent(Agent):
         self.device = device
         self.saver = saver
         self.summarizer = summarizer
-        self.distributed = execution
+        self.execution = sanity_check_execution_spec(execution)
         self.variable_noise = variable_noise
         self.states_preprocessing = states_preprocessing
         self.actions_exploration = actions_exploration

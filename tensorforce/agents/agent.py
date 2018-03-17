@@ -23,6 +23,7 @@ import numpy as np
 
 from tensorforce import util, TensorForceError
 import tensorforce.agents
+from tensorforce.contrib.sanity_check_specs import sanity_check_states, sanity_check_actions
 
 
 class Agent(object):
@@ -56,8 +57,8 @@ class Agent(object):
             batching_capacity (int): Batching capacity of agent and model (default: 1000).
         """
 
-        self.set_normalized_states(states=states)
-        self.set_normalized_actions(actions=actions)
+        self.states, self.unique_state = sanity_check_states(states)
+        self.actions, self.unique_action = sanity_check_actions(actions)
 
         # Batched observe for better performance with Python.
         self.batched_observe = batched_observe
@@ -85,67 +86,16 @@ class Agent(object):
     def close(self):
         self.model.close()
 
-    def set_normalized_states(self, states):
-        # Leave incoming states dict intact.
-        self.states = deepcopy(states)
-
-        # Unique state shortform.
-        self.unique_state = ('shape' in self.states)
-        if self.unique_state:
-            self.states = dict(state=self.states)
-
-        # Normalize states.
-        for name, state in self.states.items():
-            # Convert int to unary tuple.
-            if isinstance(state['shape'], int):
-                state['shape'] = (state['shape'],)
-
-            # Set default type to float.
-            if 'type' not in state:
-                state['type'] = 'float'
-
-    def set_normalized_actions(self, actions):
-        # Leave incoming spec-dict intact.
-        self.actions = deepcopy(actions)
-
-        # Unique action shortform.
-        self.unique_action = ('type' in self.actions)
-        if self.unique_action:
-            self.actions = dict(action=self.actions)
-
-        # Normalize actions.
-        for name, action in self.actions.items():
-            # Set default type to int
-            if 'type' not in action:
-                action['type'] = 'int'
-
-            # Check required values
-            if action['type'] == 'int':
-                if 'num_actions' not in action:
-                    raise TensorForceError("Action requires value 'num_actions' set!")
-            elif action['type'] == 'float':
-                if ('min_value' in action) != ('max_value' in action):
-                    raise TensorForceError("Action requires both values 'min_value' and 'max_value' set!")
-
-            # Set default shape to empty tuple (single-int, discrete action space)
-            if 'shape' not in action:
-                action['shape'] = ()
-
-            # Convert int to unary tuple
-            if isinstance(action['shape'], int):
-                action['shape'] = (action['shape'],)
-
     def initialize_model(self):
         """
-        Creates the model for the respective agent based on specifications given by user. This is a separate
-        call after constructing the agent because the agent constructor has to perform a number of checks
-        on the specs first, sometimes adjusting them e.g. by converting to a dict.
+        Creates and returns the model (including a local replica in case of distributed learning) for this agent
+        based on specifications given by user. This method needs to be implemented by the different agent subclasses.
         """
         raise NotImplementedError
 
     def reset(self):
         """
-        Reset the agent to its initial state (e.g. on experiment start). Updates the Model's internal episode and
+        Resets the agent to its initial state (e.g. on experiment start). Updates the Model's internal episode and
         time step counter, internal states, and resets preprocessors.
         """
         self.episode, self.timestep, self.next_internals = self.model.reset()

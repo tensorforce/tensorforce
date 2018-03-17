@@ -19,6 +19,7 @@ from __future__ import division
 
 from tensorforce.agents import Agent
 from tensorforce.models.constant_model import ConstantModel
+from tensorforce.contrib.sanity_check_specs import sanity_check_execution_spec
 
 
 class ConstantAgent(Agent):
@@ -37,7 +38,7 @@ class ConstantAgent(Agent):
         device=None,
         saver=None,
         summarizer=None,
-        distributed=None
+        execution=None
     ):
         """
         Initializes the constant agent.
@@ -59,22 +60,14 @@ class ConstantAgent(Agent):
                 - seconds or steps: summarize frequency (default: 120 seconds).
                 - labels: list of summary labels to record (default: []).
                 - meta_param_recorder_class: ???.
-            distributed (spec): Distributed specification, with the following attributes (default:
-                none):
-                - cluster_spec: TensorFlow ClusterSpec object (required).
-                - task_index: integer (required).
-                - parameter_server: specifies whether this instance is a parameter server (default:
-                    false).
-                - protocol: communication protocol (default: none, i.e. 'grpc').
-                - config: TensorFlow ConfigProto object (default: none).
-                - replica_model: internal.
+            execution (spec): Execution specification (see sanity_check_execution_spec for details).
         """
 
         self.scope = scope
         self.device = device
         self.saver = saver
         self.summarizer = summarizer
-        self.distributed = distributed
+        self.execution = sanity_check_execution_spec(execution)
         self.batching_capacity = batching_capacity
         self.action_values = action_values
 
@@ -93,7 +86,7 @@ class ConstantAgent(Agent):
             device=self.device,
             saver=self.saver,
             summarizer=self.summarizer,
-            execution=self.distributed,
+            execution=self.execution,
             batching_capacity=self.batching_capacity,
             action_values=self.action_values
         )

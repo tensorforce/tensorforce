@@ -71,7 +71,7 @@ class TestVPGMultithreaded(unittest.TestCase):
 
         runner = ThreadedRunner(agent=agents, environment=environments)
 
-        runner.run(episodes=100)
+        runner.run(num_episodes=100)
         runner.close()
 
         sys.stdout.write(' ran\n')

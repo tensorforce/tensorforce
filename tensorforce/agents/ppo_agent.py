@@ -159,7 +159,7 @@ class PPOAgent(LearningAgent):
             device=self.device,
             saver=self.saver,
             summarizer=self.summarizer,
-            execution=self.distributed,
+            execution=self.execution,
             batching_capacity=self.batching_capacity,
             variable_noise=self.variable_noise,
             states_preprocessing=self.states_preprocessing,

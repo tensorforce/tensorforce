@@ -75,7 +75,7 @@ class Model(object):
         device,
         saver,
         summarizer,
-        distributed,
+        execution,
         batching_capacity,
         variable_noise,
         states_preprocessing,
@@ -92,7 +92,7 @@ class Model(object):
             device (str): The name of the device to run the graph of this model on.
             saver (spec): Dict specifying whether and how to save the model's parameters.
             summarizer (spec): Dict specifying which tensorboard summaries should be created and added to the graph.
-            distributed (spec): Dict specifying whether and how to do distributed training on the model's graph.
+            execution (spec): Dict specifying whether and how to do distributed training on the model's graph.
             batching_capacity (int): Batching capacity.
             variable_noise (float): The stddev value of a Normal distribution used for adding random
                 noise to the model's output (for each batch, noise can be toggled and - if active - will be resampled).
@@ -126,8 +126,14 @@ class Model(object):
             self.summarizer_spec = None
         else:
             self.summarizer_spec = summarizer
+        self.summarizer = None  # The tf.summary.FileWriter object
+        self.summarizer_hook = None  # The summarizer hook to use in the model's session.
 
-        self.distributed_spec = distributed
+        self.execution_spec = execution
+        # Default single-process execution.
+        self.execution_type = self.execution_spec["type"]
+        self.session_config = self.execution_spec["session_config"]
+        self.distributed_spec = self.execution_spec["distributed_spec"]
 
         # TensorFlow summaries
         if self.summarizer_spec is None:
@@ -181,6 +187,7 @@ class Model(object):
 
         self.graph = None
         self.global_model = None
+        self.saver = None
         self.scaffold = None
         self.saver_directory = None
         self.session = None
@@ -199,58 +206,26 @@ class Model(object):
         # Setup TensorFlow graph and session
         self.setup()
 
-    def setup(self):
+    def setup(self, global_model=False):
         """
         Sets up the TensorFlow model graph and initializes (and enters) the TensorFlow session.
+
+        Args:
+            global_model (bool): Whether this setup is for a global model (held by some type of parameter-server).
         """
 
-        # Create our Graph or figure out, which shared/global one to use.
-        default_graph = None
-        # No parallel RL or ThreadedRunner with Hogwild! shared network updates:
-        # Build single graph and work with that from here on. In the case of threaded RL, the central
-        # and already initialized model is handed to the worker Agents via the ThreadedRunner's
-        # WorkerAgentGenerator factory.
-        if self.distributed_spec is None:
-            self.graph = tf.Graph()
-            default_graph = self.graph.as_default()
-            default_graph.__enter__()
-            self.global_model = None
-        # Distributed tensorflow setup (each process gets its own (identical) graph).
-        # We are the parameter server.
-        elif self.distributed_spec.get('parameter_server'):
-            if self.distributed_spec.get('replica_model'):
-                raise TensorForceError("Invalid config value for distributed mode.")
-            self.graph = tf.Graph()
-            default_graph = self.graph.as_default()
-            default_graph.__enter__()
-            self.global_model = None
-            self.scope = self.scope + '-ps'
-        # We are a worker's replica model.
-        # Place our ops round-robin on all worker devices.
-        elif self.distributed_spec.get('replica_model'):
-            self.graph = tf.get_default_graph()
-            self.global_model = None
-            # The graph is the parent model's graph, hence no new graph here.
-            self.device = tf.train.replica_device_setter(
-                worker_device=self.device,
-                cluster=self.distributed_spec['cluster_spec']
-            )
-            self.scope = self.scope + '-ps'
-        # We are a worker:
-        # Construct the global model (deepcopy of ourselves), set it up via `setup` and link to it (global_model).
-        else:
-            graph = tf.Graph()
-            default_graph = graph.as_default()
-            default_graph.__enter__()
-            self.global_model = deepcopy(self)
-            self.global_model.distributed_spec['replica_model'] = True
-            self.global_model.setup()
-            self.graph = graph
-            self.as_local_model()
-            self.scope = self.scope + '-worker' + str(self.distributed_spec['task_index'])
+        # Create our graph, setup local model/global model links, set scope and device
+        graph_default_ctx = self.setup_graph(global_model)
+        # Start a tf Server (in case of distributed setup), returns None for single execution.
+        server = self.start_server()
+        # TODO: ps will join in above call to start_server and then basically idle (would be cleaner to return here)
 
+        # build the graph
         with tf.device(device_name_or_function=self.device):
             with tf.variable_scope(name_or_scope=self.scope, reuse=False):
+
+                # set up global counters (timestep and episode)
+                self.setup_global_counters()
 
                 # Variables and summaries
                 self.variables = dict()
@@ -273,35 +248,6 @@ class Model(object):
                                 summary = tf.summary.histogram(name=name, values=variable)
                                 self.summaries.append(summary)
                     return variable
-
-                # Global timestep
-                collection = self.graph.get_collection(name='global-timestep')
-                if len(collection) == 0:
-                    self.global_timestep = tf.Variable(
-                        name='global-timestep',
-                        dtype=util.tf_dtype('int'),
-                        trainable=False,
-                        initial_value=0
-                    )
-                    self.graph.add_to_collection(name='global-timestep', value=self.global_timestep)
-                    self.graph.add_to_collection(name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep)
-                else:
-                    assert len(collection) == 1
-                    self.global_timestep = collection[0]
-
-                # Global episode
-                collection = self.graph.get_collection(name='global-episode')
-                if len(collection) == 0:
-                    self.global_episode = tf.Variable(
-                        name='global-episode',
-                        dtype=util.tf_dtype('int'),
-                        trainable=False,
-                        initial_value=0
-                    )
-                    self.graph.add_to_collection(name='global-episode', value=self.global_episode)
-                else:
-                    assert len(collection) == 1
-                    self.global_episode = collection[0]
 
                 # Create placeholders, tf functions, internals, etc
                 self.initialize(custom_getter=custom_getter)
@@ -357,7 +303,180 @@ class Model(object):
                     summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
                     self.summaries.append(summary)
 
-        if self.distributed_spec is None:
+        # if we are a global model -> return here (saving, synching, finalizing graph is done by local replica model)
+        if global_model:
+            return
+
+        self.setup_saver()
+
+        # Summary operation
+        summaries = self.get_summaries()
+        if len(summaries) > 0:
+            summary_op = tf.summary.merge(inputs=summaries)
+        else:
+            summary_op = None
+        self.setup_scaffold(summary_op)
+
+        # Create necessary hooks for the upcoming session.
+        hooks = self.setup_summary_and_saver_hooks()
+
+        # We are done constructing: Finalize our graph, create and enter the session.
+        self.setup_session(server, hooks, graph_default_ctx)
+
+    def setup_graph(self, global_model=False):
+        """
+        Creates our Graph and figures out, which shared/global model to hook up to.
+
+        Args:
+            global_model (bool): Whether we are setting up the global part of a model. If True we do not create
+                a new graph (and return None as the context). We will use the already existing local replica graph
+                of the model.
+
+        Returns: None or the graph's as_default() context.
+        """
+        graph_default_ctx = None
+
+        # Single mode
+        if self.execution_type == "single":
+            self.graph = tf.Graph()
+            graph_default_ctx = self.graph.as_default()
+            graph_default_ctx.__enter__()
+            self.global_model = None
+
+        # Distributed tf
+        elif self.execution_type == "distributed":
+            # Parameter-server -> Do not build any graph.
+            if self.distributed_spec["job"] == "ps":
+                return None
+
+            # worker -> construct the global graph (main model; the one the ps holds),
+            # set it up via `setup` and link to it.
+            elif self.distributed_spec["job"] == "worker":
+                # The replica model (local). Each worker gets a full copy of this one.
+                # TODO: Worker doesn't need the train ops for this local model, but probably won't harm.
+                if not global_model:
+                    graph = tf.Graph()
+                    graph_default_ctx = graph.as_default()
+                    graph_default_ctx.__enter__()
+                    self.global_model = deepcopy(self)
+                    self.global_model.setup(global_model=True)
+                    self.graph = graph
+                    self.as_local_model()
+                    self.scope += '-worker' + str(self.distributed_spec["task_index"])
+                # The global_model (whose Variables are hosted by the ps).
+                else:
+                    self.graph = tf.get_default_graph()  # lives in the same graph as local model
+                    self.global_model = None
+                    self.device = tf.train.replica_device_setter(
+                        # Place its Variables on the parameter server(s) (round robin).
+                        #ps_device="/job:ps",  # default
+                        # Train-ops for the global_model are hosted locally (on this worker's node).
+                        worker_device=self.device,
+                        cluster=self.distributed_spec["cluster_spec"]
+                    )
+                    # Tag all tensors as 'ps' without task idx so they are shared between all workers.
+                    self.scope += '-ps'
+            else:
+                raise TensorForceError("Unsupported job type: {}!".format(self.distributed_spec["job"]))
+        else:
+            raise TensorForceError("Unsupported distributed type: {}!".format(self.distributed_spec["type"]))
+
+        return graph_default_ctx
+
+    def start_server(self):
+        """
+        Starts a tf server (and optionally joins it if we are a parameter-server).
+        Only relevant, if we are running in distributed mode.
+
+        Returns: The tf.train.Server object or None (for single execution).
+        """
+        server = None
+        if self.execution_type == "distributed":
+            server = tf.train.Server(
+                server_or_cluster_def=self.distributed_spec["cluster_spec"],
+                job_name=self.distributed_spec["job"],
+                task_index=self.distributed_spec["task_index"],
+                protocol=self.distributed_spec.get("protocol"),
+                config=self.distributed_spec.get("session_config"),
+                start=True
+            )
+            if self.distributed_spec["job"] == "ps":
+                server.join()
+                quit()  # a bit ugly?
+        return server
+
+    def setup_global_counters(self):
+        """
+        Adds global timestep and episode counters to the graph
+        """
+        # Global timestep
+        collection = self.graph.get_collection(name='global-timestep')
+        if len(collection) == 0:
+            self.global_timestep = tf.Variable(
+                name='global-timestep',
+                dtype=util.tf_dtype('int'),
+                trainable=False,
+                initial_value=0
+            )
+            self.graph.add_to_collection(name='global-timestep', value=self.global_timestep)
+            self.graph.add_to_collection(name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep)
+        else:
+            assert len(collection) == 1
+            self.global_timestep = collection[0]
+
+        # Global episode
+        collection = self.graph.get_collection(name='global-episode')
+        if len(collection) == 0:
+            self.global_episode = tf.Variable(
+                name='global-episode',
+                dtype=util.tf_dtype('int'),
+                trainable=False,
+                initial_value=0
+            )
+            self.graph.add_to_collection(name='global-episode', value=self.global_episode)
+        else:
+            assert len(collection) == 1
+            self.global_episode = collection[0]
+
+    def setup_saver(self):
+        """
+        Creates the tf.train.Saver object and stores it in self.saver.
+        """
+        if self.execution_type == "single":
+            global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
+        else:
+            global_variables = self.global_model.get_variables(include_submodules=True, include_nontrainable=True)
+
+        global_variables += [self.global_episode, self.global_timestep]
+
+        for c in self.get_savable_components():
+            c.register_saver_ops()
+
+        # TensorFlow saver object
+        self.saver = tf.train.Saver(
+            var_list=global_variables,  # should be given?
+            reshape=False,
+            sharded=False,  # should be true?
+            max_to_keep=5,
+            keep_checkpoint_every_n_hours=10000.0,
+            name=None,
+            restore_sequentially=False,
+            saver_def=None,
+            builder=None,
+            defer_build=False,
+            allow_empty=True,
+            write_version=tf.train.SaverDef.V2,
+            pad_step_number=False,
+            save_relative_paths=True
+            # filename=None
+        )
+
+    def setup_scaffold(self, summary_op):
+        """
+        Creates the tf.train.Scaffold object with the given summary_op and assigns it to self.scaffold.
+        Other fields of the Scaffold are generated automatically.
+        """
+        if self.execution_type == "single":
             global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
@@ -366,23 +485,6 @@ class Model(object):
             local_init_op = None
 
         else:
-            # We are just a replica model: Return.
-            if self.distributed_spec.get('replica_model'):
-                return
-            # We are the parameter server: Start and wait.
-            elif self.distributed_spec.get('parameter_server'):
-                server = tf.train.Server(
-                    server_or_cluster_def=self.distributed_spec['cluster_spec'],
-                    job_name='ps',
-                    task_index=self.distributed_spec['task_index'],
-                    protocol=self.distributed_spec.get('protocol'),
-                    config=None,
-                    start=True
-                )
-                # Param server does nothing actively.
-                server.join()
-                return
-
             # Global and local variable initializers.
             global_variables = self.global_model.get_variables(
                 include_submodules=True,
@@ -416,32 +518,6 @@ class Model(object):
                 if file is not None:
                     scaffold.saver.restore(sess=session, save_path=file)
 
-        # Summary operation
-        summaries = self.get_summaries()
-        if len(summaries) > 0:
-            summary_op = tf.summary.merge(inputs=summaries)
-        else:
-            summary_op = None
-
-        # TensorFlow saver object
-        self.saver = tf.train.Saver(
-            var_list=global_variables,  # should be given?
-            reshape=False,
-            sharded=False,  # should be true?
-            max_to_keep=5,
-            keep_checkpoint_every_n_hours=10000.0,
-            name=None,
-            restore_sequentially=False,
-            saver_def=None,
-            builder=None,
-            defer_build=False,
-            allow_empty=True,
-            write_version=tf.train.SaverDef.V2,
-            pad_step_number=False,
-            save_relative_paths=True
-            # filename=None
-        )
-
         # TensorFlow scaffold object
         self.scaffold = tf.train.Scaffold(
             init_op=init_op,
@@ -455,10 +531,17 @@ class Model(object):
             copy_from_scaffold=None
         )
 
+    def setup_summary_and_saver_hooks(self):
+        """
+        Creates and returns a list of saver and summarizer hooks to use in a session. Populates self.saver_directory,
+        self.summarizer_hook and self.summarizer.
+
+        Returns: List of hooks to use in a session.
+        """
         hooks = list()
 
         # Checkpoint saver hook
-        if self.saver_spec is not None and (self.distributed_spec is None or self.distributed_spec['task_index'] == 0):
+        if self.saver_spec is not None and (self.execution_type == 'single' or self.distributed_spec['task_index'] == 0):
             self.saver_directory = self.saver_spec['directory']
             hooks.append(tf.train.CheckpointSaverHook(
                 checkpoint_dir=self.saver_directory,
@@ -516,32 +599,24 @@ class Model(object):
         # tf.train.NanTensorHook(loss_tensor, fail_on_nan_loss=True)
         # tf.train.ProfilerHook(save_steps=None, save_secs=None, output_dir='', show_dataflow=True, show_memory=False)
 
-        if self.distributed_spec is None:
-            # TensorFlow non-distributed monitored session object
-            self.monitored_session = tf.train.SingularMonitoredSession(
-                hooks=hooks,
-                scaffold=self.scaffold,
-                master='',  # Default value.
-                config=None,  # self.distributed_spec.get('session_config'),
-                checkpoint_dir=None
-            )
+        return hooks
 
-        else:
-            server = tf.train.Server(
-                server_or_cluster_def=self.distributed_spec['cluster_spec'],
-                job_name='worker',
-                task_index=self.distributed_spec['task_index'],
-                protocol=self.distributed_spec.get('protocol'),
-                config=self.distributed_spec.get('session_config'),
-                start=True
-            )
+    def setup_session(self, server, hooks, graph_default_ctx):
+        """
+        Creates and then enters the session for this model (finalizes the graph).
 
+        Args:
+            server (tf.train.Server): The tf.train.Server object to connect to (None for single execution).
+            hooks (list): A list of (saver, summary, seto) hooks to be passed to the session.
+            graph_default_ctx: The graph as_default() context that we are currently in.
+        """
+        if self.execution_type == "distributed":
             # if self.distributed_spec['task_index'] == 0:
             # TensorFlow chief session creator object
             session_creator = tf.train.ChiefSessionCreator(
                 scaffold=self.scaffold,
                 master=server.target,
-                config=self.distributed_spec.get('session_config'),
+                config=self.session_config,
                 checkpoint_dir=None,
                 checkpoint_filename_with_path=None
             )
@@ -550,7 +625,7 @@ class Model(object):
             #     session_creator = tf.train.WorkerSessionCreator(
             #         scaffold=self.scaffold,
             #         master=server.target,
-            #         config=self.distributed_spec.get('session_config'),
+            #         config=self.execution_spec.get('session_config'),
             #     )
 
             # TensorFlow monitored session object
@@ -559,14 +634,28 @@ class Model(object):
                 hooks=hooks,
                 stop_grace_period_secs=120  # Default value.
             )
+        else:
+            # TensorFlow non-distributed monitored session object
+            self.monitored_session = tf.train.SingularMonitoredSession(
+                hooks=hooks,
+                scaffold=self.scaffold,
+                master='',  # Default value.
+                config=self.session_config,  # self.execution_spec.get('session_config'),
+                checkpoint_dir=None
+            )
 
-        if default_graph:
-            default_graph.__exit__(None, None, None)
+        if graph_default_ctx:
+            graph_default_ctx.__exit__(None, None, None)
         self.graph.finalize()
+
+        # enter the session to be ready for acting/learning
         self.monitored_session.__enter__()
         self.session = self.monitored_session._tf_sess()
 
     def close(self):
+        """
+        Saves the model (of saver dir is given) and closes the session.
+        """
         if self.saver_directory is not None:
             self.save(append_timestep=True)
         self.monitored_session.close()
@@ -1256,7 +1345,7 @@ class Model(object):
             append_timestep: Appends the current timestep to the checkpoint file if true.
 
         Returns:
-            Checkpoint path were the model was saved.
+            Checkpoint path where the model was saved.
         """
         if self.summarizer_hook is not None:
             self.summarizer_hook._summary_writer.flush()
@@ -1295,3 +1384,67 @@ class Model(object):
         #     raise TensorForceError("Invalid model directory/file.")
 
         self.saver.restore(sess=self.session, save_path=file)
+
+    def get_components(self):
+        """
+        Returns a dictionary of component name to component of all the components within this model.
+
+        Returns:
+            (dict) The mapping of name to component.
+        """
+        return dict()
+
+    def get_savable_components(self):
+        """
+        Returns the list of all of the components this model consists of that can be individually saved and restored.
+        For instance the network or distribution.
+
+        Returns:
+            List of util.SavableComponent
+        """
+        return set(filter(lambda x: isinstance(x, util.SavableComponent), self.get_components().values()))
+
+    @staticmethod
+    def _validate_savable(component, component_name):
+        if not isinstance(component, util.SavableComponent):
+            raise TensorForceError(
+                "Component %s must implement SavableComponent but is %s" % (component_name, component)
+            )
+
+    def save_component(self, component_name, save_path):
+        """
+        Saves a component of this model to the designated location.
+
+        Args:
+            component_name: The component to save.
+            save_path: The location to save to.
+        Returns:
+            Checkpoint path where the component was saved.
+        """
+        component = self.get_component(component_name=component_name)
+        self._validate_savable(component=component, component_name=component_name)
+        return component.save(sess=self.session, save_path=save_path)
+
+    def restore_component(self, component_name, save_path):
+        """
+        Restores a component's parameters from a save location.
+
+        Args:
+            component_name: The component to restore.
+            save_path: The save location.
+        """
+        component = self.get_component(component_name=component_name)
+        self._validate_savable(component=component, component_name=component_name)
+        component.restore(sess=self.session, save_path=save_path)
+
+    def get_component(self, component_name):
+        """
+        Looks up a component by its name.
+
+        Args:
+            component_name: The name of the component to look up.
+        Returns:
+            The component for the provided name or None if there is no such component.
+        """
+        mapping = self.get_components()
+        return mapping[component_name] if component_name in mapping else None

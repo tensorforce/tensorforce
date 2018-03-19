@@ -53,6 +53,8 @@ def main():
     parser.add_argument('--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
     parser.add_argument('--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
+    parser.add_argument('--job', type=str, default=None, help="For distributed mode: The job type of this agent.")
+    parser.add_argument('--task', type=int, default=0, help="For distributed mode: The task index of this agent.")
 
     args = parser.parse_args()
 
@@ -81,12 +83,26 @@ def main():
         network = None
         logger.info("No network configuration provided.")
 
+    # TEST
+    agent["execution"] = dict(
+        type="distributed",
+        distributed_spec=dict(
+            job=args.job,
+            task_index=args.task,
+            # parameter_server=(args.job == "ps"),
+            cluster_spec=dict(
+                ps=["192.168.2.107:22222"],
+                worker=["192.168.2.107:22223"]
+            ))
+    ) if args.job else None
+    # END: TEST
+
     agent = Agent.from_spec(
         spec=agent,
         kwargs=dict(
             states=environment.states,
             actions=environment.actions,
-            network=network
+            network=network,
         )
     )
     if args.load:
@@ -113,20 +129,22 @@ def main():
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
 
-    def episode_finished(r):
+    def episode_finished(r, id_):
         if r.episode % report_episodes == 0:
             steps_per_second = r.timestep / (time.time() - r.start_time)
             logger.info("Finished episode {:d} after {:d} timesteps. Steps Per Second {:0.2f}".format(
                 r.agent.episode, r.episode_timestep, steps_per_second
             ))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
-            logger.info("Average of last 500 rewards: {:0.2f}".format(sum(r.episode_rewards[-500:]) / min(500, len(r.episode_rewards))))
-            logger.info("Average of last 100 rewards: {:0.2f}".format(sum(r.episode_rewards[-100:]) / min(100, len(r.episode_rewards))))
+            logger.info("Average of last 500 rewards: {:0.2f}".
+                        format(sum(r.episode_rewards[-500:]) / min(500, len(r.episode_rewards))))
+            logger.info("Average of last 100 rewards: {:0.2f}".
+                        format(sum(r.episode_rewards[-100:]) / min(100, len(r.episode_rewards))))
         return True
 
     runner.run(
-        timesteps=args.timesteps,
-        episodes=args.episodes,
+        num_timesteps=args.timesteps,
+        num_episodes=args.episodes,
         max_episode_timesteps=args.max_episode_timesteps,
         deterministic=args.deterministic,
         episode_finished=episode_finished

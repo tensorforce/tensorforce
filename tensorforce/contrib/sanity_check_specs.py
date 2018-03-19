@@ -133,7 +133,9 @@ def sanity_check_execution_spec(execution_spec):
             "ps": ["localhost:22222"],
             "worker": ["localhost:22223"]
         })
-        execution_spec["distributed_spec"] = def_.update(execution_spec.get("distributed_spec", {}))
+        def_.update(execution_spec.get("distributed_spec", {}))
+        execution_spec["distributed_spec"] = def_
+        execution_spec["session_config"] = execution_spec.get("session_config")
         return execution_spec
     elif type_ == "multi-threaded":
         return execution_spec

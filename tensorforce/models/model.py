@@ -143,7 +143,15 @@ class Model(object):
 
         # Batching capacity for act/observe interface
         assert batching_capacity is None or (isinstance(batching_capacity, int) and batching_capacity > 0)
-        self.batching_capacity = batching_capacity
+        self.batching_capacity = batching_capacity or 1  # default
+
+        # Model's (tensorflow) buffers (states, actions, internals):
+        # One record is inserted into these buffers when act(independent=False) method is called.
+        self.states_buffer = dict()
+        self.internals_buffer = dict()
+        self.actions_buffer = dict()
+        self.buffer_index = None  # tensorflow int-index; reset to 0 when observe() is called.
+        self.episode_output = None  # main-op executed in observe()
 
         # Variable noise
         assert variable_noise is None or variable_noise > 0.0
@@ -212,13 +220,17 @@ class Model(object):
 
         Args:
             global_model (bool): Whether this setup is for a global model (held by some type of parameter-server).
+                In this case, the graph is already there, we only need to build the global pieces of the
+                graph and return.
         """
 
-        # Create our graph, setup local model/global model links, set scope and device
-        graph_default_ctx = self.setup_graph(global_model)
+        # Create/get our graph, setup local model/global model links, set scope and device
+        graph_default_context = self.setup_graph(global_model)
+
         # Start a tf Server (in case of distributed setup), returns None for single execution.
-        server = self.start_server()
-        # TODO: ps will join in above call to start_server and then basically idle (would be cleaner to return here)
+        server = None
+        if not global_model and self.execution_type == "distributed":
+            server = self.start_server()
 
         # build the graph
         with tf.device(device_name_or_function=self.device):
@@ -321,7 +333,7 @@ class Model(object):
         hooks = self.setup_summary_and_saver_hooks()
 
         # We are done constructing: Finalize our graph, create and enter the session.
-        self.setup_session(server, hooks, graph_default_ctx)
+        self.setup_session(server, hooks, graph_default_context)
 
     def setup_graph(self, global_model=False):
         """
@@ -334,13 +346,13 @@ class Model(object):
 
         Returns: None or the graph's as_default() context.
         """
-        graph_default_ctx = None
+        graph_default_context = None
 
         # Single mode
         if self.execution_type == "single":
             self.graph = tf.Graph()
-            graph_default_ctx = self.graph.as_default()
-            graph_default_ctx.__enter__()
+            graph_default_context = self.graph.as_default()
+            graph_default_context.__enter__()
             self.global_model = None
 
         # Distributed tf
@@ -356,8 +368,8 @@ class Model(object):
                 # TODO: Worker doesn't need the train ops for this local model, but probably won't harm.
                 if not global_model:
                     graph = tf.Graph()
-                    graph_default_ctx = graph.as_default()
-                    graph_default_ctx.__enter__()
+                    graph_default_context = graph.as_default()
+                    graph_default_context.__enter__()
                     self.global_model = deepcopy(self)
                     self.global_model.setup(global_model=True)
                     self.graph = graph
@@ -381,7 +393,7 @@ class Model(object):
         else:
             raise TensorForceError("Unsupported distributed type: {}!".format(self.distributed_spec["type"]))
 
-        return graph_default_ctx
+        return graph_default_context
 
     def start_server(self):
         """
@@ -390,19 +402,17 @@ class Model(object):
 
         Returns: The tf.train.Server object or None (for single execution).
         """
-        server = None
-        if self.execution_type == "distributed":
-            server = tf.train.Server(
-                server_or_cluster_def=self.distributed_spec["cluster_spec"],
-                job_name=self.distributed_spec["job"],
-                task_index=self.distributed_spec["task_index"],
-                protocol=self.distributed_spec.get("protocol"),
-                config=self.distributed_spec.get("session_config"),
-                start=True
-            )
-            if self.distributed_spec["job"] == "ps":
-                server.join()
-                quit()  # a bit ugly?
+        server = tf.train.Server(
+            server_or_cluster_def=self.distributed_spec["cluster_spec"],
+            job_name=self.distributed_spec["job"],
+            task_index=self.distributed_spec["task_index"],
+            protocol=self.distributed_spec.get("protocol"),
+            config=self.distributed_spec.get("session_config"),
+            start=True
+        )
+        if self.distributed_spec["job"] == "ps":
+            server.join()
+            quit()  # a bit ugly?
         return server
 
     def setup_global_counters(self):
@@ -601,14 +611,14 @@ class Model(object):
 
         return hooks
 
-    def setup_session(self, server, hooks, graph_default_ctx):
+    def setup_session(self, server, hooks, graph_default_context):
         """
         Creates and then enters the session for this model (finalizes the graph).
 
         Args:
             server (tf.train.Server): The tf.train.Server object to connect to (None for single execution).
-            hooks (list): A list of (saver, summary, seto) hooks to be passed to the session.
-            graph_default_ctx: The graph as_default() context that we are currently in.
+            hooks (list): A list of (saver, summary, etc..) hooks to be passed to the session.
+            graph_default_context: The graph as_default() context that we are currently in.
         """
         if self.execution_type == "distributed":
             # if self.distributed_spec['task_index'] == 0:
@@ -644,8 +654,8 @@ class Model(object):
                 checkpoint_dir=None
             )
 
-        if graph_default_ctx:
-            graph_default_ctx.__exit__(None, None, None)
+        if graph_default_context:
+            graph_default_context.__exit__(None, None, None)
         self.graph.finalize()
 
         # enter the session to be ready for acting/learning
@@ -828,37 +838,37 @@ class Model(object):
             trainable=False
         )
 
-        if self.batching_capacity is None:
-            capacity = 1
-        else:
-            capacity = self.batching_capacity
+        #if self.batching_capacity is None:
+        #    capacity = 1
+        #else:
+        #    capacity = self.batching_capacity
 
         # States buffer variable
-        self.states_buffer = dict()
+        #self.states_buffer = dict()
         for name, state in self.states_spec.items():
             self.states_buffer[name] = tf.get_variable(
                 name=('state-' + name),
-                shape=((capacity,) + tuple(state['shape'])),
+                shape=((self.batching_capacity,) + tuple(state['shape'])),
                 dtype=util.tf_dtype(state['type']),
                 trainable=False
             )
 
         # Internals buffer variable
-        self.internals_buffer = dict()
+        #self.internals_buffer = dict()
         for name, internal in self.internals_spec.items():
             self.internals_buffer[name] = tf.get_variable(
                 name=('internal-' + name),
-                shape=((capacity,) + tuple(internal['shape'])),
+                shape=((self.batching_capacity,) + tuple(internal['shape'])),
                 dtype=util.tf_dtype(internal['type']),
                 trainable=False
             )
 
         # Actions buffer variable
-        self.actions_buffer = dict()
+        #self.actions_buffer = dict()
         for name, action in self.actions_spec.items():
             self.actions_buffer[name] = tf.get_variable(
                 name=('action-' + name),
-                shape=((capacity,) + tuple(action['shape'])),
+                shape=((self.batching_capacity,) + tuple(action['shape'])),
                 dtype=util.tf_dtype(action['type']),
                 trainable=False
             )
@@ -947,22 +957,34 @@ class Model(object):
 
     def tf_observe_timestep(self, states, internals, actions, terminal, reward):
         """
-        Creates the TensorFlow operations for performing the observation of a full time step's
-        information.
+        Creates the TensorFlow operations for processing a batch of observations coming in from our buffer (state,
+        action, internals) as well as from the agent's own python-batch (terminal-signals, rewards from the env).
 
         Args:
             states (dict): Dict of state tensors (each key represents one state space component).
-            internals: List of prior internal state tensors.
-            actions: Dict of action tensors.
-            terminal: Terminal boolean tensor.
-            reward: Reward tensor.
+            internals (dict): List of prior internal state tensors (each key represents one internal state component).
+            actions (dict): Dict of action tensors (each key represents one action space component).
+            terminal: 1D (bool) tensor of terminal signals.
+            reward: 1D (float) tensor of rewards.
 
         Returns:
-            The observation operation.
+            The observation operation depending on the model type.
         """
         raise NotImplementedError
 
     def create_act_operations(self, states, internals, deterministic, independent):
+        """
+
+        Args:
+            states ():
+            internals ():
+            deterministic ():
+            independent ():
+
+        Returns:
+
+        """
+
         # Optional variable noise
         operations = list()
         if self.variable_noise is not None and self.variable_noise > 0.0:
@@ -1009,11 +1031,17 @@ class Model(object):
 
         # Independent act not followed by observe.
         def independent_act():
+            """
+            Does not store state, action, internal in buffer. Hence, does not have any influence on learning.
+            Does not increase timesteps.
+            """
             return self.global_timestep
 
         # Normal act followed by observe, with additional operations.
         def normal_act():
-            # Store current states, internals and actions
+            """
+            Stores current states, internals and actions in buffer. Increases timesteps.
+            """
             operations = list()
             batch_size = tf.shape(input=next(iter(states.values())))[0]
             for name, state in states.items():
@@ -1049,6 +1077,18 @@ class Model(object):
         self.timestep_output = tf.cond(pred=independent, true_fn=independent_act, false_fn=normal_act)
 
     def create_observe_operations(self, terminal, reward):
+        """
+        Returns the tf op to fetch when an observation batch is passed in (e.g. an episode's rewards and
+        terminals). Uses the filled tf buffers for states, actions and internals to run
+        the tf_observe_timestep (model-dependent), resets buffer index and increases counters (episodes,
+        timesteps).
+
+        Args:
+            terminal: The 1D tensor (bool) of terminal signals to process (more than one True within that list is ok).
+            reward: The 1D tensor (float) of rewards to process.
+
+        Returns: Tf op to fetch when `observe()` is called.
+        """
         # Increment episode
         num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
         increment_episode = tf.assign_add(ref=self.episode, value=num_episodes)
@@ -1073,25 +1113,27 @@ class Model(object):
             )
 
         with tf.control_dependencies(control_inputs=(observation,)):
-            # Reset index
+            # Reset buffer index.
             reset_index = tf.assign(ref=self.buffer_index, value=0)
 
         with tf.control_dependencies(control_inputs=(reset_index,)):
-            # Trivial operation to enforce control dependency
+            # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
     def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent):
         """
-        Creates output operations for acting, observing and interacting with the memory.
+        Creates and stores tf operations for when `act()` and `observe()` are called.
+        These ops are in particular:
+        self.timestep_output: Fetches the global timestep and stores states/actions/internals in buffer.
+        self.episode_output: Runs tf_observe_timestep, resets buffer index, increases global episode/step counters.
         """
-        self.create_act_operations(
-            states=states,
-            internals=internals,
-            deterministic=deterministic,
-            independent=independent
-        )
+        self.create_act_operations(states=states,
+                                   internals=internals,
+                                   deterministic=deterministic,
+                                   independent=independent
+                                   )
         self.create_observe_operations(reward=reward, terminal=terminal)
 
     def get_variables(self, include_submodules=False, include_nontrainable=False):
@@ -1172,6 +1214,21 @@ class Model(object):
         deterministic=None,
         independent=None
     ):
+        """
+        Returns the feed-dict for the model's acting and observing tf fetches.
+
+        Args:
+            states (dict): Dict of state values (each key represents one state space component).
+            internals (dict): Dict of internal state values (each key represents one internal state component).
+            actions (dict): Dict of actions (each key represents one action space component).
+            terminal (List[bool]): List of is-terminal signals.
+            reward (List[float]): List of reward signals.
+            deterministic (bool): Whether actions should be picked without exploration.
+            independent (bool): Whether we are doing an independent act (not followed by call to observe;
+                not to be stored in model's buffer).
+
+        Returns: The feed dict to use for the fetch.
+        """
         feed_dict = dict()
         batched = None
 
@@ -1242,6 +1299,7 @@ class Model(object):
             deterministic (bool): If True, will not apply exploration after actions are calculated.
             independent (bool): If true, action is not followed by observe (and hence not included
                 in updates).
+            fetch_tensors (list): List of names of additional tensors (from the model's network) to fetch (and return).
 
         Returns:
             tuple:
@@ -1253,7 +1311,7 @@ class Model(object):
         state = np.asarray(states[name])
         batched = (state.ndim != len(self.states_spec[name]['unprocessed_shape']))
         if batched:
-            assert self.batching_capacity is not None and state.shape[0] <= self.batching_capacity
+            assert state.shape[0] <= self.batching_capacity
 
         fetches = [self.actions_output, self.internals_output, self.timestep_output]
         if self.network is not None and fetch_tensors is not None:
@@ -1308,8 +1366,8 @@ class Model(object):
         Adds an observation (reward and is-terminal) to the model without updating its trainable variables.
 
         Args:
-            terminal (bool): Whether the episode has terminated.
-            reward (float): The observed reward value.
+            terminal (List[bool]): List of is-terminal signals.
+            reward (List[float]): List of reward signals.
 
         Returns:
             The value of the model-internal episode counter.

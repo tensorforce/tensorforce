@@ -473,6 +473,18 @@ class MemoryModel(Model):
         return self.optimizer.minimize(**arguments)
 
     def tf_observe_timestep(self, states, internals, actions, terminal, reward):
+        """
+
+        Args:
+            states ():
+            internals ():
+            actions ():
+            terminal ():
+            reward ():
+
+        Returns:
+
+        """
         # Store timestep in memory
         stored = self.memory.store(
             states=states,
@@ -536,13 +548,11 @@ class MemoryModel(Model):
                 tensors=batch
             )
 
-            optimization = tf.cond(
+            return tf.cond(
                 pred=optimize,
                 true_fn=(lambda: self.fn_optimization(**batch)),
                 false_fn=tf.no_op
             )
-
-        return optimization
 
     def tf_import_experience(self, states, internals, actions, terminal, reward):
         """

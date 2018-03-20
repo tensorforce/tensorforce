@@ -56,6 +56,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.debug import DumpingDebugWrapperSession
 
 from tensorforce import TensorForceError, util
 from tensorforce.core.explorations import Exploration
@@ -80,7 +81,8 @@ class Model(object):
         variable_noise,
         states_preprocessing,
         actions_exploration,
-        reward_preprocessing
+        reward_preprocessing,
+        tf_session_dump_dir=""
     ):
         """
         Model.
@@ -103,6 +105,8 @@ class Model(object):
                 "action outputs" (e.g. epsilon-greedy).
             reward_preprocessing (spec): Dict specifying whether and how to preprocess rewards coming
                 from the Environment (e.g. reward normalization).
+            tf_session_dump_dir (str): If non-empty string, all session.run calls will be dumped using the tensorflow
+                offline-debug session into the given directory.
         """
         # Network crated from network_spec in distribution_model.py
         # Needed for named_tensor access
@@ -145,6 +149,8 @@ class Model(object):
         assert batching_capacity is None or (isinstance(batching_capacity, int) and batching_capacity > 0)
         self.batching_capacity = batching_capacity or 1  # default
 
+        self.tf_session_dump_dir = tf_session_dump_dir
+
         # Model's (tensorflow) buffers (states, actions, internals):
         # One record is inserted into these buffers when act(independent=False) method is called.
         self.states_buffer = dict()
@@ -164,46 +170,47 @@ class Model(object):
 
         self.is_observe = False
 
-        self.states_preprocessing = None
-        self.actions_exploration = None
-        self.reward_preprocessing = None
-
         self.variables = None
         self.all_variables = None
         self.registered_variables = None
         self.summaries = None
 
+        # 0D counter tensors
         self.timestep = None
         self.episode = None
         self.global_timestep = None
         self.global_episode = None
 
-        self.states_input = None
-        self.internals_input = None
-        self.actions_input = None
+        # input placeholders
+        self.states_input = dict()
+        self.states_preprocessing = dict()
+        self.internals_input = dict()
+        self.internals_init = dict()
+        self.actions_input = dict()
+        self.actions_exploration = dict()
         self.terminal_input = None
         self.reward_input = None
+        self.reward_preprocessing = None
         self.deterministic_input = None
         self.independent_input = None
         self.update_input = None
-        self.internals_init = None
 
+        # template functions that return output tensors
         self.fn_initialize = None
+        self.fn_preprocess = None
         self.fn_actions_and_internals = None
         self.fn_observe_timestep = None
         self.fn_action_exploration = None
 
         self.graph = None
         self.global_model = None
-        self.saver = None
-        self.scaffold = None
-        self.saver_directory = None
-        self.session = None
-        self.monitored_session = None
         self.summary_writer = None
         self.summary_writer_hook = None
-
-        self.increment_episode = None
+        self.saver = None
+        self.saver_directory = None
+        self.scaffold = None
+        self.session = None
+        self.monitored_session = None
 
         self.actions_output = None
         self.internals_output = None
@@ -227,9 +234,9 @@ class Model(object):
         # Create/get our graph, setup local model/global model links, set scope and device
         graph_default_context = self.setup_graph(global_model)
 
-        # Start a tf Server (in case of distributed setup), returns None for single execution.
+        # Start a tf Server (in case of distributed setup).
         server = None
-        if not global_model and self.execution_type == "distributed":
+        if self.execution_type == "distributed" and not global_model:
             server = self.start_server()
 
         # build the graph
@@ -344,7 +351,7 @@ class Model(object):
                 a new graph (and return None as the context). We will use the already existing local replica graph
                 of the model.
 
-        Returns: None or the graph's as_default() context.
+        Returns: None or the graph's as_default()-context.
         """
         graph_default_context = None
 
@@ -644,6 +651,9 @@ class Model(object):
                 hooks=hooks,
                 stop_grace_period_secs=120  # Default value.
             )
+            # Add debug session.run dumping?
+            if self.tf_session_dump_dir != "":
+                self.monitored_session = DumpingDebugWrapperSession(self.monitored_session, self.tf_session_dump_dir)
         else:
             # TensorFlow non-distributed monitored session object
             self.monitored_session = tf.train.SingularMonitoredSession(
@@ -683,7 +693,6 @@ class Model(object):
         """
 
         # States
-        self.states_input = dict()
         for name, state in self.states_spec.items():
             self.states_input[name] = tf.placeholder(
                 dtype=util.tf_dtype(state['type']),
@@ -692,8 +701,6 @@ class Model(object):
             )
 
         # States preprocessing
-        self.states_preprocessing = dict()
-
         if self.states_preprocessing_spec is None:
             for name, state in self.states_spec.items():
                 state['unprocessed_shape'] = state['shape']
@@ -728,8 +735,6 @@ class Model(object):
                 self.states_preprocessing[name] = preprocessing
 
         # Internals
-        self.internals_input = dict()
-        self.internals_init = dict()
         for name, internal in self.internals_spec.items():
             self.internals_input[name] = tf.placeholder(
                 dtype=util.tf_dtype(internal['type']),
@@ -742,7 +747,6 @@ class Model(object):
                 raise TensorForceError("Invalid internal initialization value.")
 
         # Actions
-        self.actions_input = dict()
         for name, action in self.actions_spec.items():
             self.actions_input[name] = tf.placeholder(
                 dtype=util.tf_dtype(action['type']),
@@ -751,7 +755,6 @@ class Model(object):
             )
 
         # Actions exploration
-        self.actions_exploration = dict()
         if self.actions_exploration_spec is None:
             pass
         elif all(name in self.actions_spec for name in self.actions_exploration_spec):
@@ -769,9 +772,7 @@ class Model(object):
         self.reward_input = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name='reward')
 
         # Reward preprocessing
-        if self.reward_preprocessing_spec is None:
-            self.reward_preprocessing = None
-        else:
+        if self.reward_preprocessing_spec is not None:
             self.reward_preprocessing = PreprocessorStack.from_spec(
                 spec=self.reward_preprocessing_spec,
                 # TODO this can eventually have more complex shapes?
@@ -822,6 +823,11 @@ class Model(object):
         # )
 
     def tf_initialize(self):
+        """
+        Creates tf Variables for the local state/internals/action-buffers and for the local counters for timestep
+        and episode.
+        """
+
         # Timestep
         self.timestep = tf.get_variable(
             name='timestep',
@@ -838,13 +844,7 @@ class Model(object):
             trainable=False
         )
 
-        #if self.batching_capacity is None:
-        #    capacity = 1
-        #else:
-        #    capacity = self.batching_capacity
-
         # States buffer variable
-        #self.states_buffer = dict()
         for name, state in self.states_spec.items():
             self.states_buffer[name] = tf.get_variable(
                 name=('state-' + name),
@@ -854,7 +854,6 @@ class Model(object):
             )
 
         # Internals buffer variable
-        #self.internals_buffer = dict()
         for name, internal in self.internals_spec.items():
             self.internals_buffer[name] = tf.get_variable(
                 name=('internal-' + name),
@@ -864,7 +863,6 @@ class Model(object):
             )
 
         # Actions buffer variable
-        #self.actions_buffer = dict()
         for name, action in self.actions_spec.items():
             self.actions_buffer[name] = tf.get_variable(
                 name=('action-' + name),
@@ -944,7 +942,7 @@ class Model(object):
 
         Args:
             states (dict): Dict of state tensors (each key represents one state space component).
-            internals: List of prior internal state tensors.
+            internals (dict): Dict of internal state tensors (each key represents one internal space component).
             deterministic: Boolean tensor indicating whether action should be chosen
                 deterministically.
 
@@ -962,7 +960,7 @@ class Model(object):
 
         Args:
             states (dict): Dict of state tensors (each key represents one state space component).
-            internals (dict): List of prior internal state tensors (each key represents one internal state component).
+            internals (dict): Dict of prior internal state tensors (each key represents one internal state component).
             actions (dict): Dict of action tensors (each key represents one action space component).
             terminal: 1D (bool) tensor of terminal signals.
             reward: 1D (float) tensor of rewards.
@@ -974,15 +972,14 @@ class Model(object):
 
     def create_act_operations(self, states, internals, deterministic, independent):
         """
+        Creates and stores tf operations that are fetched when calling act(): actions_output, internals_output and
+        timestep_output.
 
         Args:
-            states ():
-            internals ():
-            deterministic ():
-            independent ():
-
-        Returns:
-
+            states (dict): Dict of state tensors (each key represents one state space component).
+            internals (dict): Dict of prior internal state tensors (each key represents one internal state component).
+            deterministic: 0D (bool) tensor (whether to not use action exploration).
+            independent (bool): 0D (bool) tensor (whether to store states/internals/action in local buffer).
         """
 
         # Optional variable noise
@@ -1125,9 +1122,6 @@ class Model(object):
     def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent):
         """
         Creates and stores tf operations for when `act()` and `observe()` are called.
-        These ops are in particular:
-        self.timestep_output: Fetches the global timestep and stores states/actions/internals in buffer.
-        self.episode_output: Runs tf_observe_timestep, resets buffer index, increases global episode/step counters.
         """
         self.create_act_operations(states=states,
                                    internals=internals,

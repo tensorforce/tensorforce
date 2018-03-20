@@ -23,7 +23,7 @@ import sys
 import unittest
 
 from tensorforce.agents import VPGAgent
-from tensorforce.environments import MinimalTest
+from .minimal_test import MinimalTest
 from tensorforce.execution import ThreadedRunner
 from tensorforce.execution.threaded_runner import clone_worker_agent
 

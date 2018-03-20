@@ -49,6 +49,16 @@ class Queue(Memory):
         )
         self.capacity = capacity
 
+        # Pieces of the records are stored in different tensors:
+        self.states_memory = dict()  # keys=state space components
+        self.internals_memory = dict()  # keys=internal state components
+        self.actions_memory = dict()  # keys=action space components
+        self.terminal_memory = None  # 1D tensor
+        self.reward_memory = None  # 1D tensor
+        self.memory_index = None  # 0D (int) tensor (points to the next record to be overwritten)
+        self.episode_indices = None  # 1D tensor of indexes where episodes start.
+        self.episode_count = None  # 0D (int) tensor: How many episodes do we have stored?
+
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
             if not registered:
@@ -64,7 +74,6 @@ class Queue(Memory):
 
     def tf_initialize(self):
         # States
-        self.states_memory = dict()
         for name, state in self.states_spec.items():
             self.states_memory[name] = tf.get_variable(
                 name=('state-' + name),
@@ -74,7 +83,6 @@ class Queue(Memory):
             )
 
         # Internals
-        self.internals_memory = dict()
         for name, internal in self.internals_spec.items():
             self.internals_memory[name] = tf.get_variable(
                 name=('internal-' + name),
@@ -84,7 +92,6 @@ class Queue(Memory):
             )
 
         # Actions
-        self.actions_memory = dict()
         for name, action in self.actions_spec.items():
             self.actions_memory[name] = tf.get_variable(
                 name=('action-' + name),

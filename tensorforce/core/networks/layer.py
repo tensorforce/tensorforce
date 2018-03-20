@@ -219,7 +219,7 @@ class Nonlinearity(Layer):
         Non-linearity activation layer.
 
         Args:
-            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'swish', 'softmax', 
+            name: Non-linearity name, one of 'elu', 'relu', 'selu', 'sigmoid', 'swish',
                 'leaky_relu' (or 'lrelu'), 'crelu', 'softmax', 'softplus', 'softsign', 'tanh' or 'none'.
             alpha: (float|int) Alpha value for leaky Relu
             beta: (float|int|'learn') Beta value or 'learn' to train value (default 1.0)

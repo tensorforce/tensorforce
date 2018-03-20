@@ -32,11 +32,11 @@ class Replay(Queue):
         Replay memory.
 
         Args:
-            states: States specification.
-            internals: Internal states specification.
-            actions: Actions specification.
-            include_next_states: Include subsequent state if true.
-            capacity: Memory capacity.
+            states (dict): States specification.
+            internals (dict): Internal states specification.
+            actions (dict): Actions specification.
+            include_next_states (bool): Include subsequent state if true.
+            capacity (int): Memory capacity (number of state/internals/action/(next-state)? records).
         """
         super(Replay, self).__init__(
             states=states,

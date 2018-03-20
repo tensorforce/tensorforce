@@ -21,7 +21,7 @@ import unittest
 
 from tensorforce.tests.base_test import BaseTest
 from tensorforce.agents import VPGAgent
-from tensorforce.environments import MinimalTest
+from .minimal_test import MinimalTest
 
 
 class TestVPGOptimizers(BaseTest, unittest.TestCase):

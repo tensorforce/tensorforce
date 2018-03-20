@@ -25,18 +25,16 @@ import tensorforce.core.memories
 
 class Memory(object):
     """
-    Base class for memories.
+    Base class for memories. A Memory stores records of the type: "state/action/reward/(next-state)?/is-terminal".
     """
 
     def __init__(self, states, internals, actions, include_next_states, scope='memory', summary_labels=None):
         """
-        Memory.
-
         Args:
-            states: States specifiction.
-            internals: Internal states specification.
-            actions: Actions specification.
-            include_next_states: Include subsequent state if true.
+            states (dict): States specification.
+            internals (dict): Internal states specification.
+            actions (dict): Actions specification.
+            include_next_states (bool): Include subsequent state if true.
         """
         self.states_spec = states
         self.internals_spec = internals
@@ -87,7 +85,7 @@ class Memory(object):
 
     def tf_initialize(self):
         """
-        Initializes memory.
+        Initializes the memory. Called by a memory-model in its own tf_initialize method.
         """
         raise NotImplementedError
 

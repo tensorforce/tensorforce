@@ -420,7 +420,7 @@ class TestTutorialCode(unittest.TestCase):
         agent.close()
 
     def test_blogpost_introduction_runner(self):
-        from tensorforce.tests.minimal_test import MinimalTest
+        from .minimal_test import MinimalTest
         from tensorforce.agents import DQNAgent
         from tensorforce.execution import Runner
 

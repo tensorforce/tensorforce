@@ -15,11 +15,6 @@
 
 
 from tensorforce.environments.environment import Environment
-from tensorforce.tests.minimal_test import MinimalTest
 
-
-environments = dict(
-    minimal_test=MinimalTest,
-)
-
-__all__ = ['Environment', 'MinimalTest']
+# had to take out MinimalTest due to circular dependency
+__all__ = ['Environment']

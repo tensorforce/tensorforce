@@ -19,7 +19,7 @@ from __future__ import division
 
 from tensorforce.tests.base_test import BaseTest
 from tensorforce.core.networks import Dense, LayerBasedNetwork
-from tensorforce.environments import MinimalTest
+from tensorforce.tests.minimal_test import MinimalTest
 
 
 class BaseAgentTest(BaseTest):

@@ -54,6 +54,7 @@ def main():
     parser.add_argument('--monitor', help="Save results to this directory")
     parser.add_argument('--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
     parser.add_argument('--monitor-video', type=int, default=0, help="Save video every x steps (0 = disabled)")
+    parser.add_argument('--visualize', action='store_true', default=False, help="Enable OpenAI Gym's visualization")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
     parser.add_argument('--job', type=str, default=None, help="For distributed mode: The job type of this agent.")
     parser.add_argument('--task', type=int, default=0, help="For distributed mode: The task index of this agent.")
@@ -69,7 +70,8 @@ def main():
         gym_id=args.gym_id,
         monitor=args.monitor,
         monitor_safe=args.monitor_safe,
-        monitor_video=args.monitor_video
+        monitor_video=args.monitor_video,
+        visualize=args.visualize
     )
 
     if args.agent is not None:

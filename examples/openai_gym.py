@@ -115,6 +115,14 @@ def main():
             raise OSError("Could not load agent from {}: No such directory.".format(load_dir))
         agent.restore_model(args.load)
 
+    if args.save:
+        save_dir = os.path.dirname(args.save)
+        if not os.path.isdir(save_dir):
+            try:
+                os.mkdir(save_dir, 0o755)
+            except OSError:
+                raise OSError("Cannot save agent to dir {} ()".format(save_dir))
+
     if args.debug:
         logger.info("-" * 16)
         logger.info("Configuration:")

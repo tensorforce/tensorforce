@@ -48,6 +48,8 @@ def main():
     parser.add_argument('-t', '--timesteps', type=int, default=None, help="Number of timesteps")
     parser.add_argument('-m', '--max-episode-timesteps', type=int, default=None, help="Maximum number of timesteps per episode")
     parser.add_argument('-d', '--deterministic', action='store_true', default=False, help="Choose actions deterministically")
+    parser.add_argument('-s', '--save', help="Save agent to this dir")
+    parser.add_argument('-se', '--save-episodes', type=int, default=100, help="Save agent every x episodes")
     parser.add_argument('-l', '--load', help="Load agent from this dir")
     parser.add_argument('--monitor', help="Save results to this directory")
     parser.add_argument('--monitor-safe', action='store_true', default=False, help="Do not overwrite previous results")
@@ -140,6 +142,10 @@ def main():
                         format(sum(r.episode_rewards[-500:]) / min(500, len(r.episode_rewards))))
             logger.info("Average of last 100 rewards: {:0.2f}".
                         format(sum(r.episode_rewards[-100:]) / min(100, len(r.episode_rewards))))
+        if args.save and args.save_episodes is not None and not r.episode % args.save_episodes:
+            logger.info("Saving agent to {}".format(args.save))
+            r.agent.save_model(args.save)
+
         return True
 
     runner.run(

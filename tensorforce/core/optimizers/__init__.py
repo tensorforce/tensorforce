@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+from functools import partial
 from tensorforce.core.optimizers.optimizer import Optimizer
 from tensorforce.core.optimizers.meta_optimizer import MetaOptimizer
 from tensorforce.core.optimizers.global_optimizer import GlobalOptimizer
@@ -29,13 +30,13 @@ from tensorforce.core.optimizers.synchronization import Synchronization
 # This can register any class inheriting from tf.train.Optimizer
 optimizers = dict(
     global_optimizer=GlobalOptimizer,
-    adadelta=TFOptimizer.get_wrapper(optimizer='adadelta'),
-    adagrad=TFOptimizer.get_wrapper(optimizer='adagrad'),
-    adam=TFOptimizer.get_wrapper(optimizer='adam'),
-    nadam=TFOptimizer.get_wrapper(optimizer='nadam'),
-    gradient_descent=TFOptimizer.get_wrapper(optimizer='gradient_descent'),
-    momentum=TFOptimizer.get_wrapper(optimizer='momentum'),
-    rmsprop=TFOptimizer.get_wrapper(optimizer='rmsprop'),
+    adadelta=partial(TFOptimizer, 'adadelta'),
+    adagrad=partial(TFOptimizer, 'adagrad'),
+    adam=partial(TFOptimizer, 'adam'),
+    nadam=partial(TFOptimizer, 'nadam'),
+    gradient_descent=partial(TFOptimizer, 'gradient_descent'),
+    momentum=partial(TFOptimizer, 'momentum'),
+    rmsprop=partial(TFOptimizer, 'rmsprop'),
     evolutionary=Evolutionary,
     natural_gradient=NaturalGradient,
     clipped_step=ClippedStep,

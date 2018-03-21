@@ -55,7 +55,8 @@ class Optimizer(object):
 
     def tf_step(self, time, variables, **kwargs):
         """
-        Creates the TensorFlow operations for performing an optimization step.
+        Creates the TensorFlow operations for performing an optimization step on the given variables, including
+        actually changing the values of the variables.
 
         Args:
             time: Time tensor.
@@ -70,14 +71,14 @@ class Optimizer(object):
 
     def apply_step(self, variables, deltas):
         """
-        Applies step deltas to variable values.
+        Applies the given (and already calculated) step deltas to the variable values.
 
         Args:
             variables: List of variables.
             deltas: List of deltas of same length.
 
         Returns:
-            The step-applied operation.
+            The step-applied operation. A tf.group of tf.assign_add ops.
         """
         if len(variables) != len(deltas):
             raise TensorForceError("Invalid variables and deltas lists.")

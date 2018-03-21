@@ -68,6 +68,12 @@ class QDemoModel(QModel):
         self.demo_memory_capacity = demo_memory_capacity
         self.demo_batch_size = demo_batch_size
 
+        self.demo_memory = None
+        self.fn_import_demo_experience = None
+        self.fn_demo_loss = None
+        self.fn_combined_loss = None
+        self.fn_demo_optimization = None
+
         super(QDemoModel, self).__init__(
             states=states,
             actions=actions,
@@ -94,8 +100,11 @@ class QDemoModel(QModel):
             huber_loss=huber_loss
         )
 
-    def initialize(self, custom_getter):
-        super(QDemoModel, self).initialize(custom_getter=custom_getter)
+    def setup_components_and_tf_funcs(self, custom_getter=None):
+        """
+        Constructs the extra Replay memory.
+        """
+        custom_getter = super(QDemoModel, self).setup_components_and_tf_funcs(custom_getter)
 
         self.demo_memory = Replay(
             states=self.states_spec,
@@ -134,6 +143,8 @@ class QDemoModel(QModel):
             func_=self.tf_demo_optimization,
             custom_getter_=custom_getter
         )
+
+        return custom_getter
 
     def tf_initialize(self):
         super(QDemoModel, self).tf_initialize()

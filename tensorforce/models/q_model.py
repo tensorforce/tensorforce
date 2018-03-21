@@ -105,8 +105,8 @@ class QModel(DistributionModel):
             optimizer=self.target_optimizer_spec
         )
 
-    def initialize(self, custom_getter):
-        super(QModel, self).initialize(custom_getter)
+    def setup_components_and_tf_funcs(self, custom_getter=None):
+        super(QModel, self).setup_components_and_tf_funcs(custom_getter)
 
         # # TEMP: Random sampling fix
         # if self.random_sampling_fix:

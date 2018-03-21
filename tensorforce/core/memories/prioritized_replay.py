@@ -44,7 +44,7 @@ class PrioritizedReplay(Memory):
         Prioritized experience replay.
 
         Args:
-            states: States specifiction.
+            states: States specification.
             internals: Internal states specification.
             actions: Actions specification.
             include_next_states: Include subsequent state if true.
@@ -53,6 +53,30 @@ class PrioritizedReplay(Memory):
             buffer_size: Buffer size. The buffer is used to insert experiences before experiences
                 have been computed via updates.
         """
+        self.capacity = capacity
+        self.buffer_size = buffer_size
+        self.prioritization_weight = prioritization_weight
+
+        self.retrieve_indices = None
+
+        self.states_memory = dict()
+        self.internals_memory = dict()
+        self.actions_memory = dict()
+        self.terminal_memory = None
+        self.reward_memory = None
+        self.memory_index = None
+        self.priorities = None
+
+        self.buffer_index = None
+        self.states_buffer = dict()
+        self.internals_buffer = dict()
+        self.actions_buffer = dict()
+        self.terminal_buffer = None
+        self.reward_buffer = None
+        self.batch_indices = None
+        self.last_batch_buffer_elems = None
+        self.memory_size = None
+
         super(PrioritizedReplay, self).__init__(
             states=states,
             internals=internals,
@@ -61,26 +85,18 @@ class PrioritizedReplay(Memory):
             scope=scope,
             summary_labels=summary_labels
         )
-        self.capacity = capacity
-        self.buffer_size = buffer_size
-        self.prioritization_weight = prioritization_weight
 
-        def custom_getter(getter, name, registered=False, **kwargs):
-            variable = getter(name=name, registered=True, **kwargs)
-            if not registered:
-                assert not kwargs.get('trainable', False)
-                self.variables[name] = variable
-            return variable
+    def setup_template_funcs(self, custom_getter=None):
+        super(PrioritizedReplay, self).setup_template_funcs(custom_getter)
 
         self.retrieve_indices = tf.make_template(
-            name_=(scope + '/retrieve_indices'),
+            name_=(self.scope + '/retrieve_indices'),
             func_=self.tf_retrieve_indices,
             custom_getter_=custom_getter
         )
 
     def tf_initialize(self):
         # States
-        self.states_memory = dict()
         for name, state in self.states_spec.items():
             self.states_memory[name] = tf.get_variable(
                 name=('state-' + name),
@@ -90,7 +106,6 @@ class PrioritizedReplay(Memory):
             )
 
         # Internals
-        self.internals_memory = dict()
         for name, internal in self.internals_spec.items():
             self.internals_memory[name] = tf.get_variable(
                 name=('internal-' + name),
@@ -100,7 +115,6 @@ class PrioritizedReplay(Memory):
             )
 
         # Actions
-        self.actions_memory = dict()
         for name, action in self.actions_spec.items():
             self.actions_memory[name] = tf.get_variable(
                 name=('action-' + name),
@@ -154,7 +168,7 @@ class PrioritizedReplay(Memory):
             trainable=False
         )
 
-        self.states_buffer = dict()
+        # States
         for name, state in self.states_spec.items():
             self.states_buffer[name] = tf.get_variable(
                 name=('state-buffer-' + name),
@@ -164,7 +178,6 @@ class PrioritizedReplay(Memory):
             )
 
         # Internals
-        self.internals_buffer = dict()
         for name, internal in self.internals_spec.items():
             self.internals_buffer[name] = tf.get_variable(
                 name=('internal-buffer-' + name),
@@ -174,7 +187,6 @@ class PrioritizedReplay(Memory):
             )
 
         # Actions
-        self.actions_buffer = dict()
         for name, action in self.actions_spec.items():
             self.actions_buffer[name] = tf.get_variable(
                 name=('action-buffer-' + name),

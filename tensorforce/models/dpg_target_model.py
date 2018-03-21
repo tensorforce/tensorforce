@@ -169,8 +169,8 @@ class DPGTargetModel(DistributionModel):
         assert self.memory_spec["include_next_states"]
         assert self.requires_deterministic == True
 
-    def initialize(self, custom_getter):
-        super(DPGTargetModel, self).initialize(custom_getter)
+    def setup_components_and_tf_funcs(self, custom_getter=None):
+        custom_getter = super(DPGTargetModel, self).setup_components_and_tf_funcs(custom_getter)
 
         # Target network
         self.target_network = Network.from_spec(
@@ -216,6 +216,7 @@ class DPGTargetModel(DistributionModel):
             func_=self.tf_predict_target_q,
             custom_getter_=custom_getter
         )
+        return custom_getter
 
     def tf_target_actions_and_internals(self, states, internals, deterministic=True):
         embedding, internals = self.target_network.apply(

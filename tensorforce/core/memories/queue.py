@@ -33,21 +33,10 @@ class Queue(Memory):
         Queue memory.
 
         Args:
-            states: States specifiction.
-            internals: Internal states specification.
-            actions: Actions specification.
-            include_next_states: Include subsequent state if true.
             capacity: Memory capacity.
         """
-        super(Queue, self).__init__(
-            states=states,
-            internals=internals,
-            actions=actions,
-            include_next_states=include_next_states,
-            scope=scope,
-            summary_labels=summary_labels
-        )
         self.capacity = capacity
+        self.scope = scope
 
         # Pieces of the records are stored in different tensors:
         self.states_memory = dict()  # keys=state space components
@@ -59,15 +48,22 @@ class Queue(Memory):
         self.episode_indices = None  # 1D tensor of indexes where episodes start.
         self.episode_count = None  # 0D (int) tensor: How many episodes do we have stored?
 
-        def custom_getter(getter, name, registered=False, **kwargs):
-            variable = getter(name=name, registered=True, **kwargs)
-            if not registered:
-                assert not kwargs.get('trainable', False)
-                self.variables[name] = variable
-            return variable
+        self.retrieve_indices = None
+
+        super(Queue, self).__init__(
+            states=states,
+            internals=internals,
+            actions=actions,
+            include_next_states=include_next_states,
+            scope=scope,
+            summary_labels=summary_labels
+        )
+
+    def setup_template_funcs(self, custom_getter=None):
+        custom_getter = super(Queue, self).setup_template_funcs(custom_getter=custom_getter)
 
         self.retrieve_indices = tf.make_template(
-            name_=(scope + '/retrieve_indices'),
+            name_=(self.scope + '/retrieve_indices'),
             func_=self.tf_retrieve_indices,
             custom_getter_=custom_getter
         )

@@ -22,24 +22,19 @@ functions need to be implemented:
 
 * `tf_actions_and_internals(states, internals, deterministic)` returning the batch of
    actions and successor internal states.
-* `tf_loss_per_instance(states, internals, actions, terminal, reward)` returning the loss
-   per instance for a batch.
 
 Further, the following TensorFlow functions should be extended accordingly:
 
-* `initialize(custom_getter)` defining TensorFlow placeholders/functions and adding internal states.
+* `setup_placeholders()` defining TensorFlow input placeholders for states, actions, rewards, etc..
+* `setup_template_funcs()` builds all TensorFlow functions from "tf_"-methods via tf.make_template.
 * `get_variables()` returning the list of TensorFlow variables (to be optimized) of this model.
-* `tf_regularization_losses(states, internals)` returning a dict of regularization losses.
-* `get_optimizer_kwargs(states, internals, actions, terminal, reward)` returning a dict of potential
-   arguments (argument-free functions) to the optimizer.
 
 Finally, the following TensorFlow functions can be useful in some cases:
 
-* `preprocess_states(states)` for state preprocessing, returning the processed batch of states.
+* `tf_preprocess(states, internals, reward)` for states/action/reward preprocessing (e.g. reward normalization),
+    returning the pre-processed tensors.
 * `tf_action_exploration(action, exploration, action_spec)` for action postprocessing (e.g. exploration),
     returning the processed batch of actions.
-* `tf_preprocess_reward(states, internals, terminal, reward)` for reward preprocessing (e.g. reward normalization),
-    returning the processed batch of rewards.
 * `create_output_operations(states, internals, actions, terminal, reward, deterministic)` for further output operations,
     similar to the two above for `Model.act` and `Model.update`.
 * `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations
@@ -117,11 +112,11 @@ class Model(object):
         self.internals_spec = dict()
         self.actions_spec = actions
 
-        # TensorFlow scope, device
+        # TensorFlow scope, device.
         self.scope = scope
         self.device = device
 
-        # Saver/summaries/distributes
+        # Saver/summaries
         if saver is None or saver.get('directory') is None:
             self.saver_spec = None
         else:
@@ -133,22 +128,25 @@ class Model(object):
         self.summarizer = None  # The tf.summary.FileWriter object
         self.summarizer_hook = None  # The summarizer hook to use in the model's session.
 
+        # TensorFlow summaries
+        if self.summarizer_spec is None:
+            self.summary_labels = set()
+        else:
+            self.summary_labels = set(self.summarizer_spec.get('labels', ()))
+        self.is_observe = False
+
+        # Execution logic settings.
         self.execution_spec = execution
         # Default single-process execution.
         self.execution_type = self.execution_spec["type"]
         self.session_config = self.execution_spec["session_config"]
         self.distributed_spec = self.execution_spec["distributed_spec"]
 
-        # TensorFlow summaries
-        if self.summarizer_spec is None:
-            self.summary_labels = set()
-        else:
-            self.summary_labels = set(self.summarizer_spec.get('labels', ()))
-
         # Batching capacity for act/observe interface
         assert batching_capacity is None or (isinstance(batching_capacity, int) and batching_capacity > 0)
         self.batching_capacity = batching_capacity or 1  # default
 
+        # For offline debugging purposes. Off by default.
         self.tf_session_dump_dir = tf_session_dump_dir
 
         # Model's (tensorflow) buffers (states, actions, internals):
@@ -167,8 +165,6 @@ class Model(object):
         self.states_preprocessing_spec = states_preprocessing
         self.actions_exploration_spec = actions_exploration
         self.reward_preprocessing_spec = reward_preprocessing
-
-        self.is_observe = False
 
         self.variables = None
         self.all_variables = None
@@ -204,6 +200,10 @@ class Model(object):
 
         self.graph = None
         self.global_model = None
+        self.is_local_model = True  # Whether this is a local replica of some global model (or we do single execution).
+
+        self.server = None  # the tf Server object (if any)
+
         self.summary_writer = None
         self.summary_writer_hook = None
         self.saver = None
@@ -218,33 +218,25 @@ class Model(object):
 
         self.summary_configuration_op = None
 
-        # Setup TensorFlow graph and session
+        # Setup Model (create and build graph (local and global if distributed), server, session, etc..).
         self.setup()
 
-    def setup(self, global_model=False):
+    def setup(self):
         """
-        Sets up the TensorFlow model graph and initializes (and enters) the TensorFlow session.
-
-        Args:
-            global_model (bool): Whether this setup is for a global model (held by some type of parameter-server).
-                In this case, the graph is already there, we only need to build the global pieces of the
-                graph and return.
+        Sets up the TensorFlow model graph, starts the servers (distributed mode), creates summarizers
+        and savers, initializes (and enters) the TensorFlow session.
         """
 
-        # Create/get our graph, setup local model/global model links, set scope and device
-        graph_default_context = self.setup_graph(global_model)
+        # Create/get our graph, setup local model/global model links, set scope and device.
+        graph_default_context = self.setup_graph()
 
         # Start a tf Server (in case of distributed setup).
-        server = None
-        if self.execution_type == "distributed" and not global_model:
-            server = self.start_server()
+        if self.execution_type == "distributed" and not self.server:
+            self.start_server()
 
         # build the graph
         with tf.device(device_name_or_function=self.device):
             with tf.variable_scope(name_or_scope=self.scope, reuse=False):
-
-                # set up global counters (timestep and episode)
-                self.setup_global_counters()
 
                 # Variables and summaries
                 self.variables = dict()
@@ -252,39 +244,13 @@ class Model(object):
                 self.registered_variables = set()
                 self.summaries = list()
 
-                def custom_getter(getter, name, registered=False, **kwargs):
-                    if registered:
-                        self.registered_variables.add(name)
-                    elif name in self.registered_variables:
-                        registered = True
-                    # Top-level, hence no 'registered' argument.
-                    variable = getter(name=name, **kwargs)
-                    if not registered:
-                        self.all_variables[name] = variable
-                        if kwargs.get('trainable', True):
-                            self.variables[name] = variable
-                            if 'variables' in self.summary_labels:
-                                summary = tf.summary.histogram(name=name, values=variable)
-                                self.summaries.append(summary)
-                    return variable
+                # Build the graph's placeholders, tf_functions, etc
+                self.setup_placeholders()
+                # Create model's "external" components.
+                # Create tensorflow functions from "tf_"-methods.
+                self.setup_components_and_tf_funcs()
 
-                # Create placeholders, tf functions, internals, etc
-                self.initialize(custom_getter=custom_getter)
-
-                # self.fn_actions_and_internals(
-                #     states=states,
-                #     internals=internals,
-                #     update=update,
-                #     deterministic=deterministic
-                # )
-                # self.fn_loss_per_instance(
-                #     states=states,
-                #     internals=internals,
-                #     actions=actions,
-                #     terminal=terminal,
-                #     reward=reward,
-                #     update=update
-                # )
+                # Create core variables (timestep, episode counters, buffers for states/actions/internals).
                 self.fn_initialize()
 
                 # Input tensors
@@ -322,34 +288,32 @@ class Model(object):
                     summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
                     self.summaries.append(summary)
 
-        # if we are a global model -> return here (saving, synching, finalizing graph is done by local replica model)
-        if global_model:
+        # If we are a global model -> return here.
+        # Saving, syncing, finalizing graph, session is done by local replica model.
+        if self.execution_type == "distributed" and not self.is_local_model:
             return
 
+        # Saver/Summary -> Scaffold.
         self.setup_saver()
-
-        # Summary operation
         summaries = self.get_summaries()
         if len(summaries) > 0:
             summary_op = tf.summary.merge(inputs=summaries)
         else:
             summary_op = None
+
         self.setup_scaffold(summary_op)
 
         # Create necessary hooks for the upcoming session.
         hooks = self.setup_summary_and_saver_hooks()
-
         # We are done constructing: Finalize our graph, create and enter the session.
-        self.setup_session(server, hooks, graph_default_context)
+        self.setup_session(self.server, hooks, graph_default_context)
 
-    def setup_graph(self, global_model=False):
+    def setup_graph(self):
         """
         Creates our Graph and figures out, which shared/global model to hook up to.
-
-        Args:
-            global_model (bool): Whether we are setting up the global part of a model. If True we do not create
-                a new graph (and return None as the context). We will use the already existing local replica graph
-                of the model.
+        If we are in a global-model's setup procedure, we do not create
+        a new graph (return None as the context). We will instead use the already existing local replica graph
+        of the model.
 
         Returns: None or the graph's as_default()-context.
         """
@@ -368,17 +332,21 @@ class Model(object):
             if self.distributed_spec["job"] == "ps":
                 return None
 
-            # worker -> construct the global graph (main model; the one the ps holds),
-            # set it up via `setup` and link to it.
+            # worker -> construct the global (main) model; the one hosted on the ps,
             elif self.distributed_spec["job"] == "worker":
-                # The replica model (local). Each worker gets a full copy of this one.
-                # TODO: Worker doesn't need the train ops for this local model, but probably won't harm.
-                if not global_model:
+                # The local replica model.
+                if self.is_local_model:
                     graph = tf.Graph()
                     graph_default_context = graph.as_default()
                     graph_default_context.__enter__()
+
+                    # Now that the graph is created and entered -> deepcopoy ourselves and setup global model first,
+                    # then continue.
                     self.global_model = deepcopy(self)
-                    self.global_model.setup(global_model=True)
+                    # Switch on global construction/setup-mode for the pass to setup().
+                    self.global_model.is_local_model = False
+                    self.global_model.setup()
+
                     self.graph = graph
                     self.as_local_model()
                     self.scope += '-worker' + str(self.distributed_spec["task_index"])
@@ -404,12 +372,10 @@ class Model(object):
 
     def start_server(self):
         """
-        Starts a tf server (and optionally joins it if we are a parameter-server).
+        Creates and stores a tf server (and optionally joins it if we are a parameter-server).
         Only relevant, if we are running in distributed mode.
-
-        Returns: The tf.train.Server object or None (for single execution).
         """
-        server = tf.train.Server(
+        self.server = tf.train.Server(
             server_or_cluster_def=self.distributed_spec["cluster_spec"],
             job_name=self.distributed_spec["job"],
             task_index=self.distributed_spec["task_index"],
@@ -418,42 +384,156 @@ class Model(object):
             start=True
         )
         if self.distributed_spec["job"] == "ps":
-            server.join()
+            self.server.join()
             quit()  # a bit ugly?
-        return server
 
-    def setup_global_counters(self):
+    def setup_placeholders(self):
         """
-        Adds global timestep and episode counters to the graph
+        Creates the TensorFlow placeholders, variables, ops and functions for this model.
+        NOTE: Does not add the internal state placeholders and initialization values to the model yet as that requires
+        the model's Network (if any) to be generated first.
         """
-        # Global timestep
-        collection = self.graph.get_collection(name='global-timestep')
-        if len(collection) == 0:
-            self.global_timestep = tf.Variable(
-                name='global-timestep',
-                dtype=util.tf_dtype('int'),
-                trainable=False,
-                initial_value=0
-            )
-            self.graph.add_to_collection(name='global-timestep', value=self.global_timestep)
-            self.graph.add_to_collection(name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep)
-        else:
-            assert len(collection) == 1
-            self.global_timestep = collection[0]
 
-        # Global episode
-        collection = self.graph.get_collection(name='global-episode')
-        if len(collection) == 0:
-            self.global_episode = tf.Variable(
-                name='global-episode',
-                dtype=util.tf_dtype('int'),
-                trainable=False,
-                initial_value=0
+        # States
+        for name, state in self.states_spec.items():
+            self.states_input[name] = tf.placeholder(
+                dtype=util.tf_dtype(state['type']),
+                shape=(None,) + tuple(state['shape']),
+                name=('state-' + name)
             )
-            self.graph.add_to_collection(name='global-episode', value=self.global_episode)
+
+        # States preprocessing
+        if self.states_preprocessing_spec is None:
+            for name, state in self.states_spec.items():
+                state['unprocessed_shape'] = state['shape']
+        elif not isinstance(self.states_preprocessing_spec, list) and \
+                all(name in self.states_spec for name in self.states_preprocessing_spec):
+            for name, state in self.states_spec.items():
+                if name in self.states_preprocessing_spec:
+                    preprocessing = PreprocessorStack.from_spec(
+                        spec=self.states_preprocessing_spec[name],
+                        kwargs=dict(shape=state['shape'])
+                    )
+                    state['unprocessed_shape'] = state['shape']
+                    state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
+                    self.states_preprocessing[name] = preprocessing
+                else:
+                    state['unprocessed_shape'] = state['shape']
+        # single preprocessor for all components of our state space
+        elif "type" in self.states_preprocessing_spec:
+            preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
+            for name, state in self.states_spec.items():
+                state['unprocessed_shape'] = state['shape']
+                state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
+                self.states_preprocessing[name] = preprocessing
         else:
-            assert len(collection) == 1
-            self.global_episode = collection[0]
+            for name, state in self.states_spec.items():
+                preprocessing = PreprocessorStack.from_spec(
+                    spec=self.states_preprocessing_spec,
+                    kwargs=dict(shape=state['shape'])
+                )
+                state['unprocessed_shape'] = state['shape']
+                state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
+                self.states_preprocessing[name] = preprocessing
+
+        # Actions
+        for name, action in self.actions_spec.items():
+            self.actions_input[name] = tf.placeholder(
+                dtype=util.tf_dtype(action['type']),
+                shape=(None,) + tuple(action['shape']),
+                name=('action-' + name)
+            )
+
+        # Actions exploration
+        if self.actions_exploration_spec is None:
+            pass
+        elif all(name in self.actions_spec for name in self.actions_exploration_spec):
+            for name, action in self.actions_spec.items():
+                if name in self.actions_exploration:
+                    self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec[name])
+        else:
+            for name, action in self.actions_spec.items():
+                self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec)
+
+        # Terminal
+        self.terminal_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(None,), name='terminal')
+
+        # Reward
+        self.reward_input = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name='reward')
+
+        # Reward preprocessing
+        if self.reward_preprocessing_spec is not None:
+            self.reward_preprocessing = PreprocessorStack.from_spec(
+                spec=self.reward_preprocessing_spec,
+                # TODO this can eventually have more complex shapes?
+                kwargs=dict(shape=())
+            )
+            if self.reward_preprocessing.processed_shape(shape=()) != ():
+                raise TensorForceError("Invalid reward preprocessing!")
+
+        # Deterministic/independent action flag (should probably be the same)
+        self.deterministic_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='deterministic')
+        self.independent_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='independent')
+
+    def setup_components_and_tf_funcs(self, custom_getter=None):
+        """
+        Allows child models to create model's component objects, such as optimizer(s), memory(s), etc..
+        Creates all tensorflow functions via tf.make_template calls on all the class' "tf_"-methods.
+
+        Args:
+            custom_getter: The `custom_getter_` object to use for `tf.make_template` when creating TensorFlow functions.
+                If None, use a default custom_getter_.
+
+        Returns: The custom_getter passed in (or a default one if custom_getter was None).
+        """
+
+        if custom_getter is None:
+            def custom_getter(getter, name, registered=False, **kwargs):
+                """
+                To be passed to tf.make_template() as 'custom_getter_'.
+                """
+                if registered:
+                    self.registered_variables.add(name)
+                elif name in self.registered_variables:
+                    registered = True
+                # Top-level, hence no 'registered' argument.
+                variable = getter(name=name, **kwargs)
+                if not registered:
+                    self.all_variables[name] = variable
+                    if kwargs.get('trainable', True):
+                        self.variables[name] = variable
+                        if 'variables' in self.summary_labels:
+                            summary = tf.summary.histogram(name=name, values=variable)
+                            self.summaries.append(summary)
+                return variable
+
+        self.fn_initialize = tf.make_template(
+            name_='initialize',
+            func_=self.tf_initialize,
+            custom_getter_=custom_getter
+        )
+        self.fn_preprocess = tf.make_template(
+            name_='preprocess',
+            func_=self.tf_preprocess,
+            custom_getter_=custom_getter
+        )
+        self.fn_actions_and_internals = tf.make_template(
+            name_='actions-and-internals',
+            func_=self.tf_actions_and_internals,
+            custom_getter_=custom_getter
+        )
+        self.fn_observe_timestep = tf.make_template(
+            name_='observe-timestep',
+            func_=self.tf_observe_timestep,
+            custom_getter_=custom_getter
+        )
+        self.fn_action_exploration = tf.make_template(
+            name_='action-exploration',
+            func_=self.tf_action_exploration,
+            custom_getter_=custom_getter
+        )
+
+        return custom_getter
 
     def setup_saver(self):
         """
@@ -464,7 +544,7 @@ class Model(object):
         else:
             global_variables = self.global_model.get_variables(include_submodules=True, include_nontrainable=True)
 
-        global_variables += [self.global_episode, self.global_timestep]
+        # global_variables += [self.global_episode, self.global_timestep]
 
         for c in self.get_savable_components():
             c.register_saver_ops()
@@ -495,7 +575,7 @@ class Model(object):
         """
         if self.execution_type == "single":
             global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
-            global_variables += [self.global_episode, self.global_timestep]
+            #global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
             ready_for_local_init_op = None
@@ -503,11 +583,8 @@ class Model(object):
 
         else:
             # Global and local variable initializers.
-            global_variables = self.global_model.get_variables(
-                include_submodules=True,
-                include_nontrainable=True
-            )
-            global_variables += [self.global_episode, self.global_timestep]
+            global_variables = self.global_model.get_variables(include_submodules=True, include_nontrainable=True)
+            #global_variables += [self.global_episode, self.global_timestep]
             local_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
@@ -594,6 +671,9 @@ class Model(object):
                 summary_op=None  # None since given via 'scaffold' argument.
             )
             hooks.append(self.summarizer_hook)
+
+        if self.summarizer_spec and 'meta_param_recorder_class' in self.summarizer_spec:
+            self.summary_configuration_op = self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
 
         # Stop at step hook
         # hooks.append(tf.train.StopAtStepHook(
@@ -683,160 +763,36 @@ class Model(object):
     def as_local_model(self):
         pass
 
-    def initialize(self, custom_getter):
-        """
-        Creates the TensorFlow placeholders and functions for this model. Moreover adds the
-        internal state placeholders and initialization values to the model.
-
-        Args:
-            custom_getter: The `custom_getter_` object to use for `tf.make_template` when creating TensorFlow functions.
-        """
-
-        # States
-        for name, state in self.states_spec.items():
-            self.states_input[name] = tf.placeholder(
-                dtype=util.tf_dtype(state['type']),
-                shape=(None,) + tuple(state['shape']),
-                name=('state-' + name)
-            )
-
-        # States preprocessing
-        if self.states_preprocessing_spec is None:
-            for name, state in self.states_spec.items():
-                state['unprocessed_shape'] = state['shape']
-        elif not isinstance(self.states_preprocessing_spec, list) and \
-                all(name in self.states_spec for name in self.states_preprocessing_spec):
-            for name, state in self.states_spec.items():
-                if name in self.states_preprocessing_spec:
-                    preprocessing = PreprocessorStack.from_spec(
-                        spec=self.states_preprocessing_spec[name],
-                        kwargs=dict(shape=state['shape'])
-                    )
-                    state['unprocessed_shape'] = state['shape']
-                    state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
-                    self.states_preprocessing[name] = preprocessing
-                else:
-                    state['unprocessed_shape'] = state['shape']
-        # single preprocessor for all components of our state space
-        elif "type" in self.states_preprocessing_spec:
-            preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
-            for name, state in self.states_spec.items():
-                state['unprocessed_shape'] = state['shape']
-                state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
-                self.states_preprocessing[name] = preprocessing
-        else:
-            for name, state in self.states_spec.items():
-                preprocessing = PreprocessorStack.from_spec(
-                    spec=self.states_preprocessing_spec,
-                    kwargs=dict(shape=state['shape'])
-                )
-                state['unprocessed_shape'] = state['shape']
-                state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
-                self.states_preprocessing[name] = preprocessing
-
-        # Internals
-        for name, internal in self.internals_spec.items():
-            self.internals_input[name] = tf.placeholder(
-                dtype=util.tf_dtype(internal['type']),
-                shape=(None,) + tuple(internal['shape']),
-                name=('internal-' + name)
-            )
-            if internal['initialization'] == 'zeros':
-                self.internals_init[name] = np.zeros(shape=internal['shape'])
-            else:
-                raise TensorForceError("Invalid internal initialization value.")
-
-        # Actions
-        for name, action in self.actions_spec.items():
-            self.actions_input[name] = tf.placeholder(
-                dtype=util.tf_dtype(action['type']),
-                shape=(None,) + tuple(action['shape']),
-                name=('action-' + name)
-            )
-
-        # Actions exploration
-        if self.actions_exploration_spec is None:
-            pass
-        elif all(name in self.actions_spec for name in self.actions_exploration_spec):
-            for name, action in self.actions_spec.items():
-                if name in self.actions_exploration:
-                    self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec[name])
-        else:
-            for name, action in self.actions_spec.items():
-                self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec)
-
-        # Terminal
-        self.terminal_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(None,), name='terminal')
-
-        # Reward
-        self.reward_input = tf.placeholder(dtype=util.tf_dtype('float'), shape=(None,), name='reward')
-
-        # Reward preprocessing
-        if self.reward_preprocessing_spec is not None:
-            self.reward_preprocessing = PreprocessorStack.from_spec(
-                spec=self.reward_preprocessing_spec,
-                # TODO this can eventually have more complex shapes?
-                kwargs=dict(shape=())
-            )
-            if self.reward_preprocessing.processed_shape(shape=()) != ():
-                raise TensorForceError("Invalid reward preprocessing!")
-
-        # Deterministic/independent action flag (should probably be the same)
-        self.deterministic_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='deterministic')
-        self.independent_input = tf.placeholder(dtype=util.tf_dtype('bool'), shape=(), name='independent')
-
-        # TensorFlow functions
-        self.fn_initialize = tf.make_template(
-            name_='initialize',
-            func_=self.tf_initialize,
-            custom_getter_=custom_getter
-        )
-        self.fn_preprocess = tf.make_template(
-            name_='preprocess',
-            func_=self.tf_preprocess,
-            custom_getter_=custom_getter
-        )
-        self.fn_actions_and_internals = tf.make_template(
-            name_='actions-and-internals',
-            func_=self.tf_actions_and_internals,
-            custom_getter_=custom_getter
-        )
-        self.fn_observe_timestep = tf.make_template(
-            name_='observe-timestep',
-            func_=self.tf_observe_timestep,
-            custom_getter_=custom_getter
-        )
-        self.fn_action_exploration = tf.make_template(
-            name_='action-exploration',
-            func_=self.tf_action_exploration,
-            custom_getter_=custom_getter
-        )
-
-        self.summary_configuration_op = None
-        if self.summarizer_spec and 'meta_param_recorder_class' in self.summarizer_spec:
-            self.summary_configuration_op = self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
-
-        # self.fn_summarization = tf.make_template(
-        #     name_='summarization',
-        #     func_=self.tf_summarization,
-        #     custom_getter_=custom_getter
-        # )
-
     def tf_initialize(self):
         """
-        Creates tf Variables for the local state/internals/action-buffers and for the local counters for timestep
-        and episode.
+        Creates tf Variables for the local state/internals/action-buffers and for the local and global counters
+        for timestep and episode.
         """
 
-        # Timestep
+        # Timesteps/Episodes
+        # Global: (force on global device; local and global model point to the same (global) data).
+        with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
+            self.global_timestep = tf.get_variable(
+                name='global-timestep',
+                dtype=util.tf_dtype('int'),
+                trainable=False,
+                initializer=0,
+                collections=['global-timestep', tf.GraphKeys.GLOBAL_STEP]
+            )
+            self.global_episode = tf.get_variable(
+                name='global-episode',
+                dtype=util.tf_dtype('int'),
+                trainable=False,
+                initializer=0,
+                collections=['global-episode']
+            )
+        # Local counters: local device
         self.timestep = tf.get_variable(
             name='timestep',
             dtype=util.tf_dtype('int'),
             initializer=0,
             trainable=False
         )
-
-        # Episode
         self.episode = tf.get_variable(
             name='episode',
             dtype=util.tf_dtype('int'),
@@ -880,6 +836,16 @@ class Model(object):
         )
 
     def tf_preprocess(self, states, actions, reward):
+        """
+        Applies preprocessing ops to the raw states/action/reward inputs.
+
+        Args:
+            states (dict): Dict of raw state tensors.
+            actions (dict): Dict or raw action tensors.
+            reward: 1D (float) raw rewards tensor.
+
+        Returns: The preprocessed versions of the input tensors.
+        """
         # States preprocessing
         for name, preprocessing in self.states_preprocessing.items():
             states[name] = preprocessing.process(tensor=states[name])
@@ -956,7 +922,7 @@ class Model(object):
     def tf_observe_timestep(self, states, internals, actions, terminal, reward):
         """
         Creates the TensorFlow operations for processing a batch of observations coming in from our buffer (state,
-        action, internals) as well as from the agent's own python-batch (terminal-signals, rewards from the env).
+        action, internals) as well as from the agent's python-batch (terminal-signals and rewards from the env).
 
         Args:
             states (dict): Dict of state tensors (each key represents one state space component).
@@ -1366,20 +1332,11 @@ class Model(object):
         Returns:
             The value of the model-internal episode counter.
         """
-        # terminal = np.asarray(terminal)
-        # batched = (terminal.ndim == 1)
 
         fetches = self.episode_output
-
         feed_dict = self.get_feed_dict(terminal=terminal, reward=reward)
 
-        # if batched:
-        #     assert self.batching_capacity is not None and terminal.shape[0] <= self.batching_capacity
-        #     feed_dict = {self.terminal_input: terminal, self.reward_input: reward, }
-        # else:
-        #     feed_dict = {self.terminal_input: (terminal,), self.reward_input: (reward,)}
-
-        self.is_observe = True
+        self.is_observe = True  # for custom UpdateSummarySaverHook (see utils.py)
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
         self.is_observe = False
 

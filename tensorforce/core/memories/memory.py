@@ -35,53 +35,71 @@ class Memory(object):
             internals (dict): Internal states specification.
             actions (dict): Actions specification.
             include_next_states (bool): Include subsequent state if true.
+            scope (str): The tf variable scope to use when creating variables for this memory.
+            summary_labels (list): List of summary labels.
         """
         self.states_spec = states
         self.internals_spec = internals
         self.actions_spec = actions
         self.include_next_states = include_next_states
+        self.scope = scope
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
         self.summaries = list()
 
-        def custom_getter(getter, name, registered=False, **kwargs):
-            variable = getter(name=name, registered=True, **kwargs)
-            if not registered:
-                assert not kwargs.get('trainable', False)
-                self.variables[name] = variable
-            return variable
+        # TensorFlow functions.
+        self.initialize = None  # type: callable
+        self.store = None
+        self.retrieve_timesteps = None
+        self.retrieve_episodes = None
+        self.retrieve_sequences = None
+        self.update_batch = None
+
+        self.setup_template_funcs()
+
+    def setup_template_funcs(self, custom_getter=None):
+        if custom_getter is None:
+            def custom_getter(getter, name, registered=False, **kwargs):
+                variable = getter(name=name, registered=True, **kwargs)
+
+                if not registered:
+                    assert not kwargs.get('trainable', False)
+                    self.variables[name] = variable
+                return variable
 
         self.initialize = tf.make_template(
-            name_=(scope + '/initialize'),
+            name_=(self.scope + '/initialize'),
             func_=self.tf_initialize,
             custom_getter_=custom_getter
         )
         self.store = tf.make_template(
-            name_=(scope + '/store'),
+            name_=(self.scope + '/store'),
             func_=self.tf_store,
             custom_getter_=custom_getter
         )
         self.retrieve_timesteps = tf.make_template(
-            name_=(scope + '/retrieve_timesteps'),
+            name_=(self.scope + '/retrieve_timesteps'),
             func_=self.tf_retrieve_timesteps,
             custom_getter_=custom_getter
         )
         self.retrieve_episodes = tf.make_template(
-            name_=(scope + '/retrieve_episodes'),
+            name_=(self.scope + '/retrieve_episodes'),
             func_=self.tf_retrieve_episodes,
             custom_getter_=custom_getter
         )
         self.retrieve_sequences = tf.make_template(
-            name_=(scope + '/retrieve_sequences'),
+            name_=(self.scope + '/retrieve_sequences'),
             func_=self.tf_retrieve_sequences,
             custom_getter_=custom_getter
         )
         self.update_batch = tf.make_template(
-            name_=(scope + '/update_batch'),
+            name_=(self.scope + '/update_batch'),
             func_=self.tf_update_batch,
             custom_getter_=custom_getter
         )
+
+        return custom_getter
 
     def tf_initialize(self):
         """

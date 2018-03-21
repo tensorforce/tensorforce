@@ -73,6 +73,7 @@ class PGModel(DistributionModel):
         self.baseline = None
         self.baseline_optimizer = None
         self.fn_reward_estimation = None
+        self.fn_baseline_loss = None
 
         super(PGModel, self).__init__(
             states=states,
@@ -105,8 +106,8 @@ class PGModel(DistributionModel):
                 optimizer=self.baseline_optimizer_spec
             )
 
-    def initialize(self, custom_getter):
-        super(PGModel, self).initialize(custom_getter)
+    def setup_components_and_tf_funcs(self, custom_getter=None):
+        custom_getter = super(PGModel, self).setup_components_and_tf_funcs(custom_getter)
 
         # Baseline
         if self.baseline_spec is None:
@@ -145,6 +146,8 @@ class PGModel(DistributionModel):
             func_=self.tf_baseline_loss,
             custom_getter_=custom_getter
         )
+
+        return custom_getter
 
     def tf_reward_estimation(self, states, internals, terminal, reward, update):
         if self.baseline_mode is None:

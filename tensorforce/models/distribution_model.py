@@ -18,8 +18,9 @@ from __future__ import print_function
 from __future__ import division
 
 import tensorflow as tf
+import numpy as np
 
-from tensorforce import util
+from tensorforce import util, TensorForceError
 from tensorforce.core.networks import Network
 from tensorforce.core.distributions import Distribution, Bernoulli, Categorical, Gaussian, Beta
 from tensorforce.models import MemoryModel
@@ -89,18 +90,33 @@ class DistributionModel(MemoryModel):
             discount=discount
         )
 
-    def initialize(self, custom_getter):
-        # Network
+    def setup_components_and_tf_funcs(self, custom_getter=None):
+        """
+        Creates and stores Network and Distribution objects.
+        Generates and stores all template functions.
+        """
+        # Create network before super-call, since non-empty internals_spec attribute (for RNN) is required subsequently.
         self.network = Network.from_spec(
             spec=self.network_spec,
             kwargs=dict(summary_labels=self.summary_labels)
         )
 
-        # Before super-call since internals_spec attribute is required subsequently.
+        # Now that we have the network component: We can create the internals placeholders.
         assert len(self.internals_spec) == 0
         self.internals_spec = self.network.internals_spec()
+        for name, internal in self.internals_spec.items():
+            self.internals_input[name] = tf.placeholder(
+                dtype=util.tf_dtype(internal['type']),
+                shape=(None,) + tuple(internal['shape']),
+                name=('internal-' + name)
+            )
+            if internal['initialization'] == 'zeros':
+                self.internals_init[name] = np.zeros(shape=internal['shape'])
+            else:
+                raise TensorForceError("Invalid internal initialization value.")
 
-        super(DistributionModel, self).initialize(custom_getter)
+        # And only then call super.
+        custom_getter = super(DistributionModel, self).setup_components_and_tf_funcs(custom_getter)
 
         # Distributions
         self.distributions = self.create_distributions()
@@ -112,7 +128,14 @@ class DistributionModel(MemoryModel):
             custom_getter_=custom_getter
         )
 
+        return custom_getter
+
     def create_distributions(self):
+        """
+        Creates and returns the Distribution objects based on self.distributions_spec.
+
+        Returns: Dict of distributions according to self.distributions_spec.
+        """
         distributions = dict()
         for name, action in self.actions_spec.items():
 

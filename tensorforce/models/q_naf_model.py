@@ -83,8 +83,8 @@ class QNAFModel(QModel):
             huber_loss=huber_loss
         )
 
-    def initialize(self, custom_getter):
-        super(QNAFModel, self).initialize(custom_getter)
+    def setup_components_and_tf_funcs(self, custom_getter=None):
+        super(QNAFModel, self).setup_components_and_tf_funcs(custom_getter)
 
         self.state_values = dict()
         self.l_entries = dict()

@@ -41,19 +41,17 @@ class GlobalOptimizer(MetaOptimizer):
         """
         super(GlobalOptimizer, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
 
-    def tf_step(self, time, variables, global_variables, **kwargs):
+    def tf_step(self, time, variables, **kwargs):
         """
-        Creates the TensorFlow operations for performing an optimization step.
-
-        Args:
-            time: Time tensor.
-            variables: List of variables to optimize.
+        Keyword Args:
             global_variables: List of global variables to apply the proposed optimization step to.
-            **kwargs: ??? coming soon
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
+
+        global_variables = kwargs["global_variables"]
+
         assert all(
             util.shape(global_variable) == util.shape(local_variable)
             for global_variable, local_variable in zip(global_variables, variables)

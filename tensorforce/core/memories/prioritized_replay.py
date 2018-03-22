@@ -87,7 +87,7 @@ class PrioritizedReplay(Memory):
         )
 
     def setup_template_funcs(self, custom_getter=None):
-        super(PrioritizedReplay, self).setup_template_funcs(custom_getter)
+        custom_getter = super(PrioritizedReplay, self).setup_template_funcs(custom_getter)
 
         self.retrieve_indices = tf.make_template(
             name_=(self.scope + '/retrieve_indices'),

@@ -129,7 +129,7 @@ def sanity_check_execution_spec(execution_spec):
 
     # TODO: Figure out what exactly we need for options and what types we should support.
     if type_ == "distributed":
-        def_ = dict(job="ps", task=0, cluster_spec={
+        def_ = dict(job="ps", task_index=0, cluster_spec={
             "ps": ["localhost:22222"],
             "worker": ["localhost:22223"]
         })

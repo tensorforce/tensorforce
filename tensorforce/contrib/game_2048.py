@@ -18,9 +18,12 @@ ACTION_DOWN = 3
 class Game2048(Environment):
     """
     Represents a 2048 Game state and implements the actions.
+
     Most of this code comes from https://github.com/georgwiese/2048-rl/blob/master/py_2048_rl/game/game.py .
     Which implements the 2048 Game logic, as specified by this source file:
+
     https://github.com/gabrielecirulli/2048/blob/master/js/game_manager.js
+
     Game states are represented as shape (4, 4) numpy arrays whos entries are 0
     for empty fields and ln2(value) for any tiles.
     """

@@ -226,7 +226,8 @@ class TestVPGMemories(BaseTest, unittest.TestCase):
     #         memory=dict(
     #             type='prioritized_replay',
     #             include_next_states=False,
-    #             capacity=100
+    #             capacity=100,
+    #             buffer_size=100
     #         ),
     #         optimizer=dict(
     #             type='adam',

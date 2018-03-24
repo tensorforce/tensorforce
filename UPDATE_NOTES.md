@@ -5,6 +5,20 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+24 March
+
+- Fixed buffer overflows in the priority replay buffer, which now simply resets
+  the buffer insertion index. Note that for effective use of prioritized replay,
+  the batch size and frequency of updates should be sized so the buffer is emptied
+  timely. All experiences are first written to the buffer, then once their priority
+  has been determined written to the main memory. Sampling works by first taking 
+  new elements from the buffer, then if necessary remaining elements from the replay
+  memory according to their priorities. This means if updates are rare and batch
+  sizes small in comparison to the buffer size, updates will always be from recent memories.
+- There is a remaining off-by-one sampling error in prioritized replay which makes it unsafe
+  to use as of yet.
+- Removed non-tensorflow old prioritized replay class.
+
 17th March
 
 - Merged PR to allow component loading. This now enables loading of pretrained

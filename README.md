@@ -234,6 +234,6 @@ If you use TensorForce in your academic research, we would be grateful if you co
 }
 ```
 
-We are also very grateful for our open source contributors (listed according to github): Islandman93, wassname, 
-Mazecreator, lefnire, sven1977, trickmeyer, mryellow, ImpulseAdventure, vwxyzjn, beflix, tms1337, BorisSchaeling, ngoodger,
-ekerazha, Davidnet, nikoliazekter, AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.
+We are also very grateful for our open source contributors (listed according to github): Islandman93, sven1977, Mazecreator
+, wassname, lefnire, trickmeyer, mkempers, mryellow, ImpulseAdventure, HassamSheikh, vwxyzjn, beflix, janislavjankov, tms1337,
+perara, butchcom, yellowbee686, tomhennigan, neitzal, BorisSchaeling, ngoodger, ekerazha, Davidnet, AdamStelmaszczyk, 10nagachika, petrbel, Kismuz.

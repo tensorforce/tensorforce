@@ -37,7 +37,7 @@ class PrioritizedReplay(Memory):
         capacity,
         prioritization_weight=1.0,
         buffer_size=100,
-        scope='queue',
+        scope='prioritized-replay',
         summary_labels=None
     ):
         """
@@ -51,7 +51,9 @@ class PrioritizedReplay(Memory):
             capacity: Memory capacity.
             prioritization_weight: Prioritization weight.
             buffer_size: Buffer size. The buffer is used to insert experiences before experiences
-                have been computed via updates.
+                have been computed via updates. Note that if the buffer is to small in comparison
+                to the frequency with which updates are performed, old experiences from the buffer
+                will be overwritten before they are moved to the main memory.
         """
         self.capacity = capacity
         self.buffer_size = buffer_size
@@ -241,10 +243,14 @@ class PrioritizedReplay(Memory):
         # We first store new experiences into a buffer that is separate from main memory.
         # We insert these into the main memory once we have computed priorities on a given batch.
         num_instances = tf.shape(input=terminal)[0]
-        start_index = self.buffer_index
-        # TODO this is dangerous if the buffer is too small for the rate at which new
-        # experiences arrive and are not taking out of the buffer
-        end_index = self.buffer_index + num_instances
+
+        # Simple way to prevent buffer overflows.
+        start_index = tf.cond(
+            pred=(self.buffer_index + num_instances >= self.buffer_size),
+            true_fn=(lambda: 0),
+            false_fn=(lambda: self.buffer_index)
+        )
+        end_index = start_index + num_instances
 
         # Assign new observations.
         assignments = list()
@@ -265,7 +271,7 @@ class PrioritizedReplay(Memory):
 
         # Increment memory index.
         with tf.control_dependencies(control_inputs=assignments):
-            assignment = tf.assign(ref=self.buffer_index, value=(self.buffer_index + num_instances))
+            assignment = tf.assign(ref=self.buffer_index, value=(start_index + num_instances))
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.no_op()
@@ -314,9 +320,7 @@ class PrioritizedReplay(Memory):
         )
 
         priority_terminal = tf.gather(params=self.terminal_memory, indices=priority_indices)
-        # TODO
         priority_indices = tf.Print(priority_indices, [priority_indices], 'priority indices before masking in retrieve=', summarize=1000)
-
         priority_indices = tf.boolean_mask(tensor=priority_indices, mask=tf.logical_not(x=priority_terminal))
 
         # Store how many elements we retrieved from the buffer for updating priorities.

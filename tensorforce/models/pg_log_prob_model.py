@@ -25,10 +25,22 @@ from tensorforce.models import PGModel
 
 class PGLogProbModel(PGModel):
     """
-    Policy gradient model based on computing log likelihoods, e.g. VPG.
+    Policy gradient model based on computing log likelihoods, e.g. the classical REINFORCE
+    algorithm.
     """
 
-    def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
+    def tf_loss_per_instance(
+        self,
+        states,
+        internals,
+        actions,
+        terminal,
+        reward,
+        next_states,
+        next_internals,
+        update,
+        reference=None
+    ):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
 

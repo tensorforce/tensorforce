@@ -192,7 +192,7 @@ class DistributionModel(MemoryModel):
                 distr_params=distr_params,
                 deterministic=tf.logical_or(x=deterministic, y=self.requires_deterministic)
             )
-            # Prefix named variable with "name_" if more than 1 distribution
+            # Prefix named variable with "name_" if more than 1 distribution.
             if len(self.distributions.items()) > 1:
                 name_prefix = name + "_"
             else:

@@ -13,35 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-
-"""
-The `Model` class coordinates the creation and execution of all TensorFlow operations within a model.
-It implements the `reset`, `act` and `update` functions, which form the interface the `Agent` class
-communicates with, and which should not need to be overwritten. Instead, the following TensorFlow
-functions need to be implemented:
-
-* `tf_actions_and_internals(states, internals, deterministic)` returning the batch of
-   actions and successor internal states.
-
-Further, the following TensorFlow functions should be extended accordingly:
-
-* `setup_placeholders()` defining TensorFlow input placeholders for states, actions, rewards, etc..
-* `setup_template_funcs()` builds all TensorFlow functions from "tf_"-methods via tf.make_template.
-* `get_variables()` returning the list of TensorFlow variables (to be optimized) of this model.
-
-Finally, the following TensorFlow functions can be useful in some cases:
-
-* `tf_preprocess(states, internals, reward)` for states/action/reward preprocessing (e.g. reward normalization),
-    returning the pre-processed tensors.
-* `tf_action_exploration(action, exploration, action_spec)` for action postprocessing (e.g. exploration),
-    returning the processed batch of actions.
-* `create_output_operations(states, internals, actions, terminal, reward, deterministic)` for further output operations,
-    similar to the two above for `Model.act` and `Model.update`.
-* `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations
-    (e.g. the baseline update in a `PGModel` or the target network update in a `QModel`),
-    returning a single grouped optimization operation.
-"""
-
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
@@ -60,7 +31,31 @@ from tensorforce.core.preprocessors import PreprocessorStack
 
 class Model(object):
     """
-    Base class for all (TensorFlow-based) models.
+    The `Model` class coordinates the creation and execution of all TensorFlow operations within a model.
+    It implements the `reset`, `act` and `update` functions, which form the interface the `Agent` class
+    communicates with, and which should not need to be overwritten. Instead, the following TensorFlow
+    functions need to be implemented:
+
+    * `tf_actions_and_internals(states, internals, deterministic)` returning the batch of
+       actions and successor internal states.
+
+    Further, the following TensorFlow functions should be extended accordingly:
+
+    * `setup_placeholders()` defining TensorFlow input placeholders for states, actions, rewards, etc..
+    * `setup_template_funcs()` builds all TensorFlow functions from "tf_"-methods via tf.make_template.
+    * `get_variables()` returning the list of TensorFlow variables (to be optimized) of this model.
+
+    Finally, the following TensorFlow functions can be useful in some cases:
+
+    * `tf_preprocess(states, internals, reward)` for states/action/reward preprocessing (e.g. reward normalization),
+        returning the pre-processed tensors.
+    * `tf_action_exploration(action, exploration, action_spec)` for action postprocessing (e.g. exploration),
+        returning the processed batch of actions.
+    * `create_output_operations(states, internals, actions, terminal, reward, deterministic)` for further output operations,
+        similar to the two above for `Model.act` and `Model.update`.
+    * `tf_optimization(states, internals, actions, terminal, reward)` for further optimization operations
+        (e.g. the baseline update in a `PGModel` or the target network update in a `QModel`),
+        returning a single grouped optimization operation.
     """
 
     def __init__(
@@ -154,8 +149,10 @@ class Model(object):
         self.states_buffer = dict()
         self.internals_buffer = dict()
         self.actions_buffer = dict()
-        self.buffer_index = None  # tensorflow int-index; reset to 0 when observe() is called.
-        self.episode_output = None  # main-op executed in observe()
+        # Tensorflow int-index; reset to 0 when observe() is called.
+        self.buffer_index = None
+        # main-op executed in observe()
+        self.episode_output = None
 
         # Variable noise
         assert variable_noise is None or variable_noise > 0.0
@@ -200,9 +197,10 @@ class Model(object):
 
         self.graph = None
         self.global_model = None
-        self.is_local_model = True  # Whether this is a local replica of some global model (or we do single execution).
-
-        self.server = None  # the tf Server object (if any)
+        # Whether this is a local replica of some global model (or we do single execution).
+        self.is_local_model = True
+        # The tf Server object (if any)
+        self.server = None
 
         self.summary_writer = None
         self.summary_writer_hook = None
@@ -319,7 +317,7 @@ class Model(object):
         """
         graph_default_context = None
 
-        # Single mode
+        # Single (non-distributed) mode.
         if self.execution_type == "single":
             self.graph = tf.Graph()
             graph_default_context = self.graph.as_default()
@@ -419,7 +417,7 @@ class Model(object):
                     self.states_preprocessing[name] = preprocessing
                 else:
                     state['unprocessed_shape'] = state['shape']
-        # single preprocessor for all components of our state space
+        # Single preprocessor for all components of our state space
         elif "type" in self.states_preprocessing_spec:
             preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
             for name, state in self.states_spec.items():
@@ -550,10 +548,11 @@ class Model(object):
             c.register_saver_ops()
 
         # TensorFlow saver object
+        # TODO potentially make other options configurable via saver spec.
         self.saver = tf.train.Saver(
             var_list=global_variables,  # should be given?
             reshape=False,
-            sharded=False,  # should be true?
+            sharded=False,
             max_to_keep=5,
             keep_checkpoint_every_n_hours=10000.0,
             name=None,
@@ -613,6 +612,7 @@ class Model(object):
                     scaffold.saver.restore(sess=session, save_path=file)
 
         # TensorFlow scaffold object
+        # TODO explain what it does.
         self.scaffold = tf.train.Scaffold(
             init_op=init_op,
             init_feed_dict=None,
@@ -973,6 +973,7 @@ class Model(object):
             )
 
         # Subtract variable noise
+        # TODO this is an untested/incomplete feature and maybe should be removed for now.
         with tf.control_dependencies(control_inputs=list(self.actions_output.values())):
             operations = list()
             if self.variable_noise is not None and self.variable_noise > 0.0:
@@ -1034,6 +1035,7 @@ class Model(object):
 
             with tf.control_dependencies(control_inputs=operations):
                 # Trivial operation to enforce control dependency
+                # TODO why not return no-op?
                 return self.global_timestep + 0
 
         # Only increment timestep and update buffer if act not independent

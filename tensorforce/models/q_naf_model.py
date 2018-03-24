@@ -27,6 +27,11 @@ from tensorforce.core.networks import Linear
 
 
 class QNAFModel(QModel):
+    """
+    Implements normalized advantage functions (NAF), somtimes also called
+    continuous Q-learning.
+    """
+
 
     def __init__(
         self,

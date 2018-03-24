@@ -16,7 +16,7 @@ be tracked here in detail but through github issues.
   memory according to their priorities. This means if updates are rare and batch
   sizes small in comparison to the buffer size, updates will always be from recent memories.
 - There is a remaining off-by-one sampling error in prioritized replay which makes it unsafe
-  to use as of yet.
+  to use as of yet. 
 - Removed non-tensorflow old prioritized replay class.
 
 17th March

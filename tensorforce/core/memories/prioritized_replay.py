@@ -277,21 +277,12 @@ class PrioritizedReplay(Memory):
 
     def tf_retrieve_timesteps(self, n):
         num_buffer_elems = tf.minimum(x=self.buffer_index, y=n)
-        # num_buffer_elems = tf.Print(num_buffer_elems, [num_buffer_elems], 'num_buffer_elems retrieve timesteps = ', summarize=100)
-        mem_size = self.memory_size
-        mem_size = tf.Print(mem_size, [mem_size], 'mem_size retrieve timesteps = ', summarize=100)
 
         # We can only sample from priority memory if buffer elements were previously inserted.
         num_priority_elements = tf.cond(
-            pred=mem_size > 0,
+            pred=self.memory_size > 0,
             true_fn=lambda: n - num_buffer_elems,
             false_fn=lambda: 0
-        )
-        num_priority_elements = tf.Print(
-            num_priority_elements,
-            [num_priority_elements],
-            'num_priority_elements retrieve timesteps = ',
-            summarize=100
         )
 
         def sampling_fn():
@@ -564,7 +555,7 @@ class PrioritizedReplay(Memory):
             assignments.append(tf.scatter_update(
                 ref=self.terminal_memory,
                 indices=sorted_indices,
-                updates=self.terminal_memory  # TODO is ref = updates tensor allowed?
+                updates=self.terminal_memory
             ))
             for name, state_memory in self.states_memory.items():
                 assignments.append(tf.scatter_update(

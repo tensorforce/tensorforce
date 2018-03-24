@@ -26,12 +26,7 @@ Please also read the [TensorForce FAQ](https://github.com/reinforceio/tensorforc
 if you encounter problems or have questions.
 
 Finally, read the latest update notes (UPDATE_NOTES.md) for an idea of
-how the project is evolving, especially concerning majorAPI breaking updates.
-We recently (20th February) merged a major branch which moves memories
-and all remaining structures into TensorFlow variables. This causes a number
-of breaking API change (see updated configurations, examples, and tests), but
-improves performance. It further enables more expressive update semantics,
-e.g. episode based instead of fixed time step based.
+how the project is evolving, especially concerning major API breaking updates.
 
 The main difference to existing libraries is a strict separation of
 environments, agents and update logic that facilitates usage in

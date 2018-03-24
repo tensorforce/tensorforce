@@ -41,7 +41,7 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
         #     type='prioritized_replay',
         #     include_next_states=True,
         #     buffer_size=100,
-        #     capacity=10000
+        #     capacity=1000
         # ),
         optimizer=dict(
             type='adam',

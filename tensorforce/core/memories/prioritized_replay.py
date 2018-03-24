@@ -278,10 +278,12 @@ class PrioritizedReplay(Memory):
     def tf_retrieve_timesteps(self, n):
         num_buffer_elems = tf.minimum(x=self.buffer_index, y=n)
         # num_buffer_elems = tf.Print(num_buffer_elems, [num_buffer_elems], 'num_buffer_elems retrieve timesteps = ', summarize=100)
+        mem_size = self.memory_size
+        mem_size = tf.Print(mem_size, [mem_size], 'mem_size retrieve timesteps = ', summarize=100)
 
         # We can only sample from priority memory if buffer elements were previously inserted.
         num_priority_elements = tf.cond(
-            pred=self.memory_size > 0,
+            pred=mem_size > 0,
             true_fn=lambda: n - num_buffer_elems,
             false_fn=lambda: 0
         )
@@ -291,6 +293,7 @@ class PrioritizedReplay(Memory):
             'num_priority_elements retrieve timesteps = ',
             summarize=100
         )
+
         def sampling_fn():
             # Vectorized sampling.
             sum_priorities = tf.reduce_sum(input_tensor=self.priorities, axis=0)
@@ -324,7 +327,8 @@ class PrioritizedReplay(Memory):
         )
 
         priority_terminal = tf.gather(params=self.terminal_memory, indices=priority_indices)
-        priority_indices = tf.Print(priority_indices, [priority_indices], 'p-indices BEFORE masking retrieve time steps=', summarize=1000)
+        #priority_indices = tf.Print(priority_indices, [priority_indices],
+        #  'p-indices BEFORE masking retrieve time steps=', summarize=1000)
         priority_indices = tf.boolean_mask(tensor=priority_indices, mask=tf.logical_not(x=priority_terminal))
 
         # Store how many elements we retrieved from the buffer for updating priorities.
@@ -334,9 +338,10 @@ class PrioritizedReplay(Memory):
 
         # Store indices used from priority memory. Note that these are the full indices
         # as they were not taken in order.
-        priority_indices = tf.Print(priority_indices, [priority_indices], 'p-indices AFTER masking retrieve time steps=', summarize=1000)
+        # priority_indices = tf.Print(priority_indices, [priority_indices],
+        #  'p-indices AFTER masking retrieve time steps=', summarize=1000)
         update = tf.ones(shape=tf.shape(input=priority_indices), dtype=tf.int32)
-        update = tf.Print(update, [update], 'update to batch indices =', summarize=1000)
+        update = tf.Print(update, [update, num_priority_elements], 'update to batch indices =', summarize=1000)
         assignments.append(tf.scatter_update(
             ref=self.batch_indices,
             indices=priority_indices,
@@ -390,24 +395,14 @@ class PrioritizedReplay(Memory):
         terminal = tf.concat(values=(buffer_terminal, priority_terminal), axis=0)
 
         buffer_reward = self.reward_buffer[buffer_start:buffer_end]
-        # buffer_reward = tf.Print(buffer_reward, [buffer_reward, tf.shape(buffer_reward)], 'buffer_reward retrieve indices=', summarize=100)
-        # priority_indices = tf.Print(priority_indices, [priority_indices, tf.shape(priority_indices)], 'priority_indices retrieve indices=', summarize=100)
         priority_reward = tf.gather(params=self.reward_memory, indices=priority_indices)
-        # priority_reward = tf.Print(priority_reward, [priority_reward, tf.shape(priority_reward)], 'priority_reward retrieve indices=', summarize=100)
-
         reward = tf.concat(values=(buffer_reward, priority_reward), axis=0)
-        # reward = tf.Print(reward, [reward, tf.shape(reward)], 'reward retrieve indices=', summarize=100)
 
         if self.include_next_states:
             assert util.rank(priority_indices) == 1
             next_priority_indices = (priority_indices + 1) % self.capacity
             next_buffer_start = (buffer_start + 1) % self.buffer_size
             next_buffer_end = (buffer_end + 1) % self.buffer_size
-            # next_buffer_start = tf.Print(next_buffer_start, [next_buffer_start], 'next_buffer_start retrieve indices=', summarize=100)
-            # next_buffer_end = tf.Print(next_buffer_end, [next_buffer_end], 'next_buffer_end retrieve indices=', summarize=100)
-
-            # else:
-            #     next_indices = (indices[:, -1] + 1) % self.capacity
 
             next_states = dict()
             for name, state_memory in self.states_memory.items():
@@ -484,7 +479,6 @@ class PrioritizedReplay(Memory):
 
         assignments = list()
         # Slice out priorities of buffer.
-        buffer_priorities = priorities[0:self.last_batch_buffer_elems]
 
         # 3. Insert the buffer elements from the recent batch into memory,
         # overwrite memory if full.
@@ -493,7 +487,6 @@ class PrioritizedReplay(Memory):
             start=self.memory_index,
             limit=memory_end_index
         )
-
         for name, state in states.items():
             assignments.append(tf.scatter_update(
                 ref=self.states_memory[name],
@@ -510,8 +503,8 @@ class PrioritizedReplay(Memory):
         assignments.append(tf.scatter_update(
             ref=self.priorities,
             indices=memory_insert_indices,
-            updates=buffer_priorities[0:self.last_batch_buffer_elems])
-        )
+            updates=priorities[0:self.last_batch_buffer_elems]
+        ))
         assignments.append(tf.scatter_update(
             ref=self.terminal_memory,
             indices=memory_insert_indices,
@@ -522,11 +515,6 @@ class PrioritizedReplay(Memory):
             indices=memory_insert_indices,
             updates=reward[0:self.last_batch_buffer_elems])
         )
-        assignments.append(tf.scatter_update(
-            ref=self.priorities,
-            indices=memory_insert_indices,
-            updates=priorities
-        ))
         for name, action in actions.items():
             assignments.append(tf.scatter_update(
                 ref=self.actions_memory[name],
@@ -624,12 +612,6 @@ class PrioritizedReplay(Memory):
                 ref=self.batch_indices,
                 value=tf.zeros(shape=tf.shape(self.batch_indices), dtype=tf.int32)
             ))
-            # This might be faster than scatter update commented out below:
-            # assignments.append(tf.scatter_update(
-            #     ref=self.batch_indices,
-            #     indices=priority_indices,
-            #     updates=tf.zeros(shape=tf.shape(priority_indices), dtype=tf.int32)
-            # ))
 
         with tf.control_dependencies(control_inputs=assignments):
             return tf.no_op()

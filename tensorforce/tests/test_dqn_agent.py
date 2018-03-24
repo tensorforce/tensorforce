@@ -40,8 +40,8 @@ class TestDQNAgent(BaseAgentTest, unittest.TestCase):
         # memory=dict(
         #     type='prioritized_replay',
         #     include_next_states=True,
-        #     buffer_size=100,
-        #     capacity=1000
+        #     buffer_size=50,
+        #     capacity=100
         # ),
         optimizer=dict(
             type='adam',

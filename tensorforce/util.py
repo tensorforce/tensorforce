@@ -84,7 +84,7 @@ def tf_dtype(dtype):
 
        Returns: TensorFlow data type
 
-       """
+    """
     if dtype == 'float' or dtype == float or dtype == np.float32 or dtype == tf.float32:
         return tf.float32
     elif dtype == 'int' or dtype == int or dtype == np.int32 or dtype == tf.int32:
@@ -173,6 +173,7 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
         return obj
 
     return obj(*args, **kwargs)
+
 
 def prepare_kwargs(raw, string_parameter='name'):
     """

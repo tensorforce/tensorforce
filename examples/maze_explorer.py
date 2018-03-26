@@ -63,17 +63,17 @@ def main():
 
     if args.network_spec is not None:
         with open(args.network_spec, 'r') as fp:
-            network_spec = json.load(fp=fp)
+            network = json.load(fp=fp)
     else:
-        network_spec = None
+        network = None
         logger.info("No network configuration provided.")
 
     agent = Agent.from_spec(
         spec=agent_config,
         kwargs=dict(
-            states_spec=environment.states,
-            actions_spec=environment.actions,
-            network_spec=network_spec
+            states=environment.states,
+            actions=environment.actions,
+            network=network
         )
     )
 

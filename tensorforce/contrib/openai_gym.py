@@ -115,12 +115,13 @@ class OpenAIGym(Environment):
         elif isinstance(space, gym.spaces.MultiBinary):
             return dict(type='bool', shape=space.n)
         elif isinstance(space, gym.spaces.MultiDiscrete):
-            if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
-                return dict(type='int', num_actions=(space.high[0] - space.low[0]), shape=space.num_discrete_space)
+            num_discrete_space = len(space.nvec)
+            if (space.nvec == space.nvec[0]).all():
+                return dict(type='int', num_actions=space.nvec[0], shape=num_discrete_space)
             else:
                 actions = dict()
-                for n in range(space.num_discrete_space):
-                    actions['action{}'.format(n)] = dict(type='int', num_actions=(space.high[n] - space.low[n]))
+                for n in range(num_discrete_space):
+                    actions['action{}'.format(n)] = dict(type='int', num_actions=space.nvec[n])
                 return actions
         elif isinstance(space, gym.spaces.Box):
             if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():

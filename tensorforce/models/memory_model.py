@@ -632,6 +632,8 @@ class MemoryModel(Model):
         optimizer_summaries = self.optimizer.get_summaries()
         return model_summaries + memory_summaries + optimizer_summaries
 
+
+
     def import_experience(self, states, internals, actions, terminal, reward):
         """
         Stores experiences.

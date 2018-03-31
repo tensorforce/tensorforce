@@ -5,7 +5,11 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
-24 March
+31st March
+
+- Fixed some shape/slicing errors in prioritized replay -> Test now passing
+
+24th March
 
 - Fixed buffer overflows in the priority replay buffer, which now simply resets
   the buffer insertion index. Note that for effective use of prioritized replay,

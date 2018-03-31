@@ -30,8 +30,12 @@ environment = OpenAIGym('CartPole-v0', visualize=False)
 #     - class ...Env(discrete.DiscreteEnv):
 #     - self.observation_space = spaces.Discrete(...)
 
+# Note that depending on the following layers used, the embedding layer *may* need a
+# flattening layer
+
 network_spec = [
     # dict(type='embedding', indices=100, size=32),
+    # dict(type'flatten'),
     dict(type='dense', size=32),
     dict(type='dense', size=32)
 ]

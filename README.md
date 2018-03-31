@@ -199,20 +199,11 @@ Please refer to the [tensorforce-benchmark](https://github.com/reinforceio/tenso
 for more information.
 
 
-Community and contributions
+Contributions
 ---------------------------
 
-TensorForce is developed by [reinforce.io](https://reinforce.io), a new
-project focused on providing reinforcement learning software
-infrastructure. For any questions, get in touch at
-<contact@reinforce.io>.
-
-Please file bug reports and feature discussions as GitHub issues in first instance.
-
-There is also a developer chat you are welcome to join. For joining, we ask to provide
-some basic details how you are using TensorForce so we can learn more about applications and our
-community. Please fill in [this short form](https://docs.google.com/forms/d/1_UD5Pb5LaPVUviD0pO0fFcEnx_vwenvuc00jmP2rRIc/) which will take
- you to the chat after.
+Please file bug reports and feature discussions as GitHub issues. For large PRs,
+it's also helpful to first discuss the feature in an issue. 
 
 Cite
 ----

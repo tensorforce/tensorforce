@@ -114,9 +114,9 @@ def main():
     agent = Agent.from_spec(
         spec=agent_configs[0],
         kwargs=dict(
-            states_spec=environments[0].states,
-            actions_spec=environments[0].actions,
-            network_spec=network_spec
+            states=environments[0].states,
+            actions=environments[0].actions,
+            network=network_spec
         )
     )
 
@@ -126,9 +126,9 @@ def main():
         config = agent_configs[i]
         agent_type = config.pop('type', None)
         worker = WorkerAgentGenerator(AgentsDictionary[agent_type])(
-            states_spec=environments[0].states,
-            actions_spec=environments[0].actions,
-            network_spec=network_spec,
+            states=environments[0].states,
+            actions=environments[0].actions,
+            network=network_spec,
             model=agent.model,
             **config
         )

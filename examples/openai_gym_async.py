@@ -187,7 +187,7 @@ def main():
         distributed_spec=dict(
             cluster_spec=cluster_spec,
             task_index=args.task_index,
-            parameter_server=args.parameter_server,
+            job='ps' if args.parameter_server else 'worker',
             protocol='grpc'
         )
     )

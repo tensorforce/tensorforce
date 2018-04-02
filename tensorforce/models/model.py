@@ -228,8 +228,8 @@ class Model(object):
         # Create/get our graph, setup local model/global model links, set scope and device.
         graph_default_context = self.setup_graph()
 
-        # Start a tf Server (in case of distributed setup).
-        if self.execution_type == "distributed" and not self.server:
+        # Start a tf Server (in case of distributed setup). Only start once.
+        if self.execution_type == "distributed" and not self.server and not self.is_local_model:
             self.start_server()
 
         # build the graph
@@ -383,7 +383,8 @@ class Model(object):
         )
         if self.distributed_spec["job"] == "ps":
             self.server.join()
-            quit()  # a bit ugly?
+            # This is unreachable?
+            quit()
 
     def setup_placeholders(self):
         """

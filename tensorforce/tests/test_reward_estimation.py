@@ -40,9 +40,9 @@ class TestRewardEstimation(unittest.TestCase):
             learning_rate=0.001,
         )
         # agent = VPGAgent(
-        #     states_spec=dict(shape=(1,)),
-        #     actions_spec=dict(type='int', num_actions=2),
-        #     network_spec=[dict(type='dense', size=32)],
+        #     states=dict(shape=(1,)),
+        #     actions=dict(type='int', num_actions=2),
+        #     network=[dict(type='dense', size=32)],
         #     config=config
         # )
 
@@ -72,9 +72,9 @@ class TestRewardEstimation(unittest.TestCase):
             learning_rate=0.001,
         )
         # agent = VPGAgent(
-        #     states_spec=dict(shape=(1,)),
-        #     actions_spec=dict(type='int', num_actions=2),
-        #     network_spec=[dict(type='dense', size=32)],
+        #     states=dict(shape=(1,)),
+        #     actions=dict(type='int', num_actions=2),
+        #     network=[dict(type='dense', size=32)],
         #     config=config
         # )
 
@@ -104,9 +104,9 @@ class TestRewardEstimation(unittest.TestCase):
             # gae_lambda=0.5
         )
         # agent = VPGAgent(
-        #     states_spec=dict(shape=(1,)),
-        #     actions_spec=dict(type='int', num_actions=2),
-        #     network_spec=[dict(type='dense', size=32)],
+        #     states=dict(shape=(1,)),
+        #     actions=dict(type='int', num_actions=2),
+        #     network=[dict(type='dense', size=32)],
         #     config=config
         # )
 

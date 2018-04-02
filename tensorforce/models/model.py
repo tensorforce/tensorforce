@@ -49,7 +49,7 @@ class Model(object):
 
     * `tf_preprocess(states, internals, reward)` for states/action/reward preprocessing (e.g. reward normalization),
         returning the pre-processed tensors.
-    * `tf_action_exploration(action, exploration, action_spec)` for action postprocessing (e.g. exploration),
+    * `tf_action_exploration(action, exploration, actions)` for action postprocessing (e.g. exploration),
         returning the processed batch of actions.
     * `create_output_operations(states, internals, actions, terminal, reward, deterministic)` for further output operations,
         similar to the two above for `Model.act` and `Model.update`.
@@ -98,7 +98,7 @@ class Model(object):
             tf_session_dump_dir (str): If non-empty string, all session.run calls will be dumped using the tensorflow
                 offline-debug session into the given directory.
         """
-        # Network crated from network_spec in distribution_model.py
+        # Network crated from network in distribution_model.py
         # Needed for named_tensor access
         self.network = None
 

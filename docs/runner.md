@@ -85,9 +85,9 @@ def main():
     ]
 
     agent = DQNAgent(
-        states_spec=env.states,
-        actions_spec=env.actions,
-        network_spec=network_spec,
+        states=env.states,
+        actions=env.actions,
+        network=network_spec,
         batch_size=64
     )
 

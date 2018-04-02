@@ -40,9 +40,9 @@ In python, it could look like this:
    ]
 
    agent = PPOAgent(
-       states_spec=env.states,
-       actions_spec=env.actions,
-       network_spec=network_spec,
+       states=env.states,
+       actions=env.actions,
+       network=network_spec,
        batch_size=4096,
        # BatchAgent
        keep_last_timestep=True,

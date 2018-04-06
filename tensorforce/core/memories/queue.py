@@ -102,7 +102,7 @@ class Queue(Memory):
             shape=(self.capacity,),
             dtype=util.tf_dtype('bool'),
             initializer=tf.constant_initializer(
-                value=tuple(n == self.capacity - 1 for n in range(self.capacity)),
+                value=[n == self.capacity - 1 for n in range(self.capacity)],
                 dtype=util.tf_dtype('bool')
             ),
             trainable=False

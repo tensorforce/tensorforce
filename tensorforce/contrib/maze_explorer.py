@@ -22,6 +22,7 @@ import mazeexp as mx
 
 from tensorforce.environments import Environment
 
+
 class MazeExplorer(Environment):
     """
     MazeExplorer Integration: https://github.com/mryellow/maze_explorer.

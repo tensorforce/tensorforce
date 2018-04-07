@@ -51,7 +51,7 @@ def main():
     args = parser.parse_args()
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)  # configurable!!!
+    logger.setLevel(logging.DEBUG)
 
     environment = MazeExplorer(mode_id=args.mode, visible=not args.hide)
 

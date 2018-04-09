@@ -91,7 +91,8 @@ class PPOAgent(LearningAgent):
                 batch_size=10
             )
         elif 'unit' in update_mode:
-            assert update_mode['unit'] == 'episodes'
+            # assert update_mode['unit'] == 'episodes'
+            pass
         else:
             update_mode['unit'] = 'episodes'
 
@@ -105,6 +106,9 @@ class PPOAgent(LearningAgent):
             )
         else:
             assert not memory['include_next_states']
+
+        # if update_mode is not `episodes`, require memory `latest`
+        assert (update_mode['unit'] == 'episodes' or memory['type'] == 'latest')
 
         # Optimizer
         if step_optimizer is None:

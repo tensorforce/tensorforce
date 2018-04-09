@@ -82,7 +82,6 @@ class VPGAgent(LearningAgent):
             )
         elif 'unit' in update_mode:
             # Tests check all modes for VPG.
-            # assert update_mode['unit'] == 'episodes'
             pass
         else:
             update_mode['unit'] = 'episodes'
@@ -97,6 +96,9 @@ class VPGAgent(LearningAgent):
             )
         else:
             assert not memory['include_next_states']
+
+        # if update_mode is not `episodes`, require memory `latest`
+        assert (update_mode['unit'] == 'episodes' or memory['type'] == 'latest')
 
         # Optimizer
         if optimizer is None:

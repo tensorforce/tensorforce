@@ -112,8 +112,8 @@ class TRPOAgent(LearningAgent):
         else:
             assert not memory['include_next_states']
 
-        # if update_mode is not `episodes`, require memory `latest`
-        assert (update_mode['unit'] == 'episodes' or memory['type'] == 'latest')
+        # if update_mode is `timesteps`, require memory `latest`
+        assert (update_mode['unit'] != 'timesteps' or memory['type'] == 'latest')
 
         # Optimizer
         optimizer = dict(

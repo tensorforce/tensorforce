@@ -5,6 +5,11 @@ This file tracks all major updates and new features. As TensorForce is still in 
 we are continuously implementing small updates and bug fixes, which will not
 be tracked here in detail but through github issues.
 
+21st April
+
+- Introduced atomic_observe operation and buffered flag in act() to avoid
+  race conditions happening in multi-threaded inserts into memory.
+
 31st March
 
 - Fixed some shape/slicing errors in prioritized replay -> Test now passing

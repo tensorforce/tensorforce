@@ -214,7 +214,7 @@ class ThreadedRunner(BaseRunner):
             time_step = 0
             time_start = time.time()
             while True:
-                action = agent.act(states=state, deterministic=deterministic)
+                action, internals, states = agent.act(states=state, deterministic=deterministic, buffered=False)
                 reward = 0
                 for repeat in xrange(self.repeat_actions):
                     state, terminal, step_reward = environment.execute(actions=action)
@@ -222,8 +222,15 @@ class ThreadedRunner(BaseRunner):
                     if terminal:
                         break
 
-                agent.observe(reward=reward, terminal=terminal)
-
+                # agent.observe(reward=reward, terminal=terminal)
+                # Insert everything at once.
+                agent.atomic_observe(
+                    states=state,
+                    actions=action,
+                    internals=internals,
+                    reward=reward,
+                    terminal=terminal
+                )
                 time_step += 1
                 episode_reward += reward
 

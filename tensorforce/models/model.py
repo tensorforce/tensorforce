@@ -153,6 +153,7 @@ class Model(object):
         self.buffer_index = None
         # main-op executed in observe()
         self.episode_output = None
+        self.unbuffered_episode_output = None
 
         # Variable noise
         assert variable_noise is None or variable_noise > 0.0
@@ -1040,7 +1041,11 @@ class Model(object):
                 return self.global_timestep + 0
 
         # Only increment timestep and update buffer if act not independent
-        self.timestep_output = tf.cond(pred=independent, true_fn=independent_act, false_fn=normal_act)
+        self.timestep_output = tf.cond(
+            pred=independent,
+            true_fn=independent_act,
+            false_fn=normal_act
+        )
 
     def create_observe_operations(self, terminal, reward):
         """
@@ -1088,16 +1093,65 @@ class Model(object):
 
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
+    def create_atomic_observe_operations(self, states, actions, internals, terminal, reward):
+        """
+        Returns the tf op to fetch when unbuffered observations are passed in.
+
+        Args:
+            states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
+            actions (any): One action (usually a value tuple) or dict of states if multiple actions are expected.
+            internals (any): Internal list.
+            terminal (bool): boolean indicating if the episode terminated after the observation.
+            reward (float): scalar reward that resulted from executing the action.
+
+        Returns: Tf op to fetch when `observe()` is called.
+        """
+        # Increment episode
+        num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
+        increment_episode = tf.assign_add(ref=self.episode, value=num_episodes)
+        increment_global_episode = tf.assign_add(ref=self.global_episode, value=num_episodes)
+
+        with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
+            # Stop gradients
+            # Not using buffers here.
+            fn = (lambda x: tf.stop_gradient(input=x))
+            states = util.map_tensors(fn=fn, tensors=states)
+            internals = util.map_tensors(fn=fn, tensors=internals)
+            actions = util.map_tensors(fn=fn, tensors=actions)
+            terminal = tf.stop_gradient(input=terminal)
+            reward = tf.stop_gradient(input=reward)
+
+            # Observation
+            observation = self.fn_observe_timestep(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
+            )
+
+        with tf.control_dependencies(control_inputs=(observation,)):
+            # Trivial operation to enforce control dependency.
+            self.unbuffered_episode_output = self.global_episode + 0
+
     def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent):
         """
         Creates and stores tf operations for when `act()` and `observe()` are called.
         """
-        self.create_act_operations(states=states,
-                                   internals=internals,
-                                   deterministic=deterministic,
-                                   independent=independent
-                                   )
+        self.create_act_operations(
+            states=states,
+            internals=internals,
+            deterministic=deterministic,
+            independent=independent
+        )
         self.create_observe_operations(reward=reward, terminal=terminal)
+        self.create_atomic_observe_operations(
+            states=states,
+            actions=actions,
+            internals=internals,
+            reward=reward,
+            terminal=terminal
+        )
 
     def get_variables(self, include_submodules=False, include_nontrainable=False):
         """
@@ -1286,12 +1340,6 @@ class Model(object):
                     keys=self.network.get_list_of_named_tensor()
                     raise TensorForceError('Cannot fetch named tensor "{}", Available {}.'.format(name,keys))
 
-        #     feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
-        #     feed_dict.update({internal_input: internals[n] for n, internal_input in enumerate(self.internals_input)})
-        # else:
-        #     feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
-        #     feed_dict.update({internal_input: (internals[n],) for n, internal_input in enumerate(self.internals_input)})
-
         # feed_dict[self.deterministic_input] = deterministic
         feed_dict = self.get_feed_dict(
             states=states,
@@ -1340,6 +1388,22 @@ class Model(object):
         feed_dict = self.get_feed_dict(terminal=terminal, reward=reward)
 
         self.is_observe = True  # for custom UpdateSummarySaverHook (see utils.py)
+        episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+        self.is_observe = False
+
+        return episode
+
+    def atomic_observe(self, states, actions, internals, terminal, reward):
+        fetches = self.unbuffered_episode_output
+        feed_dict = self.get_feed_dict(
+            states=states,
+            actions=actions,
+            internals=internals,
+            terminal=terminal,
+            reward=reward
+        )
+
+        self.is_observe = True
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
         self.is_observe = False
 

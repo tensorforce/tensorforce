@@ -101,7 +101,7 @@ class Agent(object):
         self.episode, self.timestep, self.next_internals = self.model.reset()
         self.current_internals = self.next_internals
 
-    def act(self, states, deterministic=False, independent=False, fetch_tensors=None):
+    def act(self, states, deterministic=False, independent=False, fetch_tensors=None, buffered=True):
         """
         Return action(s) for given state(s). States preprocessing and exploration are applied if  
         configured accordingly.
@@ -112,6 +112,8 @@ class Agent(object):
             independent (bool): If true, action is not followed by observe (and hence not included
                 in updates).
             fetch_tensors (list): Optional String of named tensors to fetch
+            buffered (bool): If true (default), states and internals are not returned but buffered
+                with observes. Must be false for multi-threaded mode as we need atomic inserts.
         Returns:
             Scalar value of the action or dict of multiple actions the agent wants to execute.
             (fetched_tensors) Optional dict() with named tensors fetched
@@ -138,19 +140,26 @@ class Agent(object):
             else:
                 return self.current_actions, self.fetched_tensors
 
-        else:
-            # Retrieve action
-            self.current_actions, self.next_internals, self.timestep = self.model.act(
-                states=self.current_states,
-                internals=self.current_internals,
-                deterministic=deterministic,
-                independent=independent
-            )
+        # Retrieve action.
+        self.current_actions, self.next_internals, self.timestep = self.model.act(
+            states=self.current_states,
+            internals=self.current_internals,
+            deterministic=deterministic,
+            independent=independent
+        )
 
+        # Buffered mode only works single-threaded because buffer inserts
+        # by multiple threads are non-atomic and can cause race conditions.
+        if buffered:
             if self.unique_action:
                 return self.current_actions['action']
             else:
                 return self.current_actions
+        else:
+            if self.unique_action:
+                return self.current_actions['action'], self.current_states, self.current_internals
+            else:
+                return self.current_actions, self.current_states, self.current_internals
 
     def observe(self, terminal, reward):
         """
@@ -183,6 +192,39 @@ class Agent(object):
                 terminal=self.current_terminal,
                 reward=self.current_reward
             )
+
+    def atomic_observe(self, states, actions, internals, reward, terminal):
+        """
+        Utility method for unbuffered observing where each tuple is inserted into TensorFlow via
+        a single session call, thus avoiding race conditions in multi-threaded mode.
+
+        Observe full experience  tuplefrom the environment to learn from. Optionally pre-processes rewards
+        Child classes should call super to get the processed reward
+        EX: terminal, reward = super()...
+
+        Args:
+            states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
+            actions (any): One action (usually a value tuple) or dict of states if multiple actions are expected.
+            internals (any): Internal list.
+            terminal (bool): boolean indicating if the episode terminated after the observation.
+            reward (float): scalar reward that resulted from executing the action.
+        """
+        # TODO probably unnecessary here.
+        self.current_terminal = terminal
+        self.current_reward = reward
+        # print('action = {}'.format(actions))
+        if self.unique_state:
+            states = dict(state=states)
+        if self.unique_action:
+            actions = dict(action=actions)
+
+        self.episode = self.model.atomic_observe(
+            states=states,
+            actions=actions,
+            internals=internals,
+            terminal=self.current_terminal,
+            reward=self.current_reward
+        )
 
     def should_stop(self):
         return self.model.monitored_session.should_stop()

@@ -57,7 +57,8 @@ class TestVPGMultithreaded(unittest.TestCase):
             optimizer=dict(
                 type='adam',
                 learning_rate=1e-2
-            )
+            ),
+            batched_observe=False
         )
         agent = VPGAgent(
             states=environment.states,
@@ -71,7 +72,7 @@ class TestVPGMultithreaded(unittest.TestCase):
 
         runner = ThreadedRunner(agent=agents, environment=environments)
 
-        runner.run(num_episodes=100)
+        runner.run(num_episodes=1000)
         runner.close()
 
         sys.stdout.write(' ran\n')

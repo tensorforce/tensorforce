@@ -51,10 +51,10 @@ if on_rtd:
 
 
 setup(name='tensorforce',
-      version='0.4.1',  # please remember to edit tensorforce/__init__.py when updating the version
+      version='0.4.2',  # please remember to edit tensorforce/__init__.py when updating the version
       description='Reinforcement learning for TensorFlow',
       url='http://github.com/reinforceio/tensorforce',
-      download_url='https://github.com/reinforceio/tensorforce/archive/0.4.1.tar.gz',
+      download_url='https://github.com/reinforceio/tensorforce/archive/0.4.2.tar.gz',
       author='reinforce.io',
       author_email='contact@reinforce.io',
       license='Apache 2.0',

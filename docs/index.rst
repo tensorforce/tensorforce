@@ -10,7 +10,7 @@ Quick start
 -----------
 
 For a quick start, you can run one of our example scripts using the
-provided configurations, e.g. to run the TRPO agent on CartPole, execute
+provided configurations, e.g. to run the PPO agent on CartPole, execute
 from the examples folder:
 
 .. code:: bash
@@ -108,5 +108,5 @@ More information
 
 You can find more information at our `TensorForce GitHub repository <https://github.com/reinforceio/TensorForce>`__.
 
-We have a seperate repository available for benchmarking our algorithm implementations
+We have a separate repository available for benchmarking our algorithm implementations
 [here](https://github.com/reinforceio/tensorforce-benchmark).

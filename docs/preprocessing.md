@@ -16,8 +16,6 @@ preprocessing stack and easy ways to implement your own preprocessors.
 Usage
 -----
 
-The 
-
 Each preprocessor implements three methods:
 
 1.  The constructor (`__init__`) for parameter initialization

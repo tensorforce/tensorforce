@@ -421,7 +421,8 @@ class Model(object):
                     state['unprocessed_shape'] = state['shape']
         # Single preprocessor for all components of our state space
         elif "type" in self.states_preprocessing_spec:
-            preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
+            preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec,
+                                                        kwargs=dict(shape=state['shape']))
             for name, state in self.states_spec.items():
                 state['unprocessed_shape'] = state['shape']
                 state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])

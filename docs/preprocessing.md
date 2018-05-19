@@ -154,5 +154,5 @@ All preprocessors should inherit from
 `tensorforce.core.preprocessing.Preprocessor`.
 
 For a start, please refer to the source of the [Grayscale
-preprocessor](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/core/preprocessing/grayscale.py).
+preprocessor](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/core/preprocessors/grayscale.py).
 

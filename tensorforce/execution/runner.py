@@ -48,7 +48,7 @@ class Runner(BaseRunner):
 
     # TODO: make average reward another possible criteria for runner-termination
     def run(self, num_timesteps=None, num_episodes=None, max_episode_timesteps=None, deterministic=False,
-            episode_finished=None, summary_report=None, summary_interval=None, timesteps=None, episodes=None
+            episode_finished=None, summary_report=None, summary_interval=None, timesteps=None, episodes=None, testing=False,
             ):
         """
         Args:
@@ -109,7 +109,8 @@ class Runner(BaseRunner):
                 if max_episode_timesteps is not None and self.current_timestep >= max_episode_timesteps:
                     terminal = True
 
-                self.agent.observe(terminal=terminal, reward=reward)
+                if not testing:
+                    self.agent.observe(terminal=terminal, reward=reward)
 
                 self.global_timestep += 1
                 self.current_timestep += 1

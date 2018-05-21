@@ -95,7 +95,8 @@ class ThreadedRunner(BaseRunner):
         num_timesteps=None,
         deterministic=False,
         episodes=None,
-        max_timesteps=None
+        max_timesteps=None,
+        testing=False
     ):
         """
         Executes this runner by starting all Agents in parallel (each one in one thread).
@@ -134,7 +135,8 @@ class ThreadedRunner(BaseRunner):
         threads = [threading.Thread(target=self._run_single, args=(t, self.agent[t], self.environment[t],),
                                     kwargs={"deterministic": deterministic,
                                             "max_episode_timesteps": max_episode_timesteps,
-                                            "episode_finished": episode_finished})
+                                            "episode_finished": episode_finished,
+                                            "testing": testing})
                    for t in range(len(self.agent))]
 
         # Start threads.
@@ -182,7 +184,7 @@ class ThreadedRunner(BaseRunner):
         print('All threads stopped')
 
     def _run_single(self, thread_id, agent, environment, deterministic=False,
-                    max_episode_timesteps=-1, episode_finished=None):
+                    max_episode_timesteps=-1, episode_finished=None, testing=False):
         """
         The target function for a thread, runs an agent and environment until signaled to stop.
         Adds rewards to shared episode rewards list.
@@ -222,15 +224,16 @@ class ThreadedRunner(BaseRunner):
                     if terminal:
                         break
 
-                # agent.observe(reward=reward, terminal=terminal)
-                # Insert everything at once.
-                agent.atomic_observe(
-                    states=state,
-                    actions=action,
-                    internals=internals,
-                    reward=reward,
-                    terminal=terminal
-                )
+                if not testing:
+                    # agent.observe(reward=reward, terminal=terminal)
+                    # Insert everything at once.
+                    agent.atomic_observe(
+                        states=state,
+                        actions=action,
+                        internals=internals,
+                        reward=reward,
+                        terminal=terminal
+                    )
                 time_step += 1
                 episode_reward += reward
 

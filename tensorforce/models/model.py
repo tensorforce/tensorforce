@@ -216,6 +216,8 @@ class Model(object):
         self.timestep_output = None
 
         self.summary_configuration_op = None
+        # Add an explicit reset op with no dependencies
+        self.buffer_index_reset_op = None
 
         # Setup Model (create and build graph (local and global if distributed), server, session, etc..).
         self.setup()
@@ -613,6 +615,7 @@ class Model(object):
                     file = os.path.join(directory, file)
                 if file is not None:
                     scaffold.saver.restore(sess=session, save_path=file)
+                    session.run(self.buffer_index_reset_op)
 
         # TensorFlow scaffold object
         # TODO explain what it does.
@@ -1092,6 +1095,8 @@ class Model(object):
             # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 
+        self.buffer_index_reset_op = tf.assign(ref=self.buffer_index, value=0)
+
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
     def create_atomic_observe_operations(self, states, actions, internals, terminal, reward):
@@ -1461,6 +1466,7 @@ class Model(object):
         #     raise TensorForceError("Invalid model directory/file.")
 
         self.saver.restore(sess=self.session, save_path=file)
+        self.session.run(self.buffer_index_reset_op)
 
     def get_components(self):
         """

@@ -48,7 +48,7 @@ class Runner(BaseRunner):
 
     # TODO: make average reward another possible criteria for runner-termination
     def run(self, num_timesteps=None, num_episodes=None, max_episode_timesteps=None, deterministic=False,
-            episode_finished=None, summary_report=None, summary_interval=None, timesteps=None, episodes=None, testing=False,
+            episode_finished=None, summary_report=None, summary_interval=None, timesteps=None, episodes=None, testing=False, sleep=None
             ):
         """
         Args:
@@ -118,6 +118,9 @@ class Runner(BaseRunner):
 
                 if terminal or self.agent.should_stop():  # TODO: should_stop also terminate?
                     break
+
+                if sleep is not None:
+                    time.sleep(sleep)
 
             # Update our episode stats.
             time_passed = time.time() - episode_start_time

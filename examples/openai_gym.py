@@ -57,6 +57,7 @@ def main():
     parser.add_argument('--visualize', action='store_true', default=False, help="Enable OpenAI Gym's visualization")
     parser.add_argument('-D', '--debug', action='store_true', default=False, help="Show debug outputs")
     parser.add_argument('-te', '--test', action='store_true', default=False, help="Test agent without learning.")
+    parser.add_argument('-sl', '--sleep', type=float, default=None, help="Slow down simulation by sleeping for x seconds (fractions allowed).")
     parser.add_argument('--job', type=str, default=None, help="For distributed mode: The job type of this agent.")
     parser.add_argument('--task', type=int, default=0, help="For distributed mode: The task index of this agent.")
 
@@ -165,7 +166,8 @@ def main():
         max_episode_timesteps=args.max_episode_timesteps,
         deterministic=args.deterministic,
         episode_finished=episode_finished,
-        testing=args.test
+        testing=args.test,
+        sleep=args.sleep
     )
     runner.close()
 

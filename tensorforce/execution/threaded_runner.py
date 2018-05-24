@@ -96,7 +96,8 @@ class ThreadedRunner(BaseRunner):
         deterministic=False,
         episodes=None,
         max_timesteps=None,
-        testing=False
+        testing=False,
+        sleep=None
     ):
         """
         Executes this runner by starting all Agents in parallel (each one in one thread).
@@ -136,7 +137,8 @@ class ThreadedRunner(BaseRunner):
                                     kwargs={"deterministic": deterministic,
                                             "max_episode_timesteps": max_episode_timesteps,
                                             "episode_finished": episode_finished,
-                                            "testing": testing})
+                                            "testing": testing,
+                                            "sleep": sleep})
                    for t in range(len(self.agent))]
 
         # Start threads.
@@ -184,7 +186,7 @@ class ThreadedRunner(BaseRunner):
         print('All threads stopped')
 
     def _run_single(self, thread_id, agent, environment, deterministic=False,
-                    max_episode_timesteps=-1, episode_finished=None, testing=False):
+                    max_episode_timesteps=-1, episode_finished=None, testing=False, sleep=None):
         """
         The target function for a thread, runs an agent and environment until signaled to stop.
         Adds rewards to shared episode rewards list.
@@ -234,6 +236,10 @@ class ThreadedRunner(BaseRunner):
                         reward=reward,
                         terminal=terminal
                     )
+
+                if sleep is not None:
+                    time.sleep(sleep)
+
                 time_step += 1
                 episode_reward += reward
 

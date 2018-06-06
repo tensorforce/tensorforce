@@ -89,20 +89,6 @@ def main():
         network = None
         logger.info("No network configuration provided.")
 
-    # TEST
-    agent["execution"] = dict(
-        type="distributed",
-        distributed_spec=dict(
-            job=args.job,
-            task_index=args.task,
-            # parameter_server=(args.job == "ps"),
-            cluster_spec=dict(
-                ps=["192.168.2.107:22222"],
-                worker=["192.168.2.107:22223"]
-            ))
-    ) if args.job else None
-    # END: TEST
-
     agent = Agent.from_spec(
         spec=agent,
         kwargs=dict(

@@ -49,30 +49,30 @@ class Latest(Queue):
         )
 
     def tf_retrieve_timesteps(self, n):
-        num_timesteps = (self.memory_index - self.episode_indices[0] - 2) % self.capacity + 1
+        num_timesteps = (self.memory_index - self.episode_indices[-1] - 2) % self.capacity + 1
         n = tf.minimum(x=n, y=num_timesteps)
         indices = tf.range(
-            start=(self.memory_index - 1 - n),
-            limit=(self.memory_index - 1)
+            start=(self.memory_index - n),
+            limit=self.memory_index
         ) % self.capacity
-        terminal = tf.gather(params=self.terminal_memory, indices=indices)
-        indices = tf.boolean_mask(tensor=indices, mask=tf.logical_not(x=terminal))
         return self.retrieve_indices(indices=indices)
 
     def tf_retrieve_episodes(self, n):
         n = tf.minimum(x=n, y=self.episode_count)
         start = self.episode_indices[self.episode_count - n - 1] + 1
-        limit = self.episode_indices[self.episode_count - 1]
+        limit = self.episode_indices[self.episode_count - 1] + 1
         limit += tf.where(condition=(start < limit), x=0, y=self.capacity)
         indices = tf.range(start=start, limit=limit) % self.capacity
         return self.retrieve_indices(indices=indices)
 
     def tf_retrieve_sequences(self, n, sequence_length):
-        num_sequences = (self.memory_index - self.episode_indices[0] - 2 - sequence_length + 1) % self.capacity + 1
+        # Remove once #128 is resolved
+        tf.logging.warn("Sampling sequences is not validated yet. Use timesteps or episodes instead.")
+        num_sequences = (self.memory_index - self.episode_indices[-1] - 2 - sequence_length + 1) % self.capacity + 1
         n = tf.minimum(x=n, y=num_sequences)
         indices = tf.range(
-            start=(self.memory_index - 1 - n - sequence_length),  # or '- 1' implied in sequence length?
-            limit=(self.memory_index - 1)
+            start=(self.memory_index - n - sequence_length),  # or '- 1' implied in sequence length?
+            limit=self.memory_index
         ) % self.capacity
         # sequence_indices = [tf.range(start=indices[n], limit=(indices[n] + sequence_length)) for k in range(n)]
         # sequence_indices = [indices[k: k + sequence_length] for k in tf.unstack(value=tf.range(start=0, limit=n), num=n)]

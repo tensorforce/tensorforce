@@ -53,7 +53,7 @@ class PLE(Environment):
                 raise TensorForceError("Doom-Py Deprecated")
             else:
                 self.game = env_dict[env_id]()
-                self.env = ple.PLE(self.game)
+                self.env = ple.PLE(self.game, display_screen=visualize)
         except KeyError:
             print('Game not implemented in PyGame-Learning-Environemnt or these bindings')
             print('Implemented environments include:')

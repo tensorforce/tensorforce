@@ -152,7 +152,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         response = self.protocol.recv(self.socket)
         return self.extract_observation(response)
 
-    def execute(self, actions):
+    def execute(self, action):
         """
         Executes a single step in the UE4 game. This step may be comprised of one or more actual game ticks for all of
         which the same given
@@ -168,7 +168,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         # Discretized -> each action is an int
         if self.discretize_actions:
             # Pull record from discretized_actions, which will look like: [A, Right, SpaceBar].
-            combination = self.discretized_actions[actions]
+            combination = self.discretized_actions[action]
             # Translate to {"axis_mappings": [('A', 1.0), (Right, 1.0)], "action_mappings": [(SpaceBar, True)]}
             for key, value in combination:
                 # Action mapping (True or False).
@@ -179,9 +179,9 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                     axis_mappings.append((key, value))
         # Non-discretized: Each action is a dict of action- and axis-mappings defined in UE4 game's input settings.
         # Re-translate Incoming action names into keyboard keys for the server.
-        elif actions:
+        elif action:
             try:
-                action_mappings, axis_mappings = self.translate_abstract_actions_to_keys(actions)
+                action_mappings, axis_mappings = self.translate_abstract_actions_to_keys(action)
             except KeyError as e:
                 raise TensorForceError("Action- or axis-mapping with name '{}' not defined in connected UE4 game!".
                                        format(e))

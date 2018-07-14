@@ -65,13 +65,10 @@ class OpenAIGym(Environment):
             self.gym.stats_recorder.done = True
         return self.gym.reset()
 
-    def execute(self, actions):
+    def execute(self, action):
         if self.visualize:
             self.gym.render()
-        # if the actions is not unique, that is, if the actions is a dict
-        if isinstance(actions, dict):
-            actions = [actions['action{}'.format(n)] for n in range(len(actions))]
-        state, reward, terminal, _ = self.gym.step(actions)
+        state, reward, terminal, _ = self.gym.step(action)
         return state, terminal, reward
 
     @property

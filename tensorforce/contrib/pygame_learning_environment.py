@@ -19,7 +19,6 @@ from __future__ import division
 
 import time
 
-import tensorforce
 from tensorforce import TensorForceError
 from tensorforce.environments.environment import Environment
 
@@ -94,7 +93,7 @@ class PLE(Environment):
         self.env.reset_game()
         return self.env.getScreenRGB()
 
-    def execute(self, actions):
+    def execute(self, action):
         """
         Executes action, observes next state and reward.
 
@@ -107,9 +106,8 @@ class PLE(Environment):
         if self.env.game_over():
             return self.env.getScreenRGB(), True, 0
 
-        # TODO clarification of actions allowing multiple actions
         action_space = self.env.getActionSet()
-        reward = self.env.act(action_space[actions])
+        reward = self.env.act(action_space[action])
         new_state = self.env.getScreenRGB()
         done = self.env.game_over()
         return new_state, done, reward
@@ -140,4 +138,3 @@ class PLE(Environment):
             'shape' : (len(self.env.getActionSet()),),
             'type' : int
         }
-

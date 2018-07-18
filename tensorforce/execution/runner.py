@@ -100,8 +100,8 @@ class Runner(BaseRunner):
                 action = self.agent.act(states=state, deterministic=deterministic)
 
                 reward = 0
-                for repeat in xrange(self.repeat_actions):
-                    state, terminal, step_reward = self.environment.execute(actions=action)
+                for _ in xrange(self.repeat_actions):
+                    state, terminal, step_reward = self.environment.execute(action=action)
                     reward += step_reward
                     if terminal:
                         break

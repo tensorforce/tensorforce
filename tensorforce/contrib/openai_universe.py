@@ -59,10 +59,11 @@ class OpenAIUniverse(Environment):
 
         return state[0]
 
-    def execute(self, actions):
-        state, terminal, reward = self._execute(actions)
+    def execute(self, action):
+        state, terminal, reward = self._execute(action)
         return self._wait_state(state, terminal, reward)
 
+    #TODO fix this for single actions (np array). 
     def _execute(self, actions):
         pass_actions = []
         for action_name, value in actions.items():

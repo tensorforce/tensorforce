@@ -35,7 +35,7 @@ class DummyEnv(Environment):
     def reset(self):
         return np.random.uniform(size=[1])
 
-    def execute(self, actions):
+    def execute(self, action):
         reward = np.random.uniform()
         terminal = False
         state = np.random.uniform(size=[1])

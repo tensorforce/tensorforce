@@ -58,18 +58,18 @@ class MinimalTest(Environment):
         else:
             return dict(self.state)
 
-    def execute(self, actions):
+    def execute(self, action):
         if self.single_state_action:
-            actions = {next(iter(self.specification)): actions}
+            action = {next(iter(self.specification)): action}
 
         reward = 0.0
         for action_type, shape in self.specification.items():
             if action_type == 'bool' or action_type == 'int':
-                correct = np.sum(actions[action_type])
+                correct = np.sum(action[action_type])
                 overall = util.prod(shape)
                 self.state[action_type] = ((overall - correct) / overall, correct / overall)
             elif action_type == 'float' or action_type == 'bounded':
-                step = np.sum(actions[action_type]) / util.prod(shape)
+                step = np.sum(action[action_type]) / util.prod(shape)
                 self.state[action_type] = max(self.state[action_type][0] - step, 0.0), min(self.state[action_type][1] + step, 1.0)
             reward += max(min(self.state[action_type][1], 1.0), 0.0)
 

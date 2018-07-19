@@ -221,7 +221,7 @@ class ThreadedRunner(BaseRunner):
                 action, internals, states = agent.act(states=state, deterministic=deterministic, buffered=False)
                 reward = 0
                 for repeat in xrange(self.repeat_actions):
-                    state, terminal, step_reward = environment.execute(actions=action)
+                    state, terminal, step_reward = environment.execute(action=action)
                     reward += step_reward
                     if terminal:
                         break

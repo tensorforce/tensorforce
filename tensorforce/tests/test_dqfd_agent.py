@@ -61,7 +61,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
         next_states = None
         terminal = True
 
-        for n in xrange(50):
+        for _ in xrange(50):
             if terminal:
                 states = environment.reset()
             else:
@@ -110,7 +110,7 @@ class TestDQFDAgent(BaseAgentTest, unittest.TestCase):
                             dtype=util.np_dtype(action['type'])
                         )
 
-            next_states, terminal, reward = environment.execute(actions=actions)
+            next_states, terminal, reward = environment.execute(action=actions)
 
             demonstration = dict(
                 states=states,

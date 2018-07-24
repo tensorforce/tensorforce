@@ -88,22 +88,23 @@ class OpenAIGym(Environment):
         elif isinstance(space, gym.spaces.Tuple):
             states = dict()
             n = 0
-            for space in space.spaces:
+            for n, space in enumerate(space.spaces):
                 state = OpenAIGym.state_from_space(space=space)
                 if 'type' in state:
                     states['state{}'.format(n)] = state
-                    n += 1
                 else:
-                    for state in state.values():
-                        states['state{}'.format(n)] = state
-                        n += 1
+                    for name, state in state.items():
+                        states['state{}-{}'.format(n, name)] = state
             return states
-
         elif isinstance(space, gym.spaces.Dict):
             states = dict()
-            for space_name,space in space.spaces.items():
+            for space_name, space in space.spaces.items():
                 state = OpenAIGym.state_from_space(space=space)
-                states[space_name] = state
+                if 'type' in state:
+                    states[space_name] = state
+                else:
+                    for name, state in state.items():
+                        states['{}-{}'.format(space_name, name)] = state
             return states
         else:
             raise TensorForceError('Unknown Gym space.')
@@ -142,21 +143,23 @@ class OpenAIGym(Environment):
         elif isinstance(space, gym.spaces.Tuple):
             actions = dict()
             n = 0
-            for space in space.spaces:
+            for n, space in enumerate(space.spaces):
                 action = OpenAIGym.action_from_space(space=space)
                 if 'type' in action:
                     actions['action{}'.format(n)] = action
-                    n += 1
                 else:
-                    for action in action.values():
-                        actions['action{}'.format(n)] = action
-                        n += 1
+                    for name, action in action.items():
+                        actions['action{}-{}'.format(n, name)] = action
             return actions
         elif isinstance(space, gym.spaces.Dict):
             actions = dict()
-            for space_name,space in space.spaces.items():
+            for space_name, space in space.spaces.items():
                 action = OpenAIGym.action_from_space(space=space)
-                actions[space_name] = action
+                if 'type' in action:
+                    actions[space_name] = action
+                else:
+                    for name, action in action.items():
+                        actions['{}-{}'.format(space_name, name)] = action
             return actions
 
         else:

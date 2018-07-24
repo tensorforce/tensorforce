@@ -53,8 +53,19 @@ class OpenAIGym(Environment):
                 video_callable = (lambda x: x % monitor_video == 0)
             self.gym = gym.wrappers.Monitor(self.gym, monitor, force=not monitor_safe, video_callable=video_callable)
 
+        self._states = OpenAIGym.state_from_space(space=self.gym.observation_space)
+        self._actions = OpenAIGym.action_from_space(space=self.gym.action_space)
+
     def __str__(self):
         return 'OpenAIGym({})'.format(self.gym_id)
+
+    @property
+    def states(self):
+        return self._states
+
+    @property
+    def actions(self):
+        return self._actions
 
     def close(self):
         self.gym.close()
@@ -63,17 +74,15 @@ class OpenAIGym(Environment):
     def reset(self):
         if isinstance(self.gym, gym.wrappers.Monitor):
             self.gym.stats_recorder.done = True
-        return self.gym.reset()
+        state = self.gym.reset()
+        return OpenAIGym.flatten_state(state=state)
 
     def execute(self, action):
         if self.visualize:
             self.gym.render()
+        action = OpenAIGym.unflatten_action(action=action)
         state, reward, terminal, _ = self.gym.step(action)
-        return state, terminal, reward
-
-    @property
-    def states(self):
-        return OpenAIGym.state_from_space(space=self.gym.observation_space)
+        return OpenAIGym.flatten_state(state=state), terminal, reward
 
     @staticmethod
     def state_from_space(space):
@@ -109,9 +118,30 @@ class OpenAIGym(Environment):
         else:
             raise TensorForceError('Unknown Gym space.')
 
-    @property
-    def actions(self):
-        return OpenAIGym.action_from_space(space=self.gym.action_space)
+    @staticmethod
+    def flatten_state(state):
+        if isinstance(state, tuple):
+            states = dict()
+            for n, state in enumerate(state):
+                state = OpenAIGym.flatten_state(state=state)
+                if isinstance(state, dict):
+                    for name, state in state.items():
+                        states['state{}-{}'.format(n, name)] = state
+                else:
+                    states['state{}'.format(n)] = state
+            return states
+        elif isinstance(state, dict):
+            states = dict()
+            for state_name, state in state.items():
+                state = OpenAIGym.flatten_state(state=state)
+                if isinstance(state, dict):
+                    for name, state in state.items():
+                        states['{}-{}'.format(state_name, name)] = state
+                else:
+                    states['{}-{}'.format(state_name, name)] = state
+            return states
+        else:
+            return state
 
     @staticmethod
     def action_from_space(space):
@@ -164,3 +194,41 @@ class OpenAIGym(Environment):
 
         else:
             raise TensorForceError('Unknown Gym space.')
+
+    @staticmethod
+    def unflatten_action(action):
+        if not isinstance(action, dict):
+            return action
+        elif all(
+            name[:6] == 'action' and
+            (name[6:name.index('-')].isnumeric() if '-' in name else name[6:].isnumeric())
+            for name in action
+        ):
+            actions = list()
+            n = 0
+            while True:
+                if any(name.startswith('action' + str(n) + '-') for name in action):
+                    inner_action = {
+                        name[name.index('-') + 1:] for name, inner_action in action.items()
+                        if name.startswith('action' + str(n))
+                    }
+                    actions.append(OpenAIGym.unflatten_action(action=inner_action))
+                elif any(name == 'action' + str(n) for name in action):
+                    actions.append(action['action' + str(n)])
+                else:
+                    break
+            return tuple(actions)
+        else:
+            actions = dict()
+            for name, action in action.items():
+                if '-' in name:
+                    name, inner_name = name.split('-', 1)
+                    if name not in actions:
+                        actions[name] = dict()
+                    actions[name][inner_name] = action
+                else:
+                    actions[name] = action
+            for name, action in actions.items():
+                if isinstance(action, dict):
+                    actions[name] = OpenAIGym.unflatten_action(action=action)
+            return actions

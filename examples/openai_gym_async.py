@@ -161,8 +161,12 @@ def main():
 
     environment = OpenAIGym(args.gym_id)
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger(__file__)
     logger.setLevel(logging.INFO)  # log_levels[agent.log_level])
+
+    stdout_logger = logging.StreamHandler(sys.stdout)
+    stdout_logger.setLevel(logging.INFO)
+    logger.addHandler(stdout_logger)
 
     if args.agent is not None:
         with open(args.agent, 'r') as fp:

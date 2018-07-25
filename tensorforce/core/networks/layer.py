@@ -188,7 +188,10 @@ class TFLayer(Layer):
         if self.first_scope is None:
             # Store scope of first call since regularization losses will be registered there.
             self.first_scope = tf.contrib.framework.get_name_scope()
-        return self.layer(inputs=x, training=update)
+        if isinstance(self.layer, (tf.layers.BatchNormalization, tf.layers.Dropout)):
+            return self.layer(inputs=x, training=update)
+        else:
+            return self.layer(inputs=x)
 
     def tf_regularization_loss(self):
         regularization_losses = tf.get_collection(

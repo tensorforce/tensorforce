@@ -101,7 +101,7 @@ avoid sampling random actions.
 Actions can either be specified as single actions which just require a dict specifying
 a ```type``` and ```shape```, or a ```num_actions``` parameter in the case of discrete actions. 
 A ```shape``` can be used to specify multiple actions of the same type, e.g.
-```actions=dict(type='float', shape=(5,), min=-2, max=2)``` specifies 5 float actions
+```actions=dict(type='float', shape=(5,), min_value=-2, max_value=2)``` specifies 5 float actions
 with the same range. Please note that using the min/max parameter results in
 a Beta distribution instead of a Gaussian distribution being used for continuous 
 actions. If a single action is desired, use ```shape=()```.

@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import importlib
 import json
 import logging
 import os
@@ -42,6 +43,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('gym_id', help="Id of the Gym environment")
+    parser.add_argument('-i', '--import-modules', help="Import module(s) required for environment")
     parser.add_argument('-a', '--agent', help="Agent configuration file")
     parser.add_argument('-n', '--network', default=None, help="Network specification file")
     parser.add_argument('-e', '--episodes', type=int, default=None, help="Number of episodes")
@@ -67,6 +69,10 @@ def main():
 
     logger = logging.getLogger(__file__)
     logger.setLevel(logging.INFO)
+
+    if args.import_modules is not None:
+        for module in args.import_modules.split(','):
+            importlib.import_module(name=module)
 
     environment = OpenAIGym(
         gym_id=args.gym_id,
@@ -97,6 +103,7 @@ def main():
             network=network,
         )
     )
+
     if args.load:
         load_dir = os.path.dirname(args.load)
         if not os.path.isdir(load_dir):

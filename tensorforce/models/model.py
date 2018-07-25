@@ -232,7 +232,7 @@ class Model(object):
         graph_default_context = self.setup_graph()
 
         # Start a tf Server (in case of distributed setup). Only start once.
-        if self.execution_type == "distributed" and not self.server and self.is_local_model:
+        if self.execution_type == "distributed" and self.server is None and self.is_local_model:
             self.start_server()
 
         # build the graph

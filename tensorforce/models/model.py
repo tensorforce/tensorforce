@@ -853,8 +853,8 @@ class Model(object):
         Returns: The preprocessed versions of the input tensors.
         """
         # States preprocessing
-        for name, preprocessing in self.states_preprocessing.items():
-            states[name] = preprocessing.process(tensor=states[name])
+        for name in sorted(self.states_preprocessing):
+            states[name] = self.states_preprocessing[name].process(tensor=states[name])
 
         # Reward preprocessing
         if self.reward_preprocessing is not None:
@@ -988,13 +988,13 @@ class Model(object):
 
         # Actions exploration
         with tf.control_dependencies(control_inputs=operations):
-            for name, exploration in self.actions_exploration.items():
+            for name in sorted(self.actions_exploration):
                 self.actions_output[name] = tf.cond(
                     pred=self.deterministic_input,
                     true_fn=(lambda: self.actions_output[name]),
                     false_fn=(lambda: self.fn_action_exploration(
                         action=self.actions_output[name],
-                        exploration=exploration,
+                        exploration=self.actions_exploration[name],
                         action_spec=self.actions_spec[name]
                     ))
                 )
@@ -1014,20 +1014,20 @@ class Model(object):
             """
             operations = list()
             batch_size = tf.shape(input=next(iter(states.values())))[0]
-            for name, state in states.items():
+            for name in sorted(states):
                 operations.append(tf.assign(
                     ref=self.states_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=state
+                    value=states[name]
                 ))
-            for name, internal in internals.items():
+            for name in sorted(internals):
                 operations.append(tf.assign(
                     ref=self.internals_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=internal
+                    value=internals[name]
                 ))
-            for name, action in self.actions_output.items():
+            for name in sorted(self.actions_output):
                 operations.append(tf.assign(
                     ref=self.actions_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=action
+                    value=self.actions_output[name]
                 ))
 
             with tf.control_dependencies(control_inputs=operations):

@@ -123,7 +123,7 @@ class Agent(object):
         if self.unique_state:
             self.current_states = dict(state=np.asarray(states))
         else:
-            self.current_states = {name: np.asarray(state) for name, state in states.items()}
+            self.current_states = {name: np.asarray(states[name]) for name in sorted(states)}
 
         if fetch_tensors is not None:
             # Retrieve action

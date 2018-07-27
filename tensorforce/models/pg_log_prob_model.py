@@ -44,7 +44,8 @@ class PGLogProbModel(PGModel):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         log_probs = list()
 
-        for name, distribution in self.distributions.items():
+        for name in sorted(self.distributions):
+            distribution = self.distributions[name]
             distr_params = distribution.parameterize(x=embedding)
             log_prob = distribution.log_probability(distr_params=distr_params, action=actions[name])
             collapsed_size = util.prod(util.shape(log_prob)[1:])

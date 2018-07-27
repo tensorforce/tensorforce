@@ -99,7 +99,8 @@ class PrioritizedReplay(Memory):
 
     def tf_initialize(self):
         # States
-        for name, state in self.states_spec.items():
+        for name in sorted(self.states_spec):
+            state = self.states_spec[name]
             self.states_memory[name] = tf.get_variable(
                 name=('state-' + name),
                 shape=(self.capacity,) + tuple(state['shape']),
@@ -108,7 +109,8 @@ class PrioritizedReplay(Memory):
             )
 
         # Internals
-        for name, internal in self.internals_spec.items():
+        for name in sorted(self.internals_spec):
+            internal = self.internals_spec[name]
             self.internals_memory[name] = tf.get_variable(
                 name=('internal-' + name),
                 shape=(self.capacity,) + tuple(internal['shape']),
@@ -117,7 +119,8 @@ class PrioritizedReplay(Memory):
             )
 
         # Actions
-        for name, action in self.actions_spec.items():
+        for name in sorted(self.actions_spec):
+            action = self.actions_spec[name]
             self.actions_memory[name] = tf.get_variable(
                 name=('action-' + name),
                 shape=(self.capacity,) + tuple(action['shape']),
@@ -171,7 +174,8 @@ class PrioritizedReplay(Memory):
         )
 
         # States
-        for name, state in self.states_spec.items():
+        for name in sorted(self.states_spec):
+            state = self.states_spec[name]
             self.states_buffer[name] = tf.get_variable(
                 name=('state-buffer-' + name),
                 shape=(self.buffer_size,) + tuple(state['shape']),
@@ -180,7 +184,8 @@ class PrioritizedReplay(Memory):
             )
 
         # Internals
-        for name, internal in self.internals_spec.items():
+        for name in sorted(self.internals_spec):
+            internal = self.internals_spec[name]
             self.internals_buffer[name] = tf.get_variable(
                 name=('internal-buffer-' + name),
                 shape=(self.capacity,) + tuple(internal['shape']),
@@ -189,7 +194,8 @@ class PrioritizedReplay(Memory):
             )
 
         # Actions
-        for name, action in self.actions_spec.items():
+        for name in sorted(self.actions_spec):
+            action = self.actions_spec[name]
             self.actions_buffer[name] = tf.get_variable(
                 name=('action-buffer-' + name),
                 shape=(self.buffer_size,) + tuple(action['shape']),
@@ -255,15 +261,15 @@ class PrioritizedReplay(Memory):
 
         # Assign new observations.
         assignments = list()
-        for name, state in states.items():
-            assignments.append(tf.assign(ref=self.states_buffer[name][start_index:end_index], value=state))
-        for name, internal in internals.items():
+        for name in sorted(states):
+            assignments.append(tf.assign(ref=self.states_buffer[name][start_index:end_index], value=states[name]))
+        for name in sorted(internals):
             assignments.append(tf.assign(
                 ref=self.internals_buffer[name][start_index:end_index],
-                value=internal
+                value=internals[name]
             ))
-        for name, action in actions.items():
-            assignments.append(tf.assign(ref=self.actions_buffer[name][start_index:end_index], value=action))
+        for name in sorted(actions):
+            assignments.append(tf.assign(ref=self.actions_buffer[name][start_index:end_index], value=actions[name]))
 
         assignments.append(tf.assign(ref=self.terminal_buffer[start_index:end_index], value=terminal))
         assignments.append(tf.assign(ref=self.reward_buffer[start_index:end_index], value=reward))
@@ -358,27 +364,27 @@ class PrioritizedReplay(Memory):
         buffer_end = self.buffer_index
 
         # Fetch entries from respective memories, concat.
-        for name, state_memory in self.states_memory.items():
+        for name in sorted(self.states_memory):
             buffer_state_memory = self.states_buffer[name]
             # Slicing is more efficient than gathering, and buffer elements are always
             # fetched using contiguous indices.
             buffer_states = buffer_state_memory[buffer_start:buffer_end]
             # Memory indices are obtained via priority sampling, hence require gather.
-            memory_states = tf.gather(params=state_memory, indices=priority_indices)
+            memory_states = tf.gather(params=self.states_memory[name], indices=priority_indices)
             states[name] = tf.concat(values=(buffer_states, memory_states), axis=0)
 
         internals = dict()
-        for name, internal_memory in self.internals_memory.items():
+        for name in sorted(self.internals_memory):
             internal_buffer_memory = self.internals_buffer[name]
             buffer_internals = internal_buffer_memory[buffer_start:buffer_end]
-            memory_internals = tf.gather(params=internal_memory, indices=priority_indices)
+            memory_internals = tf.gather(params=self.internals_memory[name], indices=priority_indices)
             internals[name] = tf.concat(values=(buffer_internals, memory_internals), axis=0)
 
         actions = dict()
-        for name, action_memory in self.actions_memory.items():
+        for name in sorted(self.actions_memory):
             action_buffer_memory = self.actions_buffer[name]
             buffer_action = action_buffer_memory[buffer_start:buffer_end]
-            memory_action = tf.gather(params=action_memory, indices=priority_indices)
+            memory_action = tf.gather(params=self.actions_memory[name], indices=priority_indices)
             actions[name] = tf.concat(values=(buffer_action, memory_action), axis=0)
 
         buffer_terminal = self.terminal_buffer[buffer_start:buffer_end]
@@ -396,17 +402,17 @@ class PrioritizedReplay(Memory):
             next_buffer_end = (buffer_end + 1) % self.buffer_size
 
             next_states = dict()
-            for name, state_memory in self.states_memory.items():
+            for name in sorted(self.states_memory):
                 buffer_state_memory = self.states_buffer[name]
                 buffer_next_states = buffer_state_memory[next_buffer_start:next_buffer_end]
-                memory_next_states = tf.gather(params=state_memory, indices=next_priority_indices)
+                memory_next_states = tf.gather(params=self.states_memory[name], indices=next_priority_indices)
                 next_states[name] = tf.concat(values=(buffer_next_states, memory_next_states), axis=0)
 
             next_internals = dict()
-            for name, internal_memory in self.internals_memory.items():
+            for name in sorted(self.internals_memory):
                 buffer_internal_memory = self.internals_buffer[name]
                 buffer_next_internals = buffer_internal_memory[next_buffer_start:next_buffer_end]
-                memory_next_internals = tf.gather(params=internal_memory, indices=next_priority_indices)
+                memory_next_internals = tf.gather(params=self.internals_memory[name], indices=next_priority_indices)
                 next_internals[name] = tf.concat(values=(buffer_next_internals, memory_next_internals), axis=0)
 
             return dict(
@@ -477,18 +483,18 @@ class PrioritizedReplay(Memory):
             limit=memory_end_index
         ) % self.capacity
 
-        for name, state in states.items():
+        for name in sorted(states):
             assignments.append(tf.scatter_update(
                 ref=self.states_memory[name],
                 indices=memory_insert_indices,
                 # Only buffer elements from batch.
-                updates=state[0:self.last_batch_buffer_elems])
+                updates=states[name][0:self.last_batch_buffer_elems])
             )
-        for name, internal in internals.items():
+        for name in sorted(internals):
             assignments.append(tf.scatter_update(
                 ref=self.internals_buffer[name],
                 indices=memory_insert_indices,
-                updates=internal[0:self.last_batch_buffer_elems]
+                updates=internals[name][0:self.last_batch_buffer_elems]
             ))
         assignments.append(tf.scatter_update(
             ref=self.priorities,
@@ -505,11 +511,11 @@ class PrioritizedReplay(Memory):
             indices=memory_insert_indices,
             updates=reward[0:self.last_batch_buffer_elems])
         )
-        for name, action in actions.items():
+        for name in sorted(actions):
             assignments.append(tf.scatter_update(
                 ref=self.actions_memory[name],
                 indices=memory_insert_indices,
-                updates=action[0:self.last_batch_buffer_elems]
+                updates=actions[name][0:self.last_batch_buffer_elems]
             ))
 
         # 4.Update the priorities of the elements already in the memory.
@@ -545,19 +551,19 @@ class PrioritizedReplay(Memory):
                 indices=sorted_indices,
                 updates=self.terminal_memory
             ))
-            for name, state_memory in self.states_memory.items():
+            for name in sorted(self.states_memory):
                 assignments.append(tf.scatter_update(
                     ref=self.states_memory[name],
                     indices=sorted_indices,
                     updates=self.states_memory[name]
                 ))
-            for name, action in self.actions_memory.items():
+            for name in sorted(self.actions_memory):
                 assignments.append(tf.scatter_update(
                     ref=self.actions_memory[name],
                     indices=sorted_indices,
                     updates=self.actions_memory[name]
                 ))
-            for name, internal in self.internals_memory.items():
+            for name in sorted(self.internals_memory):
                 assignments.append(tf.scatter_update(
                     ref=self.internals_memory[name],
                     indices=sorted_indices,

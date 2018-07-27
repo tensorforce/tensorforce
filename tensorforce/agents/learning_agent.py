@@ -173,15 +173,15 @@ class LearningAgent(Agent):
                 if self.unique_state:
                     states['state'].append(experience['states'])
                 else:
-                    for name, state in states.items():
-                        state.append(experience['states'][name])
+                    for name in sorted(states):
+                        states[name].append(experience['states'][name])
                 for n, internal in enumerate(internals):
                     internal.append(experience['internals'][n])
                 if self.unique_action:
                     actions['action'].append(experience['actions'])
                 else:
-                    for name, action in actions.items():
-                        action.append(experience['actions'][name])
+                    for name in sorted(actions):
+                        actions[name].append(experience['actions'][name])
                 terminal.append(experience['terminal'])
                 reward.append(experience['reward'])
 

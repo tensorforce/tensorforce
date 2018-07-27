@@ -278,12 +278,12 @@ class Model(object):
 
                 # Add all summaries specified in summary_labels
                 if any(k in self.summary_labels for k in ['inputs', 'states']):
-                    for name, state in states.items():
-                        summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=state)
+                    for name in sorted(states):
+                        summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=states[name])
                         self.summaries.append(summary)
                 if any(k in self.summary_labels for k in ['inputs', 'actions']):
-                    for name, action in actions.items():
-                        summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=action)
+                    for name in sorted(actions):
+                        summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=actions[name])
                         self.summaries.append(summary)
                 if any(k in self.summary_labels for k in ['inputs', 'rewards']):
                     summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
@@ -398,53 +398,53 @@ class Model(object):
         """
 
         # States
-        for name, state in self.states_spec.items():
+        for name in sorted(self.states_spec):
             self.states_input[name] = tf.placeholder(
-                dtype=util.tf_dtype(state['type']),
-                shape=(None,) + tuple(state['shape']),
+                dtype=util.tf_dtype(self.states_spec[name]['type']),
+                shape=(None,) + tuple(self.states_spec[name]['shape']),
                 name=('state-' + name)
             )
 
         # States preprocessing
         if self.states_preprocessing_spec is None:
-            for name, state in self.states_spec.items():
-                state['unprocessed_shape'] = state['shape']
+            for name in sorted(self.states_spec):
+                self.states_spec[name]['unprocessed_shape'] = self.states_spec[name]['shape']
         elif not isinstance(self.states_preprocessing_spec, list) and \
                 all(name in self.states_spec for name in self.states_preprocessing_spec):
-            for name, state in self.states_spec.items():
+            for name in sorted(self.states_spec):
                 if name in self.states_preprocessing_spec:
                     preprocessing = PreprocessorStack.from_spec(
                         spec=self.states_preprocessing_spec[name],
-                        kwargs=dict(shape=state['shape'])
+                        kwargs=dict(shape=self.states_spec[name]['shape'])
                     )
-                    state['unprocessed_shape'] = state['shape']
-                    state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
+                    self.states_spec[name]['unprocessed_shape'] = self.states_spec[name]['shape']
+                    self.states_spec[name]['shape'] = preprocessing.processed_shape(shape=self.states_spec[name]['unprocessed_shape'])
                     self.states_preprocessing[name] = preprocessing
                 else:
-                    state['unprocessed_shape'] = state['shape']
+                    self.states_spec[name]['unprocessed_shape'] = self.states_spec[name]['shape']
         # Single preprocessor for all components of our state space
         elif "type" in self.states_preprocessing_spec:
             preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec,
-                                                        kwargs=dict(shape=state['shape']))
-            for name, state in self.states_spec.items():
-                state['unprocessed_shape'] = state['shape']
-                state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
+                                                        kwargs=dict(shape=self.states_spec[name]['shape']))
+            for name in sorted(self.states_spec):
+                self.states_spec[name]['unprocessed_shape'] = self.states_spec[name]['shape']
+                self.states_spec[name]['shape'] = preprocessing.processed_shape(shape=self.states_spec[name]['unprocessed_shape'])
                 self.states_preprocessing[name] = preprocessing
         else:
-            for name, state in self.states_spec.items():
+            for name in sorted(self.states_spec):
                 preprocessing = PreprocessorStack.from_spec(
                     spec=self.states_preprocessing_spec,
-                    kwargs=dict(shape=state['shape'])
+                    kwargs=dict(shape=self.states_spec[name]['shape'])
                 )
-                state['unprocessed_shape'] = state['shape']
-                state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
+                self.states_spec[name]['unprocessed_shape'] = self.states_spec[name]['shape']
+                self.states_spec[name]['shape'] = preprocessing.processed_shape(shape=self.states_spec[name]['unprocessed_shape'])
                 self.states_preprocessing[name] = preprocessing
 
         # Actions
-        for name, action in self.actions_spec.items():
+        for name in sorted(self.actions_spec):
             self.actions_input[name] = tf.placeholder(
-                dtype=util.tf_dtype(action['type']),
-                shape=(None,) + tuple(action['shape']),
+                dtype=util.tf_dtype(self.actions_spec[name]['type']),
+                shape=(None,) + tuple(self.actions_spec[name]['shape']),
                 name=('action-' + name)
             )
 
@@ -452,11 +452,11 @@ class Model(object):
         if self.actions_exploration_spec is None:
             pass
         elif all(name in self.actions_spec for name in self.actions_exploration_spec):
-            for name, action in self.actions_spec.items():
+            for name in sorted(self.actions_spec):
                 if name in self.actions_exploration:
                     self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec[name])
         else:
-            for name, action in self.actions_spec.items():
+            for name in sorted(self.actions_spec):
                 self.actions_exploration[name] = Exploration.from_spec(spec=self.actions_exploration_spec)
 
         # Terminal
@@ -828,29 +828,29 @@ class Model(object):
         )
 
         # States buffer variable
-        for name, state in self.states_spec.items():
+        for name in sorted(self.states_spec):
             self.states_buffer[name] = tf.get_variable(
                 name=('state-' + name),
-                shape=((self.batching_capacity,) + tuple(state['shape'])),
-                dtype=util.tf_dtype(state['type']),
+                shape=((self.batching_capacity,) + tuple(self.states_spec[name]['shape'])),
+                dtype=util.tf_dtype(self.states_spec[name]['type']),
                 trainable=False
             )
 
         # Internals buffer variable
-        for name, internal in self.internals_spec.items():
+        for name in sorted(self.internals_spec):
             self.internals_buffer[name] = tf.get_variable(
                 name=('internal-' + name),
-                shape=((self.batching_capacity,) + tuple(internal['shape'])),
-                dtype=util.tf_dtype(internal['type']),
+                shape=((self.batching_capacity,) + tuple(self.internals_spec[name]['shape'])),
+                dtype=util.tf_dtype(self.internals_spec[name]['type']),
                 trainable=False
             )
 
         # Actions buffer variable
-        for name, action in self.actions_spec.items():
+        for name in sorted(self.actions_spec):
             self.actions_buffer[name] = tf.get_variable(
                 name=('action-' + name),
-                shape=((self.batching_capacity,) + tuple(action['shape'])),
-                dtype=util.tf_dtype(action['type']),
+                shape=((self.batching_capacity,) + tuple(self.actions_spec[name]['shape'])),
+                dtype=util.tf_dtype(self.actions_spec[name]['type']),
                 trainable=False
             )
 
@@ -1001,7 +1001,7 @@ class Model(object):
 
         # Subtract variable noise
         # TODO this is an untested/incomplete feature and maybe should be removed for now.
-        with tf.control_dependencies(control_inputs=list(self.actions_output.values())):
+        with tf.control_dependencies(control_inputs=[self.actions_output[name] for name in sorted(self.actions_output)]):
             operations = list()
             if self.variable_noise is not None and self.variable_noise > 0.0:
                 for variable, noise_delta in zip(self.get_variables(), noise_deltas):
@@ -1034,7 +1034,8 @@ class Model(object):
             Stores current states, internals and actions in buffer. Increases timesteps.
             """
             operations = list()
-            batch_size = tf.shape(input=next(iter(states.values())))[0]
+
+            batch_size = tf.shape(input=states[next(iter(sorted(states)))])[0]
             for name in sorted(states):
                 operations.append(tf.assign(
                     ref=self.states_buffer[name][self.buffer_index: self.buffer_index + batch_size],
@@ -1196,14 +1197,14 @@ class Model(object):
             model_variables = [self.all_variables[key] for key in sorted(self.all_variables)]
 
             states_preprocessing_variables = [
-                variable for preprocessing in self.states_preprocessing.values()
-                for variable in preprocessing.get_variables()
+                variable for name in sorted(self.states_preprocessing)
+                for variable in self.states_preprocessing[name].get_variables()
             ]
             model_variables += states_preprocessing_variables
 
             actions_exploration_variables = [
-                variable for exploration in self.actions_exploration.values()
-                for variable in exploration.get_variables()
+                variable for name in sorted(self.actions_exploration)
+                for variable in self.actions_exploration[name].get_variables()
             ]
             model_variables += actions_exploration_variables
 
@@ -1237,8 +1238,8 @@ class Model(object):
         fetches = [self.global_episode, self.global_timestep]
 
         # Loop through all preprocessors and reset them as well.
-        for preprocessing in self.states_preprocessing.values():
-            fetch = preprocessing.reset()
+        for name in sorted(self.states_preprocessing):
+            fetch = self.states_preprocessing[name].reset()
             if fetch is not None:
                 fetches.extend(fetch)
 
@@ -1282,9 +1283,9 @@ class Model(object):
                 state = np.asarray(states[name])
                 batched = (state.ndim != len(self.states_spec[name]['unprocessed_shape']))
             if batched:
-                feed_dict.update({state_input: states[name] for name, state_input in self.states_input.items()})
+                feed_dict.update({self.states_input[name]: states[name] for name in sorted(self.states_input)})
             else:
-                feed_dict.update({state_input: (states[name],) for name, state_input in self.states_input.items()})
+                feed_dict.update({self.states_input[name]: (states[name],) for name in sorted(self.states_input)})
 
         if internals is not None:
             if batched is None:
@@ -1292,9 +1293,9 @@ class Model(object):
                 internal = np.asarray(internals[name])
                 batched = (internal.ndim != len(self.internals_spec[name]['shape']))
             if batched:
-                feed_dict.update({internal_input: internals[name] for name, internal_input in self.internals_input.items()})
+                feed_dict.update({self.internals_input[name]: internals[name] for name in sorted(self.internals_input)})
             else:
-                feed_dict.update({internal_input: (internals[name],) for name, internal_input in self.internals_input.items()})
+                feed_dict.update({self.internals_input[name]: (internals[name],) for name in sorted(self.internals_input)})
 
         if actions is not None:
             if batched is None:
@@ -1302,9 +1303,9 @@ class Model(object):
                 action = np.asarray(actions[name])
                 batched = (action.ndim != len(self.actions_spec[name]['shape']))
             if batched:
-                feed_dict.update({action_input: actions[name] for name, action_input in self.actions_input.items()})
+                feed_dict.update({self.actions_input[name]: actions[name] for name in sorted(self.actions_input)})
             else:
-                feed_dict.update({action_input: (actions[name],) for name, action_input in self.actions_input.items()})
+                feed_dict.update({self.actions_input[name]: (actions[name],) for name in sorted(self.actions_input)})
 
         if terminal is not None:
             if batched is None:
@@ -1364,8 +1365,8 @@ class Model(object):
                 if valid:
                     fetches.append(tensor)
                 else:
-                    keys=self.network.get_list_of_named_tensor()
-                    raise TensorForceError('Cannot fetch named tensor "{}", Available {}.'.format(name,keys))
+                    keys = self.network.get_list_of_named_tensor()
+                    raise TensorForceError('Cannot fetch named tensor "{}", Available {}.'.format(name, keys))
 
         # feed_dict[self.deterministic_input] = deterministic
         feed_dict = self.get_feed_dict(
@@ -1380,8 +1381,8 @@ class Model(object):
 
         # Extract the first (and only) action/internal from the batch to make return values non-batched
         if not batched:
-            actions = {name: action[0] for name, action in actions.items()}
-            internals = {name: internal[0] for name, internal in internals.items()}
+            actions = {name: actions[name][0] for name in sorted(actions)}
+            internals = {name: internals[name][0] for name in sorted(internals)}
 
         if self.summary_configuration_op is not None:
             summary_values = self.session.run(self.summary_configuration_op)
@@ -1506,7 +1507,9 @@ class Model(object):
         Returns:
             List of util.SavableComponent
         """
-        return set(filter(lambda x: isinstance(x, util.SavableComponent), self.get_components().values()))
+        components = self.get_components()
+        components = [components[name] for name in sorted(components)]
+        return set(filter(lambda x: isinstance(x, util.SavableComponent), components))
 
     @staticmethod
     def _validate_savable(component, component_name):

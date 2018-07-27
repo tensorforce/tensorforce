@@ -60,8 +60,8 @@ class ConstantModel(Model):
         assert len(internals) == 0
 
         actions = dict()
-        for name, action in self.actions_spec.items():
-            shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
+        for name in sorted(self.actions_spec):
+            shape = (tf.shape(input=states[next(iter(sorted(states)))])[0],) + self.actions_spec[name]['shape']
             actions[name] = tf.fill(dims=shape, value=self.action_values[name])
 
         return actions, dict()

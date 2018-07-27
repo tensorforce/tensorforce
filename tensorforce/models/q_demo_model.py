@@ -60,7 +60,7 @@ class QDemoModel(QModel):
         demo_memory_capacity,
         demo_batch_size
     ):
-        if any(action['type'] not in ('bool', 'int') for action in actions.values()):
+        if any(actions[name]['type'] not in ('bool', 'int') for name in sorted(actions)):
             raise TensorForceError("Invalid action type, only 'bool' and 'int' are valid!")
 
         self.expert_margin = expert_margin
@@ -169,7 +169,8 @@ class QDemoModel(QModel):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         deltas = list()
 
-        for name, action in actions.items():
+        for name in sorted(actions):
+            action = actions[name]
             distr_params = self.distributions[name].parameterize(x=embedding)
             state_action_value = self.distributions[name].state_action_value(distr_params=distr_params, action=action)
 

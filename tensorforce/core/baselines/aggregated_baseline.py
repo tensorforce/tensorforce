@@ -37,9 +37,9 @@ class AggregatedBaseline(Baseline):
         """
 
         self.baselines = dict()
-        for name, baseline in baselines.items():
+        for name in sorted(baselines):
             self.baselines[name] = Baseline.from_spec(
-                spec=baseline,
+                spec=baselines[name],
                 kwargs=dict(summary_labels=summary_labels))
 
         self.linear = Linear(size=1, bias=0.0, scope='prediction')
@@ -48,8 +48,8 @@ class AggregatedBaseline(Baseline):
 
     def tf_predict(self, states, internals, update):
         predictions = list()
-        for name, state in states.items():
-            prediction = self.baselines[name].predict(states=state, internals=internals, update=update)
+        for name in sorted(states):
+            prediction = self.baselines[name].predict(states=states[name], internals=internals, update=update)
             predictions.append(prediction)
         predictions = tf.stack(values=predictions, axis=1)
         prediction = self.linear.apply(x=predictions)
@@ -62,8 +62,8 @@ class AggregatedBaseline(Baseline):
         else:
             losses = [regularization_loss]
 
-        for baseline in self.baselines.values():
-            regularization_loss = baseline.regularization_loss()
+        for name in sorted(self.baselines):
+            regularization_loss = self.baselines[name].regularization_loss()
             if regularization_loss is not None:
                 losses.append(regularization_loss)
 

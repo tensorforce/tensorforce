@@ -70,7 +70,8 @@ class Queue(Memory):
 
     def tf_initialize(self):
         # States
-        for name, state in self.states_spec.items():
+        for name in sorted(self.states_spec):
+            state = self.states_spec[name]
             self.states_memory[name] = tf.get_variable(
                 name=('state-' + name),
                 shape=(self.capacity,) + tuple(state['shape']),
@@ -79,7 +80,8 @@ class Queue(Memory):
             )
 
         # Internals
-        for name, internal in self.internals_spec.items():
+        for name in sorted(self.internals_spec):
+            internal = self.internals_spec[name]
             self.internals_memory[name] = tf.get_variable(
                 name=('internal-' + name),
                 shape=(self.capacity,) + tuple(internal['shape']),
@@ -88,7 +90,8 @@ class Queue(Memory):
             )
 
         # Actions
-        for name, action in self.actions_spec.items():
+        for name in sorted(self.actions_spec):
+            action = self.actions_spec[name]
             self.actions_memory[name] = tf.get_variable(
                 name=('action-' + name),
                 shape=(self.capacity,) + tuple(action['shape']),
@@ -166,23 +169,23 @@ class Queue(Memory):
         # Assign new observations.
         with tf.control_dependencies(control_inputs=(assignment,)):
             assignments = list()
-            for name, state in states.items():
+            for name in sorted(states):
                 assignments.append(tf.scatter_update(
                     ref=self.states_memory[name],
                     indices=indices,
-                    updates=state
+                    updates=states[name]
                 ))
-            for name, internal in internals.items():
+            for name in sorted(internals):
                 assignments.append(tf.scatter_update(
                     ref=self.internals_memory[name],
                     indices=indices,
-                    updates=internal
+                    updates=internals[name]
                 ))
-            for name, action in actions.items():
+            for name in sorted(actions):
                 assignments.append(tf.scatter_update(
                     ref=self.actions_memory[name],
                     indices=indices,
-                    updates=action
+                    updates=actions[name]
                 ))
             assignments.append(tf.scatter_update(ref=self.terminal_memory, indices=indices, updates=terminal))
             assignments.append(tf.scatter_update(ref=self.reward_memory, indices=indices, updates=reward))
@@ -223,16 +226,16 @@ class Queue(Memory):
         Returns: Batch of experiences
         """
         states = dict()
-        for name, state_memory in self.states_memory.items():
-            states[name] = tf.gather(params=state_memory, indices=indices)
+        for name in sorted(self.states_memory):
+            states[name] = tf.gather(params=self.states_memory[name], indices=indices)
 
         internals = dict()
-        for name, internal_memory in self.internals_memory.items():
-            internals[name] = tf.gather(params=internal_memory, indices=indices)
+        for name in sorted(self.internals_memory):
+            internals[name] = tf.gather(params=self.internals_memory[name], indices=indices)
 
         actions = dict()
-        for name, action_memory in self.actions_memory.items():
-            actions[name] = tf.gather(params=action_memory, indices=indices)
+        for name in sorted(self.actions_memory):
+            actions[name] = tf.gather(params=self.actions_memory[name], indices=indices)
 
         terminal = tf.gather(params=self.terminal_memory, indices=indices)
         reward = tf.gather(params=self.reward_memory, indices=indices)
@@ -242,12 +245,12 @@ class Queue(Memory):
             next_indices = (indices + 1) % self.capacity
 
             next_states = dict()
-            for name, state_memory in self.states_memory.items():
-                next_states[name] = tf.gather(params=state_memory, indices=next_indices)
+            for name in sorted(self.states_memory):
+                next_states[name] = tf.gather(params=self.states_memory[name], indices=next_indices)
 
             next_internals = dict()
-            for name, internal_memory in self.internals_memory.items():
-                next_internals[name] = tf.gather(params=internal_memory, indices=next_indices)
+            for name in sorted(self.internals_memory):
+                next_internals[name] = tf.gather(params=self.internals_memory[name], indices=next_indices)
 
             return dict(
                 states=states,

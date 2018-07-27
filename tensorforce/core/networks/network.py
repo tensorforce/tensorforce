@@ -219,8 +219,9 @@ class LayerBasedNetwork(Network):
     def internals_spec(self):
         internals_spec = dict()
         for layer in self.layers:
-            for name, internal_spec in layer.internals_spec().items():
-                internals_spec['{}_{}'.format(layer.scope, name)] = internal_spec
+            spec = layer.internals_spec()
+            for name in sorted(spec):
+                internals_spec['{}_{}'.format(layer.scope, name)] = spec[name]
         return internals_spec
 
     def get_variables(self, include_nontrainable=False):
@@ -275,7 +276,7 @@ class LayeredNetwork(LayerBasedNetwork):
         if isinstance(x, dict):
             if len(x) != 1:
                 raise TensorForceError('Layered network must have only one input, but {} given.'.format(len(x)))
-            x = next(iter(x.values()))
+            x = x[next(iter(sorted(x)))]
 
         next_internals = dict()
         for layer in self.layers:
@@ -283,8 +284,9 @@ class LayeredNetwork(LayerBasedNetwork):
 
             if len(layer_internals) > 0:
                 x, layer_internals = layer.apply(x=x, update=update, **layer_internals)
-                for name, internal in layer_internals.items():
-                    next_internals['{}_{}'.format(layer.scope, name)] = internal
+                spec = layer_internals.items()
+                for name in sorted(spec):
+                    next_internals['{}_{}'.format(layer.scope, name)] = spec[name]
 
             else:
                 x = layer.apply(x=x, update=update)

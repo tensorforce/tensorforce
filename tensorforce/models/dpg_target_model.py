@@ -58,7 +58,7 @@ class DDPGCriticNetwork(LayerBasedNetwork):
             if len(x['states']) != 1:
                 raise TensorForceError('DDPG critic network must have only one state input, but {} given.'.format(
                     len(x['states'])))
-            x_states = next(iter(x['states'].values()))
+            x_states = x['states'][next(iter(sorted(x['states'])))]
         else:
             x_states = x['states']
 
@@ -66,7 +66,7 @@ class DDPGCriticNetwork(LayerBasedNetwork):
             if len(x['actions']) != 1:
                 raise TensorForceError('DDPG critic network must have only one action input, but {} given.'.format(
                     len(x['actions'])))
-            x_actions = next(iter(x['actions'].values()))
+            x_actions = x['actions'][next(iter(sorted(x['actions'])))]
         else:
             x_actions = x['actions']
 
@@ -227,7 +227,8 @@ class DPGTargetModel(DistributionModel):
         )
 
         actions = dict()
-        for name, distribution in self.target_distributions.items():
+        for name in sorted(self.target_distributions):
+            distribution = self.target_distributions[name]
             distr_params = distribution.parameterize(x=embedding)
             actions[name] = distribution.sample(
                 distr_params=distr_params,
@@ -369,8 +370,8 @@ class DPGTargetModel(DistributionModel):
         result = dict(super(DPGTargetModel, self).get_components())
         result[DPGTargetModel.COMPONENT_CRITIC] = self.critic
         result[DPGTargetModel.COMPONENT_TARGET_NETWORK] = self.target_network
-        for action, distribution in self.target_distributions.items():
-            result["%s_%s" % (DPGTargetModel.COMPONENT_TARGET_DISTRIBUTION, action)] = distribution
+        for name in sorted(self.target_distributions):
+            result["%s_%s" % (DPGTargetModel.COMPONENT_TARGET_DISTRIBUTION, name)] = self.target_distributions[name]
         if len(self.target_distributions) == 1:
-            result[DPGTargetModel.COMPONENT_TARGET_DISTRIBUTION] = next(iter(self.target_distributions.values()))
+            result[DPGTargetModel.COMPONENT_TARGET_DISTRIBUTION] = self.target_distributions[next(iter(sorted(self.target_distributions)))]
         return result

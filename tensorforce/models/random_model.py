@@ -58,8 +58,9 @@ class RandomModel(Model):
         assert len(internals) == 0
 
         actions = dict()
-        for name, action in self.actions_spec.items():
-            shape = (tf.shape(input=next(iter(states.values())))[0],) + action['shape']
+        for name in sorted(self.actions_spec):
+            action = self.action_spec[name]
+            shape = (tf.shape(input=states[next(iter(sorted(states)))])[0],) + action['shape']
 
             if action['type'] == 'bool':
                 actions[name] = (tf.random_uniform(shape=shape) < 0.5)

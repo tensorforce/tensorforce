@@ -174,7 +174,7 @@ class ComplexLayeredNetwork(LayerBasedNetwork):
         if isinstance(x, dict):
             self.named_tensors.update(x)
             if len(x) == 1:
-                x = next(iter(x.values()))
+                x = x[next(iter(sorted(x)))]
 
         next_internals = dict()
         for layer in self.layers:
@@ -182,8 +182,8 @@ class ComplexLayeredNetwork(LayerBasedNetwork):
 
             if len(layer_internals) > 0:
                 x, layer_internals = layer.apply(x=x, update=update, **layer_internals)
-                for name, internal in layer_internals.items():
-                    next_internals['{}_{}'.format(layer.scope, name)] = internal
+                for name in sorted(layer_internals):
+                    next_internals['{}_{}'.format(layer.scope, name)] = layer_internals[name]
 
             else:
                 x = layer.apply(x=x, update=update)

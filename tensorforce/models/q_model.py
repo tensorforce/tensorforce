@@ -111,7 +111,7 @@ class QModel(DistributionModel):
         # # TEMP: Random sampling fix
         # if self.random_sampling_fix:
         #     self.next_states_input = dict()
-        #     for name, state in self.states_spec.items():
+        #     for name, state in self.states_spec):
         #         self.next_states_input[name] = tf.placeholder(
         #             dtype=util.tf_dtype(state['type']),
         #             shape=(None,) + tuple(state['shape']),
@@ -291,10 +291,10 @@ class QModel(DistributionModel):
     def get_components(self):
         result = dict(super(QModel, self).get_components())
         result[QModel.COMPONENT_TARGET_NETWORK] = self.target_network
-        for action, distribution in self.target_distributions.items():
-            result["%s_%s" % (QModel.COMPONENT_TARGET_DISTRIBUTION, action)] = distribution
+        for name in sorted(self.target_distributions):
+            result["%s_%s" % (QModel.COMPONENT_TARGET_DISTRIBUTION, name)] = self.target_distributions[name]
         if len(self.target_distributions) == 1:
-            result[QModel.COMPONENT_TARGET_DISTRIBUTION] = next(iter(self.target_distributions.values()))
+            result[QModel.COMPONENT_TARGET_DISTRIBUTION] = self.target_distributions[next(iter(sorted(self.target_distributions)))]
         return result
 
     # # TEMP: Random sampling fix
@@ -310,17 +310,17 @@ class QModel(DistributionModel):
     #     if batched:
     #         # TEMP: Random sampling fix
     #         if self.random_sampling_fix:
-    #             feed_dict = {state_input: states[name][0] for name, state_input in self.states_input.items()}
-    #             feed_dict.update({state_input: states[name][1] for name, state_input in self.next_states_input.items()})
+    #             feed_dict = {state_input: states[name][0] for name, state_input in self.states_input)}
+    #             feed_dict.update({state_input: states[name][1] for name, state_input in self.next_states_input)})
     #         else:
-    #             feed_dict = {state_input: states[name] for name, state_input in self.states_input.items()}
+    #             feed_dict = {state_input: states[name] for name, state_input in self.states_input)}
     #         feed_dict.update(
     #             {internal_input: internals[n]
     #                 for n, internal_input in enumerate(self.internals_input)}
     #         )
     #         feed_dict.update(
     #             {action_input: actions[name]
-    #                 for name, action_input in self.actions_input.items()}
+    #                 for name, action_input in self.actions_input)}
     #         )
     #         feed_dict[self.terminal_input] = terminal
     #         feed_dict[self.reward_input] = reward
@@ -329,14 +329,14 @@ class QModel(DistributionModel):
     #         if self.random_sampling_fix:
     #             raise TensorForceError("Unbatched version not covered by fix.")
     #         else:
-    #             feed_dict = {state_input: (states[name],) for name, state_input in self.states_input.items()}
+    #             feed_dict = {state_input: (states[name],) for name, state_input in self.states_input)}
     #         feed_dict.update(
     #             {internal_input: (internals[n],)
     #                 for n, internal_input in enumerate(self.internals_input)}
     #         )
     #         feed_dict.update(
     #             {action_input: (actions[name],)
-    #                 for name, action_input in self.actions_input.items()}
+    #                 for name, action_input in self.actions_input)}
     #         )
     #         feed_dict[self.terminal_input] = (terminal,)
     #         feed_dict[self.reward_input] = (reward,)

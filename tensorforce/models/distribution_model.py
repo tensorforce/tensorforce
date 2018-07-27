@@ -104,7 +104,8 @@ class DistributionModel(MemoryModel):
         # Now that we have the network component: We can create the internals placeholders.
         assert len(self.internals_spec) == 0
         self.internals_spec = self.network.internals_spec()
-        for name, internal in self.internals_spec.items():
+        for name in sorted(self.internals_spec):
+            internal = self.internals_spec[name]
             self.internals_input[name] = tf.placeholder(
                 dtype=util.tf_dtype(internal['type']),
                 shape=(None,) + tuple(internal['shape']),
@@ -137,7 +138,8 @@ class DistributionModel(MemoryModel):
         Returns: Dict of distributions according to self.distributions_spec.
         """
         distributions = dict()
-        for name, action in self.actions_spec.items():
+        for name in sorted(self.actions_spec):
+            action = self.actions_spec[name]
 
             if self.distributions_spec is not None and name in self.distributions_spec:
                 kwargs = dict(action)
@@ -216,8 +218,8 @@ class DistributionModel(MemoryModel):
         if network_loss is not None:
             losses['network'] = network_loss
 
-        for distribution in self.distributions.values():
-            regularization_loss = distribution.regularization_loss()
+        for name in sorted(self.distributions):
+            regularization_loss = self.distributions[name].regularization_loss()
             if regularization_loss is not None:
                 if 'distributions' in losses:
                     losses['distributions'] += regularization_loss
@@ -303,8 +305,8 @@ class DistributionModel(MemoryModel):
     def get_components(self):
         result = dict(super(DistributionModel, self).get_components())
         result[DistributionModel.COMPONENT_NETWORK] = self.network
-        for action, distribution in self.distributions.items():
-            result["%s_%s" % (DistributionModel.COMPONENT_DISTRIBUTION, action)] = distribution
+        for name in sorted(self.distributions):
+            result["%s_%s" % (DistributionModel.COMPONENT_DISTRIBUTION, name)] = self.distributions[name]
         if len(self.distributions) == 1:
-            result[DistributionModel.COMPONENT_DISTRIBUTION] = next(iter(self.distributions.values()))
+            result[DistributionModel.COMPONENT_DISTRIBUTION] = self.distributions[next(iter(sorted(self.distributions)))]
         return result

@@ -415,10 +415,10 @@ class MemoryModel(Model):
             # Regularization losses.
             losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
             if len(losses) > 0:
-                loss += tf.add_n(inputs=list(losses.values()))
+                loss += tf.add_n(inputs=[losses[name] for name in sorted(losses)])
                 if 'regularization' in self.summary_labels:
-                    for name, loss_val in losses.items():
-                        summary = tf.summary.scalar(name=('regularization/' + name), tensor=loss_val)
+                    for name in sorted(losses):
+                        summary = tf.summary.scalar(name=('regularization/' + name), tensor=losses[name])
                         self.summaries.append(summary)
 
             # Total loss summary.

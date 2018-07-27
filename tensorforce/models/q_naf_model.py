@@ -59,7 +59,7 @@ class QNAFModel(QModel):
         double_q_model,
         huber_loss
     ):
-        if any(action['type'] != 'float' or 'min_value' in action or 'max_value' in action for action in actions.values()):
+        if any(actions[name]['type'] != 'float' or 'min_value' in actions[name] or 'max_value' in actions[name] for name in sorted(actions)):
             raise TensorForceError("Only unconstrained float actions valid for NAFModel.")
 
         super(QNAFModel, self).__init__(
@@ -93,8 +93,8 @@ class QNAFModel(QModel):
 
         self.state_values = dict()
         self.l_entries = dict()
-        for name, action in self.actions_spec.items():
-            num_action = util.prod(action['shape'])
+        for name in sorted(self.actions_spec):
+            num_action = util.prod(self.actions_spec[name]['shape'])
             self.state_values[name] = Linear(size=num_action, scope='state-value')
             self.l_entries[name] = Linear(size=(num_action * (num_action - 1) // 2), scope='l-entries')
 
@@ -153,7 +153,8 @@ class QNAFModel(QModel):
         )
 
         deltas = list()
-        for name, distribution in self.distributions.items():
+        for name in sorted(self.distributions):
+            distribution = self.distributions[name]
             target_distribution = self.target_distributions[name]
 
             distr_params = distribution.parameterize(x=embedding)
@@ -190,16 +191,16 @@ class QNAFModel(QModel):
             update=update
         )
 
-        for state_value in self.state_values.values():
-            regularization_loss = state_value.regularization_loss()
+        for name in sorted(self.state_values):
+            regularization_loss = self.state_values[name].regularization_loss()
             if regularization_loss is not None:
                 if 'state-values' in losses:
                     losses['state-values'] += regularization_loss
                 else:
                     losses['state-values'] = regularization_loss
 
-        for l_entries in self.l_entries.values():
-            regularization_loss = l_entries.regularization_loss()
+        for name in sorted(self.l_entries):
+            regularization_loss = self.l_entries[name].regularization_loss()
             if regularization_loss is not None:
                 if 'l-entries' in losses:
                     losses['l-entries'] += regularization_loss

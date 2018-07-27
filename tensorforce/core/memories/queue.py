@@ -102,7 +102,7 @@ class Queue(Memory):
             shape=(self.capacity,),
             dtype=util.tf_dtype('bool'),
             initializer=tf.constant_initializer(
-                value=tuple(bool(n == self.capacity - 1) for n in range(self.capacity)),
+                value=False,
                 dtype=util.tf_dtype('bool')
             ),
             trainable=False
@@ -144,7 +144,8 @@ class Queue(Memory):
     def tf_store(self, states, internals, actions, terminal, reward):
         # Memory indices to overwrite.
         num_instances = tf.shape(input=terminal)[0]
-        indices = tf.range(start=self.memory_index, limit=(self.memory_index + num_instances)) % self.capacity
+        with tf.control_dependencies([tf.assert_less_equal(num_instances, self.capacity)]):
+            indices = tf.range(self.memory_index, self.memory_index + num_instances) % self.capacity
 
         # Remove episode indices.
         num_episodes = tf.count_nonzero(
@@ -154,8 +155,8 @@ class Queue(Memory):
         )
         num_episodes = tf.minimum(x=num_episodes, y=self.episode_count)
         assignment = tf.assign(
-            ref=self.episode_indices[:self.episode_count + 1 - num_episodes],
-            value=self.episode_indices[num_episodes: self.episode_count + 1]
+            ref=self.episode_indices[:self.episode_count - num_episodes],
+            value=self.episode_indices[num_episodes: self.episode_count]
         )
 
         # Decrement episode count.
@@ -186,21 +187,28 @@ class Queue(Memory):
             assignments.append(tf.scatter_update(ref=self.terminal_memory, indices=indices, updates=terminal))
             assignments.append(tf.scatter_update(ref=self.reward_memory, indices=indices, updates=reward))
 
-        # Increment memory index.
-        with tf.control_dependencies(control_inputs=assignments):
-            assignment = tf.assign(ref=self.memory_index, value=((self.memory_index + num_instances) % self.capacity))
-
         # Add episode indices.
-        with tf.control_dependencies(control_inputs=(assignment,)):
+        with tf.control_dependencies(control_inputs=assignments):
             num_episodes = tf.count_nonzero(input_tensor=terminal, axis=0, dtype=util.tf_dtype('int'))
             assignment = tf.assign(
-                ref=self.episode_indices[self.episode_count + 1: self.episode_count + 1 + num_episodes],
+                ref=self.episode_indices[self.episode_count: self.episode_count + num_episodes],
                 value=tf.boolean_mask(tensor=indices, mask=terminal)
             )
 
         # Increment episode count.
         with tf.control_dependencies(control_inputs=(assignment,)):
             assignment = tf.assign_add(ref=self.episode_count, value=num_episodes)
+
+        # Increment memory index.
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            assignment = tf.assign(
+                ref=self.episode_indices[-1],
+                value=tf.where(self.memory_index + num_instances > self.capacity,
+                               self.episode_indices[self.episode_count - 1], self.capacity - 1)
+            )
+
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            assignment = tf.assign(ref=self.memory_index, value=((self.memory_index + num_instances) % self.capacity))
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.no_op()

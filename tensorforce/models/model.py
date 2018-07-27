@@ -216,6 +216,8 @@ class Model(object):
         self.timestep_output = None
 
         self.summary_configuration_op = None
+        # Add an explicit reset op with no dependencies
+        self.buffer_index_reset_op = None
 
         # Setup Model (create and build graph (local and global if distributed), server, session, etc..).
         self.setup()
@@ -230,7 +232,7 @@ class Model(object):
         graph_default_context = self.setup_graph()
 
         # Start a tf Server (in case of distributed setup). Only start once.
-        if self.execution_type == "distributed" and not self.server and self.is_local_model:
+        if self.execution_type == "distributed" and self.server is None and self.is_local_model:
             self.start_server()
 
         # build the graph
@@ -304,6 +306,7 @@ class Model(object):
 
         # Create necessary hooks for the upcoming session.
         hooks = self.setup_summary_and_saver_hooks()
+
         # We are done constructing: Finalize our graph, create and enter the session.
         self.setup_session(self.server, hooks, graph_default_context)
 
@@ -421,7 +424,8 @@ class Model(object):
                     state['unprocessed_shape'] = state['shape']
         # Single preprocessor for all components of our state space
         elif "type" in self.states_preprocessing_spec:
-            preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec)
+            preprocessing = PreprocessorStack.from_spec(spec=self.states_preprocessing_spec,
+                                                        kwargs=dict(shape=state['shape']))
             for name, state in self.states_spec.items():
                 state['unprocessed_shape'] = state['shape']
                 state['shape'] = preprocessing.processed_shape(shape=state['unprocessed_shape'])
@@ -576,7 +580,7 @@ class Model(object):
         """
         if self.execution_type == "single":
             global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
-            #global_variables += [self.global_episode, self.global_timestep]
+            # global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=global_variables)
             ready_for_local_init_op = None
@@ -585,7 +589,7 @@ class Model(object):
         else:
             # Global and local variable initializers.
             global_variables = self.global_model.get_variables(include_submodules=True, include_nontrainable=True)
-            #global_variables += [self.global_episode, self.global_timestep]
+            # global_variables += [self.global_episode, self.global_timestep]
             local_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             init_op = tf.variables_initializer(var_list=global_variables)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
@@ -612,6 +616,7 @@ class Model(object):
                     file = os.path.join(directory, file)
                 if file is not None:
                     scaffold.saver.restore(sess=session, save_path=file)
+                    session.run(self.buffer_index_reset_op)
 
         # TensorFlow scaffold object
         # TODO explain what it does.
@@ -774,31 +779,51 @@ class Model(object):
         # Timesteps/Episodes
         # Global: (force on global device; local and global model point to the same (global) data).
         with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
-            self.global_timestep = tf.get_variable(
-                name='global-timestep',
-                dtype=util.tf_dtype('int'),
-                trainable=False,
-                initializer=0,
-                collections=['global-timestep', tf.GraphKeys.GLOBAL_STEP]
-            )
-            self.global_episode = tf.get_variable(
-                name='global-episode',
-                dtype=util.tf_dtype('int'),
-                trainable=False,
-                initializer=0,
-                collections=['global-episode']
-            )
+
+            # Global timestep
+            collection = self.graph.get_collection(name='global-timestep')
+            if len(collection) == 0:
+                self.global_timestep = tf.get_variable(
+                    name='global-timestep',
+                    shape=(),
+                    dtype=tf.int64,
+                    trainable=False,
+                    initializer=tf.constant_initializer(value=0, dtype=tf.int64),
+                    collections=['global-timestep', tf.GraphKeys.GLOBAL_STEP]
+                )
+            else:
+                assert len(collection) == 1
+                self.global_timestep = collection[0]
+
+            # Global episode
+            collection = self.graph.get_collection(name='global-episode')
+            if len(collection) == 0:
+                self.global_episode = tf.get_variable(
+                    name='global-episode',
+                    shape=(),
+                    dtype=tf.int64,
+                    trainable=False,
+                    initializer=tf.constant_initializer(value=0, dtype=tf.int64),
+                    collections=['global-episode']
+                )
+            else:
+                assert len(collection) == 1
+                self.global_episode = collection[0]
+
         # Local counters: local device
         self.timestep = tf.get_variable(
             name='timestep',
-            dtype=util.tf_dtype('int'),
-            initializer=0,
+            shape=(),
+            dtype=tf.int64,
+            initializer=tf.constant_initializer(value=0, dtype=tf.int64),
             trainable=False
         )
+
         self.episode = tf.get_variable(
             name='episode',
-            dtype=util.tf_dtype('int'),
-            initializer=0,
+            shape=(),
+            dtype=tf.int64,
+            initializer=tf.constant_initializer(value=0, dtype=tf.int64),
             trainable=False
         )
 
@@ -849,8 +874,8 @@ class Model(object):
         Returns: The preprocessed versions of the input tensors.
         """
         # States preprocessing
-        for name, preprocessing in self.states_preprocessing.items():
-            states[name] = preprocessing.process(tensor=states[name])
+        for name in sorted(self.states_preprocessing):
+            states[name] = self.states_preprocessing[name].process(tensor=states[name])
 
         # Reward preprocessing
         if self.reward_preprocessing is not None:
@@ -984,13 +1009,13 @@ class Model(object):
 
         # Actions exploration
         with tf.control_dependencies(control_inputs=operations):
-            for name, exploration in self.actions_exploration.items():
+            for name in sorted(self.actions_exploration):
                 self.actions_output[name] = tf.cond(
                     pred=self.deterministic_input,
                     true_fn=(lambda: self.actions_output[name]),
                     false_fn=(lambda: self.fn_action_exploration(
                         action=self.actions_output[name],
-                        exploration=exploration,
+                        exploration=self.actions_exploration[name],
                         action_spec=self.actions_spec[name]
                     ))
                 )
@@ -1010,20 +1035,20 @@ class Model(object):
             """
             operations = list()
             batch_size = tf.shape(input=next(iter(states.values())))[0]
-            for name, state in states.items():
+            for name in sorted(states):
                 operations.append(tf.assign(
                     ref=self.states_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=state
+                    value=states[name]
                 ))
-            for name, internal in internals.items():
+            for name in sorted(internals):
                 operations.append(tf.assign(
                     ref=self.internals_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=internal
+                    value=internals[name]
                 ))
-            for name, action in self.actions_output.items():
+            for name in sorted(self.actions_output):
                 operations.append(tf.assign(
                     ref=self.actions_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=action
+                    value=self.actions_output[name]
                 ))
 
             with tf.control_dependencies(control_inputs=operations):
@@ -1032,8 +1057,8 @@ class Model(object):
                 operations.append(tf.assign_add(ref=self.buffer_index, value=batch_size))
 
                 # Increment timestep
-                operations.append(tf.assign_add(ref=self.timestep, value=batch_size))
-                operations.append(tf.assign_add(ref=self.global_timestep, value=batch_size))
+                operations.append(tf.assign_add(ref=self.timestep, value=tf.to_int64(x=batch_size)))
+                operations.append(tf.assign_add(ref=self.global_timestep, value=tf.to_int64(x=batch_size)))
 
             with tf.control_dependencies(control_inputs=operations):
                 # Trivial operation to enforce control dependency
@@ -1062,8 +1087,8 @@ class Model(object):
         """
         # Increment episode
         num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
-        increment_episode = tf.assign_add(ref=self.episode, value=num_episodes)
-        increment_global_episode = tf.assign_add(ref=self.global_episode, value=num_episodes)
+        increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
+        increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
 
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
             # Stop gradients
@@ -1091,6 +1116,8 @@ class Model(object):
             # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 
+        self.buffer_index_reset_op = tf.assign(ref=self.buffer_index, value=0)
+
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
     def create_atomic_observe_operations(self, states, actions, internals, terminal, reward):
@@ -1108,8 +1135,8 @@ class Model(object):
         """
         # Increment episode
         num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
-        increment_episode = tf.assign_add(ref=self.episode, value=num_episodes)
-        increment_global_episode = tf.assign_add(ref=self.global_episode, value=num_episodes)
+        increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
+        increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
 
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
             # Stop gradients
@@ -1460,6 +1487,7 @@ class Model(object):
         #     raise TensorForceError("Invalid model directory/file.")
 
         self.saver.restore(sess=self.session, save_path=file)
+        self.session.run(self.buffer_index_reset_op)
 
     def get_components(self):
         """

@@ -7,6 +7,7 @@ import pytest
 
 from tensorforce import TensorForceError
 from tensorforce.core.networks import LayeredNetwork
+from tensorforce.environments import Environment
 from tensorforce.models import DistributionModel
 from .minimal_test import MinimalTest
 from tensorforce.agents import PPOAgent
@@ -15,6 +16,38 @@ import tensorflow as tf
 import numpy as np
 from tensorforce.util import SavableComponent
 import os
+
+
+class DummyEnv(Environment):
+    """
+    Dummy environment -> spits out random number for state and never terminates.
+    """
+
+    def __init__(self):
+        super(DummyEnv, self).__init__()
+
+    def __str__(self):
+        return 'DummyEnv'
+
+    def close(self):
+        pass
+
+    def reset(self):
+        return np.random.uniform(size=[1])
+
+    def execute(self, action):
+        reward = np.random.uniform()
+        terminal = False
+        state = np.random.uniform(size=[1])
+        return state, terminal, reward
+
+    @property
+    def states(self):
+        return dict(shape=1, type='float')
+
+    @property
+    def actions(self):
+        return dict(type='float', min_value=0.0, max_value=1.0)
 
 
 class SavableNetwork(LayeredNetwork, SavableComponent):
@@ -32,7 +65,7 @@ def create_environment(spec):
     return MinimalTest(spec)
 
 
-def create_agent(environment, network_spec):
+def create_agent(environment, network_spec, saver_spec=None):
     return PPOAgent(
         update_mode=dict(
             unit='episodes',
@@ -52,7 +85,8 @@ def create_agent(environment, network_spec):
         optimization_steps=20,
         states=environment.states,
         actions=environment.actions,
-        network=network_spec
+        network=network_spec,
+        saver=saver_spec
     )
 
 
@@ -90,7 +124,80 @@ class TestModelSaveRestore(unittest.TestCase):
         assert len(model_values) == len(restored_model_values)
         assert all([np.array_equal(v1, v2) for v1, v2 in zip(model_values, restored_model_values)])
 
-        agent.close()
+        runner = Runner(agent=agent, environment=environment)
+        runner.run(episodes=100)
+        runner.close()
+
+    def test_auto_save_restore(self):
+        saver_steps = 15
+        steps_per_episode = 20
+        train_episodes = 2
+
+        assert ((steps_per_episode + 1) * train_episodes % saver_steps) > 0
+
+        environment = DummyEnv()
+        network_spec = [
+            dict(type='dense', size=4)
+        ]
+        model_path = self._tmp_dir_path + "/model_auto_save"
+
+        saver_spec = dict(
+            directory=model_path,
+            steps=saver_steps,
+            load=False
+        )
+        agent = create_agent(environment, network_spec, saver_spec)
+        runner = Runner(agent=agent, environment=environment)
+
+        runner.run(max_episode_timesteps=steps_per_episode, episodes=train_episodes)
+        # Deliberately avoid closing the runner/agent to simulate unexpected shutdown
+
+        saver_spec["load"] = True
+        agent = create_agent(environment, network_spec, saver_spec)
+        expected_timestep = train_episodes * (steps_per_episode + 1) // saver_steps * saver_steps
+        assert agent.episode == train_episodes - 1
+        assert agent.timestep == expected_timestep
+
+        runner = Runner(agent=agent, environment=environment)
+        runner.run(max_episode_timesteps=steps_per_episode, episodes=train_episodes)
+        assert agent.episode == 2 * train_episodes - 1
+        runner.close()
+
+    def test_restore_from_checkpoint(self):
+        saver_steps = 15
+        steps_per_episode = 20
+        train_episodes = 2
+
+        assert ((steps_per_episode + 1) * train_episodes % saver_steps) > 0
+
+        environment = DummyEnv()
+        network_spec = [
+            dict(type='dense', size=4)
+        ]
+        model_path = self._tmp_dir_path + "/model_auto_save"
+
+        saver_spec = dict(
+            directory=model_path,
+            steps=saver_steps,
+            load=False
+        )
+        agent = create_agent(environment, network_spec, saver_spec)
+        runner = Runner(agent=agent, environment=environment)
+
+        runner.run(max_episode_timesteps=steps_per_episode, episodes=train_episodes)
+        # Deliberately avoid closing the runner/agent to simulate unexpected shutdown
+
+        agent = create_agent(environment, network_spec)
+        agent.restore_model(directory=model_path)
+        agent.reset()
+        expected_timestep = train_episodes * (steps_per_episode + 1) // saver_steps * saver_steps
+        assert agent.episode == train_episodes - 1
+        assert agent.timestep == expected_timestep
+
+        runner = Runner(agent=agent, environment=environment)
+        runner.run(max_episode_timesteps=steps_per_episode, episodes=train_episodes)
+        assert agent.episode == 2 * train_episodes - 1
+        runner.close()
 
     def test_save_network(self):
         """

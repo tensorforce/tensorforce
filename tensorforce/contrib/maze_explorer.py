@@ -51,8 +51,8 @@ class MazeExplorer(Environment):
         # TODO: Reset to `ones`?
         return self.engine.reset()
 
-    def execute(self, actions):
-        state, reward, terminal, _ = self.engine.act(actions)
+    def execute(self, action):
+        state, reward, terminal, _ = self.engine.act(action)
         return state, terminal, reward
 
     @property

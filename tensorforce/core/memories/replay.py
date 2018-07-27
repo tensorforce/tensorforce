@@ -49,7 +49,7 @@ class Replay(Queue):
         )
 
     def tf_retrieve_timesteps(self, n):
-        num_timesteps = (self.memory_index - self.episode_indices[0] - 2) % self.capacity + 1
+        num_timesteps = (self.memory_index - self.episode_indices[-1] - 2) % self.capacity + 1
         indices = tf.random_uniform(shape=(n,), maxval=num_timesteps, dtype=tf.int32)
         indices = (self.memory_index - 1 - indices) % self.capacity
 
@@ -96,9 +96,15 @@ class Replay(Queue):
             return self.retrieve_indices(indices=indices)
 
     def tf_retrieve_episodes(self, n):
-        random_episode_indices = tf.random_uniform(shape=(n,), maxval=(self.episode_count + 1), dtype=tf.int32)
-        starts = tf.gather(params=self.episode_indices, indices=random_episode_indices) + 1
-        limits = tf.gather(params=self.episode_indices, indices=(random_episode_indices + 1))
+        asserts = [
+            tf.assert_greater(x=self.episode_count, y=0, message="nothing stored yet")
+        ]
+        with tf.control_dependencies(control_inputs=asserts):
+            # TODO: Should we use tf.random_shuffle(tf.range(count))[:n] for better sampling?
+            random_episode_indices = tf.random_uniform(shape=(n,), maxval=self.episode_count, dtype=tf.int32)
+        # -1 should translate to capacity, the episode_indices has length capacity + 1
+        starts = tf.gather(params=self.episode_indices, indices=(random_episode_indices - 1) % (self.capacity + 1)) + 1
+        limits = tf.gather(params=self.episode_indices, indices=random_episode_indices) + 1
         limits += tf.where(
             condition=(starts < limits),
             x=tf.constant(value=0, shape=(n,)),

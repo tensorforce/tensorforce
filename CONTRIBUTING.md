@@ -140,7 +140,6 @@ makes for a good first contribution. Below is a list of environments one might l
 - DeepMind pycolab - [link](https://github.com/deepmind/pycolab)
 - OpenAI roboschool - [link](https://github.com/openai/roboschool)
 - DeepGTAV - GTA 5 self-driving car research environment - [link](https://github.com/aitorzip/DeepGTAV)
-- PyGame learning environment - [link](https://github.com/ntasfi/PyGame-Learning-Environment)
 - Siemens industrial control benchmark - [link](https://github.com/siemens/industrialbenchmark)
 - ViZDoom, Doom based research paltform - [link](https://github.com/mwydmuch/ViZDoom)
 

@@ -88,7 +88,7 @@ def main():
         # Save first received image as a sanity-check.
         img.save("reset.png")
         for i in range(1000):
-            s, is_terminal, r = environment.execute(actions=random.choice(range(environment.actions["num_actions"])))
+            s, is_terminal, r = environment.execute(action=random.choice(range(environment.actions["num_actions"])))
             if i < 10:
                 img = Image.fromarray(s, img_format)
                 img.save("{:03d}.png".format(i))

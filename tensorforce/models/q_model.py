@@ -173,7 +173,8 @@ class QModel(DistributionModel):
         )
 
         deltas = list()
-        for name, distribution in self.distributions.items():
+        for name in sorted(self.distributions):
+            distribution = self.distributions[name]
             target_distribution = self.target_distributions[name]
 
             distr_params = distribution.parameterize(x=embedding)

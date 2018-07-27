@@ -109,7 +109,7 @@ class DeepMindLab(Environment):
         self.level.reset()  # optional: episode=-1, seed=None
         return self.level.observations()[self.state_attribute]
 
-    def execute(self, actions):
+    def execute(self, action):
         """
         Pass action to universe environment, return reward, next step, terminal state and
         additional info.
@@ -119,15 +119,15 @@ class DeepMindLab(Environment):
         :return: dict containing the next state, the reward, and a boolean indicating if the
             next state is a terminal state
         """
-        adjusted_actions = list()
+        adjusted_action = list()
         for action_spec in self.level.action_spec():
             if action_spec['min'] == -1 and action_spec['max'] == 1:
-                adjusted_actions.append(actions[action_spec['name']] - 1)
+                adjusted_action.append(action[action_spec['name']] - 1)
             else:
-                adjusted_actions.append(actions[action_spec['name']])  # clip?
-        actions = np.array(adjusted_actions, dtype=np.intc)
+                adjusted_action.append(action[action_spec['name']])  # clip?
+        action = np.array(adjusted_action, dtype=np.intc)
 
-        reward = self.level.step(action=actions, num_steps=self.repeat_action)
+        reward = self.level.step(action=action, num_steps=self.repeat_action)
         state = self.level.observations()['RGB_INTERLACED']
         terminal = not self.level.is_running()
         return state, terminal, reward

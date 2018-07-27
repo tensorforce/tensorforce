@@ -35,7 +35,7 @@ class Game2048(Environment):
         self.__init__()
         return self._state
 
-    def execute(self, actions):
+    def execute(self, action):
         reward = 0
 
         # Terminal
@@ -44,11 +44,11 @@ class Game2048(Environment):
             return self._state, terminal, reward
 
         # Valid action
-        action_available = self.is_action_available(actions)
+        action_available = self.is_action_available(action)
         if not action_available:
             return self._state, terminal, reward
 
-        reward = self.do_action(actions)
+        reward = self.do_action(action)
 
         return self._state, terminal, reward
 

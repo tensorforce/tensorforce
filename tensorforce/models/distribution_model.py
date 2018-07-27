@@ -186,14 +186,15 @@ class DistributionModel(MemoryModel):
         )
 
         actions = dict()
-        for name, distribution in self.distributions.items():
+        for name in sorted(self.distributions):
+            distribution = self.distributions[name]
             distr_params = distribution.parameterize(x=embedding)
             actions[name] = distribution.sample(
                 distr_params=distr_params,
                 deterministic=tf.logical_or(x=deterministic, y=self.requires_deterministic)
             )
             # Prefix named variable with "name_" if more than 1 distribution.
-            if len(self.distributions.items()) > 1:
+            if len(self.distributions) > 1:
                 name_prefix = name + "_"
             else:
                 name_prefix = ""
@@ -226,7 +227,8 @@ class DistributionModel(MemoryModel):
         if self.entropy_regularization is not None and self.entropy_regularization > 0.0:
             entropies = list()
             embedding = self.network.apply(x=states, internals=internals, update=update)
-            for name, distribution in self.distributions.items():
+            for name in sorted(self.distributions):
+                distribution = self.distributions[name]
                 distr_params = distribution.parameterize(x=embedding)
                 entropy = distribution.entropy(distr_params=distr_params)
                 collapsed_size = util.prod(util.shape(entropy)[1:])
@@ -246,7 +248,8 @@ class DistributionModel(MemoryModel):
         embedding = self.network.apply(x=states, internals=internals, update=update)
         kl_divergences = list()
 
-        for name, distribution in self.distributions.items():
+        for name in sorted(self.distributions):
+            distribution = self.distributions[name]
             distr_params = distribution.parameterize(x=embedding)
             fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
             kl_divergence = distribution.kl_divergence(distr_params1=fixed_distr_params, distr_params2=distr_params)

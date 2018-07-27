@@ -481,7 +481,7 @@ class TestTutorialCode(unittest.TestCase):
             episode_reward = 0
             while True:
                 action = agent.act(states=state)
-                state, terminal, reward = environment.execute(actions=action)
+                state, terminal, reward = environment.execute(action=action)
                 agent.observe(terminal=terminal, reward=reward)
 
                 timestep += 1

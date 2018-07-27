@@ -115,6 +115,13 @@ class OpenAIGym(Environment):
                     for name, state in state.items():
                         states['{}-{}'.format(space_name, name)] = state
             return states
+
+        elif isinstance(space, gym.spaces.Dict):
+            states = dict()
+            for space_name,space in space.spaces.items():
+                state = OpenAIGym.state_from_space(space=space)
+                states[space_name] = state
+            return states
         else:
             raise TensorForceError('Unknown Gym space.')
 
@@ -138,7 +145,7 @@ class OpenAIGym(Environment):
                     for name, state in state.items():
                         states['{}-{}'.format(state_name, name)] = state
                 else:
-                    states['{}-{}'.format(state_name, name)] = state
+                    states['{}'.format(state_name)] = state
             return states
         else:
             return state

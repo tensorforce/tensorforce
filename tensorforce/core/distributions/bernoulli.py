@@ -133,9 +133,3 @@ class Bernoulli(Distribution):
         logit_variables = self.logit.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + logit_variables
-
-    def get_summaries(self):
-        distribution_summaries = super(Bernoulli, self).get_summaries()
-        logit_summaries = self.logit.get_summaries()
-
-        return distribution_summaries + logit_summaries

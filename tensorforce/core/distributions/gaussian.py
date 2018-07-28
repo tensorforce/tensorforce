@@ -135,10 +135,3 @@ class Gaussian(Distribution):
         log_stddev_variables = self.log_stddev.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + mean_variables + log_stddev_variables
-
-    def get_summaries(self):
-        distribution_summaries = super(Gaussian, self).get_summaries()
-        mean_summaries = self.mean.get_summaries()
-        log_stddev_summaries = self.log_stddev.get_summaries()
-
-        return distribution_summaries + mean_summaries + log_stddev_summaries

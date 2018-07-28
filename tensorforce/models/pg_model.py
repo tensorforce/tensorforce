@@ -339,12 +339,6 @@ class PGModel(DistributionModel):
 
         return model_variables
 
-    def get_summaries(self):
-        if self.baseline_mode is None:
-            return super(PGModel, self).get_summaries()
-        else:
-            return super(PGModel, self).get_summaries() + self.baseline.get_summaries()
-
     def get_components(self):
         if self.baseline is None:
             return super(PGModel, self).get_components()

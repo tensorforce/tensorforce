@@ -40,7 +40,6 @@ class Network(object):
 
         self.variables = dict()
         self.all_variables = dict()
-        self.summaries = list()
         self.named_tensors = dict()
 
         def custom_getter(getter, name, registered=False, **kwargs):
@@ -50,8 +49,7 @@ class Network(object):
                 if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                        tf.contrib.summary.histogram(name=name, tensor=variable)
             return variable
 
         self.apply = tf.make_template(
@@ -110,15 +108,6 @@ class Network(object):
         else:
             return [self.variables[key] for key in sorted(self.variables)]
 
-    def get_summaries(self):
-        """
-        Returns the TensorFlow summaries reported by the network.
-
-        Returns:
-            List of summaries
-        """
-        return self.summaries
-
     def get_named_tensor(self, name):
         """
         Returns a named tensor if available.
@@ -142,12 +131,6 @@ class Network(object):
         return list(self.named_tensors)
 
     def set_named_tensor(self, name, tensor):
-        """
-        Returns the TensorFlow summaries reported by the network.
-
-        Returns:
-            None
-        """
         self.named_tensors[name] = tensor
 
     @staticmethod
@@ -234,12 +217,6 @@ class LayerBasedNetwork(Network):
         ]
 
         return network_variables + layer_variables
-
-    def get_summaries(self):
-        network_summaries = super(LayerBasedNetwork, self).get_summaries()
-        layer_summaries = [summary for layer in self.layers for summary in layer.get_summaries()]
-
-        return network_summaries + layer_summaries
 
 
 class LayeredNetwork(LayerBasedNetwork):

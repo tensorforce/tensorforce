@@ -68,7 +68,7 @@ def main():
 
     logging.basicConfig(level=logging.INFO)
 
-    logger = logging.getLogger(__file__)
+    logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
     if args.import_modules is not None:

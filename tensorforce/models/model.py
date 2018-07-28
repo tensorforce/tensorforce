@@ -111,24 +111,21 @@ class Model(object):
         self.scope = scope
         self.device = device
 
-        # Saver/summaries
+        # Saver
         if saver is None or saver.get('directory') is None:
             self.saver_spec = None
         else:
             self.saver_spec = saver
+
+        # Summarizer
         if summarizer is None or summarizer.get('directory') is None:
             self.summarizer_spec = None
-        else:
-            self.summarizer_spec = summarizer
-        self.summarizer = None  # The tf.summary.FileWriter object
-        self.summarizer_hook = None  # The summarizer hook to use in the model's session.
-
-        # TensorFlow summaries
-        if self.summarizer_spec is None:
             self.summary_labels = set()
         else:
+            self.summarizer_spec = summarizer
             self.summary_labels = set(self.summarizer_spec.get('labels', ()))
-        self.is_observe = False
+        self.summarizer = None
+        self.graph_summary = None
 
         # Execution logic settings.
         self.execution_spec = execution
@@ -167,7 +164,6 @@ class Model(object):
         self.variables = None
         self.all_variables = None
         self.registered_variables = None
-        self.summaries = None
 
         # 0D counter tensors
         self.timestep = None
@@ -203,8 +199,7 @@ class Model(object):
         # The tf Server object (if any)
         self.server = None
 
-        self.summary_writer = None
-        self.summary_writer_hook = None
+        self.summarizer = None
         self.saver = None
         self.saver_directory = None
         self.scaffold = None
@@ -214,8 +209,6 @@ class Model(object):
         self.actions_output = None
         self.internals_output = None
         self.timestep_output = None
-
-        self.summary_configuration_op = None
         # Add an explicit reset op with no dependencies
         self.buffer_index_reset_op = None
 
@@ -243,7 +236,6 @@ class Model(object):
                 self.variables = dict()
                 self.all_variables = dict()
                 self.registered_variables = set()
-                self.summaries = list()
 
                 # Build the graph's placeholders, tf_functions, etc
                 self.setup_placeholders()
@@ -253,6 +245,27 @@ class Model(object):
 
                 # Create core variables (timestep, episode counters, buffers for states/actions/internals).
                 self.fn_initialize()
+
+                if self.summarizer_spec is not None:
+                    self.summarizer = tf.contrib.summary.create_file_writer(
+                        logdir=self.summarizer_spec['directory'],
+                        max_queue=None,
+                        flush_millis=self.summarizer_spec.get('flush', 60000),
+                        filename_suffix=None,
+                        name=None
+                    )
+
+                    default_summarizer = self.summarizer.as_default()
+                    if 'steps' in self.summarizer_spec:
+                        record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
+                            n=self.summarizer_spec['steps'],
+                            global_step=self.global_timestep
+                        )
+                    else:
+                        record_summaries = tf.contrib.summary.always_record_summaries()
+
+                    default_summarizer.__enter__()
+                    record_summaries.__enter__()
 
                 # Input tensors
                 states = util.map_tensors(fn=tf.identity, tensors=self.states_input)
@@ -276,18 +289,31 @@ class Model(object):
                     independent=independent
                 )
 
+                if 'graph' in self.summary_labels:
+                    graph_def = self.graph.as_graph_def()
+                    graph_str = tf.constant(value=graph_def.SerializeToString(), dtype=tf.string, shape=())
+                    self.graph_summary = tf.contrib.summary.graph(param=graph_str, step=self.global_timestep)
+                    if 'meta_param_recorder_class' in self.summarizer_spec:
+                        self.graph_summary = tf.group(
+                            self.graph_summary,
+                            self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
+                        )
+
                 # Add all summaries specified in summary_labels
                 if any(k in self.summary_labels for k in ['inputs', 'states']):
                     for name in sorted(states):
-                        summary = tf.summary.histogram(name=(self.scope + '/inputs/states/' + name), values=states[name])
-                        self.summaries.append(summary)
+                        tf.contrib.summary.histogram(name=(self.scope + '/inputs/states/' + name), tensor=states[name])
                 if any(k in self.summary_labels for k in ['inputs', 'actions']):
                     for name in sorted(actions):
-                        summary = tf.summary.histogram(name=(self.scope + '/inputs/actions/' + name), values=actions[name])
-                        self.summaries.append(summary)
+                        tf.contrib.summary.histogram(name=(self.scope + '/inputs/actions/' + name), tensor=actions[name])
                 if any(k in self.summary_labels for k in ['inputs', 'rewards']):
-                    summary = tf.summary.histogram(name=(self.scope + '/inputs/rewards'), values=reward)
-                    self.summaries.append(summary)
+                    tf.contrib.summary.histogram(name=(self.scope + '/inputs/rewards'), tensor=reward)
+
+                if self.summarizer_spec is not None:
+                    self.summarizer_flush = tf.contrib.summary.flush()
+
+                    record_summaries.__exit__(None, None, None)
+                    default_summarizer.__exit__(None, None, None)
 
         # If we are a global model -> return here.
         # Saving, syncing, finalizing graph, session is done by local replica model.
@@ -296,16 +322,11 @@ class Model(object):
 
         # Saver/Summary -> Scaffold.
         self.setup_saver()
-        summaries = self.get_summaries()
-        if len(summaries) > 0:
-            summary_op = tf.summary.merge(inputs=summaries)
-        else:
-            summary_op = None
 
-        self.setup_scaffold(summary_op)
+        self.setup_scaffold()
 
         # Create necessary hooks for the upcoming session.
-        hooks = self.setup_summary_and_saver_hooks()
+        hooks = self.setup_hooks()
 
         # We are done constructing: Finalize our graph, create and enter the session.
         self.setup_session(self.server, hooks, graph_default_context)
@@ -507,8 +528,7 @@ class Model(object):
                     if kwargs.get('trainable', True):
                         self.variables[name] = variable
                         if 'variables' in self.summary_labels:
-                            summary = tf.summary.histogram(name=name, values=variable)
-                            self.summaries.append(summary)
+                            tf.contrib.summary.histogram(name=name, tensor=variable)
                 return variable
 
         self.fn_initialize = tf.make_template(
@@ -573,18 +593,26 @@ class Model(object):
             # filename=None
         )
 
-    def setup_scaffold(self, summary_op):
+    def setup_scaffold(self):
         """
-        Creates the tf.train.Scaffold object with the given summary_op and assigns it to self.scaffold.
+        Creates the tf.train.Scaffold object and assigns it to self.scaffold.
         Other fields of the Scaffold are generated automatically.
         """
         if self.execution_type == "single":
             global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             # global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
-            ready_op = tf.report_uninitialized_variables(var_list=global_variables)
-            ready_for_local_init_op = None
-            local_init_op = None
+            if self.summarizer_spec is None:
+                ready_op = tf.report_uninitialized_variables(var_list=global_variables)
+                ready_for_local_init_op = None
+                local_init_op = None
+            else:
+                summarizer_init_op = tf.contrib.summary.summary_writer_initializer_op()
+                assert len(summarizer_init_op) == 1
+                init_op = tf.group(init_op, summarizer_init_op[0])
+                ready_op = None
+                ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
+                local_init_op = self.graph_summary
 
         else:
             # Global and local variable initializers.
@@ -592,16 +620,31 @@ class Model(object):
             # global_variables += [self.global_episode, self.global_timestep]
             local_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             init_op = tf.variables_initializer(var_list=global_variables)
+            if self.summarizer_spec is not None:
+                summarizer_init_op = tf.contrib.summary.summary_writer_initializer_op()
+                assert len(summarizer_init_op) == 1
+                init_op = tf.group(init_op, summarizer_init_op[0])
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
-            local_init_op = tf.group(
-                tf.variables_initializer(var_list=local_variables),
-                # Synchronize values of trainable variables.
-                *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
-                    self.get_variables(include_submodules=True),
-                    self.global_model.get_variables(include_submodules=True)
-                ))
-            )
+            if self.graph_summary is None:
+                local_init_op = tf.group(
+                    tf.variables_initializer(var_list=local_variables),
+                    # Synchronize values of trainable variables.
+                    *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
+                        self.get_variables(include_submodules=True),
+                        self.global_model.get_variables(include_submodules=True)
+                    ))
+                )
+            else:
+                local_init_op = tf.group(
+                    tf.variables_initializer(var_list=local_variables),
+                    self.graph_summary,
+                    # Synchronize values of trainable variables.
+                    *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
+                        self.get_variables(include_submodules=True),
+                        self.global_model.get_variables(include_submodules=True)
+                    ))
+                )
 
         def init_fn(scaffold, session):
             if self.saver_spec is not None and self.saver_spec.get('load', True):
@@ -627,15 +670,14 @@ class Model(object):
             ready_op=ready_op,
             ready_for_local_init_op=ready_for_local_init_op,
             local_init_op=local_init_op,
-            summary_op=summary_op,
+            summary_op=None,
             saver=self.saver,
             copy_from_scaffold=None
         )
 
-    def setup_summary_and_saver_hooks(self):
+    def setup_hooks(self):
         """
-        Creates and returns a list of saver and summarizer hooks to use in a session. Populates self.saver_directory,
-        self.summarizer_hook and self.summarizer.
+        Creates and returns a list of hooks to use in a session. Populates self.saver_directory.
 
         Returns: List of hooks to use in a session.
         """
@@ -655,32 +697,6 @@ class Model(object):
             ))
         else:
             self.saver_directory = None
-
-        # Summary saver hook
-        if self.summarizer_spec is None:
-            self.summarizer_hook = None
-        else:
-            # TensorFlow summary writer object
-            self.summarizer = tf.summary.FileWriter(
-                logdir=self.summarizer_spec['directory'],
-                graph=self.graph,
-                max_queue=10,
-                flush_secs=120,
-                filename_suffix=None
-            )
-            self.summarizer_hook = util.UpdateSummarySaverHook(
-                model=self,
-                save_steps=self.summarizer_spec.get('steps'),  # Either one or the other has to be set.
-                save_secs=self.summarizer_spec.get('seconds', None if 'steps' in self.summarizer_spec else 120),
-                output_dir=None,  # None since given via 'summary_writer' argument.
-                summary_writer=self.summarizer,
-                scaffold=self.scaffold,
-                summary_op=None  # None since given via 'scaffold' argument.
-            )
-            hooks.append(self.summarizer_hook)
-
-        if self.summarizer_spec and 'meta_param_recorder_class' in self.summarizer_spec:
-            self.summary_configuration_op = self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
 
         # Stop at step hook
         # hooks.append(tf.train.StopAtStepHook(
@@ -763,9 +779,10 @@ class Model(object):
         """
         Saves the model (of saver dir is given) and closes the session.
         """
+        self.monitored_session.run(fetches=self.summarizer_flush)
         if self.saver_directory is not None:
             self.save(append_timestep=True)
-        self.monitored_session.close()
+        self.monitored_session.__exit__(None, None, None)
 
     def as_local_model(self):
         pass
@@ -1217,15 +1234,6 @@ class Model(object):
 
         return model_variables
 
-    def get_summaries(self):
-        """
-        Returns the TensorFlow summaries reported by the model
-
-        Returns:
-            List of summaries
-        """
-        return self.summaries
-
     def reset(self):
         """
         Resets the model to its initial state on episode start. This should also reset all preprocessor(s).
@@ -1384,13 +1392,6 @@ class Model(object):
             actions = {name: actions[name][0] for name in sorted(actions)}
             internals = {name: internals[name][0] for name in sorted(internals)}
 
-        if self.summary_configuration_op is not None:
-            summary_values = self.session.run(self.summary_configuration_op)
-            self.summarizer.add_summary(summary_values)
-            self.summarizer.flush()
-            # Only do this operation once to reduce duplicate data in Tensorboard
-            self.summary_configuration_op = None
-
         if self.network is not None and fetch_tensors is not None:
             fetch_dict = dict()
             for index, tensor in enumerate(fetch_list[3:]):
@@ -1415,9 +1416,7 @@ class Model(object):
         fetches = self.episode_output
         feed_dict = self.get_feed_dict(terminal=terminal, reward=reward)
 
-        self.is_observe = True  # for custom UpdateSummarySaverHook (see utils.py)
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-        self.is_observe = False
 
         return episode
 
@@ -1431,9 +1430,7 @@ class Model(object):
             reward=reward
         )
 
-        self.is_observe = True
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-        self.is_observe = False
 
         return episode
 
@@ -1451,8 +1448,7 @@ class Model(object):
         Returns:
             Checkpoint path where the model was saved.
         """
-        if self.summarizer_hook is not None:
-            self.summarizer_hook._summary_writer.flush()
+        self.monitored_session.run(fetches=self.summarizer_flush)
 
         return self.saver.save(
             sess=self.session,

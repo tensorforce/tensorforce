@@ -133,10 +133,3 @@ class Beta(Distribution):
         beta_variables = self.beta.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + alpha_variables + beta_variables
-
-    def get_summaries(self):
-        distribution_summaries = super(Beta, self).get_summaries()
-        alpha_summaries = self.alpha.get_summaries()
-        beta_summaries = self.beta.get_summaries()
-
-        return distribution_summaries + alpha_summaries + beta_summaries

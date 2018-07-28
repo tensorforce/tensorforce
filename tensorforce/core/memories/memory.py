@@ -46,7 +46,6 @@ class Memory(object):
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
-        self.summaries = list()
 
         # TensorFlow functions.
         self.initialize = None  # type: callable
@@ -175,15 +174,6 @@ class Memory(object):
             List of variables.
         """
         return [self.variables[key] for key in sorted(self.variables)]
-
-    def get_summaries(self):
-        """
-        Returns the TensorFlow summaries reported by the memory.
-
-        Returns:
-            List of summaries.
-        """
-        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

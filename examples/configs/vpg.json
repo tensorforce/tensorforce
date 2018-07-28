@@ -41,8 +41,7 @@
     },
     "summarizer": {
         "directory": null,
-        "labels": [],
-        "seconds": 120
+        "labels": ["graph", "total-loss"]
     },
     "execution": {
         "type": "single",

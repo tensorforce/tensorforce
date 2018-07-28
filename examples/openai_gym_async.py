@@ -161,7 +161,7 @@ def main():
 
     environment = OpenAIGym(args.gym_id)
 
-    logger = logging.getLogger(__file__)
+    logger = logging.getLogger()
     logger.setLevel(logging.INFO)  # log_levels[agent.log_level])
 
     stdout_logger = logging.StreamHandler(sys.stdout)

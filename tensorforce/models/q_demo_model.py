@@ -313,12 +313,6 @@ class QDemoModel(QModel):
 
         return model_variables
 
-    def get_summaries(self):
-        model_summaries = super(QDemoModel, self).get_summaries()
-        demo_memory_summaries = self.demo_memory.get_summaries()
-
-        return model_summaries + demo_memory_summaries
-
     def import_demo_experience(self, states, internals, actions, terminal, reward):
         """
         Stores demonstrations in the demo memory.

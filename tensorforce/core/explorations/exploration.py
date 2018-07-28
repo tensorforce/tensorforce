@@ -27,7 +27,6 @@ class Exploration(object):
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
-        self.summaries = list()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)

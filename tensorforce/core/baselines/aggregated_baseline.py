@@ -85,13 +85,3 @@ class AggregatedBaseline(Baseline):
         linear_variables = self.linear.get_variables(include_nontrainable=include_nontrainable)
 
         return baseline_variables + baselines_variables + linear_variables
-
-    def get_summaries(self):
-        baseline_summaries = super(AggregatedBaseline, self).get_summaries()
-        baselines_summaries = [
-            variable for name in sorted(self.baselines)
-            for variable in self.baselines[name].get_summaries()
-        ]
-        linear_summaries = self.linear.get_summaries()
-
-        return baseline_summaries + baselines_summaries + linear_summaries

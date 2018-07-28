@@ -240,8 +240,7 @@ class DistributionModel(MemoryModel):
             entropy_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=entropies, axis=1), axis=1)
             entropy = tf.reduce_mean(input_tensor=entropy_per_instance, axis=0)
             if 'entropy' in self.summary_labels:
-                summary = tf.summary.scalar(name='entropy', tensor=entropy)
-                self.summaries.append(summary)
+                tf.contrib.summary.scalar(name='entropy', tensor=entropy)
             losses['entropy'] = -self.entropy_regularization * entropy
 
         return losses
@@ -291,16 +290,6 @@ class DistributionModel(MemoryModel):
         model_variables += distribution_variables
 
         return model_variables
-
-    def get_summaries(self):
-        model_summaries = super(DistributionModel, self).get_summaries()
-        network_summaries = self.network.get_summaries()
-        distribution_summaries = [
-            summary for name in sorted(self.distributions)
-            for summary in self.distributions[name].get_summaries()
-        ]
-
-        return model_summaries + network_summaries + distribution_summaries
 
     def get_components(self):
         result = dict(super(DistributionModel, self).get_components())

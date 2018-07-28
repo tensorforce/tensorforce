@@ -279,15 +279,6 @@ class QModel(DistributionModel):
 
         return model_variables
 
-    def get_summaries(self):
-        target_network_summaries = self.target_network.get_summaries()
-        target_distributions_summaries = [
-            summary for name in sorted(self.target_distributions)
-            for summary in self.target_distributions[name].get_summaries()
-        ]
-
-        return super(QModel, self).get_summaries() + target_network_summaries + target_distributions_summaries
-
     def get_components(self):
         result = dict(super(QModel, self).get_components())
         result[QModel.COMPONENT_TARGET_NETWORK] = self.target_network

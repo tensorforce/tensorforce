@@ -44,7 +44,6 @@ class Layer(object):
         self.named_tensors = dict()
         self.variables = dict()
         self.all_variables = dict()
-        self.summaries = list()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
@@ -53,8 +52,7 @@ class Layer(object):
                 if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                        tf.contrib.summary.histogram(name=name, tensor=variable)
             return variable
 
         self.apply = tf.make_template(
@@ -122,15 +120,6 @@ class Layer(object):
             return [self.all_variables[key] for key in sorted(self.all_variables)]
         else:
             return [self.variables[key] for key in sorted(self.variables)]
-
-    def get_summaries(self):
-        """
-        Returns the TensorFlow summaries reported by the layer.
-
-        Returns:
-            List of summaries.
-        """
-        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):
@@ -278,8 +267,7 @@ class Nonlinearity(Layer):
             if 'relu' in self.summary_labels:
                 non_zero = tf.cast(x=tf.count_nonzero(input_tensor=x), dtype=tf.float32)
                 size = tf.cast(x=tf.reduce_prod(input_tensor=tf.shape(input=x)), dtype=tf.float32)
-                summary = tf.summary.scalar(name='relu', tensor=(non_zero / size))
-                self.summaries.append(summary)
+                tf.contrib.summary.scalar(name='relu', tensor=(non_zero / size))
 
         elif self.name == 'selu':
             # https://arxiv.org/pdf/1706.02515.pdf
@@ -317,8 +305,7 @@ class Nonlinearity(Layer):
             raise TensorForceError('Invalid non-linearity: {}'.format(self.name))
 
         if 'beta' in self.summary_labels:
-            summary = tf.summary.scalar(name='beta', tensor=self.beta)
-            self.summaries.append(summary)            
+            tf.contrib.summary.scalar(name='beta', tensor=self.beta)
 
         return x
 
@@ -703,8 +690,7 @@ class Dense(Layer):
             xl2 = xl1
 
         if 'activations' in self.summary_labels:
-            summary = tf.summary.histogram(name='activations', values=xl2)
-            self.summaries.append(summary)
+            tf.contrib.summary.histogram(name='activations', tensor=xl2)
 
         return xl2
 
@@ -742,13 +728,6 @@ class Dense(Layer):
         nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + linear_variables + nonlinearity_variables
-
-    def get_summaries(self):
-        layer_summaries = super(Dense, self).get_summaries()
-        linear_summaries = self.linear.get_summaries()
-        nonlinearity_summaries = self.nonlinearity.get_summaries()
-
-        return layer_summaries + linear_summaries + nonlinearity_summaries
 
 
 class Dueling(Layer):
@@ -809,21 +788,17 @@ class Dueling(Layer):
             self.named_tensors[self.output[0]] = expectation
             self.named_tensors[self.output[1]] = advantage - mean_advantage
             self.named_tensors[self.output[2]] = mean_advantage
-            if 'activations' in self.summary_labels:                  
-                summary = tf.summary.histogram(name=self.output[0], values=expectation)
-                self.summaries.append(summary)
-                summary = tf.summary.histogram(name=self.output[1], values=advantage - mean_advantage)
-                self.summaries.append(summary)                
-                summary = tf.summary.histogram(name=self.output[2], values=mean_advantage)
-                self.summaries.append(summary)
+            if 'activations' in self.summary_labels:
+                tf.contrib.summary.histogram(name=self.output[0], tensor=expectation)
+                tf.contrib.summary.histogram(name=self.output[1], tensor=advantage - mean_advantage)
+                tf.contrib.summary.histogram(name=self.output[2], tensor=mean_advantage)
 
         x = expectation + advantage - mean_advantage
 
         x = self.nonlinearity.apply(x=x, update=update)
 
-        if 'activations' in self.summary_labels:            
-            summary = tf.summary.histogram(name='activations', values=x)
-            self.summaries.append(summary)
+        if 'activations' in self.summary_labels:
+            tf.contrib.summary.histogram(name='activations', tensor=x)
 
         return x
 
@@ -854,14 +829,6 @@ class Dueling(Layer):
         nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + expectation_layer_variables + advantage_layer_variables + nonlinearity_variables
-
-    def get_summaries(self):
-        layer_summaries = super(Dueling, self).get_summaries()
-        expectation_layer_summaries = self.expectation_layer.get_summaries()
-        advantage_layer_summaries = self.advantage_layer.get_summaries()
-        nonlinearity_summaries = self.nonlinearity.get_summaries()
-
-        return layer_summaries + expectation_layer_summaries + advantage_layer_summaries + nonlinearity_summaries
 
 
 class Conv1d(Layer):
@@ -924,8 +891,7 @@ class Conv1d(Layer):
         x = self.nonlinearity.apply(x=x, update=update)
 
         if 'activations' in self.summary_labels:
-            summary = tf.summary.histogram(name='activations', values=x)
-            self.summaries.append(summary)
+            tf.contrib.summary.histogram(name='activations', tensor=x)
 
         return x
 
@@ -960,12 +926,6 @@ class Conv1d(Layer):
         nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + nonlinearity_variables
-
-    def get_summaries(self):
-        layer_summaries = super(Conv1d, self).get_summaries()
-        nonlinearity_summaries = self.nonlinearity.get_summaries()
-
-        return layer_summaries + nonlinearity_summaries
 
 
 class Conv2d(Layer):
@@ -1034,8 +994,7 @@ class Conv2d(Layer):
         x = self.nonlinearity.apply(x=x, update=update)
 
         if 'activations' in self.summary_labels:
-            summary = tf.summary.histogram(name='activations', values=x)
-            self.summaries.append(summary)
+            tf.contrib.summary.histogram(name='activations', tensor=x)
 
         return x
 
@@ -1070,12 +1029,6 @@ class Conv2d(Layer):
         nonlinearity_variables = self.nonlinearity.get_variables(include_nontrainable=include_nontrainable)
 
         return layer_variables + nonlinearity_variables
-
-    def get_summaries(self):
-        layer_summaries = super(Conv2d, self).get_summaries()
-        nonlinearity_summaries = self.nonlinearity.get_summaries()
-
-        return layer_summaries + nonlinearity_summaries
 
 
 class InternalLstm(Layer):
@@ -1115,8 +1068,7 @@ class InternalLstm(Layer):
         state = tf.stack(values=(state.c, state.h), axis=1)
 
         if 'activations' in self.summary_labels:
-            summary = tf.summary.histogram(name='activations', values=x)
-            self.summaries.append(summary)
+            tf.contrib.summary.histogram(name='activations', tensor=x)
 
         return x, dict(state=state)
 
@@ -1149,8 +1101,7 @@ class Lstm(Layer):
 
         lstm_cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
         if 'activations' in self.summary_labels:
-            summary = tf.summary.histogram(name='activations', values=x)
-            self.summaries.append(summary)
+            tf.contrib.summary.histogram(name='activations', tensor=x)
 
         x, state = tf.nn.dynamic_rnn(
             cell=lstm_cell,

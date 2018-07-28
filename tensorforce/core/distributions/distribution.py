@@ -41,7 +41,6 @@ class Distribution(object):
 
         self.variables = dict()
         self.all_variables = dict()
-        self.summaries = list()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
@@ -50,8 +49,7 @@ class Distribution(object):
                 if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                        tf.contrib.summary.histogram(name=name, tensor=variable)
             return variable
 
         self.parameterize = tf.make_template(
@@ -87,23 +85,23 @@ class Distribution(object):
 
     def tf_parameterize(self, x):
         """
-        Creates the TensorFlow operations for parameterizing a distribution conditioned on the
+        Creates the tensorFlow operations for parameterizing a distribution conditioned on the
         given input.
 
         Args:
             x: Input tensor which the distribution is conditioned on.
 
         Returns:
-            Tuple of distribution parameter tensors.
+            tuple of distribution parameter tensors.
         """
         raise NotImplementedError
 
     def tf_sample(self, distr_params, deterministic):
         """
-        Creates the TensorFlow operations for sampling an action based on a distribution.
+        Creates the tensorFlow operations for sampling an action based on a distribution.
 
         Args:
-            distr_params: Tuple of distribution parameter tensors.
+            distr_params: tuple of distribution parameter tensors.
             deterministic: Boolean input tensor indicating whether the maximum likelihood action
                 should be returned.
 
@@ -114,11 +112,11 @@ class Distribution(object):
 
     def tf_log_probability(self, distr_params, action):
         """
-        Creates the TensorFlow operations for calculating the log probability of an action for a  
+        Creates the tensorFlow operations for calculating the log probability of an action for a  
         distribution.
 
         Args:
-            distr_params: Tuple of distribution parameter tensors.
+            distr_params: tuple of distribution parameter tensors.
             action: Action tensor.
 
         Returns:
@@ -128,10 +126,10 @@ class Distribution(object):
 
     def tf_entropy(self, distr_params):
         """
-        Creates the TensorFlow operations for calculating the entropy of a distribution.
+        Creates the tensorFlow operations for calculating the entropy of a distribution.
 
         Args:
-            distr_params: Tuple of distribution parameter tensors.
+            distr_params: tuple of distribution parameter tensors.
 
         Returns:
             Entropy tensor.
@@ -140,12 +138,12 @@ class Distribution(object):
 
     def tf_kl_divergence(self, distr_params1, distr_params2):
         """
-        Creates the TensorFlow operations for calculating the KL divergence between two  
+        Creates the tensorFlow operations for calculating the KL divergence between two  
         distributions.
 
         Args:
-            distr_params1: Tuple of parameter tensors for first distribution.
-            distr_params2: Tuple of parameter tensors for second distribution.
+            distr_params1: tuple of parameter tensors for first distribution.
+            distr_params2: tuple of parameter tensors for second distribution.
 
         Returns:
             KL divergence tensor.
@@ -154,7 +152,7 @@ class Distribution(object):
 
     def tf_regularization_loss(self):
         """
-        Creates the TensorFlow operations for the distribution regularization loss.
+        Creates the tensorFlow operations for the distribution regularization loss.
 
         Returns:
             Regularization loss tensor.
@@ -163,7 +161,7 @@ class Distribution(object):
 
     def get_variables(self, include_nontrainable=False):
         """
-        Returns the TensorFlow variables used by the distribution.
+        Returns the tensorFlow variables used by the distribution.
 
         Returns:
             List of variables.
@@ -172,15 +170,6 @@ class Distribution(object):
             return [self.all_variables[key] for key in sorted(self.all_variables)]
         else:
             return [self.variables[key] for key in sorted(self.variables)]
-
-    def get_summaries(self):
-        """
-        Returns the TensorFlow summaries reported by the distribution.
-
-        Returns:
-            List of summaries.
-        """
-        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

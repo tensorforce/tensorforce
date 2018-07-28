@@ -36,7 +36,6 @@ class Baseline(object):
 
         self.variables = dict()
         self.all_variables = dict()
-        self.summaries = list()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
@@ -45,8 +44,7 @@ class Baseline(object):
                 if kwargs.get('trainable', True):
                     self.variables[name] = variable
                     if 'variables' in self.summary_labels:
-                        summary = tf.summary.histogram(name=name, values=variable)
-                        self.summaries.append(summary)
+                        tf.contrib.summary.histogram(name=name, tensor=variable)
             return variable
 
         self.predict = tf.make_template(
@@ -136,15 +134,6 @@ class Baseline(object):
             return [self.all_variables[key] for key in sorted(self.all_variables)]
         else:
             return [self.variables[key] for key in sorted(self.variables)]
-
-    def get_summaries(self):
-        """
-        Returns the TensorFlow summaries reported by the baseline
-
-        Returns:
-            List of summaries
-        """
-        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

@@ -138,9 +138,3 @@ class Categorical(Distribution):
         logits_variables = self.logits.get_variables(include_nontrainable=include_nontrainable)
 
         return distribution_variables + logits_variables
-
-    def get_summaries(self):
-        distribution_summaries = super(Categorical, self).get_summaries()
-        logits_summaries = self.logits.get_summaries()
-
-        return distribution_summaries + logits_summaries

@@ -37,7 +37,6 @@ class Optimizer(object):
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()
-        self.summaries = list()
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
@@ -132,13 +131,10 @@ class Optimizer(object):
         #                 if any(k in self.summary_labels for k in ('gradients', 'gradients_scalar')):
         #                     axes = list(range(len(grad.shape)))
         #                     mean, var = tf.nn.moments(grad, axes)
-        #                     summary = tf.summary.scalar(name='gradients/' + var.name + "/mean", tensor=mean)
-        #                     self.summaries.append(summary)
-        #                     summary = tf.summary.scalar(name='gradients/' + var.name + "/variance", tensor=var)
-        #                     self.summaries.append(summary)
+        #                     tf.contrib.summary.scalar(name='gradients/' + var.name + "/mean", tensor=mean)
+        #                     tf.contrib.summary.scalar(name='gradients/' + var.name + "/variance", tensor=var)
         #                 if any(k in self.summary_labels for k in ('gradients', 'gradients_histogram')):
-        #                     summary = tf.summary.histogram(name='gradients/' + var.name, values=grad)
-        #                     self.summaries.append(summary)
+        #                     tf.contrib.summary.histogram(name='gradients/' + var.name, tensor=grad)
 
         deltas = self.step(time=time, variables=variables, **kwargs)
         with tf.control_dependencies(control_inputs=deltas):
@@ -152,15 +148,6 @@ class Optimizer(object):
             List of variables.
         """
         return [self.variables[key] for key in sorted(self.variables)]
-
-    def get_summaries(self):
-        """
-        Returns the TensorFlow summaries reported by the optimizer.
-
-        Returns:
-            List of summaries.
-        """
-        return self.summaries
 
     @staticmethod
     def from_spec(spec, kwargs=None):

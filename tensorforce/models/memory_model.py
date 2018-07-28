@@ -409,8 +409,7 @@ class MemoryModel(Model):
 
             # Loss without regularization summary.
             if 'losses' in self.summary_labels:
-                summary = tf.summary.scalar(name='loss-without-regularization', tensor=loss)
-                self.summaries.append(summary)
+                tf.contrib.summary.scalar(name='loss-without-regularization', tensor=loss)
 
             # Regularization losses.
             losses = self.fn_regularization_losses(states=states, internals=internals, update=update)
@@ -418,13 +417,11 @@ class MemoryModel(Model):
                 loss += tf.add_n(inputs=[losses[name] for name in sorted(losses)])
                 if 'regularization' in self.summary_labels:
                     for name in sorted(losses):
-                        summary = tf.summary.scalar(name=('regularization/' + name), tensor=losses[name])
-                        self.summaries.append(summary)
+                        tf.contrib.summary.scalar(name=('regularization/' + name), tensor=losses[name])
 
             # Total loss summary.
             if 'losses' in self.summary_labels or 'total-loss' in self.summary_labels:
-                summary = tf.summary.scalar(name='total-loss', tensor=loss)
-                self.summaries.append(summary)
+                tf.contrib.summary.scalar(name='total-loss', tensor=loss)
 
             return loss
 
@@ -561,11 +558,12 @@ class MemoryModel(Model):
                 tensors=batch
             )
 
-            return tf.cond(
-                pred=optimize,
-                true_fn=(lambda: self.fn_optimization(**batch)),
-                false_fn=tf.no_op
-            )
+            def true_fn():
+                optimize = self.fn_optimization(**batch)
+                with tf.control_dependencies(control_inputs=(optimize,)):
+                    return tf.logical_and(x=True, y=True)
+
+            return tf.cond(pred=optimize, true_fn=true_fn, false_fn=tf.no_op)
 
     def tf_import_experience(self, states, internals, actions, terminal, reward):
         """
@@ -625,14 +623,6 @@ class MemoryModel(Model):
             model_variables += optimizer_variables
 
         return model_variables
-
-    def get_summaries(self):
-        model_summaries = super(MemoryModel, self).get_summaries()
-        memory_summaries = self.memory.get_summaries()
-        optimizer_summaries = self.optimizer.get_summaries()
-        return model_summaries + memory_summaries + optimizer_summaries
-
-
 
     def import_experience(self, states, internals, actions, terminal, reward):
         """

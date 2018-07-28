@@ -126,6 +126,7 @@ class Model(object):
             self.summary_labels = set(self.summarizer_spec.get('labels', ()))
         self.summarizer = None
         self.graph_summary = None
+        self.flush_summarizer = None
 
         # Execution logic settings.
         self.execution_spec = execution
@@ -310,7 +311,7 @@ class Model(object):
                     tf.contrib.summary.histogram(name=(self.scope + '/inputs/rewards'), tensor=reward)
 
                 if self.summarizer_spec is not None:
-                    self.summarizer_flush = tf.contrib.summary.flush()
+                    self.flush_summarizer = tf.contrib.summary.flush()
 
                     record_summaries.__exit__(None, None, None)
                     default_summarizer.__exit__(None, None, None)
@@ -779,7 +780,8 @@ class Model(object):
         """
         Saves the model (of saver dir is given) and closes the session.
         """
-        self.monitored_session.run(fetches=self.summarizer_flush)
+        if self.flush_summarizer is not None:
+            self.monitored_session.run(fetches=self.flush_summarizer)
         if self.saver_directory is not None:
             self.save(append_timestep=True)
         self.monitored_session.__exit__(None, None, None)
@@ -1448,7 +1450,8 @@ class Model(object):
         Returns:
             Checkpoint path where the model was saved.
         """
-        self.monitored_session.run(fetches=self.summarizer_flush)
+        if self.flush_summarizer is not None:
+            self.monitored_session.run(fetches=self.flush_summarizer)
 
         return self.saver.save(
             sess=self.session,

@@ -116,7 +116,7 @@ class ALE(Environment):
 
     @property
     def actions(self):
-        return dict(type='int', num_actions=len(self.action_inds), names=self.action_names)
+        return dict(type='int', num_actions=len(self.action_inds))
 
     @property
     def current_state(self):

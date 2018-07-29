@@ -71,20 +71,30 @@ class Environment(object):
     @property
     def states(self):
         """
-        Return the state space. Might include subdicts if multiple states are available simultaneously.
+        Return the state space. Might include subdicts if multiple states are 
+        available simultaneously.
 
-        Returns: dict of state properties (shape and type).
-
+        Returns:
+            States specification, with the following attributes
+                (required):
+                - type: one of 'bool', 'int', 'float' (default: 'float').
+                - shape: integer, or list/tuple of integers (required).
         """
         raise NotImplementedError
 
     @property
     def actions(self):
         """
-        Return the action space. Might include subdicts if multiple actions are available simultaneously.
+        Return the action space. Might include subdicts if multiple actions are 
+        available simultaneously.
 
-        Returns: dict of action properties (continuous, number of actions)
-
+        Returns:
+            actions (spec, or dict of specs): Actions specification, with the following attributes
+                (required):
+                - type: one of 'bool', 'int', 'float' (required).
+                - shape: integer, or list/tuple of integers (default: []).
+                - num_actions: integer (required if type == 'int').
+                - min_value and max_value: float (optional if type == 'float', default: none).
         """
         raise NotImplementedError
 

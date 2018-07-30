@@ -58,7 +58,7 @@ class Game2048(Environment):
 
     @property
     def states(self):
-        return dict(shape=self._state.shape, type='float32')
+        return dict(shape=self._state.shape, type='float')
 
     @property
     def actions(self):

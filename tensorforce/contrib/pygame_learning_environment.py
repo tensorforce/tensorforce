@@ -115,26 +115,22 @@ class PLE(Environment):
     @property
     def states(self):
         """
-        Return the state space. Might include subdicts if multiple states are available simultaneously.
+        Return the state space. Might include subdicts if multiple states are
+        available simultaneously.
 
         Returns: dict of state properties (shape and type).
 
         """
         screen = self.env.getScreenRGB()
-        return {
-            'shape' : screen.shape,
-            'type' : screen.dtype
-        }
+        return dict(shape=screen.shape, type='int')
 
     @property
     def actions(self):
         """
-        Return the action space. Might include subdicts if multiple actions are available simultaneously.
+        Return the action space. Might include subdicts if multiple actions are
+        available simultaneously.
 
         Returns: dict of action properties (continuous, number of actions)
 
         """
-        return {
-            'shape' : (len(self.env.getActionSet()),),
-            'type' : int
-        }
+        return dict(num_actions=len(self.env.getActionSet()), type='int')

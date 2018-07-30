@@ -28,6 +28,10 @@ from tensorforce.environments import Environment
 
 
 class OpenAIGym(Environment):
+    """
+    Bindings for OpenAIGym environment https://github.com/openai/gym
+    To use install with "pip install gym". 
+    """
 
     def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0, visualize=False):
         """

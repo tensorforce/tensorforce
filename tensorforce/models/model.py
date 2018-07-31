@@ -385,8 +385,6 @@ class Model(object):
                         worker_device=self.device,
                         cluster=self.distributed_spec["cluster_spec"]
                     )
-                    # Tag all tensors as 'ps' without task idx so they are shared between all workers.
-                    self.scope += '-ps'
             else:
                 raise TensorForceError("Unsupported job type: {}!".format(self.distributed_spec["job"]))
         else:
@@ -659,8 +657,11 @@ class Model(object):
                 elif not os.path.isfile(file):
                     file = os.path.join(directory, file)
                 if file is not None:
-                    scaffold.saver.restore(sess=session, save_path=file)
-                    session.run(self.buffer_index_reset_op)
+                    try:
+                        scaffold.saver.restore(sess=session, save_path=file)
+                        session.run(fetches=self.buffer_index_reset_op)
+                    except tf.errors.NotFoundError:
+                        raise TensorForceError("Error: Existing checkpoint could not be loaded! Set \"load\" to false in saver_spec.")
 
         # TensorFlow scaffold object
         # TODO explain what it does.

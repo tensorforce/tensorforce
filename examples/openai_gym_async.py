@@ -99,9 +99,8 @@ def main():
 
         def build_cmd(ps, index):
             cmd_args = [
-                'CUDA_VISIBLE_DEVICES=',
-                sys.executable, target_script,
-                args.gym_id,
+                # 'CUDA_VISIBLE_DEVICES=',
+                sys.executable, target_script, args.gym_id,
                 '--agent', os.path.join(os.getcwd(), args.agent),
                 '--network', os.path.join(os.getcwd(), args.network),
                 '--num-workers', args.num_workers,

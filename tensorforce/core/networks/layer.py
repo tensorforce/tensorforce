@@ -34,14 +34,14 @@ class Layer(object):
     Base class for network layers.
     """
 
-    def __init__(self, scope='layer', summary_labels=None):
+    def __init__(self, named_tensors=None, scope='layer', summary_labels=None):
         """
         Layer.
         """
         self.scope = scope
         self.summary_labels = set(summary_labels or ())
 
-        self.named_tensors = dict()
+        self.named_tensors = named_tensors
         self.variables = dict()
         self.all_variables = dict()
 
@@ -88,18 +88,6 @@ class Layer(object):
         """
         return None
 
-    def tf_tensors(self, named_tensors):
-        """
-        Attaches the named_tensors dictionary to the layer for examination and update.
-
-        Args:
-            named_tensors: Dictionary of named tensors to be used as Input's or recorded from outputs
-
-        Returns:
-            NA
-        """
-        self.named_tensors = named_tensors
-
     def internals_spec(self):
         """
         Returns the internal states specification.
@@ -135,6 +123,105 @@ class Layer(object):
         return layer
 
 
+class Input(Layer):
+    """
+    Input layer. Used to collect data together as a form of output to the next layer.
+    Allows for multiple inputs to merge into a single import for next layer.
+    """
+
+    def __init__(
+        self,
+        names,
+        aggregation_type='concat',
+        axis=1,
+        named_tensors=None,
+        scope='input',
+        summary_labels=()
+    ):
+        """
+        Input layer.
+
+        Args:
+            names: A list of strings that name the inputs to merge
+            axis: Axis to merge the inputs
+
+        """
+        self.names = names
+        self.aggregation_type = aggregation_type
+        self.axis = axis
+        super(Input, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        if isinstance(self.names, str):
+            if self.names == '*' or self.names == 'previous':
+                # like normal list network_spec
+                return x
+            elif self.names in self.named_tensors:
+                return self.named_tensors[self.names]
+            else:
+                keys = sorted(self.named_tensors)
+                raise TensorForceError(
+                    'Input "{}" doesn\'t exist, Available inputs: {}'.format(self.names, keys)
+                )
+
+
+        inputs = list()
+        for name in self.names:
+            if name == '*' or name == 'previous':
+                # like normal list network_spec
+                inputs.append(x)
+            elif name in self.named_tensors:
+                inputs.append(self.named_tensors[name])
+            else:
+                keys = sorted(self.named_tensors)
+                raise TensorForceError(
+                    'Input "{}" doesn\'t exist, Available inputs: {}'.format(name, keys)
+                )
+
+        if self.aggregation_type == 'concat':
+            x = tf.concat(values=inputs, axis=self.axis)
+        elif self.aggregation_type == 'stack':
+            x = tf.stack(values=inputs, axis=self.axis)
+        elif self.aggregation_type == 'sum':
+            x = tf.stack(values=inputs, axis=self.axis)
+            x = tf.reduce_sum(input_tensor=x, axis=self.axis)
+        elif self.aggregation_type == 'product':
+            x = tf.stack(values=inputs, axis=self.axis)
+            x = tf.reduce_prod(input_tensor=x, axis=self.axis)
+        else:
+            raise NotImplementedError
+
+        return x
+
+
+class Output(Layer):
+    """
+    Output layer. Used to capture the tensor under and name for use with Input layers.
+    Acts as a input to output passthrough.
+    """
+
+    def __init__(
+        self,
+        name,
+        named_tensors=None,
+        scope='output',
+        summary_labels=()
+    ):
+        """
+        Output layer.
+
+        Args:
+            output: A string that names the tensor, will be added to available inputs
+
+        """
+        self.name = name
+        super(Output, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        self.named_tensors[self.name] = x
+        return x
+
+
 class TFLayer(Layer):
     """
     Wrapper class for TensorFlow layers.
@@ -159,7 +246,7 @@ class TFLayer(Layer):
         separable_conv2d=tf.layers.SeparableConv2D
     )
 
-    def __init__(self, layer, scope='tf-layer', summary_labels=(), **kwargs):
+    def __init__(self, layer, named_tensors=None, scope='tf-layer', summary_labels=(), **kwargs):
         """
         Creates a new layer instance of a TensorFlow layer.
 
@@ -171,7 +258,7 @@ class TFLayer(Layer):
         self.layer = util.get_object(obj=layer, predefined_objects=TFLayer.tf_layers, kwargs=kwargs)
         self.first_scope = None
 
-        super(TFLayer, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(TFLayer, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         if self.first_scope is None:
@@ -204,6 +291,7 @@ class Nonlinearity(Layer):
         beta=1.0,
         max=None,
         min=None,
+        named_tensors=None,
         scope='nonlinearity',
         summary_labels=()
     ):
@@ -224,7 +312,7 @@ class Nonlinearity(Layer):
         self.max            = None
         self.min            = None        
         self.beta_learn     = False
-        super(Nonlinearity, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Nonlinearity, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
         if max is not None:
             self.max = float(max)   
@@ -316,9 +404,9 @@ class Dropout(Layer):
     LSTM, dropout is handled independently as an argument. Not available for Conv2d yet.
     """
 
-    def __init__(self, rate=0.0, scope='dropout', summary_labels=()):
+    def __init__(self, rate=0.0, named_tensors=None, scope='dropout', summary_labels=()):
         self.rate = rate
-        super(Dropout, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Dropout, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         return tf.cond(
@@ -333,8 +421,8 @@ class Flatten(Layer):
     Flatten layer reshaping the input.
     """
 
-    def __init__(self, scope='flatten', summary_labels=()):
-        super(Flatten, self).__init__(scope=scope, summary_labels=summary_labels)
+    def __init__(self, named_tensors=None, scope='flatten', summary_labels=()):
+        super(Flatten, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
@@ -351,6 +439,7 @@ class Pool2d(Layer):
         window=2,
         stride=2,
         padding='SAME',
+        named_tensors=None,
         scope='pool2d',
         summary_labels=()
     ):
@@ -377,7 +466,7 @@ class Pool2d(Layer):
         else:
             raise TensorForceError('Invalid stride {} for pool2d layer, must be of size 2'.format(stride))
         self.padding = padding
-        super(Pool2d, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Pool2d, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         if self.pooling_type == 'average':
@@ -403,6 +492,7 @@ class Embedding(Layer):
         size,
         l2_regularization=0.0,
         l1_regularization=0.0,
+        named_tensors=None,
         scope='embedding',
         summary_labels=()
     ):
@@ -419,7 +509,7 @@ class Embedding(Layer):
         self.size = size
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        super(Embedding, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Embedding, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         stddev = min(0.1, sqrt(1.0 / self.size))
@@ -463,6 +553,7 @@ class Linear(Layer):
         bias=True,
         l2_regularization=0.0,
         l1_regularization=0.0,
+        named_tensors=None,
         scope='linear',
         summary_labels=()
     ):
@@ -481,7 +572,7 @@ class Linear(Layer):
         self.bias_init = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
-        super(Linear, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Linear, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update=False):
         if util.rank(x) != 2:
@@ -636,6 +727,7 @@ class Dense(Layer):
         l2_regularization=0.0,
         l1_regularization=0.0,
         skip=False,
+        named_tensors=None,
         scope='dense',
         summary_labels=()
     ):
@@ -678,7 +770,7 @@ class Dense(Layer):
         # TODO: Consider creating two nonlinearity variables when skip is used and learning beta
         #       Right now, only a single beta can be learned
         self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))
-        super(Dense, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Dense, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         xl1 = self.linear.apply(x=x, update=update)
@@ -743,6 +835,7 @@ class Dueling(Layer):
         l2_regularization=0.0,
         l1_regularization=0.0,
         output=None,
+        named_tensors=None,
         scope='dueling',
         summary_labels=()
     ):
@@ -776,7 +869,7 @@ class Dueling(Layer):
         )
         self.output = output
         self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))
-        super(Dueling, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Dueling, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         expectation = self.expectation_layer.apply(x=x, update=update)
@@ -785,9 +878,10 @@ class Dueling(Layer):
 
         # Record outputs in named tensor dictionary if passed
         if type(self.output) is tuple and len(self.output) == 3:
-            self.named_tensors[self.output[0]] = expectation
-            self.named_tensors[self.output[1]] = advantage - mean_advantage
-            self.named_tensors[self.output[2]] = mean_advantage
+            if self.named_tensors is not None:
+                self.named_tensors[self.output[0]] = expectation
+                self.named_tensors[self.output[1]] = advantage - mean_advantage
+                self.named_tensors[self.output[2]] = mean_advantage
             if 'activations' in self.summary_labels:
                 tf.contrib.summary.histogram(name=self.output[0], tensor=expectation)
                 tf.contrib.summary.histogram(name=self.output[1], tensor=advantage - mean_advantage)
@@ -846,6 +940,7 @@ class Conv1d(Layer):
         activation='relu',
         l2_regularization=0.0,
         l1_regularization=0.0,
+        named_tensors=None,
         scope='conv1d',
         summary_labels=()
     ):
@@ -870,7 +965,7 @@ class Conv1d(Layer):
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
         self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))
-        super(Conv1d, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Conv1d, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         if util.rank(x) != 3:
@@ -943,6 +1038,7 @@ class Conv2d(Layer):
         activation='relu',
         l2_regularization=0.0,
         l1_regularization=0.0,
+        named_tensors=None,
         scope='conv2d',
         summary_labels=()
     ):
@@ -972,7 +1068,7 @@ class Conv2d(Layer):
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
         self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))
-        super(Conv2d, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Conv2d, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
         if util.rank(x) != 4:
@@ -1036,7 +1132,7 @@ class InternalLstm(Layer):
     Long short-term memory layer for internal state management.
     """
 
-    def __init__(self, size, dropout=None, lstmcell_args={}, scope='internal_lstm', summary_labels=()):
+    def __init__(self, size, dropout=None, lstmcell_args={}, named_tensors=None, scope='internal_lstm', summary_labels=()):
         """
         LSTM layer.
 
@@ -1047,7 +1143,7 @@ class InternalLstm(Layer):
         self.size = size
         self.dropout = dropout
         self.lstmcell_args = lstmcell_args
-        super(InternalLstm, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(InternalLstm, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update, state):
         if util.rank(x) != 2:
@@ -1082,7 +1178,7 @@ class InternalLstm(Layer):
 
 class Lstm(Layer):
 
-    def __init__(self, size, dropout=None, scope='lstm', summary_labels=(), return_final_state=True):
+    def __init__(self, size, dropout=None, named_tensors=None, scope='lstm', summary_labels=(), return_final_state=True):
         """
         LSTM layer.
 
@@ -1093,7 +1189,7 @@ class Lstm(Layer):
         self.size = size
         self.dropout = dropout
         self.return_final_state = return_final_state
-        super(Lstm, self).__init__(scope=scope, summary_labels=summary_labels)
+        super(Lstm, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update, sequence_length=None):
         if util.rank(x) != 3:

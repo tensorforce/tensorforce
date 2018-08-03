@@ -138,31 +138,11 @@ class Network(object):
         """
         Creates a network from a specification dict.
         """
-        if isinstance(spec, list) and len(spec) > 0:
-            # Default case is a list of dict() with each dict describing a layer.
-            if type(spec[0]) is dict:
-                network = util.get_object(
-                    obj=spec,
-                    default_object=LayeredNetwork,
-                    kwargs=kwargs
-                )
-            # ComplexLayeredNetwork forced for testing
-            if type(spec[0]) is list:
-                # Spec contains List of List of Dict(), Complex network specification
-                # Load "ComplexLayeredNetwork" here to avoid a recurring loop which fails
-                from tensorforce.core.networks.complex_network import ComplexLayeredNetwork
-                network = util.get_object(
-                    obj=spec,
-                    default_object=ComplexLayeredNetwork,
-                    kwargs=kwargs
-                )
-        else:
-            network = util.get_object(
-                obj=spec,
-                default_object=LayeredNetwork,
-                kwargs=kwargs
-            )
-        # If neither format, invalid spec and will fail on assert
+        network = util.get_object(
+            obj=spec,
+            default_object=LayeredNetwork,
+            kwargs=kwargs
+        )
         assert isinstance(network, Network)
         return network
 
@@ -234,8 +214,13 @@ class LayeredNetwork(LayerBasedNetwork):
         self.layers_spec = layers
         super(LayeredNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
 
-        layer_counter = Counter()
-        for layer_spec in self.layers_spec:
+        self.parse_layer_spec(layer_spec=self.layers_spec, layer_counter=Counter())
+
+    def parse_layer_spec(self, layer_spec, layer_counter):
+        if isinstance(layer_spec, list):
+            for layer_spec in layer_spec:
+                self.parse_layer_spec(layer_spec=layer_spec, layer_counter=layer_counter)
+        else:
             if isinstance(layer_spec['type'], str):
                 name = layer_spec['type']
             else:
@@ -245,15 +230,15 @@ class LayeredNetwork(LayerBasedNetwork):
 
             layer = Layer.from_spec(
                 spec=layer_spec,
-                kwargs=dict(scope=scope, summary_labels=summary_labels)
+                kwargs=dict(named_tensors=self.named_tensors, scope=scope, summary_labels=self.summary_labels)
             )
             self.add_layer(layer=layer)
 
     def tf_apply(self, x, internals, update, return_internals=False):
         if isinstance(x, dict):
-            if len(x) != 1:
-                raise TensorForceError('Layered network must have only one input, but {} given.'.format(len(x)))
-            x = x[next(iter(sorted(x)))]
+            self.named_tensors.update(x)
+            if len(x) == 1:
+                x = x[next(iter(sorted(x)))]
 
         next_internals = dict()
         for layer in self.layers:
@@ -261,9 +246,8 @@ class LayeredNetwork(LayerBasedNetwork):
 
             if len(layer_internals) > 0:
                 x, layer_internals = layer.apply(x=x, update=update, **layer_internals)
-                spec = layer_internals.items()
-                for name in sorted(spec):
-                    next_internals['{}_{}'.format(layer.scope, name)] = spec[name]
+                for name in sorted(layer_internals):
+                    next_internals['{}_{}'.format(layer.scope, name)] = layer_internals[name]
 
             else:
                 x = layer.apply(x=x, update=update)
@@ -272,18 +256,3 @@ class LayeredNetwork(LayerBasedNetwork):
             return x, next_internals
         else:
             return x
-
-    @staticmethod
-    def from_json(filename):
-        """
-        Creates a layer_networkd_builder from a JSON.
-
-        Args:
-            filename: Path to configuration
-
-        Returns: A layered_network_builder function with layers generated from the JSON
-        """
-        path = os.path.join(os.getcwd(), filename)
-        with open(path, 'r') as fp:
-            config = json.load(fp=fp)
-        return LayeredNetwork(layers_spec=config)

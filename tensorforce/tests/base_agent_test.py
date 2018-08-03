@@ -29,7 +29,6 @@ class BaseAgentTest(BaseTest):
     """
 
     config = None
-    multi_config = None
 
     # Exclude flags to indicate whether a certain test is excluded for a model.
     exclude_bool = False
@@ -132,66 +131,100 @@ class BaseAgentTest(BaseTest):
         exclude_float = self.__class__.exclude_float
         exclude_bounded = self.__class__.exclude_bounded
 
-        class CustomNetwork(LayerBasedNetwork):
+        network = list()
+        if not exclude_bool:
+            network.append([
+                dict(type='input', names='bool'),
+                dict(type='dense', size=16),
+                dict(type='dense', size=16),
+                dict(type='output', name='bool-emb')
+            ])
+        if not exclude_int:
+            network.append([
+                dict(type='input', names='int'),
+                dict(type='dense', size=16),
+                dict(type='dense', size=16),
+                dict(type='output', name='int-emb')
+            ])
+        if not exclude_float:
+            network.append([
+                dict(type='input', names='float'),
+                dict(type='dense', size=16),
+                dict(type='dense', size=16),
+                dict(type='output', name='float-emb')
+            ])
+        if not exclude_bounded:
+            network.append([
+                dict(type='input', names='bounded'),
+                dict(type='dense', size=16),
+                dict(type='dense', size=16),
+                dict(type='output', name='bounded-emb')
+            ])
+        network.append([
+            dict(type='input', names=['bool-emb', 'int-emb', 'float-emb', 'bounded-emb'], aggregation_type='product'),
+            dict(type='dense', size=16)
+        ])
 
-            def __init__(self, scope='layerbased-network', summary_labels=()):
-                super(CustomNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
+        # class CustomNetwork(LayerBasedNetwork):
 
-                if not exclude_bool:
-                    self.layer_bool1 = Dense(size=16, scope='state-bool1')
-                    self.add_layer(layer=self.layer_bool1)
-                    self.layer_bool2 = Dense(size=16, scope='state-bool2')
-                    self.add_layer(layer=self.layer_bool2)
+        #     def __init__(self, scope='layerbased-network', summary_labels=()):
+        #         super(CustomNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
 
-                if not exclude_int:
-                    self.layer_int1 = Dense(size=16, scope='state-int1')
-                    self.add_layer(layer=self.layer_int1)
-                    self.layer_int2 = Dense(size=16, scope='state-int2')
-                    self.add_layer(layer=self.layer_int2)
+        #         if not exclude_bool:
+        #             self.layer_bool1 = Dense(size=16, scope='state-bool1')
+        #             self.add_layer(layer=self.layer_bool1)
+        #             self.layer_bool2 = Dense(size=16, scope='state-bool2')
+        #             self.add_layer(layer=self.layer_bool2)
 
-                if not exclude_float:
-                    self.layer_float1 = Dense(size=16, scope='state-float1')
-                    self.add_layer(layer=self.layer_float1)
-                    self.layer_float2 = Dense(size=16, scope='state-float2')
-                    self.add_layer(layer=self.layer_float2)
+        #         if not exclude_int:
+        #             self.layer_int1 = Dense(size=16, scope='state-int1')
+        #             self.add_layer(layer=self.layer_int1)
+        #             self.layer_int2 = Dense(size=16, scope='state-int2')
+        #             self.add_layer(layer=self.layer_int2)
 
-                if not exclude_bounded:
-                    self.layer_bounded1 = Dense(size=16, scope='state-bounded1')
-                    self.add_layer(layer=self.layer_bounded1)
-                    self.layer_bounded2 = Dense(size=16, scope='state-bounded2')
-                    self.add_layer(layer=self.layer_bounded2)
+        #         if not exclude_float:
+        #             self.layer_float1 = Dense(size=16, scope='state-float1')
+        #             self.add_layer(layer=self.layer_float1)
+        #             self.layer_float2 = Dense(size=16, scope='state-float2')
+        #             self.add_layer(layer=self.layer_float2)
 
-            def tf_apply(self, x, internals, update, return_internals=False):
-                xs = list()
+        #         if not exclude_bounded:
+        #             self.layer_bounded1 = Dense(size=16, scope='state-bounded1')
+        #             self.add_layer(layer=self.layer_bounded1)
+        #             self.layer_bounded2 = Dense(size=16, scope='state-bounded2')
+        #             self.add_layer(layer=self.layer_bounded2)
 
-                if not exclude_bool:
-                    xs.append(self.layer_bool2.apply(
-                        x=self.layer_bool1.apply(x=x['bool'], update=update), update=update
-                    ))
+        #     def tf_apply(self, x, internals, update, return_internals=False):
+        #         xs = list()
 
-                if not exclude_int:
-                    xs.append(self.layer_int2.apply(
-                        x=self.layer_int1.apply(x=x['int'], update=update), update=update
-                    ))
+        #         if not exclude_bool:
+        #             xs.append(self.layer_bool2.apply(
+        #                 x=self.layer_bool1.apply(x=x['bool'], update=update), update=update
+        #             ))
 
-                if not exclude_float:
-                    xs.append(self.layer_float2.apply(
-                        x=self.layer_float1.apply(x=x['float'], update=update), update=update
-                    ))
+        #         if not exclude_int:
+        #             xs.append(self.layer_int2.apply(
+        #                 x=self.layer_int1.apply(x=x['int'], update=update), update=update
+        #             ))
 
-                if not exclude_bounded:
-                    xs.append(self.layer_bounded2.apply(
-                        x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update
-                    ))
+        #         if not exclude_float:
+        #             xs.append(self.layer_float2.apply(
+        #                 x=self.layer_float1.apply(x=x['float'], update=update), update=update
+        #             ))
 
-                x = xs[0]
-                for y in xs[1:]:
-                    x *= y
+        #         if not exclude_bounded:
+        #             xs.append(self.layer_bounded2.apply(
+        #                 x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update
+        #             ))
 
-                if return_internals:
-                    return x, dict()
-                else:
-                    return x
+        #         x = xs[0]
+        #         for y in xs[1:]:
+        #             x *= y
+
+        #         if return_internals:
+        #             return x, dict()
+        #         else:
+        #             return x
 
         specification = dict()
         if not exclude_bool:
@@ -208,7 +241,8 @@ class BaseAgentTest(BaseTest):
         self.base_test_run(
             name='multi',
             environment=environment,
-            network=CustomNetwork,
+            network=network,
+            # network=CustomNetwork,
             **self.__class__.config
         )
 

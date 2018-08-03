@@ -251,7 +251,7 @@ class Model(object):
                     self.summarizer = tf.contrib.summary.create_file_writer(
                         logdir=self.summarizer_spec['directory'],
                         max_queue=None,
-                        flush_millis=self.summarizer_spec.get('flush', 60000),
+                        flush_millis=(self.summarizer_spec.get('flush', 10) * 1000),
                         filename_suffix=None,
                         name=None
                     )
@@ -601,7 +601,7 @@ class Model(object):
             global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             # global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
-            if self.summarizer_spec is None:
+            if self.graph_summary is None:
                 ready_op = tf.report_uninitialized_variables(var_list=global_variables)
                 ready_for_local_init_op = None
                 local_init_op = None

@@ -307,21 +307,21 @@ class Nonlinearity(Layer):
             min: (float|int) minimum (beta * input) value passed to non-linearity function
             summary_labels: Requested summary labels for tensorboard export, add 'beta' to watch beta learning
         """
-        self.name           = name
-        self.alpha          = None
-        self.max            = None
-        self.min            = None        
-        self.beta_learn     = False
+        self.name = name
+        self.alpha = None
+        self.max = None
+        self.min = None
+        self.beta_learn = False
         super(Nonlinearity, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
         if max is not None:
-            self.max = float(max)   
+            self.max = float(max)
 
         if min is not None:
-            self.min = float(min)                    
+            self.min = float(min)
 
         if alpha is not None:
-            self.alpha = float(alpha)                       
+            self.alpha = float(alpha)
 
         if beta == 'learn':
             self.beta_learn = True
@@ -342,7 +342,7 @@ class Nonlinearity(Layer):
             x = tf.minimum(x=(self.beta * x), y=self.max)
 
         if self.min is not None:
-            x = tf.maximum(x=(self.beta * x), y=self.min)   
+            x = tf.maximum(x=(self.beta * x), y=self.min)
 
         if self.name == 'elu':
             x = tf.nn.elu(features=(self.beta * x))
@@ -366,7 +366,7 @@ class Nonlinearity(Layer):
 
         elif self.name == 'swish':
             # https://arxiv.org/abs/1710.05941
-            x = tf.sigmoid(x=(self.beta * x)) * x    
+            x = tf.sigmoid(x=(self.beta * x)) * x
 
         elif self.name == 'lrelu' or self.name == 'leaky_relu':
             if self.alpha is None:
@@ -375,7 +375,7 @@ class Nonlinearity(Layer):
             x = tf.nn.leaky_relu(features=(self.beta * x), alpha=self.alpha)
 
         elif self.name == 'crelu':
-            x = tf.nn.crelu(features=(self.beta * x))            
+            x = tf.nn.crelu(features=(self.beta * x))
 
         elif self.name == 'softmax':
             x = tf.nn.softmax(logits=(self.beta * x))

@@ -41,7 +41,7 @@ from tensorforce.contrib.unreal_engine import UE4Environment
 # - you will need to install the UE4 Engine and the engine2learn plugin
 # - supports headless execution of UE4 games under Linux
 
-# python examples/unreal_engine.py 6025 -a examples/configs/vpg.json
+# python examples/unreal_engine.py -P 6025 -a examples/configs/vpg.json
 #   -n examples/configs/mlp2_network.json -e 50000 -m 2000
 
 

@@ -1254,6 +1254,9 @@ class Model(object):
             if fetch is not None:
                 fetches.extend(fetch)
 
+        if self.flush_summarizer is not None:
+            fetches.append(self.flush_summarizer)
+
         # Get the updated episode and timestep counts.
         fetch_list = self.monitored_session.run(fetches=fetches)
         episode, timestep = fetch_list[:2]

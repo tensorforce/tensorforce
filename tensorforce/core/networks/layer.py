@@ -409,11 +409,8 @@ class Dropout(Layer):
         super(Dropout, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update):
-        return tf.cond(
-            pred=update,
-            true_fn=(lambda: tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))),
-            false_fn=(lambda: tf.identity(input=x))
-        )
+        dropout = tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))
+        return tf.where(condition=update, x=dropout, y=x)
 
 
 class Flatten(Layer):

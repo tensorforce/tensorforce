@@ -20,7 +20,7 @@ In order to use openai universe, please make sure you have docker installed.
 
 Then use like this:
 
-``python examples/openai_universe.py -a DQNAgent -c examples/configs/dqn_agent.json -n examples/configs/dqn_network.json flashgames.DuskDrive-v0``
+``python examples/openai_universe.py -a DQNAgent -c examples/configs/dqn.json -n examples/configs/cnn_dqn_network.json flashgames.DuskDrive-v0``
 
 This will create a docker session that you can connect to by visiting
 

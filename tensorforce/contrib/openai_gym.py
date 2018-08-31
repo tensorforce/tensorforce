@@ -104,10 +104,10 @@ class OpenAIGym(Environment):
             for n, space in enumerate(space.spaces):
                 state = OpenAIGym.state_from_space(space=space)
                 if 'type' in state:
-                    states['state{}'.format(n)] = state
+                    states['gymtpl{}'.format(n)] = state
                 else:
                     for name, state in state.items():
-                        states['state{}-{}'.format(n, name)] = state
+                        states['gymtpl{}-{}'.format(n, name)] = state
             return states
         elif isinstance(space, gym.spaces.Dict):
             states = dict()
@@ -130,9 +130,9 @@ class OpenAIGym(Environment):
                 state = OpenAIGym.flatten_state(state=state)
                 if isinstance(state, dict):
                     for name, state in state.items():
-                        states['state{}-{}'.format(n, name)] = state
+                        states['gymtpl{}-{}'.format(n, name)] = state
                 else:
-                    states['state{}'.format(n)] = state
+                    states['gymtpl{}'.format(n)] = state
             return states
         elif isinstance(state, dict):
             states = dict()
@@ -160,7 +160,7 @@ class OpenAIGym(Environment):
             else:
                 actions = dict()
                 for n in range(num_discrete_space):
-                    actions['action{}'.format(n)] = dict(type='int', num_actions=space.nvec[n])
+                    actions['gymmdc{}'.format(n)] = dict(type='int', num_actions=space.nvec[n])
                 return actions
         elif isinstance(space, gym.spaces.Box):
             if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
@@ -172,7 +172,7 @@ class OpenAIGym(Environment):
                 low = space.low.flatten()
                 high = space.high.flatten()
                 for n in range(low.shape[0]):
-                    actions['action{}'.format(n)] = dict(type='float', min_value=low[n], max_value=high[n])
+                    actions['gymbox{}'.format(n)] = dict(type='float', min_value=low[n], max_value=high[n])
                 return actions
         elif isinstance(space, gym.spaces.Tuple):
             actions = dict()
@@ -180,10 +180,10 @@ class OpenAIGym(Environment):
             for n, space in enumerate(space.spaces):
                 action = OpenAIGym.action_from_space(space=space)
                 if 'type' in action:
-                    actions['action{}'.format(n)] = action
+                    actions['gymtpl{}'.format(n)] = action
                 else:
                     for name, action in action.items():
-                        actions['action{}-{}'.format(n, name)] = action
+                        actions['gymtpl{}-{}'.format(n, name)] = action
             return actions
         elif isinstance(space, gym.spaces.Dict):
             actions = dict()
@@ -203,24 +203,24 @@ class OpenAIGym(Environment):
     def unflatten_action(action):
         if not isinstance(action, dict):
             return action
-        elif all(
-            name[:6] == 'action' and
-            (name[6:name.index('-')].isnumeric() if '-' in name else name[6:].isnumeric())
-            for name in action
-        ):
+        elif all(name.startswith('gymmdc') for name in action) or \
+                all(name.startswith('gymbox') for name in action) or \
+                all(name.startswith('gymtpl') for name in action):
+            space_type = next(iter(action))[:6]
             actions = list()
             n = 0
             while True:
-                if any(name.startswith('action' + str(n) + '-') for name in action):
+                if any(name.startswith(space_type + str(n) + '-') for name in action):
                     inner_action = {
                         name[name.index('-') + 1:] for name, inner_action in action.items()
-                        if name.startswith('action' + str(n))
+                        if name.startswith(space_type + str(n))
                     }
                     actions.append(OpenAIGym.unflatten_action(action=inner_action))
-                elif any(name == 'action' + str(n) for name in action):
-                    actions.append(action['action' + str(n)])
+                elif any(name == space_type + str(n) for name in action):
+                    actions.append(action[space_type + str(n)])
                 else:
                     break
+                n += 1
             return tuple(actions)
         else:
             actions = dict()

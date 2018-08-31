@@ -47,8 +47,8 @@ class Beta(Distribution):
         self.max_value = max_value
         action_size = util.prod(self.shape)
 
-        self.alpha = Linear(size=action_size, bias=alpha, scope='alpha')
-        self.beta = Linear(size=action_size, bias=beta, scope='beta')
+        self.alpha = Linear(size=action_size, bias=alpha, scope='alpha', summary_labels=summary_labels)
+        self.beta = Linear(size=action_size, bias=beta, scope='beta', summary_labels=summary_labels)
 
         super(Beta, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 

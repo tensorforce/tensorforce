@@ -46,7 +46,7 @@ class Categorical(Distribution):
             logits = 0.0
         else:
             logits = [log(prob) for _ in range(util.prod(shape)) for prob in probabilities]
-        self.logits = Linear(size=action_size, bias=logits, scope='logits')
+        self.logits = Linear(size=action_size, bias=logits, scope='logits', summary_labels=summary_labels)
 
         super(Categorical, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 

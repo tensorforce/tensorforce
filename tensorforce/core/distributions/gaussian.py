@@ -42,8 +42,8 @@ class Gaussian(Distribution):
         self.shape = shape
         action_size = util.prod(self.shape)
 
-        self.mean = Linear(size=action_size, bias=mean, scope='mean')
-        self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev')
+        self.mean = Linear(size=action_size, bias=mean, scope='mean', summary_labels=summary_labels)
+        self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev', summary_labels=summary_labels)
 
         super(Gaussian, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 

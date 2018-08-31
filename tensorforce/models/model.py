@@ -126,6 +126,7 @@ class Model(object):
             self.summary_labels = set(self.summarizer_spec.get('labels', ()))
         self.summarizer = None
         self.graph_summary = None
+        self.summarizer_init_op = None
         self.flush_summarizer = None
 
         # Execution logic settings.
@@ -248,21 +249,23 @@ class Model(object):
                 self.fn_initialize()
 
                 if self.summarizer_spec is not None:
-                    self.summarizer = tf.contrib.summary.create_file_writer(
-                        logdir=self.summarizer_spec['directory'],
-                        max_queue=None,
-                        flush_millis=(self.summarizer_spec.get('flush', 10) * 1000),
-                        filename_suffix=None,
-                        name=None
-                    )
-
-                    default_summarizer = self.summarizer.as_default()
-                    if 'steps' in self.summarizer_spec:
-                        record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
-                            n=self.summarizer_spec['steps'],
-                            global_step=self.global_timestep
+                    with tf.name_scope(name='summarizer'):
+                        self.summarizer = tf.contrib.summary.create_file_writer(
+                            logdir=self.summarizer_spec['directory'],
+                            max_queue=None,
+                            flush_millis=(self.summarizer_spec.get('flush', 10) * 1000),
+                            filename_suffix=None,
+                            name=None
                         )
-                    else:
+                        default_summarizer = self.summarizer.as_default()
+                        # Problem: not all parts of the graph are called on every step
+                        assert 'steps' not in self.summarizer_spec
+                        # if 'steps' in self.summarizer_spec:
+                        #     record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
+                        #         n=self.summarizer_spec['steps'],
+                        #         global_step=self.global_timestep
+                        #     )
+                        # else:
                         record_summaries = tf.contrib.summary.always_record_summaries()
 
                     default_summarizer.__enter__()
@@ -290,31 +293,44 @@ class Model(object):
                     independent=independent
                 )
 
-                if 'graph' in self.summary_labels:
-                    graph_def = self.graph.as_graph_def()
-                    graph_str = tf.constant(value=graph_def.SerializeToString(), dtype=tf.string, shape=())
-                    self.graph_summary = tf.contrib.summary.graph(param=graph_str, step=self.global_timestep)
-                    if 'meta_param_recorder_class' in self.summarizer_spec:
-                        self.graph_summary = tf.group(
-                            self.graph_summary,
-                            self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
-                        )
-
                 # Add all summaries specified in summary_labels
-                if any(k in self.summary_labels for k in ['inputs', 'states']):
+                if 'inputs' in self.summary_labels or 'states' in self.summary_labels:
                     for name in sorted(states):
-                        tf.contrib.summary.histogram(name=(self.scope + '/inputs/states/' + name), tensor=states[name])
-                if any(k in self.summary_labels for k in ['inputs', 'actions']):
+                        tf.contrib.summary.histogram(name=('states-' + name), tensor=states[name])
+                if 'inputs' in self.summary_labels or 'actions' in self.summary_labels:
                     for name in sorted(actions):
-                        tf.contrib.summary.histogram(name=(self.scope + '/inputs/actions/' + name), tensor=actions[name])
-                if any(k in self.summary_labels for k in ['inputs', 'rewards']):
-                    tf.contrib.summary.histogram(name=(self.scope + '/inputs/rewards'), tensor=reward)
+                        tf.contrib.summary.histogram(name=('actions-' + name), tensor=actions[name])
+                if 'inputs' in self.summary_labels or 'reward' in self.summary_labels:
+                    tf.contrib.summary.histogram(name='reward', tensor=reward)
+
+                if 'graph' in self.summary_labels:
+                    with tf.name_scope(name='summarizer'):
+                        graph_def = self.graph.as_graph_def()
+                        graph_str = tf.constant(
+                            value=graph_def.SerializeToString(),
+                            dtype=tf.string,
+                            shape=()
+                        )
+                        self.graph_summary = tf.contrib.summary.graph(
+                            param=graph_str,
+                            step=self.global_timestep
+                        )
+                        if 'meta_param_recorder_class' in self.summarizer_spec:
+                            self.graph_summary = tf.group(
+                                self.graph_summary,
+                                self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
+                            )
 
                 if self.summarizer_spec is not None:
-                    self.flush_summarizer = tf.contrib.summary.flush()
-
                     record_summaries.__exit__(None, None, None)
                     default_summarizer.__exit__(None, None, None)
+
+                    with tf.name_scope(name='summarizer'):
+                        self.flush_summarizer = tf.contrib.summary.flush()
+
+                        self.summarizer_init_op = tf.contrib.summary.summary_writer_initializer_op()
+                        assert len(self.summarizer_init_op) == 1
+                        self.summarizer_init_op = self.summarizer_init_op[0]
 
         # If we are a global model -> return here.
         # Saving, syncing, finalizing graph, session is done by local replica model.
@@ -522,7 +538,11 @@ class Model(object):
                     registered = True
                 # Top-level, hence no 'registered' argument.
                 variable = getter(name=name, **kwargs)
-                if not registered:
+                if registered:
+                    pass
+                elif name in self.all_variables:
+                    assert variable is self.all_variables[name]
+                else:
                     self.all_variables[name] = variable
                     if kwargs.get('trainable', True):
                         self.variables[name] = variable
@@ -601,14 +621,13 @@ class Model(object):
             global_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             # global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
+            if self.summarizer_init_op is not None:
+                init_op = tf.group(init_op, self.summarizer_init_op)
             if self.graph_summary is None:
                 ready_op = tf.report_uninitialized_variables(var_list=global_variables)
                 ready_for_local_init_op = None
                 local_init_op = None
             else:
-                summarizer_init_op = tf.contrib.summary.summary_writer_initializer_op()
-                assert len(summarizer_init_op) == 1
-                init_op = tf.group(init_op, summarizer_init_op[0])
                 ready_op = None
                 ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
                 local_init_op = self.graph_summary
@@ -619,10 +638,8 @@ class Model(object):
             # global_variables += [self.global_episode, self.global_timestep]
             local_variables = self.get_variables(include_submodules=True, include_nontrainable=True)
             init_op = tf.variables_initializer(var_list=global_variables)
-            if self.summarizer_spec is not None:
-                summarizer_init_op = tf.contrib.summary.summary_writer_initializer_op()
-                assert len(summarizer_init_op) == 1
-                init_op = tf.group(init_op, summarizer_init_op[0])
+            if self.summarizer_init_op is not None:
+                init_op = tf.group(init_op, self.summarizer_init_op)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
             if self.graph_summary is None:

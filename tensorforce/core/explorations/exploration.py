@@ -30,7 +30,12 @@ class Exploration(object):
 
         def custom_getter(getter, name, registered=False, **kwargs):
             variable = getter(name=name, registered=True, **kwargs)
-            if not registered:
+            if registered:
+                pass
+            elif name in self.variables:
+                assert variable is self.variables[name]
+            else:
+                assert not kwargs.get('trainable', False)
                 self.variables[name] = variable
             return variable
 

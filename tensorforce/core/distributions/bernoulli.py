@@ -41,7 +41,7 @@ class Bernoulli(Distribution):
         self.shape = shape
         action_size = util.prod(self.shape)
 
-        self.logit = Linear(size=action_size, bias=log(probability), scope='logit')
+        self.logit = Linear(size=action_size, bias=log(probability), scope='logit', summary_labels=summary_labels)
 
         super(Bernoulli, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
 

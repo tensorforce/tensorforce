@@ -42,7 +42,7 @@ class AggregatedBaseline(Baseline):
                 spec=baselines[name],
                 kwargs=dict(summary_labels=summary_labels))
 
-        self.linear = Linear(size=1, bias=0.0, scope='prediction')
+        self.linear = Linear(size=1, bias=0.0, scope='prediction', summary_labels=summary_labels)
 
         super(AggregatedBaseline, self).__init__(scope, summary_labels)
 

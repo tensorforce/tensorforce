@@ -42,7 +42,7 @@ class NetworkBaseline(Baseline):
         )
         assert len(self.network.internals_spec()) == 0
 
-        self.linear = Linear(size=1, bias=0.0, scope='prediction')
+        self.linear = Linear(size=1, bias=0.0, scope='prediction', summary_labels=summary_labels)
 
         super(NetworkBaseline, self).__init__(scope=scope, summary_labels=summary_labels)
 

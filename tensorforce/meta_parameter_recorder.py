@@ -259,3 +259,5 @@ class MetaParameterRecorder(object):
                 ops.append(tf.contrib.summary.generic(name=key, tensor=tf.convert_to_tensor(str(value))))
             else:
                 ops.append(tf.contrib.summary.generic(name=key, tensor=tf.as_string(tf.convert_to_tensor(value))))
+
+        return ops

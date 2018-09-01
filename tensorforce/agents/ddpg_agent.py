@@ -32,6 +32,7 @@ class DDPGAgent(LearningAgent):
         states,
         actions,
         network,
+        critic_network,
         batched_observe=True,
         batching_capacity=1000,
         scope='ddpg',
@@ -49,7 +50,6 @@ class DDPGAgent(LearningAgent):
         discount=0.99,
         distributions=None,
         entropy_regularization=None,
-        critic_network=None,
         critic_optimizer=None,
         target_sync_frequency=10000,
         target_update_weight=1.0
@@ -66,8 +66,7 @@ class DDPGAgent(LearningAgent):
                 (default: {type='replay', include_next_states=true, capacity=1000*batch_size}).
             optimizer (spec): Optimizer specification, see core.optimizers module for more
                 information (default: {type='adam', learning_rate=1e-3}).
-            critic_network (spec): Critic network specification, usually a list of layer specifications,
-                see core.networks module for more information (default: network).
+            critic_network (spec): Critic network specification, size_t0 and size_t1.
             critic_optimizer (spec): Critic optimizer specification, see core.optimizers module for
                 more information (default: {type='adam', learning_rate=1e-3}).
             target_sync_frequency (int): Target network sync frequency (default: 10000).
@@ -102,9 +101,6 @@ class DDPGAgent(LearningAgent):
                 type='adam',
                 learning_rate=1e-3
             )
-
-        if critic_network is None:
-            critic_network = network
 
         if critic_optimizer is None:
             critic_optimizer = dict(

@@ -318,7 +318,7 @@ class Model(object):
                         if 'meta_param_recorder_class' in self.summarizer_spec:
                             self.graph_summary = tf.group(
                                 self.graph_summary,
-                                self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
+                                *self.summarizer_spec['meta_param_recorder_class'].build_metagraph_list()
                             )
 
                 if self.summarizer_spec is not None:
@@ -542,6 +542,10 @@ class Model(object):
                     pass
                 elif name in self.all_variables:
                     assert variable is self.all_variables[name]
+                    if kwargs.get('trainable', True):
+                        assert variable is self.variables[name]
+                        if 'variables' in self.summary_labels:
+                            tf.contrib.summary.histogram(name=name, tensor=variable)
                 else:
                     self.all_variables[name] = variable
                     if kwargs.get('trainable', True):
@@ -1262,7 +1266,6 @@ class Model(object):
             tuple:
                 Current episode, timestep counter and the shallow-copied list of internal state initialization Tensors.
         """
-
         fetches = [self.global_episode, self.global_timestep]
 
         # Loop through all preprocessors and reset them as well.

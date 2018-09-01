@@ -26,7 +26,8 @@ install_requires = [
     'six',
     'scipy',
     'pillow',
-    'pytest'
+    'pytest',
+    'tqdm'
 ]
 
 setup_requires = [

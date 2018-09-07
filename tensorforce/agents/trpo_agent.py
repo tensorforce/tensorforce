@@ -54,9 +54,9 @@ class TRPOAgent(LearningAgent):
         gae_lambda=None,
         likelihood_ratio_clipping=None,
         learning_rate=1e-3,
-        cg_max_iterations=20,
+        cg_max_iterations=10,
         cg_damping=1e-3,
-        cg_unroll_loop=False,
+        cg_unroll_loop=True,
         ls_max_iterations=10,
         ls_accept_ratio=0.9,
         ls_unroll_loop=False

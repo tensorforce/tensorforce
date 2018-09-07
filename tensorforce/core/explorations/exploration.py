@@ -35,7 +35,7 @@ class Exploration(object):
             elif name in self.variables:
                 assert variable is self.variables[name]
             else:
-                assert not kwargs.get('trainable', False)
+                assert not kwargs['trainable']
                 self.variables[name] = variable
             return variable
 

@@ -42,6 +42,7 @@ class ViZDoom(Environment):
 
 		self.state_shape = self.featurize(self.game.get_state()).shape
 		self.num_actions = len(self.game.get_available_buttons())
+		
 
 	
 	def __str__(self):
@@ -52,7 +53,7 @@ class ViZDoom(Environment):
 
 	def reset(self):
 		self.game.new_episode()
-		return self.game.get_state()
+		return self.featurize(self.game.get_state())
 
 	def seed(self, seed):
 		if seed is None:
@@ -61,6 +62,8 @@ class ViZDoom(Environment):
 		return seed
 
 	def featurize(self,state):
+		if state is None:
+			return None
 		H = state.screen_buffer.shape[0]
 		W = state.screen_buffer.shape[1]
 		_vars=state.game_variables.reshape(-1).astype(np.float32)
@@ -83,7 +86,7 @@ class ViZDoom(Environment):
 		return np.concatenate(
 			(_vars, _screen_buf, _depth_buf, _labels_buf, _automap_buf))
 
-	def execute(self, action):
+	def execute(self, action):		
 		one_hot_enc = [0] * self.num_actions
 		one_hot_enc[action] = 1
 		reward = self.game.make_action(one_hot_enc)

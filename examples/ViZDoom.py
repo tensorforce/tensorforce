@@ -1,5 +1,8 @@
 """
-ViZDoom execution
+ViZDoom usage example
+
+For more information, visit: https://github.com/mwydmuch/ViZDoom
+For ViZDoom configuration, check: examples/configs/vizdoom/basic.cfg
 """
 
 from __future__ import absolute_import
@@ -82,13 +85,12 @@ def main():
                                                                                                     sps=sps))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Episode timesteps: {}".format(r.episode_timestep))
-            logger.info("Episode largest tile: {}".format(r.environment.largest_tile))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
             logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
         return True
 
     runner.run(
-        timesteps=300,
+        timesteps=6000000,
         episodes=1000,
         max_episode_timesteps=10000,
         deterministic=False,
@@ -100,7 +102,6 @@ def main():
     while not terminal:
         action = agent.act(state)
         state, terminal, reward = environment.execute(action)
-    environment.print_state()
 
     runner.close()
 

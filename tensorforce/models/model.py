@@ -939,12 +939,13 @@ class Model(object):
         exploration_value = exploration.tf_explore(
             episode=self.global_episode,
             timestep=self.global_timestep,
-            action_spec=action_spec
+            shape=action_spec['shape']
         )
+        exploration_value = tf.expand_dims(input=exploration_value, axis=0)
 
         if action_spec['type'] == 'bool':
             action = tf.where(
-                condition=(tf.random_uniform(shape=action_shape[0]) < exploration_value),
+                condition=(tf.random_uniform(shape=action_shape) < exploration_value),
                 x=(tf.random_uniform(shape=action_shape) < 0.5),
                 y=action
             )
@@ -957,8 +958,6 @@ class Model(object):
             )
 
         elif action_spec['type'] == 'float':
-            for _ in range(util.rank(action) - 1):
-                exploration_value = tf.expand_dims(input=exploration_value, axis=-1)
             action += exploration_value
             if 'min_value' in action_spec:
                 action = tf.clip_by_value(

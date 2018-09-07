@@ -43,7 +43,7 @@ class EpsilonDecay(Exploration):
 
         super(EpsilonDecay, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode=0, timestep=0, action_spec=None):
+    def tf_explore(self, episode, timestep, shape):
 
         def true_fn():
             # Know if first is not true second must be true from outer cond check.
@@ -60,4 +60,4 @@ class EpsilonDecay(Exploration):
 
         pred = tf.logical_or(x=(timestep < self.start_timestep),
                              y=(timestep > self.start_timestep + int(self.timesteps)))
-        return tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)
+        return tf.fill(dims=shape, value=tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn))

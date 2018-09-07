@@ -45,7 +45,7 @@ class Exploration(object):
             custom_getter_=custom_getter
         )
 
-    def tf_explore(self, episode, timestep, action_spec):
+    def tf_explore(self, episode, timestep, shape):
         """
         Creates exploration value, e.g. compute an epsilon for epsilon-greedy or sample normal  
         noise.

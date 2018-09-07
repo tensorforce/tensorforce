@@ -38,5 +38,5 @@ class GaussianNoise(Exploration):
 
         super(GaussianNoise, self).__init__(scope=scope, summary_labels=summary_labels)
 
-    def tf_explore(self, episode, timestep, action_spec):
-        return tf.random_normal(shape=action_spec['shape'], mean=self.mu, stddev=self.sigma)
+    def tf_explore(self, episode, timestep, shape):
+        return tf.random_normal(shape=shape, mean=self.mu, stddev=self.sigma)

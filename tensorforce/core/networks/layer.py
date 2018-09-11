@@ -408,7 +408,7 @@ class Nonlinearity(Layer):
 
 class Dropout(Layer):
     """
-    Dropout layer. If using dropout, add this layer after inputs and after dense layers. For  
+    Dropout layer. If using dropout, add this layer after inputs and after dense layers. For
     LSTM, dropout is handled independently as an argument. Not available for Conv2d yet.
     """
 
@@ -560,7 +560,8 @@ class Linear(Layer):
         l1_regularization=0.0,
         named_tensors=None,
         scope='linear',
-        summary_labels=()
+        summary_labels=(),
+        trainable=True
     ):
         """
         Linear layer.
@@ -677,7 +678,8 @@ class Linear(Layer):
                 name='W',
                 shape=weights_shape,
                 dtype=tf.float32,
-                initializer=self.weights_init
+                initializer=self.weights_init,
+                trainable=self.trainable
             )
 
         x = tf.matmul(a=x, b=self.weights)
@@ -689,7 +691,12 @@ class Linear(Layer):
             if isinstance(self.bias_init, tf.Tensor):
                 self.bias = self.bias_init
             else:
-                self.bias = tf.get_variable(name='b', shape=bias_shape, dtype=tf.float32, initializer=self.bias_init)
+                self.bias = tf.get_variable(
+                    name='b',
+                    shape=bias_shape,
+                    dtype=tf.float32,
+                    initializer=self.bias_init,
+                    trainable=self.trainable)
 
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
@@ -734,7 +741,8 @@ class Dense(Layer):
         skip=False,
         named_tensors=None,
         scope='dense',
-        summary_labels=()
+        summary_labels=(),
+        trainable=True
     ):
         """
         Dense layer.
@@ -809,7 +817,7 @@ class Dense(Layer):
         if self.skip:
             regularization_loss = self.linear_skip.regularization_loss()
             if regularization_loss is not None:
-                losses.append(regularization_loss)          
+                losses.append(regularization_loss)
 
         if len(losses) > 0:
             return tf.add_n(inputs=losses)

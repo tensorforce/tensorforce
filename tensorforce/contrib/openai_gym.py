@@ -32,7 +32,7 @@ class OpenAIGym(Environment):
     To use install with "pip install gym".
     """
 
-    def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0, visualize=False, external_gym=None):
+    def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0, visualize=False):
         """
         Initialize OpenAI Gym.
 
@@ -43,15 +43,10 @@ class OpenAIGym(Environment):
             monitor_video: Save a video every monitor_video steps. Setting this to 0 disables recording of videos.
             visualize: If set True, the program will visualize the trainings of gym's environment. Note that such
                 visualization is probabily going to slow down the training.
-            external_gym: The user can pass in an external OpenAI Gym environment that is not defined in the existing GYM enviroments.
         """
 
         self.gym_id = gym_id
-        if external_gym:
-            self.gym = external_gym
-        else:
-            self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
-
+        self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
         self.visualize = visualize
 
         if monitor:

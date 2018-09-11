@@ -20,7 +20,7 @@ from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
 
 # Create an OpenAIgym environment.
-environment = OpenAIGym('CartPole-v0', visualize=True)
+environment = OpenAIGym('CartPole-v0', visualize=False)
 
 # Network as list of layers
 # - Embedding layer:
@@ -35,6 +35,7 @@ environment = OpenAIGym('CartPole-v0', visualize=True)
 
 network_spec = [
     # dict(type='embedding', indices=100, size=32),
+    # dict(type'flatten'),
     dict(type='dense', size=32),
     dict(type='dense', size=32)
 ]
@@ -44,7 +45,7 @@ agent = PPOAgent(
     actions=environment.actions,
     network=network_spec,
     # Agent
-    states_preprocessing=none,
+    states_preprocessing=None,
     actions_exploration=None,
     reward_preprocessing=None,
     # MemoryModel

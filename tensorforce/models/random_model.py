@@ -59,7 +59,7 @@ class RandomModel(Model):
 
         actions = dict()
         for name in sorted(self.actions_spec):
-            action = self.action_spec[name]
+            action = self.actions_spec[name]
             shape = (tf.shape(input=states[next(iter(sorted(states)))])[0],) + action['shape']
 
             if action['type'] == 'bool':

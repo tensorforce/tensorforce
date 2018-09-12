@@ -558,10 +558,10 @@ class Linear(Layer):
         bias=True,
         l2_regularization=0.0,
         l1_regularization=0.0,
+        trainable=True,
         named_tensors=None,
         scope='linear',
-        summary_labels=(),
-        trainable=True
+        summary_labels=()
     ):
         """
         Linear layer.
@@ -739,10 +739,10 @@ class Dense(Layer):
         l2_regularization=0.0,
         l1_regularization=0.0,
         skip=False,
+        trainable=True,
         named_tensors=None,
         scope='dense',
         summary_labels=(),
-        trainable=True
     ):
         """
         Dense layer.
@@ -770,7 +770,8 @@ class Dense(Layer):
             bias=bias,
             l2_regularization=l2_regularization,
             l1_regularization=l1_regularization,
-            summary_labels=summary_labels
+            summary_labels=summary_labels,
+            trainable=trainable
         )
         if self.skip:
             self.linear_skip = Linear(
@@ -778,7 +779,8 @@ class Dense(Layer):
                 bias=bias,
                 l2_regularization=l2_regularization,
                 l1_regularization=l1_regularization,
-                summary_labels=summary_labels
+                summary_labels=summary_labels,
+                trainable=trainable
             )
         # TODO: Consider creating two nonlinearity variables when skip is used and learning beta
         #       Right now, only a single beta can be learned
@@ -871,14 +873,14 @@ class Dueling(Layer):
             size=1, bias=bias,
             l2_regularization=l2_regularization,
             l1_regularization=l1_regularization,
-            summary_labels=summary_labels
+            summary_labels=summary_labels,
         )
         self.advantage_layer = Linear(
             size=size,
             bias=bias,
             l2_regularization=l2_regularization,
             l1_regularization=l1_regularization,
-            summary_labels=summary_labels
+            summary_labels=summary_labels,
         )
         self.output = output
         self.nonlinearity = Nonlinearity(summary_labels=summary_labels, **util.prepare_kwargs(activation))

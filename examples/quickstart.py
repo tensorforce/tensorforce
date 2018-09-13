@@ -52,9 +52,9 @@ agent = PPOAgent(
     update_mode=dict(
         unit='episodes',
         # 10 episodes per update
-        batch_size=20,
+        batch_size=10,
         # Every 10 episodes
-        frequency=20
+        frequency=10
     ),
     memory=dict(
         type='latest',

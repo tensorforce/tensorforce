@@ -97,6 +97,8 @@ class Model(object):
                 from the Environment (e.g. reward normalization).
             tf_session_dump_dir (str): If non-empty string, all session.run calls will be dumped using the tensorflow
                 offline-debug session into the given directory.
+            execution: (dict)
+                - num_parallel: (int) number of parallel episodes
         """
         # Network crated from network in distribution_model.py
         # Needed for named_tensor access
@@ -145,13 +147,25 @@ class Model(object):
 
         # Model's (tensorflow) buffers (states, actions, internals):
         # One record is inserted into these buffers when act(independent=False) method is called.
-        self.states_buffer = dict()
-        self.internals_buffer = dict()
-        self.actions_buffer = dict()
-        # Tensorflow int-index; reset to 0 when observe() is called.
-        self.buffer_index = None
-        # main-op executed in observe()
+        self.num_parallel = self.execution_spec.get('num_parallel')
+        if self.num_parallel is None:
+            self.num_parallel = 1
+
+        self.list_states_buffer = [dict() for _ in range(self.num_parallel)]
+        self.list_internals_buffer = [dict() for _ in range(self.num_parallel)]
+        self.list_actions_buffer = [dict() for _ in range(self.num_parallel)]
+        self.list_buffer_index = [None for _ in range(self.num_parallel)]
+        # self.list_episode_output = [None for _ in range(self.num_parallel)]
         self.episode_output = None
+        self.episode_index = None
+        # else:
+        #     self.states_buffer = dict()
+        #     self.internals_buffer = dict()
+        #     self.actions_buffer = dict()
+        #     # Tensorflow int-index; reset to 0 when observe() is called.
+        #     self.buffer_index = None
+        #     # main-op executed in observe()
+        #     self.episode_output = None
         self.unbuffered_episode_output = None
 
         # Variable noise
@@ -168,7 +182,8 @@ class Model(object):
         self.registered_variables = None
 
         # 0D counter tensors
-        self.timestep = None
+        # self.timestep = None
+        self.list_timestep = [None for _ in range(self.num_parallel)]
         self.episode = None
         self.global_timestep = None
         self.global_episode = None
@@ -868,40 +883,52 @@ class Model(object):
             trainable=False
         )
 
+        self.episode_index = tf.get_variable(
+            name='episode_index',
+            shape=(),
+            dtype=tf.int32,
+            trainable=False
+        )
+
         # States buffer variable
         for name in sorted(self.states_spec):
-            self.states_buffer[name] = tf.get_variable(
-                name=('state-' + name),
-                shape=((self.batching_capacity,) + tuple(self.states_spec[name]['shape'])),
-                dtype=util.tf_dtype(self.states_spec[name]['type']),
-                trainable=False
-            )
+            for index in range(self.num_parallel):
+                self.list_states_buffer[index][name] = tf.get_variable(
+                    name=(f'state-{name}-{index}'),
+                    shape=((self.batching_capacity,) + tuple(self.states_spec[name]['shape'])),
+                    dtype=util.tf_dtype(self.states_spec[name]['type']),
+                    trainable=False
+                )
 
         # Internals buffer variable
         for name in sorted(self.internals_spec):
-            self.internals_buffer[name] = tf.get_variable(
-                name=('internal-' + name),
-                shape=((self.batching_capacity,) + tuple(self.internals_spec[name]['shape'])),
-                dtype=util.tf_dtype(self.internals_spec[name]['type']),
-                trainable=False
-            )
+            for index in range(self.num_parallel):
+                self.list_internals_buffer[index][name] = tf.get_variable(
+                    name=(f'internal-{name}-{index}'),
+                    shape=((self.batching_capacity,) + tuple(self.internals_spec[name]['shape'])),
+                    dtype=util.tf_dtype(self.internals_spec[name]['type']),
+                    trainable=False
+                )
 
         # Actions buffer variable
         for name in sorted(self.actions_spec):
-            self.actions_buffer[name] = tf.get_variable(
-                name=('action-' + name),
-                shape=((self.batching_capacity,) + tuple(self.actions_spec[name]['shape'])),
-                dtype=util.tf_dtype(self.actions_spec[name]['type']),
+            for index in range(self.num_parallel):
+                self.list_actions_buffer[index][name] = tf.get_variable(
+                    name=(f'action-{name}-{index}'),
+                    shape=((self.batching_capacity,) + tuple(self.actions_spec[name]['shape'])),
+                    dtype=util.tf_dtype(self.actions_spec[name]['type']),
+                    trainable=False
+                )
+
+        # Buffer index
+        for index in range(self.num_parallel):
+            self.list_buffer_index[index] = tf.get_variable(
+                name=f'buffer-index-{index}',
+                shape=(),
+                dtype=util.tf_dtype('int'),
                 trainable=False
             )
 
-        # Buffer index
-        self.buffer_index = tf.get_variable(
-            name='buffer-index',
-            shape=(),
-            dtype=util.tf_dtype('int'),
-            trainable=False
-        )
 
     def tf_preprocess(self, states, actions, reward):
         """
@@ -1077,25 +1104,29 @@ class Model(object):
 
             batch_size = tf.shape(input=states[next(iter(sorted(states)))])[0]
             for name in sorted(states):
-                operations.append(tf.assign(
-                    ref=self.states_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=states[name]
-                ))
+                for index in range(self.num_parallel):
+                    operations.append(tf.assign(
+                        ref=self.list_states_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
+                        value=states[name]
+                    ))
             for name in sorted(internals):
-                operations.append(tf.assign(
-                    ref=self.internals_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=internals[name]
-                ))
+                for index in range(self.num_parallel):
+                    operations.append(tf.assign(
+                        ref=self.list_internals_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
+                        value=internals[name]
+                    ))
             for name in sorted(self.actions_output):
-                operations.append(tf.assign(
-                    ref=self.actions_buffer[name][self.buffer_index: self.buffer_index + batch_size],
-                    value=self.actions_output[name]
-                ))
+                for index in range(self.num_parallel):
+                    operations.append(tf.assign(
+                        ref=self.list_actions_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
+                        value=self.actions_output[name]
+                    ))
 
             with tf.control_dependencies(control_inputs=operations):
                 operations = list()
 
-                operations.append(tf.assign_add(ref=self.buffer_index, value=batch_size))
+                for index in range(self.num_parallel):
+                    operations.append(tf.assign_add(ref=self.list_buffer_index[index], value=batch_size))
 
                 # Increment timestep
                 operations.append(tf.assign_add(ref=self.timestep, value=tf.to_int64(x=batch_size)))
@@ -1132,32 +1163,37 @@ class Model(object):
         increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
 
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
-            # Stop gradients
-            fn = (lambda x: tf.stop_gradient(input=x[:self.buffer_index]))
-            states = util.map_tensors(fn=fn, tensors=self.states_buffer)
-            internals = util.map_tensors(fn=fn, tensors=self.internals_buffer)
-            actions = util.map_tensors(fn=fn, tensors=self.actions_buffer)
-            terminal = tf.stop_gradient(input=terminal)
-            reward = tf.stop_gradient(input=reward)
+            observations = list()
+            for index in range(self.num_parallel):
+                # Stop gradients
+                fn = (lambda x: tf.stop_gradient(input=x[:self.list_buffer_index[index]]))
+                states = util.map_tensors(fn=fn, tensors=self.list_states_buffer[index])
+                internals = util.map_tensors(fn=fn, tensors=self.list_internals_buffer[index])
+                actions = util.map_tensors(fn=fn, tensors=self.list_actions_buffer[index])
+                terminal = tf.stop_gradient(input=terminal)
+                reward = tf.stop_gradient(input=reward)
 
-            # Observation
-            observation = self.fn_observe_timestep(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward
-            )
+                # Observation
+                observation = self.fn_observe_timestep(
+                    states=states,
+                    internals=internals,
+                    actions=actions,
+                    terminal=terminal,
+                    reward=reward
+                )
+                observations.append(observation)
 
-        with tf.control_dependencies(control_inputs=(observation,)):
+        with tf.control_dependencies(control_inputs=observations):
+            reset_indexes = list()
             # Reset buffer index.
-            reset_index = tf.assign(ref=self.buffer_index, value=0)
+            for index in range(self.num_parallel):
+                reset_indexes.append(tf.assign(ref=self.list_buffer_index[index], value=0))
 
-        with tf.control_dependencies(control_inputs=(reset_index,)):
+        with tf.control_dependencies(control_inputs=reset_indexes):
             # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 
-        self.buffer_index_reset_op = tf.assign(ref=self.buffer_index, value=0)
+        self.buffer_index_reset_op = tf.assign(ref=self.list_buffer_index[index], value=0)
 
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
@@ -1226,7 +1262,7 @@ class Model(object):
         Returns the TensorFlow variables used by the model.
 
         Args:
-            include_submodules: Includes variables of submodules (e.g. baseline, target network)  
+            include_submodules: Includes variables of submodules (e.g. baseline, target network)
                 if true.
             include_nontrainable: Includes non-trainable variables if true.
 
@@ -1290,7 +1326,8 @@ class Model(object):
         terminal=None,
         reward=None,
         deterministic=None,
-        independent=None
+        independent=None,
+        index=0
     ):
         """
         Returns the feed-dict for the model's acting and observing tf fetches.
@@ -1364,9 +1401,11 @@ class Model(object):
         if independent is not None:
             feed_dict[self.independent_input] = independent
 
+        feed_dict[self.episode_index] = index
+
         return feed_dict
 
-    def act(self, states, internals, deterministic=False, independent=False, fetch_tensors=None):
+    def act(self, states, internals, deterministic=False, independent=False, fetch_tensors=None, index=0):
         """
         Does a forward pass through the model to retrieve action (outputs) given inputs for state (and internal
         state, if applicable (e.g. RNNs))
@@ -1378,6 +1417,7 @@ class Model(object):
             independent (bool): If true, action is not followed by observe (and hence not included
                 in updates).
             fetch_tensors (list): List of names of additional tensors (from the model's network) to fetch (and return).
+            index: (int) index of the episode we want to produce the next action
 
         Returns:
             tuple:
@@ -1406,7 +1446,8 @@ class Model(object):
             states=states,
             internals=internals,
             deterministic=deterministic,
-            independent=independent
+            independent=independent,
+            index=index
         )
 
         fetch_list = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
@@ -1419,27 +1460,27 @@ class Model(object):
 
         if self.network is not None and fetch_tensors is not None:
             fetch_dict = dict()
-            for index, tensor in enumerate(fetch_list[3:]):
-                name = fetch_tensors[index]
+            for index_, tensor in enumerate(fetch_list[3:]):
+                name = fetch_tensors[index_]
                 fetch_dict[name] = tensor
             return actions, internals, timestep, fetch_dict
         else:
             return actions, internals, timestep
 
-    def observe(self, terminal, reward):
+    def observe(self, terminal, reward, index=0):
         """
         Adds an observation (reward and is-terminal) to the model without updating its trainable variables.
 
         Args:
             terminal (List[bool]): List of is-terminal signals.
             reward (List[float]): List of reward signals.
+            index: (int) parallel episode you want to observe
 
         Returns:
             The value of the model-internal episode counter.
         """
-
         fetches = self.episode_output
-        feed_dict = self.get_feed_dict(terminal=terminal, reward=reward)
+        feed_dict = self.get_feed_dict(terminal=terminal, reward=reward, index=index)
 
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
@@ -1461,9 +1502,9 @@ class Model(object):
 
     def save(self, directory=None, append_timestep=True):
         """
-        Save TensorFlow model. If no checkpoint directory is given, the model's default saver  
-        directory is used. Optionally appends current timestep to prevent overwriting previous  
-        checkpoint files. Turn off to be able to load model from the same given path argument as  
+        Save TensorFlow model. If no checkpoint directory is given, the model's default saver
+        directory is used. Optionally appends current timestep to prevent overwriting previous
+        checkpoint files. Turn off to be able to load model from the same given path argument as
         given here.
 
         Args:
@@ -1488,8 +1529,8 @@ class Model(object):
 
     def restore(self, directory=None, file=None):
         """
-        Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is  
-        restored. If no checkpoint directory is given, the model's default saver directory is  
+        Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is
+        restored. If no checkpoint directory is given, the model's default saver directory is
         used (unless file specifies the entire path).
 
         Args:

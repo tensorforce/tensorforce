@@ -578,6 +578,7 @@ class Linear(Layer):
         self.bias_init = bias
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
+        self.trainable = trainable
         super(Linear, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
 
     def tf_apply(self, x, update=False):

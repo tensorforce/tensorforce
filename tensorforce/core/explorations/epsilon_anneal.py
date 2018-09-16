@@ -55,4 +55,4 @@ class EpsilonAnneal(Exploration):
             return self.initial_epsilon + completed_ratio * (self.final_epsilon - self.initial_epsilon)
 
         pred = tf.logical_or(x=(timestep < self.start_timestep), y=(timestep > self.start_timestep + self.timesteps))
-        return tf.constant(dims=shape, value=tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn))
+        return tf.fill(dims=shape, value=tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn))

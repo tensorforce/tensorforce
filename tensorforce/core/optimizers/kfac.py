@@ -926,7 +926,7 @@ class KfacOptimizer(Optimizer):
         vars = variables
         if var is None:
             vars = tf.trainable_variables
-        return tf.gradients(fn_loss, var)
+        return tf.gradients(fn_loss, vars)
 
     def apply_step(self, variables, deltas, loss_sampled):
         """

@@ -50,8 +50,7 @@ class ParallelRunner(BaseRunner):
         self.environment.close()
 
     # TODO: make average reward another possible criteria for runner-termination
-    def run(self, num_timesteps=None, num_episodes=None, max_episode_timesteps=None, deterministic=False,
-            episode_finished=None, summary_report=None, summary_interval=None, timesteps=None, episodes=None, testing=False, sleep=None
+    def run(self, num_timesteps=None, num_episodes=None, max_episode_timesteps=None, deterministic=False, episode_finished=None, summary_report=None, summary_interval=None, timesteps=None, episodes=None, testing=False, sleep=None
             ):
         """
         Args:

@@ -157,6 +157,7 @@ class Queue(Memory):
             dtype=util.tf_dtype('int')
         )
         num_episodes = tf.minimum(x=num_episodes, y=self.episode_count)
+        num_episodes = tf.Print(num_episodes, [num_episodes, self.episode_count], '2# -> : ')
         assignment = tf.assign(
             ref=self.episode_indices[:self.episode_count - num_episodes],
             value=self.episode_indices[num_episodes: self.episode_count]
@@ -193,6 +194,7 @@ class Queue(Memory):
         # Add episode indices.
         with tf.control_dependencies(control_inputs=assignments):
             num_episodes = tf.count_nonzero(input_tensor=terminal, axis=0, dtype=util.tf_dtype('int'))
+            num_episodes = tf.Print(num_episodes, [num_episodes, self.episode_count], '3# -> : ')
             assignment = tf.assign(
                 ref=self.episode_indices[self.episode_count: self.episode_count + num_episodes],
                 value=tf.boolean_mask(tensor=indices, mask=terminal)

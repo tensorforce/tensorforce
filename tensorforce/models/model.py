@@ -883,11 +883,10 @@ class Model(object):
             trainable=False
         )
 
-        self.episode_index = tf.get_variable(
+        self.episode_index = tf.placeholder(
             name='episode_index',
             shape=(),
             dtype=tf.int32,
-            trainable=False
         )
 
         # States buffer variable
@@ -1100,42 +1099,44 @@ class Model(object):
             """
             Stores current states, internals and actions in buffer. Increases timesteps.
             """
-            operations = list()
-
-            batch_size = tf.shape(input=states[next(iter(sorted(states)))])[0]
-            for name in sorted(states):
-                for index in range(self.num_parallel):
+            op_timestep = list()
+            for index in range(self.num_parallel):
+                operations = list()
+                batch_size = tf.shape(input=states[next(iter(sorted(states)))])[0]
+                for name in sorted(states):
                     operations.append(tf.assign(
                         ref=self.list_states_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
                         value=states[name]
                     ))
-            for name in sorted(internals):
-                for index in range(self.num_parallel):
+                for name in sorted(internals):
                     operations.append(tf.assign(
                         ref=self.list_internals_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
                         value=internals[name]
                     ))
-            for name in sorted(self.actions_output):
-                for index in range(self.num_parallel):
+                for name in sorted(self.actions_output):
                     operations.append(tf.assign(
                         ref=self.list_actions_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
                         value=self.actions_output[name]
                     ))
 
-            with tf.control_dependencies(control_inputs=operations):
-                operations = list()
+                with tf.control_dependencies(control_inputs=operations):
+                    operations = list()
 
-                for index in range(self.num_parallel):
-                    operations.append(tf.assign_add(ref=self.list_buffer_index[index], value=batch_size))
+                    for index in range(self.num_parallel):
+                        operations.append(tf.assign_add(ref=self.list_buffer_index[index], value=batch_size))
 
-                # Increment timestep
-                operations.append(tf.assign_add(ref=self.timestep, value=tf.to_int64(x=batch_size)))
-                operations.append(tf.assign_add(ref=self.global_timestep, value=tf.to_int64(x=batch_size)))
+                    # Increment timestep
+                    operations.append(tf.assign_add(ref=self.timestep, value=tf.to_int64(x=batch_size)))
+                    operations.append(tf.assign_add(ref=self.global_timestep, value=tf.to_int64(x=batch_size)))
 
-            with tf.control_dependencies(control_inputs=operations):
-                # Trivial operation to enforce control dependency
-                # TODO why not return no-op?
-                return self.global_timestep + 0
+                with tf.control_dependencies(control_inputs=operations):
+                    # Trivial operation to enforce control dependency
+                    # TODO why not return no-op?
+                    op_timestep.append(self.global_timestep + 0)
+                    # return self.global_timestep + 0
+
+            op_timestep = tf.convert_to_tensor(op_timestep)
+            return op_timestep[self.episode_index]
 
         # Only increment timestep and update buffer if act not independent
         self.timestep_output = tf.cond(
@@ -1157,14 +1158,15 @@ class Model(object):
 
         Returns: Tf op to fetch when `observe()` is called.
         """
-        # Increment episode
-        num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
-        increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
-        increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
+        ops = list()
+        resets = list()
+        for index in range(self.num_parallel):
+            # Increment episode
+            num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
+            increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
+            increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
 
-        with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
-            observations = list()
-            for index in range(self.num_parallel):
+            with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
                 # Stop gradients
                 fn = (lambda x: tf.stop_gradient(input=x[:self.list_buffer_index[index]]))
                 states = util.map_tensors(fn=fn, tensors=self.list_states_buffer[index])
@@ -1181,21 +1183,22 @@ class Model(object):
                     terminal=terminal,
                     reward=reward
                 )
-                observations.append(observation)
 
-        with tf.control_dependencies(control_inputs=observations):
-            reset_indexes = list()
-            # Reset buffer index.
-            for index in range(self.num_parallel):
-                reset_indexes.append(tf.assign(ref=self.list_buffer_index[index], value=0))
+            with tf.control_dependencies(control_inputs=(observation,)):
+                # Reset buffer index.
+                reset_index = tf.assign(ref=self.list_buffer_index[index], value=0)
 
-        with tf.control_dependencies(control_inputs=reset_indexes):
-            # Trivial operation to enforce control dependency.
-            self.episode_output = self.global_episode + 0
+            with tf.control_dependencies(control_inputs=(reset_index,)):
+                # Trivial operation to enforce control dependency.
+                ops.append(self.global_episode + 0)
 
-        self.buffer_index_reset_op = tf.assign(ref=self.list_buffer_index[index], value=0)
+            reset = tf.assign(ref=self.list_buffer_index[index], value=0)
+            resets.append(reset)
 
-        # TODO: add up rewards per episode and add summary_label 'episode-reward'
+        ops = tf.convert_to_tensor(ops)
+        self.episode_output = ops[self.episode_index]
+        resets = tf.convert_to_tensor(resets)
+        self.buffer_index_reset_op = resets[self.episode_index]
 
     def create_atomic_observe_operations(self, states, actions, internals, terminal, reward):
         """

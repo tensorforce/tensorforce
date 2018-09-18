@@ -1130,28 +1130,28 @@ class Model(object):
                     value=self.actions_output[name]
                 ))
 
-                with tf.control_dependencies(control_inputs=operations):
-                    operations = list()
+            with tf.control_dependencies(control_inputs=operations):
+                operations = list()
 
-                print(f'type b: {self.list_buffer_index}')
-                # operations.append(tf.assign_add(ref=self.list_buffer_index[index], value=batch_size))
                 operations.append(tf.assign(
                     ref=self.list_buffer_index[index: index+1],
                     value=tf.add(self.list_buffer_index[index: index+1], tf.constant([1]))
                 ))
 
                     # Increment timestep
-                    operations.append(tf.assign_add(ref=self.timestep, value=tf.to_int64(x=batch_size)))
-                    operations.append(tf.assign_add(ref=self.global_timestep, value=tf.to_int64(x=batch_size)))
+                operations.append(tf.assign_add(
+                    ref=self.timestep,
+                    value=tf.to_int64(x=batch_size)
+                ))
+                operations.append(tf.assign_add(
+                    ref=self.global_timestep,
+                    value=tf.to_int64(x=batch_size)
+                ))
 
-                with tf.control_dependencies(control_inputs=operations):
-                    # Trivial operation to enforce control dependency
-                    # TODO why not return no-op?
-                    op_timestep.append(self.global_timestep + 0)
-                    # return self.global_timestep + 0
-
-            op_timestep = tf.convert_to_tensor(op_timestep)
-            return op_timestep[self.episode_index]
+            with tf.control_dependencies(control_inputs=operations):
+                # Trivial operation to enforce control dependency
+                # TODO why not return no-op?
+                return self.global_timestep + 0
 
         # Only increment timestep and update buffer if act not independent
         self.timestep_output = tf.cond(
@@ -1205,13 +1205,10 @@ class Model(object):
             # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 
-            reset = tf.assign(ref=self.list_buffer_index[index], value=0)
-            resets.append(reset)
+        self.buffer_index_reset_op = tf.assign(ref=self.list_buffer_index, value=0)
 
-        ops = tf.convert_to_tensor(ops)
-        self.episode_output = ops[self.episode_index]
-        resets = tf.convert_to_tensor(resets)
-        self.buffer_index_reset_op = resets[self.episode_index]
+         # TODO: add up rewards per episode and add summary_label 'episode-reward'
+
 
     def create_atomic_observe_operations(self, states, actions, internals, terminal, reward):
         """

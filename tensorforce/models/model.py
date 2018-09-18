@@ -890,43 +890,34 @@ class Model(object):
             shape=(),
             dtype=tf.int32,
         )
+        print(f'self.episode_index is a placeholder : {self.episode_index}')
 
         # States buffer variable
         for name in sorted(self.states_spec):
-            # self.list_states_buffer[name] = list()
-            # for index in range(self.num_parallel):
             self.list_states_buffer[name] = tf.get_variable(
                 name=(f'state-{name}'),
                 shape=((self.num_parallel, self.batching_capacity,) + tuple(self.states_spec[name]['shape'])),
                 dtype=util.tf_dtype(self.states_spec[name]['type']),
                 trainable=False
             )
-            # self.list_states_buffer[name] = tf.convert_to_tensor(self.list_states_buffer[name])
-            # self.list_states_buffer[name] =
 
         # Internals buffer variable
         for name in sorted(self.internals_spec):
-            # self.list_internals_buffer[name] = list()
-            # for index in range(self.num_parallel):
             self.list_internals_buffer[name] = tf.get_variable(
                 name=(f'internal-{name}'),
                 shape=((self.num_parallel, self.batching_capacity,) + tuple(self.internals_spec[name]['shape'])),
                 dtype=util.tf_dtype(self.internals_spec[name]['type']),
                 trainable=False
             )
-            # self.list_internals_buffer[name] = tf.convert_to_tensor(self.list_internals_buffer[name])
 
         # Actions buffer variable
         for name in sorted(self.actions_spec):
-            # self.list_actions_buffer[name] = list()
-            # for index in range(self.num_parallel):
             self.list_actions_buffer[name]= tf.get_variable(
                 name=(f'action-{name}'),
                 shape=((self.num_parallel, self.batching_capacity,) + tuple(self.actions_spec[name]['shape'])),
                 dtype=util.tf_dtype(self.actions_spec[name]['type']),
                 trainable=False
             )
-            # self.list_actions_buffer[name] = tf.convert_to_tensor(self.list_actions_buffer[name])
 
         # Buffer index
         # for index in range(self.num_parallel):
@@ -1178,6 +1169,7 @@ class Model(object):
         increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
         increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
         index = self.episode_index
+        print(f'create_obs... index: {index}')
 
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
             # Stop gradients

@@ -171,12 +171,20 @@ class Queue(Memory):
         with tf.control_dependencies(control_inputs=(assignment,)):
             assignments = list()
             for name in sorted(states):
+                print(f'1# begin: {name}')
+                print(f'-> {self.states_memory[name]}')
+                print(f'-> {indices}')
+                print(f'-> {states[name]}')
                 assignments.append(tf.scatter_update(
                     ref=self.states_memory[name],
                     indices=indices,
                     updates=states[name]
                 ))
             for name in sorted(internals):
+                print(f'2# begin: {name}')
+                print(f'-> {self.internals_memory[name]}')
+                print(f'-> {indices}')
+                print(f'-> {internals[name]}')
                 assignments.append(tf.scatter_update(
                     ref=self.internals_memory[name],
                     indices=indices,

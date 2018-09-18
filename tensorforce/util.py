@@ -113,15 +113,17 @@ def tf_dtype(dtype):
 
 
 def map_tensors(fn, tensors, index=None):
+    print(f'type tensors: {type(tensors)}, index == {index}, {tensors}')
     if tensors is None:
         return None
     elif isinstance(tensors, tuple):
         return tuple(map_tensors(fn=fn, tensors=tensor) for tensor in tensors)
     elif isinstance(tensors, list):
         return [map_tensors(fn=fn, tensors=tensor) for tensor in tensors]
-    elif isinstance(tensors, dict):
+    elif isinstance(tensors, dict) and index is None:
         return {key: map_tensors(fn=fn, tensors=tensor) for key, tensor in tensors.items()}
     elif isinstance(tensors, dict) and index is not None:
+        print('-----> <><> HERE')
         return {key: map_tensors(fn=fn, tensors=tensor[index]) for key, tensor in tensors.items()}
     elif isinstance(tensors, set):
         return {map_tensors(fn=fn, tensors=tensor) for tensor in tensors}

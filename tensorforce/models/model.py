@@ -894,7 +894,7 @@ class Model(object):
         # States buffer variable
         for name in sorted(self.states_spec):
             self.list_states_buffer[name] = tf.get_variable(
-                name=(f'state-{name}'),
+                name=('state-{}'.format(name)),
                 shape=((self.num_parallel, self.batching_capacity,) + tuple(self.states_spec[name]['shape'])),
                 dtype=util.tf_dtype(self.states_spec[name]['type']),
                 trainable=False
@@ -903,7 +903,7 @@ class Model(object):
         # Internals buffer variable
         for name in sorted(self.internals_spec):
             self.list_internals_buffer[name] = tf.get_variable(
-                name=(f'internal-{name}'),
+                name=('internal-{}'.format(name)),
                 shape=((self.num_parallel, self.batching_capacity,) + tuple(self.internals_spec[name]['shape'])),
                 dtype=util.tf_dtype(self.internals_spec[name]['type']),
                 trainable=False
@@ -912,7 +912,7 @@ class Model(object):
         # Actions buffer variable
         for name in sorted(self.actions_spec):
             self.list_actions_buffer[name]= tf.get_variable(
-                name=(f'action-{name}'),
+                name=('action-{}'.format(name)),
                 shape=((self.num_parallel, self.batching_capacity,) + tuple(self.actions_spec[name]['shape'])),
                 dtype=util.tf_dtype(self.actions_spec[name]['type']),
                 trainable=False
@@ -921,7 +921,7 @@ class Model(object):
         # Buffer index
         # for index in range(self.num_parallel):
         self.list_buffer_index = tf.get_variable(
-            name=f'buffer-index',
+            name='buffer-index',
             shape=(self.num_parallel),
             dtype=util.tf_dtype('int'),
             trainable=False

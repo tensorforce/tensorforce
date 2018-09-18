@@ -104,6 +104,7 @@ class Optimizer(object):
                 loss.
             - fn_kl_divergence: A callable returning the KL-divergence relative to the
                 current model.
+            - sampled_loss: A sampled loss (integer).
             - return_estimated_improvement: Returns the estimated improvement resulting from
                 the natural gradient calculation if true.
             - source_variables: List of source variables to synchronize with.

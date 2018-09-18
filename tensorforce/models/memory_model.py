@@ -318,7 +318,7 @@ class MemoryModel(Model):
 
     def tf_reference(self, states, internals, actions, terminal, reward, next_states, next_internals, update):
         """
-        Creates the TensorFlow operations for obtaining the reference tensor(s), in case of a  
+        Creates the TensorFlow operations for obtaining the reference tensor(s), in case of a
         comparative loss.
 
         Args:

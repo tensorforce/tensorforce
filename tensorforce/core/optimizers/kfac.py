@@ -963,4 +963,5 @@ class KfacOptimizer(Optimizer):
         loss = kwargs["fn_loss"]
         sampled_loss = kwargs["sampled_loss"]
 
-        return self.minimize_(loss, sampled_loss, var_list=variables)
+        min_op, _ = self.minimize_(loss, sampled_loss, var_list=variables)
+        return min_op

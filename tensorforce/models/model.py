@@ -890,7 +890,6 @@ class Model(object):
             shape=(),
             dtype=tf.int32,
         )
-        print(f'self.episode_index is a placeholder : {self.episode_index}')
 
         # States buffer variable
         for name in sorted(self.states_spec):
@@ -1169,7 +1168,6 @@ class Model(object):
         increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
         increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
         index = self.episode_index
-        print(f'create_obs... index: {index}')
 
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
             # Stop gradients
@@ -1197,7 +1195,7 @@ class Model(object):
             # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 
-        self.buffer_index_reset_op = tf.assign(ref=self.list_buffer_index, value=0)
+        self.buffer_index_reset_op = tf.assign(ref=self.list_buffer_index[index], value=0)
 
          # TODO: add up rewards per episode and add summary_label 'episode-reward'
 

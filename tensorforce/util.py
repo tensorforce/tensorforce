@@ -113,7 +113,7 @@ def tf_dtype(dtype):
 
 
 def map_tensors(fn, tensors, index=None):
-    print(f'type tensors: {type(tensors)}, index == {index}, {tensors}')
+    print(f'mt# type: {type(tensors)}, index == {index}, {tensors}')
     if tensors is None:
         return None
     elif isinstance(tensors, tuple):

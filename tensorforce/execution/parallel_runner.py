@@ -43,7 +43,7 @@ class ParallelRunner(BaseRunner):
         self.current_timestep = None  # the time step in the current episode
         self.episode_actions = []
         self.num_parallel = self.agent.execution['num_parallel']
-        print(f'ParallelRunner with {self.num_parallel} parallel buffers.')
+        print('ParallelRunner with {} parallel buffers.'.format(self.num_parallel))
 
     def close(self):
         self.agent.close()

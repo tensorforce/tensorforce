@@ -151,11 +151,13 @@ class Model(object):
         if self.num_parallel is None:
             self.num_parallel = 1
 
-        self.list_states_buffer = [dict() for _ in range(self.num_parallel)]
-        self.list_internals_buffer = [dict() for _ in range(self.num_parallel)]
-        self.list_actions_buffer = [dict() for _ in range(self.num_parallel)]
+        # self.list_states_buffer = [dict() for _ in range(self.num_parallel)]
+        # self.list_internals_buffer = [dict() for _ in range(self.num_parallel)]
+        # self.list_actions_buffer = [dict() for _ in range(self.num_parallel)]
+        self.list_states_buffer = dict()
+        self.list_internals_buffer = dict()
+        self.list_actions_buffer = dict()
         self.list_buffer_index = [None for _ in range(self.num_parallel)]
-        # self.list_episode_output = [None for _ in range(self.num_parallel)]
         self.episode_output = None
         self.episode_index = None
         # else:
@@ -883,51 +885,58 @@ class Model(object):
             trainable=False
         )
 
-        self.episode_index = tf.get_variable(
+        self.episode_index = tf.placeholder(
             name='episode_index',
             shape=(),
             dtype=tf.int32,
-            trainable=False
         )
 
         # States buffer variable
         for name in sorted(self.states_spec):
-            for index in range(self.num_parallel):
-                self.list_states_buffer[index][name] = tf.get_variable(
-                    name=(f'state-{name}-{index}'),
-                    shape=((self.batching_capacity,) + tuple(self.states_spec[name]['shape'])),
-                    dtype=util.tf_dtype(self.states_spec[name]['type']),
-                    trainable=False
-                )
+            # self.list_states_buffer[name] = list()
+            # for index in range(self.num_parallel):
+            self.list_states_buffer[name] = tf.get_variable(
+                name=(f'state-{name}'),
+                shape=((self.num_parallel, self.batching_capacity,) + tuple(self.states_spec[name]['shape'])),
+                dtype=util.tf_dtype(self.states_spec[name]['type']),
+                trainable=False
+            )
+            # self.list_states_buffer[name] = tf.convert_to_tensor(self.list_states_buffer[name])
+            # self.list_states_buffer[name] =
 
         # Internals buffer variable
         for name in sorted(self.internals_spec):
-            for index in range(self.num_parallel):
-                self.list_internals_buffer[index][name] = tf.get_variable(
-                    name=(f'internal-{name}-{index}'),
-                    shape=((self.batching_capacity,) + tuple(self.internals_spec[name]['shape'])),
-                    dtype=util.tf_dtype(self.internals_spec[name]['type']),
-                    trainable=False
-                )
+            # self.list_internals_buffer[name] = list()
+            # for index in range(self.num_parallel):
+            self.list_internals_buffer[name] = tf.get_variable(
+                name=(f'internal-{name}'),
+                shape=((self.num_parallel, self.batching_capacity,) + tuple(self.internals_spec[name]['shape'])),
+                dtype=util.tf_dtype(self.internals_spec[name]['type']),
+                trainable=False
+            )
+            # self.list_internals_buffer[name] = tf.convert_to_tensor(self.list_internals_buffer[name])
 
         # Actions buffer variable
         for name in sorted(self.actions_spec):
-            for index in range(self.num_parallel):
-                self.list_actions_buffer[index][name] = tf.get_variable(
-                    name=(f'action-{name}-{index}'),
-                    shape=((self.batching_capacity,) + tuple(self.actions_spec[name]['shape'])),
-                    dtype=util.tf_dtype(self.actions_spec[name]['type']),
-                    trainable=False
-                )
-
-        # Buffer index
-        for index in range(self.num_parallel):
-            self.list_buffer_index[index] = tf.get_variable(
-                name=f'buffer-index-{index}',
-                shape=(),
-                dtype=util.tf_dtype('int'),
+            # self.list_actions_buffer[name] = list()
+            # for index in range(self.num_parallel):
+            self.list_actions_buffer[name]= tf.get_variable(
+                name=(f'action-{name}'),
+                shape=((self.num_parallel, self.batching_capacity,) + tuple(self.actions_spec[name]['shape'])),
+                dtype=util.tf_dtype(self.actions_spec[name]['type']),
                 trainable=False
             )
+            # self.list_actions_buffer[name] = tf.convert_to_tensor(self.list_actions_buffer[name])
+
+        # Buffer index
+        # for index in range(self.num_parallel):
+        self.list_buffer_index = tf.get_variable(
+            name=f'buffer-index',
+            shape=(self.num_parallel),
+            dtype=util.tf_dtype('int'),
+            trainable=False
+        )
+        # self.list_buffer_index = tf.convert_to_tensor(self.list_buffer_index)
 
 
     def tf_preprocess(self, states, actions, reward):
@@ -1101,32 +1110,35 @@ class Model(object):
             Stores current states, internals and actions in buffer. Increases timesteps.
             """
             operations = list()
+            index = self.episode_index
+
 
             batch_size = tf.shape(input=states[next(iter(sorted(states)))])[0]
             for name in sorted(states):
-                for index in range(self.num_parallel):
-                    operations.append(tf.assign(
-                        ref=self.list_states_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
-                        value=states[name]
-                    ))
+                operations.append(tf.assign(
+                    ref=self.list_states_buffer[name][index, self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
+                    value=states[name]
+                ))
             for name in sorted(internals):
-                for index in range(self.num_parallel):
-                    operations.append(tf.assign(
-                        ref=self.list_internals_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
-                        value=internals[name]
-                    ))
+                operations.append(tf.assign(
+                    ref=self.list_internals_buffer[name][index, self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
+                    value=internals[name]
+                ))
             for name in sorted(self.actions_output):
-                for index in range(self.num_parallel):
-                    operations.append(tf.assign(
-                        ref=self.list_actions_buffer[index][name][self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
-                        value=self.actions_output[name]
-                    ))
+                operations.append(tf.assign(
+                    ref=self.list_actions_buffer[name][index, self.list_buffer_index[index]: self.list_buffer_index[index] + batch_size],
+                    value=self.actions_output[name]
+                ))
 
             with tf.control_dependencies(control_inputs=operations):
                 operations = list()
 
-                for index in range(self.num_parallel):
-                    operations.append(tf.assign_add(ref=self.list_buffer_index[index], value=batch_size))
+                print(f'type b: {self.list_buffer_index}')
+                # operations.append(tf.assign_add(ref=self.list_buffer_index[index], value=batch_size))
+                operations.append(tf.assign(
+                    ref=self.list_buffer_index[index: index+1],
+                    value=tf.add(self.list_buffer_index[index: index+1], tf.constant([1]))
+                ))
 
                 # Increment timestep
                 operations.append(tf.assign_add(ref=self.timestep, value=tf.to_int64(x=batch_size)))
@@ -1161,35 +1173,31 @@ class Model(object):
         num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
         increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
         increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
+        index = self.episode_index
 
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
-            observations = list()
-            for index in range(self.num_parallel):
-                # Stop gradients
-                fn = (lambda x: tf.stop_gradient(input=x[:self.list_buffer_index[index]]))
-                states = util.map_tensors(fn=fn, tensors=self.list_states_buffer[index])
-                internals = util.map_tensors(fn=fn, tensors=self.list_internals_buffer[index])
-                actions = util.map_tensors(fn=fn, tensors=self.list_actions_buffer[index])
-                terminal = tf.stop_gradient(input=terminal)
-                reward = tf.stop_gradient(input=reward)
+            # Stop gradients
+            fn = (lambda x: tf.stop_gradient(input=x[:self.list_buffer_index[index]]))
+            states = util.map_tensors(fn=fn, tensors=self.list_states_buffer, index=index)
+            internals = util.map_tensors(fn=fn, tensors=self.list_internals_buffer, index=index)
+            actions = util.map_tensors(fn=fn, tensors=self.list_actions_buffer, index=index)
+            terminal = tf.stop_gradient(input=terminal)
+            reward = tf.stop_gradient(input=reward)
 
-                # Observation
-                observation = self.fn_observe_timestep(
-                    states=states,
-                    internals=internals,
-                    actions=actions,
-                    terminal=terminal,
-                    reward=reward
-                )
-                observations.append(observation)
+            # Observation
+            observation = self.fn_observe_timestep(
+                states=states,
+                internals=internals,
+                actions=actions,
+                terminal=terminal,
+                reward=reward
+            )
 
-        with tf.control_dependencies(control_inputs=observations):
-            reset_indexes = list()
+        with tf.control_dependencies(control_inputs=(observation,)):
             # Reset buffer index.
-            for index in range(self.num_parallel):
-                reset_indexes.append(tf.assign(ref=self.list_buffer_index[index], value=0))
+            reset_index  =tf.assign(ref=self.list_buffer_index[index], value=0)
 
-        with tf.control_dependencies(control_inputs=reset_indexes):
+        with tf.control_dependencies(control_inputs=(reset_index,)):
             # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 

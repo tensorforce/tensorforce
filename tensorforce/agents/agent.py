@@ -146,7 +146,8 @@ class Agent(object):
             states=self.current_states,
             internals=self.current_internals,
             deterministic=deterministic,
-            independent=independent
+            independent=independent,
+            index=index
         )
 
         # Buffered mode only works single-threaded because buffer inserts
@@ -183,10 +184,11 @@ class Agent(object):
             if self.current_terminal or len(self.observe_terminal[index]) >= self.batching_capacity:
                 self.episode = self.model.observe(
                     terminal=self.observe_terminal[index],
-                    reward=self.observe_reward[index]
+                    reward=self.observe_reward[index],
+                    index=index
                 )
-                self.observe_terminal = [list() for _ in range(self.model.num_parallel)]
-                self.observe_reward = [list() for _ in range(self.model.num_parallel)]
+                self.observe_terminal[index] = list()
+                self.observe_reward[index] = list()
 
         else:
             self.episode = self.model.observe(

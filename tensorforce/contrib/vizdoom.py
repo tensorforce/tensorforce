@@ -29,7 +29,7 @@ class ViZDoom(Environment):
 
 	def __init__(self,config_file):
 		"""
-		Initialize MazeExplorer.
+		Initialize ViZDoom environment.
 
 		Args:
 			config_file: .cfg file path, which defines how a world works and look like (maps)

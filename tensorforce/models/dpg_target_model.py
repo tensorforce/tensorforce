@@ -70,13 +70,11 @@ class DDPGCriticNetwork(LayerBasedNetwork):
         else:
             x_actions = x['actions']
 
-        x_actions = tf.reshape(tf.cast(x_actions, dtype=tf.float32), (-1, 1))
-
         out = self.t0l.apply(x=x_states, update=update)
         out = self.t0b.apply(x=out, update=update)
         out = self.t0n.apply(x=out, update=update)
 
-        out = self.t1l.apply(x=tf.concat([out, x_actions], axis=-1), update=update)
+        out = self.t1l.apply(x=tf.concat([out, x_actions], axis=1), update=update)
         out = self.t1b.apply(x=out, update=update)
         out = self.t1n.apply(x=out, update=update)
 

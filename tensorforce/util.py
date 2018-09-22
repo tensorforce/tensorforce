@@ -112,15 +112,17 @@ def tf_dtype(dtype):
         raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
 
 
-def map_tensors(fn, tensors):
+def map_tensors(fn, tensors, index=None):
     if tensors is None:
         return None
     elif isinstance(tensors, tuple):
         return tuple(map_tensors(fn=fn, tensors=tensor) for tensor in tensors)
     elif isinstance(tensors, list):
         return [map_tensors(fn=fn, tensors=tensor) for tensor in tensors]
-    elif isinstance(tensors, dict):
+    elif isinstance(tensors, dict) and index is None:
         return {key: map_tensors(fn=fn, tensors=tensor) for key, tensor in tensors.items()}
+    elif isinstance(tensors, dict) and index is not None:
+        return {key: map_tensors(fn=fn, tensors=tensor[index]) for key, tensor in tensors.items()}
     elif isinstance(tensors, set):
         return {map_tensors(fn=fn, tensors=tensor) for tensor in tensors}
     else:

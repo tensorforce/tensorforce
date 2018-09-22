@@ -63,10 +63,6 @@ class Agent(object):
         # Batched observe for better performance with Python.
         self.batched_observe = batched_observe
         self.batching_capacity = batching_capacity
-        if self.batched_observe:
-            assert self.batching_capacity is not None
-            self.observe_terminal = list()
-            self.observe_reward = list()
 
         self.current_states = None
         self.current_actions = None
@@ -78,6 +74,10 @@ class Agent(object):
         self.episode = None
 
         self.model = self.initialize_model()
+        if self.batched_observe:
+            assert self.batching_capacity is not None
+            self.observe_terminal = [list() for _ in range(self.model.num_parallel)]
+            self.observe_reward = [list() for _ in range(self.model.num_parallel)]
         self.reset()
 
     def __str__(self):
@@ -101,9 +101,9 @@ class Agent(object):
         self.episode, self.timestep, self.next_internals = self.model.reset()
         self.current_internals = self.next_internals
 
-    def act(self, states, deterministic=False, independent=False, fetch_tensors=None, buffered=True):
+    def act(self, states, deterministic=False, independent=False, fetch_tensors=None, buffered=True, index=0):
         """
-        Return action(s) for given state(s). States preprocessing and exploration are applied if  
+        Return action(s) for given state(s). States preprocessing and exploration are applied if
         configured accordingly.
 
         Args:
@@ -132,7 +132,8 @@ class Agent(object):
                 internals=self.current_internals,
                 deterministic=deterministic,
                 independent=independent,
-                fetch_tensors=fetch_tensors
+                fetch_tensors=fetch_tensors,
+                index=index
             )
 
             if self.unique_action:
@@ -145,7 +146,8 @@ class Agent(object):
             states=self.current_states,
             internals=self.current_internals,
             deterministic=deterministic,
-            independent=independent
+            independent=independent,
+            index=index
         )
 
         # Buffered mode only works single-threaded because buffer inserts
@@ -161,7 +163,7 @@ class Agent(object):
             else:
                 return self.current_actions, self.current_states, self.current_internals
 
-    def observe(self, terminal, reward):
+    def observe(self, terminal, reward, index=0):
         """
         Observe experience from the environment to learn from. Optionally pre-processes rewards
         Child classes should call super to get the processed reward
@@ -176,16 +178,17 @@ class Agent(object):
 
         if self.batched_observe:
             # Batched observe for better performance with Python.
-            self.observe_terminal.append(self.current_terminal)
-            self.observe_reward.append(self.current_reward)
+            self.observe_terminal[index].append(self.current_terminal)
+            self.observe_reward[index].append(self.current_reward)
 
-            if self.current_terminal or len(self.observe_terminal) >= self.batching_capacity:
+            if self.current_terminal or len(self.observe_terminal[index]) >= self.batching_capacity:
                 self.episode = self.model.observe(
-                    terminal=self.observe_terminal,
-                    reward=self.observe_reward
+                    terminal=self.observe_terminal[index],
+                    reward=self.observe_reward[index],
+                    index=index
                 )
-                self.observe_terminal = list()
-                self.observe_reward = list()
+                self.observe_terminal[index] = list()
+                self.observe_reward[index] = list()
 
         else:
             self.episode = self.model.observe(
@@ -240,9 +243,9 @@ class Agent(object):
 
     def save_model(self, directory=None, append_timestep=True):
         """
-        Save TensorFlow model. If no checkpoint directory is given, the model's default saver  
-        directory is used. Optionally appends current timestep to prevent overwriting previous  
-        checkpoint files. Turn off to be able to load model from the same given path argument as  
+        Save TensorFlow model. If no checkpoint directory is given, the model's default saver
+        directory is used. Optionally appends current timestep to prevent overwriting previous
+        checkpoint files. Turn off to be able to load model from the same given path argument as
         given here.
 
         Args:
@@ -262,8 +265,8 @@ class Agent(object):
 
     def restore_model(self, directory=None, file=None):
         """
-        Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is  
-        restored. If no checkpoint directory is given, the model's default saver directory is  
+        Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is
+        restored. If no checkpoint directory is given, the model's default saver directory is
         used (unless file specifies the entire path).
 
         Args:

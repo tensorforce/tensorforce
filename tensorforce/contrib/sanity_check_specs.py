@@ -142,4 +142,9 @@ def sanity_check_execution_spec(execution_spec):
     elif type_ == "single":
         return execution_spec
 
+    if execution_spec.get('num_parallel') != None:
+        assert type(execution_spec['num_parallel']) is int, "ERROR: num_parallel needs to be of type int but is of type {}!".format(type(execution_spec['num_parallel']).__name__)
+        assert execution_spec['num_parallel'] > 0, "ERROR: num_parallel needs to be > 0 but is equal to {}".format(execution_spec['num_parallel'])
+        return execution_spec
+
     raise TensorForceError("Unsupported execution type specified ({})!".format(type_))

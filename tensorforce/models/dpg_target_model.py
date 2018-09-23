@@ -186,16 +186,28 @@ class DPGTargetModel(DistributionModel):
         self.target_distributions = self.create_distributions()
 
         # Critic
-        size_t0 = self.critic_network_spec['size_t0']
-        size_t1 = self.critic_network_spec['size_t1']
+        if callable(self.critic_network_spec):
+            # custom critic network
+            self.critic_network = Network.from_spec(
+                spec=self.critic_network_spec,
+                kwargs=dict(scope='critic')
+            )
 
-        self.critic_network = DDPGCriticNetwork(scope='critic', size_t0=size_t0, size_t1=size_t1)
+            self.target_critic_network = Network.from_spec(
+                spec=self.critic_network_spec,
+                kwargs=dict(scope='target-critic')
+            )
+        else:
+            size_t0 = self.critic_network_spec['size_t0']
+            size_t1 = self.critic_network_spec['size_t1']
+
+            self.critic_network = DDPGCriticNetwork(scope='critic', size_t0=size_t0, size_t1=size_t1)
+            self.target_critic_network = DDPGCriticNetwork(scope='target-critic', size_t0=size_t0, size_t1=size_t1)
+
         self.critic_optimizer = Optimizer.from_spec(
             spec=self.critic_optimizer_spec,
             kwargs=dict(summary_labels=self.summary_labels)
         )
-
-        self.target_critic_network = DDPGCriticNetwork(scope='target-critic', size_t0=size_t0, size_t1=size_t1)
 
         # Target critic optimizer
         self.target_critic_optimizer = Synchronization(

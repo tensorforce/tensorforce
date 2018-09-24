@@ -25,6 +25,54 @@ from tensorforce.agents import DDPGAgent
 
 class TestDDPGAgent(BaseAgentTest, unittest.TestCase):
 
+    critic_spec = [
+        [
+
+            dict(type='input', names=["state"]),
+            dict(type="linear", size=64),
+            dict(
+                type="tf_layer",
+                layer="batch_normalization",
+                center=True,
+                scale=True
+            ),
+            dict(
+                type="nonlinearity",
+                name="relu"
+            ),
+            dict(
+                type="output",
+                name="state_output"
+            )
+        ],
+        [
+            dict(
+                type="input",
+                names=["state_output", "action"],
+                aggregation_type= "concat"
+            ),
+            dict(
+                type="linear",
+                size=64
+            ),
+            dict(
+                type="tf_layer",
+                layer="batch_normalization",
+                center=True,
+                scale=True
+            ),
+            dict(
+                type="nonlinearity",
+                name="relu"
+            ),
+            dict(
+                type="dense",
+                activation="tanh",
+                size=1
+            )
+        ]
+    ]
+
     agent = DDPGAgent
     config = dict(
         update_mode=dict(
@@ -41,10 +89,7 @@ class TestDDPGAgent(BaseAgentTest, unittest.TestCase):
             type='adam',
             learning_rate=1e-3
         ),
-        critic_network=dict(
-            size_t0=64,
-            size_t1=64
-        ),
+        critic_network=critic_spec,
         target_sync_frequency=10
     )
     exclude_multi = True

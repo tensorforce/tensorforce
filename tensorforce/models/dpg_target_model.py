@@ -26,70 +26,6 @@ from tensorforce.core.networks import Network, LayerBasedNetwork, Dense, Linear,
 from tensorforce.core.optimizers import Optimizer, Synchronization
 
 
-class DDPGCriticNetwork(LayerBasedNetwork):
-    def __init__(self, scope='ddpg-critic-network', summary_labels=(), size_t0=400, size_t1=300):
-        super(DDPGCriticNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
-
-        self.t0l = Linear(size=size_t0, scope='linear0')
-        self.t0b = TFLayer(layer='batch_normalization', scope='batchnorm0', center=True, scale=True)
-        self.t0n = Nonlinearity(name='relu', scope='relu0')
-
-        self.t1l = Linear(size=size_t1, scope='linear1')
-        self.t1b = TFLayer(layer='batch_normalization', scope='batchnorm1', center=True, scale=True)
-        self.t1n = Nonlinearity(name='relu', scope='relu1')
-
-        self.t2d = Dense(size=1, activation='tanh', scope='dense0',
-                         weights=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
-
-        self.add_layer(self.t0l)
-        self.add_layer(self.t0b)
-        self.add_layer(self.t0n)
-
-        self.add_layer(self.t1l)
-        self.add_layer(self.t1b)
-        self.add_layer(self.t1n)
-
-        self.add_layer(self.t2d)
-
-    def tf_apply(self, x, internals, update, return_internals=False):
-        assert x['states'], x['actions']
-
-        if isinstance(x['states'], dict):
-            if len(x['states']) != 1:
-                raise TensorForceError('DDPG critic network must have only one state input, but {} given.'.format(
-                    len(x['states'])))
-            x_states = x['states'][next(iter(sorted(x['states'])))]
-        else:
-            x_states = x['states']
-
-        if isinstance(x['actions'], dict):
-            if len(x['actions']) != 1:
-                raise TensorForceError('DDPG critic network must have only one action input, but {} given.'.format(
-                    len(x['actions'])))
-            x_actions = x['actions'][next(iter(sorted(x['actions'])))]
-        else:
-            x_actions = x['actions']
-
-        out = self.t0l.apply(x=x_states, update=update)
-        out = self.t0b.apply(x=out, update=update)
-        out = self.t0n.apply(x=out, update=update)
-
-        out = self.t1l.apply(x=tf.concat([out, x_actions], axis=1), update=update)
-        out = self.t1b.apply(x=out, update=update)
-        out = self.t1n.apply(x=out, update=update)
-
-        out = self.t2d.apply(x=out, update=update)
-
-        # Remove last dimension because we only return Q values for one state and action
-        # out = tf.squeeze(out)
-
-        if return_internals:
-            # Todo: Internals management
-            return out, None
-        else:
-            return out
-
-
 class DPGTargetModel(DistributionModel):
     """
     Policy gradient model log likelihood model with target network (e.g. DDPG)
@@ -185,17 +121,21 @@ class DPGTargetModel(DistributionModel):
         # Target network distributions
         self.target_distributions = self.create_distributions()
 
-        # Critic
-        size_t0 = self.critic_network_spec['size_t0']
-        size_t1 = self.critic_network_spec['size_t1']
+        # critic
+        self.critic_network = Network.from_spec(
+            spec=self.critic_network_spec,
+            kwargs=dict(scope='critic')
+        )
 
-        self.critic_network = DDPGCriticNetwork(scope='critic', size_t0=size_t0, size_t1=size_t1)
+        self.target_critic_network = Network.from_spec(
+            spec=self.critic_network_spec,
+            kwargs=dict(scope='target-critic')
+        )
+
         self.critic_optimizer = Optimizer.from_spec(
             spec=self.critic_optimizer_spec,
             kwargs=dict(summary_labels=self.summary_labels)
         )
-
-        self.target_critic_network = DDPGCriticNetwork(scope='target-critic', size_t0=size_t0, size_t1=size_t1)
 
         # Target critic optimizer
         self.target_critic_optimizer = Synchronization(

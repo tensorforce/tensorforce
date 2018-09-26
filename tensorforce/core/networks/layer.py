@@ -181,10 +181,18 @@ class Input(Layer):
             elif name in self.named_tensors:
                 inputs.append(self.named_tensors[name])
             else:
-                keys = sorted(self.named_tensors)
-                raise TensorForceError(
-                    'Input "{}" doesn\'t exist, Available inputs: {}'.format(name, keys)
-                )
+                # handling nested dict
+                input_element = [inner_named_tensors[name]
+                                 for inner_name, inner_named_tensors in self.named_tensors.items()
+                                 if isinstance(inner_named_tensors, dict) and name in inner_named_tensors]
+
+                if len(input_element) == 0:
+                    keys = sorted(self.named_tensors)
+                    raise TensorForceError(
+                        'Input "{}" doesn\'t exist, Available inputs: {}'.format(name, keys)
+                    )
+                else:
+                    inputs += input_element
 
         if self.aggregation_type == 'concat':
             x = tf.concat(values=inputs, axis=self.axis)

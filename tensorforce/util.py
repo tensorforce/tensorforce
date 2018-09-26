@@ -14,10 +14,11 @@
 # ==============================================================================
 
 import importlib
+import json
 import logging
+import os
 import numpy as np
 import tensorflow as tf
-from tensorflow.core.util.event_pb2 import SessionLog
 
 from tensorforce import TensorForceError
 
@@ -166,6 +167,9 @@ def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
     args = ()
     kwargs = dict() if kwargs is None else kwargs
 
+    if isinstance(obj, str) and os.path.isfile(obj):
+        with open(obj, 'r') as fp:
+            obj = json.load(fp=fp)
     if isinstance(obj, dict):
         kwargs.update(obj)
         obj = kwargs.pop('type', None)

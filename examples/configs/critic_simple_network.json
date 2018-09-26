@@ -1,0 +1,52 @@
+[
+    [
+        {
+            "type": "input",
+            "names": ["state"]
+        },
+        {
+            "type": "linear",
+            "size": 64
+        },
+        {
+            "type": "tf_layer",
+            "layer": "batch_normalization",
+            "center": true,
+            "scale": true
+        },
+        {
+            "type": "nonlinearity",
+            "name": "relu"
+        },
+        {
+            "type": "output",
+            "name": "state_output"
+        }
+    ],
+    [
+        {
+            "type": "input",
+            "names": ["state_output", "action"],
+            "aggregation_type":  "concat"
+        },
+        {
+            "type": "linear",
+            "size": 64
+        },
+        {
+            "type": "tf_layer",
+            "layer": "batch_normalization",
+            "center": true,
+            "scale": true
+        },
+        {
+            "type": "nonlinearity",
+            "name": "relu"
+        },
+        {
+            "type": "dense",
+            "activation": "tanh",
+            "size": 1
+        }
+    ]
+]

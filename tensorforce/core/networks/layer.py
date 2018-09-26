@@ -172,27 +172,34 @@ class Input(Layer):
                     'Input "{}" doesn\'t exist, Available inputs: {}'.format(self.names, keys)
                 )
 
-
         inputs = list()
+        max_shape = ()
         for name in self.names:
             if name == '*' or name == 'previous':
                 # like normal list network_spec
-                inputs.append(x)
+                tensor = x
             elif name in self.named_tensors:
-                inputs.append(self.named_tensors[name])
+                tensor = self.named_tensors[name]
             else:
-                # handling nested dict
-                input_element = [inner_named_tensors[name]
-                                 for inner_name, inner_named_tensors in self.named_tensors.items()
-                                 if isinstance(inner_named_tensors, dict) and name in inner_named_tensors]
+                keys = sorted(self.named_tensors)
+                raise TensorForceError(
+                    'Input "{}" doesn\'t exist, Available inputs: {}'.format(name, keys)
+                )
+            inputs.append(tensor)
+            shape = util.shape(x=tensor)
+            if len(shape) > len(max_shape):
+                max_shape = shape
 
-                if len(input_element) == 0:
-                    keys = sorted(self.named_tensors)
-                    raise TensorForceError(
-                        'Input "{}" doesn\'t exist, Available inputs: {}'.format(name, keys)
-                    )
-                else:
-                    inputs += input_element
+        for n, tensor in enumerate(inputs):
+            shape = util.shape(x=tensor)
+            if len(shape) < len(max_shape):
+                # assert shape == max_shape[:len(shape)], (shape, max_shape)
+                for i in range(len(shape), len(max_shape)):
+                    # assert max_shape[i] == 1, (shape, max_shape)
+                    tensor = tf.expand_dims(input=tensor, axis=i)
+                inputs[n] = tensor
+            # else:
+            #     assert shape == max_shape, (shape, max_shape)
 
         if self.aggregation_type == 'concat':
             x = tf.concat(values=inputs, axis=self.axis)

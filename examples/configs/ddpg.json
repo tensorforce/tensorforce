@@ -20,10 +20,7 @@
     "discount": 0.99,
     "entropy_regularization": null,
 
-    "critic_network": {
-        "size_t0": 64,
-        "size_t1": 64
-    },
+    "critic_network": "examples/configs/critic_embedding_network.json",
     "critic_optimizer": {
         "type": "adam",
         "learning_rate": 1e-3

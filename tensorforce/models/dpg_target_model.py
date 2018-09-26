@@ -19,10 +19,9 @@ from __future__ import division
 
 import tensorflow as tf
 
-from tensorforce import TensorForceError
 from tensorforce.models import DistributionModel
 
-from tensorforce.core.networks import Network, LayerBasedNetwork, Dense, Linear, TFLayer, Nonlinearity
+from tensorforce.core.networks import Network
 from tensorforce.core.optimizers import Optimizer, Synchronization
 
 
@@ -176,11 +175,15 @@ class DPGTargetModel(DistributionModel):
         return actions, internals
 
     def tf_loss_per_instance(self, states, internals, actions, terminal, reward, next_states, next_internals, update, reference=None):
-        q = self.critic_network.apply(dict(states=states, actions=actions), internals=internals, update=update)
+        states_actions = dict(states)
+        states_actions.update(actions)
+        q = self.critic_network.apply(x=states_actions, internals=internals, update=update)
         return -q
 
     def tf_predict_target_q(self, states, internals, terminal, actions, reward, update):
-        q_value = self.target_critic_network.apply(dict(states=states, actions=actions), internals=internals, update=update)
+        states_actions = dict(states)
+        states_actions.update(actions)
+        q_value = self.target_critic_network.apply(x=states_actions, internals=internals, update=update)
         return reward + (1. - tf.cast(terminal, dtype=tf.float32)) * self.discount * q_value
 
     def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
@@ -199,7 +202,9 @@ class DPGTargetModel(DistributionModel):
 
         predicted_q = tf.stop_gradient(input=predicted_q)
 
-        real_q = self.critic_network.apply(dict(states=states, actions=actions), internals=internals, update=update)
+        states_actions = dict(states)
+        states_actions.update(actions)
+        real_q = self.critic_network.apply(x=states_actions, internals=internals, update=update)
 
         # Update critic
         def fn_critic_loss(predicted_q, real_q):

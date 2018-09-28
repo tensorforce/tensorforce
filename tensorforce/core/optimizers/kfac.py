@@ -25,33 +25,38 @@ from functools import reduce
 KFAC_OPS = ['MatMul', 'Conv2D', 'BiasAdd']
 
 
-class KfacOptimizer(Optimizer):
+class KFAC(Optimizer):
     """
-    A non-layers implementation of the Kfac Optimizer. Meant for usage with Tensorforce.
+    A non-layers implementation of the Kronecker-factored approximate curvature optimizer.
+    Meant for usage with Tensorforce.
     """
 
-    def __init__(self,
-                 learning_rate=0.01,
-                 momentum=0.9,
-                 clip_kl=0.01,
-                 kfac_update=2,
-                 stats_accum_iter=60,
-                 full_stats_init=False,
-                 cold_iter=100,
-                 cold_lr=None,
-                 async_=False,
-                 async_stats=False,
-                 epsilon=1e-2,
-                 stats_decay=0.95,
-                 blockdiag_bias=False,
-                 channel_fac=False,
-                 factored_damping=False,
-                 approxT2=False,
-                 use_float64=False,
-                 weight_decay_dict={},
-                 max_grad_norm=0.5):
+    def __init__(
+        self,
+        learning_rate=0.01,
+        momentum=0.9,
+        clip_kl=0.01,
+        kfac_update=2,
+        stats_accum_iter=60,
+        full_stats_init=False,
+        cold_iter=100,
+        cold_lr=None,
+        async_=False,
+        async_stats=False,
+        epsilon=1e-2,
+        stats_decay=0.95,
+        blockdiag_bias=False,
+        channel_fac=False,
+        factored_damping=False,
+        approxT2=False,
+        use_float64=False,
+        weight_decay_dict={},
+        max_grad_norm=0.5,
+        scope='kfac',
+        summary_labels=()
+    ):
         """
-        Initializes a KfacOptimizer
+        Initializes a KFAC optimizer.
 
         For more information on arguments, see the Kfac Optimization paper https://arxiv.org/pdf/1503.05671.pdf
         """
@@ -96,6 +101,8 @@ class KfacOptimizer(Optimizer):
         self.param_vars = []
         self.stats = {}
         self.stats_eigen = {}
+
+        super(KFAC, self).__init__(scope=scope, summary_labels=summary_labels)
 
     def getFactors(self, g, varlist):
         graph = tf.get_default_graph()
@@ -923,10 +930,9 @@ class KfacOptimizer(Optimizer):
             List of delta tensors corresponding to the updates for each optimized variable.
         """
         fn_loss = kwargs["fn_loss"]
-        vars = variables
-        if var is None:
-            vars = tf.trainable_variables
-        return tf.gradients(fn_loss, vars)
+        if variables is None:
+            variables = tf.trainable_variables
+        return tf.gradients(fn_loss, variables)
 
     def apply_step(self, variables, deltas, loss_sampled):
         """

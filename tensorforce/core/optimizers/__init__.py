@@ -20,6 +20,7 @@ from tensorforce.core.optimizers.global_optimizer import GlobalOptimizer
 from tensorforce.core.optimizers.tf_optimizer import TFOptimizer
 from tensorforce.core.optimizers.evolutionary import Evolutionary
 from tensorforce.core.optimizers.natural_gradient import NaturalGradient
+from tensorforce.core.optimizers.kfac import KFAC
 from tensorforce.core.optimizers.clipped_step import ClippedStep
 from tensorforce.core.optimizers.multi_step import MultiStep
 from tensorforce.core.optimizers.optimized_step import OptimizedStep
@@ -39,6 +40,7 @@ optimizers = dict(
     rmsprop=partial(TFOptimizer, 'rmsprop'),
     evolutionary=Evolutionary,
     natural_gradient=NaturalGradient,
+    kfac=KFAC,
     clipped_step=ClippedStep,
     multi_step=MultiStep,
     optimized_step=OptimizedStep,

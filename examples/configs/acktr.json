@@ -1,0 +1,39 @@
+{
+    "type": "acktr_agent",
+
+    "update_mode": {
+        "unit": "episodes",
+        "batch_size": 20,
+        "frequency": 20
+    },
+    "memory": {
+        "type": "latest",
+        "include_next_states": false,
+        "capacity": 5000
+    },
+
+    "learning_rate": 1e-2,
+
+    "discount": 0.99,
+    "entropy_regularization": null,
+    "gae_lambda": null,
+    "likelihood_ratio_clipping": null,
+
+    "baseline_mode": null,
+    "baseline":  null,
+    "baseline_optimizer": null,
+
+    "saver": {
+        "directory": null,
+        "seconds": 600
+    },
+    "summarizer": {
+        "directory": null,
+        "labels": ["graph", "total-loss"]
+    },
+    "execution": {
+        "type": "single",
+        "session_config": null,
+        "distributed_spec": null
+    }
+}

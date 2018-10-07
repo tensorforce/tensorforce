@@ -39,6 +39,8 @@ from tensorforce.contrib.openai_gym import OpenAIGym
 
 # python examples/openai_gym.py CartPole-v0 -a examples/configs/vpg.json -n examples/configs/mlp2_network.json -e 2000 -m 200
 
+# installl roboschool and pyqt (Mujoco independent)
+# python examples/openai_gym.py RoboschoolInvertedPendulum-v1 -a examples/configs/ppo.json -n examples/configs/mlp2_network.json -e 10000 -m 1100
 
 def main():
     parser = argparse.ArgumentParser()

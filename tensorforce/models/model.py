@@ -159,7 +159,7 @@ class Model(object):
         self.list_actions_buffer = dict()
         self.list_buffer_index = [None for _ in range(self.num_parallel)]
         self.episode_output = None
-        self.episode_index = None
+        self.episode_index_input = None
         # else:
         #     self.states_buffer = dict()
         #     self.internals_buffer = dict()
@@ -229,7 +229,7 @@ class Model(object):
         self.internals_output = None
         self.timestep_output = None
         # Add an explicit reset op with no dependencies
-        self.buffer_index_reset_op = None
+        self.list_buffer_index_reset_op = [None for _ in range(self.num_parallel)]
 
         # Setup Model (create and build graph (local and global if distributed), server, session, etc..).
         self.setup()
@@ -297,6 +297,7 @@ class Model(object):
                 # Probably both deterministic and independent should be the same at some point.
                 deterministic = tf.identity(input=self.deterministic_input)
                 independent = tf.identity(input=self.independent_input)
+                episode_index = tf.identity(input=self.episode_index_input)
 
                 states, actions, reward = self.fn_preprocess(states=states, actions=actions, reward=reward)
 
@@ -307,7 +308,8 @@ class Model(object):
                     terminal=terminal,
                     reward=reward,
                     deterministic=deterministic,
-                    independent=independent
+                    independent=independent,
+                    index=episode_index
                 )
 
                 # Add all summaries specified in summary_labels
@@ -697,7 +699,7 @@ class Model(object):
                 if file is not None:
                     try:
                         scaffold.saver.restore(sess=session, save_path=file)
-                        session.run(fetches=self.buffer_index_reset_op)
+                        session.run(fetches=self.list_buffer_index_reset_op)
                     except tf.errors.NotFoundError:
                         raise TensorForceError("Error: Existing checkpoint could not be loaded! Set \"load\" to false in saver_spec.")
 
@@ -885,7 +887,7 @@ class Model(object):
             trainable=False
         )
 
-        self.episode_index = tf.placeholder(
+        self.episode_index_input = tf.placeholder(
             name='episode_index',
             shape=(),
             dtype=tf.int32,
@@ -1029,7 +1031,7 @@ class Model(object):
         """
         raise NotImplementedError
 
-    def create_act_operations(self, states, internals, deterministic, independent):
+    def create_act_operations(self, states, internals, deterministic, independent, index):
         """
         Creates and stores tf operations that are fetched when calling act(): actions_output, internals_output and
         timestep_output.
@@ -1100,8 +1102,6 @@ class Model(object):
             Stores current states, internals and actions in buffer. Increases timesteps.
             """
             operations = list()
-            index = self.episode_index
-
 
             batch_size = tf.shape(input=states[next(iter(sorted(states)))])[0]
             for name in sorted(states):
@@ -1150,7 +1150,7 @@ class Model(object):
             false_fn=normal_act
         )
 
-    def create_observe_operations(self, terminal, reward):
+    def create_observe_operations(self, terminal, reward, index):
         """
         Returns the tf op to fetch when an observation batch is passed in (e.g. an episode's rewards and
         terminals). Uses the filled tf buffers for states, actions and internals to run
@@ -1167,7 +1167,6 @@ class Model(object):
         num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
         increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
         increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
-        index = self.episode_index
 
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
             # Stop gradients
@@ -1189,18 +1188,18 @@ class Model(object):
 
         with tf.control_dependencies(control_inputs=(observation,)):
             # Reset buffer index.
-            reset_index  =tf.assign(ref=self.list_buffer_index[index], value=0)
+            reset_index = tf.assign(ref=self.list_buffer_index[index], value=0)
 
         with tf.control_dependencies(control_inputs=(reset_index,)):
             # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 
-        self.buffer_index_reset_op = tf.assign(ref=self.list_buffer_index[index], value=0)
+        self.list_buffer_index_reset_op[index] = tf.assign(ref=self.list_buffer_index[index], value=0)
 
          # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
 
-    def create_atomic_observe_operations(self, states, actions, internals, terminal, reward):
+    def create_atomic_observe_operations(self, states, actions, internals, terminal, reward, index):
         """
         Returns the tf op to fetch when unbuffered observations are passed in.
 
@@ -1221,10 +1220,10 @@ class Model(object):
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
             # Stop gradients
             # Not using buffers here.
-            fn = (lambda x: tf.stop_gradient(input=x))
-            states = util.map_tensors(fn=fn, tensors=states)
-            internals = util.map_tensors(fn=fn, tensors=internals)
-            actions = util.map_tensors(fn=fn, tensors=actions)
+            fn = (lambda x: tf.stop_gradient(input=x[:self.list_buffer_index[index]]))
+            states = util.map_tensors(fn=fn, tensors=self.list_states_buffer, index=index)
+            internals = util.map_tensors(fn=fn, tensors=self.list_internals_buffer, index=index)
+            actions = util.map_tensors(fn=fn, tensors=self.list_actions_buffer, index=index)
             terminal = tf.stop_gradient(input=terminal)
             reward = tf.stop_gradient(input=reward)
 
@@ -1241,7 +1240,7 @@ class Model(object):
             # Trivial operation to enforce control dependency.
             self.unbuffered_episode_output = self.global_episode + 0
 
-    def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent):
+    def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent, index):
         """
         Creates and stores tf operations for when `act()` and `observe()` are called.
         """
@@ -1249,15 +1248,21 @@ class Model(object):
             states=states,
             internals=internals,
             deterministic=deterministic,
-            independent=independent
+            independent=independent,
+            index=index
         )
-        self.create_observe_operations(reward=reward, terminal=terminal)
+        self.create_observe_operations(
+            reward=reward,
+            terminal=terminal,
+            index=index
+        )
         self.create_atomic_observe_operations(
             states=states,
             actions=actions,
             internals=internals,
             reward=reward,
-            terminal=terminal
+            terminal=terminal,
+            index=index
         )
 
     def get_variables(self, include_submodules=False, include_nontrainable=False):
@@ -1330,7 +1335,7 @@ class Model(object):
         reward=None,
         deterministic=None,
         independent=None,
-        index=0
+        index=None
     ):
         """
         Returns the feed-dict for the model's acting and observing tf fetches.
@@ -1404,7 +1409,7 @@ class Model(object):
         if independent is not None:
             feed_dict[self.independent_input] = independent
 
-        feed_dict[self.episode_index] = index
+        feed_dict[self.episode_index_input] = index
 
         return feed_dict
 
@@ -1489,14 +1494,15 @@ class Model(object):
 
         return episode
 
-    def atomic_observe(self, states, actions, internals, terminal, reward):
+    def atomic_observe(self, states, actions, internals, terminal, reward, index=0):
         fetches = self.unbuffered_episode_output
         feed_dict = self.get_feed_dict(
             states=states,
             actions=actions,
             internals=internals,
             terminal=terminal,
-            reward=reward
+            reward=reward,
+            index=index
         )
 
         episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
@@ -1554,7 +1560,7 @@ class Model(object):
         #     raise TensorForceError("Invalid model directory/file.")
 
         self.saver.restore(sess=self.session, save_path=file)
-        self.session.run(self.buffer_index_reset_op)
+        self.session.run(fetches=self.list_buffer_index_reset_op)
 
     def get_components(self):
         """

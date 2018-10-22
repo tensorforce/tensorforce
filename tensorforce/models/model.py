@@ -928,6 +928,7 @@ class Model(object):
             dtype=util.tf_dtype('int'),
             trainable=False
         )
+
         # self.list_buffer_index = tf.convert_to_tensor(self.list_buffer_index)
 
 
@@ -1194,7 +1195,9 @@ class Model(object):
             # Trivial operation to enforce control dependency.
             self.episode_output = self.global_episode + 0
 
-        self.list_buffer_index_reset_op[index] = tf.assign(ref=self.list_buffer_index[index], value=0)
+        self.list_buffer_index_reset_op = tf.group(
+            *(tf.assign(ref=self.list_buffer_index[n], value=0) for n in range(self.num_parallel))
+        )
 
          # TODO: add up rewards per episode and add summary_label 'episode-reward'
 

@@ -229,7 +229,7 @@ class Model(object):
         self.internals_output = None
         self.timestep_output = None
         # Add an explicit reset op with no dependencies
-        self.list_buffer_index_reset_op = [None for _ in range(self.num_parallel)]
+        self.list_buffer_index_reset_op = None
 
         # Setup Model (create and build graph (local and global if distributed), server, session, etc..).
         self.setup()
@@ -924,7 +924,7 @@ class Model(object):
         # for index in range(self.num_parallel):
         self.list_buffer_index = tf.get_variable(
             name='buffer-index',
-            shape=(self.num_parallel),
+            shape=(self.num_parallel,),
             dtype=util.tf_dtype('int'),
             trainable=False
         )

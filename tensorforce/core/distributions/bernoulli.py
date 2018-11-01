@@ -70,6 +70,9 @@ class Bernoulli(Distribution):
         true_logit = tf.log(x=probability)
         false_logit = tf.log(x=(1.0 - probability))
 
+        if 'distribution' in self.summary_labels:
+            tf.contrib.summary.scalar(name=self.scope, tensor=probability)
+
         return true_logit, false_logit, probability, state_value
 
     def state_value(self, distr_params):

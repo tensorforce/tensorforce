@@ -64,6 +64,10 @@ class Gaussian(Distribution):
         # Standard deviation
         stddev = tf.exp(x=log_stddev)
 
+        if 'distribution' in self.summary_labels:
+            tf.contrib.summary.scalar(name=(self.scope + '-mean'), tensor=mean)
+            tf.contrib.summary.scalar(name=(self.scope + '-stddev'), tensor=stddev)
+
         return mean, stddev, log_stddev
 
     def state_value(self, distr_params):

@@ -37,6 +37,7 @@ class Distribution(object):
         """
         self.shape = shape
 
+        self.scope = scope
         self.summary_labels = set(summary_labels or ())
 
         self.variables = dict()

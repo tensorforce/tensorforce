@@ -70,6 +70,13 @@ class Categorical(Distribution):
         # "Normalized" logits
         logits = tf.log(x=probabilities)
 
+        if 'distribution' in self.summary_labels:
+            for n in range(self.num_actions):
+                tf.contrib.summary.scalar(
+                    name=(self.scope + '-action' + str(n)),
+                    tensor=probabilities[:, n]
+                )
+
         return logits, probabilities, state_value
 
     def state_value(self, distr_params):

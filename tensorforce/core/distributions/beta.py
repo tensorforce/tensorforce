@@ -72,6 +72,10 @@ class Beta(Distribution):
         alpha_beta = tf.maximum(x=(alpha + beta), y=util.epsilon)
         log_norm = tf.lgamma(x=alpha) + tf.lgamma(x=beta) - tf.lgamma(x=alpha_beta)
 
+        if 'distribution' in self.summary_labels:
+            tf.contrib.summary.scalar(name=(self.scope + '-alpha'), tensor=alpha)
+            tf.contrib.summary.scalar(name=(self.scope + '-beta'), tensor=beta)
+
         return alpha, beta, alpha_beta, log_norm
 
     def tf_sample(self, distr_params, deterministic):

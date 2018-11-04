@@ -62,7 +62,21 @@ class ConstantModel(Model):
         actions = dict()
         for name in sorted(self.actions_spec):
             shape = (tf.shape(input=states[next(iter(sorted(states)))])[0],) + self.actions_spec[name]['shape']
-            actions[name] = tf.fill(dims=shape, value=self.action_values[name])
+            if self.action_values is not None and name in self.action_values:
+                actions[name] = tf.fill(dims=shape, value=self.action_values[name])
+            else:
+                action_type = self.actions_spec[name]['type']
+                if action_type == 'bool':
+                    actions[name] = tf.fill(dims=shape, value=False)
+                elif action_type == 'int':
+                    actions[name] = tf.fill(dims=shape, value=0)
+                elif action_type == 'float':
+                    if 'min_value' in self.actions_spec[name]:
+                        min_value = self.actions_spec[name]['min_value']
+                        max_value = self.actions_spec[name]['max_value']
+                        actions[name] = tf.fill(dims=shape, value=((max_value - min_value) / 2.0))
+                    else:
+                        actions[name] = tf.fill(dims=shape, value=0.0)
 
         return actions, dict()
 

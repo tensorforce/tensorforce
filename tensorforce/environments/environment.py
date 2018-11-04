@@ -28,45 +28,7 @@ class Environment(object):
     """
 
     def __str__(self):
-        raise NotImplementedError
-
-    def close(self):
-        """
-        Close environment. No other method calls possible afterwards.
-        """
-        pass
-
-    def seed(self, seed):
-        """
-        Sets the random seed of the environment to the given value (current time, if seed=None).
-        Naturally deterministic Environments (e.g. ALE or some gym Envs) don't have to implement this method.
-
-        Args:
-            seed (int): The seed to use for initializing the pseudo-random number generator (default=epoch time in sec).
-        Returns: The actual seed (int) used OR None if Environment did not override this method (no seeding supported).
-        """
-        return None
-
-    def reset(self):
-        """
-        Reset environment and setup for new episode.
-
-        Returns:
-            initial state of reset environment.
-        """
-        raise NotImplementedError
-
-    def execute(self, action):
-        """
-        Executes action, observes next state(s) and reward.
-
-        Args:
-            actions: Actions to execute.
-
-        Returns:
-            Tuple of (next state, bool indicating terminal, reward)
-        """
-        raise NotImplementedError
+        return self.__class__.__name__
 
     @property
     def states(self):
@@ -95,6 +57,44 @@ class Environment(object):
                 - shape: integer, or list/tuple of integers (default: []).
                 - num_actions: integer (required if type == 'int').
                 - min_value and max_value: float (optional if type == 'float', default: none).
+        """
+        raise NotImplementedError
+
+    def seed(self, seed):
+        """
+        Sets the random seed of the environment to the given value (current time, if seed=None).
+        Naturally deterministic Environments (e.g. ALE or some gym Envs) don't have to implement this method.
+
+        Args:
+            seed (int): The seed to use for initializing the pseudo-random number generator (default=epoch time in sec).
+        Returns: The actual seed (int) used OR None if Environment did not override this method (no seeding supported).
+        """
+        return None
+
+    def close(self):
+        """
+        Close environment. No other method calls possible afterwards.
+        """
+        pass
+
+    def reset(self):
+        """
+        Reset environment and setup for new episode.
+
+        Returns:
+            initial state of reset environment.
+        """
+        raise NotImplementedError
+
+    def execute(self, action):
+        """
+        Executes action, observes next state(s) and reward.
+
+        Args:
+            actions: Actions to execute.
+
+        Returns:
+            Tuple of (next state, bool indicating terminal, reward)
         """
         raise NotImplementedError
 

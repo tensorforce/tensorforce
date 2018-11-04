@@ -34,7 +34,7 @@ class Sequence(Preprocessor):
         Args:
             length (int): The number of states to concatenate. In the beginning, when no previous state is available,
                 concatenate the given first state with itself `length` times.
-            add_rank (bool): Whether to add another rank to the end of the input with dim=length-of-the-sequence.
+            add_rank (bool, -1, 1): Whether to add another rank to the beginning/end of the input with dim=length-of-the-sequence.
                 This could be useful if e.g. a grayscale image of w x h pixels is coming from the env
                 (no color channel). The output of the preprocessor would then be of shape [batch] x w x h x [length].
         """
@@ -80,15 +80,19 @@ class Sequence(Preprocessor):
             assignment = tf.assign(ref=index, value=((tf.maximum(x=index, y=0) + 1) % self.length))
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            if self.add_rank:
-                stack = tf.stack(values=previous_states, axis=-1)
-            else:
+            if not self.add_rank:
                 stack = tf.concat(values=previous_states, axis=-1)
+            elif self.add_rank == 1:
+                stack = tf.stack(values=previous_states, axis=0)
+            elif self.add_rank or self.add_rank == -1:
+                stack = tf.stack(values=previous_states, axis=-1)
             batch_one = tf.expand_dims(input=stack, axis=0)
             return batch_one
 
     def processed_shape(self, shape):
-        if self.add_rank:
-            return shape + (self.length,)
-        else:
+        if not self.add_rank:
             return shape[:-1] + (shape[-1] * self.length,)
+        elif self.add_rank == 1:
+            return (self.length,) + shape
+        elif self.add_rank or self.add_rank == -1:
+            return shape + (self.length,)

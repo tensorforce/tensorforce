@@ -13,10 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
+from copy import deepcopy
 import importlib
 import json
 import logging
 import os
+import warnings
+
 import numpy as np
 import tensorflow as tf
 
@@ -33,6 +36,29 @@ log_levels = dict(
     warning=logging.WARNING,
     fatal=logging.FATAL
 )
+
+
+def deprecated_argument(module, argument, new):
+    warnings.warn(
+        message="WARNING: argument '{}' of '{}' deprecated, use '{}' instead.".format(
+            argument, module, new
+        ),
+        category=DeprecationWarning
+    )
+
+
+def deprecated_module(module, new):
+    warnings.warn(
+        message="WARNING: module '{}' deprecated, use '{}' instead.".format(module, new),
+        category=DeprecationWarning
+    )
+
+
+def additional_argument(module, argument):
+    warnings.warn(
+        message="WARNING: additional argument '{}' of '{}' required.".format(argument, module),
+        category=DeprecationWarning
+    )
 
 
 def prod(xs):
@@ -144,6 +170,87 @@ def get_tensor_dependencies(tensor):
     for sub_op in tensor.op.inputs:
         dependencies.update(get_tensor_dependencies(sub_op))
     return dependencies
+
+
+def is_single_state(state_spec):
+    return 'shape' in state_spec
+
+
+def is_single_action(action_spec):
+    return 'type' in action_spec
+
+
+def is_valid_state_spec(state_spec):
+    state_spec = deepcopy(state_spec)
+
+    if is_single_state(state_spec=state_spec):
+        return check_space_spec(space_spec=state_spec, space='state')
+
+    else:
+        for name, state_spec in state_spec.items():
+            # check name
+            if 'shape' not in state_spec:
+                return False
+            if not check_space_spec(space_spec=state_spec, space='state'):
+                return False
+
+        return True
+
+
+def is_valid_action_spec(action_spec):
+    action_spec = deepcopy(action_spec)
+
+    if is_single_action(action_spec=action_spec):
+        return check_space_spec(space_spec=action_spec, space='action')
+
+    else:
+        for name, action_spec in action_spec.items():
+            # check name
+            if 'type' not in action_spec:
+                return False
+            if not check_space_spec(space_spec=action_spec, space='action'):
+                return False
+
+        return True
+
+
+def check_space_spec(space_spec, space):
+    dtype = space_spec.pop('type', 'float')
+    if dtype not in ('bool', 'int', 'float'):
+        return False
+
+    shape = space_spec.pop('shape', ())
+    try:
+        iter(shape)
+        if not all(isinstance(dim, int) for dim in shape):
+            return False
+    except TypeError:
+        if not isinstance(shape, int):
+            return False
+
+    if dtype == 'bool':
+        pass
+
+    elif dtype == 'int':
+        num_categories = space_spec.pop('num_{}s'.format(space))
+        if not isinstance(num_categories, int) or num_categories <= 1:
+            if space == 'state':
+                additional_argument(module='int-states-spec', argument='num_states')
+            else:
+                return False
+
+    elif dtype == 'float':
+        if 'min_value' in space_spec:
+            min_value = space_spec.pop('min_value')
+            max_value = space_spec.pop('max_value')
+            if not isinstance(min_value, float) or not isinstance(max_value, float) or \
+                    min_value >= max_value:
+                return False
+
+    if len(space_spec) > 0:
+        return False
+
+    return True
 
 
 def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):

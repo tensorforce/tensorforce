@@ -14,7 +14,7 @@
 # ==============================================================================
 
 from tensorforce.core.networks.layer import Layer, Input, Output, TFLayer, Nonlinearity, Dropout, Flatten, Pool2d, Embedding, Linear, Dense, \
-    Dueling, Conv1d, Conv2d, InternalLstm, Lstm
+    Dueling, Conv1d, Conv2d, InternalLstm, Lstm, GlobalPooling
 from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
 
 
@@ -33,7 +33,8 @@ layers = dict(
     conv1d=Conv1d,
     conv2d=Conv2d,
     internal_lstm=InternalLstm,
-    lstm=Lstm
+    lstm=Lstm,
+    global_pooling=GlobalPooling
 )
 
 
@@ -55,6 +56,7 @@ __all__ = [
     'Conv2d',
     'InternalLstm',
     'Lstm',
+    'GlobalPooling',
     'Network',
     'LayerBasedNetwork',
     'LayeredNetwork'

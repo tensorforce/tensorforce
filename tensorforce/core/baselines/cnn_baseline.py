@@ -41,7 +41,7 @@ class CNNBaseline(NetworkBaseline):
         # First layer has a larger window.
         network[0]['window'] = 5
 
-        network.append(dict(type='flatten'))  # TODO: change to max pooling!
+        network.append(dict(type='global_pooling', pooling='max'))
         for size in dense_sizes:
             network.append(dict(type='dense', size=size))
 

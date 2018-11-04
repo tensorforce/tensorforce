@@ -34,6 +34,7 @@ class MLPBaseline(NetworkBaseline):
         """
 
         network = []
+        network.append(dict(type='flatten'))
         for size in sizes:
             network.append(dict(type='dense', size=size))
 

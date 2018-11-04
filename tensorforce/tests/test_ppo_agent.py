@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 TensorForce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,28 +19,10 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.tests.base_agent_test import BaseAgentTest
 from tensorforce.agents import PPOAgent
+from tensorforce.tests.agent_unittest import AgentUnittest
 
 
-class TestPPOAgent(BaseAgentTest, unittest.TestCase):
+class TestPPOAgent(AgentUnittest, unittest.TestCase):
 
     agent = PPOAgent
-    config = dict(
-        update_mode=dict(
-            unit='episodes',
-            batch_size=4,
-            frequency=4
-        ),
-        memory=dict(
-            type='latest',
-            include_next_states=False,
-            capacity=100
-        ),
-        step_optimizer=dict(
-            type='adam',
-            learning_rate=1e-3
-        ),
-        subsampling_fraction=0.3,
-        optimization_steps=20
-    )

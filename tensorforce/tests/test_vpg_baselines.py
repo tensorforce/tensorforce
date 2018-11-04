@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 TensorForce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,267 +19,193 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.tests.base_test import BaseTest
 from tensorforce.agents import VPGAgent
-from tensorforce.core.networks import Dense, LayerBasedNetwork
-from .minimal_test import MinimalTest
+from tensorforce.tests.unittest_base import UnittestBase
+from tensorforce.tests.unittest_environment import UnittestEnvironment
 
 
-class TestVPGBaselines(BaseTest, unittest.TestCase):
+class TestVPGBaselines(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
 
-    def test_states_baseline(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
+    def test_baseline_states(self):
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            ),
             baseline_mode='states',
-            baseline=dict(
-                type='mlp',
-                sizes=[32, 32]
-            ),
-            baseline_optimizer=dict(
-                type='multi_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-3
-                ),
-                num_steps=5
-            )
-        )
-        self.base_test_pass(
-            name='states-baseline',
-            environment=environment,
-            network=network,
-            **config
+            baseline=dict(type='mlp', sizes=[32, 32]),
+            baseline_optimizer=dict(type='adam', learning_rate=1e-3)
         )
 
-    def test_network_baseline(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
+        self.unittest(
+            name='baseline-states', environment=environment, network=network, config=config
+        )
+
+    def test_baseline_network(self):
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            ),
             baseline_mode='network',
-            baseline=dict(
-                type='mlp',
-                sizes=[32, 32]
-            ),
-            baseline_optimizer=dict(
-                type='multi_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-3
-                ),
-                num_steps=5
-            )
+            baseline=dict(type='mlp', sizes=[32, 32]),
+            baseline_optimizer=dict(type='adam', learning_rate=1e-3)
         )
-        self.base_test_pass(
-            name='network-baseline',
-            environment=environment,
-            network=network,
-            **config
+
+        self.unittest(
+            name='baseline-network', environment=environment, network=network, config=config
         )
 
     def test_baseline_no_optimizer(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-
-        config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            ),
-            baseline_mode='states',
-            baseline=dict(
-                type='mlp',
-                sizes=[32, 32]
-            )
-        )
-        self.base_test_pass(
-            name='baseline-no-optimizer',
-            environment=environment,
-            network=network,
-            **config
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
         )
 
-    def test_gae_baseline(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            ),
             baseline_mode='states',
-            baseline=dict(
-                type='mlp',
-                sizes=[32, 32]
-            ),
-            baseline_optimizer=dict(
-                type='multi_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-3
-                ),
-                num_steps=5
-            ),
+            baseline=dict(type='mlp', sizes=[32, 32]),
+        )
+
+        self.unittest(
+            name='baseline-no-optimizer', environment=environment, network=network, config=config
+        )
+
+    def test_baseline_gae(self):
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            baseline_mode='states',
+            baseline=dict(type='mlp', sizes=[32, 32]),
+            baseline_optimizer=dict(type='adam', learning_rate=1e-3),
             gae_lambda=0.95
         )
-        self.base_test_pass(
-            name='gae-baseline',
-            environment=environment,
-            network=network,
-            **config
+
+        self.unittest(
+            name='baseline-gae', environment=environment, network=network, config=config
         )
 
-    def test_multi_baseline(self):
-
-        class CustomNetwork(LayerBasedNetwork):
-
-            def __init__(self, scope='layerbased-network', summary_labels=()):
-                super(CustomNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
-
-                self.layer_bool1 = Dense(size=16, scope='state-bool1')
-                self.add_layer(layer=self.layer_bool1)
-                self.layer_bool2 = Dense(size=16, scope='state-bool2')
-                self.add_layer(layer=self.layer_bool2)
-
-                self.layer_int1 = Dense(size=16, scope='state-int1')
-                self.add_layer(layer=self.layer_int1)
-                self.layer_int2 = Dense(size=16, scope='state-int2')
-                self.add_layer(layer=self.layer_int2)
-
-                self.layer_float1 = Dense(size=16, scope='state-float1')
-                self.add_layer(layer=self.layer_float1)
-                self.layer_float2 = Dense(size=16, scope='state-float2')
-                self.add_layer(layer=self.layer_float2)
-
-                self.layer_bounded1 = Dense(size=16, scope='state-bounded1')
-                self.add_layer(layer=self.layer_bounded1)
-                self.layer_bounded2 = Dense(size=16, scope='state-bounded2')
-                self.add_layer(layer=self.layer_bounded2)
-
-            def tf_apply(self, x, internals, update, return_internals=False):
-                x0 = self.layer_bool2.apply(x=self.layer_bool1.apply(x=x['bool'], update=update), update=update)
-                x1 = self.layer_int2.apply(x=self.layer_int1.apply(x=x['int'], update=update), update=update)
-                x2 = self.layer_float2.apply(x=self.layer_float1.apply(x=x['float'], update=update), update=update)
-                x3 = self.layer_bounded2.apply(x=self.layer_bounded1.apply(x=x['bounded'], update=update), update=update)
-                x = x0 * x1 * x2 * x3
-                return (x, dict()) if return_internals else x
-
-        environment = MinimalTest(
-            specification={'bool': (), 'int': (2,), 'float': (1, 1), 'bounded': (1,)}
+    def test_aggregate_baseline(self):
+        states = dict(
+            state1=dict(type='float', shape=(1,)),
+            state2=dict(type='float', shape=(1, 1, 1)),
         )
+        environment = UnittestEnvironment(states=states, actions=dict(type='float', shape=()))
+
+        network = [
+            [
+                dict(type='input', names='state1'),
+                dict(type='dense', size=16),
+                dict(type='output', name='state1-emb')
+            ],
+            [
+                dict(type='input', names='state2'),
+                dict(type='conv2d', size=16),
+                dict(type='global_pooling', pooling='max'),
+                dict(type='output', name='state2-emb')
+            ],
+            [
+                dict(type='input', names=['state1-emb', 'state2-emb'], aggregation_type='product'),
+                dict(type='dense', size=16)
+            ]
+        ]
+
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            ),
             baseline_mode='states',
             baseline=dict(
                 type='aggregated',
-                baselines={
-                    'bool': dict(
-                        type='mlp',
-                        sizes=[32, 32]
-                    ),
-                    'int': dict(
-                        type='mlp',
-                        sizes=[32, 32]
-                    ),
-                    'float': dict(
-                        type='mlp',
-                        sizes=[32, 32]
-                    ),
-                    'bounded': dict(
-                        type='mlp',
-                        sizes=[32, 32]
-                    )
-                }
+                baselines=dict(
+                    state1=dict(type='mlp', sizes=[16, 16]),
+                    state2=dict(type='cnn', conv_sizes=[16], dense_sizes=[16])
+                )
             ),
-            baseline_optimizer=dict(
-                type='multi_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-3
-                ),
-                num_steps=5
-            )
+            baseline_optimizer=dict(type='adam', learning_rate=1e-3)
         )
 
-        self.base_test_pass(
-            name='multi-baseline',
-            environment=environment,
-            network=CustomNetwork,
-            **config
+        self.unittest(
+            name='aggregate-baseline', environment=environment, network=network, config=config
+        )
+
+    def test_cnn_baseline(self):
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1, 1, 1)), actions=dict(type='float', shape=())
+        )
+
+        network = [
+            dict(type='conv2d', size=32), dict(type='global_pooling', pooling='max'),
+            dict(type='dense', size=32)
+        ]
+
+        config = dict(
+            baseline_mode='states',
+            baseline=dict(type='cnn', conv_sizes=[32], dense_sizes=[32]),
+            baseline_optimizer=dict(type='adam', learning_rate=1e-3)
+        )
+
+        self.unittest(
+            name='cnn-baseline', environment=environment, network=network, config=config
+        )
+
+    def test_network_baseline(self):
+        states = dict(
+            bool=dict(type='bool', shape=(1,)),
+            int=dict(type='int', shape=(2,), num_states=4),
+            float=dict(type='float', shape=(1, 1, 2)),
+            bounded=dict(type='float', shape=(), min_value=-0.5, max_value=0.5)
+        )
+        environment = UnittestEnvironment(states=states, actions=dict(type='float', shape=()))
+
+        network = [
+            [
+                dict(type='input', names='bool'),
+                dict(type='embedding', num_embeddings=2, size=16),
+                dict(type='lstm', size=8),
+                dict(type='output', name='bool-emb')
+            ],
+            [
+                dict(type='input', names='int'),
+                dict(type='embedding', num_embeddings=4, size=16),
+                dict(type='lstm', size=8),
+                dict(type='output', name='int-emb')
+            ],
+            [
+                dict(type='input', names='float'),
+                dict(type='conv2d', size=16),
+                dict(type='global_pooling', pooling='max'),
+                dict(type='output', name='float-emb')
+            ],
+            [
+                dict(type='input', names='bounded'),
+                dict(type='global_pooling', pooling='concat'),
+                dict(type='dense', size=16),
+                dict(type='output', name='bounded-emb')
+            ],
+            [
+                dict(
+                    type='input', names=['bool-emb', 'int-emb', 'float-emb', 'bounded-emb'],
+                    aggregation_type='product'
+                ),
+                dict(type='dense', size=16)
+            ]
+        ]
+
+        config = dict(
+            baseline_mode='states',
+            baseline=dict(type='network', network=network),
+            baseline_optimizer=dict(type='adam', learning_rate=1e-3)
+        )
+
+        self.unittest(
+            name='network-baseline', environment=environment, network=network, config=config
         )

@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 TensorForce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,29 +19,26 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.tests.base_agent_test import BaseAgentTest
 from tensorforce.agents import DDPGAgent
+from tensorforce.tests.agent_unittest import AgentUnittest
 
 
-class TestDDPGAgent(BaseAgentTest, unittest.TestCase):
+class TestDDPGAgent(AgentUnittest, unittest.TestCase):
 
     agent = DDPGAgent
+
     config = dict(
-        update_mode=dict(
-            unit='timesteps',
-            batch_size=8,
-            frequency=8
-        ),
-        memory=dict(
-            type='replay',
-            include_next_states=True,
-            capacity=100
-        ),
-        optimizer=dict(
-            type='adam',
-            learning_rate=1e-3
-        ),
-        critic_network="examples/configs/critic_simple_network.json",
-        target_sync_frequency=10
+        critic_network=[
+            [
+                dict(type='input', names=['state']),
+                dict(type='global_pooling'),
+                dict(type='dense', size=32),
+                dict(type='output', name='state_output')
+            ],
+            [
+                dict(type='input', names=['state_output', 'action'], aggregation_type='concat'),
+                dict(type='dense', size=32),
+                dict(type='dense', size=1)
+            ]
+        ]
     )
-    exclude_multi = True

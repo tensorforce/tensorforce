@@ -33,7 +33,7 @@ class KFAC(Optimizer):
 
     def __init__(
         self,
-        learning_rate=0.01,
+        learning_rate,
         momentum=0.9,
         clip_kl=0.01,
         kfac_update=2,

@@ -40,7 +40,8 @@ class AggregatedBaseline(Baseline):
         for name in sorted(baselines):
             self.baselines[name] = Baseline.from_spec(
                 spec=baselines[name],
-                kwargs=dict(summary_labels=summary_labels))
+                kwargs=dict(summary_labels=summary_labels)
+            )
 
         self.linear = Linear(size=1, bias=0.0, scope='prediction', summary_labels=summary_labels)
 

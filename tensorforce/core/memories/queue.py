@@ -122,8 +122,9 @@ class Queue(Memory):
         # Memory index
         self.memory_index = tf.get_variable(
             name='memory-index',
+            shape=(),
             dtype=util.tf_dtype('int'),
-            initializer=0,
+            initializer=tf.constant_initializer(value=0, dtype=util.tf_dtype('int')),
             trainable=False
         )
 
@@ -139,8 +140,9 @@ class Queue(Memory):
         # Episodes index
         self.episode_count = tf.get_variable(
             name='episode-count',
+            shape=(),
             dtype=util.tf_dtype('int'),
-            initializer=0,
+            initializer=tf.constant_initializer(value=0, dtype=util.tf_dtype('int')),
             trainable=False
         )
 

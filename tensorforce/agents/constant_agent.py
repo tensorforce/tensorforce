@@ -31,21 +31,19 @@ class ConstantAgent(Agent):
         self,
         states,
         actions,
-        action_values,
         batched_observe=True,
         batching_capacity=1000,
         scope='constant',
         device=None,
         saver=None,
         summarizer=None,
-        execution=None
+        execution=None,
+        action_values=None
     ):
         """
         Initializes the constant agent.
 
         Args:
-            action_values (value, or dict of values): Action values returned by the agent
-                (required).
             scope (str): TensorFlow scope (default: name of agent).
             device: TensorFlow device (default: none)
             saver (spec): Saver specification, with the following attributes (default: none):
@@ -61,6 +59,7 @@ class ConstantAgent(Agent):
                 - labels: list of summary labels to record (default: []).
                 - meta_param_recorder_class: ???.
             execution (spec): Execution specification (see sanity_check_execution_spec for details).
+            action_values (value, or dict of values): Action values returned by the agent.
         """
 
         self.scope = scope

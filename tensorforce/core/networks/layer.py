@@ -22,6 +22,8 @@ from __future__ import print_function
 from __future__ import division
 
 from math import sqrt
+import warnings
+
 import numpy as np
 import tensorflow as tf
 
@@ -443,9 +445,28 @@ class Flatten(Layer):
 
     def __init__(self, named_tensors=None, scope='flatten', summary_labels=()):
         super(Flatten, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
+        util.deprecated_module(module='Flatten', new='GlobalPooling')
 
     def tf_apply(self, x, update):
         return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
+
+
+class GlobalPooling(Layer):
+    """
+    Global pooling layer.
+    """
+
+    def __init__(self, pooling='concat', named_tensors=None, scope='flatten', summary_labels=()):
+        self.pooling = pooling
+        super(GlobalPooling, self).__init__(named_tensors=named_tensors, scope=scope, summary_labels=summary_labels)
+
+    def tf_apply(self, x, update):
+        if self.pooling == 'concat':
+            return tf.reshape(tensor=x, shape=(-1, util.prod(util.shape(x)[1:])))
+        elif self.pooling == 'max':
+            for _ in range(util.rank(x=x) - 2):
+                x = tf.reduce_max(input_tensor=x, axis=1)
+            return x
 
 
 class Pool2d(Layer):
@@ -508,24 +529,30 @@ class Embedding(Layer):
 
     def __init__(
         self,
-        indices,
+        num_embeddings,
         size,
         l2_regularization=0.0,
         l1_regularization=0.0,
         named_tensors=None,
         scope='embedding',
-        summary_labels=()
+        summary_labels=(),
+        indices=None
     ):
         """
         Embedding layer.
 
         Args:
-            indices: Number of embedding indices.
+            num_embeddings: Number of embeddings.
             size: Embedding size.
             l2_regularization: L2 regularization weight.
             l1_regularization: L1 regularization weight.
         """
-        self.indices = indices
+        if indices is not None:
+            num_embeddings = indices
+            util.deprecated_argument(
+                module='Embedding.ctor', argument='indices', new='num_embeddings'
+            )
+        self.num_embeddings = num_embeddings
         self.size = size
         self.l2_regularization = l2_regularization
         self.l1_regularization = l1_regularization
@@ -536,10 +563,12 @@ class Embedding(Layer):
         weights_init = tf.random_normal_initializer(mean=0.0, stddev=stddev, dtype=tf.float32)
         self.weights = tf.get_variable(
             name='embeddings',
-            shape=(self.indices, self.size),
+            shape=(self.num_embeddings, self.size),
             dtype=tf.float32,
             initializer=weights_init
         )
+        if x.dtype is util.tf_dtype('bool'):
+            x = tf.cast(x=x, dtype=util.tf_dtype('int'))
         return tf.nn.embedding_lookup(params=self.weights, ids=x)
 
     def tf_regularization_loss(self):
@@ -1209,7 +1238,7 @@ class InternalLstm(Layer):
 
 class Lstm(Layer):
 
-    def __init__(self, size, dropout=None, named_tensors=None, scope='lstm', summary_labels=(), return_final_state=True):
+    def __init__(self, size, dropout=None, return_final_state=True, named_tensors=None, scope='lstm', summary_labels=()):
         """
         LSTM layer.
 

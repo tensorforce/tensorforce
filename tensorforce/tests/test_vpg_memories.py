@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 TensorForce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,225 +19,125 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.tests.base_test import BaseTest
 from tensorforce.agents import VPGAgent
-from .minimal_test import MinimalTest
+from tensorforce.tests.unittest_base import UnittestBase
+from tensorforce.tests.unittest_environment import UnittestEnvironment
 
 
-class TestVPGMemories(BaseTest, unittest.TestCase):
+class TestVPGMemories(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
 
     def test_latest_timesteps(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            update_mode=dict(
-                unit='timesteps',
-                batch_size=8,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            )
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
         )
 
-        self.base_test_run(
-            name='latest-timesteps',
-            environment=environment,
-            network=network,
-            **config
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            update_mode=dict(unit='timesteps', batch_size=2),
+            memory=dict(type='latest', include_next_states=False, capacity=100)
+        )
+
+        self.unittest(
+            name='latest-timesteps', environment=environment, network=network, config=config
         )
 
     def test_latest_episodes(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            )
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
         )
 
-        self.base_test_run(
-            name='latest-episodes',
-            environment=environment,
-            network=network,
-            **config
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            update_mode=dict(unit='episodes', batch_size=2),
+            memory=dict(type='latest', include_next_states=False, capacity=100)
+        )
+
+        self.unittest(
+            name='latest-episodes', environment=environment, network=network, config=config
         )
 
     def test_latest_sequences(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            update_mode=dict(
-                unit='sequences',
-                batch_size=8,
-                frequency=4,
-                length=2
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            )
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
         )
 
-        self.base_test_run(
-            name='latest-sequences',
-            environment=environment,
-            network=network,
-            **config
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            update_mode=dict(unit='sequences', batch_size=2),
+            memory=dict(type='latest', include_next_states=False, capacity=100)
+        )
+
+        self.unittest(
+            name='latest-sequences', environment=environment, network=network, config=config
         )
 
     def test_replay_timesteps(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            update_mode=dict(
-                unit='timesteps',
-                batch_size=8,
-                frequency=4
-            ),
-            memory=dict(
-                type='replay',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            )
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
         )
 
-        self.base_test_run(
-            name='replay-timesteps',
-            environment=environment,
-            network=network,
-            **config
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            update_mode=dict(unit='timesteps', batch_size=2),
+            memory=dict(type='replay', include_next_states=False, capacity=100)
+        )
+
+        self.unittest(
+            name='replay-timesteps', environment=environment, network=network, config=config
         )
 
     def test_replay_episodes(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='replay',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            )
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
         )
 
-        self.base_test_run(
-            name='replay-episodes',
-            environment=environment,
-            network=network,
-            **config
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            update_mode=dict(unit='episodes', batch_size=2),
+            memory=dict(type='replay', include_next_states=False, capacity=100)
+        )
+
+        self.unittest(
+            name='replay-episodes', environment=environment, network=network, config=config
         )
 
     def test_replay_sequences(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            update_mode=dict(
-                unit='sequences',
-                batch_size=8,
-                frequency=4,
-                length=2
-            ),
-            memory=dict(
-                type='replay',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            )
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
         )
 
-        self.base_test_run(
-            name='replay-sequences',
-            environment=environment,
-            network=network,
-            **config
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            update_mode=dict(unit='sequences', batch_size=2),
+            memory=dict( type='replay', include_next_states=False, capacity=100)
+        )
+
+        self.unittest(
+            name='replay-sequences', environment=environment, network=network, config=config
         )
 
     def test_prioritized_replay_timesteps(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
-            update_mode=dict(
-                unit='timesteps',
-                batch_size=8,
-                frequency=4
-            ),
+            update_mode=dict(unit='timesteps', batch_size=2),
             memory=dict(
-                type='prioritized_replay',
-                include_next_states=False,
-                capacity=100,
-                buffer_size=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
+                type='prioritized_replay', include_next_states=False, capacity=100, buffer_size=100
             )
         )
 
-        self.base_test_run(
-            name='prioritized-replay-timesteps',
-            environment=environment,
-            network=network,
-            **config
+        self.unittest(
+            name='prioritized-replay-timesteps', environment=environment, network=network, config=config
         )

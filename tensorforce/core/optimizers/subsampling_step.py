@@ -29,7 +29,7 @@ class SubsamplingStep(MetaOptimizer):
     the optimization step of another optimizer.
     """
 
-    def __init__(self, optimizer, fraction=0.1, scope='subsampling-step', summary_labels=()):
+    def __init__(self, optimizer, fraction, scope='subsampling-step', summary_labels=()):
         """
         Creates a new subsampling-step meta optimizer instance.
 

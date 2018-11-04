@@ -25,6 +25,7 @@ import warnings
 from inspect import getargspec
 from tqdm import tqdm
 
+
 class Runner(BaseRunner):
     """
     Simple runner for non-realtime single-process execution.

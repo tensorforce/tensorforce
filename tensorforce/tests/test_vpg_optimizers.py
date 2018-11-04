@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 TensorForce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,195 +19,145 @@ from __future__ import division
 
 import unittest
 
-from tensorforce.tests.base_test import BaseTest
 from tensorforce.agents import VPGAgent
-from .minimal_test import MinimalTest
+from tensorforce.tests.unittest_base import UnittestBase
+from tensorforce.tests.unittest_environment import UnittestEnvironment
 
 
-class TestVPGOptimizers(BaseTest, unittest.TestCase):
+class TestVPGOptimizers(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
 
-    # TODO: Tests for other TensorFlow optimizers, necessary?
-
     def test_adam(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='adam',
-                learning_rate=1e-2
-            )
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
         )
-        self.base_test_pass(name='adam', environment=environment, network=network, **config)
 
-    def test_evolutionary(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
-        config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='evolutionary',
-                learning_rate=1e-2
-            )
-        )
-        self.base_test_pass(name='evolutionary', environment=environment, network=network, **config)
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
-    def test_natural_gradient(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
-            optimizer=dict(
-                type='natural_gradient',
-                learning_rate=1e-3
-            )
+            optimizer=dict(type='adam', learning_rate=1e-3)
         )
-        self.base_test_pass(name='natural-gradient', environment=environment, network=network, **config)
+
+        self.unittest(
+            name='adam', environment=environment, network=network, config=config
+        )
 
     def test_clipped_step(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
             optimizer=dict(
                 type='clipped_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-2
-                ),
-                clipping_value=0.01
+                optimizer=dict(type='adam', learning_rate=1e-3),
+                clipping_value=1e-2
             )
         )
-        self.base_test_pass(name='clipped-step', environment=environment, network=network, **config)
+
+        self.unittest(
+            name='clipped-step', environment=environment, network=network, config=config
+        )
+
+    def test_evolutionary(self):
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            optimizer=dict(type='evolutionary', learning_rate=1e-3)
+        )
+
+        self.unittest(
+            name='evolutionary', environment=environment, network=network, config=config
+        )
+
+    def test_kfac(self):
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            optimizer=dict(type='kfac', learning_rate=1e-3)
+        )
+
+        self.unittest(
+            name='kfac', environment=environment, network=network, config=config
+        )
 
     def test_multi_step(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
             optimizer=dict(
                 type='multi_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-3
-                )
+                optimizer=dict(type='adam', learning_rate=1e-3)
             )
         )
-        self.base_test_pass(name='multi-step', environment=environment, network=network, **config)
+
+        self.unittest(
+            name='multi-step', environment=environment, network=network, config=config
+        )
+
+    def test_natural_gradient(self):
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            optimizer=dict(type='natural_gradient', learning_rate=1e-3)
+        )
+
+        self.unittest(
+            name='natural-gradient', environment=environment, network=network, config=config
+        )
 
     def test_optimized_step(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
             optimizer=dict(
                 type='optimized_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-2
-                )
+                optimizer=dict(type='adam', learning_rate=1e-3)
             )
         )
-        self.base_test_pass(name='optimized-step', environment=environment, network=network, **config)
+
+        self.unittest(
+            name='optimized-step', environment=environment, network=network, config=config
+        )
 
     def test_subsampling_step(self):
-        environment = MinimalTest(specification={'int': ()})
-        network = [
-            dict(type='dense', size=32),
-            dict(type='dense', size=32)
-        ]
+        environment = UnittestEnvironment(
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
+        )
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
         config = dict(
-            update_mode=dict(
-                unit='episodes',
-                batch_size=4,
-                frequency=4
-            ),
-            memory=dict(
-                type='latest',
-                include_next_states=False,
-                capacity=100
-            ),
             optimizer=dict(
                 type='subsampling_step',
-                optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-3
-                ),
-                fraction=0.33
+                optimizer=dict(type='adam', learning_rate=1e-3),
+                fraction=0.5
             )
         )
-        self.base_test_pass(name='multi-step', environment=environment, network=network, **config)
+
+        self.unittest(
+            name='subsampling-step', environment=environment, network=network, config=config
+        )

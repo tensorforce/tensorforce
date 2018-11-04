@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 TensorForce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@ from __future__ import print_function
 
 import logging
 import numpy as np
-from six.moves import xrange
 import sys
 import unittest
 
 from tensorforce.agents import PPOAgent
-from tensorforce.execution import Runner
 from tensorforce.contrib.openai_gym import OpenAIGym
+from tensorforce.execution import Runner
 
 
 logging.getLogger('tensorflow').disabled = True
@@ -38,7 +37,7 @@ class TestQuickstartExample(unittest.TestCase):
         sys.stdout.flush()
 
         passed = 0
-        for _ in xrange(3):
+        for _ in range(3):
 
             # Create an OpenAI-Gym environment
             environment = OpenAIGym('CartPole-v0')
@@ -83,20 +82,14 @@ class TestQuickstartExample(unittest.TestCase):
                 ),
                 baseline_optimizer=dict(
                     type='multi_step',
-                    optimizer=dict(
-                        type='adam',
-                        learning_rate=1e-3
-                    ),
+                    optimizer=dict(type='adam', learning_rate=1e-3),
                     num_steps=5
                 ),
                 gae_lambda=None,
                 # PGLRModel
                 likelihood_ratio_clipping=0.2,
                 # PPOAgent
-                step_optimizer=dict(
-                    type='adam',
-                    learning_rate=1e-3
-                ),
+                step_optimizer=dict(type='adam', learning_rate=1e-3),
                 subsampling_fraction=0.1,
                 optimization_steps=50
             )

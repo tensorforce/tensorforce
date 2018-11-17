@@ -29,7 +29,7 @@ preprocessors in the stack and returns the result.
 ### Using one preprocessor
 
 ```python
-from tensorforce.core.preprocessing import Sequence
+from tensorforce.core.preprocessors import Sequence
 
 pp_seq = Sequence(4)  # initialize preprocessor (return sequence of last 4 states)
 
@@ -42,7 +42,7 @@ processed_state = pp_seq.process(state)  # process state
 You can stack multipe preprocessors:
 
 ```python
-from tensorforce.core.preprocessing import Preprocessing, Grayscale, Sequence
+from tensorforce.core.preprocessors import Preprocessing, Grayscale, Sequence
 
 pp_gray = Grayscale()  # initialize grayscale preprocessor
 pp_seq = Sequence(4)  # initialize sequence preprocessor
@@ -61,7 +61,7 @@ If you use configuration objects, you can build your preprocessing stack
 from a config:
 
 ```python
-from tensorforce.core.preprocessing import Preprocessing
+from tensorforce.core.preprocessors import Preprocessing
 
 preprocessing_config = [
     {
@@ -105,7 +105,7 @@ These are the preprocessors that come with TensorForce:
 ### Standardize
 
 ```eval_rst
-    .. autoclass:: tensorforce.core.preprocessing.Standardize
+    .. autoclass:: tensorforce.core.preprocessors.Standardize
         :noindex:
         :show-inheritance:
         :members:
@@ -114,7 +114,7 @@ These are the preprocessors that come with TensorForce:
 ### Grayscale
 
 ```eval_rst
-    .. autoclass:: tensorforce.core.preprocessing.Grayscale
+    .. autoclass:: tensorforce.core.preprocessors.Grayscale
         :noindex:
         :show-inheritance:
         :members:
@@ -123,7 +123,7 @@ These are the preprocessors that come with TensorForce:
 ### ImageResize
 
 ```eval_rst
-    .. autoclass:: tensorforce.core.preprocessing.ImageResize
+    .. autoclass:: tensorforce.core.preprocessors.ImageResize
         :noindex:
         :show-inheritance:
         :members:
@@ -132,7 +132,7 @@ These are the preprocessors that come with TensorForce:
 ### Normalize
 
 ```eval_rst
-    .. autoclass:: tensorforce.core.preprocessing.Normalize
+    .. autoclass:: tensorforce.core.preprocessors.Normalize
         :noindex:
         :show-inheritance:
         :members:
@@ -141,7 +141,7 @@ These are the preprocessors that come with TensorForce:
 ### Sequence
 
 ```eval_rst
-    .. autoclass:: tensorforce.core.preprocessing.Sequence
+    .. autoclass:: tensorforce.core.preprocessors.Sequence
         :noindex:
         :show-inheritance:
         :members:
@@ -151,7 +151,7 @@ Building your own preprocessor
 ------------------------------
 
 All preprocessors should inherit from
-`tensorforce.core.preprocessing.Preprocessor`.
+`tensorforce.core.preprocessors.Preprocessor`.
 
 For a start, please refer to the source of the [Grayscale
 preprocessor](https://github.com/reinforceio/tensorforce/blob/master/tensorforce/core/preprocessors/grayscale.py).

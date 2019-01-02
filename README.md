@@ -1,9 +1,9 @@
 # Tensorforce: a TensorFlow library for applied reinforcement learning
 
 [![Docs](https://readthedocs.org/projects/tensorforce/badge)](http://tensorforce.readthedocs.io/en/latest/)
-[![Gitter](https://badges.gitter.im/reinforceio/TensorForce.svg)](https://gitter.im/reinforceio/TensorForce)
-[![Build Status](https://travis-ci.org/reinforceio/tensorforce.svg?branch=master)](https://travis-ci.org/reinforceio/tensorforce)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/reinforceio/tensorforce/blob/master/LICENSE)
+[![Gitter](https://badges.gitter.im/tensorforce/community.svg)](https://gitter.im/tensorforce/community)
+[![Build Status](https://travis-ci.org/tensorforce/tensorforce.svg?branch=master)](https://travis-ci.org/tensorforce/tensorforce)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/tensorforce/tensorforce/blob/master/LICENSE)
 
 
 
@@ -29,9 +29,9 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 
 #### Quicklinks
 
-- [Documentation](http://tensorforce.readthedocs.io) and [update notes](https://github.com/reinforceio/tensorforce/blob/master/UPDATE_NOTES.md)
-- [Contact](mailto:tensorforce.team@gmail.com) and [Gitter channel](https://gitter.im/reinforceio/TensorForce)
-- [Contribution guidelines](https://github.com/reinforceio/tensorforce/blob/master/CONTRIBUTING.md)
+- [Documentation](http://tensorforce.readthedocs.io) and [update notes](https://github.com/tensorforce/tensorforce/blob/master/UPDATE_NOTES.md)
+- [Contact](mailto:tensorforce.team@gmail.com) and [Gitter channel](https://gitter.im/tensorforce/community)
+- [Contribution guidelines](https://github.com/tensorforce/tensorforce/blob/master/CONTRIBUTING.md)
 - [Blog](https://reinforce.io/blog/)
 
 
@@ -60,7 +60,7 @@ pip install tensorforce
 To always use the latest version of Tensorforce, install the GitHub version instead:
 
 ```bash
-git clone https://github.com/reinforceio/tensorforce.git
+git clone https://github.com/tensorforce/tensorforce.git
 cd tensorforce
 pip install -e .
 ```
@@ -131,7 +131,7 @@ Note that in general the replication is not 100% faithful, since the models as d
 
 ## Examples and documentation
 
-Tensorforce comes with a range of [example scripts and configurations](https://github.com/reinforceio/tensorforce/tree/master/examples) for different popular reinforcement learning environments/benchmarks. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
+Tensorforce comes with a range of [example scripts and configurations](https://github.com/tensorforce/tensorforce/tree/master/examples) for different popular reinforcement learning environments/benchmarks. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
 
 ```bash
 python examples/openai_gym.py CartPole-v1 --agent examples/configs/ppo.json --network examples/configs/mlp2_network.json
@@ -143,7 +143,7 @@ For more information check out [Tensorforce's documentation](http://tensorforce.
 
 ## Contact for support and feedback
 
-Please get in touch via [mail](mailto:tensorforce.team@gmail.com) or on [Gitter](https://gitter.im/reinforceio/TensorForce) if you have questions, feedback, ideas for features/collaboration, or if you seek support for applying Tensorforce to your problem.
+Please get in touch via [mail](mailto:tensorforce.team@gmail.com) or on [Gitter](https://gitter.im/tensorforce/community) if you have questions, feedback, ideas for features/collaboration, or if you seek support for applying Tensorforce to your problem.
 
 
 
@@ -173,7 +173,7 @@ Please cite the framework as follows:
   author       = {Kuhnle, Alexander and Schaarschmidt, Michael and Fricke, Kai},
   title        = {Tensorforce: a TensorFlow library for applied reinforcement learning},
   howpublished = {Web page},
-  url          = {https://github.com/reinforceio/tensorforce},
+  url          = {https://github.com/tensorforce/tensorforce},
   year         = {2017}
 }
 ```

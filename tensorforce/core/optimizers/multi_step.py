@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from six.moves import xrange
 import tensorflow as tf
 
 from tensorforce.core.optimizers import MetaOptimizer
@@ -29,7 +24,7 @@ class MultiStep(MetaOptimizer):
     optimizer a number of times.
     """
 
-    def __init__(self, optimizer, num_steps=10, unroll_loop=False, scope='multi-step', summary_labels=()):
+    def __init__(self, name, optimizer, num_steps=10, unroll_loop=False):
         """
         Creates a new multi-step meta optimizer instance.
 
@@ -37,13 +32,13 @@ class MultiStep(MetaOptimizer):
             optimizer: The optimizer which is modified by this meta optimizer.
             num_steps: Number of optimization steps to perform.
         """
+        super().__init__(name=name, optimizer=optimizer)
+
         assert isinstance(num_steps, int) and num_steps > 0
         self.num_steps = num_steps
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
-
-        super(MultiStep, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
 
     def tf_step(self, time, variables, arguments, fn_reference=None, **kwargs):
         """
@@ -68,9 +63,11 @@ class MultiStep(MetaOptimizer):
 
         if self.unroll_loop:
             # Unrolled for loop
-            for _ in xrange(self.num_steps - 1):
+            for _ in range(self.num_steps - 1):
                 with tf.control_dependencies(control_inputs=deltas):
-                    step_deltas = self.optimizer.step(time=time, variables=variables, arguments=arguments, **kwargs)
+                    step_deltas = self.optimizer.step(
+                        time=time, variables=variables, arguments=arguments, **kwargs
+                    )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
 
             return deltas
@@ -79,7 +76,9 @@ class MultiStep(MetaOptimizer):
             # TensorFlow while loop
             def body(iteration, deltas):
                 with tf.control_dependencies(control_inputs=deltas):
-                    step_deltas = self.optimizer.step(time=time, variables=variables, arguments=arguments, **kwargs)
+                    step_deltas = self.optimizer.step(
+                        time=time, variables=variables, arguments=arguments, **kwargs
+                    )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
                     return iteration + 1, deltas
 

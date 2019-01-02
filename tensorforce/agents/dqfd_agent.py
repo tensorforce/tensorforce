@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from six.moves import xrange
-
-from tensorforce.agents import LearningAgent
-from tensorforce.models import QDemoModel
+from tensorforce.agents import DRLAgent
+from tensorforce.core.models import QDemoModel
 
 
-class DQFDAgent(LearningAgent):
+class DQFDAgent(DRLAgent):
     """
     Deep Q-learning from demonstration agent
     ([Hester et al., 2017](https://arxiv.org/abs/1704.03732)).
@@ -70,7 +64,7 @@ class DQFDAgent(LearningAgent):
                 - batch_size: integer (default: 32).
                 - frequency: integer (default: 4).
             memory (spec): Memory specification, see core.memories module for more information
-                (default: {type='replay', include_next_states=true, capacity=1000*batch_size}).
+                (default: {type='replay', include_next_state=true, capacity=1000*batch_size}).
             optimizer (spec): Optimizer specification, see core.optimizers module for more
                 information (default: {type='adam', learning_rate=1e-3}).
             target_sync_frequency (int): Target network sync frequency (default: 10000).
@@ -100,11 +94,11 @@ class DQFDAgent(LearningAgent):
             # Default capacity of 1000 batches
             memory = dict(
                 type='replay',
-                include_next_states=True,
+                include_next_state=True,
                 capacity=(1000 * update_mode['batch_size'])
             )
         else:
-            assert memory['include_next_states']
+            assert memory['include_next_state']
 
         # Optimizer
         if optimizer is None:
@@ -130,7 +124,7 @@ class DQFDAgent(LearningAgent):
 
         # This is the demonstration memory that we will fill with observations before starting
         # the main training loop
-        super(DQFDAgent, self).__init__(
+        super().__init__(
             states=states,
             actions=actions,
             batched_observe=batched_observe,
@@ -198,7 +192,7 @@ class DQFDAgent(LearningAgent):
     #     """
     #     super(DQFDAgent, self).observe(reward=reward, terminal=terminal)
     #     if self.timestep >= self.first_update and self.timestep % self.update_frequency == 0:
-    #         for _ in xrange(self.repeat_update):
+    #         for _ in range(self.repeat_update):
     #             self.model.demonstration_update()
 
     def import_demonstrations(self, demonstrations):
@@ -262,5 +256,5 @@ class DQFDAgent(LearningAgent):
         Args:
             steps: Number of updates to execute.
         """
-        for _ in xrange(steps):
+        for _ in range(steps):
             self.model.demo_update()

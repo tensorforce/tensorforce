@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 from math import e, log, pi
+
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.networks import Linear
+from tensorforce.core import layer_modules
 from tensorforce.core.distributions import Distribution
 
 
@@ -30,22 +27,22 @@ class Gaussian(Distribution):
     Gaussian distribution, for unbounded continuous actions.
     """
 
-    def __init__(self, shape, mean=0.0, log_stddev=0.0, scope='gaussian', summary_labels=()):
+    def __init__(self, name, action_spec, embedding_size):
         """
         Categorical distribution.
-
-        Args:
-            shape: Action shape.
-            mean: Optional distribution bias for the mean.
-            log_stddev: Optional distribution bias for the standard deviation.
         """
-        self.shape = shape
-        action_size = util.prod(self.shape)
+        super().__init__(name=name, action_spec=action_spec, embedding_size=embedding_size)
 
-        self.mean = Linear(size=action_size, bias=mean, scope='mean', summary_labels=summary_labels)
-        self.log_stddev = Linear(size=action_size, bias=log_stddev, scope='log-stddev', summary_labels=summary_labels)
-
-        super(Gaussian, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+        action_size = util.product(xs=self.action_spec['shape'], empty=0)
+        input_spec = dict(type='float', shape=(embedding_size,))
+        self.mean = self.add_module(
+            name='mean', module='linear', modules=layer_modules, size=action_size,
+            input_spec=input_spec
+        )
+        self.log_stddev = self.add_module(
+            name='log-stddev', module='linear', modules=layer_modules, size=action_size,
+            input_spec=input_spec
+        )
 
     def tf_parameterize(self, x):
         # Flat mean and log standard deviation
@@ -53,20 +50,21 @@ class Gaussian(Distribution):
         log_stddev = self.log_stddev.apply(x=x)
 
         # Reshape mean and log stddev to action shape
-        shape = (-1,) + self.shape
+        shape = (-1,) + self.action_spec['shape']
         mean = tf.reshape(tensor=mean, shape=shape)
         log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
 
         # Clip log stddev for numerical stability
         log_eps = log(util.epsilon)  # epsilon < 1.0, hence negative
-        log_stddev = tf.clip_by_value(t=log_stddev, clip_value_min=log_eps, clip_value_max=-log_eps)
+        log_stddev = tf.clip_by_value(
+            t=log_stddev, clip_value_min=log_eps, clip_value_max=-log_eps
+        )
 
         # Standard deviation
         stddev = tf.exp(x=log_stddev)
 
-        if 'distribution' in self.summary_labels:
-            tf.contrib.summary.scalar(name=(self.scope + '-mean'), tensor=mean)
-            tf.contrib.summary.scalar(name=(self.scope + '-stddev'), tensor=stddev)
+        self.add_summary(label='distribution', name='mean', tensor=mean)
+        self.add_summary(label='distribution', name='stddev', tensor=stddev)
 
         return mean, stddev, log_stddev
 
@@ -114,7 +112,7 @@ class Gaussian(Distribution):
         return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5
 
     def tf_regularization_loss(self):
-        regularization_loss = super(Gaussian, self).tf_regularization_loss()
+        regularization_loss = super().tf_regularization_loss()
         if regularization_loss is None:
             losses = list()
         else:
@@ -132,10 +130,3 @@ class Gaussian(Distribution):
             return tf.add_n(inputs=losses)
         else:
             return None
-
-    def get_variables(self, include_nontrainable=False):
-        distribution_variables = super(Gaussian, self).get_variables(include_nontrainable=include_nontrainable)
-        mean_variables = self.mean.get_variables(include_nontrainable=include_nontrainable)
-        log_stddev_variables = self.log_stddev.get_variables(include_nontrainable=include_nontrainable)
-
-        return distribution_variables + mean_variables + log_stddev_variables

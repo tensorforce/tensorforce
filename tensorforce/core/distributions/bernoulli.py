@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from math import log
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.networks import Linear
+from tensorforce.core import layer_modules
 from tensorforce.core.distributions import Distribution
 
 
@@ -30,27 +25,25 @@ class Bernoulli(Distribution):
     Bernoulli distribution, for binary boolean actions.
     """
 
-    def __init__(self, shape, probability=0.5, scope='bernoulli', summary_labels=()):
+    def __init__(self, name, action_spec, embedding_size):
         """
         Bernoulli distribution.
-
-        Args:
-            shape: Action shape.
-            probability: Optional distribution bias.
         """
-        self.shape = shape
-        action_size = util.prod(self.shape)
+        super().__init__(name=name, action_spec=action_spec, embedding_size=embedding_size)
 
-        self.logit = Linear(size=action_size, bias=log(probability), scope='logit', summary_labels=summary_labels)
-
-        super(Bernoulli, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+        action_size = util.product(xs=self.action_spec['shape'], empty=0)
+        input_spec = dict(type='float', shape=(embedding_size,))
+        self.logit = self.add_module(
+            name='logit', module='linear', modules=layer_modules, size=action_size,
+            input_spec=input_spec
+        )
 
     def tf_parameterize(self, x):
         # Flat logit
         logit = self.logit.apply(x=x)
 
         # Reshape logit to action shape
-        shape = (-1,) + self.shape
+        shape = (-1,) + self.action_spec['shape']
         logit = tf.reshape(tensor=logit, shape=shape)
 
         # TODO rename
@@ -70,8 +63,7 @@ class Bernoulli(Distribution):
         true_logit = tf.log(x=probability)
         false_logit = tf.log(x=(1.0 - probability))
 
-        if 'distribution' in self.summary_labels:
-            tf.contrib.summary.scalar(name=self.scope, tensor=probability)
+        self.add_summary(label='distribution', name='prob', tensor=probability)
 
         return true_logit, false_logit, probability, state_value
 
@@ -116,8 +108,8 @@ class Bernoulli(Distribution):
         return probability1 * true_log_prob_ratio + (1.0 - probability1) * false_log_prob_ratio
 
     def tf_regularization_loss(self):
-        regularization_loss = super(Bernoulli, self).tf_regularization_loss()
-        if super(Bernoulli, self).tf_regularization_loss() is None:
+        regularization_loss = super().tf_regularization_loss()
+        if regularization_loss is None:
             losses = list()
         else:
             losses = [regularization_loss]
@@ -130,9 +122,3 @@ class Bernoulli(Distribution):
             return tf.add_n(inputs=losses)
         else:
             return None
-
-    def get_variables(self, include_nontrainable=False):
-        distribution_variables = super(Bernoulli, self).get_variables(include_nontrainable=include_nontrainable)
-        logit_variables = self.logit.get_variables(include_nontrainable=include_nontrainable)
-
-        return distribution_variables + logit_variables

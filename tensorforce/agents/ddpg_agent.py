@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from copy import deepcopy
-
-from tensorforce.agents import LearningAgent
-from tensorforce.models import DPGTargetModel
+from tensorforce.agents import DRLAgent
+from tensorforce.core.models import DPGTargetModel
 
 
-class DDPGAgent(LearningAgent):
+class DDPGAgent(DRLAgent):
     """
     Deep Deterministic Policy Gradient agent
     ([Lillicrap et al., 2015](https://arxiv.org/abs/1509.02971)).
@@ -65,7 +59,7 @@ class DDPGAgent(LearningAgent):
                 - batch_size: integer (default: 10).
                 - frequency: integer (default: batch_size).
             memory (spec): Memory specification, see core.memories module for more information
-                (default: {type='replay', include_next_states=true, capacity=1000*batch_size}).
+                (default: {type='replay', include_next_state=true, capacity=1000*batch_size}).
             optimizer (spec): Optimizer specification, see core.optimizers module for more
                 information (default: {type='adam', learning_rate=1e-3}).
             critic_network (spec): Critic network specification, size_t0 and size_t1.
@@ -91,11 +85,11 @@ class DDPGAgent(LearningAgent):
             # Assumed episode length of 1000 timesteps.
             memory = dict(
                 type='replay',
-                include_next_states=True,
+                include_next_state=True,
                 capacity=(1000 * update_mode['batch_size'])
             )
         else:
-            assert memory['include_next_states']
+            assert memory['include_next_state']
 
         # Optimizer
         if optimizer is None:
@@ -115,7 +109,7 @@ class DDPGAgent(LearningAgent):
         self.target_sync_frequency = target_sync_frequency
         self.target_update_weight = target_update_weight
 
-        super(DDPGAgent, self).__init__(
+        super().__init__(
             states=states,
             actions=actions,
             batched_observe=batched_observe,

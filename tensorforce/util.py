@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
 from copy import deepcopy
 import importlib
 import json
@@ -23,7 +24,7 @@ import warnings
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorForceError
+from tensorforce import TensorforceError
 
 
 epsilon = 1e-6
@@ -38,42 +39,78 @@ log_levels = dict(
 )
 
 
-def deprecated_argument(module, argument, new):
-    warnings.warn(
-        message="WARNING: argument '{}' of '{}' deprecated, use '{}' instead.".format(
-            argument, module, new
-        ),
-        category=DeprecationWarning
-    )
+def is_iterable(x):
+    if isinstance(x, (str, tf.Tensor)):
+        return False
+    try:
+        iter(x)
+        return True
+    except TypeError:
+        return False
 
 
-def deprecated_module(module, new):
-    warnings.warn(
-        message="WARNING: module '{}' deprecated, use '{}' instead.".format(module, new),
-        category=DeprecationWarning
-    )
-
-
-def additional_argument(module, argument):
-    warnings.warn(
-        message="WARNING: additional argument '{}' of '{}' required.".format(argument, module),
-        category=DeprecationWarning
-    )
-
-
-def prod(xs):
-    """Computes the product along the elements in an iterable. Returns 1 for empty iterable.
+def product(xs, empty=1):
+    """Computes the product along the elements in an iterable.
 
     Args:
         xs: Iterable containing numbers.
+        empty: ??
 
     Returns: Product along iterable.
 
     """
-    p = 1
+    result = None
     for x in xs:
-        p *= x
-    return p
+        if result is None:
+            result = x
+        else:
+            result *= x
+
+    if result is None:
+        result = empty
+
+    return result
+
+
+def fmap(function, xs):
+    if xs is None:
+        return None
+    elif isinstance(xs, tuple):
+        return tuple(fmap(function=function, xs=x) for x in xs)
+    elif isinstance(xs, list):
+        return [fmap(function=function, xs=x) for x in xs]
+    elif isinstance(xs, set):
+        return {fmap(function=function, xs=x) for x in xs}
+    elif isinstance(xs, OrderedDict):
+        return OrderedDict(((key, fmap(function=function, xs=x)) for key, x in xs.items()))
+    elif isinstance(xs, dict):
+        return {key: fmap(function=function, xs=x) for key, x in xs.items()}
+    else:
+        return function(xs)
+
+
+def flatten(xs):
+    if xs is None:
+        return None
+    elif isinstance(xs, (tuple, list, set)):
+        return [x for ys in xs for x in flatten(xs=ys)]
+    elif isinstance(xs, dict):
+        return [x for ys in xs.values() for x in flatten(xs=ys)]
+    else:
+        return [xs]
+
+
+def dtype(x):
+    if x.dtype == tf.float32:
+        return 'float'
+    elif x.dtype == tf.int32:
+        return 'int'
+    elif x.dtype == tf.int64:
+        return 'long'
+    elif x.dtype == tf.bool:
+        return 'bool'
+    else:
+        raise TensorforceError.value(name='dtype', value=x.dtype)
 
 
 def rank(x):
@@ -81,7 +118,20 @@ def rank(x):
 
 
 def shape(x, unknown=-1):
-    return tuple(unknown if dims is None else dims for dims in x.get_shape().as_list())
+    return tuple(unknown if num_dims is None else num_dims for num_dims in x.get_shape().as_list())
+
+
+def py_dtype(dtype):
+    if dtype == 'float':  # or dtype == float or dtype == np.float32 or dtype == tf.float32:
+        return float
+    elif dtype == 'int' or dtype == 'long':
+    # dtype == int or dtype == np.int32 or dtype == tf.int32 or
+    # or dtype == np.int64 or dtype == tf.int64
+        return int
+    elif dtype == 'bool':  # or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
+        return bool
+    else:
+        raise TensorforceError.value(name='dtype', value=dtype)
 
 
 def np_dtype(dtype):
@@ -92,22 +142,22 @@ def np_dtype(dtype):
     Returns: Numpy data type
 
     """
-    if dtype == 'float' or dtype == float or dtype == np.float32 or dtype == tf.float32:
+    if dtype == 'float':  # or dtype == float or dtype == np.float32 or dtype == tf.float32:
         return np.float32
-    elif dtype == np.float64 or dtype == tf.float64:
-        return np.float64
-    elif dtype == np.float16 or dtype == tf.float16:
-        return np.float16
-    elif dtype == 'int' or dtype == int or dtype == np.int32 or dtype == tf.int32:
+    # elif dtype == np.float64 or dtype == tf.float64:
+    #     return np.float64
+    # elif dtype == np.float16 or dtype == tf.float16:
+    #     return np.float16
+    elif dtype == 'int':  # or dtype == int or dtype == np.int32 or dtype == tf.int32:
         return np.int32
-    elif dtype == np.int64 or dtype == tf.int64:
+    elif dtype == 'long':  # or dtype == np.int64 or dtype == tf.int64:
         return np.int64
-    elif dtype == np.int16 or dtype == tf.int16:
-        return np.int16
-    elif dtype == 'bool' or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
+    # elif dtype == np.int16 or dtype == tf.int16:
+    #     return np.int16
+    elif dtype == 'bool':  # or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
         return np.bool_
     else:
-        raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
+        raise TensorforceError.value(name='dtype', value=dtype)
 
 
 def tf_dtype(dtype):
@@ -121,39 +171,22 @@ def tf_dtype(dtype):
 
     """
     # Defaults to 32
-    if dtype == 'float' or dtype == float or dtype == np.float32 or dtype == tf.float32:
+    if dtype == 'float':  # or dtype == float or dtype == np.float32 or dtype == tf.float32:
         return tf.float32
-    elif dtype == np.float64 or dtype == tf.float64:
-        return tf.float64
-    elif dtype == np.float16 or dtype == tf.float16:
-        return tf.float16
-    elif dtype == 'int' or dtype == int or dtype == np.int32 or dtype == tf.int32:
+    # elif dtype == np.float64 or dtype == tf.float64:
+    #     return tf.float64
+    # elif dtype == np.float16 or dtype == tf.float16:
+    #     return tf.float16
+    elif dtype == 'int':  # or dtype == int or dtype == np.int32 or dtype == tf.int32:
         return tf.int32
-    elif dtype == np.int64 or dtype == tf.int64:
+    elif dtype == 'long':  # or dtype == np.int64 or dtype == tf.int64:
         return tf.int64
-    elif dtype == np.int16 or dtype == tf.int16:
-        return tf.int16
-    elif dtype == 'bool' or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
+    # elif dtype == np.int16 or dtype == tf.int16:
+    #     return tf.int16
+    elif dtype == 'bool':  # or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
         return tf.bool
     else:
-        raise TensorForceError("Error: Type conversion from type {} not supported.".format(str(dtype)))
-
-
-def map_tensors(fn, tensors, index=None):
-    if tensors is None:
-        return None
-    elif isinstance(tensors, tuple):
-        return tuple(map_tensors(fn=fn, tensors=tensor) for tensor in tensors)
-    elif isinstance(tensors, list):
-        return [map_tensors(fn=fn, tensors=tensor) for tensor in tensors]
-    elif isinstance(tensors, dict) and index is None:
-        return {key: map_tensors(fn=fn, tensors=tensor) for key, tensor in tensors.items()}
-    elif isinstance(tensors, dict) and index is not None:
-        return {key: map_tensors(fn=fn, tensors=tensor[index]) for key, tensor in tensors.items()}
-    elif isinstance(tensors, set):
-        return {map_tensors(fn=fn, tensors=tensor) for tensor in tensors}
-    else:
-        return fn(tensors)
+        raise TensorforceError.value(name='dtype', value=dtype)
 
 
 def get_tensor_dependencies(tensor):
@@ -172,159 +205,538 @@ def get_tensor_dependencies(tensor):
     return dependencies
 
 
-def is_single_state(state_spec):
-    return 'shape' in state_spec
+reserved_names = {
+    '', 'states', 'actions', 'state', 'action', 'terminal', 'reward', 'deterministic', 'update',
+    # Types
+    'bool', 'int', 'long', 'float',
+    # Value specification attributes
+    'shape', 'type', 'num_values', 'min_value', 'max_value'
+    # Special values?
+    'loss', '*'
+}
 
 
-def is_single_action(action_spec):
-    return 'type' in action_spec
-
-
-def is_valid_state_spec(state_spec):
-    state_spec = deepcopy(state_spec)
-
-    if is_single_state(state_spec=state_spec):
-        return check_space_spec(space_spec=state_spec, space='state')
-
-    else:
-        for name, state_spec in state_spec.items():
-            # check name
-            if 'shape' not in state_spec:
-                return False
-            if not check_space_spec(space_spec=state_spec, space='state'):
-                return False
-
-        return True
-
-
-def is_valid_action_spec(action_spec):
-    action_spec = deepcopy(action_spec)
-
-    if is_single_action(action_spec=action_spec):
-        return check_space_spec(space_spec=action_spec, space='action')
-
-    else:
-        for name, action_spec in action_spec.items():
-            # check name
-            if 'type' not in action_spec:
-                return False
-            if not check_space_spec(space_spec=action_spec, space='action'):
-                return False
-
-        return True
-
-
-def check_space_spec(space_spec, space):
-    dtype = space_spec.pop('type', 'float')
-    if dtype not in ('bool', 'int', 'float'):
+def is_valid_name(name):
+    if not isinstance(name, str):
         return False
+    if '/' in name:
+        return False
+    if name in reserved_names:
+        return False
+    return True
 
-    shape = space_spec.pop('shape', ())
-    try:
-        iter(shape)
-        if not all(isinstance(dim, int) for dim in shape):
-            return False
-    except TypeError:
+
+def is_valid_type(dtype):
+    return dtype in ('bool', 'int', 'long', 'float')
+
+
+def is_valid_value_type(value_type):
+    return value_type in ('state', 'action', 'tensor')
+
+
+def is_atomic_values_spec(values_spec):
+    return 'type' in values_spec or 'shape' in values_spec
+
+
+def valid_values_spec(values_spec, value_type='tensor', return_normalized=False):
+    if not is_valid_value_type(value_type=value_type):
+        raise TensorforceError.value(name='value_type', value=value_type)
+
+    if is_atomic_values_spec(values_spec=values_spec):
+        value_spec = valid_value_spec(
+            value_spec=values_spec, value_type=value_type, return_normalized=return_normalized
+        )
+        return OrderedDict([(value_type, value_spec)])
+
+    if return_normalized:
+        normalized_spec = OrderedDict()
+
+    for name in sorted(values_spec):
+        if not is_valid_name(name=name):
+            raise TensorforceError.value(name=(value_type + ' name'), value=name)
+
+        result = valid_values_spec(
+            values_spec=values_spec[name], value_type=value_type,
+            return_normalized=return_normalized
+        )
+        if return_normalized:
+            if len(result) == 1 and next(iter(result)) == value_type:
+                normalized_spec[name] = result[value_type]
+            else:
+                for suffix, spec in result.items():
+                    if suffix == value_type:
+                        normalized_spec[name] = spec
+                    else:
+                        normalized_spec[name + '/' + suffix] = spec
+
+    if return_normalized:
+        return normalized_spec
+    else:
+        return True
+
+
+def valid_value_spec(
+    value_spec, value_type='tensor', accept_underspecified=False, return_normalized=False
+):
+    if not is_valid_value_type(value_type=value_type):
+        raise TensorforceError.value(name='value_type', value=value_type)
+
+    value_spec = dict(value_spec)
+
+    if return_normalized:
+        normalized_spec = dict()
+
+    if value_type == 'state' and return_normalized:
+        dtype = value_spec.pop('type', 'float')
+    else:
+        dtype = value_spec.pop('type')
+    if accept_underspecified and dtype is None:
+        if return_normalized:
+            normalized_spec['type'] = None
+    elif accept_underspecified and is_iterable(x=dtype):
+        if not all(is_valid_type(dtype=x) for x in dtype):
+            raise TensorforceError.value(name=(value_type + ' spec'), argument='type', value=dtype)
+        if return_normalized:
+            normalized_spec['type'] = tuple(dtype)
+    else:
+        if not is_valid_type(dtype=dtype):
+            raise TensorforceError.value(name=(value_type + ' spec'), argument='type', value=dtype)
+        if return_normalized:
+            normalized_spec['type'] = dtype
+
+    if value_type == 'action' and return_normalized:
+        shape = value_spec.pop('shape', ())
+    else:
+        shape = value_spec.pop('shape')
+    if accept_underspecified and shape is None:
+        if return_normalized:
+            normalized_spec['shape'] = None
+    elif is_iterable(x=shape):
+        start = int(accept_underspecified and len(shape) > 0 and shape[0] is None)
+        if not all(isinstance(num_dims, int) for num_dims in shape[start:]):
+            raise TensorforceError.value(
+                name=(value_type + ' spec'), argument='shape', value=shape
+            )
+        if accept_underspecified:
+            if not all(num_dims >= -1 for num_dims in shape[start:]):
+                raise TensorforceError.value(
+                    name=(value_type + ' spec'), argument='shape', value=shape
+                )
+        else:
+            if not all(num_dims > 0 or num_dims == -1 for num_dims in shape):
+                raise TensorforceError.value(
+                    name=(value_type + ' spec'), argument='shape', value=shape
+                )
+        if return_normalized:
+            normalized_spec['shape'] = tuple(shape)
+    elif return_normalized:
         if not isinstance(shape, int):
-            return False
+            raise TensorforceError.type(name=(value_type + ' spec'), argument='shape', value=shape)
+        if accept_underspecified:
+            if shape < -1:
+                raise TensorforceError.value(
+                    name=(value_type + ' spec'), argument='shape', value=shape
+                )
+        else:
+            if not (shape > 0 or shape == -1):
+                raise TensorforceError.value(
+                    name=(value_type + ' spec'), argument='shape', value=shape
+                )
+        if return_normalized:
+            normalized_spec['shape'] = (shape,)
 
-    if dtype == 'bool':
+    if value_type == 'tensor':
+        if 'batched' in value_spec:
+            batched = value_spec.pop('batched')
+            if not isinstance(batched, bool):
+                raise TensorforceError.type(
+                    name=(value_type + ' spec'), argument='batched', value=batched
+                )
+            if return_normalized:
+                normalized_spec['batched'] = batched
+        elif return_normalized:
+            batched = True
+            normalized_spec['batched'] = batched
+
+    if dtype == 'bool' or (accept_underspecified and dtype is not None and 'bool' in dtype):
         pass
 
-    elif dtype == 'int':
-        num_categories = space_spec.pop('num_{}s'.format(space))
-        if not isinstance(num_categories, int) or num_categories <= 1:
-            if space == 'state':
-                additional_argument(module='int-states-spec', argument='num_states')
-            else:
-                return False
+    if dtype == 'int' or (accept_underspecified and dtype is not None and 'int' in dtype):
+        if 'num_values' not in value_spec:
+            raise TensorforceError.required(name=(value_type + ' spec'), value='num_values')
+        num_values = value_spec.pop('num_values')
+        if not isinstance(num_values, int):
+            raise TensorforceError.type(
+                name=(value_type + ' spec'), argument='num_values', value=num_values
+            )
+        if accept_underspecified:
+            if not (num_values > 1 or num_values == 0):
+                raise TensorforceError.value(
+                    name=(value_type + ' spec'), argument='num_values', value=num_values
+                )
+        else:
+            if num_values <= 1:
+                raise TensorforceError.value(
+                    name=(value_type + ' spec'), argument='num_values', value=num_values
+                )
+        if return_normalized:
+            normalized_spec['num_values'] = num_values
 
-    elif dtype == 'float':
-        if 'min_value' in space_spec:
-            min_value = space_spec.pop('min_value')
-            max_value = space_spec.pop('max_value')
-            if not isinstance(min_value, float) or not isinstance(max_value, float) or \
-                    min_value >= max_value:
-                return False
+    if dtype == 'long' or (accept_underspecified and dtype is not None and 'long' in dtype):
+        pass
 
-    if len(space_spec) > 0:
+    if dtype == 'float' or (accept_underspecified and dtype is not None and 'float' in dtype):
+        if 'min_value' in value_spec:
+            min_value = value_spec.pop('min_value')
+            max_value = value_spec.pop('max_value')
+            if not isinstance(min_value, float) or not isinstance(max_value, float):
+                raise TensorforceError.type(
+                    name=(value_type + ' spec'), argument='min/max_value',
+                    value=(min_value, max_value)
+                )
+            if min_value >= max_value:
+                raise TensorforceError.value(
+                    name=(value_type + ' spec'), argument='min/max_value',
+                    value=(min_value, max_value)
+                )
+            if return_normalized:
+                normalized_spec['min_value'] = min_value
+                normalized_spec['max_value'] = max_value
+
+    if len(value_spec) > 0:
+        raise TensorforceError.value(name=(value_type + ' spec'), value=tuple(value_spec))
+
+    if return_normalized:
+        return normalized_spec
+    else:
+        return True
+
+
+def is_value_spec_more_specific(specific_value_spec, value_spec):
+    # Check type consistency
+    specific_dtype = specific_value_spec['type']
+    dtype = value_spec['type']
+    if dtype is None:
+        pass
+    elif is_iterable(x=dtype):
+        if is_iterable(x=specific_dtype):
+            if not all(x in dtype for x in specific_dtype):
+                return False
+        elif specific_dtype not in dtype:
+            return False
+    elif specific_dtype != dtype:
+        return False
+
+    # Check shape consistency
+    specific_shape = specific_value_spec['shape']
+    shape = value_spec['shape']
+    if shape is None:
+        pass
+    elif len(shape) > 0 and shape[0] is None:
+        if len(specific_shape) < len(shape) - 1:
+            return False
+        elif not all(
+            a == b or b == 0 for a, b in zip(specific_shape[-len(shape) + 1:], shape[1:])
+        ):
+            return False
+    elif len(specific_shape) > 0 and specific_shape[0] is None:
+        if len(specific_shape) - 1 > len(shape):
+            return False
+        elif not all(
+            a == b or b == 0 for a, b in zip(specific_shape[1:], shape[-len(specific_shape) + 1:])
+        ):
+            return False
+    else:
+        if len(specific_shape) != len(shape):
+            return False
+        elif not all(a == b or b == 0 for a, b in zip(specific_shape, shape)):
+            return False
+
+    # Check batched consistency
+
+    # Check num_values consistency
+    specific_num_values = specific_value_spec.get('num_values', 0)
+    num_values = value_spec.get('num_values', 0)
+    if not (specific_num_values == num_values or num_values == 0):
+        return False
+
+    # Check min/max_value consistency
+    if 'min_value' not in specific_value_spec and 'min_value' in value_spec:
         return False
 
     return True
 
 
-def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
-    """
-    Utility method to map some kind of object specification to its content,
-    e.g. optimizer or baseline specifications to the respective classes.
+def unify_value_specs(value_spec1, value_spec2):
+    if not valid_value_spec(value_spec=value_spec1, accept_underspecified=True):
+        raise TensorforceError.value(
+            name='unify_value_spec', argument='value_spec1', value=value_spec1
+        )
+    elif not valid_value_spec(value_spec=value_spec2, accept_underspecified=True):
+        raise TensorforceError.value(
+            name='unify_value_spec', argument='value_spec2', value=value_spec2
+        )
 
-    Args:
-        obj: A specification dict (value for key 'type' optionally specifies
-                the object, options as follows), a module path (e.g.,
-                my_module.MyClass), a key in predefined_objects, or a callable
-                (e.g., the class type object).
-        predefined_objects: Dict containing predefined set of objects,
-                accessible via their key
-        default_object: Default object is no other is specified
-        kwargs: Arguments for object creation
+    unified_value_spec = dict()
 
-    Returns: The retrieved object
-
-    """
-    args = ()
-    kwargs = dict() if kwargs is None else kwargs
-
-    if isinstance(obj, str) and os.path.isfile(obj):
-        with open(obj, 'r') as fp:
-            obj = json.load(fp=fp)
-    if isinstance(obj, dict):
-        kwargs.update(obj)
-        obj = kwargs.pop('type', None)
-
-    if predefined_objects is not None and obj in predefined_objects:
-        obj = predefined_objects[obj]
-    elif isinstance(obj, str):
-        if obj.find('.') != -1:
-            module_name, function_name = obj.rsplit('.', 1)
-            module = importlib.import_module(module_name)
-            obj = getattr(module, function_name)
+    # Unify type
+    dtype1 = value_spec1['type']
+    dtype2 = value_spec2['type']
+    if dtype1 is None:
+        dtype = dtype2
+    elif dtype2 is None:
+        dtype = dtype1
+    elif is_iterable(x=dtype1):
+        if is_iterable(x=dtype2):
+            if all(x in dtype1 for x in dtype2):
+                dtype = dtype2
+            elif all(x in dtype2 for x in dtype1):
+                dtype = dtype1
+            else:
+                raise TensorforceError.mismatch(
+                    name='value-spec', argument='type', value1=dtype1, value2=dtype2
+                )
+        elif dtype2 in dtype1:
+            dtype = dtype2
         else:
-            raise TensorForceError("Error: object {} not found in predefined objects: {}".format(
-                obj,
-                list(predefined_objects or ())
-            ))
-    elif callable(obj):
-        pass
-    elif default_object is not None:
-        args = (obj,)
-        obj = default_object
+            raise TensorforceError.mismatch(
+                name='value-spec', argument='type', value1=dtype1, value2=dtype2
+            )
+    elif is_iterable(x=dtype2):
+        if dtype1 in dtype2:
+            dtype = dtype1
+        else:
+            raise TensorforceError.mismatch(
+                name='value-spec', argument='type', value1=dtype1, value2=dtype2
+            )
+    elif dtype1 == dtype2:
+        dtype = dtype1
     else:
-        # assumes the object is already instantiated
-        return obj
+        raise TensorforceError.mismatch(
+            name='value-spec', argument='type', value1=dtype1, value2=dtype2
+        )
+    unified_value_spec['type'] = dtype
 
-    return obj(*args, **kwargs)
+    # Unify shape
+    shape1 = value_spec1['shape']
+    shape2 = value_spec2['shape']
+    if shape1 is None:
+        shape = shape2
+    elif shape2 is None:
+        shape = shape1
+    else:
+        reverse_shape = list()
+        for n in range(max(len(shape1), len(shape2))):
+            if len(shape1) <= n:
+                if shape2[-n - 1] is not None:
+                    reverse_shape.append(shape2[-n - 1])
+            elif len(shape2) <= n:
+                if shape1[-n - 1] is not None:
+                    reverse_shape.append(shape1[-n - 1])
+                reverse_shape.append(shape1[-n - 1])
+            elif shape1[-n - 1] is None:
+                reverse_shape.append(shape2[-n - 1])
+            elif shape2[-n - 1] is None:
+                reverse_shape.append(shape1[-n - 1])
+            elif shape1[-n - 1] == 0:
+                reverse_shape.append(shape2[-n - 1])
+            elif shape2[-n - 1] == 0:
+                reverse_shape.append(shape1[-n - 1])
+            elif shape1[-n - 1] == -1:
+                reverse_shape.append(shape2[-n - 1])
+            elif shape2[-n - 1] == -1:
+                reverse_shape.append(shape1[-n - 1])
+            elif shape1[-n - 1] == shape2[-n - 1]:
+                reverse_shape.append(shape1[-n - 1])
+            else:
+                raise TensorforceError.mismatch(
+                    name='value-spec', argument='shape', value1=shape1, value2=shape2
+                )
+        shape = tuple(reversed(reverse_shape))
+    unified_value_spec['shape'] = shape
+
+    # Unify batched
+    if 'batched' in value_spec1 or 'batched' in value_spec2:
+        batched1 = value_spec1.get('batched', False)
+        batched2 = value_spec2.get('batched', False)
+        if batched1 is batched2:
+            batched = batched1
+        else:
+            raise TensorforceError.mismatch(
+                name='value-spec', argument='batched', value1=batched1, value2=batched2
+            )
+        unified_value_spec['batched'] = batched
+
+    # Unify num_values
+    if 'num_values' in value_spec1 and 'num_values' in value_spec2:
+        num_values1 = value_spec1['num_values']
+        num_values2 = value_spec2['num_values']
+        if num_values1 == 0:
+            num_values = num_values2
+        elif num_values2 == 0:
+            num_values = num_values1
+        elif num_values1 == num_values2:
+            # num_values = max(num_values1, num_values2)
+            num_values = num_values1
+        else:
+            raise TensorforceError.mismatch(
+                name='value-spec', argument='num_values', value1=num_values1, value2=num_values2
+            )
+        unified_value_spec['num_values'] = num_values
+
+    # Unify min/max_value
+    if 'min_value' in value_spec1 and 'min_value' in value_spec2:
+        min_value = min(value_spec1['min_value'], value_spec2['min_value'])
+        max_value = max(value_spec1['max_value'], value_spec2['max_value'])
+        unified_value_spec['min_value'] = min_value
+        unified_value_spec['max_value'] = max_value
+
+    return unified_value_spec
 
 
-def prepare_kwargs(raw, string_parameter='name'):
-    """
-    Utility method to convert raw string/diction input into a dictionary to pass
-    into a function.  Always returns a dictionary.
+def is_consistent_with_value_spec(value_spec, x):
+    if value_spec['type'] is None:
+        pass
+    elif is_iterable(x=value_spec['type']) and dtype(x=x) in value_spec['type']:
+        pass
+    elif dtype(x=x) == value_spec['type']:
+        pass
+    else:
+        return False
+    if value_spec['shape'] is None:
+        pass
+    elif value_spec.get('batched', False):
+        if not all(
+            a == b or b == 0 or b == -1 for a, b in zip(shape(x=x), (-1,) + value_spec['shape'])
+        ):
+            print([a == b or b == 0 or b == -1 for a, b in zip(shape(x=x), (-1,) + value_spec['shape'])])
+            return False
+    elif not all(a == b or b == 0 or b == -1 for a, b in zip(shape(x=x), value_spec['shape'])):
+        return False
+    # num_values
+    # min/max_value
+    return True
 
-    Args:
-        raw: string or dictionary, string is assumed to be the name of the activation
-                activation function.  Dictionary will be passed through unchanged.
 
-    Returns: kwargs dictionary for **kwargs
+def normalize_values(value_type, values, values_spec):
+    if not is_valid_value_type(value_type=value_type):
+        raise TensorforceError.value(name='value_type', value=value_type)
 
-    """
-    kwargs = dict()
+    if len(values_spec) == 1 and next(iter(values_spec)) == value_type:
+        # Spec defines only a single value
+        if isinstance(values, dict):
+            TensorforceError.value(name=(value_type + ' spec'), value=values)
 
-    if isinstance(raw, dict):
-        kwargs.update(raw)
-    elif isinstance(raw, str):
-        kwargs[string_parameter] = raw
+        return OrderedDict([(value_type, values)])
 
-    return kwargs
+    normalized_values = OrderedDict()
+    for normalized_name in values_spec:
+        value = values
+        for name in normalized_name.split('/'):
+            value = value[name]
+        normalized_values[normalized_name] = value
+
+        # Check whether only expected values present!
+
+    return normalized_values
+
+
+def unpack_values(value_type, values, values_spec):
+    if not is_valid_value_type(value_type=value_type):
+        raise TensorforceError.value(name='value_type', value=value_type)
+
+    if len(values_spec) == 1 and next(iter(values_spec)) == value_type:
+        # Spec defines only a single value
+        return values[value_type]
+
+    unpacked_values = dict()
+    for normalized_name in values_spec:
+        unpacked_value = unpacked_values
+        names = normalized_name.split('/')
+        for name in names[:-1]:
+            if name not in unpacked_value:
+                unpacked_value[name] = dict()
+            unpacked_value = unpacked_value[name]
+        unpacked_value[names[-1]] = values.pop(normalized_name)
+
+    if len(values) > 0:
+        raise TensorforceError(message="Unexpected.")
+
+    return unpacked_values
+
+
+# def get_object(obj, predefined_objects=None, default_object=None, kwargs=None):
+#     """
+#     Utility method to map some kind of object specification to its content,
+#     e.g. optimizer or baseline specifications to the respective classes.
+
+#     Args:
+#         obj: A specification dict (value for key 'type' optionally specifies
+#                 the object, options as follows), a module path (e.g.,
+#                 my_module.MyClass), a key in predefined_objects, or a callable
+#                 (e.g., the class type object).
+#         predefined_objects: Dict containing predefined set of objects,
+#                 accessible via their key
+#         default_object: Default object is no other is specified
+#         kwargs: Arguments for object creation
+
+#     Returns: The retrieved object
+
+#     """
+#     args = ()
+#     kwargs = dict() if kwargs is None else kwargs
+
+#     if isinstance(obj, str) and os.path.isfile(obj):
+#         with open(obj, 'r') as fp:
+#             obj = json.load(fp=fp)
+#     if isinstance(obj, dict):
+#         kwargs.update(obj)
+#         obj = kwargs.pop('type', None)
+
+#     if predefined_objects is not None and obj in predefined_objects:
+#         obj = predefined_objects[obj]
+#     elif isinstance(obj, str):
+#         if obj.find('.') != -1:
+#             module_name, function_name = obj.rsplit('.', 1)
+#             module = importlib.import_module(module_name)
+#             obj = getattr(module, function_name)
+#         else:
+#             raise TensorforceError("Error: object {} not found in predefined objects: {}".format(
+#                 obj,
+#                 list(predefined_objects or ())
+#             ))
+#     elif callable(obj):
+#         pass
+#     elif default_object is not None:
+#         args = (obj,)
+#         obj = default_object
+#     else:
+#         # assumes the object is already instantiated
+#         return obj
+
+#     return obj(*args, **kwargs)
+
+
+# def prepare_kwargs(raw, string_parameter='name'):
+#     """
+#     Utility method to convert raw string/diction input into a dictionary to pass
+#     into a function.  Always returns a dictionary.
+
+#     Args:
+#         raw: string or dictionary, string is assumed to be the name of the activation
+#                 activation function.  Dictionary will be passed through unchanged.
+
+#     Returns: kwargs dictionary for **kwargs
+
+#     """
+#     kwargs = dict()
+
+#     if isinstance(raw, dict):
+#         kwargs.update(raw)
+#     elif isinstance(raw, str):
+#         kwargs[string_parameter] = raw
+
+#     return kwargs
 
 
 def strip_name_scope(name, base_scope):
@@ -393,7 +805,7 @@ class SavableComponent(object):
         """
 
         if self._saver is None:
-            raise TensorForceError("register_saver_ops should be called before save")
+            raise TensorforceError("register_saver_ops should be called before save")
         return self._saver.save(
             sess=sess,
             save_path=save_path,
@@ -412,7 +824,7 @@ class SavableComponent(object):
         """
 
         if self._saver is None:
-            raise TensorForceError("register_saver_ops should be called before restore")
+            raise TensorforceError("register_saver_ops should be called before restore")
         self._saver.restore(sess=sess, save_path=save_path)
 
     def _get_base_variable_scope(self):

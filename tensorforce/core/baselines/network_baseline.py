@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-import tensorflow as tf
-
-from tensorforce.core.networks import Linear, Network
+from tensorforce.core import layer_modules, network_modules
 from tensorforce.core.baselines import Baseline
 
 
@@ -29,51 +23,27 @@ class NetworkBaseline(Baseline):
     function and the baseline.
     """
 
-    def __init__(self, network, scope='network-baseline', summary_labels=()):
+    def __init__(self, name, network_spec, l2_regularization=None, summary_labels=None):
         """
         Network baseline.
 
         Args:
             network_spec: Network specification dict
         """
-        self.network = Network.from_spec(
-            spec=network,
-            kwargs=dict(summary_labels=summary_labels)
+        self.network = self.add_module(
+            name='network', module=network_spec, modules=network_modules, default_module='layered'
         )
         assert len(self.network.internals_spec()) == 0
 
-        self.linear = Linear(size=1, bias=0.0, scope='prediction', summary_labels=summary_labels)
+        self.prediction = self.add_module(
+            name='prediction', module='linear', modules=layer_modules, size=0
+        )
 
-        super(NetworkBaseline, self).__init__(scope=scope, summary_labels=summary_labels)
+        super().__init__(
+            name=name, l2_regularization=l2_regularization, summary_labels=summary_labels
+        )
 
     def tf_predict(self, states, internals, update):
         embedding = self.network.apply(x=states, internals=internals, update=update)
-        prediction = self.linear.apply(x=embedding)
-        return tf.squeeze(input=prediction, axis=1)
 
-    def tf_regularization_loss(self):
-        regularization_loss = super(NetworkBaseline, self).tf_regularization_loss()
-        if regularization_loss is None:
-            losses = list()
-        else:
-            losses = [regularization_loss]
-
-        regularization_loss = self.network.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        regularization_loss = self.linear.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        if len(losses) > 0:
-            return tf.add_n(inputs=losses)
-        else:
-            return None
-
-    def get_variables(self, include_nontrainable=False):
-        baseline_variables = super(NetworkBaseline, self).get_variables(include_nontrainable=include_nontrainable)
-        network_variables = self.network.get_variables(include_nontrainable=include_nontrainable)
-        layer_variables = self.linear.get_variables(include_nontrainable=include_nontrainable)
-
-        return baseline_variables + network_variables + layer_variables
+        return self.prediction.apply(x=embedding)

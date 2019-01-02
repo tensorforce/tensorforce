@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
+from tensorforce import TensorforceError, util
 from tensorforce.core.optimizers import MetaOptimizer
 
 
@@ -29,7 +25,7 @@ class SubsamplingStep(MetaOptimizer):
     the optimization step of another optimizer.
     """
 
-    def __init__(self, optimizer, fraction, scope='subsampling-step', summary_labels=()):
+    def __init__(self, name, optimizer, fraction):
         """
         Creates a new subsampling-step meta optimizer instance.
 
@@ -37,18 +33,12 @@ class SubsamplingStep(MetaOptimizer):
             optimizer: The optimizer which is modified by this meta optimizer.
             fraction: The fraction of instances of the batch to subsample.
         """
+        super().__init__(name=name, optimizer=optimizer)
+
         assert isinstance(fraction, float) and fraction > 0.0
         self.fraction = fraction
 
-        super(SubsamplingStep, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
-
-    def tf_step(
-        self,
-        time,
-        variables,
-        arguments,
-        **kwargs
-    ):
+    def tf_step(self, time, variables, arguments, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
@@ -79,9 +69,9 @@ class SubsamplingStep(MetaOptimizer):
                     # Non-batched argument
                     some_argument = next(arguments_iter)
                 else:
-                    raise TensorForceError("Invalid argument type.")
+                    raise TensorforceError("Invalid argument type.")
         except StopIteration:
-            raise TensorForceError("Invalid argument type.")
+            raise TensorforceError("Invalid argument type.")
 
         batch_size = tf.shape(input=some_argument)[0]
         num_samples = tf.cast(
@@ -91,14 +81,9 @@ class SubsamplingStep(MetaOptimizer):
         num_samples = tf.maximum(x=num_samples, y=1)
         indices = tf.random_uniform(shape=(num_samples,), maxval=batch_size, dtype=tf.int32)
 
-        subsampled_arguments = util.map_tensors(
-            fn=(lambda arg: arg if util.rank(arg) == 0 else tf.gather(params=arg, indices=indices)),
-            tensors=arguments
-        )
+        fn = (lambda arg: arg if util.rank(x=arg) == 0 else tf.gather(params=arg, indices=indices))
+        subsampled_arguments = util.fmap(function=fn, xs=arguments)
 
         return self.optimizer.step(
-            time=time,
-            variables=variables,
-            arguments=subsampled_arguments,
-            **kwargs
+            time=time, variables=variables, arguments=subsampled_arguments, **kwargs
         )

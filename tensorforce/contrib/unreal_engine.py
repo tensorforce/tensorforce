@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-
-from tensorforce.contrib.remote_environment import RemoteEnvironment, MsgPackNumpyProtocol
-from tensorforce.contrib.state_settable_environment import StateSettableEnvironment
-from tensorforce import TensorForceError
 from cached_property import cached_property
+import itertools
 import re
 import time
-import itertools
-import logging
+
+from tensorforce import TensorForceError
+from tensorforce.contrib.remote_environment import RemoteEnvironment, MsgPackNumpyProtocol
+from tensorforce.contrib.state_settable_environment import StateSettableEnvironment
 
 
 class UE4Environment(RemoteEnvironment, StateSettableEnvironment):

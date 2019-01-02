@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+from collections import OrderedDict
 
+import numpy as np
 import tensorflow as tf
 
 from tensorforce import util
@@ -28,192 +27,147 @@ class Queue(Memory):
     Base class for memories organized as a queue (FIFO).
     """
 
-    def __init__(self, states, internals, actions, include_next_states, capacity, scope='queue', summary_labels=None):
+    def __init__(self, name, states_spec, internals_spec, actions_spec, include_next_state, capacity):
         """
         Queue memory.
 
         Args:
             capacity: Memory capacity.
         """
+        super().__init__(
+            name=name, states_spec=states_spec, internals_spec=internals_spec,
+            actions_spec=actions_spec, include_next_state=include_next_state
+        )
+
         self.capacity = capacity
-        self.scope = scope
-
-        # Pieces of the records are stored in different tensors:
-        self.states_memory = dict()  # keys=state space components
-        self.internals_memory = dict()  # keys=internal state components
-        self.actions_memory = dict()  # keys=action space components
-        self.terminal_memory = None  # 1D tensor
-        self.reward_memory = None  # 1D tensor
-        self.memory_index = None  # 0D (int) tensor (points to the next record to be overwritten)
-        self.episode_indices = None  # 1D tensor of indexes where episodes start.
-        self.episode_count = None  # 0D (int) tensor: How many episodes do we have stored?
-
-        self.retrieve_indices = None
-
-        super(Queue, self).__init__(
-            states=states,
-            internals=internals,
-            actions=actions,
-            include_next_states=include_next_states,
-            scope=scope,
-            summary_labels=summary_labels
-        )
-
-    def setup_template_funcs(self, custom_getter=None):
-        custom_getter = super(Queue, self).setup_template_funcs(custom_getter=custom_getter)
-
-        self.retrieve_indices = tf.make_template(
-            name_=(self.scope + '/retrieve_indices'),
-            func_=self.tf_retrieve_indices,
-            custom_getter_=custom_getter
-        )
 
     def tf_initialize(self):
-        # States
-        for name in sorted(self.states_spec):
-            state = self.states_spec[name]
-            self.states_memory[name] = tf.get_variable(
-                name=('state-' + name),
-                shape=(self.capacity,) + tuple(state['shape']),
-                dtype=util.tf_dtype(state['type']),
-                trainable=False
+        super().tf_initialize()
+
+        self.memories = OrderedDict()
+
+        # State memories
+        for name, state_spec in self.states_spec.items():
+            self.memories[name] = self.add_variable(
+                name=(name + '-memory'), dtype=state_spec['type'],
+                shape=(self.capacity,) + tuple(state_spec['shape']), is_trainable=False
             )
 
-        # Internals
-        for name in sorted(self.internals_spec):
-            internal = self.internals_spec[name]
-            self.internals_memory[name] = tf.get_variable(
-                name=('internal-' + name),
-                shape=(self.capacity,) + tuple(internal['shape']),
-                dtype=util.tf_dtype(internal['type']),
-                trainable=False
+        # Internal memories
+        for name, internal_spec in self.internals_spec.items():
+            self.memories[name] = self.add_variable(
+                name=(name + '-memory'), dtype=internal_spec['type'],
+                shape=(self.capacity,) + tuple(internal_spec['shape']), is_trainable=False
             )
 
-        # Actions
-        for name in sorted(self.actions_spec):
-            action = self.actions_spec[name]
-            self.actions_memory[name] = tf.get_variable(
-                name=('action-' + name),
-                shape=(self.capacity,) + tuple(action['shape']),
-                dtype=util.tf_dtype(action['type']),
-                trainable=False
+        # Action memories
+        for name, action_spec in self.actions_spec.items():
+            self.memories[name] = self.add_variable(
+                name=(name + '-memory'), dtype=action_spec['type'],
+                shape=(self.capacity,) + tuple(action_spec['shape']), is_trainable=False
             )
 
-        # Terminal
-        self.terminal_memory = tf.get_variable(
-            name='terminal',
-            shape=(self.capacity,),
-            dtype=util.tf_dtype('bool'),
-            initializer=tf.constant_initializer(
-                value=False,
-                dtype=util.tf_dtype('bool')
-            ),
-            trainable=False
+        # Terminal memory (initialization to agree with terminal_indices)
+        initializer = np.zeros(shape=(self.capacity,), dtype=util.np_dtype(dtype='bool'))
+        initializer[-1] = True
+        self.memories['terminal'] = self.add_variable(
+            name='terminal-memory', dtype='bool', shape=(self.capacity,), is_trainable=False,
+            initializer=initializer
         )
 
-        # Reward
-        self.reward_memory = tf.get_variable(
-            name='reward',
-            shape=(self.capacity,),
-            dtype=util.tf_dtype('float'),
-            trainable=False
+        # Reward memory
+        self.memories['reward'] = self.add_variable(
+            name='reward-memory', dtype='float', shape=(self.capacity,), is_trainable=False
         )
 
-        # Memory index
-        self.memory_index = tf.get_variable(
-            name='memory-index',
-            shape=(),
-            dtype=util.tf_dtype('int'),
-            initializer=tf.constant_initializer(value=0, dtype=util.tf_dtype('int')),
-            trainable=False
+        # Memory index (next index to write to)
+        self.memory_index = self.add_variable(
+            name='memory-index', dtype='long', shape=(), is_trainable=False, initializer='zeros'
         )
 
-        # Episode indices
-        self.episode_indices = tf.get_variable(
-            name='episode-indices',
-            shape=(self.capacity + 1,),
-            dtype=util.tf_dtype('int'),
-            initializer=tf.constant_initializer(value=(self.capacity - 1), dtype=util.tf_dtype('int')),
-            trainable=False
+        # Terminal indices (oldest episode terminals first, initial only terminal is last index)
+        initializer = np.zeros(shape=(self.capacity + 1,), dtype=util.np_dtype(dtype='long'))
+        initializer[0] = self.capacity - 1
+        self.terminal_indices = self.add_variable(
+            name='terminal-indices', dtype='long', shape=(self.capacity + 1,), is_trainable=False,
+            initializer=initializer
         )
 
-        # Episodes index
-        self.episode_count = tf.get_variable(
-            name='episode-count',
-            shape=(),
-            dtype=util.tf_dtype('int'),
-            initializer=tf.constant_initializer(value=0, dtype=util.tf_dtype('int')),
-            trainable=False
+        # Episode count
+        self.episode_count = self.add_variable(
+            name='episode-count', dtype='long', shape=(), is_trainable=False, initializer='zeros'
         )
 
     def tf_store(self, states, internals, actions, terminal, reward):
-        # Memory indices to overwrite.
-        num_instances = tf.shape(input=terminal)[0]
-        with tf.control_dependencies([tf.assert_less_equal(num_instances, self.capacity)]):
-            indices = tf.range(self.memory_index, self.memory_index + num_instances) % self.capacity
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
-        # Remove episode indices.
+        # Check whether instances fit into memory
+        num_timesteps = tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0]
+        assertion = tf.debugging.assert_less_equal(x=num_timesteps, y=capacity)
+
+        # Memory indices to overwrite
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            indices = tf.range(start=self.memory_index, limit=(self.memory_index + num_timesteps))
+            indices = tf.mod(x=indices, y=capacity)
+
+        # Count number of overwritten episodes
         num_episodes = tf.count_nonzero(
-            input_tensor=tf.gather(params=self.terminal_memory, indices=indices),
-            axis=0,
-            dtype=util.tf_dtype('int')
+            input_tensor=tf.gather(params=self.memories['terminal'], indices=indices), axis=0,
+            dtype=util.tf_dtype(dtype='long')
         )
-        num_episodes = tf.minimum(x=num_episodes, y=self.episode_count)
+        num_episodes = tf.minimum(x=num_episodes, y=self.episode_count)  # necessary?
+
+        # Shift remaining terminal indices accordingly
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        oldest_index = self.episode_count + one
         assignment = tf.assign(
-            ref=self.episode_indices[:self.episode_count - num_episodes],
-            value=self.episode_indices[num_episodes: self.episode_count]
+            ref=self.terminal_indices[:oldest_index - num_episodes],
+            value=self.terminal_indices[num_episodes: oldest_index]
         )
 
-        # Decrement episode count.
+        # Decrement episode count accordingly
         with tf.control_dependencies(control_inputs=(assignment,)):
-            assignment = tf.assign_sub(ref=self.episode_count, value=num_episodes)
+            assignment = self.episode_count.assign_sub(delta=num_episodes, read_value=False)
 
-        # Assign new observations.
+        # Write new observations
         with tf.control_dependencies(control_inputs=(assignment,)):
             assignments = list()
-            for name in sorted(states):
-                assignments.append(tf.scatter_update(
-                    ref=self.states_memory[name],
-                    indices=indices,
-                    updates=states[name]
-                ))
-            for name in sorted(internals):
-                assignments.append(tf.scatter_update(
-                    ref=self.internals_memory[name],
-                    indices=indices,
-                    updates=internals[name]
-                ))
-            for name in sorted(actions):
-                assignments.append(tf.scatter_update(
-                    ref=self.actions_memory[name],
-                    indices=indices,
-                    updates=actions[name]
-                ))
-            assignments.append(tf.scatter_update(ref=self.terminal_memory, indices=indices, updates=terminal))
-            assignments.append(tf.scatter_update(ref=self.reward_memory, indices=indices, updates=reward))
+            for name, state in states.items():
+                assignments.append(
+                    tf.scatter_update(ref=self.memories[name], indices=indices, updates=state)
+                )
+            for name, internal in internals.items():
+                assignments.append(
+                    tf.scatter_update(ref=self.memories[name], indices=indices, updates=internal)
+                )
+            for name, action in actions.items():
+                assignments.append(
+                    tf.scatter_update(ref=self.memories[name], indices=indices, updates=action)
+                )
+            assignments.append(
+                tf.scatter_update(ref=self.memories['terminal'], indices=indices, updates=terminal)
+            )
+            assignments.append(
+                tf.scatter_update(ref=self.memories['reward'], indices=indices, updates=reward)
+            )
 
-        # Add episode indices.
+        # Increment memory index
         with tf.control_dependencies(control_inputs=assignments):
-            num_episodes = tf.count_nonzero(input_tensor=terminal, axis=0, dtype=util.tf_dtype('int'))
-            assignment = tf.assign(
-                ref=self.episode_indices[self.episode_count: self.episode_count + num_episodes],
-                value=tf.boolean_mask(tensor=indices, mask=terminal)
+            new_memory_index = tf.mod(x=(self.memory_index + num_timesteps), y=capacity)
+            assignment = self.memory_index.assign(value=new_memory_index)
+
+        # Count number of new episodes
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            num_new_episodes = tf.count_nonzero(
+                input_tensor=terminal, axis=0, dtype=util.tf_dtype(dtype='long')
             )
 
-        # Increment episode count.
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            assignment = tf.assign_add(ref=self.episode_count, value=num_episodes)
-
-        # Increment memory index.
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            assignment = tf.assign(
-                ref=self.episode_indices[-1],
-                value=tf.where(self.memory_index + num_instances > self.capacity,
-                               self.episode_indices[self.episode_count - 1], self.capacity - 1)
-            )
-
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            assignment = tf.assign(ref=self.memory_index, value=((self.memory_index + num_instances) % self.capacity))
+        # Write new terminal indices
+        new_oldest_index = self.episode_count + one
+        assignment = tf.assign(
+            ref=self.terminal_indices[new_oldest_index: new_oldest_index + num_new_episodes],
+            value=tf.boolean_mask(tensor=indices, mask=terminal)
+        )
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.no_op()
@@ -227,47 +181,48 @@ class Queue(Memory):
 
         Returns: Batch of experiences
         """
-        states = dict()
-        for name in sorted(self.states_memory):
-            states[name] = tf.gather(params=self.states_memory[name], indices=indices)
 
-        internals = dict()
-        for name in sorted(self.internals_memory):
-            internals[name] = tf.gather(params=self.internals_memory[name], indices=indices)
+        if self.include_next_state:
+            terminal = tf.gather(params=self.memories['terminal'], indices=indices)
+            indices = tf.boolean_mask(tensor=indices, mask=tf.math.logical_not(x=terminal))
 
-        actions = dict()
-        for name in sorted(self.actions_memory):
-            actions[name] = tf.gather(params=self.actions_memory[name], indices=indices)
+        states = OrderedDict()
+        for name in self.states_spec:
+            states[name] = tf.gather(params=self.memories[name], indices=indices)
 
-        terminal = tf.gather(params=self.terminal_memory, indices=indices)
-        reward = tf.gather(params=self.reward_memory, indices=indices)
+        internals = OrderedDict()
+        for name in self.internals_spec:
+            internals[name] = tf.gather(params=self.memories[name], indices=indices)
 
-        if self.include_next_states:
-            assert util.rank(indices) == 1
-            next_indices = (indices + 1) % self.capacity
+        actions = OrderedDict()
+        for name in self.actions_spec:
+            actions[name] = tf.gather(params=self.memories[name], indices=indices)
 
-            next_states = dict()
-            for name in sorted(self.states_memory):
-                next_states[name] = tf.gather(params=self.states_memory[name], indices=next_indices)
+        terminal = tf.gather(params=self.memories['terminal'], indices=indices)
 
-            next_internals = dict()
-            for name in sorted(self.internals_memory):
-                next_internals[name] = tf.gather(params=self.internals_memory[name], indices=next_indices)
+        reward = tf.gather(params=self.memories['reward'], indices=indices)
+
+        if self.include_next_state:
+            assert util.rank(x=indices) == 1
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+            capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+            next_indices = (indices + one) % capacity
+
+            next_states = OrderedDict()
+            for name in self.states_spec:
+                next_states[name] = tf.gather(params=self.memories[name], indices=next_indices)
+
+            next_internals = OrderedDict()
+            for name in self.internals_spec:
+                next_internals[name] = tf.gather(params=self.memories[name], indices=next_indices)
 
             return dict(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward,
-                next_states=next_states,
-                next_internals=next_internals
+                states=states, internals=internals, actions=actions, terminal=terminal,
+                reward=reward, next_states=next_states, next_internals=next_internals
             )
+
         else:
             return dict(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
+                states=states, internals=internals, actions=actions, terminal=terminal,
                 reward=reward
             )

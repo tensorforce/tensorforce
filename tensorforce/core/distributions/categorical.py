@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from math import log
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.networks import Linear
+from tensorforce.core import layer_modules
 from tensorforce.core.distributions import Distribution
 
 
@@ -30,32 +25,25 @@ class Categorical(Distribution):
     Categorical distribution, for discrete actions.
     """
 
-    def __init__(self, shape, num_actions, probabilities=None, scope='categorical', summary_labels=()):
+    def __init__(self, name, action_spec, embedding_size):
         """
         Categorical distribution.
-
-        Args:
-            shape: Action shape.
-            num_actions: Number of discrete action alternatives.
-            probabilities: Optional distribution bias.
         """
-        self.num_actions = num_actions
+        super().__init__(name=name, action_spec=action_spec, embedding_size=embedding_size)
 
-        action_size = util.prod(shape) * self.num_actions
-        if probabilities is None:
-            logits = 0.0
-        else:
-            logits = [log(prob) for _ in range(util.prod(shape)) for prob in probabilities]
-        self.logits = Linear(size=action_size, bias=logits, scope='logits', summary_labels=summary_labels)
-
-        super(Categorical, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+        action_size = util.product(xs=self.action_spec['shape']) * self.action_spec['num_values']
+        input_spec = dict(type='float', shape=(embedding_size,))
+        self.logits = self.add_module(
+            name='logits', module='linear', modules=layer_modules, size=action_size,
+            input_spec=input_spec
+        )
 
     def tf_parameterize(self, x):
         # Flat logits
         logits = self.logits.apply(x=x)
 
         # Reshape logits to action shape
-        shape = (-1,) + self.shape + (self.num_actions,)
+        shape = (-1,) + self.action_spec['shape'] + (self.action_spec['num_values'],)
         logits = tf.reshape(tensor=logits, shape=shape)
 
         # !!!
@@ -70,12 +58,10 @@ class Categorical(Distribution):
         # "Normalized" logits
         logits = tf.log(x=probabilities)
 
-        if 'distribution' in self.summary_labels:
-            for n in range(self.num_actions):
-                tf.contrib.summary.scalar(
-                    name=(self.scope + '-action' + str(n)),
-                    tensor=probabilities[:, n]
-                )
+        for n in range(self.action_spec['num_values']):
+            self.add_summary(
+                label='distribution', name=('prob' + str(n)), tensor=probabilities[..., n]
+            )
 
         return logits, probabilities, state_value
 
@@ -88,7 +74,7 @@ class Categorical(Distribution):
         if action is None:
             state_value = tf.expand_dims(input=state_value, axis=-1)
         else:
-            one_hot = tf.one_hot(indices=action, depth=self.num_actions)
+            one_hot = tf.one_hot(indices=action, depth=self.action_spec['num_values'])
             logits = tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
         return state_value + logits
 
@@ -105,13 +91,15 @@ class Categorical(Distribution):
             maxval=(1.0 - util.epsilon)
         )
         gumbel_distribution = -tf.log(x=-tf.log(x=uniform_distribution))
-        sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1, output_type=util.tf_dtype('int'))
+        sampled = tf.argmax(
+            input=(logits + gumbel_distribution), axis=-1, output_type=util.tf_dtype('int')
+        )
 
         return tf.where(condition=deterministic, x=definite, y=sampled)
 
     def tf_log_probability(self, distr_params, action):
         logits, _, _ = distr_params
-        one_hot = tf.one_hot(indices=action, depth=self.num_actions)
+        one_hot = tf.one_hot(indices=action, depth=self.action_spec['num_values'])
         return tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
 
     def tf_entropy(self, distr_params):
@@ -125,7 +113,7 @@ class Categorical(Distribution):
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
 
     def tf_regularization_loss(self):
-        regularization_loss = super(Categorical, self).tf_regularization_loss()
+        regularization_loss = super().tf_regularization_loss()
         if regularization_loss is None:
             losses = list()
         else:
@@ -139,9 +127,3 @@ class Categorical(Distribution):
             return tf.add_n(inputs=losses)
         else:
             return None
-
-    def get_variables(self, include_nontrainable=False):
-        distribution_variables = super(Categorical, self).get_variables(include_nontrainable=include_nontrainable)
-        logits_variables = self.logits.get_variables(include_nontrainable=include_nontrainable)
-
-        return distribution_variables + logits_variables

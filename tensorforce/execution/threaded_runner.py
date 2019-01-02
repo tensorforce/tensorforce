@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,20 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import importlib
 from inspect import getargspec
-from six.moves import xrange
 import threading
 import time
 import warnings
 
-from tensorforce import TensorForceError
+from tensorforce import TensorforceError
 from tensorforce.execution.base_runner import BaseRunner
-from tensorforce.agents.learning_agent import LearningAgent
+from tensorforce.agents.policy_agent import PolicyAgent
 from tensorforce.agents import agents as AgentsDictionary
 
 
@@ -59,7 +54,7 @@ class ThreadedRunner(BaseRunner):
         super(ThreadedRunner, self).__init__(agent, environment, repeat_actions)
 
         if len(agent) != len(environment):
-            raise TensorForceError("Each agent must have its own environment. Got {a} agents and {e} environments.".
+            raise TensorforceError("Each agent must have its own environment. Got {a} agents and {e} environments.".
                                    format(a=len(self.agent), e=len(self.environment)))
         self.save_path = save_path
         self.save_episodes = save_episodes
@@ -220,7 +215,7 @@ class ThreadedRunner(BaseRunner):
             while True:
                 action, internals, states = agent.act(states=state, deterministic=deterministic, buffered=False)
                 reward = 0
-                for repeat in xrange(self.repeat_actions):
+                for repeat in range(self.repeat_actions):
                     state, terminal, step_reward = environment.execute(action=action)
                     reward += step_reward
                     if terminal:
@@ -317,7 +312,7 @@ def WorkerAgentGenerator(agent_class):
             # Set our model externally.
             self.model = model
             # Be robust against `network` coming in from kwargs even though this agent doesn't have one
-            if not issubclass(agent_class, LearningAgent):
+            if not issubclass(agent_class, PolicyAgent):
                 kwargs.pop("network")
             # Call super c'tor (which will call initialize_model and assign self.model to the return value).
             super(WorkerAgent, self).__init__(**kwargs)
@@ -344,7 +339,7 @@ def clone_worker_agent(agent, factor, environment, network, agent_config):
         The list with `factor` cloned agents (including the original one).
     """
     ret = [agent]
-    for i in xrange(factor - 1):
+    for i in range(factor - 1):
         worker = WorkerAgentGenerator(type(agent))(
             states=environment.states,
             actions=environment.actions,

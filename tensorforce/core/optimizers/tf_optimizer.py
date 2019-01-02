@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import tensorflow as tf
 
 from tensorforce.core.optimizers import Optimizer
@@ -27,34 +23,34 @@ class TFOptimizer(Optimizer):
     Wrapper class for TensorFlow optimizers.
     """
 
-    tf_optimizers = dict(
+    tensorflow_optimizers = dict(
         adadelta=tf.train.AdadeltaOptimizer,
         adagrad=tf.train.AdagradOptimizer,
         adam=tf.train.AdamOptimizer,
-        nadam=tf.contrib.opt.NadamOptimizer,
         gradient_descent=tf.train.GradientDescentOptimizer,
         momentum=tf.train.MomentumOptimizer,
+        nadam=tf.contrib.opt.NadamOptimizer,
         rmsprop=tf.train.RMSPropOptimizer
     )
 
-    def __init__(self, optimizer, scope=None, summary_labels=(), **kwargs):
+    def __init__(self, name, optimizer, **kwargs):
         """
         Creates a new optimizer instance of a TensorFlow optimizer.
 
         Args:
-            optimizer: The name of the optimizer. Must be one of the keys of the tf_optimizers dict.
+            optimizer: The name of the optimizer. Must be a key of the tensorflow_optimizers dict.
             **kwargs: Arguments passed on to the TensorFlow optimizer constructor as **kwargs.
         """
-        self.tf_optimizer_type = optimizer
-        self.tf_optimizer = TFOptimizer.tf_optimizers[optimizer](**kwargs)
+        super().__init__(name=name)
 
-        super(TFOptimizer, self).__init__(scope=(scope or optimizer), summary_labels=summary_labels)
+        assert optimizer in TFOptimizer.tensorflow_optimizers
+        self.optimizer = TFOptimizer.tensorflow_optimizers[optimizer](**kwargs)
 
     def tf_step(self, time, variables, **kwargs):
         """
         Keyword Args:
             arguments: Dict of arguments for passing to fn_loss as **kwargs.
-            fn_loss: A callable taking arguments as kwargs and returning the loss op of the current model.
+            fn_loss: A callable taking arguments as kwargs and returning the loss op.
         """
         arguments = kwargs["arguments"]
         fn_loss = kwargs["fn_loss"]
@@ -67,7 +63,8 @@ class TFOptimizer(Optimizer):
 
         # The actual tensorflow minimize op.
         with tf.control_dependencies(control_inputs=previous_variables):
-            applied = self.tf_optimizer.minimize(loss=loss, var_list=variables)  # colocate_gradients_with_ops=True
+            # colocate_gradients_with_ops=True
+            applied = self.optimizer.minimize(loss=loss, var_list=variables)
 
         # Return deltas after actually having change the variables.
         with tf.control_dependencies(control_inputs=(applied,)):
@@ -76,18 +73,17 @@ class TFOptimizer(Optimizer):
                 for variable, previous_variable in zip(variables, previous_variables)
             ]
 
-    def get_variables(self):
-        optimizer_variables = super(TFOptimizer, self).get_variables()
+    def get_variables(self, only_trainable=True):
+        variables = super().get_variables(only_trainable=only_trainable)
 
-        slots_variables = [
-            self.tf_optimizer._slots[slot][key]
-            for slot in sorted(self.tf_optimizer._slots)
-            for key in sorted(self.tf_optimizer._slots[slot])
-        ]
+        variables.extend(self.optimizer.variables())
 
-        if self.tf_optimizer_type in ('adam', 'nadam'):
-            additional_variables = list(self.tf_optimizer._get_beta_accumulators())
-        else:
-            additional_variables = list()
+        # variables.extend(
+        #     self.optimizer._slots[slot][key] for slot in sorted(self.optimizer._slots)
+        #     for key in sorted(self.optimizer._slots[slot])
+        # )
 
-        return optimizer_variables + slots_variables + additional_variables
+        # if isinstance(self.optimizer, (tf.train.AdamOptimizer, tf.contrib.opt.NadamOptimizer)):
+        #     variables.extend(self.optimizer._get_beta_accumulators())
+
+        return variables

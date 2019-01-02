@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,17 +14,9 @@
 # ==============================================================================
 
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-import tensorforce.environments
-import tensorforce.util
-
-
 class Environment(object):
     """
-    Base environment class.
+    Environment base class.
     """
 
     def __str__(self):
@@ -86,7 +78,7 @@ class Environment(object):
         """
         raise NotImplementedError
 
-    def execute(self, action):
+    def execute(self, actions):
         """
         Executes action, observes next state(s) and reward.
 
@@ -97,16 +89,3 @@ class Environment(object):
             Tuple of (next state, bool indicating terminal, reward)
         """
         raise NotImplementedError
-
-    @staticmethod
-    def from_spec(spec, kwargs):
-        """
-        Creates an environment from a specification dict.
-        """
-        env = tensorforce.util.get_object(
-            obj=spec,
-            predefined_objects=tensorforce.environments.environments,
-            kwargs=kwargs
-        )
-        assert isinstance(env, Environment)
-        return env

@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import tensorflow as tf
 
-from tensorforce import TensorForceError
+from tensorforce import TensorforceError
 from tensorforce.core.optimizers import MetaOptimizer
-from tensorforce.core.optimizers.solvers import LineSearch
+from tensorforce.core.optimizers.solvers import solver_modules
 
 
 class OptimizedStep(MetaOptimizer):
@@ -31,15 +27,8 @@ class OptimizedStep(MetaOptimizer):
     """
 
     def __init__(
-        self,
-        optimizer,
-        ls_max_iterations=10,
-        ls_accept_ratio=0.9,
-        ls_mode='exponential',
-        ls_parameter=0.5,
-        ls_unroll_loop=False,
-        scope='optimized-step',
-        summary_labels=()
+        self, name, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
+        ls_parameter=0.5, ls_unroll_loop=False
     ):
         """
         Creates a new optimized step meta optimizer instance.
@@ -52,25 +41,15 @@ class OptimizedStep(MetaOptimizer):
             ls_parameter: Line search parameter, see LineSearch solver.
             ls_unroll_loop: Unroll line search loop if true.
         """
-        self.solver = LineSearch(
-            max_iterations=ls_max_iterations,
-            accept_ratio=ls_accept_ratio,
-            mode=ls_mode,
-            parameter=ls_parameter,
-            unroll_loop=ls_unroll_loop
+        super().__init__(name=name, optimizer=optimizer)
+
+        self.solver = self.add_module(
+            name='line-search', module='line_search', modules=solver_modules,
+            max_iterations=ls_max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
+            parameter=ls_parameter, unroll_loop=ls_unroll_loop
         )
 
-        super(OptimizedStep, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
-
-    def tf_step(
-        self,
-        time,
-        variables,
-        arguments,
-        fn_loss,
-        fn_reference,
-        **kwargs
-    ):
+    def tf_step(self, time, variables, arguments, fn_loss, fn_reference, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
@@ -94,18 +73,14 @@ class OptimizedStep(MetaOptimizer):
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
-                time=time,
-                variables=variables,
-                arguments=arguments,
-                fn_loss=fn_loss,
-                return_estimated_improvement=True,
-                **kwargs
+                time=time, variables=variables, arguments=arguments, fn_loss=fn_loss,
+                return_estimated_improvement=True, **kwargs
             )
 
             if isinstance(deltas, tuple):
                 # If 'return_estimated_improvement' argument exists.
                 if len(deltas) != 2:
-                    raise TensorForceError("Unexpected output of internal optimizer.")
+                    raise TensorforceError("Unexpected output of internal optimizer.")
                 deltas, estimated_improvement = deltas
                 # Negative value since line search maximizes.
                 estimated_improvement = -estimated_improvement
@@ -126,9 +101,6 @@ class OptimizedStep(MetaOptimizer):
                     return -fn_loss(**arguments)
 
             return self.solver.solve(
-                fn_x=evaluate_step,
-                x_init=deltas,
-                base_value=loss_before,
-                target_value=loss_step,
+                fn_x=evaluate_step, x_init=deltas, base_value=loss_before, target_value=loss_step,
                 estimated_improvement=estimated_improvement
             )

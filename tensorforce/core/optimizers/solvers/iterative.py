@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core.optimizers.solvers import Solver
 
 
@@ -25,7 +24,7 @@ class Iterative(Solver):
     initialization step, the iteration loop body and the termination condition.
     """
 
-    def __init__(self, max_iterations, unroll_loop=False):
+    def __init__(self, name, max_iterations, unroll_loop):
         """
         Creates a new iterative solver instance.
 
@@ -33,18 +32,13 @@ class Iterative(Solver):
             max_iterations: Maximum number of iterations before termination.
             unroll_loop: Unrolls the TensorFlow while loop if true.
         """
+        super().__init__(name=name)
+
         assert max_iterations >= 0
         self.max_iterations = max_iterations
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
-
-        super(Iterative, self).__init__()
-
-        # TensorFlow functions
-        self.initialize = tf.make_template(name_='initialize', func_=self.tf_initialize)
-        self.step = tf.make_template(name_='step', func_=self.tf_step)
-        self.next_step = tf.make_template(name_='next-step', func_=self.tf_next_step)
 
     def tf_solve(self, fn_x, x_init, *args):
         """
@@ -61,7 +55,7 @@ class Iterative(Solver):
         self.fn_x = fn_x
 
         # Initialization step
-        args = self.initialize(x_init, *args)
+        args = self.start(x_init, *args)
         # args = util.map_tensors(fn=tf.stop_gradient, tensors=args)
 
         # Iteration loop with termination condition
@@ -80,7 +74,7 @@ class Iterative(Solver):
         # First argument contains solution
         return args[0]
 
-    def tf_initialize(self, x_init, *args):
+    def tf_start(self, x_init, *args):
         """
         Initialization step preparing the arguments for the first iteration of the loop body  
         (default: initial solution guess and iteration counter).

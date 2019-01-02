@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 from tensorforce.core.baselines import NetworkBaseline
 
 
@@ -25,17 +21,23 @@ class MLPBaseline(NetworkBaseline):
     Multi-layer perceptron baseline (single-state) consisting of dense layers.
     """
 
-    def __init__(self, sizes, scope='mlp-baseline', summary_labels=()):
+    def __init__(self, name, sizes, l2_regularization=None, summary_labels=None):
         """
         Multi-layer perceptron baseline.
 
         Args:
             sizes: List of dense layer sizes
         """
+        network_spec = list()
 
-        network = []
-        network.append(dict(type='flatten'))
+        # Flatten input
+        network_spec.append(dict(type='flatten'))
+
+        # Dense layers
         for size in sizes:
-            network.append(dict(type='dense', size=size))
+            network_spec.append(dict(type='dense', size=size))
 
-        super(MLPBaseline, self).__init__(network=network, scope=scope, summary_labels=summary_labels)
+        super().__init__(
+            name=name, network_spec=network_spec, l2_regularization=l2_regularization,
+            summary_labels=summary_labels
+        )

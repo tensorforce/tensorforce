@@ -1,4 +1,4 @@
-# Copyright 2018 TensorForce Team. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,29 +31,20 @@ from tensorforce.core.optimizers.subsampling_step import SubsamplingStep
 from tensorforce.core.optimizers.tf_optimizer import TFOptimizer
 
 
-optimizers = dict(
-    adadelta=partial(TFOptimizer, 'adadelta'),
-    adagrad=partial(TFOptimizer, 'adagrad'),
-    adam=partial(TFOptimizer, 'adam'),
-    clipped_step=ClippedStep,
-    evolutionary=Evolutionary,
-    global_optimizer=GlobalOptimizer,
-    gradient_descent=partial(TFOptimizer, 'gradient_descent'),
-    kfac=KFAC,
-    momentum=partial(TFOptimizer, 'momentum'),
-    multi_step=MultiStep,
-    nadam=partial(TFOptimizer, 'nadam'),
-    natural_gradient=NaturalGradient,
-    optimized_step=OptimizedStep,
-    rmsprop=partial(TFOptimizer, 'rmsprop'),
-    subsampling_step=SubsamplingStep,
-    synchronization=Synchronization
+optimizer_modules = dict(
+    adadelta=partial(TFOptimizer, optimizer='adadelta'),
+    adagrad=partial(TFOptimizer, optimizer='adagrad'), adam=partial(TFOptimizer, optimizer='adam'),
+    clipped_step=ClippedStep, evolutionary=Evolutionary, global_optimizer=GlobalOptimizer,
+    gradient_descent=partial(TFOptimizer, optimizer='gradient_descent'),
+    kfac=KFAC, momentum=partial(TFOptimizer, optimizer='momentum'), multi_step=MultiStep,
+    nadam=partial(TFOptimizer, optimizer='nadam'), natural_gradient=NaturalGradient,
+    optimized_step=OptimizedStep, rmsprop=partial(TFOptimizer, optimizer='rmsprop'),
+    subsampling_step=SubsamplingStep, synchronization=Synchronization
 )
 
 
 __all__ = [
-    'optimizers', 'Optimizer', 'MetaOptimizer',
-    'GlobalOptimizer', 'Synchronization',
-    'ClippedStep', 'Evolutionary', 'KFAC', 'MultiStep', 'NaturalGradient', 'OptimizedStep',
-    'SubsamplingStep', 'TFOptimizer'
+    'ClippedStep', 'Evolutionary', 'GlobalOptimizer', 'KFAC', 'MetaOptimizer', 'MultiStep',
+    'NaturalGradient', 'OptimizedStep', 'Optimizer', 'optimizer_modules', 'SubsamplingStep',
+    'Synchronization', 'TFOptimizer'
 ]

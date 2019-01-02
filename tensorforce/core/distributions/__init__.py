@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,25 +14,16 @@
 # ==============================================================================
 
 from tensorforce.core.distributions.distribution import Distribution
+
 from tensorforce.core.distributions.bernoulli import Bernoulli
+from tensorforce.core.distributions.beta import Beta
 from tensorforce.core.distributions.categorical import Categorical
 from tensorforce.core.distributions.gaussian import Gaussian
-from tensorforce.core.distributions.beta import Beta
 
 
-distributions = dict(
-    bernoulli=Bernoulli,
-    categorical=Categorical,
-    gaussian=Gaussian,
-    beta=Beta
+distribution_modules = dict(
+    bernoulli=Bernoulli, beta=Beta, categorical=Categorical, gaussian=Gaussian
 )
 
 
-__all__ = [
-    'distributions',
-    'Distribution',
-    'Bernoulli',
-    'Categorical',
-    'Gaussian',
-    'Beta'
-]
+__all__ = ['Bernoulli', 'Beta', 'Categorical', 'Distribution', 'distribution_modules', 'Gaussian']

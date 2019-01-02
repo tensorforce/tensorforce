@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 from tensorforce.agents import Agent
-from tensorforce.models.constant_model import ConstantModel
-from tensorforce.contrib.sanity_check_specs import sanity_check_execution_spec
+from tensorforce.core.models import ConstantModel
 
 
 class ConstantAgent(Agent):
@@ -31,8 +26,8 @@ class ConstantAgent(Agent):
         self,
         states,
         actions,
-        batched_observe=True,
-        batching_capacity=1000,
+        parallel_interactions=1,
+        buffer_observe=1000,
         scope='constant',
         device=None,
         saver=None,
@@ -61,31 +56,16 @@ class ConstantAgent(Agent):
             execution (spec): Execution specification (see sanity_check_execution_spec for details).
             action_values (value, or dict of values): Action values returned by the agent.
         """
-
-        self.scope = scope
-        self.device = device
-        self.saver = saver
-        self.summarizer = summarizer
-        self.execution = sanity_check_execution_spec(execution)
-        self.batching_capacity = batching_capacity
-        self.action_values = action_values
-
-        super(ConstantAgent, self).__init__(
-            states=states,
-            actions=actions,
-            batched_observe=batched_observe,
-            batching_capacity=batching_capacity
+        super().__init__(
+            states=states, actions=actions, parallel_interactions=parallel_interactions,
+            buffer_observe=buffer_observe
         )
 
-    def initialize_model(self):
-        return ConstantModel(
-            states=self.states,
-            actions=self.actions,
-            scope=self.scope,
-            device=self.device,
-            saver=self.saver,
-            summarizer=self.summarizer,
-            execution=self.execution,
-            batching_capacity=self.batching_capacity,
-            action_values=self.action_values
+        self.model = ConstantModel(
+            # Model
+            states=self.states_spec, actions=self.actions_spec, scope=scope, device=device,
+            saver=saver, summarizer=summarizer, execution=execution,
+            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
+            # ConstantModel
+            action_values=action_values
         )

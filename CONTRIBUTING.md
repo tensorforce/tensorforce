@@ -1,5 +1,4 @@
-Contribution guide
-------------------
+# Contribution guide
 
 Below are some pointers for new contributions. In general, it is probably always a good idea to
 join the community to discuss a contribution, unless it's a smaller bug fix. You can join the

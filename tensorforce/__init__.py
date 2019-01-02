@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.exception import TensorforceError
+from tensorforce import util
 
-from tensorforce.exception import TensorForceError
 
-
-__version__ = '0.4.3'
+__version__ = '0.5.0'
 
 
 # Libraries should add NullHandler() by default, as its the application code's
@@ -35,4 +35,5 @@ except ImportError:
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
-__all__ = ['TensorForceError']
+
+__all__ = ['TensorforceError', 'util']

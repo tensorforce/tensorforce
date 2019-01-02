@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 from tensorforce.execution.base_runner import BaseRunner
 
 import time
-from six.moves import xrange
 import warnings
 from inspect import getargspec
 from tqdm import tqdm
@@ -75,7 +70,7 @@ class Runner(BaseRunner):
         # Keep track of episode reward and episode length for statistics.
         self.start_time = time.time()
 
-        self.agent.reset()
+        self.agent.initialize()
 
         if num_episodes is not None:
             num_episodes += self.agent.episode
@@ -88,8 +83,7 @@ class Runner(BaseRunner):
             # episode loop
             while True:
                 episode_start_time = time.time()
-                state = self.environment.reset()
-                self.agent.reset()
+                states = self.environment.reset()
 
                 # Update global counters.
                 self.global_episode = self.agent.episode  # global value (across all agents)
@@ -100,11 +94,11 @@ class Runner(BaseRunner):
 
                 # time step (within episode) loop
                 while True:
-                    action = self.agent.act(states=state, deterministic=deterministic)
+                    actions = self.agent.act(states=states, deterministic=deterministic)
 
                     reward = 0
-                    for _ in xrange(self.repeat_actions):
-                        state, terminal, step_reward = self.environment.execute(action=action)
+                    for _ in range(self.repeat_actions):
+                        states, terminal, step_reward = self.environment.execute(actions=actions)
                         reward += step_reward
                         if terminal:
                             break

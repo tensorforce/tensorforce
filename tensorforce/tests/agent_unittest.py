@@ -1,4 +1,4 @@
-# Copyright 2018 TensorForce Team. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
- 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
 
 from tensorforce.tests.unittest_base import UnittestBase
 from tensorforce.tests.unittest_environment import UnittestEnvironment
@@ -47,7 +43,7 @@ class AgentUnittest(UnittestBase):
         environment = UnittestEnvironment(states=states, actions=actions)
 
         network = [
-            dict(type='embedding', num_embeddings=2, size=32),
+            dict(type='embedding', size=32),
             dict(type='dense', size=32), dict(type='dense', size=32)
         ]
 
@@ -59,15 +55,15 @@ class AgentUnittest(UnittestBase):
         """
         Unit-test for integer state and action.
         """
-        states = dict(type='int', shape=(), num_states=3)
+        states = dict(type='int', shape=(), num_values=3)
         if self.__class__.exclude_int_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
-            actions = dict(type='int', shape=(), num_actions=3)
+            actions = dict(type='int', shape=(), num_values=3)
         environment = UnittestEnvironment(states=states, actions=actions)
 
         network = [
-            dict(type='embedding', num_embeddings=3, size=32),
+            dict(type='embedding', size=32),
             dict(type='dense', size=32), dict(type='dense', size=32)
         ]
 
@@ -114,51 +110,55 @@ class AgentUnittest(UnittestBase):
         Unit-test for all types of states and actions.
         """
         states = dict(
-            bool=dict(type='bool', shape=(1,)),
-            int=dict(type='int', shape=(2,), num_states=4),
-            float=dict(type='float', shape=(1, 1, 2)),
-            bounded=dict(type='float', shape=(), min_value=-0.5, max_value=0.5)
+            # bool_state=dict(type='bool', shape=(1,)),
+            # int_state=dict(type='int', shape=(2,), num_values=4),
+            bool_state=dict(type='bool', shape=()),
+            int_state=dict(type='int', shape=(), num_values=4),
+            float_state=dict(type='float', shape=(1, 1, 2)),
+            bounded_state=dict(type='float', shape=(), min_value=-0.5, max_value=0.5)
         )
         actions = dict()
         if not self.__class__.exclude_bool_action:
-            actions['bool'] = dict(type='bool', shape=(1,))
+            actions['bool_action'] = dict(type='bool', shape=(1,))
         if not self.__class__.exclude_int_action:
-            actions['int'] = dict(type='int', shape=(2,), num_actions=4)
+            actions['int_action'] = dict(type='int', shape=(2,), num_values=4)
         if not self.__class__.exclude_float_action:
-            actions['float'] = dict(type='float', shape=(1, 1))
+            actions['float_action'] = dict(type='float', shape=(1, 1))
         if not self.__class__.exclude_bounded_action:
-            actions['bounded'] = dict(type='float', shape=(2,), min_value=-0.5, max_value=0.5)
+            actions['bounded_action'] = dict(
+                type='float', shape=(2,), min_value=-0.5, max_value=0.5
+            )
         environment = UnittestEnvironment(states=states, actions=actions)
 
         network = [
             [
-                dict(type='input', names='bool'),
-                dict(type='embedding', num_embeddings=2, size=16),
-                dict(type='lstm', size=8),
-                dict(type='output', name='bool-emb')
+                dict(type='retrieve', tensors='bool_state'),
+                dict(type='embedding', size=16),
+                # dict(type='lstm', size=8),
+                dict(type='register', tensor='bool-emb')
             ],
             [
-                dict(type='input', names='int'),
-                dict(type='embedding', num_embeddings=4, size=16),
-                dict(type='lstm', size=8),
-                dict(type='output', name='int-emb')
+                dict(type='retrieve', tensors='int_state'),
+                dict(type='embedding', size=16),
+                # dict(type='lstm', size=8),
+                dict(type='register', tensor='int-emb')
             ],
             [
-                dict(type='input', names='float'),
+                dict(type='retrieve', tensors='float_state'),
                 dict(type='conv2d', size=16),
-                dict(type='global_pooling', pooling='max'),
-                dict(type='output', name='float-emb')
+                dict(type='pooling', pooling='max'),
+                dict(type='register', tensor='float-emb')
             ],
             [
-                dict(type='input', names='bounded'),
-                dict(type='global_pooling', pooling='concat'),
+                dict(type='retrieve', tensors='bounded_state'),
+                dict(type='pooling', pooling='concat'),
                 dict(type='dense', size=16),
-                dict(type='output', name='bounded-emb')
+                dict(type='register', tensor='bounded-emb')
             ],
             [
                 dict(
-                    type='input', names=['bool-emb', 'int-emb', 'float-emb', 'bounded-emb'],
-                    aggregation_type='product'
+                    type='retrieve', tensors=('bool-emb', 'int-emb', 'float-emb', 'bounded-emb'),
+                    aggregation='product'
                 ),
                 dict(type='dense', size=16)
             ]

@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core.memories import Queue
 
 
@@ -27,58 +24,86 @@ class Latest(Queue):
     Memory which always retrieves most recent experiences.
     """
 
-    def __init__(self, states, internals, actions, include_next_states, capacity, scope='latest', summary_labels=None):
-        """
-        Latest memory.
-
-        Args:
-            states: States specifiction.
-            internals: Internal states specification.
-            actions: Actions specification.
-            include_next_states: Include subsequent state if true.
-            capacity: Memory capacity.
-        """
-        super(Latest, self).__init__(
-            states=states,
-            internals=internals,
-            actions=actions,
-            include_next_states=include_next_states,
-            capacity=capacity,
-            scope=scope,
-            summary_labels=summary_labels
-        )
-
     def tf_retrieve_timesteps(self, n):
-        num_timesteps = (self.memory_index - self.episode_indices[-1] - 2) % self.capacity + 1
-        n = tf.minimum(x=n, y=num_timesteps)
-        indices = tf.range(
-            start=(self.memory_index - n),
-            limit=self.memory_index
-        ) % self.capacity
-        return self.retrieve_indices(indices=indices)
+        # Start index of oldest episode
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        oldest_episode_start = self.terminal_indices[0] + one
+
+        # Number of timesteps (minus/plus one to prevent zero but allow capacity)
+        num_timesteps = self.memory_index - oldest_episode_start - one
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+        num_timesteps = tf.mod(x=num_timesteps, y=capacity) + one
+
+        # Check whether memory contains enough timesteps
+        assertion = tf.debugging.assert_less_equal(x=n, y=num_timesteps)
+
+        # Most recent timestep indices range
+        with tf.control_dependencies(control_inputs=(assertion,)):  # Assertions in memory as warning!!!
+            indices = tf.range(start=(self.memory_index - n), limit=self.memory_index)
+            indices = tf.mod(x=indices, y=capacity)
+
+        # Retrieve timestep indices
+        timesteps = self.retrieve_indices(indices=indices)
+
+        return timesteps
 
     def tf_retrieve_episodes(self, n):
-        n = tf.minimum(x=n, y=self.episode_count)
-        start = self.episode_indices[self.episode_count - n - 1] + 1
-        limit = self.episode_indices[self.episode_count - 1] + 1
-        limit += tf.where(condition=(start < limit), x=0, y=self.capacity)
-        indices = tf.range(start=start, limit=limit) % self.capacity
-        return self.retrieve_indices(indices=indices)
+        # Check whether memory contains enough episodes
+        assertion = tf.debugging.assert_less_equal(x=n, y=self.episode_count)
+
+        # Get start and limit index for most recent n episodes
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+            start = self.terminal_indices[self.episode_count - n - one]
+            limit = self.terminal_indices[self.episode_count - 1]
+            # Increment terminal of previous episode
+            start = start + one
+            limit = limit + one
+
+        # Correct limit index if smaller than start index
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+        limit = limit + tf.where(condition=(limit < start), x=capacity, y=zero)
+
+        # Most recent episode indices range
+        indices = tf.range(start=start, limit=limit)
+        indices = tf.mod(x=indices, y=capacity)
+
+        # Retrieve episode indices
+        episodes = self.retrieve_indices(indices=indices)
+
+        return episodes
 
     def tf_retrieve_sequences(self, n, sequence_length):
-        # Remove once #128 is resolved
-        tf.logging.warn("Sampling sequences is not validated yet. Use timesteps or episodes instead.")
-        num_sequences = (self.memory_index - self.episode_indices[-1] - 2 - sequence_length + 1) % self.capacity + 1
-        n = tf.minimum(x=n, y=num_sequences)
-        indices = tf.range(
-            start=(self.memory_index - n - sequence_length),  # or '- 1' implied in sequence length?
-            limit=self.memory_index
-        ) % self.capacity
+        # Start index of oldest episode
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        oldest_episode_start = self.terminal_indices[0] + one
+
+        # Number of sequences (minus/plus one to prevent zero but allow capacity-sequence_length)
+        num_sequences = self.memory_index - oldest_episode_start - sequence_length
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+        num_sequences = tf.mod(x=num_sequences, y=capacity) + one
+
+        # Check whether memory contains enough sequences
+        assertion = tf.debugging.assert_less_equal(x=n, y=num_sequences)
+
+        # Most recent timestep indices range
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            indices = tf.range(
+                start=(self.memory_index - n - sequence_length), limit=self.memory_index
+            )
+            indices = tf.mod(x=indices, y=capacity)
+
+        # ???????
         # sequence_indices = [tf.range(start=indices[n], limit=(indices[n] + sequence_length)) for k in range(n)]
         # sequence_indices = [indices[k: k + sequence_length] for k in tf.unstack(value=tf.range(start=0, limit=n), num=n)]
         sequence_indices = tf.expand_dims(input=tf.range(start=0, limit=n), axis=1) + tf.expand_dims(input=tf.constant(value=list(range(sequence_length))), axis=0)
         sequence_indices = tf.reshape(tensor=sequence_indices, shape=(n * sequence_length,))
         # sequence_indices = tf.concat(values=sequence_indices, axis=0)  # tf.stack !!!!!
-        terminal = tf.gather(params=self.terminal_memory, indices=indices)
+        terminal = tf.gather(params=self.memories['terminal'], indices=indices)
         sequence_indices = tf.boolean_mask(tensor=sequence_indices, mask=tf.logical_not(x=terminal))
-        return self.retrieve_indices(indices=sequence_indices)
+
+        # Retrieve sequence indices
+        sequences = self.retrieve_indices(indices=sequence_indices)
+
+        return sequences

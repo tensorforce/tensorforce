@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-
 from tensorforce.core.optimizers.solvers.solver import Solver
 from tensorforce.core.optimizers.solvers.iterative import Iterative
+
 from tensorforce.core.optimizers.solvers.conjugate_gradient import ConjugateGradient
 from tensorforce.core.optimizers.solvers.line_search import LineSearch
 
 
-solvers = dict(
-    conjugate_gradient=ConjugateGradient,
-    line_search=LineSearch
-)
+solver_modules = dict(conjugate_gradient=ConjugateGradient, line_search=LineSearch)
 
 
-__all__ = ['solvers', 'Solver', 'Iterative', 'ConjugateGradient', 'LineSearch']
+__all__ = ['ConjugateGradient', 'Iterative', 'LineSearch', 'Solver', 'solver_modules']

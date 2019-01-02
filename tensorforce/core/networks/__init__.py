@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,51 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.networks.layer import Layer, Input, Output, TFLayer, Nonlinearity, Dropout, Flatten, Pool2d, Embedding, Linear, Dense, \
-    Dueling, Conv1d, Conv2d, InternalLstm, Lstm, GlobalPooling
-from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
+from tensorforce.core.networks.network import Network, LayerbasedNetwork, LayeredNetwork
 
 
-layers = dict(
-    input=Input,
-    output=Output,
-    tf_layer=TFLayer,
-    nonlinearity=Nonlinearity,
-    dropout=Dropout,
-    flatten=Flatten,
-    pool2d=Pool2d,
-    embedding=Embedding,
-    linear=Linear,
-    dense=Dense,
-    dueling=Dueling,
-    conv1d=Conv1d,
-    conv2d=Conv2d,
-    internal_lstm=InternalLstm,
-    lstm=Lstm,
-    global_pooling=GlobalPooling
-)
+network_modules = dict(layered=LayeredNetwork)
 
 
-__all__ = [
-    'layers',
-    'Layer',
-    'Input',
-    'Output',
-    'TFLayer',
-    'Nonlinearity',
-    'Dropout',
-    'Flatten',
-    'Pool2d',
-    'Embedding',
-    'Linear',
-    'Dense',
-    'Dueling',
-    'Conv1d',
-    'Conv2d',
-    'InternalLstm',
-    'Lstm',
-    'GlobalPooling',
-    'Network',
-    'LayerBasedNetwork',
-    'LayeredNetwork'
-]
+__all__ = ['LayerbasedNetwork', 'LayeredNetwork', 'Network', 'network_modules']

@@ -30,6 +30,6 @@ script:
 notifications:
   email:
     recipients:
-      - contact@reinforce.io
+      - tensorforce.team@gmail.com
     on_success: never
     on_failure: always

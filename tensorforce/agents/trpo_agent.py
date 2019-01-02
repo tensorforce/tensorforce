@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.agents import LearningAgent
-from tensorforce.models import PGProbRatioModel
+from tensorforce.agents import DRLAgent
+from tensorforce.core.models import PGProbRatioModel
 
 
-class TRPOAgent(LearningAgent):
+class TRPOAgent(DRLAgent):
     """
     Trust Region Policy Optimization agent
     ([Schulman et al., 2015](https://arxiv.org/abs/1502.05477)).
@@ -32,8 +28,8 @@ class TRPOAgent(LearningAgent):
         states,
         actions,
         network,
-        batched_observe=True,
-        batching_capacity=1000,
+        parallel_interactions=1,
+        buffer_observe=1000,
         scope='trpo',
         device=None,
         saver=None,
@@ -70,7 +66,7 @@ class TRPOAgent(LearningAgent):
                 - batch_size: integer (default: 10).
                 - frequency: integer (default: batch_size).
             memory (spec): Memory specification, see core.memories module for more information
-                (default: {type='latest', include_next_states=false, capacity=1000*batch_size}).
+                (default: {type='latest', include_next_state=false, capacity=1000*batch_size}).
             optimizer (spec): TRPO agent implicitly defines a optimized-step natural-gradient
                 optimizer.
             baseline_mode (str): One of 'states', 'network' (default: none).
@@ -89,13 +85,14 @@ class TRPOAgent(LearningAgent):
             ls_accept_ratio (float): Line-search accept ratio (default: 0.9).
             ls_unroll_loop (bool): Line-search unroll loop (default: false).
         """
+        super().__init__(
+            states=states, actions=actions, parallel_interactions=parallel_interactions,
+            buffer_observe=buffer_observe
+        )
 
         # Update mode
         if update_mode is None:
-            update_mode = dict(
-                unit='episodes',
-                batch_size=10
-            )
+            update_mode = dict(unit='episodes', batch_size=10)
         elif 'unit' in update_mode:
             pass
         else:
@@ -105,86 +102,42 @@ class TRPOAgent(LearningAgent):
         if memory is None:
             # Assumed episode length of 1000 timesteps.
             memory = dict(
-                type='latest',
-                include_next_states=False,
+                type='latest', include_next_state=False,
                 capacity=(1000 * update_mode['batch_size'])
             )
         else:
-            assert not memory['include_next_states']
+            assert not memory['include_next_state']
 
         # if update_mode is `timesteps`, require memory `latest`
         assert (update_mode['unit'] != 'timesteps' or memory['type'] == 'latest')
 
         # Optimizer
         optimizer = dict(
-            type='optimized_step',
-            optimizer=dict(
-                type='natural_gradient',
-                learning_rate=learning_rate,
-                cg_max_iterations=cg_max_iterations,
-                cg_damping=cg_damping,
+            type='optimized_step', optimizer=dict(
+                type='natural_gradient', learning_rate=learning_rate,
+                cg_max_iterations=cg_max_iterations, cg_damping=cg_damping,
                 cg_unroll_loop=cg_unroll_loop,
-            ),
-            ls_max_iterations=ls_max_iterations,
-            ls_accept_ratio=ls_accept_ratio,
+            ), ls_max_iterations=ls_max_iterations, ls_accept_ratio=ls_accept_ratio,
             ls_mode='exponential',  # !!!!!!!!!!!!!
             ls_parameter=0.5,  # !!!!!!!!!!!!!
             ls_unroll_loop=ls_unroll_loop
         )
 
-        self.baseline_mode = baseline_mode
-        self.baseline = baseline
-        self.baseline_optimizer = baseline_optimizer
-        self.gae_lambda = gae_lambda
-        self.likelihood_ratio_clipping = likelihood_ratio_clipping
-
-        super(TRPOAgent, self).__init__(
-            states=states,
-            actions=actions,
-            batched_observe=batched_observe,
-            batching_capacity=batching_capacity,
-            scope=scope,
-            device=device,
-            saver=saver,
-            summarizer=summarizer,
-            execution=execution,
-            variable_noise=variable_noise,
-            states_preprocessing=states_preprocessing,
-            actions_exploration=actions_exploration,
-            reward_preprocessing=reward_preprocessing,
-            update_mode=update_mode,
-            memory=memory,
-            optimizer=optimizer,
-            discount=discount,
-            network=network,
-            distributions=distributions,
-            entropy_regularization=entropy_regularization
-        )
-
-    def initialize_model(self):
-        return PGProbRatioModel(
-            states=self.states,
-            actions=self.actions,
-            scope=self.scope,
-            device=self.device,
-            saver=self.saver,
-            summarizer=self.summarizer,
-            execution=self.execution,
-            batching_capacity=self.batching_capacity,
-            discount=self.discount,
-            variable_noise=self.variable_noise,
-            states_preprocessing=self.states_preprocessing,
-            actions_exploration=self.actions_exploration,
-            reward_preprocessing=self.reward_preprocessing,
-            update_mode=self.update_mode,
-            memory=self.memory,
-            optimizer=self.optimizer,
-            network=self.network,
-            distributions=self.distributions,
-            entropy_regularization=self.entropy_regularization,
-            baseline_mode=self.baseline_mode,
-            baseline=self.baseline,
-            baseline_optimizer=self.baseline_optimizer,
-            gae_lambda=self.gae_lambda,
-            likelihood_ratio_clipping=self.likelihood_ratio_clipping
+        self.model = PGProbRatioModel(
+            # Model
+            states=self.states_spec, actions=self.actions_spec, scope=scope, device=device,
+            saver=saver, summarizer=summarizer, execution=execution,
+            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
+            variable_noise=variable_noise, states_preprocessing=states_preprocessing,
+            actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing,
+            # MemoryModel
+            update_mode=update_mode, memory=memory, optimizer=optimizer, discount=discount,
+            # DistributionModel
+            network=network, distributions=distributions,
+            entropy_regularization=entropy_regularization,
+            # PGModel
+            baseline_mode=baseline_mode, baseline=baseline, baseline_optimizer=baseline_optimizer,
+            gae_lambda=gae_lambda,
+            # PGProbRatioModel
+            likelihood_ratio_clipping=likelihood_ratio_clipping
         )

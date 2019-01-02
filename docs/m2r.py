@@ -4,14 +4,13 @@
 # https://github.com/miyakogi/m2r
 # Licensed under the MIT License
 
-from __future__ import print_function, unicode_literals
+from argparse import ArgumentError, ArgumentParser, Namespace
 import os
 import re
-from argparse import ArgumentParser, Namespace, ArgumentError
 
-from docutils import statemachine, nodes, io, utils
-from docutils.parsers import rst
+from docutils import io, nodes, statemachine, utils
 from docutils.core import ErrorString
+from docutils.parsers import rst
 from docutils.utils import SafeString
 import mistune
 

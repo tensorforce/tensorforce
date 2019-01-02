@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import tensorflow as tf
 
 from tensorforce.core.optimizers import Optimizer
-from tensorforce.core.optimizers.solvers import ConjugateGradient
+from tensorforce.core.optimizers.solvers import solver_modules
 
 
 class NaturalGradient(Optimizer):
@@ -29,13 +25,7 @@ class NaturalGradient(Optimizer):
     """
 
     def __init__(
-        self,
-        learning_rate,
-        cg_max_iterations=20,
-        cg_damping=1e-3,
-        cg_unroll_loop=False,
-        scope='natural-gradient',
-        summary_labels=()
+        self, name, learning_rate, cg_max_iterations=20, cg_damping=1e-3, cg_unroll_loop=False
     ):
         """
         Creates a new natural gradient optimizer instance.
@@ -46,26 +36,19 @@ class NaturalGradient(Optimizer):
             cg_damping: Conjugate gradient solver damping factor.
             cg_unroll_loop: Unroll conjugate gradient loop if true.
         """
+        super().__init__(name=name)
+
         assert learning_rate > 0.0
         self.learning_rate = learning_rate
 
-        self.solver = ConjugateGradient(
-            max_iterations=cg_max_iterations,
-            damping=cg_damping,
-            unroll_loop=cg_unroll_loop
+        self.solver = self.add_module(
+            name='conjugate-gradient', module='conjugate_gradient', modules=solver_modules,
+            max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop
         )
 
-        super(NaturalGradient, self).__init__(scope=scope, summary_labels=summary_labels)
-
     def tf_step(
-        self,
-        time,
-        variables,
-        arguments,
-        fn_loss,
-        fn_kl_divergence,
-        return_estimated_improvement=False,
-        **kwargs
+        self, time, variables, arguments, fn_loss, fn_kl_divergence,
+        return_estimated_improvement=False, **kwargs
     ):
         """
         Creates the TensorFlow operations for performing an optimization step.
@@ -95,7 +78,10 @@ class NaturalGradient(Optimizer):
         kldiv = fn_kl_divergence(**arguments)
 
         # grad(kldiv)
-        kldiv_gradients = tf.gradients(ys=kldiv, xs=variables)
+        kldiv_gradients = [
+            tf.convert_to_tensor(value=grad) for grad in tf.gradients(ys=kldiv, xs=variables)
+        ]
+        # if not all(isinstance(grad, tf.Tensor)):  warning!!!
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to calculate the entire matrix explicitly.
@@ -105,11 +91,15 @@ class NaturalGradient(Optimizer):
 
             # delta' * grad(kldiv)
             delta_kldiv_gradients = tf.add_n(inputs=[
-                tf.reduce_sum(input_tensor=(delta * grad)) for delta, grad in zip(deltas, kldiv_gradients)
+                tf.reduce_sum(input_tensor=(delta * grad))
+                for delta, grad in zip(deltas, kldiv_gradients)
             ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
-            return tf.gradients(ys=delta_kldiv_gradients, xs=variables)
+            return [
+                tf.convert_to_tensor(value=grad)
+                for grad in tf.gradients(ys=delta_kldiv_gradients, xs=variables)
+            ]
 
         # loss
         loss = fn_loss(**arguments)
@@ -120,7 +110,9 @@ class NaturalGradient(Optimizer):
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
-        deltas = self.solver.solve(fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients])
+        deltas = self.solver.solve(
+            fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients]
+        )
 
         # delta' * F
         delta_fisher_matrix_product = fisher_matrix_product(deltas=deltas)
@@ -151,10 +143,11 @@ class NaturalGradient(Optimizer):
 
             with tf.control_dependencies(control_inputs=(applied,)):
                 # Trivial operation to enforce control dependency
+                estimated_delta = [estimated_delta + 0.0 for estimated_delta in estimated_deltas]
                 if return_estimated_improvement:
-                    return [estimated_delta + 0.0 for estimated_delta in estimated_deltas], estimated_improvement
+                    return estimated_delta, estimated_improvement
                 else:
-                    return [estimated_delta + 0.0 for estimated_delta in estimated_deltas]
+                    return estimated_delta
 
         # Zero step if constant <= 0
         def zero_step():

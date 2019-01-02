@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ class ConjugateGradient(Iterative):
 
     """
 
-    def __init__(self, max_iterations, damping, unroll_loop=False):
+    def __init__(self, name, max_iterations, damping, unroll_loop=False):
         """
         Creates a new conjugate gradient solver instance.
 
@@ -60,10 +60,10 @@ class ConjugateGradient(Iterative):
             damping: Damping factor.
             unroll_loop: Unrolls the TensorFlow while loop if true.
         """
+        super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
+
         assert damping >= 0.0
         self.damping = damping
-
-        super(ConjugateGradient, self).__init__(max_iterations=max_iterations, unroll_loop=unroll_loop)
 
     def tf_solve(self, fn_x, x_init, b):
         """
@@ -77,9 +77,9 @@ class ConjugateGradient(Iterative):
         Returns:
             A solution $x$ to the problem as given by the solver.
         """
-        return super(ConjugateGradient, self).tf_solve(fn_x, x_init, b)
+        return super().tf_solve(fn_x, x_init, b)
 
-    def tf_initialize(self, x_init, b):
+    def tf_start(self, x_init, b):
         """
         Initialization step preparing the arguments for the first iteration of the loop body:  
         $x_0, 0, p_0, r_0, r_0^2$.
@@ -93,9 +93,9 @@ class ConjugateGradient(Iterative):
         """
         if x_init is None:
             # Initial guess is zero vector if not given.
-            x_init = [tf.zeros(shape=util.shape(t)) for t in b]
+            x_init = [tf.zeros_like(tensor=t, dtype=util.tf_dtype(dtype='float')) for t in b]
 
-        initial_args = super(ConjugateGradient, self).tf_initialize(x_init)
+        initial_args = super().tf_start(x_init)
 
         # r_0 := b - A * x_0
         # c_0 := r_0
@@ -120,7 +120,7 @@ class ConjugateGradient(Iterative):
         Returns:
             Updated arguments for next iteration.
         """
-        x, next_iteration, conjugate, residual, squared_residual = super(ConjugateGradient, self).tf_step(
+        x, next_iteration, conjugate, residual, squared_residual = super().tf_step(
             x, iteration, conjugate, residual, squared_residual
         )
 
@@ -170,5 +170,5 @@ class ConjugateGradient(Iterative):
         Returns:
             True if another iteration should be performed.
         """
-        next_step = super(ConjugateGradient, self).tf_next_step(x, iteration, conjugate, residual, squared_residual)
+        next_step = super().tf_next_step(x, iteration, conjugate, residual, squared_residual)
         return tf.logical_and(x=next_step, y=(squared_residual >= util.epsilon))

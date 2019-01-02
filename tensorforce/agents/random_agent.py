@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 from tensorforce.agents import Agent
-from tensorforce.models.random_model import RandomModel
-from tensorforce.contrib.sanity_check_specs import sanity_check_execution_spec
+from tensorforce.core.models import RandomModel
 
 
 class RandomAgent(Agent):
@@ -31,13 +26,13 @@ class RandomAgent(Agent):
         self,
         states,
         actions,
-        batched_observe=True,
-        batching_capacity=1000,
+        parallel_interactions=1,
+        buffer_observe=1000,
         scope='random',
         device=None,
         saver=None,
         summarizer=None,
-        execution=None,
+        execution=None
     ):
         """
         Initializes the random agent.
@@ -59,28 +54,14 @@ class RandomAgent(Agent):
                 - meta_param_recorder_class: ???.
             execution (spec): Execution specification (see sanity_check_execution_spec for details).
         """
-
-        self.scope = scope
-        self.device = device
-        self.saver = saver
-        self.summarizer = summarizer
-        self.execution = sanity_check_execution_spec(execution)
-
-        super(RandomAgent, self).__init__(
-            states=states,
-            actions=actions,
-            batched_observe=batched_observe,
-            batching_capacity=batching_capacity
+        super().__init__(
+            states=states, actions=actions, parallel_interactions=parallel_interactions,
+            buffer_observe=buffer_observe
         )
 
-    def initialize_model(self):
-        return RandomModel(
-            states=self.states,
-            actions=self.actions,
-            scope=self.scope,
-            device=self.device,
-            saver=self.saver,
-            summarizer=self.summarizer,
-            execution=self.execution,
-            batching_capacity=self.batching_capacity
+        self.model = RandomModel(
+            # Model
+            states=self.states_spec, actions=self.actions_spec, scope=scope, device=device,
+            saver=saver, summarizer=summarizer, execution=execution,
+            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe
         )

@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
+from collections import OrderedDict
 
 import tensorflow as tf
 
-from tensorforce.core.networks import Linear
+from tensorforce.core import layer_modules
 from tensorforce.core.baselines import Baseline
 
 
@@ -28,7 +26,7 @@ class AggregatedBaseline(Baseline):
     Baseline which aggregates per-state baselines.
     """
 
-    def __init__(self, baselines, scope='aggregated-baseline', summary_labels=()):
+    def __init__(self, name, baselines_spec, l2_regularization=None, summary_labels=None):
         """
         Aggregated baseline.
 
@@ -36,53 +34,24 @@ class AggregatedBaseline(Baseline):
             baselines: Dict of per-state baseline specification dicts
         """
 
-        self.baselines = dict()
-        for name in sorted(baselines):
-            self.baselines[name] = Baseline.from_spec(
-                spec=baselines[name],
-                kwargs=dict(summary_labels=summary_labels)
+        super().__init__(
+            name=name, l2_regularization=l2_regularization, summary_labels=summary_labels
+        )
+
+        self.baselines = OrderedDict()
+        from tensorforce.core.baselines import baseline_modules
+        for name, baseline_spec in baselines_spec.items():  # turn to ordereddict in agent
+            self.baselines[name] = self.add_module(
+                name=(name + '-baseline'), module=baseline_spec, modules=baseline_modules
             )
 
-        self.linear = Linear(size=1, bias=0.0, scope='prediction', summary_labels=summary_labels)
-
-        super(AggregatedBaseline, self).__init__(scope, summary_labels)
+        self.prediction = self.add_module(
+            name='prediction', module='linear', modules=layer_modules, size=0
+        )
 
     def tf_predict(self, states, internals, update):
         predictions = list()
-        for name in sorted(states):
-            prediction = self.baselines[name].predict(states=states[name], internals=internals, update=update)
+        for name, baseline in self.baselines.items():
+            prediction = baseline.predict(states=states[name], internals=internals, update=update)
             predictions.append(prediction)
-        predictions = tf.stack(values=predictions, axis=1)
-        prediction = self.linear.apply(x=predictions)
-        return tf.squeeze(input=prediction, axis=1)
-
-    def tf_regularization_loss(self):
-        regularization_loss = super(AggregatedBaseline, self).tf_regularization_loss()
-        if regularization_loss is None:
-            losses = list()
-        else:
-            losses = [regularization_loss]
-
-        for name in sorted(self.baselines):
-            regularization_loss = self.baselines[name].regularization_loss()
-            if regularization_loss is not None:
-                losses.append(regularization_loss)
-
-        regularization_loss = self.linear.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        if len(losses) > 0:
-            return tf.add_n(inputs=losses)
-        else:
-            return None
-
-    def get_variables(self, include_nontrainable=False):
-        baseline_variables = super(AggregatedBaseline, self).get_variables(include_nontrainable=include_nontrainable)
-        baselines_variables = [
-            variable for name in sorted(self.baselines)
-            for variable in self.baselines[name].get_variables(include_nontrainable=include_nontrainable)
-        ]
-        linear_variables = self.linear.get_variables(include_nontrainable=include_nontrainable)
-
-        return baseline_variables + baselines_variables + linear_variables
+        return self.prediction.apply(x=tf.stack(values=predictions, axis=1))

@@ -21,15 +21,12 @@ from tensorforce.core.baselines.cnn_baseline import CNNBaseline
 from tensorforce.core.baselines.mlp_baseline import MLPBaseline
 
 
-baselines = dict(
-    aggregated=AggregatedBaseline,
-    cnn=CNNBaseline,
-    mlp=MLPBaseline,
-    network=NetworkBaseline
+baseline_modules = dict(
+    aggregated=AggregatedBaseline, cnn=CNNBaseline, mlp=MLPBaseline, network=NetworkBaseline
 )
 
 
 __all__ = [
-    'baselines', 'Baseline', 'NetworkBaseline', 'AggregatedBaseline',
-    'CNNBaseline', 'MLPBaseline'
+    'AggregatedBaseline', 'Baseline', 'baseline_modules', 'CNNBaseline', 'MLPBaseline',
+    'NetworkBaseline'
 ]

@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 from tensorforce.execution.base_runner import BaseRunner
 
 import time
-from six.moves import xrange
 import warnings
 from inspect import getargspec
 from tqdm import tqdm
@@ -105,7 +100,7 @@ class ParallelRunner(BaseRunner):
                     action = self.agent.act(states=state, deterministic=deterministic, index=index)
 
                     reward = 0
-                    for _ in xrange(self.repeat_actions):
+                    for _ in range(self.repeat_actions):
                         state, terminal, step_reward = self.environment.execute(action=action)
                         reward += step_reward
                         if terminal:

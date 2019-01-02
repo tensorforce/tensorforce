@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,53 +13,26 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
-import tensorforce.core.optimizers
+from tensorforce import TensorforceError
+from tensorforce.core import Module
 
 
-class Optimizer(object):
+class Optimizer(Module):
     """
     Base class for optimizers which minimize a not yet further specified expression, usually some
     kind of loss function. More generally, an optimizer can be considered as some method of
     updating a set of variables.
     """
 
-    def __init__(self, scope='optimizer', summary_labels=None):
-        """
-        Creates a new optimizer instance.
-        """
-        self.summary_labels = set(summary_labels or ())
-
-        self.variables = dict()
-
-        def custom_getter(getter, name, registered=False, **kwargs):
-            variable = getter(name=name, registered=True, **kwargs)
-            if registered:
-                pass
-            elif name in self.variables:
-                assert variable is self.variables[name]
-            else:
-                assert not kwargs['trainable']
-                self.variables[name] = variable
-            return variable
-
-        # TensorFlow function
-        self.step = tf.make_template(
-            name_=(scope + '/step'),
-            func_=self.tf_step,
-            custom_getter=custom_getter
-        )
+    def __init__(self, name):
+        super().__init__(name=name, l2_regularization=0.0)
 
     def tf_step(self, time, variables, **kwargs):
         """
-        Creates the TensorFlow operations for performing an optimization step on the given variables, including
-        actually changing the values of the variables.
+        Creates the TensorFlow operations for performing an optimization step on the given  
+        variables, including actually changing the values of the variables.
 
         Args:
             time: Time tensor.
@@ -72,7 +45,7 @@ class Optimizer(object):
         """
         raise NotImplementedError
 
-    def apply_step(self, variables, deltas):
+    def tf_apply_step(self, variables, deltas):
         """
         Applies the given (and already calculated) step deltas to the variable values.
 
@@ -84,12 +57,13 @@ class Optimizer(object):
             The step-applied operation. A tf.group of tf.assign_add ops.
         """
         if len(variables) != len(deltas):
-            raise TensorForceError("Invalid variables and deltas lists.")
-        return tf.group(
-            *(tf.assign_add(ref=variable, value=delta) for variable, delta in zip(variables, deltas))
-        )
+            raise TensorforceError("Invalid variables and deltas lists.")
 
-    def minimize(self, time, variables, **kwargs):
+        return tf.group(*(
+            tf.assign_add(ref=variable, value=delta) for variable, delta in zip(variables, deltas)
+        ))
+
+    def tf_minimize(self, time, variables, **kwargs):
         """
         Performs an optimization step.
 
@@ -145,24 +119,10 @@ class Optimizer(object):
         with tf.control_dependencies(control_inputs=deltas):
             return tf.no_op()
 
-    def get_variables(self):
-        """
-        Returns the TensorFlow variables used by the optimizer.
+    def add_variable(self, name, dtype, shape, is_trainable=False, initializer='zeros'):
+        if is_trainable:
+            raise TensorforceError("Invalid trainable variable.")
 
-        Returns:
-            List of variables.
-        """
-        return [self.variables[key] for key in sorted(self.variables)]
-
-    @staticmethod
-    def from_spec(spec, kwargs=None):
-        """
-        Creates an optimizer from a specification dict.
-        """
-        optimizer = util.get_object(
-            obj=spec,
-            predefined_objects=tensorforce.core.optimizers.optimizers,
-            kwargs=kwargs
+        return super().add_variable(
+            name=name, dtype=dtype, shape=shape, is_trainable=is_trainable, initializer=initializer
         )
-        assert isinstance(optimizer, Optimizer)
-        return optimizer

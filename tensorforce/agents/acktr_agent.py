@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.agents import LearningAgent
-from tensorforce.models import PGProbRatioModel
+from tensorforce.agents import DRLAgent
+from tensorforce.core.models import PGProbRatioModel
 
 
-class ACKTRAgent(LearningAgent):
+class ACKTRAgent(DRLAgent):
     """
     Actor Critic using Kronecker-Factored Trust Region (ACKTR)
     ([Wu et al., 2017](https://arxiv.org/abs/1708.05144)).
@@ -67,7 +63,7 @@ class ACKTRAgent(LearningAgent):
                 - batch_size: integer (default: 10).
                 - frequency: integer (default: batch_size).
             memory (spec): Memory specification, see core.memories module for more information
-                (default: {type='latest', include_next_states=false, capacity=1000*batch_size}).
+                (default: {type='latest', include_next_state=false, capacity=1000*batch_size}).
             optimizer (spec): ACKTR agent implicitly defines an optimized-step KFAC optimizer.
             baseline_mode (str): One of 'states', 'network' (default: none).
             baseline (spec): Baseline specification, see core.baselines module for more information
@@ -102,11 +98,11 @@ class ACKTRAgent(LearningAgent):
             # Assumed episode length of 1000 timesteps.
             memory = dict(
                 type='latest',
-                include_next_states=False,
+                include_next_state=False,
                 capacity=(1000 * update_mode['batch_size'])
             )
         else:
-            assert not memory['include_next_states']
+            assert not memory['include_next_state']
 
         # if update_mode is `timesteps`, require memory `latest`
         assert (update_mode['unit'] != 'timesteps' or memory['type'] == 'latest')
@@ -131,7 +127,7 @@ class ACKTRAgent(LearningAgent):
         self.gae_lambda = gae_lambda
         self.likelihood_ratio_clipping = likelihood_ratio_clipping
 
-        super(ACKTRAgent, self).__init__(
+        super().__init__(
             states=states,
             actions=actions,
             batched_observe=batched_observe,

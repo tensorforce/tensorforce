@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 from math import log
+
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.networks import Linear
+from tensorforce.core import layer_modules
 from tensorforce.core.distributions import Distribution
 
 
@@ -30,27 +27,22 @@ class Beta(Distribution):
     Beta distribution, for bounded continuous actions.
     """
 
-    def __init__(self, shape, min_value, max_value, alpha=0.0, beta=0.0, scope='beta', summary_labels=()):
+    def __init__(self, name, action_spec, embedding_size):
         """
         Beta distribution.
-
-        Args:
-            shape: Action shape.
-            min_value: Minimum value of continuous actions.
-            max_value: Maximum value of continuous actions.
-            alpha: Optional distribution bias for the alpha value.
-            beta: Optional distribution bias for the beta value.
         """
-        assert min_value is None or max_value > min_value
-        self.shape = shape
-        self.min_value = min_value
-        self.max_value = max_value
-        action_size = util.prod(self.shape)
+        super().__init__(name=name, action_spec=action_spec, embedding_size=embedding_size)
 
-        self.alpha = Linear(size=action_size, bias=alpha, scope='alpha', summary_labels=summary_labels)
-        self.beta = Linear(size=action_size, bias=beta, scope='beta', summary_labels=summary_labels)
-
-        super(Beta, self).__init__(shape=shape, scope=scope, summary_labels=summary_labels)
+        action_size = util.product(xs=self.action_spec['shape'], empty=0)
+        input_spec = dict(type='float', shape=(embedding_size,))
+        self.alpha = self.add_module(
+            name='alpha', module='linear', modules=layer_modules, size=action_size,
+            input_spec=input_spec
+        )
+        self.beta = self.add_module(
+            name='beta', module='linear', modules=layer_modules, size=action_size,
+            input_spec=input_spec
+        )
 
     def tf_parameterize(self, x):
         # Softplus to ensure alpha and beta >= 1
@@ -65,16 +57,15 @@ class Beta(Distribution):
         beta = tf.clip_by_value(t=beta, clip_value_min=log_eps, clip_value_max=-log_eps)
         beta = tf.log(x=(tf.exp(x=beta) + 1.0)) + 1.0
 
-        shape = (-1,) + self.shape
+        shape = (-1,) + self.action_spec['shape']
         alpha = tf.reshape(tensor=alpha, shape=shape)
         beta = tf.reshape(tensor=beta, shape=shape)
 
         alpha_beta = tf.maximum(x=(alpha + beta), y=util.epsilon)
         log_norm = tf.lgamma(x=alpha) + tf.lgamma(x=beta) - tf.lgamma(x=alpha_beta)
 
-        if 'distribution' in self.summary_labels:
-            tf.contrib.summary.scalar(name=(self.scope + '-alpha'), tensor=alpha)
-            tf.contrib.summary.scalar(name=(self.scope + '-beta'), tensor=beta)
+        self.add_summary(label='distribution', name='alpha', tensor=alpha)
+        self.add_summary(label='distribution', name='beta', tensor=beta)
 
         return alpha, beta, alpha_beta, log_norm
 
@@ -90,29 +81,32 @@ class Beta(Distribution):
 
         sampled = beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=util.epsilon)
 
-        return self.min_value + (self.max_value - self.min_value) * \
+        return self.action_spec['min_value'] + \
+            (self.action_spec['max_value'] - self.action_spec['min_value']) * \
             tf.where(condition=deterministic, x=definite, y=sampled)
 
     def tf_log_probability(self, distr_params, action):
         alpha, beta, _, log_norm = distr_params
-        action = (action - self.min_value) / (self.max_value - self.min_value)
+        action = (action - self.action_spec['min_value']) / \
+            (self.action_spec['max_value'] - self.action_spec['min_value'])
         action = tf.minimum(x=action, y=(1.0 - util.epsilon))
         return (beta - 1.0) * tf.log(x=tf.maximum(x=action, y=util.epsilon)) + \
             (alpha - 1.0) * tf.log1p(x=-action) - log_norm
 
     def tf_entropy(self, distr_params):
         alpha, beta, alpha_beta, log_norm = distr_params
-        return log_norm - (beta - 1.0) * tf.digamma(x=beta) - (alpha - 1.0) * tf.digamma(x=alpha) + \
-            (alpha_beta - 2.0) * tf.digamma(x=alpha_beta)
+        return log_norm - (beta - 1.0) * tf.digamma(x=beta) - (alpha - 1.0) * \
+            tf.digamma(x=alpha) + (alpha_beta - 2.0) * tf.digamma(x=alpha_beta)
 
     def tf_kl_divergence(self, distr_params1, distr_params2):
         alpha1, beta1, alpha_beta1, log_norm1 = distr_params1
         alpha2, beta2, alpha_beta2, log_norm2 = distr_params2
         return log_norm2 - log_norm1 - tf.digamma(x=beta1) * (beta2 - beta1) - \
-            tf.digamma(x=alpha1) * (alpha2 - alpha1) + tf.digamma(x=alpha_beta1) * (alpha_beta2 - alpha_beta1)
+            tf.digamma(x=alpha1) * (alpha2 - alpha1) + tf.digamma(x=alpha_beta1) * \
+            (alpha_beta2 - alpha_beta1)
 
     def tf_regularization_loss(self):
-        regularization_loss = super(Beta, self).tf_regularization_loss()
+        regularization_loss = super().tf_regularization_loss()
         if regularization_loss is None:
             losses = list()
         else:
@@ -130,10 +124,3 @@ class Beta(Distribution):
             return tf.add_n(inputs=losses)
         else:
             return None
-
-    def get_variables(self, include_nontrainable=False):
-        distribution_variables = super(Beta, self).get_variables(include_nontrainable=include_nontrainable)
-        alpha_variables = self.alpha.get_variables(include_nontrainable=include_nontrainable)
-        beta_variables = self.beta.get_variables(include_nontrainable=include_nontrainable)
-
-        return distribution_variables + alpha_variables + beta_variables

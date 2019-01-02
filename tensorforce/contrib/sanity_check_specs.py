@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce import TensorForceError
+from tensorforce import TensorforceError
 import copy
 
 
@@ -147,4 +143,4 @@ def sanity_check_execution_spec(execution_spec):
         assert execution_spec['num_parallel'] > 0, "ERROR: num_parallel needs to be > 0 but is equal to {}".format(execution_spec['num_parallel'])
         return execution_spec
 
-    raise TensorForceError("Unsupported execution type specified ({})!".format(type_))
+    raise TensorforceError("Unsupported execution type specified ({})!".format(type_))

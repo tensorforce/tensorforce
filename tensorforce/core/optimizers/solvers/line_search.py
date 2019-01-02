@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
+from tensorforce import TensorforceError, util
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -26,7 +26,9 @@ class LineSearch(Iterative):
     moving towards $x'$.
     """
 
-    def __init__(self, max_iterations, accept_ratio, mode, parameter, unroll_loop=False):
+    def __init__(
+        self, name, max_iterations, accept_ratio, mode, parameter, unroll_loop=False
+    ):
         """
         Creates a new line search solver instance.
 
@@ -39,16 +41,16 @@ class LineSearch(Iterative):
             parameter: Movement mode parameter, additive or multiplicative, respectively.
             unroll_loop: Unrolls the TensorFlow while loop if true.
         """
+        super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
+
         assert accept_ratio >= 0.0
         self.accept_ratio = accept_ratio
 
         # TODO: Implement such sequences more generally, also useful for learning rate decay or so.
         if mode not in ('linear', 'exponential'):
-            raise TensorForceError("Invalid line search mode: {}, please choose one of'linear' or 'exponential'".format(mode))
+            raise TensorforceError("Invalid line search mode: {}, please choose one of'linear' or 'exponential'".format(mode))
         self.mode = mode
         self.parameter = parameter
-
-        super(LineSearch, self).__init__(max_iterations=max_iterations, unroll_loop=unroll_loop)
 
     def tf_solve(self, fn_x, x_init, base_value, target_value, estimated_improvement=None):
         """
@@ -64,9 +66,9 @@ class LineSearch(Iterative):
         Returns:
             A solution $x$ to the problem as given by the solver.
         """
-        return super(LineSearch, self).tf_solve(fn_x, x_init, base_value, target_value, estimated_improvement)
+        return super().tf_solve(fn_x, x_init, base_value, target_value, estimated_improvement)
 
-    def tf_initialize(self, x_init, base_value, target_value, estimated_improvement):
+    def tf_start(self, x_init, base_value, target_value, estimated_improvement):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
@@ -84,7 +86,7 @@ class LineSearch(Iterative):
         if estimated_improvement is None:  # TODO: Is this a good alternative?
             estimated_improvement = tf.abs(x=base_value)
 
-        first_step = super(LineSearch, self).tf_initialize(x_init)
+        first_step = super().tf_start(x_init)
 
         improvement = tf.divide(
             x=(target_value - self.base_value),
@@ -117,7 +119,7 @@ class LineSearch(Iterative):
         Returns:
             Updated arguments for next iteration.
         """
-        x, next_iteration, deltas, improvement, last_improvement, estimated_improvement = super(LineSearch, self).tf_step(
+        x, next_iteration, deltas, improvement, last_improvement, estimated_improvement = super().tf_step(
             x, iteration, deltas, improvement, last_improvement, estimated_improvement
         )
 
@@ -156,7 +158,7 @@ class LineSearch(Iterative):
         Returns:
             True if another iteration should be performed.
         """
-        next_step = super(LineSearch, self).tf_next_step(
+        next_step = super().tf_next_step(
             x, iteration, deltas, improvement, last_improvement, estimated_improvement
         )
 

@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -27,16 +23,16 @@ class MetaOptimizer(Optimizer):
     more optimal step size.
     """
 
-    def __init__(self, optimizer, scope='meta-optimizer', summary_labels=(), **kwargs):
+    def __init__(self, name, optimizer, **kwargs):
         """
         Creates a new meta optimizer instance.
 
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.
         """
-        self.optimizer = Optimizer.from_spec(spec=optimizer, kwargs=kwargs)
+        super().__init__(name=name)
 
-        super(MetaOptimizer, self).__init__(scope=scope, summary_labels=summary_labels)
-
-    def get_variables(self):
-        return super(MetaOptimizer, self).get_variables() + self.optimizer.get_variables()
+        from tensorforce.core.optimizers import optimizer_modules
+        self.optimizer = self.add_module(
+            name='inner-optimizer', module=optimizer, modules=optimizer_modules, **kwargs
+        )

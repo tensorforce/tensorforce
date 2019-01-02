@@ -1,4 +1,4 @@
-# Copyright 2018 TensorForce Team. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
+from collections import OrderedDict
 from random import randint, random
 
 import numpy as np
 
-from tensorforce import util, TensorForceError
+from tensorforce import TensorforceError, util
 from tensorforce.environments import Environment
 
 
@@ -38,37 +35,35 @@ class UnittestEnvironment(Environment):
             states: the state specification for the unit-test
             actions: the action specification for the unit-test
         """
-        if not util.is_valid_state_spec(state_spec=states):
-            raise TensorForceError("Invalid state specification.")
-        if not util.is_valid_action_spec(action_spec=actions):
-            raise TensorForceError("Invalid action specification.")
+        self.states_spec = OrderedDict((name, states[name]) for name in sorted(states))
+        self.actions_spec = OrderedDict((name, actions[name]) for name in sorted(actions))
 
-        self.state_spec = states
-        self.action_spec = actions
-        self.random_state = self.__class__.random_state_function(state_spec=states)
-        self.is_valid_action = self.__class__.is_valid_action_function(action_spec=actions)
+        self.random_states = self.__class__.random_states_function(states_spec=self.states_spec)
+        self.is_valid_actions = self.__class__.is_valid_actions_function(
+            actions_spec=self.actions_spec
+        )
 
     @property
     def states(self):
-        return self.state_spec
+        return self.states_spec
 
     @property
     def actions(self):
-        return self.action_spec
+        return self.actions_spec
 
     @classmethod
-    def random_state_function(cls, state_spec):
-        if util.is_single_state(state_spec=state_spec):
-            return cls.random_state_component_function(state_spec=state_spec)
+    def random_states_function(cls, states_spec):
+        if util.is_atomic_values_spec(values_spec=states_spec):
+            return cls.random_state_function(state_spec=states_spec)
 
         else:
             return (lambda: {
-                name: cls.random_state_component_function(state_spec=state_spec[name])()
-                for name in sorted(state_spec)
+                name: cls.random_states_function(states_spec=state_spec)()
+                for name, state_spec in states_spec.items()
             })
 
     @classmethod
-    def random_state_component_function(cls, state_spec):
+    def random_state_function(cls, state_spec):
         shape = state_spec['shape']
         dtype = state_spec.get('type', 'float')
 
@@ -76,8 +71,8 @@ class UnittestEnvironment(Environment):
             return (lambda: np.random.random_sample(size=shape) >= 0.5)
 
         elif dtype == 'int':
-            num_actions = state_spec['num_states']
-            return (lambda: np.random.randint(low=0, high=num_actions, size=shape))
+            num_values = state_spec['num_values']
+            return (lambda: np.random.randint(low=0, high=num_values, size=shape))
 
         elif dtype == 'float':
             if 'min_value' in state_spec:
@@ -91,35 +86,40 @@ class UnittestEnvironment(Environment):
                 return (lambda: np.random.standard_normal(size=shape))
 
     @classmethod
-    def is_valid_action_function(cls, action_spec):
-        if util.is_single_action(action_spec=action_spec):
-            return cls.is_valid_action_component_function(action_spec=action_spec)
+    def is_valid_actions_function(cls, actions_spec):
+        if util.is_atomic_values_spec(values_spec=actions_spec):
+            return cls.is_valid_action_function(action_spec=actions_spec)
 
         else:
-            return (lambda action: all(
-                cls.is_valid_action_component_function(action_spec=action_spec[name])(
-                    action=action[name]
-                ) for name in sorted(action_spec)
+            return (lambda actions: all(
+                cls.is_valid_actions_function(actions_spec=action_spec)(action=actions[name])
+                for name, action_spec in actions_spec.items()
             ))
 
     @classmethod
-    def is_valid_action_component_function(cls, action_spec):
+    def is_valid_action_function(cls, action_spec):
         dtype = action_spec['type']
         shape = action_spec.get('shape', ())
 
         if dtype == 'bool':
             return (lambda action: (
-                isinstance(action, util.np_dtype('bool')) or \
-                (isinstance(action, np.ndarray) and action.dtype == util.np_dtype('bool'))
+                (isinstance(action, util.np_dtype('bool')) and shape == ()) or
+                (
+                    isinstance(action, np.ndarray) and
+                    action.dtype == util.np_dtype('bool') and action.shape == shape
+                )
             ))
 
         elif dtype == 'int':
-            num_actions = action_spec['num_actions']
+            num_values = action_spec['num_values']
             return (lambda action: (
                 (
-                    isinstance(action, util.np_dtype('int')) or \
-                    (isinstance(action, np.ndarray) and action.dtype == util.np_dtype('int'))
-                ) and (0 <= action).all() and (action < num_actions).all()
+                    (isinstance(action, util.np_dtype('int')) and shape == ()) or
+                    (
+                        isinstance(action, np.ndarray) and
+                        action.dtype == util.np_dtype('int') and action.shape == shape
+                    )
+                ) and (0 <= action).all() and (action < num_values).all()
             ))
 
         elif dtype == 'float':
@@ -128,29 +128,34 @@ class UnittestEnvironment(Environment):
                 max_value = action_spec['max_value']
                 return (lambda action: (
                     (
-                        isinstance(action, util.np_dtype('float')) or
-                        (isinstance(action, np.ndarray) and action.dtype == util.np_dtype('float'))
+                        (isinstance(action, util.np_dtype('float')) and shape == ()) or
+                        (
+                            isinstance(action, np.ndarray) and
+                            action.dtype == util.np_dtype('float') and action.shape == shape
+                        )
                     ) and (min_value <= action).all() and (action <= max_value).all()
                 ))
 
             else:
                 return (lambda action: (
-                    isinstance(action, util.np_dtype('float')) or \
-                    (isinstance(action, np.ndarray) and action.dtype == util.np_dtype('float'))
+                    (isinstance(action, util.np_dtype('float')) and shape == ()) or
+                    (
+                        isinstance(action, np.ndarray) and
+                        action.dtype == util.np_dtype('float') and action.shape == shape
+                    )
                 ))
 
     def reset(self):
         self.num_timesteps = randint(1, 10)
         self.timestep = 0
-        state = self.random_state()
-        return state
+        states = self.random_states()
+        return states
 
-    def execute(self, action):
-        if not self.is_valid_action(action=action):
-            print(action)
-            raise TensorForceError("Invalid action.")
+    def execute(self, actions):
+        if not self.is_valid_actions(actions):
+            raise TensorforceError.value(name='actions', value=actions)
 
-        state = self.random_state()
+        states = self.random_states()
         terminal = self.timestep < self.num_timesteps
         reward = -1.0 + 2.0 * random()
-        return state, terminal, reward
+        return states, terminal, reward

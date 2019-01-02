@@ -1,226 +1,158 @@
-TensorForce: A TensorFlow library for applied reinforcement learning
-====================================================================
+# Tensorforce: a TensorFlow library for applied reinforcement learning
 
 [![Docs](https://readthedocs.org/projects/tensorforce/badge)](http://tensorforce.readthedocs.io/en/latest/)
-[![Gitter](https://badges.gitter.im/reinforceio/TensorForce.svg)](https://docs.google.com/forms/d/1_UD5Pb5LaPVUviD0pO0fFcEnx_vwenvuc00jmP2rRIc/)
+[![Gitter](https://badges.gitter.im/reinforceio/TensorForce.svg)](https://gitter.im/reinforceio/TensorForce)
 [![Build Status](https://travis-ci.org/reinforceio/tensorforce.svg?branch=master)](https://travis-ci.org/reinforceio/tensorforce)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/reinforceio/tensorforce/blob/master/LICENSE)
 
-Introduction
-------------
 
-TensorForce is an open source reinforcement learning library focused on
-providing clear APIs, readability and modularisation to deploy
-reinforcement learning solutions both in research and practice.
-TensorForce is built on top of TensorFlow and compatible with Python 2.7
-and &gt;3.5 and supports multiple state inputs and multi-dimensional
-actions to be compatible with any type of simulation or application environment.
 
-TensorForce also aims to move all reinforcement learning logic into the
-TensorFlow graph, including control flow. This both reduces dependencies
-on the host language (Python), thus enabling portable computation graphs that
-can be used in other languages and  contexts, and improves performance.
+**Important**: Tensorforce was recently moved to another GitHub host organization. The following command will update your git directory (assuming no changes beyond standard cloning):
 
-More information on architecture can also be found [on our blog](https://reinforce.io/blog/).
-Please also read the [TensorForce FAQ](https://github.com/reinforceio/tensorforce/blob/master/FAQ.md)
-if you encounter problems or have questions.
+```bash
+git remote set-url origin https://github.com/tensorforce/tensorforce.git
+```
 
-Finally, read the latest update notes (UPDATE_NOTES.md) for an idea of
-how the project is evolving, especially concerning major API breaking updates.
 
-The main difference to existing libraries is a strict separation of
-environments, agents and update logic that facilitates usage in
-non-simulation environments. Further, research code often relies on
-fixed network architectures that have been used to tackle particular
-benchmarks. TensorForce is built with the idea that (almost) everything
-should be optionally configurable and in particular uses value function
-template configurations to be able to quickly experiment with new
-models. The goal of TensorForce is to provide a practitioner's
-reinforcement learning framework that integrates into modern software
-service architectures.
 
-TensorForce is actively being maintained and developed both to
-continuously improve the existing code as well as to reflect new
-developments as they arise. The aim is not to
-include every new trick but to adopt methods as
-they prove themselves stable.
+#### Introduction
 
-Features
---------
+Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. TensorForce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
 
-TensorForce currently integrates with the OpenAI Gym API, OpenAI
-Universe, DeepMind lab, ALE and Maze explorer. The following algorithms are available (all
-policy methods both continuous/discrete and using a Beta distribution for bounded actions). 
+Tensorforce follows a set of high-level design choices which differentiate it from other similar libraries:
 
--  A3C using distributed TensorFlow or a multithreaded runner - now as part of our generic Model
-    usable with different agents. - [paper](https://arxiv.org/pdf/1602.01783.pdf)
-- Trust Region Policy Optimization (TRPO) - ```trpo_agent``` - [paper](https://arxiv.org/abs/1502.05477)
-- Normalised Advantage functions (NAFs) - ```naf_agent``` - [paper](https://arxiv.org/pdf/1603.00748.pdf)
-- DQN - ```dqn_agent``` -  [paper](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
-- Double-DQN - ```ddqn_agent``` - [paper](https://arxiv.org/abs/1509.06461)
-- N-step DQN - ```dqn_nstep_agent```
-- Vanilla Policy Gradients (VPG/ REINFORCE) - ```vpg_agent```- [paper](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf)
-- Actor-critic models - via `baseline` for any policy gradient model (see next list) - [paper]()
-- Deep Q-learning from Demonstration (DQFD) -
-    [paper](https://arxiv.org/abs/1704.03732)
-- Proximal Policy Optimisation (PPO) - ```ppo_agent``` - [paper](https://arxiv.org/abs/1707.06347)
-- Random and constant agents for sanity checking: ```random_agent```, ```constant_agent```
- 
-Other heuristics and their respective config key that can be turned on where sensible:
+- **Modular component-based design**: Feature implementations, above all, strive to be as generally applicable and configurable as possible, potentially at some cost of faithfully resembling details of the introducing paper.
+- **Separation of RL algorithm and application**: Algorithms are agnostic to the type and structure of inputs (states/observations) and outputs (actions/decisions), as well as the interaction with the application environment.
+- **Full-on TensorFlow models**: The entire reinforcement learning logic, including control flow, is implemented in TensorFlow, to enable portable computation graphs independent of application programming language, and to facilitate the deployment of models.
 
-- Generalized advantage estimation - ```gae_lambda```  - [paper](https://arxiv.org/abs/1506.02438)
-- Prioritizied experience replay - memory type ```prioritized_replay``` - [paper](https://arxiv.org/abs/1511.05952)
-- Bounded continuous actions are mapped to Beta distributions instead of Gaussians - [paper](http://proceedings.mlr.press/v70/chou17a/chou17a.pdf)
-- Baseline / actor-critic modes: Based on raw states (```states```) or on network output (```network```). MLP (```mlp```), CNN (```cnn```) or custom network (```custom```). Special case for mode ```states```: baseline per state + linear combination layer (via ```baseline=dict(state1=..., state2=..., etc)```).
-- Generic pure TensorFlow optimizers, most models can be used with natural gradient and evolutionary optimizers
-- Preprocessing modes: ```normalize```, ```standardize```, ```grayscale```, ```sequence```, ```clip```,
-  ```divide```, ```image_resize```
-- Exploration modes: ```constant```,```linear_decay```, ```epsilon_anneal```, ```epsilon_decay```,
-  ```ornstein_uhlenbeck```
 
-Installation
-------------
 
-We uploaded the latest stable version of TensorForce to PyPI. To install, just execute:
+#### Quicklinks
+
+- [Documentation](http://tensorforce.readthedocs.io) and [update notes](https://github.com/reinforceio/tensorforce/blob/master/UPDATE_NOTES.md)
+- [Contact](mailto:tensorforce.team@gmail.com) and [Gitter channel](https://gitter.im/reinforceio/TensorForce)
+- [Contribution guidelines](https://github.com/reinforceio/tensorforce/blob/master/CONTRIBUTING.md)
+- [Blog](https://reinforce.io/blog/)
+
+
+
+#### Table of content
+
+- [Installation](#installation)
+- [Features](#features)
+- [Examples and documentation](#examples-and-documentation)
+- [Quickstart example code](#quickstart-example-code)
+- [Contact for support and feedback](#contact-for-support=and-feedback)
+- [Core team and contributors](#core-team-and-contributors)
+- [Cite Tensorforce](#cite-tensorforce)
+
+
+
+## Installation
+
+
+A stable version of Tensorforce is periodically updated on PyPI and installed as follows:
 
 ```bash
 pip install tensorforce
 ```
 
-If you want to use the latest version from GitHub, use:
-
+To always use the latest version of Tensorforce, install the GitHub version instead:
 
 ```bash
-git clone git@github.com:reinforceio/tensorforce.git
+git clone https://github.com/reinforceio/tensorforce.git
 cd tensorforce
 pip install -e .
 ```
 
-TensorForce is built on [Google's Tensorflow](https://www.tensorflow.org/). The installation command assumes
-that you have `tensorflow` or `tensorflow-gpu` installed. Tensorforce requires Tensorflow version 1.5 or later.
-
-Alternatively, you can use the following commands to install the tensorflow dependency.
-
-To install TensorForce with `tensorflow` (cpu), use:
+TensorForce is built on [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed. Generally, Tensorforce assumes the latest version of TensorFlow and thus is only backwards-compatible to the degree TensorFlow is. To include the current version of TensorFlow with the installation of Tensorforce, add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
 
 ```bash
-# PyPI install
+# PyPI version plus TensorFlow CPU version
 pip install tensorforce[tf]
 
-# Local install
-pip install -e .[tf]
-```
-
-To install TensorForce with `tensorflow-gpu` (gpu), use:
-
-```bash
-# PyPI install
-pip install tensorforce[tf_gpu]
-
-# Local install
+# GitHub version plus TensorFlow GPU version
 pip install -e .[tf_gpu]
 ```
 
-To update TensorForce, use `pip install --upgrade tensorforce` for the PyPI
-version, or run `git pull` in the tensorforce directory if you cloned the 
-GitHub repository.
-Please note that we did not include OpenAI Gym/Universe/DeepMind lab in
-the default install script because not everyone will want to use these.
-Please install them as required, usually via pip.
+Some scripts require additional packages like, for instance, [OpenAI Gym](https://gym.openai.com/), which have to be installed separately.
 
-Examples and documentation
---------------------------
 
-For a quick start, you can run one of our example scripts using the
-provided configurations, e.g. to run the TRPO agent on CartPole, execute
-from the examples folder:
 
-```bash
-python examples/openai_gym.py CartPole-v0 -a examples/configs/ppo.json -n examples/configs/mlp2_network.json
-```
-
-Documentation is available at
-[ReadTheDocs](http://tensorforce.readthedocs.io). We also have tests
-validating models on minimal environments which can be run from the main
-directory by executing `pytest`{.sourceCode}.
-
-Create and use agents
----------------------
-
-To use TensorForce as a library without using the pre-defined simulation
-runners, simply install and import the library, then create an agent and
-use it as seen below (see documentation for all optional parameters):
+## Quickstart example code
 
 ```python
 from tensorforce.agents import PPOAgent
 
-# Create a Proximal Policy Optimization agent
+# Instantiate a Tensorforce agent
 agent = PPOAgent(
     states=dict(type='float', shape=(10,)),
-    actions=dict(type='int', num_actions=10),
+    actions=dict(type='int', num_values=5),
     network=[
         dict(type='dense', size=64),
         dict(type='dense', size=64)
     ],
-    batching_capacity=1000,
-    step_optimizer=dict(
-        type='adam',
-        learning_rate=1e-4
-    )
+    step_optimizer=dict(type='adam', learning_rate=1e-4)
 )
 
-# Get new data from somewhere, e.g. a client to a web app
-client = MyClient('http://127.0.0.1', 8080)
+# Initialize the agent
+agent.initialize()
 
-# Poll new state from client
-state = client.get_state()
+# Retrieve the latest (observable) environment state
+state = get_current_state()  # (float array of shape [10])
 
-# Get prediction from agent, execute
-action = agent.act(state)
-reward = client.execute(action)
+# Query the agent for its action decision
+action = agent.act(states=state)  # (scalar between 0 and 4)
 
-# Add experience, agent automatically updates model according to batch size
+# Execute the decision and retrieve the current performance score
+reward = execute_decision(action)  # (any scalar float)
+
+# Pass feedback about performance (and termination) to the agent
 agent.observe(reward=reward, terminal=False)
 ```
 
-Benchmarks
-----------
-
-We provide a separate repository for benchmarking our algorithm implementations at
-[reinforceio/tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark).
-
-Docker containers for benchmarking (CPU and GPU) are available.
-
-This is a sample output for `CartPole-v0`, comparing VPG, TRPO and PPO:
-
-![example output](https://user-images.githubusercontent.com/14904111/29328011-52778284-81f1-11e7-8f70-6554ca9388ed.png)
-
-Please refer to the [tensorforce-benchmark](https://github.com/reinforceio/tensorforce-benchmark) repository
-for more information.
 
 
-Contributions
----------------------------
+## Features
 
-Please file bug reports and feature discussions as GitHub issues. For large PRs,
-it's also helpful to first discuss the feature in an issue. 
+- **Neural network layers**: Dense fully-connected layer, embedding layer, 1- and 2-dimensional convolution, LSTM, activation layer, dropout.
+- **Memory types**: Simple batch buffer memory, random replay memory.
+- **Policy distributions**: Bernoulli distribution for boolean actions, categorical distribution for (finite) integer actions, Gaussian distribution for continuous actions, Beta distribution for range-constrained continuous actions.
+- **Optimization algorithms**: Various gradient-based optimizers provided by TensorFlow like Adam/AdaDelta/Momentum/RMSProp/etc, evolutionary optimizer, natural-gradient-based optimizer, plus a variety of meta-optimizer.
+- **Execution modes**: Parallel execution, distributed execution.
+- **Other features**: Input normalization preprocessing, exploration, variable noise, regularization losses.
+- **TensorBoard support**.
 
-Cite
-----
+By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated: [Deep Q-learning (DQN)](https://arxiv.org/abs/1312.5602) and variations like [Double-DQN](https://arxiv.org/abs/1509.06461) or [Deep Q-learning from Demonstrations (DQfD)](https://arxiv.org/abs/1704.03732), [vanilla policy-gradient algorithm / REINFORCE](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf), [Proximal Policy Optimization (PPO)](https://arxiv.org/abs/1707.06347), [Actor-critic and A3C](https://arxiv.org/abs/1602.01783), [Trust Region Policy Optimization (TRPO)](https://arxiv.org/abs/1502.05477), [Normalised Advantage Function (NAF)](https://arxiv.org/abs/1603.00748), [Generalized Advantage estimation (GAE)](https://arxiv.org/abs/1506.02438), etc.
 
-If you use TensorForce in your academic research, we would be grateful if you could cite it as follows:
+Note that in general the replication is not 100% faithful, since the models as described in the corresponding paper often involve additional minor tweaks and modifications which are hard to support with a modular design (and, arguably, also questionable whether it is important/desirable to support them). On the upside, these models are just a few examples from the multitude of module combinations supported by Tensorforce.
 
-```
-@misc{schaarschmidt2017tensorforce,
-    author = {Schaarschmidt, Michael and Kuhnle, Alexander and Fricke, Kai},
-    title = {TensorForce: A TensorFlow library for applied reinforcement learning},
-    howpublished={Web page},
-    url = {https://github.com/reinforceio/tensorforce},
-    year = {2017}
-}
+
+
+## Examples and documentation
+
+Tensorforce comes with a range of [example scripts and configurations](https://github.com/reinforceio/tensorforce/tree/master/examples) for different popular reinforcement learning environments/benchmarks. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
+
+```bash
+python examples/openai_gym.py CartPole-v1 --agent examples/configs/ppo.json --network examples/configs/mlp2_network.json
 ```
 
-We are also very grateful for our open source contributors (listed according to Github):
+For more information check out [Tensorforce's documentation](http://tensorforce.readthedocs.io).
+
+
+
+## Contact for support and feedback
+
+Please get in touch via [mail](mailto:tensorforce.team@gmail.com) or on [Gitter](https://gitter.im/reinforceio/TensorForce) if you have questions, feedback, ideas for features/collaboration, or if you seek support for applying Tensorforce to your problem.
+
+
+
+## Core team and contributors
+
+Tensorforce is currently developed and maintained by [Alexander Kuhnle](https://github.com/AlexKuhnle). Earlier versions of Tensorforce (<= 0.4.2) were developed by [Michael Schaarschmidt](https://github.com/michaelschaarschmidt), [Alexander Kuhnle](https://github.com/AlexKuhnle) and [Kai Fricke](https://github.com/krfricke).
+
+We are very grateful for our open-source contributors (listed according to Github, updated periodically):
+
 Islandman93, sven1977, Mazecreator, wassname, lefnire, daggertye, trickmeyer, mkempers,
 mryellow, ImpulseAdventure,
 janislavjankov, andrewekhalel,
@@ -229,3 +161,34 @@ beflix, coord-e,
 benelot, tms1337, vwxyzjn, erniejunior,
 vermashresth, Deathn0t, petrbel, nrhodes, batu, yellowbee686, tgianko,
 AdamStelmaszczyk, mannsi, perara, neitzal, gitter-badger, sohakes, ekerazha, nagachika, Davidnet, Kismuz, ngoodger, BorisSchaeling, tomhennigan.
+
+
+
+## Cite Tensorforce
+
+Please cite the framework as follows:
+
+```
+@misc{tensorforce,
+  author       = {Kuhnle, Alexander and Schaarschmidt, Michael and Fricke, Kai},
+  title        = {Tensorforce: a TensorFlow library for applied reinforcement learning},
+  howpublished = {Web page},
+  url          = {https://github.com/reinforceio/tensorforce},
+  year         = {2017}
+}
+```
+
+If you use Tensorforce in your research, you may additionally consider citing the following paper:
+
+```
+@article{lift-tensorforce,
+  author       = {Schaarschmidt, Michael and Kuhnle, Alexander and Ellis, Ben and Fricke, Kai and Gessert, Felix and Yoneki, Eiko},
+  title        = {{LIFT}: Reinforcement Learning in Computer Systems by Learning From Demonstrations},
+  journal      = {CoRR},
+  volume       = {abs/1808.07903},
+  year         = {2018},
+  url          = {http://arxiv.org/abs/1808.07903},
+  archivePrefix = {arXiv},
+  eprint       = {1808.07903}
+}
+```

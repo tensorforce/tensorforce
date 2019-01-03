@@ -94,7 +94,7 @@ class OpenAIGym(Environment):
         elif isinstance(space, gym.spaces.MultiBinary):
             return dict(shape=space.n, type='int')
         elif isinstance(space, gym.spaces.MultiDiscrete):
-            return dict(shape=space.num_discrete_space, type='int')
+            return dict(shape=len(space.nvec), type='int')
         elif isinstance(space, gym.spaces.Box):
             return dict(shape=tuple(space.shape), type='float')
         elif isinstance(space, gym.spaces.Tuple):

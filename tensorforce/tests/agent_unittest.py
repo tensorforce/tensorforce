@@ -13,16 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 
+import sys
+
+from tensorforce import TensorforceError
 from tensorforce.tests.unittest_base import UnittestBase
-from tensorforce.tests.unittest_environment import UnittestEnvironment
 
 
 class AgentUnittest(UnittestBase):
     """
     Collection of unit-tests for agent functionality.
     """
-
-    config = None
 
     # Flags for exclusion of action types.
     exclude_bool_action = False
@@ -36,74 +36,66 @@ class AgentUnittest(UnittestBase):
         Unit-test for boolean state and action.
         """
         states = dict(type='bool', shape=())
+
         if self.__class__.exclude_bool_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='bool', shape=())
-        environment = UnittestEnvironment(states=states, actions=actions)
 
         network = [
             dict(type='embedding', size=32),
             dict(type='dense', size=32), dict(type='dense', size=32)
         ]
 
-        config = self.__class__.config
-
-        self.unittest(name='bool', environment=environment, network=network, config=config)
+        self.unittest(name='bool', states=states, actions=actions, network=network)
 
     def test_int(self):
         """
         Unit-test for integer state and action.
         """
         states = dict(type='int', shape=(), num_values=3)
+
         if self.__class__.exclude_int_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='int', shape=(), num_values=3)
-        environment = UnittestEnvironment(states=states, actions=actions)
 
         network = [
             dict(type='embedding', size=32),
             dict(type='dense', size=32), dict(type='dense', size=32)
         ]
 
-        config = self.__class__.config
-
-        self.unittest(name='int', environment=environment, network=network, config=config)
+        self.unittest(name='int', states=states, actions=actions, network=network)
 
     def test_float(self):
         """
         Unit-test for float state and action.
         """
         states = dict(type='float', shape=(1,))
+
         if self.__class__.exclude_float_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='float', shape=())
-        environment = UnittestEnvironment(states=states, actions=actions)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
-        config = self.__class__.config
-
-        self.unittest(name='float', environment=environment, network=network, config=config)
+        self.unittest(name='float', states=states, actions=actions, network=network)
 
     def test_bounded(self):
         """
         Unit-test for bounded float state and action.
         """
         states = dict(type='float', shape=(1,), min_value=-1.0, max_value=1.0)
+
         if self.__class__.exclude_bounded_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='float', shape=(), min_value=-1.0, max_value=1.0)
-        environment = UnittestEnvironment(states=states, actions=actions)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
-        config = self.__class__.config
-
-        self.unittest(name='bounded', environment=environment, network=network, config=config)
+        self.unittest(name='bounded', states=states, actions=actions, network=network)
 
     def test_full(self):
         """
@@ -117,6 +109,7 @@ class AgentUnittest(UnittestBase):
             float_state=dict(type='float', shape=(1, 1, 2)),
             bounded_state=dict(type='float', shape=(), min_value=-0.5, max_value=0.5)
         )
+
         actions = dict()
         if not self.__class__.exclude_bool_action:
             actions['bool_action'] = dict(type='bool', shape=(1,))
@@ -128,7 +121,6 @@ class AgentUnittest(UnittestBase):
             actions['bounded_action'] = dict(
                 type='float', shape=(2,), min_value=-0.5, max_value=0.5
             )
-        environment = UnittestEnvironment(states=states, actions=actions)
 
         network = [
             [
@@ -164,6 +156,54 @@ class AgentUnittest(UnittestBase):
             ]
         ]
 
-        config = self.__class__.config
+        self.unittest(name='full', states=states, actions=actions, network=network)
 
-        self.unittest(name='full', environment=environment, network=network, config=config)
+    def test_query(self):
+        """
+        Unit-test for all types of states and actions.
+        """
+        states = dict(type='int', shape=(), num_values=3)
+        # states = dict(type='float', shape=(1,))
+
+        if self.__class__.exclude_int_action:
+            if self.__class__.exclude_float_action:
+                raise TensorforceError.unexpected()
+            actions = dict(type='float', shape=())
+        else:
+            actions = dict(type='int', shape=(), num_values=3)
+
+        network = [
+            dict(type='embedding', size=32),
+            dict(type='dense', size=32), dict(type='dense', size=32)
+        ]
+
+        act_query = ('state', 'action', 'deterministic', 'update', 'timestep', 'episode')
+        observe_query = (
+            'state', 'action', 'reward', 'terminal', 'deterministic', 'update', 'timestep',
+            'episode'
+        )
+
+        try:
+            agent, environment = self.prepare(
+                name='query', states=states, actions=actions, network=network
+            )
+
+            agent.initialize()
+            states = environment.reset()
+
+            actions, query = agent.act(states=states, query=act_query)
+            self.assertEqual(first=len(query), second=6)
+
+            states, terminal, reward = environment.execute(actions=actions)
+
+            query = agent.observe(terminal=terminal, reward=reward, query=observe_query)
+            self.assertEqual(first=len(query), second=8)
+
+            sys.stdout.flush()
+            self.assertTrue(expr=True)
+
+        except Exception as exc:
+            sys.stdout.write(str(exc))
+            sys.stdout.flush()
+            raise exc
+            self.assertTrue(expr=False)

@@ -768,9 +768,7 @@ class Model(Module):
                 1) dict of output actions (with or without exploration applied (see `deterministic`))
                 2) list of posterior internal state Tensors (empty for non-internal state models)
         """
-
-        # Set global tensors
-        Module.update_tensors(**states, **internals)
+        raise NotImplementedError
 
     def tf_core_observe(self, states, internals, actions, terminal, reward):
         """
@@ -787,9 +785,7 @@ class Model(Module):
         Returns:
             The observation operation depending on the model type.
         """
-
-        # Set global tensors
-        Module.update_tensors(**states, **internals, **actions, terminal=terminal, reward=reward)
+        raise NotImplementedError
 
     def tf_preprocess(self, states, actions, reward):
         """
@@ -967,7 +963,9 @@ class Model(Module):
                 internals[name] = tf.gather_nd(
                     params=self.internals_buffer[name], indices=[(parallel, buffer_index - one)]
                 )
+            Module.update_tensors(**states, **internals)
             actions, internals = self.core_act(states=states, internals=internals)
+            Module.update_tensors(**actions)
 
         # Actions exploration
         def no_exploration():
@@ -1037,9 +1035,14 @@ class Model(Module):
 
         # Return timestep
         with tf.control_dependencies(control_inputs=(updated_buffers,)):
-            # Trivial operation to enforce control dependency
-            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-            timestep = self.global_timestep + zero
+            # Function-level identity operation for retrieval (plus enforce dependency)
+            for name, spec in self.actions_spec.items():
+                actions[name] = util.identity_operation(
+                    x=actions[name], dtype=spec['type'], operation_name=(name + '-output')
+                )
+            timestep = util.identity_operation(
+                x=self.global_episode, dtype='long', operation_name='timestep-output'
+            )
 
         return actions, timestep
 
@@ -1146,6 +1149,9 @@ class Model(Module):
             for name in self.actions_spec:
                 actions[name] = self.actions_buffer[name][parallel, :buffer_index]
 
+            Module.update_tensors(
+                **states, **internals, **actions, terminal=terminal, reward=reward
+            )
             observation = self.core_observe(
                 states=states, internals=internals, actions=actions, terminal=terminal,
                 reward=reward
@@ -1161,9 +1167,10 @@ class Model(Module):
 
         # Return episode
         with tf.control_dependencies(control_inputs=(reset_buffer_index,)):
-            # Trivial operation to enforce control dependency
-            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-            episode = self.global_episode + zero
+            # Function-level identity operation for retrieval (plus enforce dependency)
+            episode = util.identity_operation(
+                x=self.global_episode, dtype='long', operation_name='episode-output'
+            )
 
         return episode
 
@@ -1208,7 +1215,10 @@ class Model(Module):
 
         with tf.control_dependencies(control_inputs=(observation,)):
             # Trivial operation to enforce control dependency.
-            self.unbuffered_episode_output = self.global_episode + 0
+
+            self.unbuffered_episode_output = util.identity_operation(
+                x=self.global_episode, dtype='long'
+            )
 
     # def get_feed_dict(
     #     self,

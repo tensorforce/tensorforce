@@ -63,7 +63,10 @@ class Bernoulli(Distribution):
         true_logit = tf.log(x=probability)
         false_logit = tf.log(x=(1.0 - probability))
 
-        self.add_summary(label='distribution', name='prob', tensor=probability)
+        true_logit, false_logit, probability, state_value = self.add_summary(
+            label='distribution', name='prob', tensor=probability,
+            pass_tensors=(true_logit, false_logit, probability, state_value)
+        )
 
         return true_logit, false_logit, probability, state_value
 

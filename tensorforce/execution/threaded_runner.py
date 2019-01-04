@@ -21,7 +21,7 @@ import warnings
 
 from tensorforce import TensorforceError
 from tensorforce.execution.base_runner import BaseRunner
-from tensorforce.agents.policy_agent import PolicyAgent
+from tensorforce.agents import DRLAgent
 from tensorforce.agents import agents as AgentsDictionary
 
 
@@ -312,7 +312,7 @@ def WorkerAgentGenerator(agent_class):
             # Set our model externally.
             self.model = model
             # Be robust against `network` coming in from kwargs even though this agent doesn't have one
-            if not issubclass(agent_class, PolicyAgent):
+            if not issubclass(agent_class, DRLAgent):
                 kwargs.pop("network")
             # Call super c'tor (which will call initialize_model and assign self.model to the return value).
             super(WorkerAgent, self).__init__(**kwargs)

@@ -43,7 +43,7 @@ class RandomModel(Model):
 
     def tf_core_act(self, states, internals):
         if len(internals) > 0:
-            raise TensorforceError(message="Unexpected.")
+            raise TensorforceError.unexpected()
 
         actions = OrderedDict()
         for name, action_spec in self.actions_spec.items():

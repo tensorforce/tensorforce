@@ -63,8 +63,12 @@ class Gaussian(Distribution):
         # Standard deviation
         stddev = tf.exp(x=log_stddev)
 
-        self.add_summary(label='distribution', name='mean', tensor=mean)
-        self.add_summary(label='distribution', name='stddev', tensor=stddev)
+        mean, log_stddev = self.add_summary(
+            label='distribution', name='mean', tensor=mean, pass_tensors=(mean, log_stddev)
+        )
+        stddev, log_stddev = self.add_summary(
+            label='distribution', name='stddev', tensor=stddev, pass_tensors=(stddev, log_stddev)
+        )
 
         return mean, stddev, log_stddev
 

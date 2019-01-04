@@ -124,22 +124,12 @@ class Layer(Module):
         """
         raise NotImplementedError
 
-    def create_tf_function(self, scope, tf_function):
-        if scope[-6:] != '.apply':
-            return super().create_tf_function(scope=scope, tf_function=tf_function)
+    def create_tf_function(self, name, tf_function):
+        if name[-6:] != '.apply':
+            return super().create_tf_function(name=name, tf_function=tf_function)
 
-        def validated_tf_function(*args, **kwargs):
-            if len(args) == 1:
-                if len(kwargs) > 0:
-                    raise TensorforceError("Invalid number of arguments for tf_apply.")
-                x = args[0]
-            elif len(kwargs) == 1 and 'x' in kwargs:
-                x = kwargs['x']
-            else:
-                raise TensorforceError("Invalid number of arguments for tf_apply.")
-
+        def validated_tf_function(x):
             if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                print(self.input_spec, x)
                 raise TensorforceError("Invalid input arguments for tf_apply.")
 
             x = tf_function(x=x)
@@ -149,7 +139,7 @@ class Layer(Module):
 
             return x
 
-        return super().create_tf_function(scope=scope, tf_function=validated_tf_function)
+        return super().create_tf_function(name=name, tf_function=validated_tf_function)
 
 
 class Retrieve(Layer):
@@ -382,7 +372,7 @@ class TransformationBase(Layer):
 
         if self.activation is not None:
             x = self.activation.apply(x=x)
-            self.add_summary(label='activations', name=self.name, tensor=x)
+            x = self.add_summary(label='activations', name=self.name, tensor=x)
 
         if self.dropout is not None:
             x = self.dropout.apply(x=x)

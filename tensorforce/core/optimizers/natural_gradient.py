@@ -15,6 +15,7 @@
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -143,7 +144,10 @@ class NaturalGradient(Optimizer):
 
             with tf.control_dependencies(control_inputs=(applied,)):
                 # Trivial operation to enforce control dependency
-                estimated_delta = [estimated_delta + 0.0 for estimated_delta in estimated_deltas]
+                estimated_delta = [
+                    util.identity_operation(x=estimated_delta, dtype='float')
+                    for estimated_delta in estimated_deltas
+                ]
                 if return_estimated_improvement:
                     return estimated_delta, estimated_improvement
                 else:

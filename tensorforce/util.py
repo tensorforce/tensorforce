@@ -89,6 +89,21 @@ def fmap(function, xs):
         return function(xs)
 
 
+def reduce_all(predicate, xs):
+    if xs is None:
+        return False
+    elif isinstance(xs, tuple):
+        return all(reduce_all(predicate=predicate, xs=x) for x in xs)
+    elif isinstance(xs, list):
+        return all(reduce_all(predicate=predicate, xs=x) for x in xs)
+    elif isinstance(xs, set):
+        return all(reduce_all(predicate=predicate, xs=x) for x in xs)
+    elif isinstance(xs, dict):
+        return all(reduce_all(predicate=predicate, xs=x) for x in xs.values())
+    else:
+        return predicate(xs)
+
+
 def flatten(xs):
     if xs is None:
         return None
@@ -119,6 +134,17 @@ def rank(x):
 
 def shape(x, unknown=-1):
     return tuple(unknown if num_dims is None else num_dims for num_dims in x.get_shape().as_list())
+
+
+def identity_operation(x, dtype, operation_name=None):
+    zero = tf.zeros_like(tensor=x, dtype=tf_dtype(dtype=dtype))
+    if dtype == 'bool':
+        x = tf.math.logical_or(x=x, y=zero, name=operation_name)
+    elif dtype in ('int', 'long', 'float'):
+        x = tf.math.add(x=x, y=zero, name=operation_name)
+    else:
+        raise TensorforceError.value(name='dtype', value=dtype)
+    return x
 
 
 def py_dtype(dtype):
@@ -216,6 +242,10 @@ reserved_names = {
 }
 
 
+def join_scopes(*args):
+    return '/'.join(args)
+
+
 def is_valid_name(name):
     if not isinstance(name, str):
         return False
@@ -267,7 +297,7 @@ def valid_values_spec(values_spec, value_type='tensor', return_normalized=False)
                     if suffix == value_type:
                         normalized_spec[name] = spec
                     else:
-                        normalized_spec[name + '/' + suffix] = spec
+                        normalized_spec[join_scopes(name, suffix)] = spec
 
     if return_normalized:
         return normalized_spec
@@ -605,11 +635,12 @@ def is_consistent_with_value_spec(value_spec, x):
         return False
     if value_spec['shape'] is None:
         pass
+    elif len(shape(x=x)) != len(value_spec['shape']) + int(value_spec.get('batched', False)):
+        return False
     elif value_spec.get('batched', False):
         if not all(
             a == b or b == 0 or b == -1 for a, b in zip(shape(x=x), (-1,) + value_spec['shape'])
         ):
-            print([a == b or b == 0 or b == -1 for a, b in zip(shape(x=x), (-1,) + value_spec['shape'])])
             return False
     elif not all(a == b or b == 0 or b == -1 for a, b in zip(shape(x=x), value_spec['shape'])):
         return False
@@ -660,7 +691,7 @@ def unpack_values(value_type, values, values_spec):
         unpacked_value[names[-1]] = values.pop(normalized_name)
 
     if len(values) > 0:
-        raise TensorforceError(message="Unexpected.")
+        raise TensorforceError.unexpected()
 
     return unpacked_values
 

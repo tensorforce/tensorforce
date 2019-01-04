@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.core import Module
 from tensorforce.core.layers import Layer
 
@@ -65,7 +65,9 @@ class Activation(Layer):
 
         elif self.nonlinearity == 'relu':
             x = tf.nn.relu(features=x)
-            self.add_summary(label='relu', name='relu', tensor=tf.math.zero_fraction(value=x))
+            x = self.add_summary(
+                label='relu', name='relu', tensor=tf.math.zero_fraction(value=x), pass_tensors=x
+            )
 
         elif self.nonlinearity == 'selu':
             # https://arxiv.org/pdf/1706.02515.pdf
@@ -124,6 +126,12 @@ class Dropout(Layer):
             )
 
     def tf_apply(self, x):
+        def true_fn():
+            dropout = tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))
+            return self.add_summary(
+                label='dropout', name='dropout', tensor=tf.math.zero_fraction(value=dropout),
+                pass_tensors=dropout
+            )
+
         update = Module.retrieve_tensor(name='update')
-        dropout = tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))
-        return tf.where(condition=update, x=dropout, y=x)
+        return tf.cond(pred=update, true_fn=true_fn, false_fn=(lambda: x))

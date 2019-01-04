@@ -50,9 +50,13 @@ class DistributionModel(MemoryModel):
         )
 
         # Network
+        inputs_spec = OrderedDict()
+        for name, spec in self.states_spec.items():
+            inputs_spec[name] = dict(spec)
+            inputs_spec[name]['batched'] = True
         self.network = self.add_module(
             name='network', module=network, modules=network_modules, default_module='layered',
-            inputs_spec=self.states_spec
+            inputs_spec=inputs_spec
         )
         output_spec = self.network.get_output_spec()
         if output_spec['type'] != 'float':
@@ -114,8 +118,6 @@ class DistributionModel(MemoryModel):
         self.internals_init.update(self.network.internals_init())
 
     def tf_core_act(self, states, internals):
-        super().tf_core_act(states=states, internals=internals)
-
         embedding, internals = self.network.apply(
             x=states, internals=internals, return_internals=True
         )
@@ -151,7 +153,9 @@ class DistributionModel(MemoryModel):
         entropy_per_instance = tf.reduce_mean(input_tensor=entropies, axis=1)
         entropy = tf.reduce_mean(input_tensor=entropy_per_instance, axis=0)
 
-        self.add_summary(label='entropy', name='entropy', tensor=entropy)
+        regularization_loss = self.add_summary(
+            label='entropy', name='entropy', tensor=entropy, pass_tensors=regularization_loss
+        )
 
         if self.entropy_regularization is not None and self.entropy_regularization > 0.0:
             regularization_loss = regularization_loss - self.entropy_regularization * entropy

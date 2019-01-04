@@ -64,8 +64,14 @@ class Beta(Distribution):
         alpha_beta = tf.maximum(x=(alpha + beta), y=util.epsilon)
         log_norm = tf.lgamma(x=alpha) + tf.lgamma(x=beta) - tf.lgamma(x=alpha_beta)
 
-        self.add_summary(label='distribution', name='alpha', tensor=alpha)
-        self.add_summary(label='distribution', name='beta', tensor=beta)
+        alpha, alpha_beta, log_norm = self.add_summary(
+            label='distribution', name='alpha', tensor=alpha,
+            pass_tensors=(alpha, alpha_beta, log_norm)
+        )
+        beta, alpha_beta, log_norm = self.add_summary(
+            label='distribution', name='beta', tensor=beta,
+            pass_tensors=(beta, alpha_beta, log_norm)
+        )
 
         return alpha, beta, alpha_beta, log_norm
 

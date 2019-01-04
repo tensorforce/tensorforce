@@ -17,7 +17,7 @@ git remote set-url origin https://github.com/tensorforce/tensorforce.git
 
 #### Introduction
 
-Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. TensorForce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
+Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
 
 Tensorforce follows a set of high-level design choices which differentiate it from other similar libraries:
 
@@ -65,7 +65,7 @@ cd tensorforce
 pip install -e .
 ```
 
-TensorForce is built on [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed. Generally, Tensorforce assumes the latest version of TensorFlow and thus is only backwards-compatible to the degree TensorFlow is. To include the current version of TensorFlow with the installation of Tensorforce, add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
+Tensorforce is built on [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed. Generally, Tensorforce assumes the latest version of TensorFlow and thus is only backwards-compatible to the degree TensorFlow is. To include the current version of TensorFlow with the installation of Tensorforce, add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
 
 ```bash
 # PyPI version plus TensorFlow CPU version

@@ -15,7 +15,7 @@
 
 from collections import Counter, OrderedDict
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.core import Module
 from tensorforce.core.layers import Layer, layer_modules
 
@@ -69,6 +69,44 @@ class Network(Module):
             Network output tensor, plus optionally list of posterior internal state tensors
         """
         raise NotImplementedError
+
+    def create_tf_function(self, name, tf_function):
+        if name[-6:] != '.apply':
+            return super().create_tf_function(name=name, tf_function=tf_function)
+
+        def validated_tf_function(x, internals, return_internals=False):
+            if not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=x[name])
+                for name, spec in self.inputs_spec.items()
+            ):
+                raise TensorforceError("Invalid input arguments for tf_apply.")
+            if not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
+                for name, spec in self.internals_spec().items()
+            ):
+                raise TensorforceError("Invalid input arguments for tf_apply.")
+
+            if return_internals:
+                x, internals = tf_function(
+                    x=x, internals=internals, return_internals=return_internals
+                )
+            else:
+                x = tf_function(x=x, internals=internals, return_internals=return_internals)
+
+            if not util.is_consistent_with_value_spec(value_spec=self.get_output_spec(), x=x):
+                raise TensorforceError("Invalid output arguments for tf_apply.")
+            if return_internals and not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
+                for name, spec in self.internals_spec().items()
+            ):
+                raise TensorforceError("Invalid output arguments for tf_apply.")
+
+            if return_internals:
+                return x, internals
+            else:
+                return x
+
+        return super().create_tf_function(name=name, tf_function=validated_tf_function)
 
 
 class LayerbasedNetwork(Network):

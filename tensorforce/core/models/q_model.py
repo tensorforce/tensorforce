@@ -55,9 +55,13 @@ class QModel(DistributionModel):
         )
 
         # Target network
+        inputs_spec = OrderedDict()
+        for name, spec in self.states_spec.items():
+            inputs_spec[name] = dict(spec)
+            inputs_spec[name]['batched'] = True
         self.target_network = self.add_module(
             name='target-network', module=network, modules=network_modules,
-            default_module='layered', is_trainable=False, inputs_spec=self.states_spec
+            default_module='layered', is_trainable=False, is_subscope=True, inputs_spec=inputs_spec
         )
         embedding_size = self.target_network.get_output_spec()['shape'][0]
 

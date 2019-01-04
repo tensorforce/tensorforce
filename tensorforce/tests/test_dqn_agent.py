@@ -23,5 +23,4 @@ class TestDQNAgent(AgentUnittest, unittest.TestCase):
 
     agent = DQNAgent
 
-    exclude_float_action = True
     exclude_bounded_action = True

@@ -15,6 +15,7 @@
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core.optimizers import MetaOptimizer
 
 
@@ -66,4 +67,4 @@ class ClippedStep(MetaOptimizer):
         applied = self.apply_step(variables=variables, deltas=exceeding_deltas)
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [delta + 0.0 for delta in clipped_deltas]
+            return [util.identity_operation(x=delta, dtype='float') for delta in clipped_deltas]

@@ -424,10 +424,6 @@ class MemoryModel(Model):
         Creates and returns the op that - if frequency condition is hit - pulls a batch from the memory
         and does one optimization step.
         """
-        super().tf_core_observe(
-            states=states, internals=internals, actions=actions, terminal=terminal, reward=reward
-        )
-
         # Store timestep in memory
         stored = self.memory.store(
             states=states, internals=internals, actions=actions, terminal=terminal, reward=reward

@@ -58,10 +58,11 @@ class Categorical(Distribution):
         # "Normalized" logits
         logits = tf.log(x=probabilities)
 
-        for n in range(self.action_spec['num_values']):
-            self.add_summary(
-                label='distribution', name=('prob' + str(n)), tensor=probabilities[..., n]
-            )
+        # Logits as pass_tensor since used for sampling
+        logits, probabilities, state_value = self.add_summary(
+            label='distribution', name='probability', tensor=probabilities,
+            pass_tensors=(logits, probabilities, state_value), enumerate_last_rank=True
+        )
 
         return logits, probabilities, state_value
 

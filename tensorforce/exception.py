@@ -37,6 +37,10 @@ class TensorforceError(Exception):
         super().__init__(message)
 
     @staticmethod
+    def unexpected():
+        return TensorforceError(message="Unexpected error!")
+
+    @staticmethod
     def collision(name, value, group1, group2):
         return TensorforceError(
             message="{name} collision between {group1} and {group2}: {value}.".format(

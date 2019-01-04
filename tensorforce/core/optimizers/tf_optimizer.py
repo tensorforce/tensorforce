@@ -15,6 +15,7 @@
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -59,7 +60,9 @@ class TFOptimizer(Optimizer):
         # Force loss value to be calculated.
         with tf.control_dependencies(control_inputs=(loss,)):
             # Trivial operation to enforce control dependency
-            previous_variables = [variable + 0.0 for variable in variables]
+            previous_variables = [
+                util.identity_operation(x=variable, dtype='float') for variable in variables
+            ]
 
         # The actual tensorflow minimize op.
         with tf.control_dependencies(control_inputs=previous_variables):

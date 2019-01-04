@@ -18,6 +18,7 @@ from random import randint
 import sys
 
 from tensorforce.execution import Runner
+from tensorforce.tests.unittest_environment import UnittestEnvironment
 
 
 logging.getLogger('tensorflow').disabled = True
@@ -29,33 +30,47 @@ class UnittestBase(object):
     """
 
     agent = None
+    config = None
     ignore_network = False
 
-    def unittest(self, name, environment, network=None, config=None):
+    def prepare(self, name, states, actions, network=None):
         """
-        Generic unit-test.
+        Generic unit-test preparation.
         """
         sys.stdout.write('\n{} ({}):\n'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()
 
-        try:
-            if config is None:
-                config = dict()
-            config['states'] = environment.states
-            config['actions'] = environment.actions
-            if not self.__class__.ignore_network and network is not None:
-                config['network'] = network
+        environment = UnittestEnvironment(states=states, actions=actions)
 
-            agent = self.__class__.agent(**config)
+        if self.__class__.config is None:
+            config = dict()
+        config['states'] = environment.states
+        config['actions'] = environment.actions
+        if not self.__class__.ignore_network and network is not None:
+            config['network'] = network
+
+        agent = self.__class__.agent(**config)
+
+        return agent, environment
+
+    def unittest(self, name, states, actions, network=None):
+        """
+        Generic unit-test.
+        """
+        try:
+            agent, environment = self.prepare(
+                name=name, states=states, actions=actions, network=network
+            )
+
             runner = Runner(agent=agent, environment=environment)
             runner.run(num_episodes=randint(2, 5))
             runner.close()
 
             sys.stdout.flush()
-            self.assertTrue(True)
+            self.assertTrue(expr=True)
 
         except Exception as exc:
             sys.stdout.write(str(exc))
             sys.stdout.flush()
             raise exc
-            self.assertTrue(False)
+            self.assertTrue(expr=False)

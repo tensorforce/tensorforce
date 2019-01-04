@@ -80,7 +80,7 @@ class Synchronization(Optimizer):
 
             with tf.control_dependencies(control_inputs=(applied, last_sync_updated)):
                 # Trivial operation to enforce control dependency
-                return [delta + 0.0 for delta in deltas]
+                return [util.identity_operation(x=delta, dtype='float') for delta in deltas]
 
         def no_sync():
             deltas = list()

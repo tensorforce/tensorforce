@@ -17,17 +17,16 @@ import unittest
 
 from tensorforce.agents import VPGAgent
 from tensorforce.tests.unittest_base import UnittestBase
-from tensorforce.tests.unittest_environment import UnittestEnvironment
 
 
-class TestVPGMemories(UnittestBase, unittest.TestCase):
+class TestMemories(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
 
     def test_latest_timesteps(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -37,13 +36,13 @@ class TestVPGMemories(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='latest-timesteps', environment=environment, network=network, config=config
+            name='latest-timesteps', states=states, actions=actions, network=network, **config
         )
 
     def test_latest_episodes(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -53,29 +52,29 @@ class TestVPGMemories(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='latest-episodes', environment=environment, network=network, config=config
+            name='latest-episodes', states=states, actions=actions, network=network, **config
         )
 
     def test_latest_sequences(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
-            update_mode=dict(unit='sequences', batch_size=2),
+            update_mode=dict(unit='sequences', sequence_length=4, batch_size=2),
             memory=dict(type='latest', include_next_states=False, capacity=100)
         )
 
         self.unittest(
-            name='latest-sequences', environment=environment, network=network, config=config
+            name='latest-sequences', states=states, actions=actions, network=network, **config
         )
 
     def test_replay_timesteps(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -85,13 +84,13 @@ class TestVPGMemories(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='replay-timesteps', environment=environment, network=network, config=config
+            name='replay-timesteps', states=states, actions=actions, network=network, **config
         )
 
     def test_replay_episodes(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -101,29 +100,29 @@ class TestVPGMemories(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='replay-episodes', environment=environment, network=network, config=config
+            name='replay-episodes', states=states, actions=actions, network=network, **config
         )
 
     def test_replay_sequences(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
-            update_mode=dict(unit='sequences', batch_size=2),
-            memory=dict( type='replay', include_next_states=False, capacity=100)
+            update_mode=dict(unit='sequences', sequence_length=4, batch_size=2),
+            memory=dict(type='replay', include_next_states=False, capacity=100)
         )
 
         self.unittest(
-            name='replay-sequences', environment=environment, network=network, config=config
+            name='replay-sequences', states=states, actions=actions, network=network, **config
         )
 
-    def test_prioritized_replay_timesteps(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+    def old_test_prioritized_replay_timesteps(self):
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -135,5 +134,5 @@ class TestVPGMemories(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='prioritized-replay-timesteps', environment=environment, network=network, config=config
+            name='prioritized-replay-timesteps', states=states, actions=actions, network=network, **config
         )

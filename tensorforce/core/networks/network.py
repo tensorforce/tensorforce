@@ -75,11 +75,17 @@ class Network(Module):
             return super().create_tf_function(name=name, tf_function=tf_function)
 
         def validated_tf_function(x, internals, return_internals=False):
-            if not all(
-                util.is_consistent_with_value_spec(value_spec=spec, x=x[name])
-                for name, spec in self.inputs_spec.items()
-            ):
-                raise TensorforceError("Invalid input arguments for tf_apply.")
+            if util.is_atomic_values_spec(values_spec=self.inputs_spec):
+                if not util.is_consistent_with_value_spec(
+                    value_spec=self.inputs_spec, x=x
+                ):
+                    raise TensorforceError("Invalid input arguments for tf_apply.")
+            else:
+                if not all(
+                    util.is_consistent_with_value_spec(value_spec=spec, x=x[name])
+                    for name, spec in self.inputs_spec.items()
+                ):
+                    raise TensorforceError("Invalid input arguments for tf_apply.")
             if not all(
                 util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
                 for name, spec in self.internals_spec().items()
@@ -152,7 +158,9 @@ class LayerbasedNetwork(Network):
 
         else:
             if self.output_spec is None:
-                if len(self.inputs_spec) == 1:
+                if util.is_atomic_values_spec(values_spec=self.inputs_spec):
+                    self.output_spec = self.inputs_spec
+                elif len(self.inputs_spec) == 1:
                     self.output_spec = next(iter(self.inputs_spec.values()))
                 else:
                     self.output_spec = dict(type=None, shape=None)

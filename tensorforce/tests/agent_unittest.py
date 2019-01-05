@@ -15,7 +15,6 @@
 
 import sys
 
-from tensorforce import TensorforceError
 from tensorforce.tests.unittest_base import UnittestBase
 
 
@@ -104,6 +103,7 @@ class AgentUnittest(UnittestBase):
         states = dict(
             # bool_state=dict(type='bool', shape=(1,)),
             # int_state=dict(type='int', shape=(2,), num_values=4),
+            # see also baselines test!
             bool_state=dict(type='bool', shape=()),
             int_state=dict(type='int', shape=(), num_values=4),
             float_state=dict(type='float', shape=(1, 1, 2)),
@@ -162,20 +162,11 @@ class AgentUnittest(UnittestBase):
         """
         Unit-test for all types of states and actions.
         """
-        states = dict(type='int', shape=(), num_values=3)
-        # states = dict(type='float', shape=(1,))
+        states = dict(type='float', shape=(1,))
 
-        if self.__class__.exclude_int_action:
-            if self.__class__.exclude_float_action:
-                raise TensorforceError.unexpected()
-            actions = dict(type='float', shape=())
-        else:
-            actions = dict(type='int', shape=(), num_values=3)
+        actions = dict(type=self.__class__.replacement_action, shape=())
 
-        network = [
-            dict(type='embedding', size=32),
-            dict(type='dense', size=32), dict(type='dense', size=32)
-        ]
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         act_query = ('state', 'action', 'deterministic', 'update', 'timestep', 'episode')
         observe_query = (

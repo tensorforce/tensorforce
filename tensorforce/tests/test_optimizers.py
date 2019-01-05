@@ -17,17 +17,16 @@ import unittest
 
 from tensorforce.agents import VPGAgent
 from tensorforce.tests.unittest_base import UnittestBase
-from tensorforce.tests.unittest_environment import UnittestEnvironment
 
 
-class TestVPGOptimizers(UnittestBase, unittest.TestCase):
+class TestOptimizers(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
 
     def test_adam(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -36,13 +35,13 @@ class TestVPGOptimizers(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='adam', environment=environment, network=network, config=config
+            name='adam', states=states, actions=actions, network=network, **config
         )
 
     def test_clipped_step(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -55,13 +54,13 @@ class TestVPGOptimizers(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='clipped-step', environment=environment, network=network, config=config
+            name='clipped-step', states=states, actions=actions, network=network, **config
         )
 
     def test_evolutionary(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -70,28 +69,13 @@ class TestVPGOptimizers(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='evolutionary', environment=environment, network=network, config=config
-        )
-
-    def test_kfac(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        config = dict(
-            optimizer=dict(type='kfac', learning_rate=1e-3)
-        )
-
-        self.unittest(
-            name='kfac', environment=environment, network=network, config=config
+            name='evolutionary', states=states, actions=actions, network=network, **config
         )
 
     def test_multi_step(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -103,13 +87,13 @@ class TestVPGOptimizers(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='multi-step', environment=environment, network=network, config=config
+            name='multi-step', states=states, actions=actions, network=network, **config
         )
 
     def test_natural_gradient(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -118,13 +102,13 @@ class TestVPGOptimizers(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='natural-gradient', environment=environment, network=network, config=config
+            name='natural-gradient', states=states, actions=actions, network=network, **config
         )
 
     def test_optimized_step(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -136,13 +120,13 @@ class TestVPGOptimizers(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='optimized-step', environment=environment, network=network, config=config
+            name='optimized-step', states=states, actions=actions, network=network, **config
         )
 
     def test_subsampling_step(self):
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=())
-        )
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
@@ -155,5 +139,5 @@ class TestVPGOptimizers(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='subsampling-step', environment=environment, network=network, config=config
+            name='subsampling-step', states=states, actions=actions, network=network, **config
         )

@@ -69,7 +69,10 @@ class Iterative(Solver):
 
         else:
             # TensorFlow while loop
-            args = tf.while_loop(cond=self.next_step, body=self.step, loop_vars=args)
+            args = tf.while_loop(
+                cond=self.next_step, body=self.step, loop_vars=args,
+                maximum_iterations=self.max_iterations
+            )
 
         # First argument contains solution
         return args[0]
@@ -86,9 +89,9 @@ class Iterative(Solver):
         Returns:
             Initial arguments for tf_step.
         """
-        return x_init, 0
+        return (x_init,)
 
-    def tf_step(self, x, iteration, *args):
+    def tf_step(self, x, *args):
         """
         Iteration loop body of the iterative solver (default: increment iteration step). The  
         first two loop arguments have to be the current solution estimate and the iteration step.
@@ -101,9 +104,9 @@ class Iterative(Solver):
         Returns:
             Updated arguments for next iteration.
         """
-        return (x, iteration + 1) + args
+        return (x,) + args
 
-    def tf_next_step(self, x, iteration, *args):
+    def tf_next_step(self, x, *args):
         """
         Termination condition (default: max number of iterations).
 
@@ -115,4 +118,4 @@ class Iterative(Solver):
         Returns:
             True if another iteration should be performed.
         """
-        return iteration < self.max_iterations
+        return True

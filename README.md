@@ -31,7 +31,7 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 
 - [Documentation](http://tensorforce.readthedocs.io) and [update notes](https://github.com/tensorforce/tensorforce/blob/master/UPDATE_NOTES.md)
 - [Contact](mailto:tensorforce.team@gmail.com) and [Gitter channel](https://gitter.im/tensorforce/community)
-- [Contribution guidelines](https://github.com/tensorforce/tensorforce/blob/master/CONTRIBUTING.md)
+- [Roadmap](https://github.com/tensorforce/tensorforce/blob/master/ROADMAP.md) and [contribution guidelines](https://github.com/tensorforce/tensorforce/blob/master/CONTRIBUTING.md)
 - [Blog](https://reinforce.io/blog/)
 
 

@@ -33,7 +33,7 @@ class UnittestBase(object):
     config = None
     ignore_network = False
 
-    def prepare(self, name, states, actions, network=None):
+    def prepare(self, name, states, actions, network=None, **kwargs):
         """
         Generic unit-test preparation.
         """
@@ -42,28 +42,30 @@ class UnittestBase(object):
 
         environment = UnittestEnvironment(states=states, actions=actions)
 
-        if self.__class__.config is None:
-            config = dict()
-        config['states'] = environment.states
-        config['actions'] = environment.actions
+        if self.__class__.config is not None:
+            for key, arg in self.__class__.config.items():
+                if key not in kwargs:
+                    kwargs[key] = arg
+        kwargs['states'] = environment.states
+        kwargs['actions'] = environment.actions
         if not self.__class__.ignore_network and network is not None:
-            config['network'] = network
+            kwargs['network'] = network
 
-        agent = self.__class__.agent(**config)
+        agent = self.__class__.agent(**kwargs)
 
         return agent, environment
 
-    def unittest(self, name, states, actions, network=None):
+    def unittest(self, name, states, actions, network=None, **kwargs):
         """
         Generic unit-test.
         """
         try:
             agent, environment = self.prepare(
-                name=name, states=states, actions=actions, network=network
+                name=name, states=states, actions=actions, network=network, **kwargs
             )
 
             runner = Runner(agent=agent, environment=environment)
-            runner.run(num_episodes=randint(2, 5))
+            runner.run(num_episodes=randint(5, 10))
             runner.close()
 
             sys.stdout.flush()

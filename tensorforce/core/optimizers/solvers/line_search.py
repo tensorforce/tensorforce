@@ -104,13 +104,12 @@ class LineSearch(Iterative):
 
         return first_step + (deltas, improvement, last_improvement, estimated_improvement)
 
-    def tf_step(self, x, iteration, deltas, improvement, last_improvement, estimated_improvement):
+    def tf_step(self, x, deltas, improvement, last_improvement, estimated_improvement):
         """
         Iteration loop body of the line search algorithm.
 
         Args:
             x: Current solution estimate $x_t$.
-            iteration: Current iteration counter $t$.
             deltas: Current difference $x_t - x'$.
             improvement: Current improvement $(f(x_t) - f(x')) / v'$.
             last_improvement: Last improvement $(f(x_{t-1}) - f(x')) / v'$.
@@ -119,8 +118,8 @@ class LineSearch(Iterative):
         Returns:
             Updated arguments for next iteration.
         """
-        x, next_iteration, deltas, improvement, last_improvement, estimated_improvement = super().tf_step(
-            x, iteration, deltas, improvement, last_improvement, estimated_improvement
+        x, deltas, improvement, last_improvement, estimated_improvement = super().tf_step(
+            x, deltas, improvement, last_improvement, estimated_improvement
         )
 
         next_x = [t + delta for t, delta in zip(x, deltas)]
@@ -140,16 +139,15 @@ class LineSearch(Iterative):
             y=tf.maximum(x=next_estimated_improvement, y=util.epsilon)
         )
 
-        return next_x, next_iteration, next_deltas, next_improvement, improvement, next_estimated_improvement
+        return next_x, next_deltas, next_improvement, improvement, next_estimated_improvement
 
-    def tf_next_step(self, x, iteration, deltas, improvement, last_improvement, estimated_improvement):
+    def tf_next_step(self, x, deltas, improvement, last_improvement, estimated_improvement):
         """
         Termination condition: max number of iterations, or no improvement for last step, or  
         improvement less than acceptable ratio, or estimated value not positive.
 
         Args:
             x: Current solution estimate $x_t$.
-            iteration: Current iteration counter $t$.
             deltas: Current difference $x_t - x'$.
             improvement: Current improvement $(f(x_t) - f(x')) / v'$.
             last_improvement: Last improvement $(f(x_{t-1}) - f(x')) / v'$.
@@ -159,7 +157,7 @@ class LineSearch(Iterative):
             True if another iteration should be performed.
         """
         next_step = super().tf_next_step(
-            x, iteration, deltas, improvement, last_improvement, estimated_improvement
+            x, deltas, improvement, last_improvement, estimated_improvement
         )
 
         def undo_deltas():

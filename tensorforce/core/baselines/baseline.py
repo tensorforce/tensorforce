@@ -23,7 +23,14 @@ class Baseline(Module):
     Base class for baseline value functions.
     """
 
-    def tf_predict(self, states, internals, update):
+    def __init__(self, name, inputs_spec, l2_regularization=None, summary_labels=None):
+        super().__init__(
+            name=name, l2_regularization=l2_regularization, summary_labels=summary_labels
+        )
+
+        self.inputs_spec = inputs_spec
+
+    def tf_predict(self, states, internals):
         """
         Creates the TensorFlow operations for predicting the value function of given states.
         Args:
@@ -35,7 +42,7 @@ class Baseline(Module):
         """
         raise NotImplementedError
 
-    def tf_reference(self, states, internals, reward, update):
+    def tf_reference(self, states, internals, reward):
         """
         Creates the TensorFlow operations for obtaining the reference tensor(s), in case of a
         comparative loss.
@@ -51,7 +58,7 @@ class Baseline(Module):
         """
         return None
 
-    def tf_loss(self, states, internals, reward, update, reference=None):
+    def tf_loss(self, states, internals, reward):
         """
         Creates the TensorFlow operations for calculating the L2 loss between predicted
         state values and actual rewards.
@@ -66,5 +73,5 @@ class Baseline(Module):
         Returns:
             Loss tensor
         """
-        prediction = self.predict(states=states, internals=internals, update=update)
+        prediction = self.predict(states=states, internals=internals)
         return 0.5 * tf.reduce_sum(input_tensor=tf.square(x=(prediction - reward)))

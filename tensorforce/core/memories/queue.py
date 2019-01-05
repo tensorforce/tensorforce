@@ -27,7 +27,9 @@ class Queue(Memory):
     Base class for memories organized as a queue (FIFO).
     """
 
-    def __init__(self, name, states_spec, internals_spec, actions_spec, include_next_state, capacity):
+    def __init__(
+        self, name, states_spec, internals_spec, actions_spec, include_next_states, capacity
+    ):
         """
         Queue memory.
 
@@ -36,7 +38,7 @@ class Queue(Memory):
         """
         super().__init__(
             name=name, states_spec=states_spec, internals_spec=internals_spec,
-            actions_spec=actions_spec, include_next_state=include_next_state
+            actions_spec=actions_spec, include_next_states=include_next_states
         )
 
         self.capacity = capacity
@@ -182,7 +184,7 @@ class Queue(Memory):
         Returns: Batch of experiences
         """
 
-        if self.include_next_state:
+        if self.include_next_states:
             terminal = tf.gather(params=self.memories['terminal'], indices=indices)
             indices = tf.boolean_mask(tensor=indices, mask=tf.math.logical_not(x=terminal))
 
@@ -202,7 +204,7 @@ class Queue(Memory):
 
         reward = tf.gather(params=self.memories['reward'], indices=indices)
 
-        if self.include_next_state:
+        if self.include_next_states:
             assert util.rank(x=indices) == 1
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))

@@ -505,8 +505,10 @@ class Module(object):
         if isinstance(module, dict):
             # Dictionary module specification (type either given via 'type' or 'default_module')
             for key, value in module.items():
-                if kwargs.get(key, value) != value:
-                    raise ValueError
+                if key in kwargs and kwargs[key] != value:
+                    raise TensorforceError.mismatch(
+                        name='module', argument=key, value1=kwargs[key], value2=value
+                    )
                 kwargs[key] = value
             module = kwargs.pop('type', default_module)
             return self.add_module(
@@ -520,8 +522,8 @@ class Module(object):
                 with open(module, 'r') as fp:
                     module = json.load(fp=fp)
                 return self.add_module(
-                    name=name, modules=modules, default_module=default_module,
-                    is_trainable=is_trainable, is_subscope=is_subscope, **module, **kwargs
+                    name=name, module=module, modules=modules, default_module=default_module,
+                    is_trainable=is_trainable, is_subscope=is_subscope, **kwargs
                 )
 
             elif '.' in module:

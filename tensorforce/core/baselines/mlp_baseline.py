@@ -21,23 +21,20 @@ class MLPBaseline(NetworkBaseline):
     Multi-layer perceptron baseline (single-state) consisting of dense layers.
     """
 
-    def __init__(self, name, sizes, l2_regularization=None, summary_labels=None):
+    def __init__(self, name, sizes, inputs_spec, l2_regularization=None, summary_labels=None):
         """
         Multi-layer perceptron baseline.
 
         Args:
             sizes: List of dense layer sizes
         """
-        network_spec = list()
-
-        # Flatten input
-        network_spec.append(dict(type='flatten'))
+        network = list()
 
         # Dense layers
         for size in sizes:
-            network_spec.append(dict(type='dense', size=size))
+            network.append(dict(type='dense', size=size))
 
         super().__init__(
-            name=name, network_spec=network_spec, l2_regularization=l2_regularization,
-            summary_labels=summary_labels
+            name=name, network=network, inputs_spec=inputs_spec,
+            l2_regularization=l2_regularization, summary_labels=summary_labels
         )

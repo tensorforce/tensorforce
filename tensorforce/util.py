@@ -72,6 +72,10 @@ def product(xs, empty=1):
     return result
 
 
+def tf_always_true(*args, **kwargs):
+    return tf.constant(value=True, dtype=tf_dtype(dtype='bool'))
+
+
 def fmap(function, xs):
     if xs is None:
         return None

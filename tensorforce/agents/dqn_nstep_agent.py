@@ -58,7 +58,7 @@ class DQNNstepAgent(DRLAgent):
                 - batch_size: integer (default: 10).
                 - frequency: integer (default: batch_size).
             memory (spec): Memory specification, see core.memories module for more information
-                (default: {type='latest', include_next_state=true, capacity=1000*batch_size}).
+                (default: {type='latest', include_next_states=true, capacity=1000*batch_size}).
             optimizer (spec): Optimizer specification, see core.optimizers module for more
                 information (default: {type='adam', learning_rate=1e-3}).
             target_sync_frequency (int): Target network sync frequency (default: 10000).
@@ -83,10 +83,10 @@ class DQNNstepAgent(DRLAgent):
         if memory is None:
             # Assumed episode length of 1000 timesteps.
             memory = dict(
-                type='latest', include_next_state=True, capacity=(1000 * update_mode['batch_size'])
+                type='latest', include_next_states=True, capacity=(1000 * update_mode['batch_size'])
             )
         else:
-            assert memory['include_next_state']
+            assert memory['include_next_states']
 
         # Optimizer
         if optimizer is None:

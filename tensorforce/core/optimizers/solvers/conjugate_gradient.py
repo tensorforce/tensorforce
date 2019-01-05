@@ -106,13 +106,12 @@ class ConjugateGradient(Iterative):
 
         return initial_args + (conjugate, residual, squared_residual)
 
-    def tf_step(self, x, iteration, conjugate, residual, squared_residual):
+    def tf_step(self, x, conjugate, residual, squared_residual):
         """
         Iteration loop body of the conjugate gradient algorithm.
 
         Args:
             x: Current solution estimate $x_t$.
-            iteration: Current iteration counter $t$.
             conjugate: Current conjugate $c_t$.
             residual: Current residual $r_t$.
             squared_residual: Current squared residual $r_t^2$.
@@ -120,8 +119,8 @@ class ConjugateGradient(Iterative):
         Returns:
             Updated arguments for next iteration.
         """
-        x, next_iteration, conjugate, residual, squared_residual = super().tf_step(
-            x, iteration, conjugate, residual, squared_residual
+        x, conjugate, residual, squared_residual = super().tf_step(
+            x, conjugate, residual, squared_residual
         )
 
         # Ac := A * c_t
@@ -154,15 +153,14 @@ class ConjugateGradient(Iterative):
         # c_{t+1} := r_{t+1} + \beta * c_t
         next_conjugate = [res + beta * conj for res, conj in zip(next_residual, conjugate)]
 
-        return next_x, next_iteration, next_conjugate, next_residual, next_squared_residual
+        return next_x, next_conjugate, next_residual, next_squared_residual
 
-    def tf_next_step(self, x, iteration, conjugate, residual, squared_residual):
+    def tf_next_step(self, x, conjugate, residual, squared_residual):
         """
         Termination condition: max number of iterations, or residual sufficiently small.
 
         Args:
             x: Current solution estimate $x_t$.
-            iteration: Current iteration counter $t$.
             conjugate: Current conjugate $c_t$.
             residual: Current residual $r_t$.
             squared_residual: Current squared residual $r_t^2$.
@@ -170,5 +168,5 @@ class ConjugateGradient(Iterative):
         Returns:
             True if another iteration should be performed.
         """
-        next_step = super().tf_next_step(x, iteration, conjugate, residual, squared_residual)
+        next_step = super().tf_next_step(x, conjugate, residual, squared_residual)
         return tf.logical_and(x=next_step, y=(squared_residual >= util.epsilon))

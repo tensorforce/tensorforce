@@ -26,7 +26,7 @@ class AggregatedBaseline(Baseline):
     Baseline which aggregates per-state baselines.
     """
 
-    def __init__(self, name, baselines_spec, l2_regularization=None, summary_labels=None):
+    def __init__(self, name, baselines, inputs_spec, l2_regularization=None, summary_labels=None):
         """
         Aggregated baseline.
 
@@ -35,23 +35,26 @@ class AggregatedBaseline(Baseline):
         """
 
         super().__init__(
-            name=name, l2_regularization=l2_regularization, summary_labels=summary_labels
+            name=name, inputs_spec=inputs_spec, l2_regularization=l2_regularization,
+            summary_labels=summary_labels
         )
 
         self.baselines = OrderedDict()
         from tensorforce.core.baselines import baseline_modules
-        for name, baseline_spec in baselines_spec.items():  # turn to ordereddict in agent
+        for name, baseline in baselines.items():  # turn to ordereddict in agent
             self.baselines[name] = self.add_module(
-                name=(name + '-baseline'), module=baseline_spec, modules=baseline_modules
+                name=(name + '-baseline'), module=baseline, modules=baseline_modules,
+                inputs_spec=self.inputs_spec[name]
             )
 
         self.prediction = self.add_module(
-            name='prediction', module='linear', modules=layer_modules, size=0
+            name='prediction', module='linear', modules=layer_modules, size=0,
+            input_spec=dict(type='float', shape=(len(self.baselines),), batched=True)
         )
 
-    def tf_predict(self, states, internals, update):
+    def tf_predict(self, states, internals):
         predictions = list()
         for name, baseline in self.baselines.items():
-            prediction = baseline.predict(states=states[name], internals=internals, update=update)
+            prediction = baseline.predict(states=states[name], internals=internals)
             predictions.append(prediction)
         return self.prediction.apply(x=tf.stack(values=predictions, axis=1))

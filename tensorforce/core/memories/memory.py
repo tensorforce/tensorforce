@@ -23,20 +23,20 @@ class Memory(Module):
     Base class for memories.
     """
 
-    def __init__(self, name, states_spec, internals_spec, actions_spec, include_next_state):
+    def __init__(self, name, states_spec, internals_spec, actions_spec, include_next_states):
         """
         Args:
             state_spec (dict): State specification.
             internals_spec (dict): Internal state specification.
             action_spec (dict): Action specification.
-            include_next_state (bool): Include subsequent state if true.
+            include_next_states (bool): Include subsequent state if true.
         """
         super().__init__(name=name, l2_regularization=0.0)
 
         self.states_spec = states_spec
         self.internals_spec = internals_spec
         self.actions_spec = actions_spec
-        self.include_next_state = include_next_state
+        self.include_next_states = include_next_states
 
     def tf_store(self, states, internals, actions, terminal, reward):
         """"

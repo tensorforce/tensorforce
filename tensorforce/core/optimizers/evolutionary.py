@@ -75,7 +75,7 @@ class Evolutionary(Optimizer):
         if self.unroll_loop:
             # Unrolled for loop
             previous_perturbations = perturbations
-            for sample in range(self.num_samples):
+            for sample in range(self.num_samples - 1):
 
                 with tf.control_dependencies(control_inputs=deltas_sum):
                     perturbations = [
@@ -99,7 +99,7 @@ class Evolutionary(Optimizer):
 
         else:
             # TensorFlow while loop
-            def body(iteration, deltas_sum, previous_perturbations):
+            def body(deltas_sum, previous_perturbations):
 
                 with tf.control_dependencies(control_inputs=deltas_sum):
                     perturbations = [
@@ -120,13 +120,11 @@ class Evolutionary(Optimizer):
                         for delta, perturbation in zip(deltas_sum, perturbations)
                     ]
 
-                return iteration + 1, deltas_sum, perturbations
+                return deltas_sum, perturbations
 
-            def cond(iteration, deltas_sum, previous_perturbation):
-                return iteration < self.num_samples - 1
-
-            _, deltas_sum, perturbations = tf.while_loop(
-                cond=cond, body=body, loop_vars=(0, deltas_sum, perturbations)
+            deltas_sum, perturbations = tf.while_loop(
+                cond=util.tf_always_true, body=body, loop_vars=(deltas_sum, perturbations),
+                maximum_iterations=(self.num_samples - 1)
             )
 
         with tf.control_dependencies(control_inputs=deltas_sum):

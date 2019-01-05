@@ -23,27 +23,31 @@ class NetworkBaseline(Baseline):
     function and the baseline.
     """
 
-    def __init__(self, name, network_spec, l2_regularization=None, summary_labels=None):
+    def __init__(self, name, network, inputs_spec, l2_regularization=None, summary_labels=None):
         """
         Network baseline.
 
         Args:
             network_spec: Network specification dict
         """
+        super().__init__(
+            name=name, inputs_spec=inputs_spec, l2_regularization=l2_regularization,
+            summary_labels=summary_labels
+        )
+
         self.network = self.add_module(
-            name='network', module=network_spec, modules=network_modules, default_module='layered'
+            name='network', module=network, modules=network_modules, default_module='layered',
+            inputs_spec=self.inputs_spec
         )
         assert len(self.network.internals_spec()) == 0
+        output_spec = self.network.get_output_spec()
 
         self.prediction = self.add_module(
-            name='prediction', module='linear', modules=layer_modules, size=0
+            name='prediction', module='linear', modules=layer_modules, size=0,
+            input_spec=output_spec
         )
 
-        super().__init__(
-            name=name, l2_regularization=l2_regularization, summary_labels=summary_labels
-        )
-
-    def tf_predict(self, states, internals, update):
-        embedding = self.network.apply(x=states, internals=internals, update=update)
+    def tf_predict(self, states, internals):
+        embedding = self.network.apply(x=states, internals=internals)
 
         return self.prediction.apply(x=embedding)

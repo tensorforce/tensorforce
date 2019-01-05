@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce.core import baseline_modules, optimizer_modules
@@ -60,20 +62,31 @@ class PGModel(DistributionModel):
         # Baseline
         if baseline is None:
             assert self.baseline_mode is None
-
         elif all(name in self.states_spec for name in baseline):
             # Implies AggregatedBaseline
             assert self.baseline_mode == 'states'
+            inputs_spec = OrderedDict()
+            for name, spec in self.states_spec.items():
+                inputs_spec[name] = dict(spec)
+                inputs_spec[name]['batched'] = True
             self.baseline = self.add_module(
                 name='baseline', module='aggregated', modules=baseline_modules,
-                is_trainable=(baseline_optimizer is None), baselines=baseline
+                is_trainable=(baseline_optimizer is None), is_subscope=True, baselines=baseline,
+                inputs_spec=inputs_spec
             )
-
         else:
             assert self.baseline_mode is not None
+            if self.baseline_mode == 'states':
+                inputs_spec = OrderedDict()
+                for name, spec in self.states_spec.items():
+                    inputs_spec[name] = dict(spec)
+                    inputs_spec[name]['batched'] = True
+            elif self.baseline_mode == 'network':
+                inputs_spec = self.network.get_output_spec()
             self.baseline = self.add_module(
                 name='baseline', module=baseline, modules=baseline_modules,
-                is_trainable=(baseline_optimizer is None)
+                is_trainable=(baseline_optimizer is None), is_subscope=True,
+                inputs_spec=inputs_spec
             )
 
         # Baseline optimizer
@@ -117,7 +130,7 @@ class PGModel(DistributionModel):
                 )
 
             if self.gae_lambda is None:
-                reward = self.fn_discounted_cumulative_reward(
+                reward = self.discounted_cumulative_reward(
                     terminal=terminal, reward=reward, discount=self.discount
                 )
                 advantage = reward - state_value
@@ -128,7 +141,7 @@ class PGModel(DistributionModel):
                 next_state_value = tf.where(condition=terminal, x=zeros, y=next_state_value)
                 td_residual = reward + self.discount * next_state_value - state_value
                 gae_discount = self.discount * self.gae_lambda
-                advantage = self.fn_discounted_cumulative_reward(
+                advantage = self.discounted_cumulative_reward(
                     terminal=terminal, reward=td_residual, discount=gae_discount
                 )
 
@@ -162,19 +175,11 @@ class PGModel(DistributionModel):
             Loss tensor.
         """
         if self.baseline_mode == 'states':
-            loss = self.baseline.loss(
-                states=states, internals=internals, reward=reward, reference=reference
-            )
+            loss = self.baseline.loss(states=states, internals=internals, reward=reward)
 
         elif self.baseline_mode == 'network':
             states = self.network.apply(x=states, internals=internals)
-            loss = self.baseline.loss(
-                states=states, internals=internals, reward=reward, reference=reference
-            )
-
-        regularization_loss = self.baseline.regularization_loss()
-        if regularization_loss is not None:
-            loss += regularization_loss
+            loss = self.baseline.loss(states=states, internals=internals, reward=reward)
 
         return loss
 

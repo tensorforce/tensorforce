@@ -1,0 +1,13 @@
+{
+    "type": "layered",
+    "layers": [
+        {
+            "type": "dense",
+            "size": 32
+        },
+        {
+            "type": "dense",
+            "size": 32
+        }
+    ]
+}

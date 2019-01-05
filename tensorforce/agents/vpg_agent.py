@@ -58,7 +58,7 @@ class VPGAgent(DRLAgent):
                 - batch_size: integer (default: 10).
                 - frequency: integer (default: batch_size).
             memory (spec): Memory specification, see core.memories module for more information
-                (default: {type='latest', include_next_state=false, capacity=1000*batch_size}).
+                (default: {type='latest', include_next_states=false, capacity=1000*batch_size}).
             optimizer (spec): Optimizer specification, see core.optimizers module for more
                 information (default: {type='adam', learning_rate=1e-3}).
             baseline_mode (str): One of 'states', 'network' (default: none).
@@ -86,11 +86,11 @@ class VPGAgent(DRLAgent):
         if memory is None:
             # Assumed episode length of 1000 timesteps.
             memory = dict(
-                type='latest', include_next_state=False,
+                type='latest', include_next_states=False,
                 capacity=(1000 * update_mode['batch_size'])
             )
         else:
-            assert not memory['include_next_state']
+            assert not memory['include_next_states']
 
         # if update_mode is `timesteps`, require memory `latest`
         # Note: We actually test all combinations in test_vpg_memories - disable assertion for now

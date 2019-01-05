@@ -97,7 +97,8 @@ class Latest(Queue):
         # ???????
         # sequence_indices = [tf.range(start=indices[n], limit=(indices[n] + sequence_length)) for k in range(n)]
         # sequence_indices = [indices[k: k + sequence_length] for k in tf.unstack(value=tf.range(start=0, limit=n), num=n)]
-        sequence_indices = tf.expand_dims(input=tf.range(start=0, limit=n), axis=1) + tf.expand_dims(input=tf.constant(value=list(range(sequence_length))), axis=0)
+        sequence_indices = tf.expand_dims(input=tf.range(start=0, limit=n), axis=1)
+        sequence_indices += tf.expand_dims(input=tf.range(start=0, limit=sequence_length), axis=0)
         sequence_indices = tf.reshape(tensor=sequence_indices, shape=(n * sequence_length,))
         # sequence_indices = tf.concat(values=sequence_indices, axis=0)  # tf.stack !!!!!
         terminal = tf.gather(params=self.memories['terminal'], indices=indices)

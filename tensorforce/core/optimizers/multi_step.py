@@ -15,6 +15,7 @@
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core.optimizers import MetaOptimizer
 
 
@@ -74,17 +75,17 @@ class MultiStep(MetaOptimizer):
 
         else:
             # TensorFlow while loop
-            def body(iteration, deltas):
+            def body(deltas):
                 with tf.control_dependencies(control_inputs=deltas):
                     step_deltas = self.optimizer.step(
                         time=time, variables=variables, arguments=arguments, **kwargs
                     )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
-                    return iteration + 1, deltas
+                    return deltas
 
-            def cond(iteration, deltas):
-                return iteration < self.num_steps - 1
-
-            _, deltas = tf.while_loop(cond=cond, body=body, loop_vars=(0, deltas))
+            deltas = tf.while_loop(
+                cond=util.tf_always_true, body=body, loop_vars=(deltas,),
+                maximum_iterations=(self.num_steps - 1)
+            )
 
             return deltas

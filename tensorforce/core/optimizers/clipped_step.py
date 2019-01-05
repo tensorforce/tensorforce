@@ -67,4 +67,4 @@ class ClippedStep(MetaOptimizer):
         applied = self.apply_step(variables=variables, deltas=exceeding_deltas)
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [util.identity_operation(x=delta, dtype='float') for delta in clipped_deltas]
+            return [util.identity_operation(x=delta) for delta in clipped_deltas]

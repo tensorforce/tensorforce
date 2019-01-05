@@ -15,7 +15,10 @@
 
 from tensorforce.exception import TensorforceError
 from tensorforce import util
+from tensorforce.environment import Environment
 
+
+__all__ = ['Environment', 'TensorforceError', 'util']
 
 __version__ = '0.5.0'
 
@@ -34,6 +37,3 @@ except ImportError:
             pass
 
 logging.getLogger(__name__).addHandler(NullHandler())
-
-
-__all__ = ['TensorforceError', 'util']

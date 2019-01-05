@@ -16,7 +16,7 @@
 import time
 
 from tensorforce import TensorForceError
-from tensorforce.environments.environment import Environment
+from tensorforce.environment import Environment
 
 import ple
 from ple.games import *

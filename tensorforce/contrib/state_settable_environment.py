@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.environments import Environment
+from tensorforce import Environment
 
 
 class StateSettableEnvironment(Environment):

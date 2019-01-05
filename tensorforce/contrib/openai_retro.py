@@ -18,7 +18,7 @@ import gym
 import numpy as np
 
 from tensorforce import TensorForceError
-from tensorforce.environments import Environment
+from tensorforce import Environment
 
 
 class OpenAIRetro(Environment):

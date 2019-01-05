@@ -15,7 +15,7 @@
 
 import mazeexp as mx
 
-from tensorforce.environments import Environment
+from tensorforce import Environment
 
 
 class MazeExplorer(Environment):

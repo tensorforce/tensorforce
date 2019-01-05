@@ -13,142 +13,210 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.execution.base_runner import BaseRunner
-
 import time
-import warnings
-from inspect import getargspec
-from tqdm import tqdm
 
 
-class Runner(BaseRunner):
+class Runner(object):
     """
     Simple runner for non-realtime single-process execution.
     """
 
-    def __init__(self, agent, environment, repeat_actions=1, history=None, id_=0):
+    def __init__(self, agent, environment, parallel_id=0):
         """
         Initialize a single Runner object (one Agent/one Environment).
 
         Args:
             id_ (int): The ID of this Runner (for distributed TF runs).
         """
-        super(Runner, self).__init__(agent, environment, repeat_actions, history)
+        self.agent = agent
+        self.environment = environment
+        self.parallel_id = parallel_id
 
-        self.id = id_  # the worker's ID in a distributed run (default=0)
-        self.current_timestep = None  # the time step in the current episode
+        self.agent.initialize()
+        self.global_episode = self.agent.episode
+        self.global_timestep = self.agent.timestep
+        self.episode_rewards = list()
+        self.episode_timesteps = list()
+        self.episode_times = list()
 
     def close(self):
         self.agent.close()
         self.environment.close()
 
     # TODO: make average reward another possible criteria for runner-termination
-    def run(self, num_timesteps=None, num_episodes=None, max_episode_timesteps=None, deterministic=False,
-            episode_finished=None, summary_report=None, summary_interval=None, timesteps=None, episodes=None, testing=False, sleep=None
-            ):
-        """
-        Args:
-            timesteps (int): Deprecated; see num_timesteps.
-            episodes (int): Deprecated; see num_episodes.
-        """
+    def run(
+        self,
+        # General
+        num_episodes=None, num_timesteps=None, max_episode_timesteps=None, deterministic=False,
+        num_repeat_actions=1, num_sleep_secs=0,
+        # Callback
+        callback='tqdm', callback_episode_frequency=1, callback_timestep_frequency=None,
+        # Evaluation
+        evaluation_callback=None, evaluation_frequency=None, max_evaluation_timesteps=None,
+        num_evaluation_iterations=1,
+        # Save
+        save_frequency=None, save_directory=None, save_append_timestep=False
+    ):
+        self.num_episodes = num_episodes
+        self.num_timesteps = num_timesteps
+        self.deterministic = deterministic
+        self.num_repeat_actions = num_repeat_actions
+        self.num_sleep_secs = num_sleep_secs
 
-        # deprecation warnings
-        if timesteps is not None:
-            num_timesteps = timesteps
-            warnings.warn("WARNING: `timesteps` parameter is deprecated, use `num_timesteps` instead.",
-                          category=DeprecationWarning)
-        if episodes is not None:
-            num_episodes = episodes
-            warnings.warn("WARNING: `episodes` parameter is deprecated, use `num_episodes` instead.",
-                          category=DeprecationWarning)
+        # Callback
+        assert not callback_episode_frequency or num_episodes is not None
+        assert not callback_timestep_frequency or num_timesteps is not None
+        assert callback is None or \
+            (callback_episode_frequency is None) != (callback_timestep_frequency is None)
+        self.callback_episode_frequency = callback_episode_frequency
+        self.callback_timestep_frequency = callback_timestep_frequency
 
-        # figure out whether we are using the deprecated way of "episode_finished" reporting
-        old_episode_finished = False
-        if episode_finished is not None and len(getargspec(episode_finished).args) == 1:
-            old_episode_finished = True
+        if callback == 'tqdm':
+            # Tqdm callback
+            from tqdm import tqdm
+            if self.callback_episode_frequency is None:
+                # Timestep-based tqdm
+                self.tqdm = tqdm(total=num_timesteps, initial=self.global_timestep)
+                self.last_update = self.global_timestep
 
-        # Keep track of episode reward and episode length for statistics.
-        self.start_time = time.time()
+                def callback(runner):
+                    runner.tqdm.update(n=(runner.global_timestep - runner.last_update))
+                    runner.last_update = runner.global_timestep
+                    return True
 
-        self.agent.initialize()
+            else:
+                # Episode-based tqdm
+                self.tqdm = tqdm(total=num_episodes, initial=self.global_episode)
+                self.last_update = self.global_episode
 
-        if num_episodes is not None:
-            num_episodes += self.agent.episode
+                def callback(runner):
+                    runner.tqdm.update(n=(runner.global_episode - runner.last_update))
+                    runner.last_update = runner.global_episode
+                    return True
 
-        if num_timesteps is not None:
-            num_timesteps += self.agent.timestep
+        self.callback = callback
 
-        # add progress bar
-        with tqdm(total=num_episodes) as pbar:
-            # episode loop
-            while True:
-                episode_start_time = time.time()
-                states = self.environment.reset()
+        # Episode counter
+        self.episode = 1
 
-                # Update global counters.
-                self.global_episode = self.agent.episode  # global value (across all agents)
-                self.global_timestep = self.agent.timestep  # global value (across all agents)
+        # Episode loop
+        while True:
+            # Save agent
+            if save_frequency is not None and (self.episode % save_frequency) == 0 and \
+                    self.episode > 0:
+                self.agent.save_model(
+                    directory=save_directory, append_timestep=save_append_timestep
+                )
 
-                episode_reward = 0
-                self.current_timestep = 0
+            # Run evaluation
+            if evaluation_callback is not None and (self.episode % evaluation_frequency) == 0 \
+                    and self.episode > 0:
+                self.evaluation_rewards = list()
+                self.evaluation_timesteps = list()
+                self.evaluation_times = list()
+                for _ in range(num_evaluation_iterations):
+                    self.run_episode(max_timesteps=max_evaluation_timesteps, evaluation=True)
+                    self.evaluation_rewards.append(self.episode_reward)
+                    self.evaluation_timesteps.append(self.episode_timestep)
+                    self.evaluation_times.append(self.episode_time)
+                evaluation_callback(self)
 
-                # time step (within episode) loop
-                while True:
-                    actions = self.agent.act(states=states, deterministic=deterministic)
+            # Run episode
+            if not self.run_episode(max_timesteps=max_episode_timesteps, evaluation=False):
+                return
 
-                    reward = 0
-                    for _ in range(self.repeat_actions):
-                        states, terminal, step_reward = self.environment.execute(actions=actions)
-                        reward += step_reward
-                        if terminal:
-                            break
+            # Update experiment statistics
+            self.episode += 1
+            self.episode_rewards.append(self.episode_reward)
+            self.episode_timesteps.append(self.episode_timestep)
+            self.episode_times.append(self.episode_time)
 
-                    if max_episode_timesteps is not None and self.current_timestep >= max_episode_timesteps:
-                        terminal = True
+            # Update global timestep/episode
+            self.global_timestep = self.agent.timestep
+            self.global_episode = self.agent.episode
 
-                    if not testing:
-                        self.agent.observe(terminal=terminal, reward=reward)
+            # Callback plus experiment termination check
+            if num_episodes is not None and callback is not None and \
+                    (self.episode % self.callback_episode_frequency) == 0 and \
+                    not self.callback(self):
+                return
+            elif self.agent.should_stop():
+                return
 
-                    self.global_timestep += 1
-                    self.current_timestep += 1
-                    episode_reward += reward
+            # Terminate experiment if too long
+            if num_timesteps is not None and self.global_timestep >= num_timesteps:
+                return
+            elif num_episodes is not None and self.global_episode >= num_episodes:
+                return
 
-                    if terminal or self.agent.should_stop():  # TODO: should_stop also terminate?
-                        break
+    def run_episode(self, max_timesteps, evaluation):
+        # Episode statistics
+        self.episode_timestep = 0
+        self.episode_reward = 0
+        self.episode_start = time.time()
 
-                    if sleep is not None:
-                        time.sleep(sleep)
+        # Start environment episode
+        states = self.environment.reset()
 
-                # Update our episode stats.
-                time_passed = time.time() - episode_start_time
-                self.episode_rewards.append(episode_reward)
-                self.episode_timesteps.append(self.current_timestep)
-                self.episode_times.append(time_passed)
+        # Timestep loop
+        while True:
+            # Retrieve actions from agent
+            actions = self.agent.act(
+                states=states, deterministic=(self.deterministic or evaluation),
+                parallel=self.parallel_id
+            )
 
-                self.global_episode += 1
-                pbar.update(1)
-
-                # Check, whether we should stop this run.
-                if episode_finished is not None:
-                    # deprecated way (passing in only runner object):
-                    if old_episode_finished:
-                        if not episode_finished(self):
-                            break
-                    # new unified way (passing in BaseRunner AND some worker ID):
-                    elif not episode_finished(self, self.id):
-                        break
-                if (num_episodes is not None and self.global_episode >= num_episodes) or \
-                        (num_timesteps is not None and self.global_timestep >= num_timesteps) or \
-                        self.agent.should_stop():
+            # Execute actions in environment (optional multiple executions)
+            reward = 0
+            for _ in range(self.num_repeat_actions):
+                states, terminal, step_reward = self.environment.execute(actions=actions)
+                reward += step_reward
+                if terminal:
                     break
-            pbar.update(num_episodes - self.global_episode)
 
-    # keep backwards compatibility
-    @property
-    def episode_timestep(self):
-        return self.current_timestep
+            # Update episode statistics
+            self.episode_timestep += 1
+            self.episode_reward += reward
 
+            # Terminate episode if too long
+            if max_timesteps is not None and self.current_timestep >= max_timesteps:
+                terminal = True
 
-# more descriptive alias for Runner class
-DistributedTFRunner = Runner
-SingleRunner = Runner
+            # Observe if not evaluation
+            if not evaluation:
+                self.agent.observe(terminal=terminal, reward=reward, parallel=self.parallel_id)
+
+            # Episode termination check
+            if terminal:
+                break
+
+            # Sleep
+            if self.num_sleep_secs > 0:
+                time.sleep(secs=self.num_sleep_secs)
+
+            if evaluation:
+                continue
+
+            # Update global timestep/episode
+            self.global_timestep = self.agent.timestep
+            self.global_episode = self.agent.episode
+
+            # Callback plus experiment termination check
+            if self.num_timesteps is not None and self.callback is not None and \
+                    (self.episode_timestep % self.callback_timestep_frequency) == 0 and \
+                    not self.callback(self):
+                return False
+            elif self.agent.should_stop():
+                return False
+
+            # Terminate experiment if too long
+            if self.num_timesteps is not None and self.global_timestep >= self.num_timesteps:
+                return
+            elif self.num_episodes is not None and self.global_episode >= self.num_episodes:
+                return
+
+        # Episode statistics
+        self.episode_end = time.time()
+        self.episode_time = self.episode_end - self.episode_start
+
+        return True

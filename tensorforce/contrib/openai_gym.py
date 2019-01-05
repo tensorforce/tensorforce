@@ -19,8 +19,7 @@ OpenAI Gym Integration: https://gym.openai.com/.
 
 import gym
 import numpy as np
-from tensorforce import TensorForceError
-from tensorforce.environments import Environment
+from tensorforce import Environment, TensorforceError
 
 class OpenAIGym(Environment):
     """

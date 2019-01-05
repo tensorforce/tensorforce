@@ -19,7 +19,7 @@ from gym.spaces.discrete import Discrete
 from universe.spaces import VNCActionSpace, VNCObservationSpace
 
 from tensorforce import TensorForceError
-from tensorforce.environments.environment import Environment
+from tensorforce.environment import Environment
 
 
 class OpenAIUniverse(Environment):

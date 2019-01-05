@@ -249,10 +249,8 @@ class Module(object):
 
             # Function-level identity operation for retrieval
             for scoped_name, tensor in Module.global_tensors.items():
-                util.identity_operation(
-                    x=tensor, dtype=Module.global_tensors_spec[scoped_name]['type'],
-                    operation_name=(scoped_name + '-output')
-                )
+                if '/while/' not in tensor.name:  # !!!!!!
+                    util.identity_operation(x=tensor, operation_name=(scoped_name + '-output'))
 
         if self.device is not None:
             self.device.__exit__(None, None, None)
@@ -476,11 +474,9 @@ class Module(object):
 
         with tf.control_dependencies(control_inputs=summaries):
             if util.is_iterable(x=pass_tensors):
-                return tuple(
-                    util.identity_operation(x=x, dtype=util.dtype(x=x)) for x in pass_tensors
-                )
+                return tuple(util.identity_operation(x=x) for x in pass_tensors)
             else:
-                return util.identity_operation(x=pass_tensors, dtype=util.dtype(x=pass_tensors))
+                return util.identity_operation(x=pass_tensors)
 
     def add_module(
         self, name, module, modules=None, default_module=None, is_trainable=True,

@@ -7,7 +7,6 @@
 - Policy
 - API methods
 - Auto network
-- Runner utilities
 - Reward estimation
 - State modeling: e.g. sequence inputs
 - Action modeling: e.g. constrained actions

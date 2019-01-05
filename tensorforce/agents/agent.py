@@ -198,19 +198,20 @@ class Agent(object):
         index = self.buffer_indices[parallel]
         self.terminal_buffers[parallel, index] = terminal
         self.reward_buffers[parallel, index] = reward
+        index += 1
 
-        if terminal or index == self.buffer_observe - 1:
+        if terminal or index == self.buffer_observe:
             # Model.observe()
             if query is None:
                 self.episode = self.model.observe(
-                    terminal=self.terminal_buffers[parallel, :index + 1],
-                    reward=self.reward_buffers[parallel, :index + 1], parallel=parallel
+                    terminal=self.terminal_buffers[parallel, :index],
+                    reward=self.reward_buffers[parallel, :index], parallel=parallel
                 )
 
             else:
                 self.episode, query = self.model.observe(
-                    terminal=self.terminal_buffers[parallel, :index + 1],
-                    reward=self.reward_buffers[parallel, :index + 1], parallel=parallel,
+                    terminal=self.terminal_buffers[parallel, :index],
+                    reward=self.reward_buffers[parallel, :index], parallel=parallel,
                     query=query
                 )
 
@@ -223,7 +224,7 @@ class Agent(object):
                 raise TensorforceError.value(name='query', value=query)
 
             # Increment buffer index
-            self.buffer_indices[parallel] = index + 1
+            self.buffer_indices[parallel] = index
 
         if query is not None:
             return query
@@ -293,6 +294,15 @@ class Agent(object):
         Returns:
             Checkpoint path were the model was saved.
         """
+        # Empty buffers before saving
+        for parallel in range(self.parallel_interactions):
+            index = self.buffer_indices[parallel]
+            self.episode = self.model.observe(
+                terminal=self.terminal_buffers[parallel, :index],
+                reward=self.reward_buffers[parallel, :index], parallel=parallel
+            )
+            self.buffer_indices[parallel] = 0
+
         return self.model.save(directory=directory, append_timestep=append_timestep)
 
     def restore_model(self, directory=None, file=None):

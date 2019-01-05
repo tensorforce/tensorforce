@@ -15,7 +15,7 @@
 
 import numpy as np
 import deepmind_lab
-from tensorforce.environments.environment import Environment
+from tensorforce.environment import Environment
 
 
 # TODO this has not been tested since 0.3 - potentially deprecated API

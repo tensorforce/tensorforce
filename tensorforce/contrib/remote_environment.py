@@ -14,7 +14,7 @@
 # ==============================================================================
 
 
-from tensorforce.environments import Environment
+from tensorforce import Environment
 import socket
 import msgpack
 import msgpack_numpy as mnp

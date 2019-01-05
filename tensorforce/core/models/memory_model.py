@@ -233,9 +233,9 @@ class MemoryModel(Model):
             return tf.where(
                 condition=term,
                 # Start counting from 1 after is-terminal signal
-                x=tf.ones(shape=(), dtype=tf.int32),
+                x=tf.ones_like(tensor=term, dtype=tf.int32),
                 # Otherwise, increase length by 1
-                y=cumulative + 1
+                y=(cumulative + 1)
             )
 
         # Reverse, since reward cumulation is calculated right-to-left, but tf.scan only works left-to-right.
@@ -245,7 +245,10 @@ class MemoryModel(Model):
         # e.g. F T F F F F
 
         # Store the steps until end of the episode(s) determined by the input terminal signals (True starts new count).
-        lengths = tf.scan(fn=len_, elems=terminal, initializer=0)
+        lengths = tf.scan(
+            fn=len_, elems=terminal,
+            initializer=tf.zeros_like(tensor=terminal[0], dtype=tf.int32)
+        )
         # e.g. 1 1 2 3 4 5
         off_horizon = tf.greater(lengths, tf.fill(dims=tf.shape(lengths), value=horizon))
         # e.g. F F F F T T

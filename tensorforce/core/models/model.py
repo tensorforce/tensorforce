@@ -1038,10 +1038,10 @@ class Model(Module):
             # Function-level identity operation for retrieval (plus enforce dependency)
             for name, spec in self.actions_spec.items():
                 actions[name] = util.identity_operation(
-                    x=actions[name], dtype=spec['type'], operation_name=(name + '-output')
+                    x=actions[name], operation_name=(name + '-output')
                 )
             timestep = util.identity_operation(
-                x=self.global_episode, dtype='long', operation_name='timestep-output'
+                x=self.global_episode, operation_name='timestep-output'
             )
 
         return actions, timestep
@@ -1169,7 +1169,7 @@ class Model(Module):
         with tf.control_dependencies(control_inputs=(reset_buffer_index,)):
             # Function-level identity operation for retrieval (plus enforce dependency)
             episode = util.identity_operation(
-                x=self.global_episode, dtype='long', operation_name='episode-output'
+                x=self.global_episode, operation_name='episode-output'
             )
 
         return episode
@@ -1216,9 +1216,7 @@ class Model(Module):
         with tf.control_dependencies(control_inputs=(observation,)):
             # Trivial operation to enforce control dependency.
 
-            self.unbuffered_episode_output = util.identity_operation(
-                x=self.global_episode, dtype='long'
-            )
+            self.unbuffered_episode_output = util.identity_operation(x=self.global_episode)
 
     # def get_feed_dict(
     #     self,

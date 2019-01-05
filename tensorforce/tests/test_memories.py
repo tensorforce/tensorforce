@@ -119,7 +119,7 @@ class TestMemories(UnittestBase, unittest.TestCase):
             name='replay-sequences', states=states, actions=actions, network=network, **config
         )
 
-    def old_test_prioritized_replay_timesteps(self):
+    def broken_test_prioritized_replay_timesteps(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)

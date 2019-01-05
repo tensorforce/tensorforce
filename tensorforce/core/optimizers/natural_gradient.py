@@ -145,7 +145,7 @@ class NaturalGradient(Optimizer):
             with tf.control_dependencies(control_inputs=(applied,)):
                 # Trivial operation to enforce control dependency
                 estimated_delta = [
-                    util.identity_operation(x=estimated_delta, dtype='float')
+                    util.identity_operation(x=estimated_delta)
                     for estimated_delta in estimated_deltas
                 ]
                 if return_estimated_improvement:

@@ -25,7 +25,7 @@ class QNstepModel(QModel):
     """
 
     def tf_q_delta(self, q_value, next_q_value, terminal, reward):
-        for _ in range(util.rank(q_value) - 1):
+        for _ in range(util.rank(x=q_value) - 1):
             terminal = tf.expand_dims(input=terminal, axis=1)
             reward = tf.expand_dims(input=reward, axis=1)
 

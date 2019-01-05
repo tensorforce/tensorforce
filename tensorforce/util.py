@@ -140,11 +140,11 @@ def shape(x, unknown=-1):
     return tuple(unknown if num_dims is None else num_dims for num_dims in x.get_shape().as_list())
 
 
-def identity_operation(x, dtype, operation_name=None):
-    zero = tf.zeros_like(tensor=x, dtype=tf_dtype(dtype=dtype))
-    if dtype == 'bool':
+def identity_operation(x, operation_name=None):
+    zero = tf.zeros_like(tensor=x)
+    if dtype(x=zero) == 'bool':
         x = tf.math.logical_or(x=x, y=zero, name=operation_name)
-    elif dtype in ('int', 'long', 'float'):
+    elif dtype(x=zero) in ('int', 'long', 'float'):
         x = tf.math.add(x=x, y=zero, name=operation_name)
     else:
         raise TensorforceError.value(name='dtype', value=dtype)

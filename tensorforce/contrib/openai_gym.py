@@ -72,20 +72,20 @@ class OpenAIGym(Environment):
     def reset(self):
         if isinstance(self.gym, gym.wrappers.Monitor):
             self.gym.stats_recorder.done = True
-        state = self.gym.reset()
-        return OpenAIGym.flatten_state(state=state)
+        states = self.gym.reset()
+        return OpenAIGym.flatten_state(state=states)
 
-    def execute(self, action):
+    def execute(self, actions):
         if self.visualize:
             self.gym.render()
-        action = OpenAIGym.unflatten_action(action=action)
-        state, reward, terminal, _ = self.gym.step(action)
-        return OpenAIGym.flatten_state(state=state), terminal, reward
+        actions = OpenAIGym.unflatten_action(action=actions)
+        states, reward, terminal, _ = self.gym.step(actions)
+        return OpenAIGym.flatten_state(state=states), terminal, reward
 
     @staticmethod
     def state_from_space(space):
         if isinstance(space, gym.spaces.Discrete):
-            return dict(shape=(), type='int')
+            return dict(shape=(), type='int', num_values=space.n)
         elif isinstance(space, gym.spaces.MultiBinary):
             return dict(shape=space.n, type='int')
         elif isinstance(space, gym.spaces.MultiDiscrete):
@@ -114,7 +114,7 @@ class OpenAIGym(Environment):
                         states['{}-{}'.format(space_name, name)] = state
             return states
         else:
-            raise TensorForceError('Unknown Gym space.')
+            raise TensorforceError('Unknown Gym space.')
 
     @staticmethod
     def flatten_state(state):
@@ -144,17 +144,17 @@ class OpenAIGym(Environment):
     @staticmethod
     def action_from_space(space):
         if isinstance(space, gym.spaces.Discrete):
-            return dict(type='int', num_actions=space.n)
+            return dict(type='int', num_values=space.n)
         elif isinstance(space, gym.spaces.MultiBinary):
             return dict(type='bool', shape=space.n)
         elif isinstance(space, gym.spaces.MultiDiscrete):
             num_discrete_space = len(space.nvec)
             if (space.nvec == space.nvec[0]).all():
-                return dict(type='int', num_actions=space.nvec[0], shape=num_discrete_space)
+                return dict(type='int', num_values=space.nvec[0], shape=num_discrete_space)
             else:
                 actions = dict()
                 for n in range(num_discrete_space):
-                    actions['gymmdc{}'.format(n)] = dict(type='int', num_actions=space.nvec[n])
+                    actions['gymmdc{}'.format(n)] = dict(type='int', num_values=space.nvec[n])
                 return actions
         elif isinstance(space, gym.spaces.Box):
             if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
@@ -191,7 +191,7 @@ class OpenAIGym(Environment):
             return actions
 
         else:
-            raise TensorForceError('Unknown Gym space.')
+            raise TensorforceError('Unknown Gym space.')
 
     @staticmethod
     def unflatten_action(action):

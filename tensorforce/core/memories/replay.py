@@ -72,7 +72,7 @@ class Replay(Queue):
 
         #             return sampled_indices
 
-        #         sampled_indices = tf.while_loop(
+        #         sampled_indices = self.while_loop(
         #             cond=cond,
         #             body=sampling_body,
         #             loop_vars=[indices],
@@ -81,7 +81,7 @@ class Replay(Queue):
         #         return sampled_indices
 
         #     # If there are still indices after masking, return these, otherwise resample.
-        #     indices = tf.cond(
+        #     indices = self.cond(
         #         pred=tf.reduce_any(input_tensor=(indices >= 0)),
         #         true_fn=(lambda: indices),
         #         false_fn=resample_fn
@@ -129,7 +129,7 @@ class Replay(Queue):
 
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         indices = tf.zeros(shape=(0,), dtype=util.tf_dtype(dtype='long'))
-        indices, _ = tf.while_loop(
+        indices, _ = self.while_loop(
             cond=cond, body=reduce_range_concat, loop_vars=(indices, zero),
             shape_invariants=(tf.TensorShape(dims=(None,)), zero.get_shape()), back_prop=False
         )

@@ -71,7 +71,7 @@ class Lstm(TransformationBase):
 
         self.cell = tf.contrib.rnn.LSTMCell(num_units=self.lstm_size)
         # if self.lstm_dropout is not None:
-        #     keep_prob = tf.cond(pred=update, true_fn=(lambda: 1.0 - self.lstm_dropout), false_fn=(lambda: 1.0))
+        #     keep_prob = self.cond(pred=update, true_fn=(lambda: 1.0 - self.lstm_dropout), false_fn=(lambda: 1.0))
         #     self.lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=self.lstm_cell, output_keep_prob=keep_prob)
 
     def tf_apply(self, x, sequence_length=None):

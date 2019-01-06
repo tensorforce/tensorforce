@@ -236,7 +236,7 @@ class PrioritizedReplay(Memory):
         num_instances = tf.shape(input=terminal)[0]
 
         # Simple way to prevent buffer overflows.
-        start_index = tf.cond(
+        start_index = self.cond(
             # Why + 1? Because of next state, otherwise that has to be handled separately.
             pred=(self.buffer_index + num_instances + 1 >= self.buffer_size),
             true_fn=(lambda: 0),
@@ -270,7 +270,7 @@ class PrioritizedReplay(Memory):
         num_buffer_elems = tf.minimum(x=self.buffer_index, y=n)
 
         # We can only sample from priority memory if buffer elements were previously inserted.
-        num_priority_elements = tf.cond(
+        num_priority_elements = self.cond(
             pred=self.memory_size > 0,
             true_fn=lambda: n - num_buffer_elems,
             false_fn=lambda: 0
@@ -295,7 +295,7 @@ class PrioritizedReplay(Memory):
 
                 return loop_index, sample
 
-            priority_indices = tf.while_loop(
+            priority_indices = self.while_loop(
                 cond=cond,
                 body=sampling_body,
                 loop_vars=(indices, sample)
@@ -308,7 +308,7 @@ class PrioritizedReplay(Memory):
             value=tf.zeros(shape=tf.shape(self.batch_indices), dtype=tf.int32)
         )
         with tf.control_dependencies(control_inputs=(assignment,)):
-            priority_indices = tf.cond(
+            priority_indices = self.cond(
                 pred=num_priority_elements > 0,
                 true_fn=sampling_fn,
                 false_fn=lambda: tf.zeros(shape=(num_priority_elements,), dtype=tf.int32)

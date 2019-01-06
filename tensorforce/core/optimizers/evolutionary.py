@@ -122,7 +122,7 @@ class Evolutionary(Optimizer):
 
                 return deltas_sum, perturbations
 
-            deltas_sum, perturbations = tf.while_loop(
+            deltas_sum, perturbations = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas_sum, perturbations),
                 maximum_iterations=(self.num_samples - 1)
             )

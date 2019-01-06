@@ -147,7 +147,7 @@ def identity_operation(x, operation_name=None):
     elif dtype(x=zero) in ('int', 'long', 'float'):
         x = tf.math.add(x=x, y=zero, name=operation_name)
     else:
-        raise TensorforceError.value(name='dtype', value=dtype)
+        raise TensorforceError.value(name='tensor', value=x)
     return x
 
 

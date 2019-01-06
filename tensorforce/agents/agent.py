@@ -297,11 +297,12 @@ class Agent(object):
         # Empty buffers before saving
         for parallel in range(self.parallel_interactions):
             index = self.buffer_indices[parallel]
-            self.episode = self.model.observe(
-                terminal=self.terminal_buffers[parallel, :index],
-                reward=self.reward_buffers[parallel, :index], parallel=parallel
-            )
-            self.buffer_indices[parallel] = 0
+            if index > 0:
+                self.episode = self.model.observe(
+                    terminal=self.terminal_buffers[parallel, :index],
+                    reward=self.reward_buffers[parallel, :index], parallel=parallel
+                )
+                self.buffer_indices[parallel] = 0
 
         return self.model.save(directory=directory, append_timestep=append_timestep)
 

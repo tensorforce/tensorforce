@@ -80,7 +80,7 @@ def detectMinVal(input_mat, var, threshold=1e-6, name='', debug=False):
     input_mat_clipped = clipoutNeg(input_mat, threshold)
 
     if debug:
-        input_mat_clipped = tf.cond(tf.logical_or(tf.greater(eigen_ratio, 0.), tf.less(eigen_ratio, -500)), lambda: input_mat_clipped, lambda: tf.Print(
+        input_mat_clipped = self.cond(tf.logical_or(tf.greater(eigen_ratio, 0.), tf.less(eigen_ratio, -500)), lambda: input_mat_clipped, lambda: tf.Print(
             input_mat_clipped, [tf.convert_to_tensor('screwed ratio ' + name + ' eigen values!!!'), tf.convert_to_tensor(var.name), eigen_min, eigen_max, eigen_ratio]))
 
     return input_mat_clipped

@@ -501,14 +501,17 @@ class MemoryModel(Model):
 
                 # Do not calculate gradients for memory-internal operations.
                 batch = util.fmap(function=tf.stop_gradient, xs=batch)
-                update = Module.update_tensor(name='update', tensor=tf.constant(value=True))
+                Module.update_tensors(
+                    **batch['states'], **batch['internals'], **batch['actions'],
+                    terminal=batch['terminal'], reward=batch['reward'],
+                    update=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+                )
                 optimized = self.optimization(**batch)
-                Module.update_tensor(name='update', tensor=update)
                 return optimized
 
             do_optimize = tf.math.logical_and(x=is_update, y=at_least_first)
 
-            optimized = tf.cond(pred=do_optimize, true_fn=true_fn, false_fn=tf.no_op)
+            optimized = self.cond(pred=do_optimize, true_fn=true_fn, false_fn=tf.no_op)
 
             return optimized
 

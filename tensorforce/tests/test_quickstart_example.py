@@ -94,13 +94,13 @@ class TestQuickstartExample(unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
 
             # Function handle called after each finished episode
-            def episode_finished(r):
+            def callback(r):
                 # Test if mean reward over 50 should ensure that learning took off
                 mean_reward = np.mean(r.episode_rewards[-50:])
                 return r.episode < 100 or mean_reward < 50.0
 
             # Start the runner
-            runner.run(episodes=2000, max_episode_timesteps=200, episode_finished=episode_finished)
+            runner.run(num_episodes=2000, max_episode_timesteps=200, callback=callback)
             runner.close()
 
             sys.stdout.write('episodes: {}\n'.format(runner.episode))

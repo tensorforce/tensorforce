@@ -69,7 +69,7 @@ class Sequence(Preprocessor):
         def later_run():
             return tf.assign(ref=states_buffer[index], value=tensor[0])
 
-        assignment = tf.cond(pred=(index >= 0), true_fn=later_run, false_fn=first_run)
+        assignment = self.cond(pred=(index >= 0), true_fn=later_run, false_fn=first_run)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             previous_states = [states_buffer[(index - n - 1) % self.length] for n in range(self.length)]

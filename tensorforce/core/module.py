@@ -36,13 +36,17 @@ class Module(object):
 
     @staticmethod
     def register_tensor(name, spec, batched):
-        if Module.global_scope is None:
+        if '/' in name:
+            raise TensorforceError.value(name='name', value=name)
+
+        if Module.global_scope is None:  # ???
             raise TensorforceError.unexpected()
 
-        scoped_name = util.join_scopes(*Module.global_scope, name)
+        # scoped_name = util.join_scopes(*Module.global_scope, name)
+        scoped_name = name
 
-        if scoped_name in Module.global_tensors_spec:
-            raise TensorforceError("Global tensor already exists: {}.".format(scoped_name))
+        # if scoped_name in Module.global_tensors_spec:
+        #     raise TensorforceError("Global tensor already exists: {}.".format(scoped_name))
 
         if scoped_name in Module.global_tensors_spec and \
                 spec != Module.global_tensors_spec[scoped_name]:
@@ -62,17 +66,23 @@ class Module(object):
 
     @staticmethod
     def update_tensor(name, tensor):
-        for n in range(len(Module.global_scope) + 1):
-            scoped_name = util.join_scopes(*Module.global_scope[:-n], name)
-            if scoped_name in Module.global_tensors_spec:
-                break
-        else:
+        # for n in range(len(Module.global_scope) + 1):
+            # partial_scope = Module.global_scope[:len(Module.global_scope) - n]
+            # scoped_name = util.join_scopes(*partial_scope, name)
+        #     if scoped_name in Module.global_tensors_spec:
+        #         break
+        # else:
+        #     raise TensorforceError("Global tensor is not registered: {}.".format(name))
+        if name not in Module.global_tensors_spec:
             raise TensorforceError("Global tensor is not registered: {}.".format(name))
 
+        scoped_name = name
         spec = Module.global_tensors_spec[scoped_name]
 
         if not util.is_consistent_with_value_spec(value_spec=spec, x=tensor):
             raise TensorforceError("Invalid overwriting tensor: {}.".format(tensor))
+
+        scoped_name = util.join_scopes(*Module.global_scope, name)
 
         previous = Module.global_tensors.get(scoped_name)
         Module.global_tensors[scoped_name] = tensor
@@ -85,15 +95,28 @@ class Module(object):
 
     @staticmethod
     def retrieve_tensor(name):
-        for n in range(len(Module.global_scope) + 1):
-            scoped_name = util.join_scopes(*Module.global_scope[:-n], name)
-            if scoped_name in Module.global_tensors_spec:
-                break
-        else:
+        # for n in range(len(Module.global_scope) + 1):
+            # partial_scope = Module.global_scope[:len(Module.global_scope) - n]
+            # scoped_name = util.join_scopes(*partial_scope, name)
+        #     if scoped_name in Module.global_tensors_spec:
+        #         break
+        # else:
+        #     raise TensorforceError("Global tensor is not registered: {}.".format(name))
+        if name not in Module.global_tensors_spec:
             raise TensorforceError("Global tensor is not registered: {}.".format(name))
 
-        if scoped_name not in Module.global_tensors:
-            raise TensorforceError("Global tensor is not set: {}.".format(scoped_name))
+        for n in range(len(Module.global_scope) + 1):
+            partial_scope = Module.global_scope[:len(Module.global_scope) - n]
+            scoped_name = util.join_scopes(*partial_scope, name)
+            if scoped_name in Module.global_tensors:
+                break
+        else:
+            raise TensorforceError("Global tensor is not set: {}.".format(name))
+
+        # scoped_name = util.join_scopes(*Module.global_scope, name)
+
+        # if scoped_name not in Module.global_tensors:
+        #     raise TensorforceError("Global tensor is not set: {}.".format(scoped_name))
 
         return Module.global_tensors[scoped_name]
 
@@ -249,7 +272,7 @@ class Module(object):
 
             # Function-level identity operation for retrieval
             for scoped_name, tensor in Module.global_tensors.items():
-                if '/while/' not in tensor.name:  # !!!!!!
+                if '/cond/' not in scoped_name and '/while/' not in scoped_name:
                     util.identity_operation(x=tensor, operation_name=(scoped_name + '-output'))
 
         if self.device is not None:
@@ -293,6 +316,25 @@ class Module(object):
             return fetched
 
         return fn
+
+    def cond(self, pred, true_fn, false_fn):
+        Module.global_scope.append('cond')
+        x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn, strict=True)
+        Module.global_scope.pop()
+        return x
+
+    def while_loop(
+        self, cond, body, loop_vars, shape_invariants=None, parallel_iterations=10, back_prop=True,
+        swap_memory=False, maximum_iterations=None, return_same_structure=False
+    ):
+        Module.global_scope.append('while')
+        x = tf.while_loop(
+            cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
+            parallel_iterations=parallel_iterations, back_prop=back_prop, swap_memory=swap_memory,
+            maximum_iterations=maximum_iterations, return_same_structure=return_same_structure
+        )
+        Module.global_scope.pop()
+        return x
 
     def add_variable(self, name, dtype, shape, is_trainable, initializer='zeros', shared=None):
         # name
@@ -439,7 +481,11 @@ class Module(object):
         if self.summary_labels is None:
             return pass_tensors
 
-        # Check whether given label is to be logged
+        # Check whether not in while loop
+        if 'while' in Module.global_scope:
+            return pass_tensors
+
+        # Check whether given label is logged
         if util.is_iterable(x=label):
             if all(x not in self.summary_labels for x in label):
                 return pass_tensors

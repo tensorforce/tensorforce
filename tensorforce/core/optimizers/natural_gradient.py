@@ -161,4 +161,4 @@ class NaturalGradient(Optimizer):
                 return [tf.zeros_like(tensor=delta) for delta in deltas]
 
         # Natural gradient step only works if constant > 0
-        return tf.cond(pred=(constant > 0.0), true_fn=natural_gradient_step, false_fn=zero_step)
+        return self.cond(pred=(constant > 0.0), true_fn=natural_gradient_step, false_fn=zero_step)

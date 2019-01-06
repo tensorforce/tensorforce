@@ -90,4 +90,4 @@ class Synchronization(Optimizer):
             return deltas
 
         do_sync = (time - self.last_sync >= self.sync_frequency)
-        return tf.cond(pred=do_sync, true_fn=sync, false_fn=no_sync)
+        return self.cond(pred=do_sync, true_fn=sync, false_fn=no_sync)

@@ -83,7 +83,7 @@ class MultiStep(MetaOptimizer):
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
                     return deltas
 
-            deltas = tf.while_loop(
+            deltas = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas,),
                 maximum_iterations=(self.num_steps - 1)
             )

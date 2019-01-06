@@ -134,4 +134,4 @@ class Dropout(Layer):
             )
 
         update = Module.retrieve_tensor(name='update')
-        return tf.cond(pred=update, true_fn=true_fn, false_fn=(lambda: x))
+        return self.cond(pred=update, true_fn=true_fn, false_fn=(lambda: x))

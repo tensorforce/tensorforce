@@ -179,7 +179,7 @@ class Runner(object):
             self.episode_reward += reward
 
             # Terminate episode if too long
-            if max_timesteps is not None and self.current_timestep >= max_timesteps:
+            if max_timesteps is not None and self.episode_timestep >= max_timesteps:
                 terminal = True
 
             # Observe if not evaluation

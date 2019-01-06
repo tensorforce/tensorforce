@@ -59,16 +59,14 @@ class ConstantModel(Model):
             dtype = util.tf_dtype(dtype=action_spec['type'])
 
             if self.action_values is not None and name in self.action_values:
-                actions[name] = tf.constant(
-                    value=self.action_values[name], dtype=dtype, shape=shape
-                )
+                value = self.action_values[name]
+                actions[name] = tf.fill(dims=shape, value=tf.constant(value=value, dtype=dtype))
 
             elif action_spec['type'] == 'float' and 'min_value' in action_spec:
                 min_value = action_spec['min_value']
                 max_value = action_spec['max_value']
-                actions[name] = tf.constant(
-                    value=(min_value + 0.5 * (max_value - min_value)), dtype=dtype, shape=shape
-                )
+                mean = min_value + 0.5 * (max_value - min_value)
+                actions[name] = tf.fill(dims=shape, value=tf.constant(value=mean, dtype=dtype))
 
             else:
                 actions[name] = tf.zeros(shape=shape, dtype=dtype)

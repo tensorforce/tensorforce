@@ -916,7 +916,7 @@ class Model(Module):
             return tf.group(*operations)
 
         with tf.control_dependencies(control_inputs=assertions):
-            incremented_timestep = tf.cond(
+            incremented_timestep = self.cond(
                 pred=independent, true_fn=tf.no_op, false_fn=increment_timestep
             )
 
@@ -949,7 +949,7 @@ class Model(Module):
                     x=self.variable_noise, y=tf.zeros(shape=(), dtype=util.tf_dtype('float'))
                 )
             )
-            applied_variable_noise, variable_noise_tensors = tf.cond(
+            applied_variable_noise, variable_noise_tensors = self.cond(
                 pred=skip_variable_noise, true_fn=no_variable_noise, false_fn=apply_variable_noise
             )
 
@@ -977,7 +977,7 @@ class Model(Module):
         with tf.control_dependencies(
             control_inputs=(util.flatten(xs=actions) + util.flatten(internals))
         ):
-            actions = tf.cond(
+            actions = self.cond(
                 pred=deterministic, true_fn=no_exploration, false_fn=apply_exploration
             )
 
@@ -992,7 +992,7 @@ class Model(Module):
             return tf.group(*assignments)
 
         with tf.control_dependencies(control_inputs=util.flatten(xs=actions)):
-            reversed_variable_noise = tf.cond(
+            reversed_variable_noise = self.cond(
                 pred=skip_variable_noise, true_fn=no_variable_noise,
                 false_fn=reverse_variable_noise
             )
@@ -1031,7 +1031,7 @@ class Model(Module):
                 return tf.no_op()
 
         with tf.control_dependencies(control_inputs=(reversed_variable_noise,)):
-            updated_buffers = tf.cond(pred=independent, true_fn=tf.no_op, false_fn=update_buffers)
+            updated_buffers = self.cond(pred=independent, true_fn=tf.no_op, false_fn=update_buffers)
 
         # Return timestep
         with tf.control_dependencies(control_inputs=(updated_buffers,)):
@@ -1132,7 +1132,7 @@ class Model(Module):
 
         with tf.control_dependencies(control_inputs=assertions):
             episode_finished = tf.reduce_any(input_tensor=terminal, axis=0)
-            incremented_episode = tf.cond(
+            incremented_episode = self.cond(
                 pred=episode_finished, true_fn=increment_episode, false_fn=tf.no_op
             )
 

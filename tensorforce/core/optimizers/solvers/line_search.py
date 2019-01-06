@@ -166,7 +166,7 @@ class LineSearch(Iterative):
                 # Trivial operation to enforce control dependency
                 return tf.less(x=value, y=value)  # == False
 
-        improved = tf.cond(
+        improved = self.cond(
             pred=(improvement > last_improvement),
             true_fn=(lambda: True),
             false_fn=undo_deltas

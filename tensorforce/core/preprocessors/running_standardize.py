@@ -86,4 +86,4 @@ class RunningStandardize(Preprocessor):
                     # Standardize tensor
                     return (tensor - mean_estimate) / tf.maximum(x=tf.sqrt(x=variance_estimate), y=util.epsilon)
 
-            return tf.cond(pred=(count > 1.0), true_fn=later_run, false_fn=first_run)
+            return self.cond(pred=(count > 1.0), true_fn=later_run, false_fn=first_run)

@@ -52,7 +52,7 @@ class TRPOAgent(DRLAgent):
         learning_rate=1e-3,
         cg_max_iterations=10,
         cg_damping=1e-3,
-        cg_unroll_loop=True,
+        cg_unroll_loop=False,
         ls_max_iterations=10,
         ls_accept_ratio=0.9,
         ls_unroll_loop=False
@@ -127,7 +127,7 @@ class TRPOAgent(DRLAgent):
             # Model
             states=self.states_spec, actions=self.actions_spec, scope=scope, device=device,
             saver=saver, summarizer=summarizer, execution=execution,
-            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
+            parallel_interactions=self.parallel_interactions, buffer_observe=self.buffer_observe,
             variable_noise=variable_noise, states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing,
             # MemoryModel

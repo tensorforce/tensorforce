@@ -23,93 +23,50 @@ from tensorforce.contrib.openai_gym import OpenAIGym
 from tensorforce.execution import Runner
 
 
-logging.getLogger('tensorflow').disabled = True
-
-
 class TestQuickstartExample(unittest.TestCase):
 
     def test_example(self):
         sys.stdout.write('\nQuickstart:\n')
         sys.stdout.flush()
 
-        passed = 0
-        for _ in range(3):
+        # Create an OpenAI-Gym environment
+        environment = OpenAIGym('CartPole-v1')
 
-            # Create an OpenAI-Gym environment
-            environment = OpenAIGym('CartPole-v0')
+        # Create the agent
+        agent = PPOAgent(
+            states=environment.states, actions=environment.actions,
+            # MLP network
+            network=[dict(type='dense', size=32), dict(type='dense', size=32)],
+            # Update every 5 episodes, with a batch of 10 episodes
+            update_mode=dict(unit='episodes', batch_size=10, frequency=5),
+            # Memory sampling most recent experiences, with a capacity of 2500 timesteps
+            # (2500 > [10 episodes] * [200 max timesteps per episode])
+            memory=dict(type='latest', include_next_states=False, capacity=2500),
+            discount=0.99, entropy_regularization=0.01,
+            # MLP baseline
+            baseline_mode='states', baseline=dict(type='mlp', sizes=[32, 32]),
+            # Baseline optimizer
+            baseline_optimizer=dict(
+                type='multi_step', optimizer=dict(type='adam', learning_rate=1e-3), num_steps=5
+            ),
+            gae_lambda=0.97, likelihood_ratio_clipping=0.2,
+            # PPO optimizer
+            step_optimizer=dict(type='adam', learning_rate=1e-3),
+            # PPO multi-step optimization: 50 updates, each based on 10% of the batch
+            subsampling_fraction=0.1, optimization_steps=50
+        )
 
-            # Network specification for the model
-            network = [
-                dict(type='dense', size=32),
-                dict(type='dense', size=32)
-            ]
+        # Initialize the runner
+        runner = Runner(agent=agent, environment=environment)
 
-            # Create the agent
-            agent = PPOAgent(
-                states=environment.states,
-                actions=environment.actions,
-                network=network,
-                # Model
-                states_preprocessing=None,
-                actions_exploration=None,
-                reward_preprocessing=None,
-                # MemoryModel
-                update_mode=dict(
-                    unit='episodes',
-                    # 10 episodes per update
-                    batch_size=10,
-                    # Every 10 episodes
-                    frequency=10
-                ),
-                memory=dict(
-                    type='latest',
-                    include_next_states=False,
-                    capacity=5000
-                ),
-                discount=0.99,
-                # DistributionModel
-                distributions=None,
-                entropy_regularization=0.01,
-                # PGModel
-                baseline_mode='states',
-                baseline=dict(
-                    type='mlp',
-                    sizes=[32, 32]
-                ),
-                baseline_optimizer=dict(
-                    type='multi_step',
-                    optimizer=dict(type='adam', learning_rate=1e-3),
-                    num_steps=5
-                ),
-                gae_lambda=None,
-                # PGLRModel
-                likelihood_ratio_clipping=0.2,
-                # PPOAgent
-                step_optimizer=dict(type='adam', learning_rate=1e-3),
-                subsampling_fraction=0.1,
-                optimization_steps=50
-            )
+        # Function handle called after each finished episode
+        def callback(r):
+            return np.mean(r.episode_rewards[-100:]) <= 180.0
 
-            # Initialize the runner
-            runner = Runner(agent=agent, environment=environment)
+        # Start the runner
+        runner.run(num_episodes=1000, max_episode_timesteps=200, callback=callback)
+        runner.close()
 
-            # Function handle called after each finished episode
-            def callback(r):
-                # Test if mean reward over 50 should ensure that learning took off
-                mean_reward = np.mean(r.episode_rewards[-50:])
-                return r.episode < 100 or mean_reward < 50.0
-
-            # Start the runner
-            runner.run(num_episodes=2000, max_episode_timesteps=200, callback=callback)
-            runner.close()
-
-            sys.stdout.write('episodes: {}\n'.format(runner.episode))
-            sys.stdout.flush()
-
-            # Test passed if episode_finished handle evaluated to False
-            if runner.episode < 2000:
-                passed += 1
-
-        sys.stdout.write('==> passed: {}\n'.format(passed))
+        sys.stdout.write('Test passed after {} episodes\n'.format(runner.episode))
         sys.stdout.flush()
-        self.assertTrue(passed >= 2)
+        self.assertTrue(expr=True)

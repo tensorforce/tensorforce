@@ -25,13 +25,14 @@ class Replay(Queue):
     """
 
     def tf_retrieve_timesteps(self, n):
-        # Start index of oldest episode
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+
+        # Start index of oldest episode
         oldest_episode_start = self.terminal_indices[0] + one
 
         # Number of timesteps (minus/plus one to prevent zero but allow capacity)
         num_timesteps = self.memory_index - oldest_episode_start - one
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
         num_timesteps = tf.mod(x=num_timesteps, y=capacity) + one
 
         # Check whether memory contains enough timesteps
@@ -42,7 +43,7 @@ class Replay(Queue):
             indices = tf.random_uniform(
                 shape=(n,), maxval=num_timesteps, dtype=util.tf_dtype(dtype='long')
             )
-            indices = tf.mod(x=(self.memory_index - 1 - indices), y=capacity)
+            indices = tf.mod(x=(self.memory_index - one - indices), y=capacity)
 
         # Retrieve timestep indices
         timesteps = self.retrieve_indices(indices=indices)
@@ -92,13 +93,16 @@ class Replay(Queue):
         #     return self.retrieve_indices(indices=indices)
 
     def tf_retrieve_episodes(self, n):
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+
         # Check whether memory contains enough episodes
         assertion = tf.debugging.assert_less_equal(x=n, y=self.episode_count)
 
         # Get start and limit indices for randomly sampled n episodes
         with tf.control_dependencies(control_inputs=(assertion,)):
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            random_terminal_indices = tf.random_uniform(
+            random_terminal_indices = tf.random.uniform(
                 shape=(n,), maxval=self.episode_count, dtype=util.tf_dtype(dtype='long')
             )
             starts = tf.gather(params=self.terminal_indices, indices=random_terminal_indices)
@@ -110,11 +114,13 @@ class Replay(Queue):
             limits = limits + one
 
         # Correct limit indices if smaller than start indices
-        zero = tf.fill(dims=(n,), value=tf.constant(value=0, dtype=util.tf_dtype(dtype='long')))
-        capacity = tf.fill(
+        zero_array = tf.fill(
+            dims=(n,), value=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        )
+        capacity_array = tf.fill(
             dims=(n,), value=tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
         )
-        limits = limits + tf.where(condition=(limits < starts), x=capacity, y=zero)
+        limits = limits + tf.where(condition=(limits < starts), x=capacity_array, y=zero_array)
 
         # Concatenate randomly sampled episode indices ranges
         def cond(indices, i):
@@ -123,11 +129,9 @@ class Replay(Queue):
         def reduce_range_concat(indices, i):
             episode_indices = tf.range(start=starts[i], limit=limits[i])
             indices = tf.concat(values=(indices, episode_indices), axis=0)
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             i = i + one
             return indices, i
 
-        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         indices = tf.zeros(shape=(0,), dtype=util.tf_dtype(dtype='long'))
         indices, _ = self.while_loop(
             cond=cond, body=reduce_range_concat, loop_vars=(indices, zero),
@@ -141,13 +145,14 @@ class Replay(Queue):
         return episodes
 
     def tf_retrieve_sequences(self, n, sequence_length):
-        # Start index of oldest episode
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+
+        # Start index of oldest episode
         oldest_episode_start = self.terminal_indices[0] + one
 
         # Number of sequences (minus/plus one to prevent zero but allow capacity-sequence_length)
         num_sequences = self.memory_index - oldest_episode_start - sequence_length
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
         num_sequences = tf.mod(x=num_sequences, y=capacity) + one
 
         # Check whether memory contains enough sequences
@@ -168,7 +173,9 @@ class Replay(Queue):
         sequence_indices = tf.reshape(tensor=sequence_indices, shape=(n * sequence_length,))
         # sequence_indices = tf.concat(values=sequence_indices, axis=0)  # tf.stack !!!!!
         terminal = tf.gather(params=self.memories['terminal'], indices=indices)
-        sequence_indices = tf.boolean_mask(tensor=sequence_indices, mask=tf.logical_not(x=terminal))
+        sequence_indices = tf.boolean_mask(
+            tensor=sequence_indices, mask=tf.logical_not(x=terminal)
+        )
         return self.retrieve_indices(indices=sequence_indices)
 
         # Retrieve sequence indices

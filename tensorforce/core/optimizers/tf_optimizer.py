@@ -47,14 +47,12 @@ class TFOptimizer(Optimizer):
         assert optimizer in TFOptimizer.tensorflow_optimizers
         self.optimizer = TFOptimizer.tensorflow_optimizers[optimizer](**kwargs)
 
-    def tf_step(self, time, variables, **kwargs):
+    def tf_step(self, time, variables, arguments, fn_loss, **kwargs):
         """
         Keyword Args:
             arguments: Dict of arguments for passing to fn_loss as **kwargs.
             fn_loss: A callable taking arguments as kwargs and returning the loss op.
         """
-        arguments = kwargs["arguments"]
-        fn_loss = kwargs["fn_loss"]
         loss = fn_loss(**arguments)
 
         # Force loss value to be calculated.

@@ -1126,7 +1126,7 @@ class Model(Module):
         def increment_episode():
             operations = list()
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            operations.append(self.episode.scatter_nd_update(indices=[(parallel,)], updates=[one]))
+            operations.append(self.episode.scatter_nd_add(indices=[(parallel,)], updates=[one]))
             operations.append(self.global_episode.assign_add(delta=one, read_value=False))
             return tf.group(*operations)
 

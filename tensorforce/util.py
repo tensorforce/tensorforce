@@ -242,7 +242,7 @@ reserved_names = {
     # Value specification attributes
     'shape', 'type', 'num_values', 'min_value', 'max_value'
     # Special values?
-    'loss', '*'
+    'x', '*', 'loss'
 }
 
 

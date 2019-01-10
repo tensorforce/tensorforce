@@ -179,7 +179,7 @@ class QModel(DistributionModel):
                 distr_params=target_distr_params, action=action_taken
             )
 
-            delta = self.tf_q_delta(
+            delta = self.q_delta(
                 q_value=q_value, next_q_value=next_q_value, terminal=terminal, reward=reward
             )
 

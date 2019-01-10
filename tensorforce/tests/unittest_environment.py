@@ -145,9 +145,10 @@ class UnittestEnvironment(Environment):
                 ))
 
     def reset(self):
-        self.num_timesteps = randint(1, 10)
+        self.num_timesteps = randint(1, 4)
         self.timestep = 0
         states = self.random_states()
+
         return states
 
     def execute(self, actions):
@@ -155,6 +156,8 @@ class UnittestEnvironment(Environment):
             raise TensorforceError.value(name='actions', value=actions)
 
         states = self.random_states()
-        terminal = self.timestep < self.num_timesteps
+        terminal = self.timestep >= self.num_timesteps
         reward = -1.0 + 2.0 * random()
+        self.timestep += 1
+
         return states, terminal, reward

@@ -92,6 +92,7 @@ agent = PPOAgent(
         dict(type='dense', size=64),
         dict(type='dense', size=64)
     ],
+    update_mode=dict(unit='episodes', batch_size=10),
     step_optimizer=dict(type='adam', learning_rate=1e-4)
 )
 

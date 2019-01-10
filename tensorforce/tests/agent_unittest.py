@@ -174,27 +174,20 @@ class AgentUnittest(UnittestBase):
             'episode'
         )
 
-        try:
-            agent, environment = self.prepare(
-                name='query', states=states, actions=actions, network=network
-            )
+        agent, environment = self.prepare(
+            name='query', states=states, actions=actions, network=network, buffer_observe=False
+        )
 
-            agent.initialize()
-            states = environment.reset()
+        agent.initialize()
+        states = environment.reset()
 
-            actions, query = agent.act(states=states, query=act_query)
-            self.assertEqual(first=len(query), second=6)
+        actions, query = agent.act(states=states, query=act_query)
+        self.assertEqual(first=len(query), second=6)
 
-            states, terminal, reward = environment.execute(actions=actions)
+        states, terminal, reward = environment.execute(actions=actions)
 
-            query = agent.observe(terminal=terminal, reward=reward, query=observe_query)
-            self.assertEqual(first=len(query), second=8)
+        query = agent.observe(terminal=terminal, reward=reward, query=observe_query)
+        self.assertEqual(first=len(query), second=8)
 
-            sys.stdout.flush()
-            self.assertTrue(expr=True)
-
-        except Exception as exc:
-            sys.stdout.write(str(exc))
-            sys.stdout.flush()
-            raise exc
-            self.assertTrue(expr=False)
+        sys.stdout.flush()
+        self.assertTrue(expr=True)

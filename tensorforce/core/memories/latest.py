@@ -25,13 +25,14 @@ class Latest(Queue):
     """
 
     def tf_retrieve_timesteps(self, n):
-        # Start index of oldest episode
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+
+        # Start index of oldest episode
         oldest_episode_start = self.terminal_indices[0] + one
 
         # Number of timesteps (minus/plus one to prevent zero but allow capacity)
         num_timesteps = self.memory_index - oldest_episode_start - one
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
         num_timesteps = tf.mod(x=num_timesteps, y=capacity) + one
 
         # Check whether memory contains enough timesteps
@@ -48,21 +49,22 @@ class Latest(Queue):
         return timesteps
 
     def tf_retrieve_episodes(self, n):
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+
         # Check whether memory contains enough episodes
         assertion = tf.debugging.assert_less_equal(x=n, y=self.episode_count)
 
         # Get start and limit index for most recent n episodes
         with tf.control_dependencies(control_inputs=(assertion,)):
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            start = self.terminal_indices[self.episode_count - n - one]
-            limit = self.terminal_indices[self.episode_count - 1]
+            start = self.terminal_indices[self.episode_count - n]
+            limit = self.terminal_indices[self.episode_count]
             # Increment terminal of previous episode
             start = start + one
             limit = limit + one
 
         # Correct limit index if smaller than start index
-        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
         limit = limit + tf.where(condition=(limit < start), x=capacity, y=zero)
 
         # Most recent episode indices range
@@ -75,13 +77,14 @@ class Latest(Queue):
         return episodes
 
     def tf_retrieve_sequences(self, n, sequence_length):
-        # Start index of oldest episode
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+
+        # Start index of oldest episode
         oldest_episode_start = self.terminal_indices[0] + one
 
         # Number of sequences (minus/plus one to prevent zero but allow capacity-sequence_length)
         num_sequences = self.memory_index - oldest_episode_start - sequence_length
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
         num_sequences = tf.mod(x=num_sequences, y=capacity) + one
 
         # Check whether memory contains enough sequences
@@ -102,7 +105,9 @@ class Latest(Queue):
         sequence_indices = tf.reshape(tensor=sequence_indices, shape=(n * sequence_length,))
         # sequence_indices = tf.concat(values=sequence_indices, axis=0)  # tf.stack !!!!!
         terminal = tf.gather(params=self.memories['terminal'], indices=indices)
-        sequence_indices = tf.boolean_mask(tensor=sequence_indices, mask=tf.logical_not(x=terminal))
+        sequence_indices = tf.boolean_mask(
+            tensor=sequence_indices, mask=tf.logical_not(x=terminal)
+        )
 
         # Retrieve sequence indices
         sequences = self.retrieve_indices(indices=sequence_indices)

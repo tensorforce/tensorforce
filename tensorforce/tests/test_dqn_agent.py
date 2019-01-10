@@ -22,5 +22,6 @@ from tensorforce.tests.agent_unittest import AgentUnittest
 class TestDQNAgent(AgentUnittest, unittest.TestCase):
 
     agent = DQNAgent
+    config = dict(update_mode=dict(batch_size=4))
 
     exclude_bounded_action = True

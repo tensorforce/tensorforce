@@ -22,3 +22,4 @@ from tensorforce.tests.agent_unittest import AgentUnittest
 class TestVPGAgent(AgentUnittest, unittest.TestCase):
 
     agent = VPGAgent
+    config = dict(update_mode=dict(batch_size=2))

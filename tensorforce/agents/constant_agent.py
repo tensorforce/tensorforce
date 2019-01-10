@@ -65,7 +65,7 @@ class ConstantAgent(Agent):
             # Model
             states=self.states_spec, actions=self.actions_spec, scope=scope, device=device,
             saver=saver, summarizer=summarizer, execution=execution,
-            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
+            parallel_interactions=self.parallel_interactions, buffer_observe=self.buffer_observe,
             # ConstantModel
             action_values=action_values
         )

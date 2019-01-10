@@ -119,7 +119,7 @@ class PPOAgent(DRLAgent):
             # Model
             states=self.states_spec, actions=self.actions_spec, scope=scope, device=device,
             saver=saver, summarizer=summarizer, execution=execution,
-            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
+            parallel_interactions=self.parallel_interactions, buffer_observe=self.buffer_observe,
             variable_noise=variable_noise, states_preprocessing=states_preprocessing,
             actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing,
             # MemoryModel

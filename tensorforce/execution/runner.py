@@ -126,7 +126,6 @@ class Runner(object):
                 return
 
             # Update experiment statistics
-            self.episode += 1
             self.episode_rewards.append(self.episode_reward)
             self.episode_timesteps.append(self.episode_timestep)
             self.episode_times.append(self.episode_time)
@@ -142,6 +141,9 @@ class Runner(object):
                 return
             elif self.agent.should_stop():
                 return
+
+            # Increment episode counter (after calling callback)
+            self.episode += 1
 
             # Terminate experiment if too long
             if num_timesteps is not None and self.global_timestep >= num_timesteps:

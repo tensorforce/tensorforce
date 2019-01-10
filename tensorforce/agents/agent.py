@@ -81,12 +81,16 @@ class Agent(object):
 
         # Buffer observe
         if isinstance(buffer_observe, bool):
+            # if update_mode['unit'] == 'episodes':
+            #     self.buffer_observe = 1000 if buffer_observe else 1
+            # else:
+            #     self.buffer_observe = update_mode['batch_size']
             self.buffer_observe = 1000 if buffer_observe else 1
         elif isinstance(buffer_observe, int):
             if buffer_observe <= 0:
                 raise TensorforceError.value(name='buffer_observe', value=buffer_observe)
             self.buffer_observe = buffer_observe
-        if not isinstance(buffer_observe, (bool, int)):
+        else:
             raise TensorforceError.type(name='buffer_observe', value=buffer_observe)
 
         # Parallel terminal/reward buffers

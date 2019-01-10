@@ -74,15 +74,13 @@ class SubsamplingStep(MetaOptimizer):
             raise TensorforceError("Invalid argument type.")
 
         batch_size = tf.shape(input=some_argument)[0]
-        num_samples = tf.cast(
-            x=(self.fraction * tf.cast(x=batch_size, dtype=util.tf_dtype('float'))),
-            dtype=util.tf_dtype('int')
-        )
-        num_samples = tf.maximum(x=num_samples, y=1)
+        num_samples = self.fraction * tf.cast(x=batch_size, dtype=util.tf_dtype('float'))
+        one = tf.constant(value=1, dtype=util.tf_dtype('int'))
+        num_samples = tf.maximum(x=tf.cast(x=num_samples, dtype=util.tf_dtype('int')), y=one)
         indices = tf.random_uniform(shape=(num_samples,), maxval=batch_size, dtype=tf.int32)
 
-        fn = (lambda arg: arg if util.rank(x=arg) == 0 else tf.gather(params=arg, indices=indices))
-        subsampled_arguments = util.fmap(function=fn, xs=arguments)
+        function = (lambda x: x if util.rank(x=x) == 0 else tf.gather(params=x, indices=indices))
+        subsampled_arguments = util.fmap(function=function, xs=arguments)
 
         return self.optimizer.step(
             time=time, variables=variables, arguments=subsampled_arguments, **kwargs

@@ -59,20 +59,13 @@ class UnittestBase(object):
         """
         Generic unit-test.
         """
-        try:
-            agent, environment = self.prepare(
-                name=name, states=states, actions=actions, network=network, **kwargs
-            )
+        agent, environment = self.prepare(
+            name=name, states=states, actions=actions, network=network, **kwargs
+        )
 
-            runner = Runner(agent=agent, environment=environment)
-            runner.run(num_episodes=randint(5, 10))
-            runner.close()
+        runner = Runner(agent=agent, environment=environment)
+        runner.run(num_episodes=randint(5, 10))
+        runner.close()
 
-            sys.stdout.flush()
-            self.assertTrue(expr=True)
-
-        except Exception as exc:
-            sys.stdout.write(str(exc))
-            sys.stdout.flush()
-            raise exc
-            self.assertTrue(expr=False)
+        sys.stdout.flush()
+        self.assertTrue(expr=True)

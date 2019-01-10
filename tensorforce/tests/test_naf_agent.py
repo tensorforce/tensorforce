@@ -22,6 +22,7 @@ from tensorforce.tests.agent_unittest import AgentUnittest
 class TestNAFAgent(AgentUnittest, unittest.TestCase):
 
     agent = NAFAgent
+    config = dict(update_mode=dict(batch_size=4), buffer_observe=1)
 
     exclude_bool_action = True
     exclude_int_action = True

@@ -317,7 +317,7 @@ class MemoryModel(Model):
         """
         raise NotImplementedError
 
-    def tf_loss(
+    def tf_total_loss(
         self, states, internals, actions, terminal, reward, next_states, next_internals,
         reference=None
     ):
@@ -337,33 +337,31 @@ class MemoryModel(Model):
         Returns:
             Loss tensor.
         """
+        # # Set global tensors
+        # Module.update_tensors(**states, **internals, **actions, terminal=terminal, reward=reward)
+
         # Mean loss per instance
         loss_per_instance = self.loss_per_instance(
             states=states, internals=internals, actions=actions, terminal=terminal, reward=reward,
             next_states=next_states, next_internals=next_internals, reference=reference
         )
 
-        # Returns no-op.
+        # Returns no-op
         updated = self.memory.update_batch(loss_per_instance=loss_per_instance)
         with tf.control_dependencies(control_inputs=(updated,)):
             loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
+            loss = self.add_summary(label='losses', name='loss', tensor=loss)
 
-            # Loss without regularization summary.
-            if 'losses' in self.summary_labels:
-                tf.contrib.summary.scalar(name='loss-without-regularization', tensor=loss)
+        # Regularization losses
+        reg_loss = self.regularize(states=states, internals=internals)
+        reg_loss = self.add_summary(
+            label='regularization', name='regularization-loss', tensor=reg_loss
+        )
 
-            # Regularization losses.
-            reg_loss = self.regularize(states=states, internals=internals)
-            if 'regularization' in self.summary_labels:
-                tf.contrib.summary.scalar(name='regularization', tensor=reg_loss)
+        loss = loss + reg_loss
+        loss = self.add_summary(label=('total-loss', 'losses'), name='total-loss', tensor=loss)
 
-            loss = loss + reg_loss
-
-            # Total loss summary.
-            if 'losses' in self.summary_labels or 'total-loss' in self.summary_labels:
-                tf.contrib.summary.scalar(name='total-loss', tensor=loss)
-
-            return loss
+        return loss
 
     def optimizer_arguments(
         self, states, internals, actions, terminal, reward, next_states, next_internals
@@ -390,7 +388,7 @@ class MemoryModel(Model):
                 states=states, internals=internals, actions=actions, terminal=terminal,
                 reward=reward, next_states=next_states, next_internals=next_internals
             ),
-            fn_reference=self.reference, fn_loss=self.loss
+            fn_reference=self.reference, fn_loss=self.total_loss
         )
         if self.global_model is not None:
             arguments['global_variables'] = self.global_model.get_variables(only_trainable=True)
@@ -450,11 +448,11 @@ class MemoryModel(Model):
             if unit == 'timesteps':
                 # Timestep-based batch
                 timestep = Module.retrieve_tensor(name='timestep')
-                is_update = tf.math.equal(
+                is_frequency = tf.math.equal(
                     x=tf.mod(x=timestep, y=frequency),
                     y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
                 )
-                at_least_first = tf.math.greater_equal(x=timestep, y=start)
+                at_least_start = tf.math.greater_equal(x=timestep, y=start)
 
             elif unit == 'sequences':
                 # Timestep-sequence-based batch
@@ -462,26 +460,26 @@ class MemoryModel(Model):
                 sequence_length = tf.constant(
                     value=self.update_mode['sequence_length'], dtype=util.tf_dtype(dtype='long')
                 )
-                is_update = tf.math.equal(
+                is_frequency = tf.math.equal(
                     x=tf.mod(x=timestep, y=frequency),
                     y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
                 )
-                at_least_first = tf.math.greater_equal(
+                at_least_start = tf.math.greater_equal(
                     x=timestep, y=(start + sequence_length - 1)
                 )
 
             elif unit == 'episodes':
                 # Episode-based batch
                 episode = Module.retrieve_tensor(name='episode')
-                is_update = tf.math.equal(
+                is_frequency = tf.math.equal(
                     x=tf.mod(x=episode, y=frequency),
                     y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
                 )
                 # Only update once per episode increment
-                is_update = tf.math.logical_and(
-                    x=is_update, y=tf.reduce_any(input_tensor=terminal)
+                is_frequency = tf.math.logical_and(
+                    x=is_frequency, y=tf.reduce_any(input_tensor=terminal)
                 )
-                at_least_first = tf.math.greater_equal(x=episode, y=start)
+                at_least_start = tf.math.greater_equal(x=episode, y=start)
 
             else:
                 raise TensorforceError("Invalid update unit: {}.".format(unit))
@@ -502,14 +500,13 @@ class MemoryModel(Model):
                 # Do not calculate gradients for memory-internal operations.
                 batch = util.fmap(function=tf.stop_gradient, xs=batch)
                 Module.update_tensors(
-                    **batch['states'], **batch['internals'], **batch['actions'],
-                    terminal=batch['terminal'], reward=batch['reward'],
                     update=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
                 )
                 optimized = self.optimization(**batch)
+
                 return optimized
 
-            do_optimize = tf.math.logical_and(x=is_update, y=at_least_first)
+            do_optimize = tf.math.logical_and(x=is_frequency, y=at_least_start)
 
             optimized = self.cond(pred=do_optimize, true_fn=true_fn, false_fn=tf.no_op)
 

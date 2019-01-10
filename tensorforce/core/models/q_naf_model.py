@@ -89,7 +89,7 @@ class QNAFModel(QModel):
             l_matrix = flat_stddev
             l_matrix = tf.exp(l_matrix)
         else:
-            l_matrix = tf.map_fn(fn=tf.diag, elems=flat_stddev)
+            l_matrix = tf.linalg.diag(diagonal=flat_stddev)
 
             l_entries = self.l_entries[name].apply(x=embedding)
             l_entries = tf.exp(l_entries)

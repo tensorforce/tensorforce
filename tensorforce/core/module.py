@@ -211,37 +211,41 @@ class Module(object):
         # Internal TensorFlow functions, prefixed by 'tf_'
         for attribute in sorted(dir(self)):
             if attribute.startswith('tf_') and attribute != 'tf_initialize':
-                tf_function = getattr(self, attribute)
-                if not callable(tf_function):
-                    raise TensorforceError.exists(name='TF-function', value=tf_function)
-
                 function_name = attribute[3:]
+
                 if not util.is_valid_name(name=function_name):
                     raise TensorforceError.value(name='TF-function name', value=function_name)
                 if hasattr(self, function_name):
                     raise TensorforceError.exists(name='TF-function', value=function_name)
 
+                tf_function = getattr(self, attribute)
+                if not callable(tf_function):
+                    raise TensorforceError.exists(name='TF-function', value=tf_function)
+
                 function = self.create_tf_function(
                     name='{}.{}'.format(self.name, function_name), tf_function=tf_function
                 )
+
                 setattr(self, function_name, function)
 
         #  API TensorFlow functions, prefixed by 'api_'
         for attribute in sorted(dir(self)):
             if attribute.startswith('api_'):
-                api_function = getattr(self, attribute)
-                if not callable(api_function):
-                    raise TensorforceError.exists(name='API-function', value=tf_function)
-
                 function_name = attribute[4:]
+
                 if not util.is_valid_name(name=function_name):
                     raise TensorforceError.value(name='API-function name', value=function_name)
                 if hasattr(self, function_name):
                     raise TensorforceError.exists(name='API-function', value=function_name)
 
+                api_function = getattr(self, attribute)
+                if not callable(api_function):
+                    raise TensorforceError.exists(name='API-function', value=tf_function)
+
                 function = self.create_api_function(
                     name='{}.{}'.format(self.name, function_name), api_function=api_function
                 )
+
                 setattr(self, function_name, function)
 
     def create_tf_function(self, name, tf_function):
@@ -464,15 +468,36 @@ class Module(object):
         return tf.identity(input=placeholder)
 
     def add_summary(self, label, name, tensor, pass_tensors=None, enumerate_last_rank=False):
+        # should be "labels" !!!
         # label
-        if not isinstance(label, str) and not util.is_iterable(x=label):
-            raise TensorforceError.type(name='summary', argument='label', value=label)
+        if util.is_iterable(x=label):
+            if not all(isinstance(x, str) for x in label):
+                raise TensorforceError.type(name='summary', argument='label', value=label)
+        else:
+            if not isinstance(label, str):
+                raise TensorforceError.type(name='summary', argument='label', value=label)
         # name
-        if not isinstance(label, str):
-            raise TensorforceError.type(name='placeholder', argument='name', value=name)
+        if not isinstance(name, str):
+            raise TensorforceError.type(name='summary', argument='name', value=name)
         # tensor
         if not isinstance(tensor, tf.Tensor):
-            raise TensorforceError.type(name='placeholder', argument='tensor', value=tensor)
+            raise TensorforceError.type(name='summary', argument='tensor', value=tensor)
+        # pass_tensors
+        if util.is_iterable(x=pass_tensors):
+            if not all(isinstance(x, tf.Tensor) for x in pass_tensors):
+                raise TensorforceError.type(
+                    name='summary', argument='pass_tensors', value=pass_tensors
+                )
+        elif pass_tensors is not None:
+            if not isinstance(pass_tensors, tf.Tensor):
+                raise TensorforceError.type(
+                    name='summary', argument='pass_tensors', value=pass_tensors
+                )
+        # enumerate_last_rank
+        if not isinstance(enumerate_last_rank, bool):
+            raise TensorforceError.type(
+                name='summary', argument='enumerate_last_rank', value=tensor
+            )
 
         if pass_tensors is None:
             pass_tensors = tensor

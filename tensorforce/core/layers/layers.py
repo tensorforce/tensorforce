@@ -166,7 +166,6 @@ class Retrieve(Layer):
                 name='retrieve', argument='aggregation', value=aggregation
             )
 
-
         self.tensors = (tensors,) if isinstance(tensors, str) else tuple(tensors)
         self.aggregation = aggregation
         self.axis = axis

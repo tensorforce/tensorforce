@@ -58,7 +58,7 @@ class Baseline(Module):
         """
         return None
 
-    def tf_loss(self, states, internals, reward):
+    def tf_total_loss(self, states, internals, reward):
         """
         Creates the TensorFlow operations for calculating the L2 loss between predicted
         state values and actual rewards.

@@ -59,7 +59,10 @@ class InternalLstm(TransformationBase):
     def internals_spec(self):
         specification = super().internals_spec()
 
-        specification['state'] = dict(
+        if self.name in specification:
+            assert False
+
+        specification[self.name] = dict(
             type='float', shape=(2, self.size), initial_state=tf.identity(x=self.initial_state)
         )
 
@@ -83,6 +86,8 @@ class InternalLstm(TransformationBase):
         )
 
     def tf_apply(self, x, state):
+        # state = Module.retrieve_tensor(name=self.name)
+
         if state is None:
             state = tf.contrib.rnn.LSTMStateTuple(
                 c=self.initial_state[0, :], h=self.initial_state[1, :]

@@ -22,6 +22,7 @@ from tensorforce.tests.unittest_base import UnittestBase
 class TestBaselines(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
+    config = dict(update_mode=dict(batch_size=2))
 
     def test_baseline_states(self):
         states = dict(type='float', shape=(1,))

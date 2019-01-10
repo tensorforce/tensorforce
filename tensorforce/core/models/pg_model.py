@@ -17,7 +17,7 @@ from collections import OrderedDict
 
 import tensorflow as tf
 
-from tensorforce.core import baseline_modules, optimizer_modules
+from tensorforce.core import baseline_modules, Module, optimizer_modules
 from tensorforce.core.models import DistributionModel
 
 
@@ -174,12 +174,13 @@ class PGModel(DistributionModel):
         Returns:
             Loss tensor.
         """
+        Module.update_tensors(**states, **internals, reward=reward)
         if self.baseline_mode == 'states':
-            loss = self.baseline.loss(states=states, internals=internals, reward=reward)
+            loss = self.baseline.total_loss(states=states, internals=internals, reward=reward)
 
         elif self.baseline_mode == 'network':
             states = self.network.apply(x=states, internals=internals)
-            loss = self.baseline.loss(states=states, internals=internals, reward=reward)
+            loss = self.baseline.total_loss(states=states, internals=internals, reward=reward)
 
         return loss
 

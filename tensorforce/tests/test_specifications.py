@@ -36,26 +36,19 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        try:
-            agent, environment = self.prepare(
-                name=name, states=states, actions=actions, network=network
-            )
+        agent, environment = self.prepare(
+            name=name, states=states, actions=actions, network=network
+        )
 
-            agent.initialize()
-            states = environment.reset()
+        agent.initialize()
+        states = environment.reset()
 
-            actions = agent.act(states=states)
-            states, terminal, reward = environment.execute(actions=actions)
-            agent.observe(terminal=terminal, reward=reward)
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
 
-            sys.stdout.flush()
-            self.assertTrue(expr=True)
-
-        except Exception as exc:
-            sys.stdout.write(str(exc))
-            sys.stdout.flush()
-            raise exc
-            self.assertTrue(expr=False)
+        sys.stdout.flush()
+        self.assertTrue(expr=True)
 
     def test_spec_default(self):
         spec_without_type = dict(

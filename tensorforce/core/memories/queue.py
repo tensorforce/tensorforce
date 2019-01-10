@@ -101,6 +101,7 @@ class Queue(Memory):
         )
 
     def tf_store(self, states, internals, actions, terminal, reward):
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
         # Check whether instances fit into memory
@@ -112,20 +113,18 @@ class Queue(Memory):
             indices = tf.range(start=self.memory_index, limit=(self.memory_index + num_timesteps))
             indices = tf.mod(x=indices, y=capacity)
 
-        # Count number of overwritten episodes
-        num_episodes = tf.count_nonzero(
-            input_tensor=tf.gather(params=self.memories['terminal'], indices=indices), axis=0,
-            dtype=util.tf_dtype(dtype='long')
-        )
-        num_episodes = tf.minimum(x=num_episodes, y=self.episode_count)  # necessary?
+            # Count number of overwritten episodes
+            num_episodes = tf.count_nonzero(
+                input_tensor=tf.gather(params=self.memories['terminal'], indices=indices), axis=0,
+                dtype=util.tf_dtype(dtype='long')
+            )
 
-        # Shift remaining terminal indices accordingly
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-        oldest_index = self.episode_count + one
-        assignment = tf.assign(
-            ref=self.terminal_indices[:oldest_index - num_episodes],
-            value=self.terminal_indices[num_episodes: oldest_index]
-        )
+            # Shift remaining terminal indices accordingly
+            limit_index = self.episode_count + one
+            assignment = tf.assign(
+                ref=self.terminal_indices[:limit_index - num_episodes],
+                value=self.terminal_indices[num_episodes: limit_index]
+            )
 
         # Decrement episode count accordingly
         with tf.control_dependencies(control_inputs=(assignment,)):
@@ -164,12 +163,16 @@ class Queue(Memory):
                 input_tensor=terminal, axis=0, dtype=util.tf_dtype(dtype='long')
             )
 
-        # Write new terminal indices
-        new_oldest_index = self.episode_count + one
-        assignment = tf.assign(
-            ref=self.terminal_indices[new_oldest_index: new_oldest_index + num_new_episodes],
-            value=tf.boolean_mask(tensor=indices, mask=terminal)
-        )
+            # Write new terminal indices
+            limit_index = self.episode_count + one
+            assignment = tf.assign(
+                ref=self.terminal_indices[limit_index: limit_index + num_new_episodes],
+                value=tf.boolean_mask(tensor=indices, mask=terminal)
+            )
+
+        # Increment episode count accordingly
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            assignment = self.episode_count.assign_add(delta=num_new_episodes, read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf.no_op()
@@ -183,10 +186,14 @@ class Queue(Memory):
 
         Returns: Batch of experiences
         """
+        assert util.rank(x=indices) == 1
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
         if self.include_next_states:
-            terminal = tf.gather(params=self.memories['terminal'], indices=indices)
-            indices = tf.boolean_mask(tensor=indices, mask=tf.math.logical_not(x=terminal))
+            next_indices = (indices + one) % capacity
+            next_terminal = tf.gather(params=self.memories['terminal'], indices=next_indices)
+            indices = tf.boolean_mask(tensor=indices, mask=tf.math.logical_not(x=next_terminal))
 
         states = OrderedDict()
         for name in self.states_spec:
@@ -205,9 +212,6 @@ class Queue(Memory):
         reward = tf.gather(params=self.memories['reward'], indices=indices)
 
         if self.include_next_states:
-            assert util.rank(x=indices) == 1
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
             next_indices = (indices + one) % capacity
 
             next_states = OrderedDict()

@@ -45,6 +45,7 @@ class TestReadme(unittest.TestCase):
                 dict(type='dense', size=64),
                 dict(type='dense', size=64)
             ],
+            update_mode=dict(unit='episodes', batch_size=10),
             step_optimizer=dict(type='adam', learning_rate=1e-4)
         )
 
@@ -62,3 +63,5 @@ class TestReadme(unittest.TestCase):
 
         # Pass feedback about performance (and termination) to the agent
         agent.observe(reward=reward, terminal=False)
+
+        self.assertTrue(expr=True)

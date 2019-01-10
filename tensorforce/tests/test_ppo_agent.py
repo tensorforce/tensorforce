@@ -22,3 +22,4 @@ from tensorforce.tests.agent_unittest import AgentUnittest
 class TestPPOAgent(AgentUnittest, unittest.TestCase):
 
     agent = PPOAgent
+    config = dict(update_mode=dict(batch_size=2))

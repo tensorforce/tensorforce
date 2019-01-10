@@ -22,6 +22,7 @@ from tensorforce.tests.unittest_base import UnittestBase
 class TestMemories(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
+    config = dict(update_mode=dict(batch_size=2))
 
     def test_latest_timesteps(self):
         states = dict(type='float', shape=(1,))

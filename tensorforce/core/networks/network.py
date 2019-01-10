@@ -92,6 +92,10 @@ class Network(Module):
             ):
                 raise TensorforceError("Invalid input arguments for tf_apply.")
 
+            if isinstance(x, dict):
+                Module.update_tensors(**x)
+            Module.update_tensors(**internals)
+
             if return_internals:
                 x, internals = tf_function(
                     x=x, internals=internals, return_internals=return_internals

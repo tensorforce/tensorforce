@@ -1,35 +1,26 @@
-sudo: required
-dist: trusty
 language: python
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
 
-services:
-  - docker
-
-matrix:
-  include:
-  - env:
-    - DOCKER_JOB_NAME='tensorforce_pytest_py2'
-    - DOCKER_IMAGE='tensorflow/tensorflow:latest'
-  - env:
-    - DOCKER_JOB_NAME='tensorforce_pytest_py3'
-    - DOCKER_IMAGE='tensorflow/tensorflow:latest-py3'
-
-before_install:
-  - docker pull ${DOCKER_IMAGE}
-  - docker run -d --rm --name ${DOCKER_JOB_NAME} -v $(pwd):/tensorforce ${DOCKER_IMAGE} /bin/bash -c 'while true; do sleep 1; done';
+branches:
+  only:
+    - master
+    - major-revision
 
 install:
-  - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'python -m pip install -U pip';
-  - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'python -m pip install pytest-xdist';
-  - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'python -m pip install gym==0.9.5';
-  - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'cd /tensorforce && python -m pip install .';
+  - pip install -r requirements.txt
+  - pip install tensorflow
+  - pip install gym
+  - pip install .
 
 script:
-  - docker exec ${DOCKER_JOB_NAME}  /bin/sh -c 'cd /tensorforce && python -m pytest';
+  - pytest
 
 notifications:
   email:
     recipients:
-      - contact@reinforce.io
+      - tensorforce.team@gmail.com
     on_success: never
     on_failure: always

@@ -24,6 +24,16 @@ class Agent(object):
     Base class for Tensorforce agents.
     """
 
+    @staticmethod
+    def from_spec(spec):
+        """
+        Creates an agent from a specification.
+        """
+        agent = spec.pop('type')
+        agent = tensorforce.agents.agents[agent](**spec)
+        assert isinstance(agent, Agent)
+        return agent
+
     def __init__(
         self, states, actions, parallel_interactions=1, buffer_observe=1000
     ):

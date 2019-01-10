@@ -4,6 +4,11 @@ python:
   - "3.6"
   - "3.7"
 
+branches:
+  only:
+    - master
+    - major-revision
+
 install:
   - pip install -r requirements.txt
   - pip install tensorflow

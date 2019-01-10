@@ -13,7 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
+import json
 import numpy as np
+import os
 
 from tensorforce import util, TensorforceError
 import tensorforce.agents
@@ -29,9 +31,16 @@ class Agent(object):
         """
         Creates an agent from a specification.
         """
+        if isinstance(spec, str):
+            assert os.path.isfile(spec)
+            # JSON file specification
+            with open(spec, 'r') as fp:
+                spec = json.load(fp=fp)
+
         agent = spec.pop('type')
         agent = tensorforce.agents.agents[agent](**spec)
         assert isinstance(agent, Agent)
+
         return agent
 
     def __init__(

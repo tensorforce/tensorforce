@@ -353,6 +353,7 @@ class TransformationBase(Layer):
                 name='bias', dtype='float', shape=(self.size,), is_trainable=True,
                 initializer='zeros'
             )
+
         else:
             self.bias = None
 
@@ -371,7 +372,6 @@ class TransformationBase(Layer):
 
         if self.activation is not None:
             x = self.activation.apply(x=x)
-            x = self.add_summary(label='activations', name=self.name, tensor=x)
 
         if self.dropout is not None:
             x = self.dropout.apply(x=x)

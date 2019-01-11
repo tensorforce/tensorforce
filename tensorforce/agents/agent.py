@@ -338,16 +338,3 @@ class Agent(object):
             file: Optional checkpoint file, or path if directory not given.
         """
         self.model.restore(directory=directory, file=file)
-
-    @staticmethod
-    def from_spec(spec, kwargs):
-        """
-        Creates an agent from a specification dict.
-        """
-        agent = util.get_object(
-            obj=spec,
-            predefined_objects=tensorforce.agents.agents,
-            kwargs=kwargs
-        )
-        assert isinstance(agent, Agent)
-        return agent

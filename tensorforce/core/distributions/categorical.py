@@ -25,11 +25,14 @@ class Categorical(Distribution):
     Categorical distribution, for discrete actions.
     """
 
-    def __init__(self, name, action_spec, embedding_size):
+    def __init__(self, name, action_spec, embedding_size, summary_labels=None):
         """
         Categorical distribution.
         """
-        super().__init__(name=name, action_spec=action_spec, embedding_size=embedding_size)
+        super().__init__(
+            name=name, action_spec=action_spec, embedding_size=embedding_size,
+            summary_labels=summary_labels
+        )
 
         action_size = util.product(xs=self.action_spec['shape']) * self.action_spec['num_values']
         input_spec = dict(type='float', shape=(embedding_size,))
@@ -60,7 +63,7 @@ class Categorical(Distribution):
 
         # Logits as pass_tensor since used for sampling
         logits, probabilities, state_value = self.add_summary(
-            label='distribution', name='probability', tensor=probabilities,
+            label=('distributions', 'categorical'), name='probability', tensor=probabilities,
             pass_tensors=(logits, probabilities, state_value), enumerate_last_rank=True
         )
 

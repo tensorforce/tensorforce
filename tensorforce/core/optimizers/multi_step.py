@@ -25,7 +25,7 @@ class MultiStep(MetaOptimizer):
     optimizer a number of times.
     """
 
-    def __init__(self, name, optimizer, num_steps=10, unroll_loop=False):
+    def __init__(self, name, optimizer, num_steps=10, unroll_loop=False, summary_labels=None):
         """
         Creates a new multi-step meta optimizer instance.
 
@@ -33,7 +33,7 @@ class MultiStep(MetaOptimizer):
             optimizer: The optimizer which is modified by this meta optimizer.
             num_steps: Number of optimization steps to perform.
         """
-        super().__init__(name=name, optimizer=optimizer)
+        super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
         assert isinstance(num_steps, int) and num_steps > 0
         self.num_steps = num_steps

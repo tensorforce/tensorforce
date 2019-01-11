@@ -21,14 +21,14 @@ class Distribution(Module):
     Base class for policy distributions.
     """
 
-    def __init__(self, name, action_spec, embedding_size):
+    def __init__(self, name, action_spec, embedding_size, summary_labels=None):
         """
         Distribution.
 
         Args:
             action_spec: Action specification.
         """
-        super().__init__(name=name, l2_regularization=0.0)
+        super().__init__(name=name, l2_regularization=0.0, summary_labels=summary_labels)
 
         self.action_spec = action_spec
         self.embedding_size = embedding_size

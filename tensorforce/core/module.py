@@ -29,7 +29,6 @@ class Module(object):
     Base class for TensorFlow modules.
     """
 
-    is_add_module = False
     global_scope = None
     global_tensors_spec = None
     global_tensors = None  # per agent, main module, or so
@@ -120,7 +119,13 @@ class Module(object):
 
         return Module.global_tensors[scoped_name]
 
-    def __init__(self, name, l2_regularization=None, device=None, summary_labels=None):
+    is_add_module = False
+
+    # Inherit arguments
+    inherit_l2_regularization = None
+    inherit_summary_labels = None
+
+    def __init__(self, name, l2_regularization=None, summary_labels=None, device=None):
         # name
         if not util.is_valid_name(name=name):
             raise TensorforceError.value(name='module', argument='name', value=name)
@@ -133,20 +138,26 @@ class Module(object):
             raise TensorforceError.value(
                 name='module', argument='l2_regularization', value=l2_regularization
             )
-        # device
-        # ???
         # summary_labels
         if summary_labels is not None and \
                 not all(isinstance(label, str) for label in summary_labels):
             raise TensorforceError.type(
                 name='module', argument='summary_labels', value=summary_labels
             )
+        # device
+        # ???
 
         # Attributes specified via constructor arguments
         self.name = name
         self.l2_regularization = l2_regularization
-        self.device = device
         self.summary_labels = None if summary_labels is None else set(summary_labels)
+        self.device = device
+
+        # Otherwise inherit arguments
+        if self.l2_regularization is None:
+            self.l2_regularization = Module.inherit_l2_regularization
+        if self.summary_labels is None:
+            self.summary_labels = Module.inherit_summary_labels
 
         # Internal attributes
         self.parent = None
@@ -184,8 +195,6 @@ class Module(object):
         return regularization_loss
 
     def initialize(self):
-        Module.global_scope = None
-
         # Check whether module is already initialized
         if self.initialized:
             raise TensorforceError(message="Module already initialized.")
@@ -196,17 +205,26 @@ class Module(object):
         self.trainable_variables = OrderedDict()
         self.regularized_variables = OrderedDict()
 
+        if self.parent is None:
+            Module.global_scope = list()
+
+        Module.global_scope.append(self.name)
+
         # TensorFlow device and variable scope
         self.scope = tf.variable_scope(name_or_scope=self.name)
         if self.device is not None:
             self.device = tf.device(device_name_or_function=self.device)
             self.device.__enter__()
+
         with self.scope:
             self.tf_initialize()
             for module in self.modules.values():
                 module.initialize()
+
         if self.device is not None:
             self.device.__exit__(None, None, None)
+
+        Module.global_scope.pop()
 
         # Internal TensorFlow functions, prefixed by 'tf_'
         for attribute in sorted(dir(self)):
@@ -340,7 +358,9 @@ class Module(object):
         Module.global_scope.pop()
         return x
 
-    def add_variable(self, name, dtype, shape, is_trainable, initializer='zeros', shared=None):
+    def add_variable(
+        self, name, dtype, shape, is_trainable, initializer='zeros', summarize=None, shared=None
+    ):
         # name
         if not util.is_valid_name(name=name):
             raise TensorforceError.value(name='variable', argument='name', value=name)
@@ -378,6 +398,9 @@ class Module(object):
                     initializer
                 )
             )
+        # summarize
+        if summarize is not None and not isinstance(summarize, bool):
+            raise TensorforceError.type(name='variable', argument='summarize', value=summarize)
         # shared
         if shared is not None and not isinstance(shared, str):
             raise TensorforceError.type(name='variable', argument='shared', value=shared)
@@ -430,8 +453,12 @@ class Module(object):
         if is_trainable:
             self.trainable_variables[name] = variable
 
-        # if 'variables' in self.summary_labels:
-        #     tf.contrib.summary.histogram(name=name, tensor=variable)
+        # Add summary
+        if (summarize is None and is_trainable) or summarize:
+            variable = tf.identity(input=variable)
+            variable = self.add_summary(
+                label='variables', name=name, tensor=variable, mean_variance=True
+            )
 
         return variable
 
@@ -465,9 +492,9 @@ class Module(object):
             # check dtype and shape !!!
             placeholder = tf.placeholder_with_default(input=default, shape=shape, name=name)
 
-        return tf.identity(input=placeholder)
+        return placeholder
 
-    def add_summary(self, label, name, tensor, pass_tensors=None, enumerate_last_rank=False):
+    def add_summary(self, label, name, tensor, pass_tensors=None, mean_variance=False, enumerate_last_rank=False):
         # should be "labels" !!!
         # label
         if util.is_iterable(x=label):
@@ -507,7 +534,7 @@ class Module(object):
             return pass_tensors
 
         # Check whether not in while loop
-        if 'while' in Module.global_scope:
+        if 'while' in Module.global_scope:  # 'cond' in Module.global_scope or 
             return pass_tensors
 
         # Check whether given label is logged
@@ -519,20 +546,24 @@ class Module(object):
                 return pass_tensors
 
         # Handle enumerate_last_rank
-        name = '{}-{}'.format(self.name, name)
         if enumerate_last_rank:
             num_dims = util.shape(x=tensor)[-1]
-            names = [name + str(n) for n in range(num_dims)]
-            tensors = [tensor[..., n] for n in range(num_dims)]
+            tensors = OrderedDict([(name + str(n), tensor[..., n]) for n in range(num_dims)])
         else:
-            names = (name,)
-            tensors = (tensor,)
+            tensors = OrderedDict([(name, tensor)])
+
+        if mean_variance:
+            for name in list(tensors):
+                tensor = tensors.pop(name)
+                mean, variance = tf.nn.moments(x=tensor, axes=tuple(range(util.rank(x=tensor))))
+                tensors[name + '-mean'] = mean
+                tensors[name + '-variance'] = variance
 
         # TensorFlow summaries
         summaries = list()
-        for name, tensor in names, tensors:
+        for name, tensor in tensors.items():
             shape = util.shape(x=tensor)
-            if shape == () or shape == (-1):
+            if shape == () or shape == (-1,):
                 # Scalar
                 summaries.append(tf.contrib.summary.scalar(name=name, tensor=tensor))
             elif shape == (1,) or shape == (-1, 1):
@@ -628,22 +659,32 @@ class Module(object):
             # Final callable module specification
             if Module.global_scope is None:
                 raise TensorforceError.unexpected()
+
+            # Global scope handling
             Module.is_add_module = True
             if is_subscope:
                 Module.global_scope.append(name)
+
+            # Inherit arguments
+            Module.inherit_l2_regularization = self.l2_regularization
+            Module.inherit_summary_labels = self.summary_labels
+
+            # Module constructor
             if '_first_arg' in kwargs:
                 module = module(name, kwargs.pop('_first_arg'), **kwargs)
             else:
                 module = module(name=name, **kwargs)
+
+            # Inherit arguments
+            Module.inherit_l2_regularization = None
+            Module.inherit_summary_labels = None
+
+            # Global scope handling
             if is_subscope:
                 Module.global_scope.pop()
             Module.is_add_module = False
 
             # Internal attributes
-            if is_trainable and module.l2_regularization is None:
-                module.l2_regularization = self.l2_regularization
-            if module.summary_labels is None:
-                module.summary_labels = self.summary_labels
             module.parent = self
             module.is_subscope = is_subscope
 

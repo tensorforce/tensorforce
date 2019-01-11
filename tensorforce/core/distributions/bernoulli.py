@@ -25,11 +25,14 @@ class Bernoulli(Distribution):
     Bernoulli distribution, for binary boolean actions.
     """
 
-    def __init__(self, name, action_spec, embedding_size):
+    def __init__(self, name, action_spec, embedding_size, summary_labels=None):
         """
         Bernoulli distribution.
         """
-        super().__init__(name=name, action_spec=action_spec, embedding_size=embedding_size)
+        super().__init__(
+            name=name, action_spec=action_spec, embedding_size=embedding_size,
+            summary_labels=summary_labels
+        )
 
         action_size = util.product(xs=self.action_spec['shape'], empty=0)
         input_spec = dict(type='float', shape=(embedding_size,))
@@ -64,7 +67,7 @@ class Bernoulli(Distribution):
         false_logit = tf.log(x=(1.0 - probability))
 
         true_logit, false_logit, probability, state_value = self.add_summary(
-            label='distribution', name='prob', tensor=probability,
+            label=('distributions', 'bernoulli'), name='probability', tensor=probability,
             pass_tensors=(true_logit, false_logit, probability, state_value)
         )
 

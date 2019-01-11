@@ -140,6 +140,10 @@ def shape(x, unknown=-1):
     return tuple(unknown if num_dims is None else num_dims for num_dims in x.get_shape().as_list())
 
 
+def no_operation():
+    return tf.constant(value=False, dtype=tf_dtype(dtype='bool'))
+
+
 def identity_operation(x, operation_name=None):
     zero = tf.zeros_like(tensor=x)
     if dtype(x=zero) == 'bool':

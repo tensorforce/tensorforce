@@ -27,11 +27,14 @@ class Gaussian(Distribution):
     Gaussian distribution, for unbounded continuous actions.
     """
 
-    def __init__(self, name, action_spec, embedding_size):
+    def __init__(self, name, action_spec, embedding_size, summary_labels=None):
         """
         Categorical distribution.
         """
-        super().__init__(name=name, action_spec=action_spec, embedding_size=embedding_size)
+        super().__init__(
+            name=name, action_spec=action_spec, embedding_size=embedding_size,
+            summary_labels=summary_labels
+        )
 
         action_size = util.product(xs=self.action_spec['shape'], empty=0)
         input_spec = dict(type='float', shape=(embedding_size,))
@@ -64,10 +67,12 @@ class Gaussian(Distribution):
         stddev = tf.exp(x=log_stddev)
 
         mean, log_stddev = self.add_summary(
-            label='distribution', name='mean', tensor=mean, pass_tensors=(mean, log_stddev)
+            label=('distributions', 'gaussian'), name='mean', tensor=mean,
+            pass_tensors=(mean, log_stddev)
         )
         stddev, log_stddev = self.add_summary(
-            label='distribution', name='stddev', tensor=stddev, pass_tensors=(stddev, log_stddev)
+            label=('distributions', 'gaussian'), name='stddev', tensor=stddev,
+            pass_tensors=(stddev, log_stddev)
         )
 
         return mean, stddev, log_stddev

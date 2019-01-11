@@ -78,4 +78,4 @@ class RandomModel(Model):
         return actions, OrderedDict()
 
     def tf_core_observe(self, states, internals, actions, terminal, reward):
-        return tf.no_op()
+        return util.no_operation()

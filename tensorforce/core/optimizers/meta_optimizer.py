@@ -23,14 +23,14 @@ class MetaOptimizer(Optimizer):
     more optimal step size.
     """
 
-    def __init__(self, name, optimizer, **kwargs):
+    def __init__(self, name, optimizer, summary_labels=None, **kwargs):
         """
         Creates a new meta optimizer instance.
 
         Args:
             optimizer: The optimizer which is modified by this meta optimizer.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, summary_labels=summary_labels)
 
         from tensorforce.core.optimizers import optimizer_modules
         self.optimizer = self.add_module(

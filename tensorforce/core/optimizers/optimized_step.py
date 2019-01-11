@@ -28,7 +28,7 @@ class OptimizedStep(MetaOptimizer):
 
     def __init__(
         self, name, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
-        ls_parameter=0.5, ls_unroll_loop=False
+        ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None
     ):
         """
         Creates a new optimized step meta optimizer instance.

@@ -26,7 +26,7 @@ class Embedding(TransformationBase):
 
     def __init__(
         self, name, size, num_embeddings=None, partition_strategy='mod', max_norm=None,
-        is_trainable=True, bias=False, activation=None, dropout=None, input_spec=None,
+        is_trainable=True, bias=False, activation='tanh', dropout=None, input_spec=None,
         l2_regularization=None, summary_labels=None
     ):
         """

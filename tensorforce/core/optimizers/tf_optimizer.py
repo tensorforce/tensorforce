@@ -34,7 +34,7 @@ class TFOptimizer(Optimizer):
         rmsprop=tf.train.RMSPropOptimizer
     )
 
-    def __init__(self, name, optimizer, **kwargs):
+    def __init__(self, name, optimizer, summary_labels=None, **kwargs):
         """
         Creates a new optimizer instance of a TensorFlow optimizer.
 
@@ -42,7 +42,7 @@ class TFOptimizer(Optimizer):
             optimizer: The name of the optimizer. Must be a key of the tensorflow_optimizers dict.
             **kwargs: Arguments passed on to the TensorFlow optimizer constructor as **kwargs.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, summary_labels=summary_labels)
 
         assert optimizer in TFOptimizer.tensorflow_optimizers
         self.optimizer = TFOptimizer.tensorflow_optimizers[optimizer](**kwargs)

@@ -27,11 +27,14 @@ class Beta(Distribution):
     Beta distribution, for bounded continuous actions.
     """
 
-    def __init__(self, name, action_spec, embedding_size):
+    def __init__(self, name, action_spec, embedding_size, summary_labels=None):
         """
         Beta distribution.
         """
-        super().__init__(name=name, action_spec=action_spec, embedding_size=embedding_size)
+        super().__init__(
+            name=name, action_spec=action_spec, embedding_size=embedding_size,
+            summary_labels=summary_labels
+        )
 
         action_size = util.product(xs=self.action_spec['shape'], empty=0)
         input_spec = dict(type='float', shape=(embedding_size,))
@@ -65,11 +68,11 @@ class Beta(Distribution):
         log_norm = tf.lgamma(x=alpha) + tf.lgamma(x=beta) - tf.lgamma(x=alpha_beta)
 
         alpha, alpha_beta, log_norm = self.add_summary(
-            label='distribution', name='alpha', tensor=alpha,
+            label=('distributions', 'beta'), name='alpha', tensor=alpha,
             pass_tensors=(alpha, alpha_beta, log_norm)
         )
         beta, alpha_beta, log_norm = self.add_summary(
-            label='distribution', name='beta', tensor=beta,
+            label=('distributions', 'beta'), name='beta', tensor=beta,
             pass_tensors=(beta, alpha_beta, log_norm)
         )
 

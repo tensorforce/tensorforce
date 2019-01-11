@@ -61,7 +61,7 @@ class Activation(Layer):
             x = tf.nn.leaky_relu(features=x, alpha=0.2)  # alpha argument???
 
         elif self.nonlinearity == 'none':
-            x = tf.identity(input=x)
+            pass
 
         elif self.nonlinearity == 'relu':
             x = tf.nn.relu(features=x)

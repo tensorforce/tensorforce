@@ -349,17 +349,19 @@ class MemoryModel(Model):
         # Returns no-op
         updated = self.memory.update_batch(loss_per_instance=loss_per_instance)
         with tf.control_dependencies(control_inputs=(updated,)):
-            loss = tf.reduce_mean(input_tensor=loss_per_instance, axis=0)
-            loss = self.add_summary(label='losses', name='loss', tensor=loss)
+            loss = tf.math.reduce_mean(input_tensor=loss_per_instance, axis=0)
+            loss = self.add_summary(
+                label=('objective-loss', 'losses'), name='objective-loss', tensor=loss
+            )
 
         # Regularization losses
         reg_loss = self.regularize(states=states, internals=internals)
         reg_loss = self.add_summary(
-            label='regularization', name='regularization-loss', tensor=reg_loss
+            label=('regularization-loss', 'losses'), name='regularization-loss', tensor=reg_loss
         )
 
         loss = loss + reg_loss
-        loss = self.add_summary(label=('total-loss', 'losses'), name='total-loss', tensor=loss)
+        loss = self.add_summary(label=('loss', 'losses'), name='loss', tensor=loss)
 
         return loss
 
@@ -484,7 +486,7 @@ class MemoryModel(Model):
             else:
                 raise TensorforceError("Invalid update unit: {}.".format(unit))
 
-            def true_fn():
+            def optimize():
                 if unit == 'timesteps':
                     # Timestep-based batch
                     batch = self.memory.retrieve_timesteps(n=batch_size)
@@ -508,7 +510,7 @@ class MemoryModel(Model):
 
             do_optimize = tf.math.logical_and(x=is_frequency, y=at_least_start)
 
-            optimized = self.cond(pred=do_optimize, true_fn=true_fn, false_fn=tf.no_op)
+            optimized = self.cond(pred=do_optimize, true_fn=optimize, false_fn=util.no_operation)
 
             return optimized
 

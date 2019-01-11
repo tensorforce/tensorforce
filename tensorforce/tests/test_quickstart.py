@@ -67,7 +67,7 @@ class TestQuickstart(unittest.TestCase):
             return np.mean(r.episode_rewards[-100:]) <= 180.0
 
         # Start the runner
-        runner.run(num_episodes=1000, max_episode_timesteps=200, callback=callback)
+        runner.run(num_episodes=500, max_episode_timesteps=200, callback=callback)
         runner.close()
 
         sys.stdout.write('Test passed after {} episodes\n'.format(runner.episode))

@@ -13,8 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
+from tensorforce import util
 from tensorforce.core import Module
 
 
@@ -23,7 +22,10 @@ class Memory(Module):
     Base class for memories.
     """
 
-    def __init__(self, name, states_spec, internals_spec, actions_spec, include_next_states):
+    def __init__(
+        self, name, states_spec, internals_spec, actions_spec, include_next_states,
+        summary_labels=None
+    ):
         """
         Args:
             state_spec (dict): State specification.
@@ -31,7 +33,7 @@ class Memory(Module):
             action_spec (dict): Action specification.
             include_next_states (bool): Include subsequent state if true.
         """
-        super().__init__(name=name, l2_regularization=0.0)
+        super().__init__(name=name, l2_regularization=0.0, summary_labels=summary_labels)
 
         self.states_spec = states_spec
         self.internals_spec = internals_spec
@@ -96,4 +98,4 @@ class Memory(Module):
         Args:
             loss_per_instance: Loss per instance tensor.
         """
-        return tf.no_op()
+        return util.no_operation()

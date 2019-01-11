@@ -25,7 +25,7 @@ class ClippedStep(MetaOptimizer):
     optimizer.
     """
 
-    def __init__(self, name, optimizer, clipping_value):
+    def __init__(self, name, optimizer, clipping_value, summary_labels=None):
         """
         Creates a new multi-step meta optimizer instance.
 
@@ -33,7 +33,7 @@ class ClippedStep(MetaOptimizer):
             optimizer: The optimizer which is modified by this meta optimizer.
             clipping_value: Clip deltas at this value.
         """
-        super().__init__(name=name, optimizer=optimizer)
+        super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
         assert isinstance(clipping_value, float) and clipping_value > 0.0
         self.clipping_value = clipping_value

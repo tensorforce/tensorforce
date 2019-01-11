@@ -23,6 +23,16 @@ class Dense(TransformationBase):
     Dense fully-connected layer.
     """
 
+    def __init__(
+        self, name, size, bias=True, activation='relu', dropout=None, input_spec=None,
+        l2_regularization=None, summary_labels=None
+    ):
+        super().__init__(
+            name=name, size=size, bias=bias, activation=activation, dropout=dropout,
+            input_spec=input_spec, l2_regularization=l2_regularization,
+            summary_labels=summary_labels
+        )
+
     def default_input_spec(self):
         return dict(type='float', shape=(0,))
 

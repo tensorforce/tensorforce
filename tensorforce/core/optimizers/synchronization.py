@@ -25,7 +25,7 @@ class Synchronization(Optimizer):
     set of source variables.
     """
 
-    def __init__(self, name, sync_frequency=1, update_weight=1.0):
+    def __init__(self, name, sync_frequency=1, update_weight=1.0, summary_labels=None):
         """
         Creates a new synchronization optimizer instance.
 
@@ -35,7 +35,7 @@ class Synchronization(Optimizer):
             update_weight: The update weight, 1.0 meaning a full assignment of the source  
             variables values.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, summary_labels=summary_labels)
 
         assert isinstance(sync_frequency, int) and sync_frequency > 0
         self.sync_frequency = sync_frequency

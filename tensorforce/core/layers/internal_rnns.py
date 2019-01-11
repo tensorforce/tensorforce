@@ -63,7 +63,7 @@ class InternalLstm(TransformationBase):
             assert False
 
         specification[self.name] = dict(
-            type='float', shape=(2, self.size), initial_state=tf.identity(x=self.initial_state)
+            type='float', shape=(2, self.size), initial_state=self.initial_state
         )
 
         return specification

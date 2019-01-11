@@ -28,7 +28,8 @@ class Queue(Memory):
     """
 
     def __init__(
-        self, name, states_spec, internals_spec, actions_spec, include_next_states, capacity
+        self, name, states_spec, internals_spec, actions_spec, include_next_states, capacity,
+        summary_labels=None
     ):
         """
         Queue memory.
@@ -38,7 +39,8 @@ class Queue(Memory):
         """
         super().__init__(
             name=name, states_spec=states_spec, internals_spec=internals_spec,
-            actions_spec=actions_spec, include_next_states=include_next_states
+            actions_spec=actions_spec, include_next_states=include_next_states,
+            summary_labels=summary_labels
         )
 
         self.capacity = capacity
@@ -175,7 +177,7 @@ class Queue(Memory):
             assignment = self.episode_count.assign_add(delta=num_new_episodes, read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf.no_op()
+            return util.no_operation()
 
     def tf_retrieve_indices(self, indices):
         """

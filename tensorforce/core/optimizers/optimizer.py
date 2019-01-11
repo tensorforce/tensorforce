@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.core import Module
 
 
@@ -26,8 +26,8 @@ class Optimizer(Module):
     updating a set of variables.
     """
 
-    def __init__(self, name):
-        super().__init__(name=name, l2_regularization=0.0)
+    def __init__(self, name, summary_labels=None):
+        super().__init__(name=name, l2_regularization=0.0, summary_labels=summary_labels)
 
     def tf_step(self, time, variables, **kwargs):
         """
@@ -89,35 +89,18 @@ class Optimizer(Module):
         Returns:
             The optimization operation.
         """
-        # # Add training variable gradient histograms/scalars to summary output
-        # # if 'gradients' in self.summary_labels:
-        # if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram', 'gradients_scalar']):
-        #     valid = True
-        #     if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
-        #         gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
-        #     elif isinstance(self.optimizer, tensorforce.core.optimizers.TFOptimizer):
-        #         # This section handles "Multi_step" and may handle others
-        #         # if failure is found, add another elif to handle that case
-        #         gradients = self.optimizer.optimizer.compute_gradients(kwargs['fn_loss']())
-        #     else:
-        #         # Didn't find proper gradient information
-        #         valid = False
-
-        #     # Valid gradient data found, create summary data items
-        #     if valid:
-        #         for grad, var in gradients:
-        #             if grad is not None:
-        #                 if any(k in self.summary_labels for k in ('gradients', 'gradients_scalar')):
-        #                     axes = list(range(len(grad.shape)))
-        #                     mean, var = tf.nn.moments(grad, axes)
-        #                     tf.contrib.summary.scalar(name='gradients/' + var.name + "/mean", tensor=mean)
-        #                     tf.contrib.summary.scalar(name='gradients/' + var.name + "/variance", tensor=var)
-        #                 if any(k in self.summary_labels for k in ('gradients', 'gradients_histogram')):
-        #                     tf.contrib.summary.histogram(name='gradients/' + var.name, tensor=grad)
-
         deltas = self.step(time=time, variables=variables, **kwargs)
+
+        for n in range(len(variables)):
+            name = variables[n].name
+            if name[-2:] != ':0':
+                raise TensorforceError.unexpected()
+            deltas[n] = self.add_summary(
+                label='updates', name=(name[:-2] + '-update'), tensor=deltas[n], mean_variance=True
+            )
+
         with tf.control_dependencies(control_inputs=deltas):
-            return tf.no_op()
+            return util.no_operation()
 
     def add_variable(self, name, dtype, shape, is_trainable=False, initializer='zeros'):
         if is_trainable:

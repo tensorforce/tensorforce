@@ -25,7 +25,7 @@ class Evolutionary(Optimizer):
     or negatively, depending on their improvement of the loss.
     """
 
-    def __init__(self, name, learning_rate, num_samples=1, unroll_loop=False):
+    def __init__(self, name, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None):
         """
         Creates a new evolutionary optimizer instance.
 
@@ -33,7 +33,7 @@ class Evolutionary(Optimizer):
             learning_rate: Learning rate.
             num_samples: Number of sampled perturbations.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, summary_labels=summary_labels)
 
         assert isinstance(learning_rate, float) and learning_rate > 0.0
         self.learning_rate = learning_rate

@@ -84,7 +84,14 @@ class Model(Module):
             execution: (dict)
                 - num_parallel: (int) number of parallel episodes
         """
-        super().__init__(name=scope, l2_regularization=None, summary_labels=None)
+        if summarizer is None or summarizer.get('directory') is None:
+            summary_labels = None
+        else:
+            summary_labels = summarizer.get('labels', ())
+        # "bernoulli", "beta", "categorical", "distributions", "dropout", "entropy", "gaussian",
+        # "graph", "loss", "losses", "objective-loss", "regularization-loss", "relu", "updates",
+        # "variables"
+        super().__init__(name=scope, l2_regularization=None, summary_labels=summary_labels)
 
         # States/actions/internals specifications
         self.states_spec = states
@@ -105,10 +112,8 @@ class Model(Module):
         # Summarizer
         if summarizer is None or summarizer.get('directory') is None:
             self.summarizer_spec = None
-            self.summary_labels = set()
         else:
             self.summarizer_spec = summarizer
-            self.summary_labels = set(self.summarizer_spec.get('labels', ()))
 
         # Execution
         self.execution_spec = execution
@@ -341,95 +346,48 @@ class Model(Module):
 
             # Create model's "external" components.
             # Create tensorflow functions from "tf_"-methods.
-            self.initialize()
 
             if self.summarizer_spec is not None:
                 with tf.name_scope(name='summarizer'):
                     self.summarizer = tf.contrib.summary.create_file_writer(
                         logdir=self.summarizer_spec['directory'],
-                        max_queue=None,
                         flush_millis=(self.summarizer_spec.get('flush', 10) * 1000),
-                        filename_suffix=None,
-                        name=None
+                        max_queue=None, filename_suffix=None  # ???
                     )
-                    default_summarizer = self.summarizer.as_default()
-                    # Problem: not all parts of the graph are called on every step
+                    self.summarizer_init = self.summarizer.init()
+                    self.summarizer_flush = self.summarizer.flush()
+                    self.summarizer_close = self.summarizer.close()
                     assert 'steps' not in self.summarizer_spec
                     # if 'steps' in self.summarizer_spec:
                     #     record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
                     #         n=self.summarizer_spec['steps'],
                     #         global_step=self.global_timestep
                     #     )
-                    # else:
+                    default_summarizer = self.summarizer.as_default()
                     record_summaries = tf.contrib.summary.always_record_summaries()
+                    default_summarizer.__enter__()
+                    record_summaries.__enter__()
 
-                default_summarizer.__enter__()
-                record_summaries.__enter__()
+            self.initialize()
 
-            # # Input tensors
-            # states = util.fmap(function=tf.identity, xs=self.states_input)
-            # internals = util.map_tensors(fn=tf.identity, xs=self.internals_input)
-            # actions = util.map_tensors(fn=tf.identity, xs=self.actions_input)
-            # terminal = tf.identity(input=self.terminal_input)
-            # reward = tf.identity(input=self.reward_input)
-            # # Probably both deterministic and independent should be the same at some point.
-            # deterministic = tf.identity(input=self.deterministic_input)
-            # independent = tf.identity(input=self.independent_input)
-            # parallel = tf.identity(input=self.parallel_input)
-
-            # states, actions, reward = self.preprocess(states=states, actions=actions, reward=reward)
-
-            # self.create_operations(
-            #     states=states,
-            #     internals=internals,
-            #     actions=actions,
-            #     terminal=terminal,
-            #     reward=reward,
-            #     deterministic=deterministic,
-            #     independent=independent,
-            #     parallel=parallel
-            # )
-
-            # Add all summaries specified in summary_labels
-            if 'inputs' in self.summary_labels or 'states' in self.summary_labels:
-                for name in sorted(states):
-                    tf.contrib.summary.histogram(name=('states-' + name), tensor=states[name])
-            if 'inputs' in self.summary_labels or 'actions' in self.summary_labels:
-                for name in sorted(actions):
-                    tf.contrib.summary.histogram(name=('actions-' + name), tensor=actions[name])
-            if 'inputs' in self.summary_labels or 'reward' in self.summary_labels:
-                tf.contrib.summary.histogram(name='reward', tensor=reward)
-
-            if 'graph' in self.summary_labels:
+            if self.summary_labels is not None and 'graph' in self.summary_labels:
                 with tf.name_scope(name='summarizer'):
+                    # summarizer_init = tf.contrib.summary.summary_writer_initializer_op()
+                    # assert len(summarizer_init) == 1
+                    # initialization = (tf.global_variables_initializer(), summarizer_init[0])
                     graph_def = self.graph.as_graph_def()
                     graph_str = tf.constant(
-                        value=graph_def.SerializeToString(),
-                        dtype=tf.string,
-                        shape=()
+                        value=graph_def.SerializeToString(), dtype=tf.string, shape=()
                     )
                     self.graph_summary = tf.contrib.summary.graph(
-                        param=graph_str,
-                        step=self.global_timestep
+                        param=graph_str, step=self.global_timestep  # episode?
                     )
-
             else:
                 self.graph_summary = None
 
-            if self.summarizer_spec is None:
-                self.flush_summarizer = None
-                self.summarizer_init_op = None
-
-            else:
+            if self.summarizer_spec is not None:
                 record_summaries.__exit__(None, None, None)
                 default_summarizer.__exit__(None, None, None)
-
-                with tf.name_scope(name='summarizer'):
-                    self.flush_summarizer = tf.contrib.summary.flush()
-
-                    self.summarizer_init_op = tf.contrib.summary.summary_writer_initializer_op()
-                    assert len(self.summarizer_init_op) == 1
-                    self.summarizer_init_op = self.summarizer_init_op[0]
 
         # If we are a global model -> return here.
         # Saving, syncing, finalizing graph, session is done by local replica model.
@@ -568,8 +526,8 @@ class Model(Module):
             global_variables = self.get_variables()
             # global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.variables_initializer(var_list=global_variables)
-            if self.summarizer_init_op is not None:
-                init_op = tf.group(init_op, self.summarizer_init_op)
+            if self.summarizer_spec is not None:
+                init_op = tf.group(init_op, self.summarizer_init)
             if self.graph_summary is None:
                 ready_op = tf.report_uninitialized_variables(var_list=global_variables)
                 ready_for_local_init_op = None
@@ -585,8 +543,8 @@ class Model(Module):
             # global_variables += [self.global_episode, self.global_timestep]
             local_variables = self.get_variables()
             init_op = tf.variables_initializer(var_list=global_variables)
-            if self.summarizer_init_op is not None:
-                init_op = tf.group(init_op, self.summarizer_init_op)
+            if self.summarizer_spec is not None:
+                init_op = tf.group(init_op, self.summarizer_init)
             ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
             ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
             if self.graph_summary is None:
@@ -745,8 +703,8 @@ class Model(Module):
         """
         Saves the model (of saver dir is given) and closes the session.
         """
-        if self.flush_summarizer is not None:
-            self.monitored_session.run(fetches=self.flush_summarizer)
+        if self.summarizer_spec is not None:
+            self.monitored_session.run(fetches=self.summarizer_close)
         if self.saver_directory is not None:
             self.save(append_timestep=True)
         self.monitored_session.__exit__(None, None, None)
@@ -858,10 +816,10 @@ class Model(Module):
         """
 
         # Inputs
-        states = util.fmap(function=tf.identity, xs=self.states_input)
-        parallel = tf.identity(input=self.parallel_input)
-        deterministic = tf.identity(input=self.deterministic_input)
-        independent = tf.identity(input=self.independent_input)
+        states = self.states_input
+        parallel = self.parallel_input
+        deterministic = self.deterministic_input
+        independent = self.independent_input
 
         # Assertions
         assertions = list()
@@ -1031,7 +989,9 @@ class Model(Module):
                 return tf.no_op()
 
         with tf.control_dependencies(control_inputs=(reversed_variable_noise,)):
-            updated_buffers = self.cond(pred=independent, true_fn=tf.no_op, false_fn=update_buffers)
+            updated_buffers = self.cond(
+                pred=independent, true_fn=tf.no_op, false_fn=update_buffers
+            )
 
         # Return timestep
         with tf.control_dependencies(control_inputs=(updated_buffers,)):
@@ -1061,9 +1021,9 @@ class Model(Module):
         """
 
         # Inputs
-        terminal = tf.identity(input=self.terminal_input)
-        reward = tf.identity(input=self.reward_input)
-        parallel = tf.identity(input=self.parallel_input)
+        terminal = self.terminal_input
+        reward = self.reward_input
+        parallel = self.parallel_input
 
         # Assertions
         assertions = list()
@@ -1415,8 +1375,8 @@ class Model(Module):
         Returns:
             Checkpoint path where the model was saved.
         """
-        if self.flush_summarizer is not None:
-            self.monitored_session.run(fetches=self.flush_summarizer)
+        if self.summarizer_spec is not None:
+            self.monitored_session.run(fetches=self.summarizer_flush)
 
         return self.saver.save(
             sess=self.session,

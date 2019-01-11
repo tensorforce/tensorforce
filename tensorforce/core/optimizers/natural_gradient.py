@@ -26,7 +26,8 @@ class NaturalGradient(Optimizer):
     """
 
     def __init__(
-        self, name, learning_rate, cg_max_iterations=20, cg_damping=1e-3, cg_unroll_loop=False
+        self, name, learning_rate, cg_max_iterations=20, cg_damping=1e-3, cg_unroll_loop=False,
+        summary_labels=None
     ):
         """
         Creates a new natural gradient optimizer instance.
@@ -37,7 +38,7 @@ class NaturalGradient(Optimizer):
             cg_damping: Conjugate gradient solver damping factor.
             cg_unroll_loop: Unroll conjugate gradient loop if true.
         """
-        super().__init__(name=name)
+        super().__init__(name=name, summary_labels=summary_labels)
 
         assert learning_rate > 0.0
         self.learning_rate = learning_rate

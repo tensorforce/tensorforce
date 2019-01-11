@@ -264,7 +264,7 @@ class PrioritizedReplay(Memory):
             assignment = tf.assign(ref=self.buffer_index, value=(start_index + num_instances))
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf.no_op()
+            return util.no_operation()
 
     def tf_retrieve_timesteps(self, n):
         num_buffer_elems = tf.minimum(x=self.buffer_index, y=n)
@@ -584,7 +584,7 @@ class PrioritizedReplay(Memory):
             ))
 
         with tf.control_dependencies(control_inputs=assignments):
-            return tf.no_op()
+            return util.no_operation()
 
     # These are not supported for prioritized replay currently.
     def tf_retrieve_episodes(self, n):

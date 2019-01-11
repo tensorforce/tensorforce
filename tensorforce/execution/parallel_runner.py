@@ -96,7 +96,7 @@ class ParallelRunner(object):
 
         # Reset environments and episode statistics
         for environment in self.environments:
-            environment.just_reset()
+            environment.start_reset()
         episode_reward = [0 for _ in self.environments]
         episode_timestep = [0 for _ in self.environments]
         episode_start = [time.time() for _ in self.environments]
@@ -169,21 +169,22 @@ class ParallelRunner(object):
                 # Check whether episode terminated
                 if terminal:
                     # Reset environment and episode statistics
-                    environment.just_reset()
+                    environment.start_reset()
                     episode_reward[parallel] = 0
                     episode_timestep[parallel] = 0
                     episode_start[parallel] = time.time()
 
                 else:
                     # Retrieve actions from agent
+                    print(parallel)
                     actions = self.agent.act(
                         states=states, deterministic=deterministic, parallel=parallel
                     )
                     episode_timestep[parallel] += 1
 
                     # Execute actions in environment
-                    environment.just_execute(actions=actions)
+                    environment.start_execute(actions=actions)
 
             # Sleep if no environment was ready
             if no_environment_ready:
-                time.sleep(secs=num_sleep_secs)
+                time.sleep(num_sleep_secs)

@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from threading import Thread
+
 from tensorforce import TensorforceError
 
 
@@ -20,6 +22,10 @@ class Environment(object):
     """
     Environment base class.
     """
+
+    def __init__(self):
+        self.observation = None
+        self.thread = None
 
     @property
     def states(self):
@@ -75,15 +81,15 @@ class Environment(object):
         Returns:
             initial state of reset environment.
         """
-        if not hasattr(self, '_observation'):
-            self._observation = None
-        if self._observation is not None:
-            raise TensorforceError(message="Invalid execute.")
-        self.just_reset()
-        states, _, _ = self.observe()
-        if self._observation is not None:
-            raise TensorforceError(message="Invalid just_reset/observe implementation.")
-        return states
+        raise NotImplementedError
+        # if self.observation is not None or self.thread is not None:
+        #     raise TensorforceError(message="Invalid execute.")
+        # self.start_reset()
+        # self.thread.join()
+        # states, _, _ = self.observe()
+        # if self.observation is not None:
+        #     raise TensorforceError(message="Invalid start_reset/observe implementation.")
+        # return states
 
     def execute(self, actions):
         """
@@ -95,29 +101,42 @@ class Environment(object):
         Returns:
             Tuple of (next state, bool indicating terminal, reward)
         """
-        if self._observation is not None:
-            raise TensorforceError(message="Invalid execute.")
-        self.just_execute(actions=actions)
-        observation = self.observe()
-        if self._observation is not None:
-            raise TensorforceError(message="Invalid just_execute/observe implementation.")
-        return observation
+        raise NotImplementedError
+        # if self.observation is not None or self.thread is not None:
+        #     raise TensorforceError(message="Invalid execute.")
+        # self.start_execute(actions=actions)
+        # self.thread.join()
+        # observation = self.observe()
+        # if self.observation is not None:
+        #     raise TensorforceError(message="Invalid start_execute/observe implementation.")
+        # return observation
 
-    def just_reset(self):
-        if not hasattr(self, '_observation'):
-            self._observation = None
-        if self._observation is not None:
-            raise TensorforceError(message="Invalid execute.")
-        self._observation = (self.reset(), None, None)
+    def start_reset(self):
+        if self.observation is not None or self.thread is not None:
+            raise TensorforceError(message="Invalid start_reset.")
+        self.thread = Thread(target=self.complete_reset)
+        self.thread.start()
 
-    def just_execute(self, actions):
-        if self._observation is not None:
-            raise TensorforceError(message="Invalid just)execute.")
-        self._observation = self.execute(actions=actions)
+    def complete_reset(self):
+        self.observation = (self.reset(), None, None)
+        self.thread = None
+
+    def start_execute(self, actions):
+        if self.observation is not None or self.thread is not None:
+            raise TensorforceError(message="Invalid start_execute.")
+        self.thread = Thread(target=self.complete_execute, kwargs=dict(actions=actions))
+        self.thread.start()
+
+    def complete_execute(self, actions):
+        self.observation = self.execute(actions=actions)
+        self.thread = None
 
     def observe(self):
-        if self._observation is None:
-            raise TensorforceError(message="Invalid observe.")
-        observation = self._observation
-        self._observation = None
-        return observation
+        if self.thread is not None:
+            return None
+        else:
+            if self.observation is None:
+                raise TensorforceError(message="Invalid observe.")
+            observation = self.observation
+            self.observation = None
+            return observation

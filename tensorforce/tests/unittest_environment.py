@@ -35,6 +35,8 @@ class UnittestEnvironment(Environment):
             states: the state specification for the unit-test
             actions: the action specification for the unit-test
         """
+        super().__init__()
+
         self.states_spec = OrderedDict((name, states[name]) for name in sorted(states))
         self.actions_spec = OrderedDict((name, actions[name]) for name in sorted(actions))
 

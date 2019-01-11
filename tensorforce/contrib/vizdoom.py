@@ -16,7 +16,7 @@
 import numpy as np
 from vizdoom import DoomGame, Button, GameVariable, ScreenFormat, ScreenResolution
 
-from tensorforce import Environment
+from tensorforce.environments import Environment
 
 
 class ViZDoom(Environment):

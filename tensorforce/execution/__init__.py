@@ -13,7 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.execution.parallel_runner import ParallelRunner
 from tensorforce.execution.runner import Runner
 
 
-__all__ = ['Runner']
+__all__ = ['ParallelRunner', 'Runner']

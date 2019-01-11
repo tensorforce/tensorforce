@@ -130,12 +130,6 @@ class Agent(object):
         self.timestep = 0
         self.episode = 0
 
-    def __repr__(self):
-        return None  # return proper config from model
-
-    def __str__(self):
-        return self.__class__.__name__
-
     def initialize(self):
         if not hasattr(self, 'model'):
             raise TensorforceError.missing(name='Agent', value='model')

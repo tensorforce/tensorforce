@@ -15,22 +15,17 @@
 
 import time
 
+from tensorforce.agents import Agent
+
 
 class Runner(object):
-    """
-    Simple runner for non-realtime single-process execution.
-    """
 
-    def __init__(self, agent, environment, parallel_id=0):
-        """
-        Initialize a single Runner object (one Agent/one Environment).
+    def __init__(self, agent, environment):
+        if not isinstance(agent, Agent):
+            agent = Agent.from_spec(spec=agent)
 
-        Args:
-            id_ (int): The ID of this Runner (for distributed TF runs).
-        """
         self.agent = agent
         self.environment = environment
-        self.parallel_id = parallel_id
 
         self.agent.initialize()
         self.global_episode = self.agent.episode
@@ -48,7 +43,7 @@ class Runner(object):
         self,
         # General
         num_episodes=None, num_timesteps=None, max_episode_timesteps=None, deterministic=False,
-        num_repeat_actions=1, num_sleep_secs=0,
+        num_repeat_actions=1,
         # Callback
         callback='tqdm', callback_episode_frequency=1, callback_timestep_frequency=None,
         # Evaluation
@@ -61,13 +56,13 @@ class Runner(object):
         self.num_timesteps = num_timesteps
         self.deterministic = deterministic
         self.num_repeat_actions = num_repeat_actions
-        self.num_sleep_secs = num_sleep_secs
 
         # Callback
         assert not callback_episode_frequency or num_episodes is not None
         assert not callback_timestep_frequency or num_timesteps is not None
-        assert callback is None or \
-            (callback_episode_frequency is None) != (callback_timestep_frequency is None)
+        assert callback_episode_frequency is None or callback_timestep_frequency is None
+        assert (callback is not None) == \
+            ((callback_episode_frequency is None) != (callback_timestep_frequency is None))
         self.callback_episode_frequency = callback_episode_frequency
         self.callback_timestep_frequency = callback_timestep_frequency
 
@@ -114,11 +109,19 @@ class Runner(object):
                 self.evaluation_rewards = list()
                 self.evaluation_timesteps = list()
                 self.evaluation_times = list()
+
+                # Evaluation loop
                 for _ in range(num_evaluation_iterations):
                     self.run_episode(max_timesteps=max_evaluation_timesteps, evaluation=True)
                     self.evaluation_rewards.append(self.episode_reward)
                     self.evaluation_timesteps.append(self.episode_timestep)
                     self.evaluation_times.append(self.episode_time)
+
+                # Update global timestep/episode
+                self.global_timestep = self.agent.timestep
+                self.global_episode = self.agent.episode
+
+                # Evaluation callback
                 evaluation_callback(self)
 
             # Run episode
@@ -134,12 +137,10 @@ class Runner(object):
             self.global_timestep = self.agent.timestep
             self.global_episode = self.agent.episode
 
-            # Callback plus experiment termination check
-            if num_episodes is not None and callback is not None and \
+            # Callback
+            if self.callback_episode_frequency is not None and \
                     (self.episode % self.callback_episode_frequency) == 0 and \
                     not self.callback(self):
-                return
-            elif self.agent.should_stop():
                 return
 
             # Increment episode counter (after calling callback)
@@ -150,12 +151,14 @@ class Runner(object):
                 return
             elif num_episodes is not None and self.global_episode >= num_episodes:
                 return
+            elif self.agent.should_stop():
+                return
 
     def run_episode(self, max_timesteps, evaluation):
         # Episode statistics
-        self.episode_timestep = 0
         self.episode_reward = 0
-        self.episode_start = time.time()
+        self.episode_timestep = 0
+        episode_start = time.time()
 
         # Start environment episode
         states = self.environment.reset()
@@ -165,37 +168,32 @@ class Runner(object):
             # Retrieve actions from agent
             actions = self.agent.act(
                 states=states, deterministic=(self.deterministic or evaluation),
-                parallel=self.parallel_id
+                independent=evaluation
             )
+            self.episode_timestep += 1
 
-            # Execute actions in environment (optional multiple executions)
+            # Execute actions in environment (optional repeated execution)
             reward = 0
             for _ in range(self.num_repeat_actions):
                 states, terminal, step_reward = self.environment.execute(actions=actions)
                 reward += step_reward
                 if terminal:
                     break
-
-            # Update episode statistics
-            self.episode_timestep += 1
             self.episode_reward += reward
 
             # Terminate episode if too long
             if max_timesteps is not None and self.episode_timestep >= max_timesteps:
                 terminal = True
 
-            # Observe if not evaluation
+            # Observe unless evaluation
             if not evaluation:
-                self.agent.observe(terminal=terminal, reward=reward, parallel=self.parallel_id)
+                self.agent.observe(terminal=terminal, reward=reward)
 
             # Episode termination check
             if terminal:
                 break
 
-            # Sleep
-            if self.num_sleep_secs > 0:
-                time.sleep(secs=self.num_sleep_secs)
-
+            # No callbacks for evaluation
             if evaluation:
                 continue
 
@@ -203,12 +201,10 @@ class Runner(object):
             self.global_timestep = self.agent.timestep
             self.global_episode = self.agent.episode
 
-            # Callback plus experiment termination check
-            if self.num_timesteps is not None and self.callback is not None and \
+            # Callback
+            if self.callback_timestep_frequency is not None and \
                     (self.episode_timestep % self.callback_timestep_frequency) == 0 and \
                     not self.callback(self):
-                return False
-            elif self.agent.should_stop():
                 return False
 
             # Terminate experiment if too long
@@ -216,9 +212,10 @@ class Runner(object):
                 return
             elif self.num_episodes is not None and self.global_episode >= self.num_episodes:
                 return
+            elif self.agent.should_stop():
+                return False
 
-        # Episode statistics
-        self.episode_end = time.time()
-        self.episode_time = self.episode_end - self.episode_start
+        # Update episode statistics
+        self.episode_time = time.time() - episode_start
 
         return True

@@ -305,7 +305,7 @@ class Module(object):
                 query = util.fmap(
                     function=(lambda x: util.join_scopes(name, x) + '-output:0'), xs=query
                 )
-                if util.is_iterable(x=fetches) and not isinstance(fetches, dict):
+                if util.is_iterable(x=fetches):
                     fetches = tuple(fetches) + (query,)
                 else:
                     fetches = (fetches, query)
@@ -561,7 +561,7 @@ class Module(object):
         # module
         # ???
         # modules
-        if modules is not None and not util.is_iterable(x=modules):
+        if modules is not None and not isinstance(modules, dict):
             raise TensorforceError.type(name='module', argument='modules', value=modules)
         # default_module
         # ???

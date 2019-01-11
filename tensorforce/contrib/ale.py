@@ -16,7 +16,7 @@
 import numpy as np
 from ale_python_interface import ALEInterface
 
-from tensorforce import Environment
+from tensorforce.environments import Environment
 
 
 class ALE(Environment):

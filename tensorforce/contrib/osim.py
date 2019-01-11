@@ -15,7 +15,7 @@
 
 from osim.env import L2RunEnv, Arm2DEnv, ProstheticsEnv
 
-from tensorforce import Environment
+from tensorforce.environments import Environment
 
 class OpenSim(Environment):
 	"""

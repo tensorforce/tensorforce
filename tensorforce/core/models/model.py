@@ -1041,7 +1041,7 @@ class Model(Module):
                     x=actions[name], operation_name=(name + '-output')
                 )
             timestep = util.identity_operation(
-                x=self.global_episode, operation_name='timestep-output'
+                x=self.global_timestep, operation_name='timestep-output'
             )
 
         return actions, timestep

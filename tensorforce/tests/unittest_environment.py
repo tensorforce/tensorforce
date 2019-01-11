@@ -18,7 +18,8 @@ from random import randint, random
 
 import numpy as np
 
-from tensorforce import Environment, TensorforceError, util
+from tensorforce import TensorforceError, util
+from tensorforce.environments import Environment
 
 
 class UnittestEnvironment(Environment):

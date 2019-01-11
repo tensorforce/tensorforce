@@ -40,7 +40,7 @@ log_levels = dict(
 
 
 def is_iterable(x):
-    if isinstance(x, (str, tf.Tensor)):
+    if isinstance(x, (str, dict, tf.Tensor)):
         return False
     try:
         iter(x)

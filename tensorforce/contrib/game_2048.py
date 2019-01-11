@@ -15,7 +15,7 @@
 
 """Game class to represent 2048 game state."""
 
-from tensorforce import Environment
+from tensorforce.environments import Environment
 import numpy as np
 
 ACTION_NAMES = ["left", "up", "right", "down"]

@@ -13,14 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce import TensorforceError
+
 
 class Environment(object):
     """
     Environment base class.
     """
-
-    def __str__(self):
-        return self.__class__.__name__
 
     @property
     def states(self):
@@ -76,7 +75,15 @@ class Environment(object):
         Returns:
             initial state of reset environment.
         """
-        raise NotImplementedError
+        if not hasattr(self, '_observation'):
+            self._observation = None
+        if self._observation is not None:
+            raise TensorforceError(message="Invalid execute.")
+        self.just_reset()
+        states, _, _ = self.observe()
+        if self._observation is not None:
+            raise TensorforceError(message="Invalid just_reset/observe implementation.")
+        return states
 
     def execute(self, actions):
         """
@@ -88,4 +95,29 @@ class Environment(object):
         Returns:
             Tuple of (next state, bool indicating terminal, reward)
         """
-        raise NotImplementedError
+        if self._observation is not None:
+            raise TensorforceError(message="Invalid execute.")
+        self.just_execute(actions=actions)
+        observation = self.observe()
+        if self._observation is not None:
+            raise TensorforceError(message="Invalid just_execute/observe implementation.")
+        return observation
+
+    def just_reset(self):
+        if not hasattr(self, '_observation'):
+            self._observation = None
+        if self._observation is not None:
+            raise TensorforceError(message="Invalid execute.")
+        self._observation = (self.reset(), None, None)
+
+    def just_execute(self, actions):
+        if self._observation is not None:
+            raise TensorforceError(message="Invalid just)execute.")
+        self._observation = self.execute(actions=actions)
+
+    def observe(self):
+        if self._observation is None:
+            raise TensorforceError(message="Invalid observe.")
+        observation = self._observation
+        self._observation = None
+        return observation

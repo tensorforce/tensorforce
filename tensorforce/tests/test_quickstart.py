@@ -23,9 +23,12 @@ from tensorforce.contrib.openai_gym import OpenAIGym
 from tensorforce.execution import Runner
 
 
-class TestQuickstartExample(unittest.TestCase):
+logging.getLogger('tensorflow').disabled = True
 
-    def test_example(self):
+
+class TestQuickstart(unittest.TestCase):
+
+    def test_quickstart(self):
         sys.stdout.write('\nQuickstart:\n')
         sys.stdout.flush()
 

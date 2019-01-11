@@ -106,11 +106,9 @@ class ALE(Environment):
         state_tp1 = self.current_state
         return state_tp1, terminal, rew
 
-    @property
     def states(self):
         return dict(shape=self.gamescreen.shape, type=float)
 
-    @property
     def actions(self):
         return dict(type='int', num_actions=len(self.action_inds))
 

@@ -27,7 +27,7 @@ class Agent(object):
     """
 
     @staticmethod
-    def from_spec(spec):
+    def from_spec(spec, **kwargs):
         """
         Creates an agent from a specification.
         """
@@ -36,6 +36,10 @@ class Agent(object):
             # JSON file specification
             with open(spec, 'r') as fp:
                 spec = json.load(fp=fp)
+
+        for key, arg in kwargs.items():
+            if key not in spec:
+                spec[key] = arg
 
         agent = spec.pop('type')
         agent = tensorforce.agents.agents[agent](**spec)

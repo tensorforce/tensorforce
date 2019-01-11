@@ -27,7 +27,6 @@ class Environment(object):
         self.observation = None
         self.thread = None
 
-    @property
     def states(self):
         """
         Return the state space. Might include subdicts if multiple states are 
@@ -41,7 +40,6 @@ class Environment(object):
         """
         raise NotImplementedError
 
-    @property
     def actions(self):
         """
         Return the action space. Might include subdicts if multiple actions are 

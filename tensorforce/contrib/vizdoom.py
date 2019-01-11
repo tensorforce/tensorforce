@@ -91,10 +91,8 @@ class ViZDoom(Environment):
 		is_terminal = self.game.is_episode_finished()
 		return (next_state,is_terminal,reward)
 
-	@property
 	def states(self):
 		return dict(shape=self.state_shape, type='float')
 
-	@property
 	def actions(self):
 		return dict(num_actions=self.num_actions, type='int')

@@ -51,10 +51,8 @@ class OpenSim(Environment):
 		observation, reward, done, info = self.env.step(action)
 		return (observation,done,reward)
 
-	@property
 	def states(self):
 		return dict(shape=self.state_shape, type='float')
 
-	@property
 	def actions(self):
 		return dict(shape=self.num_actions, type='float')

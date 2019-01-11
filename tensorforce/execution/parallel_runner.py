@@ -22,9 +22,6 @@ from tensorforce.agents import Agent
 class ParallelRunner(object):
 
     def __init__(self, agent, environments):
-        if not isinstance(agent, Agent):
-            agent = Agent.from_spec(spec=agent)
-
         if not util.is_iterable(x=environments):
             raise TensorforceError.type(
                 name='parallel-runner', argument='environments', value=environments
@@ -33,8 +30,16 @@ class ParallelRunner(object):
             raise TensorforceError.value(
                 name='parallel-runner', argument='environments', value=environments
             )
-        elif len(environments) > agent.parallel_interactions:
+
+        if not isinstance(agent, Agent):
+            agent = Agent.from_spec(
+                spec=agent, states=environments[0].states(), actions=environments[0].actions(),
+                parallel_interactions=len(environments)
+            )
+
+        if len(environments) > agent.parallel_interactions:
             raise TensorforceError(message="Too many environments.")
+
 
         self.agent = agent
         self.environments = tuple(environments)
@@ -176,7 +181,6 @@ class ParallelRunner(object):
 
                 else:
                     # Retrieve actions from agent
-                    print(parallel)
                     actions = self.agent.act(
                         states=states, deterministic=deterministic, parallel=parallel
                     )

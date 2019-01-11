@@ -22,7 +22,9 @@ class Runner(object):
 
     def __init__(self, agent, environment):
         if not isinstance(agent, Agent):
-            agent = Agent.from_spec(spec=agent)
+            agent = Agent.from_spec(
+                spec=agent, states=environment.states(), actions=environment.actions()
+            )
 
         self.agent = agent
         self.environment = environment

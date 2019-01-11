@@ -194,4 +194,3 @@ class MsgPackNumpyProtocol(object):
                 raise TensorForceError("Message without field 'status' received!")
         raise TensorForceError("No message encoded in data stream (data stream had len={})".
                                format(orig_len))
-

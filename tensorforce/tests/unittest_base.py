@@ -46,8 +46,8 @@ class UnittestBase(object):
             for key, arg in self.__class__.config.items():
                 if key not in kwargs:
                     kwargs[key] = arg
-        kwargs['states'] = environment.states
-        kwargs['actions'] = environment.actions
+        kwargs['states'] = environment.states()
+        kwargs['actions'] = environment.actions()
         if not self.__class__.ignore_network and network is not None:
             kwargs['network'] = network
 

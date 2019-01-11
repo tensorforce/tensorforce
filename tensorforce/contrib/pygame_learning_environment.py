@@ -108,7 +108,6 @@ class PLE(Environment):
         done = self.env.game_over()
         return new_state, done, reward
 
-    @property
     def states(self):
         """
         Return the state space. Might include subdicts if multiple states are
@@ -120,7 +119,6 @@ class PLE(Environment):
         screen = self.env.getScreenRGB()
         return dict(shape=screen.shape, type='int')
 
-    @property
     def actions(self):
         """
         Return the action space. Might include subdicts if multiple actions are

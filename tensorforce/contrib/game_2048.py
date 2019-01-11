@@ -66,11 +66,9 @@ class Game2048(Environment):
     def largest_tile(self):
         return 2**np.amax(self._state)
 
-    @property
     def states(self):
         return dict(shape=self._state.shape, type='float')
 
-    @property
     def actions(self):
         return dict(num_actions=len(ACTION_NAMES), type='int')
 

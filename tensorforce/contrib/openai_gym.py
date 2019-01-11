@@ -58,11 +58,9 @@ class OpenAIGym(Environment):
     def __str__(self):
         return 'OpenAIGym({})'.format(self.gym_id)
 
-    @property
     def states(self):
         return self._states
 
-    @property
     def actions(self):
         return self._actions
 

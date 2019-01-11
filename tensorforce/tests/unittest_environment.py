@@ -45,11 +45,9 @@ class UnittestEnvironment(Environment):
             actions_spec=self.actions_spec
         )
 
-    @property
     def states(self):
         return self.states_spec
 
-    @property
     def actions(self):
         return self.actions_spec
 

@@ -50,7 +50,6 @@ class MazeExplorer(Environment):
         state, reward, terminal, _ = self.engine.act(action)
         return state, terminal, reward
 
-    @property
     def states(self):
         # Use `observation_chans` to multichannel with `item` sensors.
         if self.engine.observation_chans > 1:
@@ -60,6 +59,5 @@ class MazeExplorer(Environment):
 
         return dict(shape=shape, type='float')
 
-    @property
     def actions(self):
         return dict(type='int', num_actions=self.engine.actions_num)

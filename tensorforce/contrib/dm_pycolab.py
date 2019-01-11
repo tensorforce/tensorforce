@@ -50,11 +50,9 @@ class DMPycolab(Environment):
     def __str__(self):
         return 'DeepMind Pycolab({})'.format(self.game)
 
-    @property
     def states(self):
         return self._states
 
-    @property
     def actions(self):
         return self._actions
 

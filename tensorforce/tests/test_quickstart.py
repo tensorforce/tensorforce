@@ -37,7 +37,7 @@ class TestQuickstart(unittest.TestCase):
 
         # Create the agent
         agent = PPOAgent(
-            states=environment.states, actions=environment.actions,
+            states=environment.states(), actions=environment.actions(),
             # MLP network
             network=[dict(type='dense', size=32), dict(type='dense', size=32)],
             # Update every 5 episodes, with a batch of 10 episodes

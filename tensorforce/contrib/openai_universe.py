@@ -118,7 +118,6 @@ class OpenAIUniverse(Environment):
     def render(self, *args, **kwargs):
         self.env.render(*args, **kwargs)
 
-    @property
     def states(self):
         print(self.env.observation_space)
         if isinstance(self.env.observation_space, VNCObservationSpace):
@@ -134,7 +133,6 @@ class OpenAIUniverse(Environment):
         else:
             return dict(shape=tuple(self.env.observation_space.shape), type='float')
 
-    @property
     def actions(self):
         if isinstance(self.env.action_space, VNCActionSpace):
             return dict(

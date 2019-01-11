@@ -128,7 +128,6 @@ class DeepMindLab(Environment):
         terminal = not self.level.is_running()
         return state, terminal, reward
 
-    @property
     def states(self):
         states = dict()
 
@@ -143,7 +142,6 @@ class DeepMindLab(Environment):
 
         return states
 
-    @property
     def actions(self):
         actions = dict()
         for action in self.level.action_spec():

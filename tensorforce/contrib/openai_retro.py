@@ -74,7 +74,6 @@ class OpenAIRetro(Environment):
         next_state, rew, done, _ = self.env.step(action)
         return next_state, rew, done
 
-    @property
     def states(self):
         return OpenAIRetro.state_from_space(space=self.env.observation_space)
 
@@ -111,7 +110,6 @@ class OpenAIRetro(Environment):
         else:
             raise TensorForceError('Unknown Gym space.')
 
-    @property
     def actions(self):
         return OpenAIRetro.action_from_space(space=self.env.action_space)
 

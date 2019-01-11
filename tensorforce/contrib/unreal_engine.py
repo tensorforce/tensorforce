@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from cached_property import cached_property
 import itertools
 import re
 import time
@@ -207,7 +206,6 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         self.last_observation = obs
         return obs, is_terminal, r
 
-    @cached_property
     def states(self):
         observation_space = {}
         # Derive observation space from observation_space_desc.
@@ -241,7 +239,6 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             observation_space = list(observation_space.values())[0]
         return observation_space
 
-    @cached_property
     def actions(self):
         # Derive action space from action_space_desc.
         if not self.action_space_desc:

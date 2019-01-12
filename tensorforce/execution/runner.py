@@ -47,7 +47,7 @@ class Runner(object):
         num_episodes=None, num_timesteps=None, max_episode_timesteps=None, deterministic=False,
         num_repeat_actions=1,
         # Callback
-        callback='tqdm', callback_episode_frequency=1, callback_timestep_frequency=None,
+        callback='tqdm', callback_episode_frequency=None, callback_timestep_frequency=None,
         # Evaluation
         evaluation_callback=None, evaluation_frequency=None, max_evaluation_timesteps=None,
         num_evaluation_iterations=1,
@@ -60,19 +60,19 @@ class Runner(object):
         self.num_repeat_actions = num_repeat_actions
 
         # Callback
-        assert not callback_episode_frequency or num_episodes is not None
-        assert not callback_timestep_frequency or num_timesteps is not None
-        assert callback_episode_frequency is None or callback_timestep_frequency is None
-        assert (callback is not None) == \
-            ((callback_episode_frequency is None) != (callback_timestep_frequency is None))
+        if callback_episode_frequency is None and callback_timestep_frequency is None:
+            callback_episode_frequency = 1
         self.callback_episode_frequency = callback_episode_frequency
         self.callback_timestep_frequency = callback_timestep_frequency
 
         if callback == 'tqdm':
             # Tqdm callback
+            assert callback_episode_frequency is None or callback_timestep_frequency is None
             from tqdm import tqdm
+
             if self.callback_episode_frequency is None:
                 # Timestep-based tqdm
+                assert self.num_timesteps is not None
                 self.tqdm = tqdm(total=num_timesteps, initial=self.global_timestep)
                 self.last_update = self.global_timestep
 
@@ -83,6 +83,7 @@ class Runner(object):
 
             else:
                 # Episode-based tqdm
+                assert self.num_episodes is not None
                 self.tqdm = tqdm(total=num_episodes, initial=self.global_episode)
                 self.last_update = self.global_episode
 

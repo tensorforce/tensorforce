@@ -10,5 +10,6 @@
 
 /logs/
 /summaries/
+/summaries-test/
 /temp/
 /tensorboard/

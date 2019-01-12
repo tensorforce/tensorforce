@@ -88,9 +88,7 @@ class Model(Module):
             summary_labels = None
         else:
             summary_labels = summarizer.get('labels', ())
-        # "bernoulli", "beta", "categorical", "distributions", "dropout", "entropy", "gaussian",
-        # "graph", "loss", "losses", "objective-loss", "regularization-loss", "relu", "updates",
-        # "variables"
+
         super().__init__(name=scope, l2_regularization=None, summary_labels=summary_labels)
 
         # States/actions/internals specifications

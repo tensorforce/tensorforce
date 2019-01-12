@@ -109,7 +109,7 @@ class TestBaselines(UnittestBase, unittest.TestCase):
             [
                 dict(type='retrieve', tensors='state2'),
                 dict(type='conv2d', size=16),
-                dict(type='pooling', pooling='max'),
+                dict(type='pooling', reduction='max'),
                 dict(type='register', tensor='state2-emb')
             ],
             [
@@ -136,8 +136,8 @@ class TestBaselines(UnittestBase, unittest.TestCase):
 
     def test_network_baseline(self):
         states = dict(
-            bool_state=dict(type='bool', shape=()),
-            int_state=dict(type='int', shape=(), num_values=4),
+            bool_state=dict(type='bool', shape=(1,)),
+            int_state=dict(type='int', shape=(2,), num_values=4),
             float_state=dict(type='float', shape=(1, 1, 2)),
             bounded_state=dict(type='float', shape=(), min_value=-0.5, max_value=0.5)
         )
@@ -148,24 +148,26 @@ class TestBaselines(UnittestBase, unittest.TestCase):
             [
                 dict(type='retrieve', tensors='bool_state'),
                 dict(type='embedding', size=16),
-                # dict(type='lstm', size=8),
+                dict(type='conv1d', size=16),
+                dict(type='pooling', reduction='max'),
                 dict(type='register', tensor='bool-emb')
             ],
             [
                 dict(type='retrieve', tensors='int_state'),
                 dict(type='embedding', size=16),
-                # dict(type='lstm', size=8),
+                dict(type='conv1d', size=16),
+                dict(type='pooling', reduction='max'),
                 dict(type='register', tensor='int-emb')
             ],
             [
                 dict(type='retrieve', tensors='float_state'),
                 dict(type='conv2d', size=16),
-                dict(type='pooling', pooling='max'),
+                dict(type='pooling', reduction='max'),
                 dict(type='register', tensor='float-emb')
             ],
             [
                 dict(type='retrieve', tensors='bounded_state'),
-                dict(type='pooling', pooling='concat'),
+                dict(type='pooling', reduction='concat'),
                 dict(type='dense', size=16),
                 dict(type='register', tensor='bounded-emb')
             ],

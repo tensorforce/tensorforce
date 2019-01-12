@@ -110,22 +110,22 @@ class Environment(object):
         # return observation
 
     def start_reset(self):
-        if self.observation is not None or self.thread is not None:
+        if self.thread is not None:
             raise TensorforceError(message="Invalid start_reset.")
-        self.thread = Thread(target=self.complete_reset)
+        self.thread = Thread(target=self.finish_reset)
         self.thread.start()
 
-    def complete_reset(self):
+    def finish_reset(self):
         self.observation = (self.reset(), None, None)
         self.thread = None
 
     def start_execute(self, actions):
         if self.observation is not None or self.thread is not None:
             raise TensorforceError(message="Invalid start_execute.")
-        self.thread = Thread(target=self.complete_execute, kwargs=dict(actions=actions))
+        self.thread = Thread(target=self.finish_execute, kwargs=dict(actions=actions))
         self.thread.start()
 
-    def complete_execute(self, actions):
+    def finish_execute(self, actions):
         self.observation = self.execute(actions=actions)
         self.thread = None
 

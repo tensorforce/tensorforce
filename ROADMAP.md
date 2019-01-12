@@ -1,6 +1,5 @@
 # Roadmap
 
-- Tensorboard support
 - Exploration and parameter schedule
 - Normalization and preprocessing
 - Internal LSTM

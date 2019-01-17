@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import MetaOptimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 

@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -31,10 +32,12 @@ class TFOptimizer(Optimizer):
         gradient_descent=tf.train.GradientDescentOptimizer,
         momentum=tf.train.MomentumOptimizer,
         nadam=tf.contrib.opt.NadamOptimizer,
+        proximal_adagrad=tf.train.ProximalAdagradOptimizer,
+        proximal_gradient_descent=tf.train.ProximalGradientDescentOptimizer,
         rmsprop=tf.train.RMSPropOptimizer
     )
 
-    def __init__(self, name, optimizer, summary_labels=None, **kwargs):
+    def __init__(self, name, optimizer, learning_rate, summary_labels=None, **kwargs):
         """
         Creates a new optimizer instance of a TensorFlow optimizer.
 
@@ -45,7 +48,18 @@ class TFOptimizer(Optimizer):
         super().__init__(name=name, summary_labels=summary_labels)
 
         assert optimizer in TFOptimizer.tensorflow_optimizers
-        self.optimizer = TFOptimizer.tensorflow_optimizers[optimizer](**kwargs)
+        self.learning_rate = self.add_module(
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+        )
+        self.optimizer = TFOptimizer.tensorflow_optimizers[optimizer]
+        self.optimizer_kwargs = kwargs
+
+    def tf_initialize(self):
+        super().tf_initialize()
+
+        self.optimizer = self.optimizer(
+            learning_rate=self.learning_rate.value, **self.optimizer_kwargs
+        )
 
     def tf_step(self, time, variables, arguments, fn_loss, **kwargs):
         """

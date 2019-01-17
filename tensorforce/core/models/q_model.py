@@ -18,7 +18,8 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import distribution_modules, Module, network_modules, optimizer_modules
+from tensorforce.core import distribution_modules, network_modules, optimizer_modules, \
+    parameter_modules
 from tensorforce.core.models import DistributionModel
 
 
@@ -31,8 +32,7 @@ class QModel(DistributionModel):
         self,
         # Model
         states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, variable_noise, states_preprocessing, actions_exploration,
-        reward_preprocessing,
+        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing,
         # MemoryModel
         update_mode, memory, optimizer, discount,
         # DistributionModel
@@ -45,8 +45,8 @@ class QModel(DistributionModel):
             states=states, actions=actions, scope=scope, device=device, saver=saver,
             summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
-            variable_noise=variable_noise, states_preprocessing=states_preprocessing,
-            actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing, reward_preprocessing=reward_preprocessing,
             # MemoryModel
             update_mode=update_mode, memory=memory, optimizer=optimizer, discount=discount,
             # DistributionModel
@@ -60,8 +60,8 @@ class QModel(DistributionModel):
             inputs_spec[name] = dict(spec)
             inputs_spec[name]['batched'] = True
         self.target_network = self.add_module(
-            name='target-network', module=network, modules=network_modules,
-            default_module='layered', is_trainable=False, is_subscope=True, inputs_spec=inputs_spec
+            name='target-network', module=network, modules=network_modules, is_trainable=False,
+            is_subscope=True, inputs_spec=inputs_spec
         )
         embedding_size = self.target_network.get_output_spec()['shape'][0]
 
@@ -103,8 +103,10 @@ class QModel(DistributionModel):
         self.double_q_model = double_q_model
 
         # Huber loss
-        assert huber_loss is None or huber_loss > 0.0
-        self.huber_loss = huber_loss
+        huber_loss = 0.0 if huber_loss is None else huber_loss
+        self.huber_loss = self.add_module(
+            name='huber-loss', module=huber_loss, modules=parameter_modules, dtype='float'
+        )
 
     def as_local_model(self):
         super().as_local_model()
@@ -134,7 +136,8 @@ class QModel(DistributionModel):
         reward = tf.tile(input=reward, multiples=multiples)
 
         zeros = tf.zeros_like(tensor=next_q_value)
-        next_q_value = tf.where(condition=terminal, x=zeros, y=(self.discount * next_q_value))
+        discount = self.discount.value()
+        next_q_value = tf.where(condition=terminal, x=zeros, y=(discount * next_q_value))
 
         return reward + next_q_value - q_value  # tf.stop_gradient(q_target)
 
@@ -153,8 +156,7 @@ class QModel(DistributionModel):
         target_embedding = self.target_network.apply(x=next_states, internals=next_internals)
 
         deltas = list()
-        for name in sorted(self.distributions):
-            distribution = self.distributions[name]
+        for name, distribution in self.distributions.items():
             target_distribution = self.target_distributions[name]
 
             distr_params = distribution.parameterize(x=embedding)
@@ -190,17 +192,23 @@ class QModel(DistributionModel):
 
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
         loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
-        # Optional Huber loss
-        if self.huber_loss is not None and self.huber_loss > 0.0:
-            loss = tf.where(
-                condition=(tf.abs(x=loss_per_instance) <= self.huber_loss),
-                x=(0.5 * tf.square(x=loss_per_instance)),
-                y=(self.huber_loss * (tf.abs(x=loss_per_instance) - 0.5 * self.huber_loss))
-            )
-        else:
-            loss = tf.square(x=loss_per_instance)
 
-        return loss
+        # Optional Huber loss
+        huber_loss = self.huber_loss.value()
+
+        def no_huber_loss():
+            return tf.square(x=loss_per_instance)
+
+        def apply_huber_loss():
+            return tf.where(
+                condition=(tf.abs(x=loss_per_instance) <= huber_loss),
+                x=(0.5 * tf.square(x=loss_per_instance)),
+                y=(huber_loss * (tf.abs(x=loss_per_instance) - 0.5 * huber_loss))
+            )
+
+        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        skip_huber_loss = tf.math.equal(x=huber_loss, y=zero)
+        return self.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)
 
     def target_optimizer_arguments(self):
         """

@@ -20,7 +20,7 @@ import os
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module
+from tensorforce.core import Module, parameter_modules
 from tensorforce.core.preprocessors import PreprocessorStack
 
 
@@ -57,8 +57,7 @@ class Model(Module):
         self,
         # Model
         states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, variable_noise, states_preprocessing, actions_exploration,
-        reward_preprocessing
+        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing
     ):
         """
         Model.
@@ -130,9 +129,31 @@ class Model(Module):
         assert isinstance(buffer_observe, int) and buffer_observe >= 1
         self.buffer_observe = buffer_observe
 
+        # Actions exploration
+        assert exploration is None or isinstance(exploration, dict) or exploration >= 0.0
+        exploration = 0.0 if exploration is None else exploration
+        if isinstance(exploration, dict) and \
+                all(name in self.actions_spec for name in exploration):
+            # Different exploration per action
+            self.exploration = OrderedDict()
+            for name in self.actions_spec:
+                if name in exploration:
+                    self.exploration[name] = self.add_module(
+                        name=(name + '-exploration'), module=exploration[name],
+                        modules=parameter_modules, dtype='float'
+                    )
+        else:
+            # Same exploration for all actions
+            self.exploration = self.add_module(
+                name='exploration', module=exploration, modules=parameter_modules, dtype='float'
+            )
+
         # Variable noise
-        assert variable_noise is None or variable_noise >= 0.0
-        self.variable_noise = 0.0 if variable_noise is None else variable_noise
+        assert variable_noise is None or isinstance(variable_noise, dict) or variable_noise >= 0.0
+        variable_noise = 0.0 if variable_noise is None else variable_noise
+        self.variable_noise = self.add_module(
+            name='variable-noise', module=variable_noise, modules=parameter_modules, dtype='float'
+        )
 
         # States preprocessing
         self.states_preprocessing = OrderedDict()
@@ -163,29 +184,6 @@ class Model(Module):
                 state_spec['unprocessed_shape'] = state_spec['shape']
                 state_spec['shape'] = preprocessing.processed_shape(shape=state_spec['shape'])
 
-        # Actions exploration
-        self.actions_exploration = OrderedDict()
-        if actions_exploration is None:
-            pass
-
-        elif isinstance(states_preprocessing, dict) and \
-                all(name in self.actions_spec for name in actions_exploration):
-            # Different exploration per action
-            for name in self.actions_spec:
-                if name in actions_exploration:
-                    self.actions_exploration[name] = self.add_module(
-                        name=(name + '-exploration'), module=actions_exploration[name],
-                        modules=exploration_modules
-                    )
-
-        else:
-            # Same exploration for all actions
-            for name in self.actions_spec:
-                self.actions_exploration[name] = self.add_module(
-                    name=(name + '-exploration'), module=actions_exploration,
-                    modules=exploration_modules
-                )
-
         # Reward preprocessing
         if reward_preprocessing is None:
             self.reward_preprocessing = None
@@ -199,7 +197,6 @@ class Model(Module):
                 raise TensorforceError("Invalid reward preprocessing!")
 
         # Register global tensors
-        Module.global_tensors_spec = OrderedDict()  # shouldn't be here!!!!!!!!!!
         for name, spec in self.states_spec.items():
             Module.register_tensor(name=name, spec=spec, batched=True)
         for name, spec in self.internals_spec.items():
@@ -250,25 +247,26 @@ class Model(Module):
             name='parallel', dtype='int', shape=(), batched=False, default=0
         )
 
-        # Timesteps/Episodes
-        with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
+        # Moved to Module
+        # # Timesteps/Episodes
+        # with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
 
-            # Global timestep
-            self.global_timestep = self.add_variable(
-                name='global-timestep', dtype='long', shape=(), is_trainable=False,
-                initializer='zeros', shared='global-timestep'
-            )
-            collection = tf.get_collection(key=tf.GraphKeys.GLOBAL_STEP)
-            if len(collection) == 0:
-                tf.add_to_collection(
-                    name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep
-                )
+        #     # Global timestep
+        #     self.global_timestep = self.add_variable(
+        #         name='global-timestep', dtype='long', shape=(), is_trainable=False,
+        #         initializer='zeros', shared='global-timestep'
+        #     )
+        #     collection = tf.get_collection(key=tf.GraphKeys.GLOBAL_STEP)
+        #     if len(collection) == 0:
+        #         tf.add_to_collection(
+        #             name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep
+        #         )
 
-            # Global episode
-            self.global_episode = self.add_variable(
-                name='global-episode', dtype='long', shape=(), is_trainable=False,
-                initializer='zeros', shared='global-episode'
-            )
+        #     # Global episode
+        #     self.global_episode = self.add_variable(
+        #         name='global-episode', dtype='long', shape=(), is_trainable=False,
+        #         initializer='zeros', shared='global-episode'
+        #     )
 
         # Local timestep
         self.timestep = self.add_variable(
@@ -764,43 +762,6 @@ class Model(Module):
 
         return states, actions, reward
 
-    def tf_apply_exploration(self, actions):
-        for name, exploration in self.actions_exploration.items():
-            action = actions[name]
-            action_shape = tf.shape(input=action, out_type=util.tf_dtype(dtype='int'))
-            explore = exploration.tf_explore(
-                episode=self.global_episode, timestep=self.global_timestep,
-                batch_size=action_shape[0]
-            )
-
-            spec = self.actions_spec[name]
-            if spec['type'] == 'bool':
-                explored = (tf.random_uniform(shape=action_shape) < 0.5)
-                actions[name] = tf.where(
-                    condition=(tf.random_uniform(shape=action_shape) < explore),
-                    x=explored, y=actions[name]
-                )
-
-            elif spec['type'] == 'int':
-                explored = tf.random_uniform(
-                    shape=action_shape, maxval=spec['num_values'], dtype=util.tf_dtype('int')
-                )
-                actions[name] = tf.where(
-                    condition=(tf.random_uniform(shape=action_shape) < explore),
-                    x=explored, y=actions[name]
-                )
-
-            elif spec['type'] == 'float':
-                explored = actions[name] + explore
-                if 'min_value' in spec:
-                    action = tf.clip_by_value(
-                        t=explored, clip_value_min=spec['min_value'],
-                        clip_value_max=spec['max_value']
-                    )
-                actions[name] = explored
-
-        return actions
-
     def api_act(self):
         """
         Creates and stores tf operations that are fetched when calling act(): actions_output, internals_output and
@@ -878,6 +839,7 @@ class Model(Module):
 
         # Variable noise
         variables = self.get_variables(only_trainable=True)
+        variable_noise = self.variable_noise.value()
 
         def no_variable_noise():
             noise_tensors = [
@@ -891,7 +853,7 @@ class Model(Module):
             noise_tensors = list()
             for variable in variables:
                 noise = tf.random.normal(
-                    shape=util.shape(variable), mean=0.0, stddev=self.variable_noise,
+                    shape=util.shape(variable), mean=0.0, stddev=variable_noise,
                     dtype=util.tf_dtype('float')
                 )
                 noise_tensors.append(noise)
@@ -899,11 +861,9 @@ class Model(Module):
             return tf.group(*operations), noise_tensors
 
         with tf.control_dependencies(control_inputs=(incremented_timestep,)):
+            zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
             skip_variable_noise = tf.logical_or(
-                x=deterministic,
-                y=tf.math.equal(
-                    x=self.variable_noise, y=tf.zeros(shape=(), dtype=util.tf_dtype('float'))
-                )
+                x=deterministic, y=tf.math.equal(x=variable_noise, y=zero)
             )
             applied_variable_noise, variable_noise_tensors = self.cond(
                 pred=skip_variable_noise, true_fn=no_variable_noise, false_fn=apply_variable_noise
@@ -924,18 +884,64 @@ class Model(Module):
             Module.update_tensors(**actions)
 
         # Actions exploration
-        def no_exploration():
-            return actions
-
-        def apply_exploration():
-            return self.apply_exploration(actions=actions)
-
         with tf.control_dependencies(
-            control_inputs=(util.flatten(xs=actions) + util.flatten(internals))
+            control_inputs=(util.flatten(xs=actions) + util.flatten(xs=internals))
         ):
-            actions = self.cond(
-                pred=deterministic, true_fn=no_exploration, false_fn=apply_exploration
-            )
+            if not isinstance(self.exploration, dict):
+                exploration = self.exploration.value()
+
+            for name, spec in self.actions_spec.items():
+                if isinstance(self.exploration, dict):
+                    if name in self.exploration:
+                        exploration = self.exploration[name].value()
+                    else:
+                        continue
+
+                def no_exploration():
+                    return actions[name]
+
+                if spec['type'] == 'bool':
+                    float_dtype = util.tf_dtype(dtype='float')
+
+                    def apply_exploration():
+                        shape = tf.shape(input=actions[name], out_type=util.tf_dtype(dtype='int'))
+                        condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
+                        half = tf.constant(value=0.5, dtype=float_dtype)
+                        random_action = tf.random.uniform(shape=shape, dtype=float_dtype) < half
+                        return tf.where(condition=condition, x=random_action, y=actions[name])
+
+                elif spec['type'] == 'int':
+                    float_dtype = util.tf_dtype(dtype='float')
+
+                    def apply_exploration():
+                        shape = tf.shape(input=actions[name], out_type=util.tf_dtype(dtype='int'))
+                        condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
+                        random_action = tf.random_uniform(
+                            shape=shape, maxval=spec['num_values'], dtype=util.tf_dtype('int')
+                        )
+                        return tf.where(condition=condition, x=random_action, y=actions[name])
+
+                elif spec['type'] == 'float':
+                    if 'min_value' in spec:
+
+                        def apply_exploration():
+                            return tf.clip_by_value(
+                                t=(actions[name] + exploration), clip_value_min=spec['min_value'],
+                                clip_value_max=spec['max_value']
+                            )
+
+                    else:
+
+                        def apply_exploration():
+                            return actions[name] + exploration
+
+                zero = tf.constant(value=0.0, dtype=util.tf_dtype('float'))
+                skip_exploration = tf.math.logical_or(
+                    x=deterministic, y=tf.math.equal(x=exploration, y=zero)
+                )
+                actions[name] = self.cond(
+                    pred=skip_exploration, true_fn=no_exploration, false_fn=apply_exploration
+                )
 
         # Variable noise
         def no_variable_noise():

@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.models import PGModel
 
 
@@ -28,8 +29,7 @@ class PGProbRatioModel(PGModel):
         self,
         # Model
         states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, variable_noise, states_preprocessing, actions_exploration,
-        reward_preprocessing,
+        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing,
         # MemoryModel
         update_mode, memory, optimizer, discount,
         # DistributionModel
@@ -44,8 +44,8 @@ class PGProbRatioModel(PGModel):
             states=states, actions=actions, scope=scope, device=device, saver=saver,
             summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
-            variable_noise=variable_noise, states_preprocessing=states_preprocessing,
-            actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing, reward_preprocessing=reward_preprocessing,
             # MemoryModel
             update_mode=update_mode, memory=memory, optimizer=optimizer, discount=discount,
             # DistributionModel
@@ -56,9 +56,13 @@ class PGProbRatioModel(PGModel):
             gae_lambda=gae_lambda
         )
 
-        # Likelihood ratio clipping
-        assert likelihood_ratio_clipping is None or likelihood_ratio_clipping > 0.0
-        self.likelihood_ratio_clipping = likelihood_ratio_clipping
+        # Likelihood ratio clipping (10.0 essentially like no clipping)
+        likelihood_ratio_clipping = 10.0 if likelihood_ratio_clipping is None \
+            else likelihood_ratio_clipping
+        self.likelihood_ratio_clipping = self.add_module(
+            name='likelihood-ratio-clipping', module=likelihood_ratio_clipping,
+            modules=parameter_modules, dtype='float'
+        )
 
     def tf_reference(
         self, states, internals, actions, terminal, reward, next_states, next_internals
@@ -102,16 +106,32 @@ class PGProbRatioModel(PGModel):
         prob_ratios = tf.exp(x=(log_probs - old_log_probs))
         prob_ratio_per_instance = tf.reduce_mean(input_tensor=prob_ratios, axis=1)
 
-        if self.likelihood_ratio_clipping is None:
-            return -prob_ratio_per_instance * reward
+        likelihood_ratio_clipping = self.likelihood_ratio_clipping.value()
 
-        else:
-            clipped_prob_ratio_per_instance = tf.clip_by_value(
-                t=prob_ratio_per_instance,
-                clip_value_min=(1.0 / (1.0 + self.likelihood_ratio_clipping)),
-                clip_value_max=(1.0 + self.likelihood_ratio_clipping)
-            )
-            return -tf.minimum(
-                x=(prob_ratio_per_instance * reward),
-                y=(clipped_prob_ratio_per_instance * reward)
-            )
+        clipped_prob_ratio_per_instance = tf.clip_by_value(
+            t=prob_ratio_per_instance,
+            clip_value_min=(1.0 / (1.0 + likelihood_ratio_clipping)),
+            clip_value_max=(1.0 + likelihood_ratio_clipping)
+        )
+        return -tf.minimum(
+            x=(prob_ratio_per_instance * reward),
+            y=(clipped_prob_ratio_per_instance * reward)
+        )
+
+        # def no_clipping():
+        #     return -prob_ratio_per_instance * reward
+
+        # def apply_clipping():
+        #     clipped_prob_ratio_per_instance = tf.clip_by_value(
+        #         t=prob_ratio_per_instance,
+        #         clip_value_min=(1.0 / (1.0 + likelihood_ratio_clipping)),
+        #         clip_value_max=(1.0 + likelihood_ratio_clipping)
+        #     )
+        #     return -tf.minimum(
+        #         x=(prob_ratio_per_instance * reward),
+        #         y=(clipped_prob_ratio_per_instance * reward)
+        #     )
+
+        # zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        # skip_clipping = tf.math.equal(x=likelihood_ratio_clipping, y=zero)
+        # return self.cond(pred=skip_clipping, true_fn=no_clipping, false_fn=apply_clipping)

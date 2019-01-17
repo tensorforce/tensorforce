@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -40,8 +41,9 @@ class NaturalGradient(Optimizer):
         """
         super().__init__(name=name, summary_labels=summary_labels)
 
-        assert learning_rate > 0.0
-        self.learning_rate = learning_rate
+        self.learning_rate = self.add_module(
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+        )
 
         self.solver = self.add_module(
             name='conjugate-gradient', module='conjugate_gradient', modules=solver_modules,
@@ -126,10 +128,19 @@ class NaturalGradient(Optimizer):
             for delta_F, delta in zip(delta_fisher_matrix_product, deltas)
         ])
 
+        learning_rate = self.learning_rate.value()
+
+        # Zero step if constant <= 0
+        def no_step():
+            if return_estimated_improvement:
+                return [tf.zeros_like(tensor=delta) for delta in deltas], 0.0
+            else:
+                return [tf.zeros_like(tensor=delta) for delta in deltas]
+
         # Natural gradient step if constant > 0
-        def natural_gradient_step():
+        def apply_step():
             # lambda = sqrt(c' / c)
-            lagrange_multiplier = tf.sqrt(x=(constant / self.learning_rate))
+            lagrange_multiplier = tf.sqrt(x=(constant / learning_rate))
 
             # delta = delta' / lambda
             estimated_deltas = [delta / lagrange_multiplier for delta in deltas]
@@ -154,12 +165,6 @@ class NaturalGradient(Optimizer):
                 else:
                     return estimated_delta
 
-        # Zero step if constant <= 0
-        def zero_step():
-            if return_estimated_improvement:
-                return [tf.zeros_like(tensor=delta) for delta in deltas], 0.0
-            else:
-                return [tf.zeros_like(tensor=delta) for delta in deltas]
-
         # Natural gradient step only works if constant > 0
-        return self.cond(pred=(constant > 0.0), true_fn=natural_gradient_step, false_fn=zero_step)
+        skip_step = constant > 0.0
+        return self.cond(pred=skip_step, true_fn=no_step, false_fn=apply_step)

@@ -9,12 +9,14 @@ New features:
 - New argument `query` for `Agent.act()` and `Agent.observe()`
 - Networks and layers functionality improved and extended
 - TensorBoard support fully working
+- Many hyperparameters support scheduling and explicit manual re-definition
 
 Environment:
 - Environment properties `states` and `actions` are now functions `states()` and `actions()`
 - See also state/action specification changes below
 
-Agent arguments:
+Agent:
+- Agents need to be initialized via `agent.initialize()` before application
 - States/actions of type `int` require a parameter `num_values` (instead of `num_actions`)
 - `execution` parameter `num_parallel` replaced by a separate argument `parallel_interactions`
 - `batched_observe` and `batching_capacity` replaced by argument `buffer_observe`
@@ -29,6 +31,9 @@ Networks and layers:
 - `Embedding` layer argument `indices` removed
 - `TFLayer`, `Dueling`, `Pool2d` removed (for now)
 - Additional changes and extensions of API, see [code](https://github.com/tensorforce/tensorforce/tree/master/tensorforce/core/layers)
+
+Exploration
+- Classes replaced by new parameter classes in `tensorforce.core.parameters`
 
 Runners:
 - Improved `run()` API for `Runner` and `ParallelRunner`

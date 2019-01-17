@@ -47,6 +47,10 @@ class Module(object):
         # if scoped_name in Module.global_tensors_spec:
         #     raise TensorforceError("Global tensor already exists: {}.".format(scoped_name))
 
+        # optional? better to put in spec?
+        spec = dict(spec)
+        spec['batched'] = batched
+
         if scoped_name in Module.global_tensors_spec and \
                 spec != Module.global_tensors_spec[scoped_name]:
             raise TensorforceError.mismatch(
@@ -59,8 +63,6 @@ class Module(object):
         if 'batched' in spec and spec['batched'] != batched:
             raise TensorforceError.unexpected()
 
-        spec = dict(spec)
-        spec['batched'] = batched
         Module.global_tensors_spec[scoped_name] = spec
 
     @staticmethod
@@ -217,14 +219,41 @@ class Module(object):
             self.device.__enter__()
 
         with self.scope:
-            self.tf_initialize()
+            if self.parent is None:
+                # Global timestep
+                self.global_timestep = self.add_variable(
+                    name='global-timestep', dtype='long', shape=(), is_trainable=False,
+                    initializer='zeros', shared='global-timestep'
+                )
+                collection = tf.get_collection(key=tf.GraphKeys.GLOBAL_STEP)
+                if len(collection) == 0:
+                    tf.add_to_collection(
+                        name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep
+                    )
+
+                # Global episode
+                self.global_episode = self.add_variable(
+                    name='global-episode', dtype='long', shape=(), is_trainable=False,
+                    initializer='zeros', shared='global-episode'
+                )
+
+                Module.global_tensors = OrderedDict(
+                    timestep=self.global_timestep, episode=self.global_episode
+                )
+
             for module in self.modules.values():
                 module.initialize()
+            self.tf_initialize()
 
         if self.device is not None:
             self.device.__exit__(None, None, None)
 
         Module.global_scope.pop()
+
+        if self.parent is None:
+            assert len(Module.global_scope) == 0
+            Module.global_tensors = None
+            Module.global_scope = None
 
         # Internal TensorFlow functions, prefixed by 'tf_'
         for attribute in sorted(dir(self)):
@@ -300,6 +329,7 @@ class Module(object):
         if self.device is not None:
             self.device.__exit__(None, None, None)
         Module.global_tensors = None
+        Module.global_scope = None
 
         def fn(query=None, **kwargs):
             # Feed_dict dictionary
@@ -381,14 +411,17 @@ class Module(object):
                 name='variable', argument='is_trainable', value=is_trainable
             )
         # initializer
-        if not isinstance(initializer, util.py_dtype(dtype=dtype)) and \
-                not isinstance(initializer, np.ndarray) and \
+        if not isinstance(initializer, (util.py_dtype(dtype=dtype), np.ndarray, tf.Tensor)) and \
                 initializer not in ('random', 'zeros', 'ones'):
             raise TensorforceError.value(
                 name='variable', argument='initializer', value=initializer
             )
         elif isinstance(initializer, np.ndarray) and \
-                not initializer.dtype == util.np_dtype(dtype=dtype):
+                initializer.dtype != util.np_dtype(dtype=dtype):
+            raise TensorforceError.type(
+                name='variable', argument='initializer', value=initializer
+            )
+        elif isinstance(initializer, tf.Tensor) and util.dtype(x=initializer) != dtype:
             raise TensorforceError.type(
                 name='variable', argument='initializer', value=initializer
             )
@@ -420,11 +453,16 @@ class Module(object):
             # Variable initializer
             if isinstance(initializer, util.py_dtype(dtype=dtype)):
                 initializer = tf.constant(value=initializer, dtype=tf_dtype, shape=shape)
-            elif isinstance(initializer, np.ndarray) and \
-                    initializer.dtype == util.np_dtype(dtype=dtype):
+            elif isinstance(initializer, np.ndarray):
                 if initializer.shape != shape:
                     raise TensorforceError(
                         "Invalid variable initializer shape: {}.".format(initializer.shape)
+                    )
+                initializer = initializer
+            elif isinstance(initializer, tf.Tensor):
+                if util.shape(x=initializer) != shape:
+                    raise TensorforceError(
+                        "Invalid variable initializer shape: {}.".format(util.shape(x=initializer))
                     )
                 initializer = initializer
             elif not isinstance(initializer, str):
@@ -494,7 +532,10 @@ class Module(object):
 
         return placeholder
 
-    def add_summary(self, label, name, tensor, pass_tensors=None, mean_variance=False, enumerate_last_rank=False):
+    def add_summary(
+        self, label, name, tensor, pass_tensors=None, return_summaries=False, mean_variance=False,
+        enumerate_last_rank=False
+    ):
         # should be "labels" !!!
         # label
         if util.is_iterable(x=label):
@@ -574,6 +615,9 @@ class Module(object):
                 # General tensor as histogram
                 summaries.append(tf.contrib.summary.histogram(name=name, tensor=tensor))
 
+        if return_summaries:
+            return summaries
+
         with tf.control_dependencies(control_inputs=summaries):
             if util.is_iterable(x=pass_tensors):
                 return tuple(util.identity_operation(x=x) for x in pass_tensors)
@@ -644,12 +688,14 @@ class Module(object):
             else:
                 raise TensorforceError.value(name='module specification', value=module)
 
-        elif not callable(module) and default_module is not None:
+        elif not callable(module) and ('default' in modules or default_module is not None):
             # Default module specification
             if '_first_arg' in kwargs:
                 raise TensorforceError.value(name='module kwargs', value='_first_arg')
             if module is not None:
                 kwargs['_first_arg'] = module
+            if default_module is None:
+                default_module = modules['default']
             return self.add_module(
                 name=name, module=default_module, modules=modules, is_trainable=is_trainable,
                 is_subscope=is_subscope, **kwargs

@@ -38,8 +38,11 @@ optimizer_modules = dict(
     gradient_descent=partial(TFOptimizer, optimizer='gradient_descent'),
     kfac=KFAC, momentum=partial(TFOptimizer, optimizer='momentum'), multi_step=MultiStep,
     nadam=partial(TFOptimizer, optimizer='nadam'), natural_gradient=NaturalGradient,
-    optimized_step=OptimizedStep, rmsprop=partial(TFOptimizer, optimizer='rmsprop'),
-    subsampling_step=SubsamplingStep, synchronization=Synchronization
+    optimized_step=OptimizedStep,
+    proximal_adagrad=partial(TFOptimizer, optimizer='proximal_adagrad'),
+    proximal_gradient_descent=partial(TFOptimizer, optimizer='proximal_gradient_descent'),
+    rmsprop=partial(TFOptimizer, optimizer='rmsprop'), subsampling_step=SubsamplingStep,
+    synchronization=Synchronization
 )
 
 

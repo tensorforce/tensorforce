@@ -20,7 +20,7 @@ from tensorforce.agents import Agent
 
 class Runner(object):
 
-    def __init__(self, agent, environment):
+    def __init__(self, agent, environment, evaluation_environment=None):
         if not isinstance(agent, Agent):
             agent = Agent.from_spec(
                 spec=agent, states=environment.states(), actions=environment.actions()
@@ -28,6 +28,7 @@ class Runner(object):
 
         self.agent = agent
         self.environment = environment
+        self.evaluation_environment = evaluation_environment
 
         self.agent.initialize()
         self.global_episode = self.agent.episode
@@ -39,6 +40,8 @@ class Runner(object):
     def close(self):
         self.agent.close()
         self.environment.close()
+        if self.evaluation_environment is not None:
+            self.evaluation_environment.close()
 
     # TODO: make average reward another possible criteria for runner-termination
     def run(
@@ -115,7 +118,16 @@ class Runner(object):
 
                 # Evaluation loop
                 for _ in range(num_evaluation_iterations):
-                    self.run_episode(max_timesteps=max_evaluation_timesteps, evaluation=True)
+                    if self.evaluation_environment is None:
+                        self.run_episode(
+                            environment=self.environment, max_timesteps=max_evaluation_timesteps,
+                            evaluation=True
+                        )
+                    else:
+                        self.run_episode(
+                            environment=self.evaluation_environment,
+                            max_timesteps=max_evaluation_timesteps, evaluation=True
+                        )
                     self.evaluation_rewards.append(self.episode_reward)
                     self.evaluation_timesteps.append(self.episode_timestep)
                     self.evaluation_times.append(self.episode_time)
@@ -128,7 +140,9 @@ class Runner(object):
                 evaluation_callback(self)
 
             # Run episode
-            if not self.run_episode(max_timesteps=max_episode_timesteps, evaluation=False):
+            if not self.run_episode(
+                environment=self.environment, max_timesteps=max_episode_timesteps, evaluation=False
+            ):
                 return
 
             # Update experiment statistics
@@ -157,14 +171,14 @@ class Runner(object):
             elif self.agent.should_stop():
                 return
 
-    def run_episode(self, max_timesteps, evaluation):
+    def run_episode(self, environment, max_timesteps, evaluation):
         # Episode statistics
         self.episode_reward = 0
         self.episode_timestep = 0
         episode_start = time.time()
 
         # Start environment episode
-        states = self.environment.reset()
+        states = environment.reset()
 
         # Timestep loop
         while True:
@@ -178,7 +192,7 @@ class Runner(object):
             # Execute actions in environment (optional repeated execution)
             reward = 0
             for _ in range(self.num_repeat_actions):
-                states, terminal, step_reward = self.environment.execute(actions=actions)
+                states, terminal, step_reward = environment.execute(actions=actions)
                 reward += step_reward
                 if terminal:
                     break

@@ -64,4 +64,6 @@ class TestReadme(unittest.TestCase):
         # Pass feedback about performance (and termination) to the agent
         agent.observe(reward=reward, terminal=False)
 
+        agent.close()
+        environment.close()
         self.assertTrue(expr=True)

@@ -34,7 +34,7 @@ class QNstepModel(QModel):
         reward = tf.tile(input=reward, multiples=multiples)
 
         reward = self.discounted_cumulative_reward(
-            terminal=terminal, reward=reward, discount=self.discount, final_reward=next_q_value[-1]
+            terminal=terminal, reward=reward, final_reward=next_q_value[-1]
         )
 
         return reward - q_value

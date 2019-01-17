@@ -13,10 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import memory_modules, Module, optimizer_modules
+from tensorforce.core import memory_modules, Module, optimizer_modules, parameter_modules
 from tensorforce.core.models import Model
 
 
@@ -34,8 +36,7 @@ class MemoryModel(Model):
         self,
         # Model
         states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, variable_noise, states_preprocessing, actions_exploration,
-        reward_preprocessing,
+        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing,
         # MemoryModel
         update_mode, memory, optimizer, discount
     ):
@@ -70,8 +71,8 @@ class MemoryModel(Model):
             states=states, actions=actions, scope=scope, device=device, saver=saver,
             summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
-            variable_noise=variable_noise, states_preprocessing=states_preprocessing,
-            actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing
+            exploration=exploration, variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing, reward_preprocessing=reward_preprocessing
         )
 
         # Update mode
@@ -92,32 +93,50 @@ class MemoryModel(Model):
             raise TensorforceError.required(name='update_mode', value='sequence_length')
         elif update_mode['unit'] != 'sequences' and 'sequence_length' in update_mode:
             raise TensorforceError.value(name='update_mode', value='sequence_length')
-        elif 'sequence_length' in update_mode and \
-                (not isinstance(update_mode['sequence_length'], int) or update_mode['sequence_length'] <= 1):
-            raise TensorforceError.value(
-                name='update_mode', argument='sequence_length',
-                value=update_mode['sequence_length']
-            )
+        # elif 'sequence_length' in update_mode and \
+        #         (not isinstance(update_mode['sequence_length'], int) or update_mode['sequence_length'] <= 1):
+        #     raise TensorforceError.value(
+        #         name='update_mode', argument='sequence_length',
+        #         value=update_mode['sequence_length']
+        #     )
         # update_mode: batch_size
         elif 'batch_size' not in update_mode:
             raise TensorforceError.required(name='update_mode', value='batch_size')
-        elif not isinstance(update_mode['batch_size'], int) or update_mode['batch_size'] < 1:
-            raise TensorforceError.value(
-                name='update_mode', argument='batch_size', value=update_mode['batch_size']
-            )
+        # elif not isinstance(update_mode['batch_size'], int) or update_mode['batch_size'] < 1:
+        #     raise TensorforceError.value(
+        #         name='update_mode', argument='batch_size', value=update_mode['batch_size']
+        #     )
         # update_mode: frequency
-        elif 'frequency' in update_mode and \
-                (not isinstance(update_mode['frequency'], int) or update_mode['frequency'] < 1):
-            raise TensorforceError.value(
-                name='update_mode', argument='frequency', value=update_mode['frequency']
-            )
+        # elif 'frequency' in update_mode and \
+        #         (not isinstance(update_mode['frequency'], int) or update_mode['frequency'] < 1):
+        #     raise TensorforceError.value(
+        #         name='update_mode', argument='frequency', value=update_mode['frequency']
+        #     )
         # update_mode: start
-        elif 'start' in update_mode and \
-                (not isinstance(update_mode['start'], int) or update_mode['start'] < 0):
-            raise TensorforceError.value(
-                name='update_mode', argument='start', value=update_mode['start']
+        # elif 'start' in update_mode and \
+        #         (not isinstance(update_mode['start'], int) or update_mode['start'] < 0):
+        #     raise TensorforceError.value(
+        #         name='update_mode', argument='start', value=update_mode['start']
+        #     )
+        self.update_unit = update_mode['unit']
+        self.update_batch_size = self.add_module(
+            name='update-batch-size', module=update_mode['batch_size'], modules=parameter_modules,
+            dtype='long'
+        )
+        self.update_frequency = self.add_module(
+            name='update-frequency',
+            module=update_mode.get('frequency', update_mode['batch_size']),
+            modules=parameter_modules, dtype='long'
+        )
+        self.update_start = self.add_module(
+            name='update-start', module=update_mode.get('frequency', 0), modules=parameter_modules,
+            dtype='long'
+        )
+        if self.update_unit == 'sequences':
+            self.update_sequence_length = self.add_module(
+                name='update-sequence-length', module=update_mode['sequence_length'],
+                modules=parameter_modules, dtype='long'
             )
-        self.update_mode = update_mode
 
         # Memory
         self.memory = self.add_module(
@@ -132,11 +151,15 @@ class MemoryModel(Model):
         )
 
         # Discount
-        if discount is not None and not isinstance(discount, float):
-            raise TensorforceError.type(name='discount', value=discount)
-        elif discount is not None and discount < 0.0:
-            raise TensorforceError.value(name='discount', value=discount)
-        self.discount = 1.0 if discount is None else discount
+        # if discount is not None and not isinstance(discount, dict) and \
+        #         not isinstance(discount, float):
+        #     raise TensorforceError.type(name='discount', value=discount)
+        # elif discount is not None and not isinstance(variable_noise, dict) and discount < 0.0:
+        #     raise TensorforceError.value(name='discount', value=discount)
+        discount = 1.0 if discount is None else discount
+        self.discount = self.add_module(
+            name='discount', module=discount, modules=parameter_modules, dtype='float'
+        )
 
     def as_local_model(self):
         """
@@ -211,7 +234,7 @@ class MemoryModel(Model):
 
         # By default -> take Model's gamma value
         if discount is None:
-            discount = self.discount
+            discount = self.discount.value()
 
         # Accumulates discounted (n-step) reward (start new if terminal)
         def cumulate(cumulative, reward_terminal_horizon_subtract):
@@ -415,12 +438,45 @@ class MemoryModel(Model):
         Returns:
             The optimization operation.
         """
-        arguments = self.optimizer_arguments(
-            states=states, internals=internals, actions=actions, terminal=terminal, reward=reward,
-            next_states=next_states, next_internals=next_internals
-        )
-        optimized = self.optimizer.minimize(**arguments)
-        return optimized
+        distr_params_before = OrderedDict()
+        embedding = self.network.apply(x=states, internals=internals)
+        for name, distribution in self.distributions.items():
+            distr_params_before[name] = distribution.parameterize(x=embedding)
+
+        with tf.control_dependencies(control_inputs=util.flatten(xs=distr_params_before)):
+            optimized = super().tf_optimization(
+                states=states, internals=internals, actions=actions, terminal=terminal,
+                reward=reward, next_states=next_states, next_internals=next_internals
+            )
+
+        with tf.control_dependencies(control_inputs=(optimized,)):
+            summaries = list()
+            for name, distribution in self.distributions.items():
+                distr_params = distribution.parameterize(x=embedding)
+                kl_divergence = distribution.kl_divergence(
+                    distr_params1=distr_params_before, distr_params2=distr_params
+                )
+                collapsed_size = util.product(xs=util.shape(kl_divergence)[1:])
+                kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
+                kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=1)
+                summaries.extend(
+                    self.add_summary(
+                        label='kl-divergence', name=(name + '-kldiv'), tensor=kl_divergence,
+                        return_summaries=True
+                    )
+                )
+
+                entropy = distribution.entropy(distr_params=distr_params)
+                entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
+                entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
+                summaries.extend(
+                    self.add_summary(
+                        label='entropy', name=(name + '-entropy'), tensor=entropy,
+                        return_summaries=True
+                    )
+                )
+
+        return tf.group(*summaries)
 
     def tf_core_observe(self, states, internals, actions, terminal, reward):
         """
@@ -434,20 +490,12 @@ class MemoryModel(Model):
 
         # Periodic optimization
         with tf.control_dependencies(control_inputs=(stored,)):
-            unit = self.update_mode['unit']
-            batch_size = tf.constant(
-                value=self.update_mode['batch_size'], dtype=util.tf_dtype(dtype='long')
-            )
-            frequency = tf.constant(
-                value=self.update_mode.get('frequency', self.update_mode['batch_size']),
-                dtype=util.tf_dtype(dtype='long')
-            )
-            start = tf.constant(
-                value=max(self.update_mode.get('start', 0), self.update_mode['batch_size']),
-                dtype=util.tf_dtype(dtype='long')
-            )
+            batch_size = self.update_batch_size.value()
+            frequency = self.update_frequency.value()
+            start = self.update_start.value()
+            start = tf.maximum(x=start, y=batch_size)
 
-            if unit == 'timesteps':
+            if self.update_unit == 'timesteps':
                 # Timestep-based batch
                 timestep = Module.retrieve_tensor(name='timestep')
                 is_frequency = tf.math.equal(
@@ -456,12 +504,10 @@ class MemoryModel(Model):
                 )
                 at_least_start = tf.math.greater_equal(x=timestep, y=start)
 
-            elif unit == 'sequences':
+            elif self.update_unit == 'sequences':
                 # Timestep-sequence-based batch
                 timestep = Module.retrieve_tensor(name='timestep')
-                sequence_length = tf.constant(
-                    value=self.update_mode['sequence_length'], dtype=util.tf_dtype(dtype='long')
-                )
+                sequence_length = self.update_sequence_length.value()
                 is_frequency = tf.math.equal(
                     x=tf.mod(x=timestep, y=frequency),
                     y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
@@ -470,7 +516,7 @@ class MemoryModel(Model):
                     x=timestep, y=(start + sequence_length - 1)
                 )
 
-            elif unit == 'episodes':
+            elif self.update_unit == 'episodes':
                 # Episode-based batch
                 episode = Module.retrieve_tensor(name='episode')
                 is_frequency = tf.math.equal(
@@ -483,17 +529,14 @@ class MemoryModel(Model):
                 )
                 at_least_start = tf.math.greater_equal(x=episode, y=start)
 
-            else:
-                raise TensorforceError("Invalid update unit: {}.".format(unit))
-
             def optimize():
-                if unit == 'timesteps':
+                if self.update_unit == 'timesteps':
                     # Timestep-based batch
                     batch = self.memory.retrieve_timesteps(n=batch_size)
-                elif unit == 'episodes':
+                elif self.update_unit == 'episodes':
                     # Episode-based batch
                     batch = self.memory.retrieve_episodes(n=batch_size)
-                elif unit == 'sequences':
+                elif self.update_unit == 'sequences':
                     # Timestep-sequence-based batch
                     batch = self.memory.retrieve_sequences(
                         n=batch_size, sequence_length=sequence_length

@@ -36,8 +36,8 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         labels = [
             'bernoulli', 'beta', 'categorical', 'distributions', 'dropout', 'entropy', 'gaussian',
-            'graph', 'loss', 'losses', 'objective-loss', 'regularization-loss', 'relu', 'updates',
-            'variables'
+            'graph', 'kl-divergence', 'loss', 'losses', 'objective-loss', 'parameters',
+            'regularization-loss', 'relu', 'updates', 'variables'
         ]
 
         self.unittest(

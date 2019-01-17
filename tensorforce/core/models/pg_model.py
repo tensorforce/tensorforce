@@ -17,7 +17,7 @@ from collections import OrderedDict
 
 import tensorflow as tf
 
-from tensorforce.core import baseline_modules, Module, optimizer_modules
+from tensorforce.core import baseline_modules, Module, optimizer_modules, parameter_modules
 from tensorforce.core.models import DistributionModel
 
 
@@ -32,8 +32,7 @@ class PGModel(DistributionModel):
         self,
         # Model
         states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, variable_noise, states_preprocessing, actions_exploration,
-        reward_preprocessing,
+        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing,
         # MemoryModel
         update_mode, memory, optimizer, discount,
         # DistributionModel
@@ -46,8 +45,8 @@ class PGModel(DistributionModel):
             states=states, actions=actions, scope=scope, device=device, saver=saver,
             summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
-            variable_noise=variable_noise, states_preprocessing=states_preprocessing,
-            actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing, reward_preprocessing=reward_preprocessing,
             # MemoryModel
             update_mode=update_mode, memory=memory, optimizer=optimizer, discount=discount,
             # DistributionModel
@@ -99,8 +98,13 @@ class PGModel(DistributionModel):
             )
 
         # Generalized advantage function
-        assert gae_lambda is None or (0.0 <= gae_lambda <= 1.0 and self.baseline_mode is not None)
-        self.gae_lambda = gae_lambda
+        assert gae_lambda is None or self.baseline_mode is not None
+        if gae_lambda is None:
+            self.gae_lambda = None
+        else:
+            self.gae_lambda = self.add_module(
+                name='gae-lambda', module=gae_lambda, modules=parameter_modules, dtype='float'
+            )
 
         # TODO: Baseline internal states !!! (see target_network q_model)
 
@@ -115,9 +119,7 @@ class PGModel(DistributionModel):
 
     def tf_reward_estimation(self, states, internals, terminal, reward):
         if self.baseline_mode is None:
-            return self.discounted_cumulative_reward(
-                terminal=terminal, reward=reward, discount=self.discount
-            )
+            return self.discounted_cumulative_reward(terminal=terminal, reward=reward)
 
         else:
             if self.baseline_mode == 'states':
@@ -130,19 +132,18 @@ class PGModel(DistributionModel):
                 )
 
             if self.gae_lambda is None:
-                reward = self.discounted_cumulative_reward(
-                    terminal=terminal, reward=reward, discount=self.discount
-                )
+                reward = self.discounted_cumulative_reward(terminal=terminal, reward=reward)
                 advantage = reward - state_value
 
             else:
                 next_state_value = tf.concat(values=(state_value[1:], (0.0,)), axis=0)
                 zeros = tf.zeros_like(tensor=next_state_value)
                 next_state_value = tf.where(condition=terminal, x=zeros, y=next_state_value)
-                td_residual = reward + self.discount * next_state_value - state_value
-                gae_discount = self.discount * self.gae_lambda
+                discount = self.discount.value()
+                td_residual = reward + discount * next_state_value - state_value
+                gae_lambda = self.gae_lambda.value()
                 advantage = self.discounted_cumulative_reward(
-                    terminal=terminal, reward=td_residual, discount=gae_discount
+                    terminal=terminal, reward=td_residual, discount=(discount * gae_lambda)
                 )
 
             # Normalize advantage.
@@ -223,9 +224,7 @@ class PGModel(DistributionModel):
         )
 
         if self.baseline_optimizer is not None:
-            cumulative_reward = self.discounted_cumulative_reward(
-                terminal=terminal, reward=reward, discount=self.discount
-            )
+            cumulative_reward = self.discounted_cumulative_reward(terminal=terminal, reward=reward)
 
             arguments = self.baseline_optimizer_arguments(
                 states=states,

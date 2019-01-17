@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -37,18 +38,21 @@ class Synchronization(Optimizer):
         """
         super().__init__(name=name, summary_labels=summary_labels)
 
-        assert isinstance(sync_frequency, int) and sync_frequency > 0
-        self.sync_frequency = sync_frequency
+        self.sync_frequency = self.add_module(
+            name='sync-frequency', module=sync_frequency, modules=parameter_modules, dtype='long'
+        )
 
-        assert isinstance(update_weight, float) and update_weight > 0.0
-        self.update_weight = update_weight
+        update_weight = 1.0 if update_weight is None else update_weight
+        self.update_weight = self.add_module(
+            name='update-weight', module=update_weight, modules=parameter_modules, dtype='float'
+        )
 
     def tf_initialize(self):
         super().tf_initialize()
 
         self.last_sync = self.add_variable(
             name='last-sync', dtype='long', shape=(), is_trainable=False,
-            initializer=(-self.sync_frequency)
+            initializer=(-self.sync_frequency.value())
         )
 
     def tf_step(self, time, variables, source_variables, **kwargs):
@@ -69,10 +73,11 @@ class Synchronization(Optimizer):
             for source, target in zip(source_variables, variables)
         )
 
-        def sync():
+        def apply_sync():
+            update_weight = self.update_weight.value()
             deltas = list()
             for source_variable, target_variable in zip(source_variables, variables):
-                delta = self.update_weight * (source_variable - target_variable)
+                delta = update_weight * (source_variable - target_variable)
                 deltas.append(delta)
 
             applied = self.apply_step(variables=variables, deltas=deltas)
@@ -89,5 +94,6 @@ class Synchronization(Optimizer):
                 deltas.append(delta)
             return deltas
 
-        do_sync = (time - self.last_sync >= self.sync_frequency)
-        return self.cond(pred=do_sync, true_fn=sync, false_fn=no_sync)
+        sync_frequency = self.sync_frequency.value()
+        skip_sync = (time - self.last_sync < sync_frequency)
+        return self.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)

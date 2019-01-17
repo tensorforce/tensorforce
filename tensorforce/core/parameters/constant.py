@@ -16,17 +16,20 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core.explorations import Exploration
+from tensorforce.core.parameters import Parameter
 
 
-class Constant(Exploration):
+class Constant(Parameter):
     """
-    Explore via adding a constant term.
+    Constant hyperparameter.
     """
 
-    def __init__(self, constant=0.0, scope='constant', summary_labels=()):
-        self.constant = constant
-        super(Constant, self).__init__(scope=scope, summary_labels=summary_labels)
+    # Argument 'value' first for default specification
+    def __init__(self, name, value, dtype, summary_labels=None):
+        super().__init__(name=name, dtype=dtype, shape=(), summary_labels=summary_labels)
 
-    def tf_explore(self, episode, timestep, shape):
-        return tf.constant(value=self.constant, dtype=util.tf_dtype('float'), shape=shape)
+        self.constant_value = value
+
+    def get_parameter_value(self):
+        parameter = tf.constant(value=self.constant_value, dtype=util.tf_dtype(dtype=self.dtype))
+        return parameter

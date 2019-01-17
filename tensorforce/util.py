@@ -400,25 +400,26 @@ def valid_value_spec(
         pass
 
     if dtype == 'int' or (accept_underspecified and dtype is not None and 'int' in dtype):
-        if 'num_values' not in value_spec:
-            raise TensorforceError.required(name=(value_type + ' spec'), value='num_values')
-        num_values = value_spec.pop('num_values')
-        if not isinstance(num_values, int):
-            raise TensorforceError.type(
-                name=(value_type + ' spec'), argument='num_values', value=num_values
-            )
-        if accept_underspecified:
-            if not (num_values > 1 or num_values == 0):
-                raise TensorforceError.value(
+        if 'num_values' in value_spec or value_type in ('state', 'action'):
+            if 'num_values' not in value_spec:
+                raise TensorforceError.required(name=(value_type + ' spec'), value='num_values')
+            num_values = value_spec.pop('num_values')
+            if not isinstance(num_values, int):
+                raise TensorforceError.type(
                     name=(value_type + ' spec'), argument='num_values', value=num_values
                 )
-        else:
-            if num_values <= 1:
-                raise TensorforceError.value(
-                    name=(value_type + ' spec'), argument='num_values', value=num_values
-                )
-        if return_normalized:
-            normalized_spec['num_values'] = num_values
+            if accept_underspecified:
+                if not (num_values > 1 or num_values == 0):
+                    raise TensorforceError.value(
+                        name=(value_type + ' spec'), argument='num_values', value=num_values
+                    )
+            else:
+                if num_values <= 1:
+                    raise TensorforceError.value(
+                        name=(value_type + ' spec'), argument='num_values', value=num_values
+                    )
+            if return_normalized:
+                normalized_spec['num_values'] = num_values
 
     if dtype == 'long' or (accept_underspecified and dtype is not None and 'long' in dtype):
         pass

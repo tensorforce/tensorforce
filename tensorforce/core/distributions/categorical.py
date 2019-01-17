@@ -35,7 +35,7 @@ class Categorical(Distribution):
         )
 
         action_size = util.product(xs=self.action_spec['shape']) * self.action_spec['num_values']
-        input_spec = dict(type='float', shape=(embedding_size,))
+        input_spec = dict(type='float', shape=(self.embedding_size,))
         self.logits = self.add_module(
             name='logits', module='linear', modules=layer_modules, size=action_size,
             input_spec=input_spec

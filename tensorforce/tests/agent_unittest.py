@@ -190,5 +190,7 @@ class AgentUnittest(UnittestBase):
         query = agent.observe(terminal=terminal, reward=reward, query=observe_query)
         self.assertEqual(first=len(query), second=8)
 
+        agent.close()
+        environment.close()
         sys.stdout.flush()
         self.assertTrue(expr=True)

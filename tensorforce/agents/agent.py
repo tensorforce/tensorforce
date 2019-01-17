@@ -151,7 +151,9 @@ class Agent(object):
         """
         raise NotImplementedError
 
-    def act(self, states, parallel=0, deterministic=False, independent=False, query=None):
+    def act(
+        self, states, parallel=0, deterministic=False, independent=False, query=None, **kwargs
+    ):
         """
         Return action(s) for given state(s). States preprocessing and exploration are applied if
         configured accordingly.
@@ -180,13 +182,13 @@ class Agent(object):
         if query is None:
             actions, self.timestep = self.model.act(
                 states=states, parallel=parallel, deterministic=deterministic,
-                independent=independent
+                independent=independent, **kwargs
             )
 
         else:
             actions, self.timestep, query = self.model.act(
                 states=states, parallel=parallel, deterministic=deterministic,
-                independent=independent, query=query
+                independent=independent, query=query, **kwargs
             )
 
         # Unbatch actions
@@ -204,7 +206,7 @@ class Agent(object):
         else:
             return actions, query
 
-    def observe(self, terminal, reward, parallel=0, query=None):
+    def observe(self, terminal, reward, parallel=0, query=None, **kwargs):
         """
         Observe experience from the environment to learn from. Optionally pre-processes rewards
         Child classes should call super to get the processed reward
@@ -221,29 +223,25 @@ class Agent(object):
         self.reward_buffers[parallel, index] = reward
         index += 1
 
-        if terminal or index == self.buffer_observe:
+        if terminal or index == self.buffer_observe or query is not None:
             # Model.observe()
             if query is None:
                 self.episode = self.model.observe(
                     terminal=self.terminal_buffers[parallel, :index],
-                    reward=self.reward_buffers[parallel, :index], parallel=parallel
+                    reward=self.reward_buffers[parallel, :index], parallel=parallel, **kwargs
                 )
 
             else:
                 self.episode, query = self.model.observe(
                     terminal=self.terminal_buffers[parallel, :index],
-                    reward=self.reward_buffers[parallel, :index], parallel=parallel,
-                    query=query
+                    reward=self.reward_buffers[parallel, :index], parallel=parallel, query=query,
+                    **kwargs
                 )
 
             # Reset buffer index
             self.buffer_indices[parallel] = 0
 
         else:
-            # Argument query incompatible with buffering
-            if query is not None:
-                raise TensorforceError.value(name='query', value=query)
-
             # Increment buffer index
             self.buffer_indices[parallel] = index
 

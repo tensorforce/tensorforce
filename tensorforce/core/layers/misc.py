@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module
+from tensorforce.core import Module, parameter_modules
 from tensorforce.core.layers import Layer
 
 
@@ -108,7 +108,9 @@ class Dropout(Layer):
             dropout (0.0 <= float < 1.0): Dropout rate.
         """
         # Rate
-        self.rate = rate
+        self.rate = self.add_module(
+            name='rate', module=rate, modules=parameter_modules, dtype='float'
+        )
 
         super().__init__(
             name=name, input_spec=input_spec, l2_regularization=0.0, summary_labels=summary_labels
@@ -126,12 +128,19 @@ class Dropout(Layer):
             )
 
     def tf_apply(self, x):
-        def true_fn():
-            dropout = tf.nn.dropout(x=x, keep_prob=(1.0 - self.rate))
+        rate = self.rate.value()
+
+        def no_dropout():
+            return x
+
+        def apply_dropout():
+            dropout = tf.nn.dropout(x=x, keep_prob=(1.0 - rate))
             return self.add_summary(
                 label='dropout', name='dropout', tensor=tf.math.zero_fraction(value=dropout),
                 pass_tensors=dropout
             )
 
-        update = Module.retrieve_tensor(name='update')
-        return self.cond(pred=update, true_fn=true_fn, false_fn=(lambda: x))
+        skip_dropout = tf.math.logical_not(x=Module.retrieve_tensor(name='update'))
+        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        skip_dropout = tf.math.logical_or(x=apply_dropout, y=tf.math.equal(x=rate, y=zero))
+        return self.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)

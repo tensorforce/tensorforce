@@ -37,8 +37,8 @@ class RandomModel(Model):
             states=states, actions=actions, scope=scope, device=device, saver=saver,
             summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
-            variable_noise=None, states_preprocessing=None,
-            actions_exploration=None, reward_preprocessing=None
+            exploration=None, variable_noise=None, states_preprocessing=None,
+            reward_preprocessing=None
         )
 
     def tf_core_act(self, states, internals):

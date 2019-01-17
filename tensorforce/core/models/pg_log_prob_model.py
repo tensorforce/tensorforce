@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.models import PGModel
 
 

@@ -16,7 +16,7 @@
 from tensorforce.core.networks.network import Network, LayerbasedNetwork, LayeredNetwork
 
 
-network_modules = dict(layered=LayeredNetwork)
+network_modules = dict(default=LayeredNetwork, layered=LayeredNetwork)
 
 
 __all__ = ['LayerbasedNetwork', 'LayeredNetwork', 'Network', 'network_modules']

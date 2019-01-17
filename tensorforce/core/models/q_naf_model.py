@@ -32,8 +32,7 @@ class QNAFModel(QModel):
         self,
         # Model
         states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, variable_noise, states_preprocessing, actions_exploration,
-        reward_preprocessing,
+        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing,
         # MemoryModel
         update_mode, memory, optimizer, discount,
         # DistributionModel
@@ -41,7 +40,7 @@ class QNAFModel(QModel):
         # QModel
         target_sync_frequency, target_update_weight, double_q_model, huber_loss
     ):
-        if any(actions[name]['type'] != 'float' or 'min_value' in actions[name] or 'max_value' in actions[name] for name in sorted(actions)):
+        if any(spec['type'] != 'float' or 'min_value' in spec or 'max_value' in spec for name, spec in actions.items()):
             raise TensorforceError("Only unconstrained float actions valid for NAFModel.")
 
         super().__init__(
@@ -49,8 +48,8 @@ class QNAFModel(QModel):
             states=states, actions=actions, scope=scope, device=device, saver=saver,
             summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
-            variable_noise=variable_noise, states_preprocessing=states_preprocessing,
-            actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing, reward_preprocessing=reward_preprocessing,
             # MemoryModel
             update_mode=update_mode, memory=memory, optimizer=optimizer, discount=discount,
             # DistributionModel
@@ -157,11 +156,19 @@ class QNAFModel(QModel):
         # Surrogate loss as the mean squared error between actual observed rewards and expected rewards
         loss_per_instance = tf.reduce_mean(input_tensor=tf.concat(values=deltas, axis=1), axis=1)
 
-        if self.huber_loss is not None and self.huber_loss > 0.0:
-            return tf.where(
-                condition=(tf.abs(x=loss_per_instance) <= self.huber_loss),
-                x=(0.5 * tf.square(x=loss_per_instance)),
-                y=(self.huber_loss * (tf.abs(x=loss_per_instance) - 0.5 * self.huber_loss))
-            )
-        else:
+        # Optional Huber loss
+        huber_loss = self.huber_loss.value()
+
+        def no_huber_loss():
             return tf.square(x=loss_per_instance)
+
+        def apply_huber_loss():
+            return tf.where(
+                condition=(tf.abs(x=loss_per_instance) <= huber_loss),
+                x=(0.5 * tf.square(x=loss_per_instance)),
+                y=(huber_loss * (tf.abs(x=loss_per_instance) - 0.5 * huber_loss))
+            )
+
+        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        skip_huber_loss = tf.math.equal(x=huber_loss, y=zero)
+        return self.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)

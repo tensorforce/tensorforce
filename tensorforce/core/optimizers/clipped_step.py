@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import MetaOptimizer
 
 
@@ -35,8 +36,9 @@ class ClippedStep(MetaOptimizer):
         """
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
-        assert isinstance(clipping_value, float) and clipping_value > 0.0
-        self.clipping_value = clipping_value
+        self.clipping_value = self.add_module(
+            name='clipping-value', module=clipping_value, modules=parameter_modules, dtype='float'
+        )
 
     def tf_step(self, time, variables, **kwargs):
         """
@@ -53,13 +55,14 @@ class ClippedStep(MetaOptimizer):
         deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
 
         with tf.control_dependencies(control_inputs=deltas):
+            clipping_value = self.clipping_value.value()
             clipped_deltas = list()
             exceeding_deltas = list()
             for delta in deltas:
                 clipped_delta = tf.clip_by_value(
                     t=delta,
-                    clip_value_min=-self.clipping_value,
-                    clip_value_max=self.clipping_value
+                    clip_value_min=-clipping_value,
+                    clip_value_max=clipping_value
                 )
                 clipped_deltas.append(clipped_delta)
                 exceeding_deltas.append(clipped_delta - delta)

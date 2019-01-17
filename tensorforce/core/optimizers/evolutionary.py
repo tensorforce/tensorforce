@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -35,14 +36,19 @@ class Evolutionary(Optimizer):
         """
         super().__init__(name=name, summary_labels=summary_labels)
 
-        assert isinstance(learning_rate, float) and learning_rate > 0.0
-        self.learning_rate = learning_rate
-
-        assert isinstance(num_samples, int) and num_samples > 0
-        self.num_samples = num_samples
+        self.learning_rate = self.add_module(
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+        )
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
+
+        if self.unroll_loop:
+            self.num_samples = num_samples
+        else:
+            self.num_samples = self.add_module(
+                name='num-samples', module=num_samples, modules=parameter_modules, dtype='int'
+            )
 
     def tf_step(self, time, variables, arguments, fn_loss, **kwargs):
         """
@@ -61,8 +67,9 @@ class Evolutionary(Optimizer):
         unperturbed_loss = fn_loss(**arguments)
 
         # First sample
+        learning_rate = self.learning_rate.value()
         perturbations = [
-            tf.random_normal(shape=util.shape(variable)) * self.learning_rate
+            tf.random_normal(shape=util.shape(variable)) * learning_rate
             for variable in variables
         ]
         applied = self.apply_step(variables=variables, deltas=perturbations)
@@ -79,7 +86,7 @@ class Evolutionary(Optimizer):
 
                 with tf.control_dependencies(control_inputs=deltas_sum):
                     perturbations = [
-                        tf.random_normal(shape=util.shape(variable)) * self.learning_rate
+                        tf.random_normal(shape=util.shape(variable)) * learning_rate
                         for variable in variables
                     ]
                     perturbation_deltas = [
@@ -103,7 +110,7 @@ class Evolutionary(Optimizer):
 
                 with tf.control_dependencies(control_inputs=deltas_sum):
                     perturbations = [
-                        tf.random_normal(shape=util.shape(variable)) * self.learning_rate
+                        tf.random_normal(shape=util.shape(variable)) * learning_rate
                         for variable in variables
                     ]
                     perturbation_deltas = [
@@ -122,13 +129,15 @@ class Evolutionary(Optimizer):
 
                 return deltas_sum, perturbations
 
+            num_samples = self.num_samples.value()
             deltas_sum, perturbations = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas_sum, perturbations),
-                maximum_iterations=(self.num_samples - 1)
+                maximum_iterations=(num_samples - 1)
             )
 
         with tf.control_dependencies(control_inputs=deltas_sum):
-            deltas = [delta / self.num_samples for delta in deltas_sum]
+            num_samples = tf.dtypes.cast(x=num_samples, dtype=util.tf_dtype(dtype='float'))
+            deltas = [delta / num_samples for delta in deltas_sum]
             perturbation_deltas = [delta - pert for delta, pert in zip(deltas, perturbations)]
             applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
 

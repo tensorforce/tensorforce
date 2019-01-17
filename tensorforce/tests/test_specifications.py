@@ -31,7 +31,7 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
 
-    def spec_unittest(self, name, network):
+    def specification_unittest(self, name, network):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
@@ -47,6 +47,8 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
+        agent.close()
+        environment.close()
         sys.stdout.flush()
         self.assertTrue(expr=True)
 
@@ -54,38 +56,39 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
         spec_without_type = dict(
             layers=[dict(type='dense', size=32), dict(type='dense', size=32)]
         )
-        self.spec_unittest(name='spec-default', network=spec_without_type)
+        self.specification_unittest(name='spec-default', network=spec_without_type)
 
     def test_spec_callable(self):
         spec_with_callable = dict(
             type=LayeredNetwork, layers=[dict(type='dense', size=32), dict(type='dense', size=32)]
         )
-        self.spec_unittest(name='spec-callable', network=spec_with_callable)
+        self.specification_unittest(name='spec-callable', network=spec_with_callable)
 
     def test_spec_json(self):
         spec_with_json = dict(
-            type='tensorforce/tests/network.json', layers=[dict(type='dense', size=32), dict(type='dense', size=32)]
+            type='tensorforce/tests/network.json',
+            layers=[dict(type='dense', size=32), dict(type='dense', size=32)]
         )
-        self.spec_unittest(name='spec-json', network=spec_with_json)
+        self.specification_unittest(name='spec-json', network=spec_with_json)
 
     def test_spec_module(self):
         spec_with_module = dict(
             type='tensorforce.core.networks.network.LayeredNetwork',
             layers=[dict(type='dense', size=32), dict(type='dense', size=32)]
         )
-        self.spec_unittest(name='spec-module', network=spec_with_module)
+        self.specification_unittest(name='spec-module', network=spec_with_module)
 
     def test_callable(self):
-        self.spec_unittest(name='callable', network=TestNetwork)
+        self.specification_unittest(name='callable', network=TestNetwork)
 
     def test_json(self):
         json_file = 'tensorforce/tests/network.json'
-        self.spec_unittest(name='json', network=json_file)
+        self.specification_unittest(name='json', network=json_file)
 
     def test_module(self):
         module = 'tensorforce.tests.test_specifications.TestNetwork'
-        self.spec_unittest(name='module', network=module)
+        self.specification_unittest(name='module', network=module)
 
     def test_firstarg(self):
         layers = [dict(type='dense', size=32), dict(type='dense', size=32)]
-        self.spec_unittest(name='firstarg', network=layers)
+        self.specification_unittest(name='firstarg', network=layers)

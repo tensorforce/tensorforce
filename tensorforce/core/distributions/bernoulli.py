@@ -35,7 +35,7 @@ class Bernoulli(Distribution):
         )
 
         action_size = util.product(xs=self.action_spec['shape'], empty=0)
-        input_spec = dict(type='float', shape=(embedding_size,))
+        input_spec = dict(type='float', shape=(self.embedding_size,))
         self.logit = self.add_module(
             name='logit', module='linear', modules=layer_modules, size=action_size,
             input_spec=input_spec

@@ -63,6 +63,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
             callback_timestep_frequency=callback_timestep_frequency
         )
 
+        runner.close()
         sys.stdout.flush()
         self.assertTrue(expr=True)
 
@@ -97,8 +98,8 @@ class TestRunners(UnittestBase, unittest.TestCase):
             max_evaluation_timesteps=max_evaluation_timesteps,
             num_evaluation_iterations=num_evaluation_iterations
         )
-        runner.close()
 
+        runner.close()
         sys.stdout.flush()
         self.assertTrue(expr=True)
 
@@ -161,5 +162,6 @@ class TestRunners(UnittestBase, unittest.TestCase):
             callback_timestep_frequency=callback_timestep_frequency
         )
 
+        runner.close()
         sys.stdout.flush()
         self.assertTrue(expr=True)

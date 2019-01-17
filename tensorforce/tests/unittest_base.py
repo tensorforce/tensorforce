@@ -37,7 +37,7 @@ class UnittestBase(object):
         """
         Generic unit-test preparation.
         """
-        sys.stdout.write('\n{} ({}):\n'.format(self.__class__.agent.__class__.__name__, name))
+        sys.stdout.write('\n{} ({}):\n'.format(self.__class__.agent.__name__, name))
         sys.stdout.flush()
 
         environment = UnittestEnvironment(states=states, actions=actions)

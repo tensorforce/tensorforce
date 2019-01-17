@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import MetaOptimizer
 
 
@@ -35,11 +36,15 @@ class MultiStep(MetaOptimizer):
         """
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
-        assert isinstance(num_steps, int) and num_steps > 0
-        self.num_steps = num_steps
-
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
+
+        if self.unroll_loop:
+            self.num_steps = num_steps
+        else:
+            self.num_steps = self.add_module(
+                name='num-steps', module=num_steps, modules=parameter_modules, dtype='int'
+            )
 
     def tf_step(self, time, variables, arguments, fn_reference=None, **kwargs):
         """
@@ -83,9 +88,10 @@ class MultiStep(MetaOptimizer):
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
                     return deltas
 
+            num_steps = self.num_steps.value()
             deltas = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas,),
-                maximum_iterations=(self.num_steps - 1)
+                maximum_iterations=(num_steps - 1)
             )
 
             return deltas

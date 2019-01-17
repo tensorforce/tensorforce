@@ -43,12 +43,12 @@ class DDPGAgent(DRLAgent):
         update_mode=None,
         memory=None,
         optimizer=None,
-        discount=0.99,
+        discount=None,
         distributions=None,
         entropy_regularization=None,
         critic_optimizer=None,
         target_sync_frequency=10000,
-        target_update_weight=1.0
+        target_update_weight=None
     ):
         """
         Initializes the DDPG agent.

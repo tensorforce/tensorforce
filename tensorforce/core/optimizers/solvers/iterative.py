@@ -13,8 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers.solvers import Solver
 
 
@@ -34,11 +33,16 @@ class Iterative(Solver):
         """
         super().__init__(name=name)
 
-        assert max_iterations >= 0
-        self.max_iterations = max_iterations
-
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
+
+        if self.unroll_loop:
+            self.max_iterations = max_iterations
+        else:
+            self.max_iterations = self.add_module(
+                name='max-iterations', module=max_iterations, modules=parameter_modules,
+                dtype='int'
+            )
 
     def tf_solve(self, fn_x, x_init, *args):
         """
@@ -69,9 +73,10 @@ class Iterative(Solver):
 
         else:
             # TensorFlow while loop
+            max_iterations = self.max_iterations.value()
             args = self.while_loop(
                 cond=self.next_step, body=self.step, loop_vars=args,
-                maximum_iterations=self.max_iterations
+                maximum_iterations=max_iterations
             )
 
         # First argument contains solution

@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -62,8 +63,9 @@ class ConjugateGradient(Iterative):
         """
         super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
 
-        assert damping >= 0.0
-        self.damping = damping
+        self.damping = self.add_module(
+            name='damping', module=damping, modules=parameter_modules, dtype='float'
+        )
 
     def tf_solve(self, fn_x, x_init, b):
         """
@@ -127,8 +129,17 @@ class ConjugateGradient(Iterative):
         A_conjugate = self.fn_x(conjugate)
 
         # TODO: reference?
-        if self.damping > 0.0:
-            A_conjugate = [A_conj + self.damping * conj for A_conj, conj in zip(A_conjugate, conjugate)]
+        damping = self.damping.value()
+
+        def no_damping():
+            return A_conjugate
+
+        def apply_damping():
+            return [A_conj + damping * conj for A_conj, conj in zip(A_conjugate, conjugate)]
+
+        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        skip_damping = tf.math.equal(x=damping, y=zero)
+        A_conjugate = self.cond(pred=skip_damping, true_fn=no_damping, false_fn=apply_damping)
 
         # cAc := c_t^T * Ac
         conjugate_A_conjugate = tf.add_n(

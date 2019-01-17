@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -44,13 +45,18 @@ class LineSearch(Iterative):
         super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
 
         assert accept_ratio >= 0.0
-        self.accept_ratio = accept_ratio
+        self.accept_ratio = self.add_module(
+            name='accept-ratio', module=accept_ratio, modules=parameter_modules, dtype='float'
+        )
 
         # TODO: Implement such sequences more generally, also useful for learning rate decay or so.
         if mode not in ('linear', 'exponential'):
             raise TensorforceError("Invalid line search mode: {}, please choose one of'linear' or 'exponential'".format(mode))
         self.mode = mode
-        self.parameter = parameter
+
+        self.parameter = self.add_module(
+            name='parameter', module=parameter, modules=parameter_modules, dtype='float'
+        )
 
     def tf_solve(self, fn_x, x_init, base_value, target_value, estimated_improvement=None):
         """
@@ -94,13 +100,14 @@ class LineSearch(Iterative):
         )
 
         last_improvement = improvement - 1.0
+        parameter = self.parameter.value()
 
         if self.mode == 'linear':
-            deltas = [-t * self.parameter for t in x_init]
-            self.estimated_incr = -estimated_improvement * self.parameter
+            deltas = [-t * parameter for t in x_init]
+            self.estimated_incr = -estimated_improvement * parameter
 
         elif self.mode == 'exponential':
-            deltas = [-t * self.parameter for t in x_init]
+            deltas = [-t * parameter for t in x_init]
 
         return first_step + (deltas, improvement, last_improvement, estimated_improvement)
 
@@ -123,14 +130,15 @@ class LineSearch(Iterative):
         )
 
         next_x = [t + delta for t, delta in zip(x, deltas)]
+        parameter = self.parameter.value()
 
         if self.mode == 'linear':
             next_deltas = deltas
             next_estimated_improvement = estimated_improvement + self.estimated_incr
 
         elif self.mode == 'exponential':
-            next_deltas = [delta * self.parameter for delta in deltas]
-            next_estimated_improvement = estimated_improvement * self.parameter
+            next_deltas = [delta * parameter for delta in deltas]
+            next_estimated_improvement = estimated_improvement * parameter
 
         target_value = self.fn_x(next_deltas)
 
@@ -160,18 +168,19 @@ class LineSearch(Iterative):
             x, deltas, improvement, last_improvement, estimated_improvement
         )
 
+        def no_undo_deltas():
+            return True
+
         def undo_deltas():
             value = self.fn_x([-delta for delta in deltas])
             with tf.control_dependencies(control_inputs=(value,)):
                 # Trivial operation to enforce control dependency
                 return tf.less(x=value, y=value)  # == False
 
-        improved = self.cond(
-            pred=(improvement > last_improvement),
-            true_fn=(lambda: True),
-            false_fn=undo_deltas
-        )
+        skip_undo_deltas = improvement > last_improvement
+        improved = self.cond(pred=skip_undo_deltas, true_fn=no_undo_deltas, false_fn=undo_deltas)
 
+        accept_ratio = self.accept_ratio.value()
         next_step = tf.logical_and(x=next_step, y=improved)
-        next_step = tf.logical_and(x=next_step, y=(improvement < self.accept_ratio))
+        next_step = tf.logical_and(x=next_step, y=(improvement < accept_ratio))
         return tf.logical_and(x=next_step, y=(estimated_improvement > util.epsilon))

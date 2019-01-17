@@ -42,7 +42,7 @@ class CNNBaseline(NetworkBaseline):
         network[0]['window'] = 5
 
         # Global max-pooling
-        network.append(dict(type='pooling', pooling='max'))
+        network.append(dict(type='pooling', reduction='max'))
 
         # Dense layers
         for size in dense_sizes:

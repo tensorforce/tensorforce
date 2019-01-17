@@ -18,7 +18,7 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import distribution_modules, Module, network_modules
+from tensorforce.core import distribution_modules, Module, network_modules, parameter_modules
 from tensorforce.core.models import MemoryModel
 
 
@@ -31,8 +31,7 @@ class DistributionModel(MemoryModel):
         self,
         # Model
         states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, variable_noise, states_preprocessing, actions_exploration,
-        reward_preprocessing,
+        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing,
         # MemoryModel
         update_mode, memory, optimizer, discount,
         # DistributionModel
@@ -43,8 +42,8 @@ class DistributionModel(MemoryModel):
             states=states, actions=actions, scope=scope, device=device, saver=saver,
             summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
-            variable_noise=variable_noise, states_preprocessing=states_preprocessing,
-            actions_exploration=actions_exploration, reward_preprocessing=reward_preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            states_preprocessing=states_preprocessing, reward_preprocessing=reward_preprocessing,
             # MemoryModel
             update_mode=update_mode, memory=memory, optimizer=optimizer, discount=discount
         )
@@ -55,8 +54,7 @@ class DistributionModel(MemoryModel):
             inputs_spec[name] = dict(spec)
             inputs_spec[name]['batched'] = True
         self.network = self.add_module(
-            name='network', module=network, modules=network_modules, default_module='layered',
-            inputs_spec=inputs_spec
+            name='network', module=network, modules=network_modules, inputs_spec=inputs_spec
         )
         output_spec = self.network.get_output_spec()
         if output_spec['type'] != 'float':
@@ -98,8 +96,11 @@ class DistributionModel(MemoryModel):
             )
 
         # Entropy regularization
-        assert entropy_regularization is None or entropy_regularization >= 0.0
-        self.entropy_regularization = entropy_regularization
+        entropy_regularization = 0.0 if entropy_regularization is None else entropy_regularization
+        self.entropy_regularization = self.add_module(
+            name='entropy-regularization', module=entropy_regularization,
+            modules=parameter_modules, dtype='float'
+        )
 
         # For deterministic action sampling (Q vs PG model)
         self.requires_deterministic = requires_deterministic
@@ -130,19 +131,52 @@ class DistributionModel(MemoryModel):
                 x=deterministic,
                 y=tf.constant(value=self.requires_deterministic, dtype=util.tf_dtype(dtype='bool'))
             )
-            actions[name] = distribution.sample(
+            action = distribution.sample(
                 distr_params=distr_params, deterministic=deterministic
             )
 
+            entropy = distribution.entropy(distr_params=distr_params)
+            collapsed_size = util.product(xs=util.shape(entropy)[1:])
+            entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
+            entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
+            actions[name] = self.add_summary(
+                label='entropy', name=(name + '-entropy'), tensor=entropy, pass_tensors=action
+            )
+
         return actions, internals
+
+    def tf_optimization(
+        self, states, internals, actions, terminal, reward, next_states=None, next_internals=None
+    ):
+        """
+        Creates the TensorFlow operations for performing an optimization update step based
+        on the given input states and actions batch.
+
+        Args:
+            states: Dict of state tensors.
+            internals: List of prior internal state tensors.
+            actions: Dict of action tensors.
+            terminal: Terminal boolean tensor.
+            reward: Reward tensor.
+            next_states: Dict of successor state tensors.
+            next_internals: List of posterior internal state tensors.
+
+        Returns:
+            The optimization operation.
+        """
+        arguments = self.optimizer_arguments(
+            states=states, internals=internals, actions=actions, terminal=terminal, reward=reward,
+            next_states=next_states, next_internals=next_internals
+        )
+        optimized = self.optimizer.minimize(**arguments)
+        return optimized
 
     def tf_regularize(self, states, internals):
         regularization_loss = super().tf_regularize(states=states, internals=internals)
 
         entropies = list()
         embedding = self.network.apply(x=states, internals=internals)
-        for name in sorted(self.distributions):
-            distribution = self.distributions[name]
+        for name, distribution in self.distributions.items():
             distr_params = distribution.parameterize(x=embedding)
             entropy = distribution.entropy(distr_params=distr_params)
             collapsed_size = util.product(xs=util.shape(entropy)[1:])
@@ -152,13 +186,22 @@ class DistributionModel(MemoryModel):
         entropies = tf.concat(values=entropies, axis=1)
         entropy_per_instance = tf.reduce_mean(input_tensor=entropies, axis=1)
         entropy = tf.reduce_mean(input_tensor=entropy_per_instance, axis=0)
+        # entropy = self.add_summary(label='entropy', name='entropy', tensor=entropy)
 
-        regularization_loss = self.add_summary(
-            label='entropy', name='entropy', tensor=entropy, pass_tensors=regularization_loss
-        )
+        entropy_regularization = self.entropy_regularization.value()
 
-        if self.entropy_regularization is not None and self.entropy_regularization > 0.0:
-            regularization_loss = regularization_loss - self.entropy_regularization * entropy
+        regularization_loss = regularization_loss - entropy_regularization * entropy
+
+        # def no_entropy_reg():
+        #     return regularization_loss
+
+        # def apply_entropy_reg():
+        #     # ...
+        #     return regularization_loss - entropy_regularization * entropy
+
+        # zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        # skip_entropy_reg = tf.math.equal(x=entropy_regularization, y=zero)
+        # regularization_loss = self.cond(pred=skip_entropy_reg, true_fn=no_entropy_reg, false_fn=apply_entropy_reg)
 
         return regularization_loss
 
@@ -169,7 +212,7 @@ class DistributionModel(MemoryModel):
         embedding = self.network.apply(x=states, internals=internals)
 
         kl_divergences = list()
-        for name in sorted(self.distributions):
+        for name, distribution in self.distributions.items():
             distribution = self.distributions[name]
             distr_params = distribution.parameterize(x=embedding)
             fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)

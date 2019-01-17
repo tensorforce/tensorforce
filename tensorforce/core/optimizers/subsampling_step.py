@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import MetaOptimizer
 
 
@@ -35,8 +36,9 @@ class SubsamplingStep(MetaOptimizer):
         """
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
-        assert isinstance(fraction, float) and fraction > 0.0
-        self.fraction = fraction
+        self.fraction = self.add_module(
+            name='fraction', module=fraction, modules=parameter_modules, dtype='float'
+        )
 
     def tf_step(self, time, variables, arguments, **kwargs):
         """
@@ -74,7 +76,8 @@ class SubsamplingStep(MetaOptimizer):
             raise TensorforceError("Invalid argument type.")
 
         batch_size = tf.shape(input=some_argument)[0]
-        num_samples = self.fraction * tf.cast(x=batch_size, dtype=util.tf_dtype('float'))
+        fraction = self.fraction.value()
+        num_samples = fraction * tf.cast(x=batch_size, dtype=util.tf_dtype('float'))
         one = tf.constant(value=1, dtype=util.tf_dtype('int'))
         num_samples = tf.maximum(x=tf.cast(x=num_samples, dtype=util.tf_dtype('int')), y=one)
         indices = tf.random_uniform(shape=(num_samples,), maxval=batch_size, dtype=tf.int32)

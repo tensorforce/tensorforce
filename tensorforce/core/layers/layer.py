@@ -89,8 +89,11 @@ class Layer(Module):
 
         for layer in self.modules.values():
             for name, spec in layer.internals_spec().items():
+                name = layer.name + '-' + name
+                if name in specification:
+                    raise TensorforceError.unexpected()
                 # check valid names!!!
-                specification['{}/{}'.format(layer.name, name)] = spec
+                specification[name] = spec
 
         return specification
 
@@ -100,7 +103,7 @@ class Layer(Module):
         for layer in self.modules.values():
             for name, init in layer.internals_init().items():
                 # check valid names!!!
-                initialization['{}/{}'.format(layer.name, name)] = init
+                initialization[layer.name + '-' + name] = init
 
         return initialization
 
@@ -128,16 +131,32 @@ class Layer(Module):
         if name[-6:] != '.apply':
             return super().create_tf_function(name=name, tf_function=tf_function)
 
-        def validated_tf_function(x):
+        def validated_tf_function(x, **internals):
             if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
                 raise TensorforceError("Invalid input arguments for tf_apply.")
+            if not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
+                for name, spec in self.internals_spec().items()
+            ):
+                raise TensorforceError("Invalid input arguments for tf_apply.")
 
-            x = tf_function(x=x)
+            if len(internals) > 0:
+                x, internals = tf_function(x=x, **internals)
+            else:
+                x = tf_function(x=x)
 
             if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
                 raise TensorforceError("Invalid output arguments for tf_apply.")
+            if not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
+                for name, spec in self.internals_spec().items()
+            ):
+                raise TensorforceError("Invalid input arguments for tf_apply.")
 
-            return x
+            if len(internals) > 0:
+                return x, internals
+            else:
+                return x
 
         return super().create_tf_function(name=name, tf_function=validated_tf_function)
 

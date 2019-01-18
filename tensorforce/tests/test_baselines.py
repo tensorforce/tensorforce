@@ -155,8 +155,7 @@ class TestBaselines(UnittestBase, unittest.TestCase):
             [
                 dict(type='retrieve', tensors='int_state'),
                 dict(type='embedding', size=16),
-                dict(type='conv1d', size=16),
-                dict(type='pooling', reduction='max'),
+                dict(type='lstm', size=16),
                 dict(type='register', tensor='int-emb')
             ],
             [
@@ -176,7 +175,7 @@ class TestBaselines(UnittestBase, unittest.TestCase):
                     type='retrieve', tensors=('bool-emb', 'int-emb', 'float-emb', 'bounded-emb'),
                     aggregation='product'
                 ),
-                dict(type='dense', size=16)
+                dict(type='dense', size=16)  # internal_lstm not yet supported!!!!!!!!!!!
             ]
         ]
 

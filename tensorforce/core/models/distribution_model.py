@@ -106,16 +106,25 @@ class DistributionModel(MemoryModel):
         self.requires_deterministic = requires_deterministic
 
         # Internals specification
-        self.internals_spec.update(self.network.internals_spec())
-        for name in self.internals_spec:
+        for name, spec in self.network.internals_spec().items():
             if name in self.states_spec:
                 raise TensorforceError(
                     "Name overlap between internals and states: {}.".format(name)
+                )
+            if name in self.internals_spec:
+                raise TensorforceError(
+                    "Name overlap between internals and internals: {}.".format(name)
                 )
             if name in self.actions_spec:
                 raise TensorforceError(
                     "Name overlap between internals and actions: {}.".format(name)
                 )
+            self.internals_spec[name] = spec
+            Module.register_tensor(name=name, spec=spec, batched=True)
+
+    def tf_initialize(self):
+        super().tf_initialize()
+
         self.internals_init.update(self.network.internals_init())
 
     def tf_core_act(self, states, internals):

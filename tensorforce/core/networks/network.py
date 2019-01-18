@@ -97,11 +97,9 @@ class Network(Module):
             Module.update_tensors(**internals)
 
             if return_internals:
-                x, internals = tf_function(
-                    x=x, internals=internals, return_internals=return_internals
-                )
+                x, internals = tf_function(x=x, internals=internals, return_internals=True)
             else:
-                x = tf_function(x=x, internals=internals, return_internals=return_internals)
+                x = tf_function(x=x, internals=internals, return_internals=False)
 
             if not util.is_consistent_with_value_spec(value_spec=self.get_output_spec(), x=x):
                 raise TensorforceError("Invalid output arguments for tf_apply.")
@@ -140,7 +138,10 @@ class LayerbasedNetwork(Network):
 
         for layer in self.modules.values():
             for name, spec in layer.internals_spec().items():
-                specification['{}/{}'.format(layer.name, name)] = spec
+                name = layer.name + '-' + name
+                if name in specification:
+                    raise TensorforceError.unexpected()
+                specification[name] = spec
 
         return specification
 
@@ -149,7 +150,7 @@ class LayerbasedNetwork(Network):
 
         for layer in self.modules.values():
             for name, init in layer.internals_init().items():
-                initialization['{}/{}'.format(layer.name, name)] = init
+                initialization[layer.name + '-' + name] = init
 
         return initialization
 
@@ -223,14 +224,13 @@ class LayeredNetwork(LayerbasedNetwork):
         next_internals = OrderedDict()
         for layer in self.modules.values():
             layer_internals = {
-                name: internals['{}/{}'.format(layer.name, name)]
-                for name in layer.internals_spec()
+                name: internals[layer.name + '-' + name] for name in layer.internals_spec()
             }
 
             if len(layer_internals) > 0:
                 x, layer_internals = layer.apply(x=x, **layer_internals)
                 for name, internal in layer_internals.items():
-                    next_internals['{}/{}'.format(layer.name, name)] = internal
+                    next_internals[layer.name + '-' + name] = internal
 
             else:
                 x = layer.apply(x=x)

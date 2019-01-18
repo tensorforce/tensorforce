@@ -32,12 +32,14 @@ class Lstm(TransformationBase):
         LSTM layer.
 
         Args:
-            size: LSTM size.
+            size: LSTM size (takes into account return_final_state)
             return_final_state: ???
         """
-        self.lstm_size = size
         if return_final_state:
-            size = 2 * size
+            assert size % 2 == 0
+            self.lstm_size = size // 2
+        else:
+            self.lstm_size = size
 
         self.return_final_state = return_final_state
 
@@ -69,7 +71,17 @@ class Lstm(TransformationBase):
     def tf_initialize(self):
         super().tf_initialize()
 
-        self.cell = tf.contrib.rnn.LSTMCell(num_units=self.lstm_size)
+        self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.lstm_size)
+        self.cell.build(input_shape=self.input_spec['shape'][1])
+
+        for variable in self.cell.trainable_weights:
+            name = variable.name[variable.name.rindex('/') + 1: -2]
+            self.variables[name] = variable
+            self.trainable_variables[name] = variable
+        for variable in self.cell.non_trainable_weights:
+            name = variable.name[variable.name.rindex('/') + 1: -2]
+            self.variables[name] = variable
+
         # if self.lstm_dropout is not None:
         #     keep_prob = self.cond(pred=update, true_fn=(lambda: 1.0 - self.lstm_dropout), false_fn=(lambda: 1.0))
         #     self.lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=self.lstm_cell, output_keep_prob=keep_prob)

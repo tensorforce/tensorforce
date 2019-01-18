@@ -17,6 +17,7 @@ from collections import OrderedDict
 
 import tensorflow as tf
 
+from tensorforce import TensorforceError
 from tensorforce.core.layers import TransformationBase
 
 
@@ -33,7 +34,7 @@ class InternalLstm(TransformationBase):
         LSTM layer for internal state.
 
         Args:
-            size: LSTM size.
+            size: LSTM size
 
         """
         self.is_initial_state_trainable = is_initial_state_trainable
@@ -59,12 +60,10 @@ class InternalLstm(TransformationBase):
     def internals_spec(self):
         specification = super().internals_spec()
 
-        if self.name in specification:
-            assert False
+        if 'state' in specification:
+            raise TensorforceError.unexpected()
 
-        specification[self.name] = dict(
-            type='float', shape=(2, self.size), initial_state=self.initial_state
-        )
+        specification['state'] = dict(type='float', shape=(2, self.size), batched=True)
 
         return specification
 
@@ -78,7 +77,16 @@ class InternalLstm(TransformationBase):
     def tf_initialize(self):
         super().tf_initialize()
 
-        self.cell = tf.contrib.rnn.LSTMCell(num_units=self.size)
+        self.cell = tf.nn.rnn_cell.LSTMCell(num_units=self.size)
+        self.cell.build(input_shape=self.input_spec['shape'][0])
+
+        for variable in self.cell.trainable_weights:
+            name = variable.name[variable.name.rindex('/') + 1: -2]
+            self.variables[name] = variable
+            self.trainable_variables[name] = variable
+        for variable in self.cell.non_trainable_weights:
+            name = variable.name[variable.name.rindex('/') + 1: -2]
+            self.variables[name] = variable
 
         self.initial_state = self.add_variable(
             name='initial-state', dtype='float', shape=(2, self.size),
@@ -86,14 +94,7 @@ class InternalLstm(TransformationBase):
         )
 
     def tf_apply(self, x, state):
-        # state = Module.retrieve_tensor(name=self.name)
-
-        if state is None:
-            state = tf.contrib.rnn.LSTMStateTuple(
-                c=self.initial_state[0, :], h=self.initial_state[1, :]
-            )
-        else:
-            state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
+        state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
 
         x, state = self.cell(inputs=x, state=state)
 

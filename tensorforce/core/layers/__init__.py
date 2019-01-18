@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.layers.layers import Layer, Register, Retrieve, TransformationBase
+from tensorforce.core.layers.layer import Layer, Register, Retrieve, TransformationBase
 
 # from tensorforce.core.layers.layer import TFLayer, Flatten, Pool2d, Dueling, GlobalPooling
 

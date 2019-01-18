@@ -100,7 +100,6 @@ class AgentUnittest(UnittestBase):
         """
         Unit-test for all types of states and actions.
         """
-        # Same in test_baselines.py
         states = dict(
             bool_state=dict(type='bool', shape=(1,)),
             int_state=dict(type='int', shape=(2,), num_values=4),
@@ -120,6 +119,7 @@ class AgentUnittest(UnittestBase):
                 type='float', shape=(2,), min_value=-0.5, max_value=0.5
             )
 
+        # Same in test_baselines.py
         network = [
             [
                 dict(type='retrieve', tensors='bool_state'),
@@ -131,9 +131,7 @@ class AgentUnittest(UnittestBase):
             [
                 dict(type='retrieve', tensors='int_state'),
                 dict(type='embedding', size=16),
-                # dict(type='lstm', size=8),
-                dict(type='conv1d', size=16),
-                dict(type='pooling', reduction='max'),
+                dict(type='lstm', size=16),
                 dict(type='register', tensor='int-emb')
             ],
             [
@@ -153,7 +151,7 @@ class AgentUnittest(UnittestBase):
                     type='retrieve', tensors=('bool-emb', 'int-emb', 'float-emb', 'bounded-emb'),
                     aggregation='product'
                 ),
-                dict(type='dense', size=16)
+                dict(type='internal_lstm', size=16)
             ]
         ]
 

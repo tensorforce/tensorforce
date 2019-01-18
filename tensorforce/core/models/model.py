@@ -94,7 +94,7 @@ class Model(Module):
         self.states_spec = states
         self.actions_spec = actions
         self.internals_spec = OrderedDict()
-        self.internals_init = OrderedDict()
+        self.internals_init = None
 
         # TensorFlow scope and device
         self.scope = scope
@@ -199,8 +199,6 @@ class Model(Module):
         # Register global tensors
         for name, spec in self.states_spec.items():
             Module.register_tensor(name=name, spec=spec, batched=True)
-        for name, spec in self.internals_spec.items():
-            Module.register_tensor(name=name, spec=spec, batched=True)
         for name, spec in self.actions_spec.items():
             Module.register_tensor(name=name, spec=spec, batched=True)
         Module.register_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
@@ -214,6 +212,8 @@ class Model(Module):
 
     def tf_initialize(self):
         super().tf_initialize()
+
+        self.internals_init = OrderedDict()
 
         # States
         self.states_input = OrderedDict()
@@ -294,7 +294,7 @@ class Model(Module):
         for name, spec in self.internals_spec.items():
             self.internals_buffer[name] = self.add_variable(
                 name=(name + '-buffer'), dtype=spec['type'],
-                shape=((self.parallel_interactions, self.buffer_observe + 1) + spec['shape']),
+                shape=((self.parallel_interactions, self.buffer_observe) + spec['shape']),
                 is_trainable=False
             )
 
@@ -838,29 +838,29 @@ class Model(Module):
             )
 
         # Variable noise
-        variables = self.get_variables(only_trainable=True)
-        variable_noise = self.variable_noise.value()
-
-        def no_variable_noise():
-            noise_tensors = [
-                tf.zeros_like(tensor=variable, dtype=util.tf_dtype('float'))
-                for variable in variables
-            ]
-            return tf.no_op(), noise_tensors
-
-        def apply_variable_noise():
-            operations = list()
-            noise_tensors = list()
-            for variable in variables:
-                noise = tf.random.normal(
-                    shape=util.shape(variable), mean=0.0, stddev=variable_noise,
-                    dtype=util.tf_dtype('float')
-                )
-                noise_tensors.append(noise)
-                operations.append(variable.assign_add(delta=noise, read_value=False))
-            return tf.group(*operations), noise_tensors
-
         with tf.control_dependencies(control_inputs=(incremented_timestep,)):
+            variables = self.get_variables(only_trainable=True)
+            variable_noise = self.variable_noise.value()
+
+            def no_variable_noise():
+                noise_tensors = [
+                    tf.zeros_like(tensor=variable, dtype=util.tf_dtype('float'))
+                    for variable in variables
+                ]
+                return tf.no_op(), noise_tensors
+
+            def apply_variable_noise():
+                operations = list()
+                noise_tensors = list()
+                for variable in variables:
+                    noise = tf.random.normal(
+                        shape=util.shape(variable), mean=0.0, stddev=variable_noise,
+                        dtype=util.tf_dtype('float')
+                    )
+                    noise_tensors.append(noise)
+                    operations.append(variable.assign_add(delta=noise, read_value=False))
+                return tf.group(*operations), noise_tensors
+
             zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
             skip_variable_noise = tf.logical_or(
                 x=deterministic, y=tf.math.equal(x=variable_noise, y=zero)
@@ -874,11 +874,28 @@ class Model(Module):
             # states = tf.expand_dims(input=states, axis=0)
             buffer_index = self.buffer_index[parallel]
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
-            internals = OrderedDict()
-            for name in self.internals_spec:
-                internals[name] = tf.gather_nd(
-                    params=self.internals_buffer[name], indices=[(parallel, buffer_index - one)]
-                )
+
+            def initialize_internals():
+                internals = OrderedDict()
+                for name, init in self.internals_init.items():
+                    internals[name] = tf.expand_dims(input=init, axis=0)
+                return internals
+
+            def retrieve_internals():
+                internals = OrderedDict()
+                for name in self.internals_spec:
+                    internals[name] = tf.gather_nd(
+                        params=self.internals_buffer[name],
+                        indices=[(parallel, buffer_index - one)]
+                    )
+                return internals
+
+            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='int'))
+            initialize = tf.math.equal(x=buffer_index, y=zero)
+            internals = self.cond(
+                pred=initialize, true_fn=initialize_internals, false_fn=retrieve_internals
+            )
+
             Module.update_tensors(**states, **internals)
             actions, internals = self.core_act(states=states, internals=internals)
             Module.update_tensors(**actions)
@@ -943,56 +960,58 @@ class Model(Module):
                     pred=skip_exploration, true_fn=no_exploration, false_fn=apply_exploration
                 )
 
-        # Variable noise
-        def no_variable_noise():
-            return tf.no_op()
-
-        def reverse_variable_noise():
-            assignments = list()
-            for variable, noise in zip(variables, variable_noise_tensors):
-                assignments.append(variable.assign_sub(delta=noise, read_value=False))
-            return tf.group(*assignments)
-
+            # Variable noise
         with tf.control_dependencies(control_inputs=util.flatten(xs=actions)):
+
+            def no_variable_noise():
+                return tf.no_op()
+
+            def reverse_variable_noise():
+                assignments = list()
+                for variable, noise in zip(variables, variable_noise_tensors):
+                    assignments.append(variable.assign_sub(delta=noise, read_value=False))
+                return tf.group(*assignments)
+
             reversed_variable_noise = self.cond(
                 pred=skip_variable_noise, true_fn=no_variable_noise,
                 false_fn=reverse_variable_noise
             )
 
         # Update states/internals/actions buffers
-        def update_buffers():
-            operations = list()
-            buffer_index = self.buffer_index[parallel]
-            for name in self.states_spec:
-                operations.append(
-                    self.states_buffer[name].scatter_nd_update(
-                        indices=[(parallel, buffer_index)], updates=states[name]
-                    )
-                )
-            for name in self.internals_spec:
-                operations.append(
-                    self.internals_buffer[name].scatter_nd_update(
-                        indices=[(parallel, buffer_index)], updates=internals[name]
-                    )
-                )
-            for name in self.actions_spec:
-                operations.append(
-                    self.actions_buffer[name].scatter_nd_update(
-                        indices=[(parallel, buffer_index)], updates=actions[name]
-                    )
-                )
-
-            # Increment buffer index
-            with tf.control_dependencies(control_inputs=operations):
-                one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
-                incremented_buffer_index = self.buffer_index.scatter_nd_add(
-                    indices=[(parallel,)], updates=[one]
-                )
-
-            with tf.control_dependencies(control_inputs=(incremented_buffer_index,)):
-                return tf.no_op()
-
         with tf.control_dependencies(control_inputs=(reversed_variable_noise,)):
+
+            def update_buffers():
+                operations = list()
+                buffer_index = self.buffer_index[parallel]
+                for name in self.states_spec:
+                    operations.append(
+                        self.states_buffer[name].scatter_nd_update(
+                            indices=[(parallel, buffer_index)], updates=states[name]
+                        )
+                    )
+                for name in self.internals_spec:
+                    operations.append(
+                        self.internals_buffer[name].scatter_nd_update(
+                            indices=[(parallel, buffer_index)], updates=internals[name]
+                        )
+                    )
+                for name in self.actions_spec:
+                    operations.append(
+                        self.actions_buffer[name].scatter_nd_update(
+                            indices=[(parallel, buffer_index)], updates=actions[name]
+                        )
+                    )
+
+                # Increment buffer index
+                with tf.control_dependencies(control_inputs=operations):
+                    one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
+                    incremented_buffer_index = self.buffer_index.scatter_nd_add(
+                        indices=[(parallel,)], updates=[one]
+                    )
+
+                with tf.control_dependencies(control_inputs=(incremented_buffer_index,)):
+                    return tf.no_op()
+
             updated_buffers = self.cond(
                 pred=independent, true_fn=tf.no_op, false_fn=update_buffers
             )

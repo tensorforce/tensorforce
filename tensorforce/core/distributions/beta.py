@@ -47,7 +47,7 @@ class Beta(Distribution):
             input_spec=input_spec
         )
 
-    def tf_parameterize(self, x):
+    def tf_parametrize(self, x):
         # Softplus to ensure alpha and beta >= 1
         # epsilon < 1.0, hence negative
         log_eps = log(util.epsilon)
@@ -113,23 +113,3 @@ class Beta(Distribution):
         return log_norm2 - log_norm1 - tf.digamma(x=beta1) * (beta2 - beta1) - \
             tf.digamma(x=alpha1) * (alpha2 - alpha1) + tf.digamma(x=alpha_beta1) * \
             (alpha_beta2 - alpha_beta1)
-
-    def tf_regularization_loss(self):
-        regularization_loss = super().tf_regularization_loss()
-        if regularization_loss is None:
-            losses = list()
-        else:
-            losses = [regularization_loss]
-
-        regularization_loss = self.alpha.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        regularization_loss = self.beta.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        if len(losses) > 0:
-            return tf.add_n(inputs=losses)
-        else:
-            return None

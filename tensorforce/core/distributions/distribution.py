@@ -33,9 +33,9 @@ class Distribution(Module):
         self.action_spec = action_spec
         self.embedding_size = embedding_size
 
-    def tf_parameterize(self, x):
+    def tf_parametrize(self, x):
         """
-        Creates the tensorFlow operations for parameterizing a distribution conditioned on the
+        Creates the tensorFlow operations for parametrizing a distribution conditioned on the
         given input.
 
         Args:
@@ -99,12 +99,3 @@ class Distribution(Module):
             KL divergence tensor.
         """
         raise NotImplementedError
-
-    def tf_regularization_loss(self):
-        """
-        Creates the tensorFlow operations for the distribution regularization loss.
-
-        Returns:
-            Regularization loss tensor.
-        """
-        return None

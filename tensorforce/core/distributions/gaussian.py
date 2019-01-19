@@ -47,7 +47,7 @@ class Gaussian(Distribution):
             input_spec=input_spec
         )
 
-    def tf_parameterize(self, x):
+    def tf_parametrize(self, x):
         # Flat mean and log standard deviation
         mean = self.mean.apply(x=x)
         log_stddev = self.log_stddev.apply(x=x)
@@ -119,23 +119,3 @@ class Gaussian(Distribution):
         sq_stddev2 = tf.maximum(x=tf.square(x=stddev2), y=util.epsilon)
 
         return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5
-
-    def tf_regularization_loss(self):
-        regularization_loss = super().tf_regularization_loss()
-        if regularization_loss is None:
-            losses = list()
-        else:
-            losses = [regularization_loss]
-
-        regularization_loss = self.mean.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        regularization_loss = self.log_stddev.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        if len(losses) > 0:
-            return tf.add_n(inputs=losses)
-        else:
-            return None

@@ -12,3 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+from tensorforce.tests.unittest_environment import UnittestEnvironment
+from tensorforce.tests.unittest_base import UnittestBase
+from tensorforce.tests.agent_unittest import AgentUnittest
+
+
+__all__ = ['UnittestEnvironment', 'UnittestBase', 'AgentUnittest']

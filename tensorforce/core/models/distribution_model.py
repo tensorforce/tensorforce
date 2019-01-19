@@ -134,7 +134,7 @@ class DistributionModel(MemoryModel):
 
         actions = OrderedDict()
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameterize(x=embedding)
+            distr_params = distribution.parametrize(x=embedding)
             deterministic = Module.retrieve_tensor(name='deterministic')
             deterministic = tf.logical_or(
                 x=deterministic,
@@ -173,12 +173,42 @@ class DistributionModel(MemoryModel):
         Returns:
             The optimization operation.
         """
-        arguments = self.optimizer_arguments(
-            states=states, internals=internals, actions=actions, terminal=terminal, reward=reward,
-            next_states=next_states, next_internals=next_internals
-        )
-        optimized = self.optimizer.minimize(**arguments)
-        return optimized
+        distr_params_before = OrderedDict()
+        embedding = self.network.apply(x=states, internals=internals)
+        for name, distribution in self.distributions.items():
+            distr_params_before[name] = distribution.parametrize(x=embedding)
+
+        with tf.control_dependencies(control_inputs=util.flatten(xs=distr_params_before)):
+            optimized = super().tf_optimization(
+                states=states, internals=internals, actions=actions, terminal=terminal,
+                reward=reward, next_states=next_states, next_internals=next_internals
+            )
+
+        with tf.control_dependencies(control_inputs=(optimized,)):
+            summaries = list()
+            for name, distribution in self.distributions.items():
+                distr_params = distribution.parametrize(x=embedding)
+                kl_divergence = distribution.kl_divergence(
+                    distr_params1=distr_params_before[name], distr_params2=distr_params
+                )
+                collapsed_size = util.product(xs=util.shape(kl_divergence)[1:])
+                kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
+                kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=1)
+                kl_divergence = self.add_summary(
+                    label='kl-divergence', name=(name + '-kldiv'), tensor=kl_divergence
+                )
+                summaries.append(kl_divergence)
+
+                entropy = distribution.entropy(distr_params=distr_params)
+                entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
+                entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
+                entropy = self.add_summary(
+                    label='entropy', name=(name + '-entropy'), tensor=entropy
+                )
+                summaries.append(entropy)
+
+        with tf.control_dependencies(control_inputs=summaries):
+            return util.no_operation()
 
     def tf_regularize(self, states, internals):
         regularization_loss = super().tf_regularize(states=states, internals=internals)
@@ -186,7 +216,7 @@ class DistributionModel(MemoryModel):
         entropies = list()
         embedding = self.network.apply(x=states, internals=internals)
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameterize(x=embedding)
+            distr_params = distribution.parametrize(x=embedding)
             entropy = distribution.entropy(distr_params=distr_params)
             collapsed_size = util.product(xs=util.shape(entropy)[1:])
             entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
@@ -223,7 +253,7 @@ class DistributionModel(MemoryModel):
         kl_divergences = list()
         for name, distribution in self.distributions.items():
             distribution = self.distributions[name]
-            distr_params = distribution.parameterize(x=embedding)
+            distr_params = distribution.parametrize(x=embedding)
             fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
             kl_divergence = distribution.kl_divergence(
                 distr_params1=fixed_distr_params, distr_params2=distr_params

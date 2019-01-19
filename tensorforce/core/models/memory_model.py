@@ -438,45 +438,12 @@ class MemoryModel(Model):
         Returns:
             The optimization operation.
         """
-        distr_params_before = OrderedDict()
-        embedding = self.network.apply(x=states, internals=internals)
-        for name, distribution in self.distributions.items():
-            distr_params_before[name] = distribution.parameterize(x=embedding)
-
-        with tf.control_dependencies(control_inputs=util.flatten(xs=distr_params_before)):
-            optimized = super().tf_optimization(
-                states=states, internals=internals, actions=actions, terminal=terminal,
-                reward=reward, next_states=next_states, next_internals=next_internals
-            )
-
-        with tf.control_dependencies(control_inputs=(optimized,)):
-            summaries = list()
-            for name, distribution in self.distributions.items():
-                distr_params = distribution.parameterize(x=embedding)
-                kl_divergence = distribution.kl_divergence(
-                    distr_params1=distr_params_before, distr_params2=distr_params
-                )
-                collapsed_size = util.product(xs=util.shape(kl_divergence)[1:])
-                kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
-                kl_divergence = tf.reduce_mean(input_tensor=kl_divergence, axis=1)
-                summaries.extend(
-                    self.add_summary(
-                        label='kl-divergence', name=(name + '-kldiv'), tensor=kl_divergence,
-                        return_summaries=True
-                    )
-                )
-
-                entropy = distribution.entropy(distr_params=distr_params)
-                entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
-                entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
-                summaries.extend(
-                    self.add_summary(
-                        label='entropy', name=(name + '-entropy'), tensor=entropy,
-                        return_summaries=True
-                    )
-                )
-
-        return tf.group(*summaries)
+        arguments = self.optimizer_arguments(
+            states=states, internals=internals, actions=actions, terminal=terminal, reward=reward,
+            next_states=next_states, next_internals=next_internals
+        )
+        optimized = self.optimizer.minimize(**arguments)
+        return optimized
 
     def tf_core_observe(self, states, internals, actions, terminal, reward):
         """

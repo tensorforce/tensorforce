@@ -41,7 +41,7 @@ class Bernoulli(Distribution):
             input_spec=input_spec
         )
 
-    def tf_parameterize(self, x):
+    def tf_parametrize(self, x):
         # Flat logit
         logit = self.logit.apply(x=x)
 
@@ -112,19 +112,3 @@ class Bernoulli(Distribution):
         true_log_prob_ratio = true_logit1 - true_logit2
         false_log_prob_ratio = false_logit1 - false_logit2
         return probability1 * true_log_prob_ratio + (1.0 - probability1) * false_log_prob_ratio
-
-    def tf_regularization_loss(self):
-        regularization_loss = super().tf_regularization_loss()
-        if regularization_loss is None:
-            losses = list()
-        else:
-            losses = [regularization_loss]
-
-        regularization_loss = self.logit.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        if len(losses) > 0:
-            return tf.add_n(inputs=losses)
-        else:
-            return None

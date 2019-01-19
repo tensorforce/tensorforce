@@ -71,7 +71,7 @@ class PGProbRatioModel(PGModel):
 
         log_probs = list()
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameterize(x=embedding)
+            distr_params = distribution.parametrize(x=embedding)
             action = actions[name]
             log_prob = distribution.log_probability(distr_params=distr_params, action=action)
             collapsed_size = util.product(xs=util.shape(log_prob)[1:])
@@ -89,7 +89,7 @@ class PGProbRatioModel(PGModel):
 
         log_probs = list()
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parameterize(x=embedding)
+            distr_params = distribution.parametrize(x=embedding)
             action = actions[name]
             log_prob = distribution.log_probability(distr_params=distr_params, action=action)
             collapsed_size = util.product(xs=util.shape(log_prob)[1:])

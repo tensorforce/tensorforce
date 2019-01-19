@@ -159,8 +159,8 @@ class QModel(DistributionModel):
         for name, distribution in self.distributions.items():
             target_distribution = self.target_distributions[name]
 
-            distr_params = distribution.parameterize(x=embedding)
-            target_distr_params = target_distribution.parameterize(x=target_embedding)
+            distr_params = distribution.parametrize(x=embedding)
+            target_distr_params = target_distribution.parametrize(x=target_embedding)
 
             q_value = self.tf_q_value(
                 embedding=embedding, distr_params=distr_params, action=actions[name], name=name
@@ -168,7 +168,7 @@ class QModel(DistributionModel):
 
             if self.double_q_model:
                 # fix
-                next_distr_params = distribution.parameterize(x=next_embedding)
+                next_distr_params = distribution.parametrize(x=next_embedding)
                 action_taken = distribution.sample(
                     distr_params=next_distr_params, deterministic=True
                 )

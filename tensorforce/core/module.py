@@ -575,7 +575,7 @@ class Module(object):
             return pass_tensors
 
         # Check whether not in while loop
-        if 'while' in Module.global_scope:  # 'cond' in Module.global_scope or 
+        if 'while' in Module.global_scope:  # 'cond' in Module.global_scope
             return pass_tensors
 
         # Check whether given label is logged
@@ -614,9 +614,6 @@ class Module(object):
             else:
                 # General tensor as histogram
                 summaries.append(tf.contrib.summary.histogram(name=name, tensor=tensor))
-
-        if return_summaries:
-            return summaries
 
         with tf.control_dependencies(control_inputs=summaries):
             if util.is_iterable(x=pass_tensors):

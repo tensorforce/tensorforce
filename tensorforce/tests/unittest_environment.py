@@ -27,7 +27,7 @@ class UnittestEnvironment(Environment):
     Unit-test environment.
     """
 
-    def __init__(self, states, actions):
+    def __init__(self, states, actions, timestep_range=(1, 4)):
         """
         Initializes a mock environment which is used for the unit-tests.
 
@@ -39,6 +39,7 @@ class UnittestEnvironment(Environment):
 
         self.states_spec = OrderedDict((name, states[name]) for name in sorted(states))
         self.actions_spec = OrderedDict((name, actions[name]) for name in sorted(actions))
+        self.timestep_range = timestep_range
 
         self.random_states = self.__class__.random_states_function(states_spec=self.states_spec)
         self.is_valid_actions = self.__class__.is_valid_actions_function(
@@ -146,7 +147,7 @@ class UnittestEnvironment(Environment):
                 ))
 
     def reset(self):
-        self.num_timesteps = randint(1, 4)
+        self.num_timesteps = randint(*self.timestep_range)
         self.timestep = 0
         states = self.random_states()
 

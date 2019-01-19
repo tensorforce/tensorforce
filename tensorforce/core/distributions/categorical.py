@@ -41,7 +41,7 @@ class Categorical(Distribution):
             input_spec=input_spec
         )
 
-    def tf_parameterize(self, x):
+    def tf_parametrize(self, x):
         # Flat logits
         logits = self.logits.apply(x=x)
 
@@ -115,19 +115,3 @@ class Categorical(Distribution):
         logits2, _, _ = distr_params2
         log_prob_ratio = logits1 - logits2
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
-
-    def tf_regularization_loss(self):
-        regularization_loss = super().tf_regularization_loss()
-        if regularization_loss is None:
-            losses = list()
-        else:
-            losses = [regularization_loss]
-
-        regularization_loss = self.logits.regularization_loss()
-        if regularization_loss is not None:
-            losses.append(regularization_loss)
-
-        if len(losses) > 0:
-            return tf.add_n(inputs=losses)
-        else:
-            return None

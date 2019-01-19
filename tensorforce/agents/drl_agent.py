@@ -19,7 +19,7 @@ from tensorforce.agents import Agent
 class DRLAgent(Agent):
     """
     Base class for standard deep reinforcement learning agents, which act according to a policy
-    parameterized by a neural network and use a memory module for optimization (subclasses of
+    parametrized by a neural network and use a memory module for optimization (subclasses of
     `MemoryModel` and `DistributionModel`).
     """
 

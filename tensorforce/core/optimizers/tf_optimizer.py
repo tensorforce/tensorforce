@@ -67,15 +67,15 @@ class TFOptimizer(Optimizer):
             arguments: Dict of arguments for passing to fn_loss as **kwargs.
             fn_loss: A callable taking arguments as kwargs and returning the loss op.
         """
-        loss = fn_loss(**arguments)
+        # Trivial operation to enforce control dependency
+        previous_variables = [util.identity_operation(x=variable) for variable in variables]
 
         # Force loss value to be calculated.
-        with tf.control_dependencies(control_inputs=(loss,)):
-            # Trivial operation to enforce control dependency
-            previous_variables = [util.identity_operation(x=variable) for variable in variables]
+        with tf.control_dependencies(control_inputs=previous_variables):
+            loss = fn_loss(**arguments)
 
         # The actual tensorflow minimize op.
-        with tf.control_dependencies(control_inputs=previous_variables):
+        with tf.control_dependencies(control_inputs=(loss,)):
             # colocate_gradients_with_ops=True
             applied = self.optimizer.minimize(loss=loss, var_list=variables)
 

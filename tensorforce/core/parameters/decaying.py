@@ -31,7 +31,7 @@ class Decaying(Parameter):
     ):
         super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
 
-        assert unit in ('timestep', 'episode')
+        assert unit in ('timesteps', 'episodes')
         assert decay in (
             'cosine', 'cosine_restarts', 'exponential', 'inverse_time', 'linear_cosine',
             'linear_cosine_noisy', 'natural_exponential', 'polynomial'
@@ -48,9 +48,9 @@ class Decaying(Parameter):
         self.kwargs = kwargs
 
     def get_parameter_value(self):
-        if self.unit == 'timestep':
+        if self.unit == 'timesteps':
             step = Module.retrieve_tensor(name='timestep')
-        elif self.unit == 'episode':
+        elif self.unit == 'episodes':
             step = Module.retrieve_tensor(name='episode')
 
         if self.decay == 'cosine':

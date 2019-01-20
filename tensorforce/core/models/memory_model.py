@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util

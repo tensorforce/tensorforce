@@ -119,7 +119,7 @@ class ParallelRunner(object):
             # Parallel environments loop
             no_environment_ready = True
             for parallel, environment in enumerate(self.environments):
-                observation = environment.observe()
+                observation = environment.retrieve_execute()
 
                 # Check whether environment is ready
                 if observation is None:
@@ -127,6 +127,17 @@ class ParallelRunner(object):
 
                 no_environment_ready = False
                 states, terminal, reward = observation
+
+                if terminal is None:
+                    # Retrieve actions from agent
+                    actions = self.agent.act(
+                        states=states, deterministic=deterministic, parallel=parallel
+                    )
+                    self.episode_timestep[parallel] += 1
+
+                    # Execute actions in environment
+                    environment.start_execute(actions=actions)
+                    continue
 
                 # Terminate episode if too long
                 if max_episode_timesteps is not None and \
@@ -143,16 +154,15 @@ class ParallelRunner(object):
                 self.global_timestep = self.agent.timestep
                 self.global_episode = self.agent.episode
 
-                if terminal is not None:
-                    # Callback plus experiment termination check
-                    if (
-                        callback_timestep_frequency is not None and
-                        (self.episode_timestep[parallel] % callback_timestep_frequency) == 0 and
-                        not callback(self, parallel)
-                    ):
-                        return
+                # Callback plus experiment termination check
+                if (
+                    callback_timestep_frequency is not None and
+                    (self.episode_timestep[parallel] % callback_timestep_frequency) == 0 and
+                    not callback(self, parallel)
+                ):
+                    return
 
-                if terminal is True:
+                if terminal:
                     # Update experiment statistics
                     self.episode_rewards.append(self.episode_reward[parallel])
                     self.episode_timesteps.append(self.episode_timestep[parallel])

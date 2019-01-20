@@ -27,7 +27,7 @@ class PiecewiseConstant(Parameter):
     def __init__(self, name, dtype, unit, boundaries, values, summary_labels=None):
         super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
 
-        assert unit in ('timestep', 'episode')
+        assert unit in ('timesteps', 'episodes')
         assert len(values) == len(boundaries) + 1
 
         self.unit = unit
@@ -35,10 +35,12 @@ class PiecewiseConstant(Parameter):
         self.values = values
 
     def get_parameter_value(self):
-        if self.unit == 'timestep':
+        if self.unit == 'timesteps':
             step = Module.retrieve_tensor(name='timestep')
-        elif self.unit == 'episode':
+        elif self.unit == 'episodes':
             step = Module.retrieve_tensor(name='episode')
+
+        # step = tf.Print(step, (step,))
 
         parameter = tf.train.piecewise_constant(
             x=step, boundaries=self.boundaries, values=self.values

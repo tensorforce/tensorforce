@@ -129,12 +129,12 @@ class Environment(object):
         self.observation = self.execute(actions=actions)
         self.thread = None
 
-    def observe(self):
+    def retrieve_execute(self):
         if self.thread is not None:
             return None
         else:
             if self.observation is None:
-                raise TensorforceError(message="Invalid observe.")
+                raise TensorforceError(message="Invalid retrieve_execute.")
             observation = self.observation
             self.observation = None
             return observation

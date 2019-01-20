@@ -825,14 +825,17 @@ class Model(Module):
         )
 
         # Increment timestep
-        def increment_timestep():
-            operations = list()
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            operations.append(self.timestep.scatter_nd_add(indices=[(parallel,)], updates=[one]))
-            operations.append(self.global_timestep.assign_add(delta=one, read_value=False))
-            return tf.group(*operations)
-
         with tf.control_dependencies(control_inputs=assertions):
+
+            def increment_timestep():
+                operations = list()
+                one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+                operations.append(
+                    self.timestep.scatter_nd_add(indices=[(parallel,)], updates=[one])
+                )
+                operations.append(self.global_timestep.assign_add(delta=one, read_value=False))
+                return tf.group(*operations)
+
             incremented_timestep = self.cond(
                 pred=independent, true_fn=tf.no_op, false_fn=increment_timestep
             )
@@ -1435,7 +1438,7 @@ class Model(Module):
         #     raise TensorForceError("Invalid model directory/file.")
 
         self.saver.restore(sess=self.session, save_path=file)
-        self.session.run(fetches=self.list_buffer_index_reset_op)
+        self.session.run(fetches=self.reset_buffer_indices)
 
     def get_components(self):
         """

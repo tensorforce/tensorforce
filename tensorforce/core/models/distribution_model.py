@@ -186,6 +186,7 @@ class DistributionModel(MemoryModel):
 
         with tf.control_dependencies(control_inputs=(optimized,)):
             summaries = list()
+            embedding = self.network.apply(x=states, internals=internals)
             for name, distribution in self.distributions.items():
                 distr_params = distribution.parametrize(x=embedding)
                 kl_divergence = distribution.kl_divergence(

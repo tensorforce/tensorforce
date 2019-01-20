@@ -72,14 +72,14 @@ class TestParameters(UnittestBase, unittest.TestCase):
 
     def test_piecewise_constant(self):
         exploration = dict(
-            type='piecewise_constant', dtype='float', unit='timestep', boundaries=[0],
+            type='piecewise_constant', dtype='float', unit='timesteps', boundaries=[1],
             values=[0.1, 0.0]
         )
         self.parameter_unittest(name='piecewise-constant', exploration=exploration)
 
     def test_decaying(self):
         exploration = dict(
-            type='decaying', unit='timestep', decay='exponential', initial_value=0.1,
+            type='decaying', unit='timesteps', decay='exponential', initial_value=0.1,
             decay_steps=1, decay_rate=0.5
         )
         self.parameter_unittest(name='decaying', exploration=exploration)

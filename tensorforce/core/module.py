@@ -87,6 +87,7 @@ class Module(object):
 
         previous = Module.global_tensors.get(scoped_name)
         Module.global_tensors[scoped_name] = tensor
+
         return previous
 
     @staticmethod

@@ -506,11 +506,11 @@ class Model(Module):
             saver_def=None,
             builder=None,
             defer_build=False,
-            allow_empty=True,
+            allow_empty=False,
             write_version=tf.train.SaverDef.V2,
             pad_step_number=False,
-            save_relative_paths=True
-            # filename=None
+            save_relative_paths=False,
+            filename=None
         )
 
     def setup_scaffold(self):
@@ -566,18 +566,17 @@ class Model(Module):
         def init_fn(scaffold, session):
             if self.saver_spec is not None and self.saver_spec.get('load', True):
                 directory = self.saver_spec['directory']
-                file = self.saver_spec.get('file')
-                if file is None:
-                    file = tf.train.latest_checkpoint(
-                        checkpoint_dir=directory,
-                        latest_filename=None  # Corresponds to argument of saver.save() in Model.save().
+                load = self.saver_spec.get('load')
+                if isinstance(load, str):
+                    save_path = os.path.join(directory, load)
+                else:
+                    save_path = tf.train.latest_checkpoint(
+                        checkpoint_dir=directory, latest_filename=None
                     )
-                elif not os.path.isfile(file):
-                    file = os.path.join(directory, file)
-                if file is not None:
+                if save_path is not None:
                     try:
-                        scaffold.saver.restore(sess=session, save_path=file)
-                        session.run(fetches=self.buffer_index_reset_op)
+                        scaffold.saver.restore(sess=session, save_path=save_path)
+                        session.run(fetches=self.reset_buffer_indices)
                     except tf.errors.NotFoundError:
                         raise TensorforceError("Error: Existing checkpoint could not be loaded! Set \"load\" to false in saver_spec.")
 
@@ -604,19 +603,19 @@ class Model(Module):
         hooks = list()
 
         # Checkpoint saver hook
-        if self.saver_spec is not None and (self.execution_type == 'single' or self.distributed_spec['task_index'] == 0):
+        if self.saver_spec is not None:  # and (self.execution_type == 'single' or self.distributed_spec['task_index'] == 0):
             self.saver_directory = self.saver_spec['directory']
+            self.saver_filename = self.saver_spec.get('filename', 'model')
             hooks.append(tf.train.CheckpointSaverHook(
                 checkpoint_dir=self.saver_directory,
                 save_secs=self.saver_spec.get('seconds', None if 'steps' in self.saver_spec else 600),
                 save_steps=self.saver_spec.get('steps'),  # Either one or the other has to be set.
                 saver=None,  # None since given via 'scaffold' argument.
-                checkpoint_basename=self.saver_spec.get('basename', 'model.ckpt'),
-                scaffold=self.scaffold,
-                listeners=None
+                checkpoint_basename=self.saver_filename, scaffold=self.scaffold, listeners=None
             ))
         else:
             self.saver_directory = None
+            self.saver_filename = 'model'
 
         # Stop at step hook
         # hooks.append(tf.train.StopAtStepHook(
@@ -701,7 +700,7 @@ class Model(Module):
         """
         if self.summarizer_spec is not None:
             self.monitored_session.run(fetches=self.summarizer_close)
-        if self.saver_directory is not None:
+        if self.saver_spec is not None:
             self.save(append_timestep=True)
         self.monitored_session.__exit__(None, None, None)
 
@@ -1387,7 +1386,7 @@ class Model(Module):
 
         return episode
 
-    def save(self, directory=None, append_timestep=True):
+    def save(self, directory=None, filename=None, append_timestep=True):
         """
         Save TensorFlow model. If no checkpoint directory is given, the model's default saver
         directory is used. Optionally appends current timestep to prevent overwriting previous
@@ -1404,17 +1403,21 @@ class Model(Module):
         if self.summarizer_spec is not None:
             self.monitored_session.run(fetches=self.summarizer_flush)
 
+        if directory is None:
+            assert self.saver_directory
+            directory = self.saver_directory
+        if filename is None:
+            filename = self.saver_filename
+        save_path = os.path.join(directory, filename)
+
         return self.saver.save(
-            sess=self.session,
-            save_path=(self.saver_directory if directory is None else directory),
+            sess=self.session, save_path=save_path,
             global_step=(self.global_timestep if append_timestep else None),
             # latest_filename=None,  # Defaults to 'checkpoint'.
-            meta_graph_suffix='meta',
-            write_meta_graph=True,
-            write_state=True
+            meta_graph_suffix='meta', write_meta_graph=True, write_state=True
         )
 
-    def restore(self, directory=None, file=None):
+    def restore(self, directory=None, filename=None):
         """
         Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is
         restored. If no checkpoint directory is given, the model's default saver directory is
@@ -1424,20 +1427,18 @@ class Model(Module):
             directory: Optional checkpoint directory.
             file: Optional checkpoint file, or path if directory not given.
         """
-        if file is None:
-            file = tf.train.latest_checkpoint(
-                checkpoint_dir=(self.saver_directory if directory is None else directory),
-                # latest_filename=None  # Corresponds to argument of saver.save() in Model.save().
-            )
-        elif directory is None:
-            file = os.path.join(self.saver_directory, file)
-        elif not os.path.isfile(file):
-            file = os.path.join(directory, file)
+        if directory is None:
+            assert self.saver_directory
+            directory = self.saver_directory
+        if filename is None:
+            save_path = tf.train.latest_checkpoint(checkpoint_dir=directory, latest_filename=None)
+        else:
+            save_path = os.path.join(directory, filename)
 
         # if not os.path.isfile(file):
         #     raise TensorForceError("Invalid model directory/file.")
 
-        self.saver.restore(sess=self.session, save_path=file)
+        self.saver.restore(sess=self.session, save_path=save_path)
         self.session.run(fetches=self.reset_buffer_indices)
 
     def get_components(self):

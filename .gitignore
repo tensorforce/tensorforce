@@ -9,6 +9,7 @@
 /tensorforce.egg-info/
 
 /logs/
+/saving-test/
 /summaries/
 /summaries-test/
 /temp/

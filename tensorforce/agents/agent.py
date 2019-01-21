@@ -294,7 +294,7 @@ class Agent(object):
             reward=self.current_reward
         )
 
-    def save_model(self, directory=None, append_timestep=True):
+    def save_model(self, directory=None, filename=None, append_timestep=True):
         """
         Save TensorFlow model. If no checkpoint directory is given, the model's default saver
         directory is used. Optionally appends current timestep to prevent overwriting previous
@@ -324,9 +324,11 @@ class Agent(object):
                 )
                 self.buffer_indices[parallel] = 0
 
-        return self.model.save(directory=directory, append_timestep=append_timestep)
+        return self.model.save(
+            directory=directory, filename=filename, append_timestep=append_timestep
+        )
 
-    def restore_model(self, directory=None, file=None):
+    def restore_model(self, directory=None, filename=None):
         """
         Restore TensorFlow model. If no checkpoint file is given, the latest checkpoint is
         restored. If no checkpoint directory is given, the model's default saver directory is
@@ -342,4 +344,4 @@ class Agent(object):
         if not self.model.is_initialized:
             self.model.setup()
 
-        self.model.restore(directory=directory, file=file)
+        self.model.restore(directory=directory, filename=filename)

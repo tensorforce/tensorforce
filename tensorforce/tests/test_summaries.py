@@ -24,6 +24,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
     agent = VPGAgent
     config = dict(update_mode=dict(batch_size=2))
+    directory = 'summaries-test'
 
     def test_summaries(self):
         states = dict(type='float', shape=(1,))
@@ -31,8 +32,6 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         actions = dict(type='int', shape=(), num_values=3)
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        directory = 'summaries-test'
 
         labels = [
             'bernoulli', 'beta', 'categorical', 'distributions', 'dropout', 'entropy', 'gaussian',
@@ -42,9 +41,11 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         self.unittest(
             name='summaries', states=states, actions=actions, network=network,
-            summarizer=dict(directory=directory, labels=labels)
+            summarizer=dict(directory=self.__class__.directory, labels=labels)
         )
 
-        for filename in os.listdir(path=directory):
-            os.remove(path=os.path.join(directory, filename))
-        os.rmdir(path=directory)
+        for filename in os.listdir(path=self.__class__.directory):
+            os.remove(path=os.path.join(self.__class__.directory, filename))
+            assert filename.startswith('events.out.tfevents.')
+            break
+        os.rmdir(path=self.__class__.directory)

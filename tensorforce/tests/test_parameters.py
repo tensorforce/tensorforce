@@ -72,7 +72,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
 
     def test_piecewise_constant(self):
         exploration = dict(
-            type='piecewise_constant', dtype='float', unit='timesteps', boundaries=[1],
+            type='piecewise_constant', dtype='float', unit='timesteps', boundaries=[0],
             values=[0.1, 0.0]
         )
         self.parameter_unittest(name='piecewise-constant', exploration=exploration)

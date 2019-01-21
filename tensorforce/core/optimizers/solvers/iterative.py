@@ -13,6 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
+
+from tensorforce import util
 from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers.solvers import Solver
 
@@ -23,7 +26,7 @@ class Iterative(Solver):
     initialization step, the iteration loop body and the termination condition.
     """
 
-    def __init__(self, name, max_iterations, unroll_loop):
+    def __init__(self, name, max_iterations, unroll_loop, use_while_v2=False):
         """
         Creates a new iterative solver instance.
 
@@ -35,6 +38,7 @@ class Iterative(Solver):
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
+        self.use_while_v2 = use_while_v2
 
         if self.unroll_loop:
             self.max_iterations = max_iterations
@@ -75,8 +79,8 @@ class Iterative(Solver):
             # TensorFlow while loop
             max_iterations = self.max_iterations.value()
             args = self.while_loop(
-                cond=self.next_step, body=self.step, loop_vars=args,
-                maximum_iterations=max_iterations
+                cond=self.next_step, body=self.step, loop_vars=args, back_prop=False,
+                maximum_iterations=max_iterations, use_while_v2=self.use_while_v2
             )
 
         # First argument contains solution
@@ -94,7 +98,7 @@ class Iterative(Solver):
         Returns:
             Initial arguments for tf_step.
         """
-        return (x_init,)
+        raise NotImplementedError
 
     def tf_step(self, x, *args):
         """
@@ -109,7 +113,7 @@ class Iterative(Solver):
         Returns:
             Updated arguments for next iteration.
         """
-        return (x,) + args
+        raise NotImplementedError
 
     def tf_next_step(self, x, *args):
         """
@@ -123,4 +127,4 @@ class Iterative(Solver):
         Returns:
             True if another iteration should be performed.
         """
-        return True
+        raise NotImplementedError

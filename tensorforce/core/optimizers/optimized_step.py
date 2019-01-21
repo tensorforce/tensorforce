@@ -50,12 +50,11 @@ class OptimizedStep(MetaOptimizer):
             parameter=ls_parameter, unroll_loop=ls_unroll_loop
         )
 
-    def tf_step(self, time, variables, arguments, fn_loss, fn_reference, **kwargs):
+    def tf_step(self, variables, arguments, fn_loss, fn_reference, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
-            time: Time tensor.
             variables: List of variables to optimize.
             arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
@@ -74,7 +73,7 @@ class OptimizedStep(MetaOptimizer):
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
-                time=time, variables=variables, arguments=arguments, fn_loss=fn_loss,
+                variables=variables, arguments=arguments, fn_loss=fn_loss,
                 return_estimated_improvement=True, **kwargs
             )
 

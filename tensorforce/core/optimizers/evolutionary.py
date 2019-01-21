@@ -50,12 +50,11 @@ class Evolutionary(Optimizer):
                 name='num-samples', module=num_samples, modules=parameter_modules, dtype='int'
             )
 
-    def tf_step(self, time, variables, arguments, fn_loss, **kwargs):
+    def tf_step(self, variables, arguments, fn_loss, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
-            time: Time tensor.
             variables: List of variables to optimize.
             arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
@@ -130,9 +129,10 @@ class Evolutionary(Optimizer):
                 return deltas_sum, perturbations
 
             num_samples = self.num_samples.value()
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
             deltas_sum, perturbations = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas_sum, perturbations),
-                maximum_iterations=(num_samples - 1)
+                maximum_iterations=(num_samples - one)
             )
 
         with tf.control_dependencies(control_inputs=deltas_sum):

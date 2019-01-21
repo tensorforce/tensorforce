@@ -91,7 +91,7 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             name='multi-step', states=states, actions=actions, network=network, **config
         )
 
-    def broken_test_natural_gradient(self):
+    def test_natural_gradient(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)

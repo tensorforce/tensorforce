@@ -51,14 +51,13 @@ class NaturalGradient(Optimizer):
         )
 
     def tf_step(
-        self, time, variables, arguments, fn_loss, fn_kl_divergence,
-        return_estimated_improvement=False, **kwargs
+        self, variables, arguments, fn_loss, fn_kl_divergence, return_estimated_improvement=False,
+        **kwargs
     ):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
-            time: Time tensor.
             variables: List of variables to optimize.
             arguments: Dict of arguments for callables, like fn_loss.
             fn_loss: A callable returning the loss of the current model.
@@ -85,7 +84,6 @@ class NaturalGradient(Optimizer):
         kldiv_gradients = [
             tf.convert_to_tensor(value=grad) for grad in tf.gradients(ys=kldiv, xs=variables)
         ]
-        # if not all(isinstance(grad, tf.Tensor)):  warning!!!
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to calculate the entire matrix explicitly.

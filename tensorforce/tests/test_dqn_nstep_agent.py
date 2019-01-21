@@ -22,7 +22,7 @@ from tensorforce.tests.agent_unittest import AgentUnittest
 class TestDQNNstepAgent(AgentUnittest, unittest.TestCase):
 
     agent = DQNNstepAgent
-    config = dict(update_mode=dict(batch_size=2))
+    config = dict(update_mode=dict(batch_size=2), target_sync_frequency=4)
 
     exclude_float_action = True
     exclude_bounded_action = True

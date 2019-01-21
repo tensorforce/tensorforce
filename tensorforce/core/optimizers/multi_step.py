@@ -46,12 +46,11 @@ class MultiStep(MetaOptimizer):
                 name='num-steps', module=num_steps, modules=parameter_modules, dtype='int'
             )
 
-    def tf_step(self, time, variables, arguments, fn_reference=None, **kwargs):
+    def tf_step(self, variables, arguments, fn_reference=None, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
-            time: Time tensor.
             variables: List of variables to optimize.
             arguments: Dict of arguments for callables, like fn_loss.
             fn_reference: A callable returning the reference values, in case of a comparative loss.
@@ -65,14 +64,14 @@ class MultiStep(MetaOptimizer):
         arguments['reference'] = fn_reference(**arguments)
 
         # First step
-        deltas = self.optimizer.step(time=time, variables=variables, arguments=arguments, **kwargs)
+        deltas = self.optimizer.step(variables=variables, arguments=arguments, **kwargs)
 
         if self.unroll_loop:
             # Unrolled for loop
             for _ in range(self.num_steps - 1):
                 with tf.control_dependencies(control_inputs=deltas):
                     step_deltas = self.optimizer.step(
-                        time=time, variables=variables, arguments=arguments, **kwargs
+                        variables=variables, arguments=arguments, **kwargs
                     )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
 
@@ -83,15 +82,16 @@ class MultiStep(MetaOptimizer):
             def body(deltas):
                 with tf.control_dependencies(control_inputs=deltas):
                     step_deltas = self.optimizer.step(
-                        time=time, variables=variables, arguments=arguments, **kwargs
+                        variables=variables, arguments=arguments, **kwargs
                     )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
                     return deltas
 
             num_steps = self.num_steps.value()
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
             deltas = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas,),
-                maximum_iterations=(num_steps - 1)
+                maximum_iterations=(num_steps - one)
             )
 
             return deltas

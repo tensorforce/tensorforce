@@ -90,7 +90,8 @@ class Lstm(TransformationBase):
 
     def tf_apply(self, x, sequence_length=None):
         x, state = tf.nn.dynamic_rnn(
-            cell=self.cell, inputs=x, sequence_length=sequence_length, dtype=tf.float32,
+            cell=self.cell, inputs=x, sequence_length=sequence_length, initial_state=None,
+            dtype=util.tf_dtype(dtype='float'),
             # Weird TensorFlow behavior? (https://github.com/tensorflow/tensorflow/issues/15874)
             parallel_iterations=(self.input_spec['shape'][0] + 1)
         )
@@ -166,7 +167,8 @@ class Gru(TransformationBase):
 
     def tf_apply(self, x, sequence_length=None):
         x, state = tf.nn.dynamic_rnn(
-            cell=self.cell, inputs=x, sequence_length=sequence_length, dtype=tf.float32,
+            cell=self.cell, inputs=x, sequence_length=sequence_length, initial_state=None,
+            dtype=util.tf_dtype(dtype='float'),
             # Weird TensorFlow behavior? (https://github.com/tensorflow/tensorflow/issues/15874)
             parallel_iterations=(self.input_spec['shape'][0] + 1)
         )

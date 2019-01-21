@@ -406,7 +406,7 @@ class MemoryModel(Model):
             Optimizer arguments as dict to be used as **kwargs to the optimizer.
         """
         arguments = dict(
-            time=self.global_timestep, variables=self.get_variables(only_trainable=True),
+            variables=self.get_variables(only_trainable=True),
             arguments=dict(
                 states=states, internals=internals, actions=actions, terminal=terminal,
                 reward=reward, next_states=next_states, next_internals=next_internals

@@ -40,12 +40,11 @@ class SubsamplingStep(MetaOptimizer):
             name='fraction', module=fraction, modules=parameter_modules, dtype='float'
         )
 
-    def tf_step(self, time, variables, arguments, **kwargs):
+    def tf_step(self, variables, arguments, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
-            time: Time tensor.
             variables: List of variables to optimize.
             arguments: Dict of arguments for callables, like fn_loss.
             **kwargs: Additional arguments passed on to the internal optimizer.
@@ -85,6 +84,4 @@ class SubsamplingStep(MetaOptimizer):
         function = (lambda x: x if util.rank(x=x) == 0 else tf.gather(params=x, indices=indices))
         subsampled_arguments = util.fmap(function=function, xs=arguments)
 
-        return self.optimizer.step(
-            time=time, variables=variables, arguments=subsampled_arguments, **kwargs
-        )
+        return self.optimizer.step(variables=variables, arguments=subsampled_arguments, **kwargs)

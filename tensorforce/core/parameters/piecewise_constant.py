@@ -40,8 +40,6 @@ class PiecewiseConstant(Parameter):
         elif self.unit == 'episodes':
             step = Module.retrieve_tensor(name='episode')
 
-        # step = tf.Print(step, (step,))
-
         parameter = tf.train.piecewise_constant(
             x=step, boundaries=self.boundaries, values=self.values
         )

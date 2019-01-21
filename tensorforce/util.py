@@ -141,6 +141,7 @@ def shape(x, unknown=-1):
 
 
 def no_operation():
+    # return tf.constant(value=False, dtype=tf_dtype(dtype='bool'))
     return identity_operation(x=tf.constant(value=False, dtype=tf_dtype(dtype='bool')))
 
 

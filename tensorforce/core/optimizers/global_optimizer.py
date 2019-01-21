@@ -28,7 +28,7 @@ class GlobalOptimizer(MetaOptimizer):
     major version update.
     """
 
-    def tf_step(self, time, variables, **kwargs):
+    def tf_step(self, variables, **kwargs):
         """
         Keyword Args:
             global_variables: List of global variables to apply the proposed optimization step to.
@@ -44,7 +44,7 @@ class GlobalOptimizer(MetaOptimizer):
             for global_variable, local_variable in zip(global_variables, variables)
         )
 
-        local_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
+        local_deltas = self.optimizer.step(variables=variables, **kwargs)
 
         with tf.control_dependencies(control_inputs=local_deltas):
             applied = self.optimizer.apply_step(variables=global_variables, deltas=local_deltas)

@@ -51,7 +51,9 @@ class LineSearch(Iterative):
 
         # TODO: Implement such sequences more generally, also useful for learning rate decay or so.
         if mode not in ('linear', 'exponential'):
-            raise TensorforceError("Invalid line search mode: {}, please choose one of'linear' or 'exponential'".format(mode))
+            raise TensorforceError(
+                "Invalid line search mode: {}, please choose one of 'linear' or 'exponential'".format(mode)
+            )
         self.mode = mode
 
         self.parameter = self.add_module(
@@ -92,8 +94,6 @@ class LineSearch(Iterative):
         if estimated_improvement is None:  # TODO: Is this a good alternative?
             estimated_improvement = tf.abs(x=base_value)
 
-        first_step = super().tf_start(x_init)
-
         improvement = tf.divide(
             x=(target_value - self.base_value),
             y=tf.maximum(x=estimated_improvement, y=util.epsilon)
@@ -109,7 +109,7 @@ class LineSearch(Iterative):
         elif self.mode == 'exponential':
             deltas = [-t * parameter for t in x_init]
 
-        return first_step + (deltas, improvement, last_improvement, estimated_improvement)
+        return x_init, deltas, improvement, last_improvement, estimated_improvement
 
     def tf_step(self, x, deltas, improvement, last_improvement, estimated_improvement):
         """
@@ -125,10 +125,6 @@ class LineSearch(Iterative):
         Returns:
             Updated arguments for next iteration.
         """
-        x, deltas, improvement, last_improvement, estimated_improvement = super().tf_step(
-            x, deltas, improvement, last_improvement, estimated_improvement
-        )
-
         next_x = [t + delta for t, delta in zip(x, deltas)]
         parameter = self.parameter.value()
 
@@ -164,12 +160,6 @@ class LineSearch(Iterative):
         Returns:
             True if another iteration should be performed.
         """
-        next_step = super().tf_next_step(
-            x, deltas, improvement, last_improvement, estimated_improvement
-        )
-
-        def no_undo_deltas():
-            return True
 
         def undo_deltas():
             value = self.fn_x([-delta for delta in deltas])
@@ -178,9 +168,9 @@ class LineSearch(Iterative):
                 return tf.less(x=value, y=value)  # == False
 
         skip_undo_deltas = improvement > last_improvement
-        improved = self.cond(pred=skip_undo_deltas, true_fn=no_undo_deltas, false_fn=undo_deltas)
-
+        improved = self.cond(
+            pred=skip_undo_deltas, true_fn=util.tf_always_true, false_fn=undo_deltas
+        )
         accept_ratio = self.accept_ratio.value()
-        next_step = tf.logical_and(x=next_step, y=improved)
-        next_step = tf.logical_and(x=next_step, y=(improvement < accept_ratio))
+        next_step = tf.logical_and(x=improved, y=(improvement < accept_ratio))
         return tf.logical_and(x=next_step, y=(estimated_improvement > util.epsilon))

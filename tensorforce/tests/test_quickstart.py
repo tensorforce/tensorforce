@@ -70,7 +70,7 @@ class TestQuickstart(unittest.TestCase):
         runner.run(num_episodes=500, max_episode_timesteps=200, callback=callback)
         runner.close()
 
-        if runner.episode_rewards[-100:] <= 180.0:
+        if np.mean(runner.episode_rewards[-100:]) <= 180.0:
             sys.stdout.write('Test failed, exceeding {} episodes\n'.format(runner.episode))
             sys.stdout.flush()
             self.assertTrue(expr=False)

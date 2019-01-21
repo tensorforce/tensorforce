@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import Module, parameter_modules
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -55,12 +55,11 @@ class Synchronization(Optimizer):
             initializer=(-self.sync_frequency.value())
         )
 
-    def tf_step(self, time, variables, source_variables, **kwargs):
+    def tf_step(self, variables, source_variables, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
-            time: Time tensor.
             variables: List of variables to optimize.
             source_variables: List of source variables to synchronize with.
             **kwargs: Additional arguments, not used.
@@ -73,6 +72,8 @@ class Synchronization(Optimizer):
             for source, target in zip(source_variables, variables)
         )
 
+        timestep = Module.retrieve_tensor(name='timestep')
+
         def apply_sync():
             update_weight = self.update_weight.value()
             deltas = list()
@@ -81,7 +82,7 @@ class Synchronization(Optimizer):
                 deltas.append(delta)
 
             applied = self.apply_step(variables=variables, deltas=deltas)
-            last_sync_updated = self.last_sync.assign(value=time)
+            last_sync_updated = self.last_sync.assign(value=timestep)
 
             with tf.control_dependencies(control_inputs=(applied, last_sync_updated)):
                 # Trivial operation to enforce control dependency
@@ -95,5 +96,5 @@ class Synchronization(Optimizer):
             return deltas
 
         sync_frequency = self.sync_frequency.value()
-        skip_sync = (time - self.last_sync < sync_frequency)
+        skip_sync = (timestep - self.last_sync < sync_frequency)
         return self.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)

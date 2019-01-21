@@ -139,7 +139,8 @@ class Agent(object):
             raise TensorforceError.missing(name='Agent', value='model')
 
         # Setup Model (create and build graph (local and global if distributed), server, session, etc..).
-        self.model.setup()  # should be self.model.initialize()
+        if not self.model.is_initialized:
+            self.model.setup()  # should be self.model.initialize()
 
     def close(self):
         self.model.close()
@@ -335,4 +336,10 @@ class Agent(object):
             directory: Optional checkpoint directory.
             file: Optional checkpoint file, or path if directory not given.
         """
+        if not hasattr(self, 'model'):
+            raise TensorforceError.missing(name='Agent', value='model')
+
+        if not self.model.is_initialized:
+            self.model.setup()
+
         self.model.restore(directory=directory, file=file)

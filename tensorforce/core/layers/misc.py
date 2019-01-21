@@ -70,7 +70,6 @@ class Activation(Layer):
             )
 
         elif self.nonlinearity == 'selu':
-            # https://arxiv.org/pdf/1706.02515.pdf
             x = tf.nn.selu(features=x)
 
         elif self.nonlinearity == 'sigmoid':

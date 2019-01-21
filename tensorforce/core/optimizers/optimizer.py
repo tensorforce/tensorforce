@@ -29,13 +29,12 @@ class Optimizer(Module):
     def __init__(self, name, summary_labels=None):
         super().__init__(name=name, l2_regularization=0.0, summary_labels=summary_labels)
 
-    def tf_step(self, time, variables, **kwargs):
+    def tf_step(self, variables, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step on the given  
         variables, including actually changing the values of the variables.
 
         Args:
-            time: Time tensor.
             variables: List of variables to optimize.
             **kwargs: Additional arguments depending on the specific optimizer implementation.  
                 For instance, often includes `fn_loss` if a loss function is optimized.
@@ -63,12 +62,11 @@ class Optimizer(Module):
             tf.assign_add(ref=variable, value=delta) for variable, delta in zip(variables, deltas)
         ))
 
-    def tf_minimize(self, time, variables, **kwargs):
+    def tf_minimize(self, variables, **kwargs):
         """
         Performs an optimization step.
 
         Args:
-            time: Time tensor.
             variables: List of variables to optimize.
             **kwargs: Additional optimizer-specific arguments. The following arguments are used
                 by some optimizers:
@@ -89,7 +87,7 @@ class Optimizer(Module):
         Returns:
             The optimization operation.
         """
-        deltas = self.step(time=time, variables=variables, **kwargs)
+        deltas = self.step(variables=variables, **kwargs)
 
         for n in range(len(variables)):
             name = variables[n].name

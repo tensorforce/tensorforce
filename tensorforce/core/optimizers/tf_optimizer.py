@@ -61,7 +61,7 @@ class TFOptimizer(Optimizer):
             learning_rate=self.learning_rate.value, **self.optimizer_kwargs
         )
 
-    def tf_step(self, time, variables, arguments, fn_loss, **kwargs):
+    def tf_step(self, variables, arguments, fn_loss, **kwargs):
         """
         Keyword Args:
             arguments: Dict of arguments for passing to fn_loss as **kwargs.
@@ -75,9 +75,8 @@ class TFOptimizer(Optimizer):
             loss = fn_loss(**arguments)
 
         # The actual tensorflow minimize op.
-        with tf.control_dependencies(control_inputs=(loss,)):
-            # colocate_gradients_with_ops=True
-            applied = self.optimizer.minimize(loss=loss, var_list=variables)
+        applied = self.optimizer.minimize(loss=loss, var_list=variables)
+        # colocate_gradients_with_ops=True
 
         # Return deltas after actually having change the variables.
         with tf.control_dependencies(control_inputs=(applied,)):

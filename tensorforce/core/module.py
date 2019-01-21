@@ -20,6 +20,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.ops import while_v2
 
 from tensorforce import TensorforceError, util
 
@@ -168,7 +169,7 @@ class Module(object):
         self.is_subscope = None
         self.modules = OrderedDict()
         self.trainable_modules = OrderedDict()
-        self.initialized = False
+        self.is_initialized = False
         self.variables = None
         self.trainable_variables = None
         self.regularized_variables = None
@@ -199,11 +200,11 @@ class Module(object):
 
     def initialize(self):
         # Check whether module is already initialized
-        if self.initialized:
+        if self.is_initialized:
             raise TensorforceError(message="Module already initialized.")
 
         # Set internal attributes
-        self.initialized = True
+        self.is_initialized = True
         self.variables = OrderedDict()
         self.trainable_variables = OrderedDict()
         self.regularized_variables = OrderedDict()
@@ -378,14 +379,18 @@ class Module(object):
 
     def while_loop(
         self, cond, body, loop_vars, shape_invariants=None, parallel_iterations=10, back_prop=True,
-        swap_memory=False, maximum_iterations=None, return_same_structure=False
+        swap_memory=False, maximum_iterations=None, return_same_structure=False, use_while_v2=False
     ):
         Module.global_scope.append('while')
-        x = tf.while_loop(
-            cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
-            parallel_iterations=parallel_iterations, back_prop=back_prop, swap_memory=swap_memory,
-            maximum_iterations=maximum_iterations, return_same_structure=return_same_structure
-        )
+        if use_while_v2:
+            x = while_v2.while_loop(cond=cond, body=body, loop_vars=loop_vars)
+        else:
+            x = tf.while_loop(
+                cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
+                parallel_iterations=parallel_iterations, back_prop=back_prop,
+                swap_memory=swap_memory, maximum_iterations=maximum_iterations,
+                return_same_structure=return_same_structure
+            )
         Module.global_scope.pop()
         return x
 
@@ -480,7 +485,7 @@ class Module(object):
             # Variable
             variable = tf.Variable(
                 initial_value=initializer, trainable=is_trainable, validate_shape=True, name=name,
-                dtype=tf_dtype, expected_shape=shape
+                dtype=tf_dtype, expected_shape=shape, use_resource=True
             )  # collections=
 
             # Register shared variable with TensorFlow

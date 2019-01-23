@@ -8,8 +8,9 @@ Version 0.5:
 New features:
 - New argument `query` for `Agent.act()` and `Agent.observe()`
 - Networks and layers functionality improved and extended
-- TensorBoard support fully working
-- Many hyperparameters support scheduling and explicit manual re-definition
+- TensorBoard support fully working, for available labels see [summaries test](https://github.com/tensorforce/tensorforce/tree/master/tensorforce/tests/test_summaries.py)
+- Many hyperparameters support scheduling and explicit manual re-definition (`tensorforce.core.parameters`)
+- Default optimizer plus meta-optimizer features via, for instance, `dict(optimizer='adam', learning_rate=1e-3, multi_step=10, subsampling_fraction=0.2, clipping_value=1e-2, optimized_iterations=5)`
 
 Environment:
 - Environment properties `states` and `actions` are now functions `states()` and `actions()`
@@ -32,7 +33,7 @@ Networks and layers:
 - `TFLayer`, `Dueling`, `Pool2d` removed (for now)
 - Additional changes and extensions of API, see [code](https://github.com/tensorforce/tensorforce/tree/master/tensorforce/core/layers)
 
-Exploration
+Exploration:
 - Classes replaced by new parameter classes in `tensorforce.core.parameters`
 
 Runners:

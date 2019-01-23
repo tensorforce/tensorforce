@@ -48,8 +48,7 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         config = dict(
             optimizer=dict(
-                type='clipped_step',
-                optimizer=dict(type='adam', learning_rate=1e-3),
+                type='clipped_step', optimizer=dict(type='adam', learning_rate=1e-3),
                 clipping_value=1e-2
             )
         )
@@ -65,12 +64,29 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
-        config = dict(
-            optimizer=dict(type='evolutionary', learning_rate=1e-3)
-        )
+        config = dict(optimizer=dict(type='evolutionary', learning_rate=1e-3))
 
         self.unittest(
             name='evolutionary', states=states, actions=actions, network=network, **config
+        )
+
+    def test_meta_optimizer_wrapper(self):
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
+
+        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+
+        config = dict(
+            optimizer=dict(
+                optimizer='adam', learning_rate=1e-3, multi_step=5, subsampling_fraction=0.5,
+                clipping_value=1e-2, optimized_iterations=3
+            )
+        )
+
+        self.unittest(
+            name='meta-optimizer-wrapper', states=states, actions=actions, network=network,
+            **config
         )
 
     def test_multi_step(self):
@@ -82,8 +98,7 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         config = dict(
             optimizer=dict(
-                type='multi_step',
-                optimizer=dict(type='adam', learning_rate=1e-3)
+                type='multi_step', optimizer=dict(type='adam', learning_rate=1e-3), num_steps=10
             )
         )
 
@@ -114,10 +129,7 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
-            optimizer=dict(
-                type='optimized_step',
-                optimizer=dict(type='adam', learning_rate=1e-3)
-            )
+            optimizer=dict(type='optimized_step', optimizer=dict(type='adam', learning_rate=1e-3))
         )
 
         self.unittest(
@@ -133,8 +145,7 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         config = dict(
             optimizer=dict(
-                type='subsampling_step',
-                optimizer=dict(type='adam', learning_rate=1e-3),
+                type='subsampling_step', optimizer=dict(type='adam', learning_rate=1e-3),
                 fraction=0.5
             )
         )

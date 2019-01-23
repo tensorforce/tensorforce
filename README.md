@@ -174,11 +174,7 @@ Please cite the framework as follows:
   author       = {Kuhnle, Alexander and Schaarschmidt, Michael and Fricke, Kai},
   title        = {Tensorforce: a TensorFlow library for applied reinforcement learning},
   howpublished = {Web page},
-<<<<<<< HEAD
-  url          = {https://github.com/reinforceio/tensorforce},
-=======
   url          = {https://github.com/tensorforce/tensorforce},
->>>>>>> fe67b9635416b236c55625bb6b0c43478d31d2aa
   year         = {2017}
 }
 ```

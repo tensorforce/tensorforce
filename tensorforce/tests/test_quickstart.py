@@ -55,8 +55,8 @@ class TestQuickstart(unittest.TestCase):
             gae_lambda=0.97, likelihood_ratio_clipping=0.2,
             # PPO optimizer
             step_optimizer=dict(type='adam', learning_rate=1e-3),
-            # PPO multi-step optimization: 50 updates, each calculated for 10% of the batch
-            subsampling_fraction=0.1, optimization_steps=50
+            # PPO multi-step optimization: 25 updates, each calculated for 20% of the batch
+            subsampling_fraction=0.2, optimization_steps=25
         )
 
         # Initialize the runner
@@ -64,7 +64,7 @@ class TestQuickstart(unittest.TestCase):
 
         # Function handle called after each finished episode
         def callback(r):
-            return np.mean(r.episode_rewards[-100:]) <= 180.0
+            return float(np.mean(r.episode_rewards[-100:])) <= 180.0
 
         # Start the runner
         runner.run(num_episodes=500, max_episode_timesteps=200, callback=callback)

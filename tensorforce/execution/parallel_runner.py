@@ -15,6 +15,8 @@
 
 import time
 
+import numpy as np
+
 from tensorforce import TensorforceError, util
 from tensorforce.agents import Agent
 
@@ -127,9 +129,7 @@ class ParallelRunner(object):
                 self.tqdm_last_update = self.global_episode
 
                 def tqdm_callback(runner, parallel):
-                    sum_episodes_reward = sum(runner.episode_rewards[num_mean_reward:])
-                    num_episodes = min(num_mean_reward, runner.episode)
-                    mean_reward = sum_episodes_reward / num_episodes
+                    mean_reward = float(np.mean(runner.episode_rewards[-num_mean_reward:]))
                     runner.tqdm.set_postfix(mean_reward=mean_reward)
                     runner.tqdm.update(n=(runner.global_episode - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.global_episode
@@ -222,9 +222,6 @@ class ParallelRunner(object):
                             not self.callback(self, parallel):
                         return
 
-                    # Increment episode counter (after calling callback)
-                    self.episode += 1
-
                 # Terminate experiment if too long
                 if self.global_timestep >= self.num_timesteps:
                     return
@@ -235,6 +232,9 @@ class ParallelRunner(object):
 
                 # Check whether episode terminated
                 if terminal:
+                    # Increment episode counter (after calling callback)
+                    self.episode += 1
+
                     # Reset environment and episode statistics
                     environment.start_reset()
                     self.episode_reward[parallel] = 0

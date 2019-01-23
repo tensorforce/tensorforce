@@ -26,7 +26,7 @@ class MultiStep(MetaOptimizer):
     optimizer a number of times.
     """
 
-    def __init__(self, name, optimizer, num_steps=10, unroll_loop=False, summary_labels=None):
+    def __init__(self, name, optimizer, num_steps, unroll_loop=False, summary_labels=None):
         """
         Creates a new multi-step meta optimizer instance.
 
@@ -46,22 +46,21 @@ class MultiStep(MetaOptimizer):
                 name='num-steps', module=num_steps, modules=parameter_modules, dtype='int'
             )
 
-    def tf_step(self, variables, arguments, fn_reference=None, **kwargs):
+    def tf_step(self, variables, arguments, **kwargs):
         """
         Creates the TensorFlow operations for performing an optimization step.
 
         Args:
             variables: List of variables to optimize.
             arguments: Dict of arguments for callables, like fn_loss.
-            fn_reference: A callable returning the reference values, in case of a comparative loss.
             **kwargs: Additional arguments passed on to the internal optimizer.
 
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
 
-        # Set reference to compare with at each optimization step, in case of a comparative loss.
-        arguments['reference'] = fn_reference(**arguments)
+        # # Set reference to compare with at each optimization step, in case of a comparative loss.
+        # arguments['reference'] = fn_reference(**arguments)
 
         # First step
         deltas = self.optimizer.step(variables=variables, arguments=arguments, **kwargs)

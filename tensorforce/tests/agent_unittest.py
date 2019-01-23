@@ -28,6 +28,7 @@ class AgentUnittest(UnittestBase):
     exclude_int_action = False
     exclude_float_action = False
     exclude_bounded_action = False
+    exclude_lstm = False  # TEMP
     replacement_action = 'bool'
 
     def test_bool(self):
@@ -131,7 +132,10 @@ class AgentUnittest(UnittestBase):
             [
                 dict(type='retrieve', tensors='int_state'),
                 dict(type='embedding', size=16),
-                dict(type='lstm', size=16),
+                (
+                    dict(type='pooling', reduction='max') if self.__class__.exclude_lstm
+                    else dict(type='lstm', size=16)
+                ),
                 dict(type='register', tensor='int-emb')
             ],
             [

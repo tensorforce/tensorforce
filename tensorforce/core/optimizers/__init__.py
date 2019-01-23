@@ -17,6 +17,7 @@ from functools import partial
 
 from tensorforce.core.optimizers.optimizer import Optimizer
 from tensorforce.core.optimizers.meta_optimizer import MetaOptimizer
+from tensorforce.core.optimizers.meta_optimizer_wrapper import MetaOptimizerWrapper
 
 from tensorforce.core.optimizers.global_optimizer import GlobalOptimizer
 from tensorforce.core.optimizers.synchronization import Synchronization
@@ -34,9 +35,11 @@ from tensorforce.core.optimizers.tf_optimizer import TFOptimizer
 optimizer_modules = dict(
     adadelta=partial(TFOptimizer, optimizer='adadelta'),
     adagrad=partial(TFOptimizer, optimizer='adagrad'), adam=partial(TFOptimizer, optimizer='adam'),
-    clipped_step=ClippedStep, evolutionary=Evolutionary, global_optimizer=GlobalOptimizer,
-    gradient_descent=partial(TFOptimizer, optimizer='gradient_descent'),
-    kfac=KFAC, momentum=partial(TFOptimizer, optimizer='momentum'), multi_step=MultiStep,
+    clipped_step=ClippedStep, default=MetaOptimizerWrapper, evolutionary=Evolutionary,
+    global_optimizer=GlobalOptimizer,
+    gradient_descent=partial(TFOptimizer, optimizer='gradient_descent'), kfac=KFAC,
+    meta_optimizer_wrapper=MetaOptimizerWrapper,
+    momentum=partial(TFOptimizer, optimizer='momentum'), multi_step=MultiStep,
     nadam=partial(TFOptimizer, optimizer='nadam'), natural_gradient=NaturalGradient,
     optimized_step=OptimizedStep,
     proximal_adagrad=partial(TFOptimizer, optimizer='proximal_adagrad'),
@@ -47,7 +50,7 @@ optimizer_modules = dict(
 
 
 __all__ = [
-    'ClippedStep', 'Evolutionary', 'GlobalOptimizer', 'KFAC', 'MetaOptimizer', 'MultiStep',
-    'NaturalGradient', 'OptimizedStep', 'Optimizer', 'optimizer_modules', 'SubsamplingStep',
-    'Synchronization', 'TFOptimizer'
+    'ClippedStep', 'Evolutionary', 'GlobalOptimizer', 'KFAC', 'MetaOptimizer',
+    'MetaOptimizerWrapper', 'MultiStep', 'NaturalGradient', 'OptimizedStep', 'Optimizer',
+    'optimizer_modules', 'SubsamplingStep', 'Synchronization', 'TFOptimizer'
 ]

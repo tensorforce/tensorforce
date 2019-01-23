@@ -142,6 +142,12 @@ class Agent(object):
         if not self.model.is_initialized:
             self.model.setup()  # should be self.model.initialize()
 
+    def reset(self):
+        self.buffer_indices = np.zeros(
+            shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
+        )
+        self.model.reset()
+
     def close(self):
         self.model.close()
 

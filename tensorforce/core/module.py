@@ -25,6 +25,9 @@ from tensorflow.python.ops import while_v2
 from tensorforce import TensorforceError, util
 
 
+tf.enable_resource_variables()
+
+
 class Module(object):
     """
     Base class for TensorFlow modules.
@@ -215,7 +218,7 @@ class Module(object):
         Module.global_scope.append(self.name)
 
         # TensorFlow device and variable scope
-        self.scope = tf.variable_scope(name_or_scope=self.name)
+        self.scope = tf.variable_scope(name_or_scope=self.name, use_resource=True)
         if self.device is not None:
             self.device = tf.device(device_name_or_function=self.device)
             self.device.__enter__()
@@ -378,8 +381,9 @@ class Module(object):
         return x
 
     def while_loop(
-        self, cond, body, loop_vars, shape_invariants=None, parallel_iterations=10, back_prop=True,
-        swap_memory=False, maximum_iterations=None, return_same_structure=False, use_while_v2=False
+        self, cond, body, loop_vars, shape_invariants=None, parallel_iterations=10,
+        back_prop=False, swap_memory=False, maximum_iterations=None, return_same_structure=False,
+        use_while_v2=False
     ):
         Module.global_scope.append('while')
         if use_while_v2:

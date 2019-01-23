@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
 from tensorforce import util
 from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers.solvers import Solver
@@ -79,7 +77,7 @@ class Iterative(Solver):
             # TensorFlow while loop
             max_iterations = self.max_iterations.value()
             args = self.while_loop(
-                cond=self.next_step, body=self.step, loop_vars=args, back_prop=False,
+                cond=self.next_step, body=self.step, loop_vars=args,
                 maximum_iterations=max_iterations, use_while_v2=self.use_while_v2
             )
 

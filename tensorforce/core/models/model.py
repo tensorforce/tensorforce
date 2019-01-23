@@ -761,6 +761,9 @@ class Model(Module):
 
         return states, actions, reward
 
+    def reset(self):
+        self.session.run(fetches=self.reset_buffer_indices)
+
     def api_act(self):
         """
         Creates and stores tf operations that are fetched when calling act(): actions_output, internals_output and

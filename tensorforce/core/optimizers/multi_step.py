@@ -79,13 +79,21 @@ class MultiStep(MetaOptimizer):
 
         else:
             # TensorFlow while loop
+            # zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='int'))
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
+
+            # def cond(num_iter_left, *deltas):
+            #     return tf.math.greater(x=num_iter_left, y=zero)
+
             def body(deltas):
+            # def body(num_iter_left, *deltas):
                 with tf.control_dependencies(control_inputs=deltas):
                     step_deltas = self.optimizer.step(
                         variables=variables, arguments=arguments, **kwargs
                     )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
                     return deltas
+                    # return num_iter_left - one, deltas
 
             num_steps = self.num_steps.value()
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
@@ -93,5 +101,9 @@ class MultiStep(MetaOptimizer):
                 cond=util.tf_always_true, body=body, loop_vars=(deltas,),
                 maximum_iterations=(num_steps - one)
             )
+            # deltas = self.while_loop(
+            #     cond=cond, body=body, loop_vars=(num_steps - one, deltas),
+            #     maximum_iterations=(num_steps - one), use_while_v2=True
+            # )[1]
 
             return deltas

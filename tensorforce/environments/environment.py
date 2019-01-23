@@ -70,7 +70,10 @@ class Environment(object):
         """
         Close environment. No other method calls possible afterwards.
         """
-        pass
+        if self.thread is not None:
+            self.thread.join()
+        self.observation = None
+        self.thread = None
 
     def reset(self):
         """

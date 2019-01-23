@@ -368,7 +368,7 @@ class Module(object):
                 raise TensorforceError.unexpected()
 
             # TensorFlow session call
-            fetched = self.session.run(fetches=fetches, feed_dict=feed_dict)
+            fetched = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
             return fetched
 
@@ -479,7 +479,7 @@ class Module(object):
                 raise TensorforceError("Invalid variable initializer: {}".format(initializer))
             elif initializer == 'random':
                 initializer = tf.random_normal(
-                    shape=shape, mean=0.0, stddev=1e-2, dtype=tf.float32
+                    shape=shape, mean=0.0, stddev=1e-2, dtype=util.tf_dtype(dtype=dtype)
                 )
             elif initializer == 'zeros':
                 initializer = tf.zeros(shape=shape, dtype=tf_dtype)
@@ -528,13 +528,19 @@ class Module(object):
         if not isinstance(batched, bool):
             raise TensorforceError.type(name='placeholder', argument='batched', value=batched)
         # default
-        # ???
+        if default is not None:
+            if batched:
+                raise TensorforceError.unexpected()
+            elif not isinstance(default, tf.Tensor):
+                raise TensorforceError.unexpected()
+            elif util.dtype(x=default) != dtype:
+                raise TensorforceError.unexpected()
 
         # Placeholder
-        dtype = util.tf_dtype(dtype=dtype)
         if batched:
             shape = (None,) + shape
         if default is None:
+            dtype = util.tf_dtype(dtype=dtype)
             placeholder = tf.placeholder(dtype=dtype, shape=shape, name=name)
         else:
             # check dtype and shape !!!

@@ -91,7 +91,7 @@ class Synchronization(Optimizer):
         def no_sync():
             deltas = list()
             for variable in variables:
-                delta = tf.zeros(shape=util.shape(variable))
+                delta = tf.zeros(shape=util.shape(variable), dtype=util.tf_dtype(dtype='float'))
                 deltas.append(delta)
             return deltas
 

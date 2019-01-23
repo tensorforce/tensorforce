@@ -234,17 +234,20 @@ class Model(Module):
 
         # Deterministic flag
         self.deterministic_input = self.add_placeholder(
-            name='deterministic', dtype='bool', shape=(), batched=False, default=False
+            name='deterministic', dtype='bool', shape=(), batched=False,
+            default=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
         )
 
         # Independent flag
         self.independent_input = self.add_placeholder(
-            name='independent', dtype='bool', shape=(), batched=False, default=False
+            name='independent', dtype='bool', shape=(), batched=False,
+            default=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
         )
 
         # Parallel index
         self.parallel_input = self.add_placeholder(
-            name='parallel', dtype='int', shape=(), batched=False, default=0
+            name='parallel', dtype='long', shape=(), batched=False,
+            default=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         )
 
         # Moved to Module
@@ -309,11 +312,11 @@ class Model(Module):
 
         # Buffer index
         self.buffer_index = self.add_variable(
-            name='buffer-index', dtype='int', shape=(self.parallel_interactions,),
+            name='buffer-index', dtype='long', shape=(self.parallel_interactions,),
             is_trainable=False, initializer='zeros'
         )
         self.reset_buffer_indices = self.buffer_index.assign(
-            value=tf.zeros(shape=(self.parallel_interactions,), dtype=util.tf_dtype(dtype='int')),
+            value=tf.zeros(shape=(self.parallel_interactions,), dtype=util.tf_dtype(dtype='long')),
             read_value=False
         )
 
@@ -799,14 +802,14 @@ class Model(Module):
             # )
         # parallel: type, shape and value
         assertions.append(
-            tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='int'))
+            tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='long'))
         )
         assertions.append(tf.debugging.assert_scalar(tensor=parallel))
         assertions.append(tf.debugging.assert_non_negative(x=parallel))
         assertions.append(
             tf.debugging.assert_less(
                 x=parallel,
-                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='int'))
+                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
             )
         )
         # deterministic: type and shape
@@ -878,7 +881,7 @@ class Model(Module):
         with tf.control_dependencies(control_inputs=(applied_variable_noise,)):
             # states = tf.expand_dims(input=states, axis=0)
             buffer_index = self.buffer_index[parallel]
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
 
             def initialize_internals():
                 internals = OrderedDict()
@@ -895,7 +898,7 @@ class Model(Module):
                     )
                 return internals
 
-            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='int'))
+            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
             initialize = tf.math.equal(x=buffer_index, y=zero)
             internals = self.cond(
                 pred=initialize, true_fn=initialize_internals, false_fn=retrieve_internals
@@ -905,7 +908,7 @@ class Model(Module):
             actions, internals = self.core_act(states=states, internals=internals)
             Module.update_tensors(**actions)
 
-        # Actions exploration
+        # Exploration
         with tf.control_dependencies(
             control_inputs=(util.flatten(xs=actions) + util.flatten(xs=internals))
         ):
@@ -926,7 +929,7 @@ class Model(Module):
                     float_dtype = util.tf_dtype(dtype='float')
 
                     def apply_exploration():
-                        shape = tf.shape(input=actions[name], out_type=util.tf_dtype(dtype='int'))
+                        shape = tf.shape(input=actions[name])
                         condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
                         half = tf.constant(value=0.5, dtype=float_dtype)
                         random_action = tf.random.uniform(shape=shape, dtype=float_dtype) < half
@@ -936,11 +939,12 @@ class Model(Module):
                     float_dtype = util.tf_dtype(dtype='float')
 
                     def apply_exploration():
-                        shape = tf.shape(input=actions[name], out_type=util.tf_dtype(dtype='int'))
+                        shape = tf.shape(input=actions[name])
                         condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
                         random_action = tf.random_uniform(
-                            shape=shape, maxval=spec['num_values'], dtype=util.tf_dtype('int')
+                            shape=shape, maxval=spec['num_values'], dtype=float_dtype
                         )
+                        random_action = tf.dtypes.cast(x=random_action, dtype=util.tf_dtype('int'))
                         return tf.where(condition=condition, x=random_action, y=actions[name])
 
                 elif spec['type'] == 'float':
@@ -1067,28 +1071,25 @@ class Model(Module):
         assertions.append(tf.debugging.assert_rank(x=reward, rank=1))
         # parallel: type, shape and value
         assertions.append(
-            tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='int'))
+            tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='long'))
         )
         assertions.append(tf.debugging.assert_scalar(tensor=parallel))
         assertions.append(tf.debugging.assert_non_negative(x=parallel))
         assertions.append(
             tf.debugging.assert_less(
                 x=parallel,
-                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='int'))
+                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
             )
         )
         # shape of terminal equals shape of reward
         assertions.append(
-            tf.debugging.assert_equal(
-                x=tf.shape(input=terminal, out_type=util.tf_dtype(dtype='int')),
-                y=tf.shape(input=reward, out_type=util.tf_dtype(dtype='int'))
-            )
+            tf.debugging.assert_equal(x=tf.shape(input=terminal), y=tf.shape(input=reward))
         )
         # size of terminal equals buffer index
         assertions.append(
             tf.debugging.assert_equal(
-                x=tf.shape(input=terminal, out_type=util.tf_dtype(dtype='int'))[0],
-                y=self.buffer_index[parallel]
+                x=tf.shape(input=terminal)[0],
+                y=tf.dtypes.cast(x=self.buffer_index[parallel], dtype=tf.int32)
             )
         )
         # at most one terminal

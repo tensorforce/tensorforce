@@ -254,9 +254,9 @@ class MemoryModel(Model):
             return tf.where(
                 condition=term,
                 # Start counting from 1 after is-terminal signal
-                x=tf.ones_like(tensor=term, dtype=tf.int32),
+                x=tf.ones_like(tensor=term, dtype=util.tf_dtype(dtype='int')),
                 # Otherwise, increase length by 1
-                y=(cumulative + 1)
+                y=(cumulative + tf.constant(value=1, dtype=util.tf_dtype(dtype='int')))
             )
 
         # Reverse, since reward cumulation is calculated right-to-left, but tf.scan only works left-to-right.
@@ -268,29 +268,31 @@ class MemoryModel(Model):
         # Store the steps until end of the episode(s) determined by the input terminal signals (True starts new count).
         lengths = tf.scan(
             fn=len_, elems=terminal,
-            initializer=tf.zeros_like(tensor=terminal[0], dtype=tf.int32)
+            initializer=tf.zeros_like(tensor=terminal[0], dtype=util.tf_dtype(dtype='int'))
         )
         # e.g. 1 1 2 3 4 5
-        off_horizon = tf.greater(lengths, tf.fill(dims=tf.shape(lengths), value=horizon))
+        off_horizon = tf.greater(x=lengths, y=tf.fill(dims=tf.shape(input=lengths), value=tf.constant(value=horizon, dtype=util.tf_dtype(dtype='int'))))
         # e.g. F F F F T T
 
         # Calculate the horizon-subtraction value for each step.
         if horizon > 0:
-            horizon_subtractions = tf.map_fn(lambda x: (discount ** horizon) * x, reward, dtype=tf.float32)
+            horizon_subtractions = tf.map_fn(lambda x: (discount ** horizon) * x, reward, dtype=util.tf_dtype(dtype='float'))
             # Shift right by size of horizon (fill rest with 0.0).
-            horizon_subtractions = tf.concat([np.zeros(shape=(horizon,)), horizon_subtractions], axis=0)
+            horizon_subtractions = tf.concat([np.zeros(shape=(horizon,), dtype=util.tf_dtype(dtype='float')), horizon_subtractions], axis=0)
             horizon_subtractions = tf.slice(horizon_subtractions, begin=(0,), size=tf.shape(reward))
             # e.g. 0.0, 0.0, 0.0, -1.0*g^3, 1.0*g^3, 0.5*g^3
         # all 0.0 if infinite horizon (special case: horizon=0)
         else:
-            horizon_subtractions = tf.zeros(shape=tf.shape(reward))
+            horizon_subtractions = tf.zeros(shape=tf.shape(reward), dtype=util.tf_dtype(dtype='float'))
 
         # Now do the scan, each time summing up the previous step (discounted by gamma) and
         # subtracting the respective `horizon_subtraction`.
+        if isinstance(final_reward, float):
+            final_reward = tf.constant(value=final_reward, dtype=util.tf_dtype(dtype='float'))
         reward = tf.scan(
             fn=cumulate,
             elems=(reward, terminal, off_horizon, horizon_subtractions),
-            initializer=final_reward if horizon != 1 else 0.0
+            initializer=final_reward if horizon != 1 else tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
         )
         # Re-reverse again to match input sequences.
         return tf.reverse(tensor=reward, axis=(0,))

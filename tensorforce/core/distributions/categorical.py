@@ -78,7 +78,10 @@ class Categorical(Distribution):
         if action is None:
             state_value = tf.expand_dims(input=state_value, axis=-1)
         else:
-            one_hot = tf.one_hot(indices=action, depth=self.action_spec['num_values'])
+            one_hot = tf.one_hot(
+                indices=tf.dtypes.cast(x=action, dtype=tf.int32),
+                depth=self.action_spec['num_values'], dtype=util.tf_dtype(dtype='float')
+            )
             logits = tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
         return state_value + logits
 
@@ -86,24 +89,26 @@ class Categorical(Distribution):
         logits, _, _ = distr_params
 
         # Deterministic: maximum likelihood action
-        definite = tf.argmax(input=logits, axis=-1, output_type=util.tf_dtype('int'))
+        definite = tf.argmax(input=logits, axis=-1)
+        definite = tf.dtypes.cast(x=definite, dtype=util.tf_dtype('int'))
 
         # Non-deterministic: sample action using Gumbel distribution
-        uniform_distribution = tf.random_uniform(
-            shape=tf.shape(input=logits),
-            minval=util.epsilon,
-            maxval=(1.0 - util.epsilon)
+        uniform_distribution = tf.random.uniform(
+            shape=tf.shape(input=logits), minval=util.epsilon, maxval=(1.0 - util.epsilon),
+            dtype=util.tf_dtype(dtype='float')
         )
         gumbel_distribution = -tf.log(x=-tf.log(x=uniform_distribution))
-        sampled = tf.argmax(
-            input=(logits + gumbel_distribution), axis=-1, output_type=util.tf_dtype('int')
-        )
+        sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
+        sampled = tf.dtypes.cast(x=sampled, dtype=util.tf_dtype('int'))
 
         return tf.where(condition=deterministic, x=definite, y=sampled)
 
     def tf_log_probability(self, distr_params, action):
         logits, _, _ = distr_params
-        one_hot = tf.one_hot(indices=action, depth=self.action_spec['num_values'])
+        one_hot = tf.one_hot(
+            indices=tf.dtypes.cast(x=action, dtype=tf.int32), depth=self.action_spec['num_values'],
+            dtype=util.tf_dtype(dtype='float')
+        )
         return tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
 
     def tf_entropy(self, distr_params):

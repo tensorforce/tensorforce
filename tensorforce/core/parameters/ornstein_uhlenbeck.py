@@ -41,5 +41,7 @@ class OrnsteinUhlenbeck(Parameter):
 
         if self.dtype != 'float':
             parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
+        else:
+            parameter = tf.identity(input=parameter)
 
         return parameter

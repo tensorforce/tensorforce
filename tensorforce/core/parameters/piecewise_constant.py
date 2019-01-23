@@ -15,6 +15,7 @@
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core import Module
 from tensorforce.core.parameters import Parameter
 
@@ -43,5 +44,8 @@ class PiecewiseConstant(Parameter):
         parameter = tf.train.piecewise_constant(
             x=step, boundaries=self.boundaries, values=self.values
         )
+
+        if util.dtype(x=parameter) != self.dtype:
+            parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter

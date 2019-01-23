@@ -33,11 +33,14 @@ class UnittestBase(object):
     config = None
     ignore_network = False
 
-    def prepare(self, name, states, actions, network=None, **kwargs):
+    def prepare(self, name, states, actions, agent=None, network=None, **kwargs):
         """
         Generic unit-test preparation.
         """
-        sys.stdout.write('\n{} ({}):\n'.format(self.__class__.agent.__name__, name))
+        if agent is None:
+            agent = self.__class__.agent
+
+        sys.stdout.write('\n{} ({}):\n'.format(agent.__name__, name))
         sys.stdout.flush()
 
         environment = UnittestEnvironment(states=states, actions=actions)
@@ -51,16 +54,16 @@ class UnittestBase(object):
         if not self.__class__.ignore_network and network is not None:
             kwargs['network'] = network
 
-        agent = self.__class__.agent(**kwargs)
+        agent = agent(**kwargs)
 
         return agent, environment
 
-    def unittest(self, name, states, actions, network=None, **kwargs):
+    def unittest(self, name, states, actions, agent=None, network=None, **kwargs):
         """
         Generic unit-test.
         """
         agent, environment = self.prepare(
-            name=name, states=states, actions=actions, network=network, **kwargs
+            name=name, states=states, actions=actions, agent=agent, network=network, **kwargs
         )
 
         runner = Runner(agent=agent, environment=environment)

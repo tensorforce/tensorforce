@@ -130,10 +130,13 @@ class NaturalGradient(Optimizer):
 
         # Zero step if constant <= 0
         def no_step():
+            zero_deltas = [
+                tf.zeros_like(tensor=delta, dtype=util.tf_dtype(dtype='float')) for delta in deltas
+            ]
             if return_estimated_improvement:
-                return [tf.zeros_like(tensor=delta) for delta in deltas], 0.0
+                return zero_deltas, tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
             else:
-                return [tf.zeros_like(tensor=delta) for delta in deltas]
+                return zero_deltas
 
         # Natural gradient step if constant > 0
         def apply_step():

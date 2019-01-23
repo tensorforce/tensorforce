@@ -94,7 +94,9 @@ class Gaussian(Distribution):
         definite = mean
 
         # Non-deterministic: sample action using default normal distribution
-        normal_distribution = tf.random_normal(shape=tf.shape(input=mean))
+        normal_distribution = tf.random.normal(
+            shape=tf.shape(input=mean), dtype=util.tf_dtype(dtype='float')
+        )
         sampled = mean + stddev * normal_distribution
 
         return tf.where(condition=deterministic, x=definite, y=sampled)

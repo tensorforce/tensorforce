@@ -85,8 +85,8 @@ class Beta(Distribution):
         definite = beta / alpha_beta
 
         # Non-deterministic: sample action using gamma distribution
-        alpha_sample = tf.random_gamma(shape=(), alpha=alpha)
-        beta_sample = tf.random_gamma(shape=(), alpha=beta)
+        alpha_sample = tf.random_gamma(shape=(), alpha=alpha, dtype=util.tf_dtype(dtype='float'))
+        beta_sample = tf.random_gamma(shape=(), alpha=beta, dtype=util.tf_dtype(dtype='float'))
 
         sampled = beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=util.epsilon)
 

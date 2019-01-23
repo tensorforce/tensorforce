@@ -233,6 +233,49 @@ class TestSaving(UnittestBase, unittest.TestCase):
         sys.stdout.flush()
         self.assertTrue(expr=True)
 
+    def test_saver_steps(self):
+        saver = dict(directory=self.__class__.directory, steps=2)
+
+        agent, environment = self.saving_prepare(name='saver-filename', saver=saver)
+
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+        environment.close()
+
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
+        os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-2.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-2.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-2.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-3.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-3.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-3.meta'))
+        for filename in os.listdir(path=self.__class__.directory):
+            os.remove(path=os.path.join(self.__class__.directory, filename))
+            assert filename.startswith('events.out.tfevents.')
+            break
+        os.rmdir(path=self.__class__.directory)
+
+        sys.stdout.flush()
+        self.assertTrue(expr=True)
+
     def test_saver_no_load(self):
         saver = dict(directory=self.__class__.directory)
 

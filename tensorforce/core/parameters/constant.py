@@ -32,4 +32,5 @@ class Constant(Parameter):
 
     def get_parameter_value(self):
         parameter = tf.constant(value=self.constant_value, dtype=util.tf_dtype(dtype=self.dtype))
+
         return parameter

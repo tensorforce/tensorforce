@@ -93,7 +93,9 @@ class Bernoulli(Distribution):
         definite = tf.greater_equal(x=probability, y=0.5)
 
         # Non-deterministic: sample true if >= uniform distribution
-        uniform = tf.random_uniform(shape=tf.shape(probability))
+        uniform = tf.random.uniform(
+            shape=tf.shape(probability), dtype=util.tf_dtype(dtype='float')
+        )
         sampled = tf.greater_equal(x=probability, y=uniform)
 
         return tf.where(condition=deterministic, x=definite, y=sampled)

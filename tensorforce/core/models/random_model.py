@@ -47,10 +47,8 @@ class RandomModel(Model):
 
         actions = OrderedDict()
         for name, action_spec in self.actions_spec.items():
-            batch_size = tf.shape(
-                input=next(iter(states.values())), out_type=util.tf_dtype(dtype='int')
-            )[0:1]
-            shape = tf.constant(value=action_spec['shape'], dtype=util.tf_dtype(dtype='int'))
+            batch_size = tf.shape(input=next(iter(states.values())))[0:1]
+            shape = tf.constant(value=action_spec['shape'], dtype=tf.int32)
             shape = tf.concat(values=(batch_size, shape), axis=0)
             dtype = util.tf_dtype(dtype=action_spec['type'])
 

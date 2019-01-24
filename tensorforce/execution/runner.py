@@ -58,7 +58,7 @@ class Runner(object):
         # Tqdm
         use_tqdm=True, num_mean_reward=100,
         # Evaluation
-        evaluation_callback=None, evaluation_frequency=None, update_as_evaluation_frequency=True,
+        evaluation_callback=None, evaluation_frequency=None, update_as_evaluation_frequency=False,
         max_evaluation_timesteps=None, num_evaluation_iterations=1, save_best_agent=False
     ):
         # General

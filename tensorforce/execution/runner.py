@@ -58,8 +58,8 @@ class Runner(object):
         # Tqdm
         use_tqdm=True, num_mean_reward=100,
         # Evaluation
-        evaluation_callback=None, evaluation_frequency=None, max_evaluation_timesteps=None,
-        num_evaluation_iterations=1
+        evaluation_callback=None, evaluation_frequency=None, update_as_evaluation_frequency=True,
+        max_evaluation_timesteps=None, num_evaluation_iterations=1, save_best_agent=False
     ):
         # General
         if num_episodes is None:
@@ -148,11 +148,20 @@ class Runner(object):
 
         # Evaluation
         if evaluation_callback is None:
-            self.evaluation_callback = (lambda r: True)
+            self.evaluation_callback = (lambda r: None)
         else:
             self.evaluation_callback = evaluation_callback
         if evaluation_frequency is None:
-            self.evaluation_frequency = float('inf')
+            if update_as_evaluation_frequency:
+                assert evaluation_frequency is None
+                batch_size = self.agent.model.update_mode['batch_size']
+                frequency = self.agent.model.update_mode.get('frequency', batch_size)
+                if self.agent.model.update_unit == 'episodes':
+                    self.evaluation_frequency = frequency
+                else:
+                    self.evaluation_frequency = frequency // self.max_episode_timesteps
+            else:
+                self.evaluation_frequency = float('inf')
         else:
             self.evaluation_frequency = evaluation_frequency
         if max_evaluation_timesteps is None:
@@ -160,6 +169,20 @@ class Runner(object):
         else:
             self.max_evaluation_timesteps = max_evaluation_timesteps
         self.num_evaluation_iterations = num_evaluation_iterations
+        self.save_best_agent = save_best_agent
+        if self.save_best_agent:
+            inner_evaluation_callback = self.evaluation_callback
+
+            def mean_reward_callback(runner):
+                result = inner_evaluation_callback(runner)
+                if result is None:
+                    return float(np.mean(runner.evaluation_rewards))
+                else:
+                    return result
+
+            self.evaluation_callback = mean_reward_callback
+            self.best_evaluation_score = None
+
 
         # Reset agent
         self.agent.reset()
@@ -208,7 +231,16 @@ class Runner(object):
                 self.global_episode = self.agent.episode
 
                 # Evaluation callback
-                self.evaluation_callback(self)
+                if self.save_best_agent:
+                    evaluation_score = self.evaluation_callback(self)
+                    assert isinstance(evaluation_score, float)
+                    if self.best_evaluation_score is None:
+                        self.best_evaluation_score = evaluation_score
+                    elif evaluation_score > self.best_evaluation_score:
+                        self.best_evaluation_score = evaluation_score
+                        self.agent.save_model(filename='best-model', append_timestep=False)
+                else:
+                    self.evaluation_callback(self)
 
             # Update global timestep/episode
             self.global_timestep = self.agent.timestep

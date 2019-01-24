@@ -116,6 +116,7 @@ class MemoryModel(Model):
         #     raise TensorforceError.value(
         #         name='update_mode', argument='start', value=update_mode['start']
         #     )
+        self.update_mode = update_mode
         self.update_unit = update_mode['unit']
         self.update_batch_size = self.add_module(
             name='update-batch-size', module=update_mode['batch_size'], modules=parameter_modules,

@@ -108,7 +108,7 @@ class Decaying(Parameter):
                 power=self.kwargs.get('power', 1.0), cycle=self.kwargs.get('cycle', False)
             )
 
-        if self.decay:
+        if self.inverse:
             one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
             parameter = one - parameter
 

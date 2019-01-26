@@ -33,8 +33,9 @@ class MemoryModel(Model):
     def __init__(
         self,
         # Model
-        states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing,
+        states, internals, actions, scope, device, saver, summarizer, execution,
+        parallel_interactions, buffer_observe, exploration, variable_noise, states_preprocessing,
+        reward_preprocessing,
         # MemoryModel
         update_mode, memory, optimizer, discount
     ):
@@ -66,8 +67,8 @@ class MemoryModel(Model):
         """
         super().__init__(
             # Model
-            states=states, actions=actions, scope=scope, device=device, saver=saver,
-            summarizer=summarizer, execution=execution,
+            states=states, internals=internals, actions=actions, scope=scope, device=device,
+            saver=saver, summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
             exploration=exploration, variable_noise=variable_noise,
             states_preprocessing=states_preprocessing, reward_preprocessing=reward_preprocessing
@@ -451,7 +452,6 @@ class MemoryModel(Model):
         Creates and returns the op that - if frequency condition is hit - pulls a batch from the memory
         and does one optimization step.
         """
-        # Store timestep in memory
         stored = self.memory.store(
             states=states, internals=internals, actions=actions, terminal=terminal, reward=reward
         )
@@ -524,46 +524,3 @@ class MemoryModel(Model):
             optimized = self.cond(pred=do_optimize, true_fn=optimize, false_fn=util.no_operation)
 
             return optimized
-
-    def tf_import_experience(self, states, internals, actions, terminal, reward):
-        """
-        Imports experiences into the TensorFlow memory structure. Can be used to import
-        off-policy data.
-
-        :param states: Dict of state values to import with keys as state names and values as values to set.
-        :param internals: Internal values to set, can be fetched from agent via agent.current_internals
-            if no values available.
-        :param actions: Dict of action values to import with keys as action names and values as values to set.
-        :param terminal: Terminal value(s)
-        :param reward: Reward value(s)
-        """
-        return self.memory.store(
-            states=states, internals=internals, actions=actions, terminal=terminal, reward=reward
-        )
-
-    def create_operations(self, states, internals, actions, terminal, reward, deterministic, independent, parallel):
-        # Import experience operation.
-        # self.import_experience_output = self.fn_import_experience(
-        #     states=states, internals=internals, actions=actions, terminal=terminal, reward=reward
-        # )
-
-        super().create_operations(
-            states=states, internals=internals, actions=actions, terminal=terminal, reward=reward,
-            deterministic=deterministic, independent=independent, parallel=parallel
-        )
-
-    # def import_experience(self, states, internals, actions, terminal, reward):
-    #     """
-    #     Stores experiences.
-    #     """
-    #     fetches = self.import_experience_output
-
-    #     feed_dict = self.get_feed_dict(
-    #         states=states,
-    #         internals=internals,
-    #         actions=actions,
-    #         terminal=terminal,
-    #         reward=reward
-    #     )
-
-    #     self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)

@@ -17,7 +17,7 @@ from collections import Counter, OrderedDict
 
 from tensorforce import TensorforceError, util
 from tensorforce.core import Module
-from tensorforce.core.layers import Layer, layer_modules
+from tensorforce.core.layers import InternalLayer, Layer, layer_modules
 
 
 class Network(Module):
@@ -38,22 +38,11 @@ class Network(Module):
     def get_output_spec(self):
         raise NotImplementedError
 
-    def internals_spec(self):
-        """
-        Returns the internal states specification.
-
-        Returns:
-            Internal states specification
-        """
+    @classmethod
+    def internals_spec(cls, network=None, **kwargs):
         return OrderedDict()
 
     def internals_init(self):
-        """
-        Returns the internal states initialization tensor.
-
-        Returns:
-            Internal states initialization tensor
-        """
         return OrderedDict()
 
     def tf_apply(self, x, internals, return_internals=False):
@@ -71,7 +60,7 @@ class Network(Module):
         raise NotImplementedError
 
     def create_tf_function(self, name, tf_function):
-        if name[-6:] != '.apply':
+        if tf_function.__name__ != 'tf_apply':
             return super().create_tf_function(name=name, tf_function=tf_function)
 
         def validated_tf_function(x, internals, return_internals=False):
@@ -88,7 +77,7 @@ class Network(Module):
                     raise TensorforceError("Invalid input arguments for tf_apply.")
             if not all(
                 util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
-                for name, spec in self.internals_spec().items()
+                for name, spec in self.__class__.internals_spec(network=self).items()
             ):
                 raise TensorforceError("Invalid input arguments for tf_apply.")
 
@@ -105,7 +94,7 @@ class Network(Module):
                 raise TensorforceError("Invalid output arguments for tf_apply.")
             if return_internals and not all(
                 util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
-                for name, spec in self.internals_spec().items()
+                for name, spec in self.__class__.internals_spec(network=self).items()
             ):
                 raise TensorforceError("Invalid output arguments for tf_apply.")
 
@@ -133,33 +122,39 @@ class LayerbasedNetwork(Network):
     def get_output_spec(self):
         return self.output_spec
 
-    def internals_spec(self):
-        specification = super().internals_spec()
+    @classmethod
+    def internals_spec(cls, network=None, **kwargs):
+        internals_spec = super().internals_spec()
 
-        for layer in self.modules.values():
-            for name, spec in layer.internals_spec().items():
-                name = layer.name + '-' + name
-                if name in specification:
-                    raise TensorforceError.unexpected()
-                specification[name] = spec
+        if network is not None:
+            for layer in network.modules.values():
+                if not isinstance(layer, InternalLayer):
+                    continue
+                for name, spec in layer.__class__.internals_spec(layer=layer).items():
+                    name = layer.name + '-' + name
+                    if name in internals_spec:
+                        raise TensorforceError.unexpected()
+                    internals_spec[name] = spec
 
-        return specification
+        return internals_spec
 
     def internals_init(self):
-        initialization = super().internals_init()
+        internals_init = super().internals_init()
 
         for layer in self.modules.values():
-            for name, init in layer.internals_init().items():
-                initialization[layer.name + '-' + name] = init
+            if not isinstance(layer, InternalLayer):
+                continue
+            for name, internal_init in layer.internals_init().items():
+                internals_init[layer.name + '-' + name] = internal_init
 
-        return initialization
+        return internals_init
 
     def add_module(self, *args, **kwargs):
         if 'input_spec' in kwargs:
             if kwargs['input_spec'] != self.output_spec:
                 raise TensorforceError(message="Unexpected specification mismatch.")
 
-            layer = super().add_module(*args, **kwargs)
+            layer = super().add_module(*args, modules=layer_modules, **kwargs)
 
         else:
             if self.output_spec is None:
@@ -170,7 +165,9 @@ class LayerbasedNetwork(Network):
                 else:
                     self.output_spec = dict(type=None, shape=None)
 
-            layer = super().add_module(*args, input_spec=self.output_spec, **kwargs)
+            layer = super().add_module(
+                *args, modules=layer_modules, input_spec=self.output_spec, **kwargs
+            )
             self.output_spec = layer.output_spec
 
         if not isinstance(layer, Layer):
@@ -186,6 +183,7 @@ class LayeredNetwork(LayerbasedNetwork):
     Network consisting of a sequence of layers, which can be created from a specification dict.
     """
 
+    # (requires layers as first argument)
     def __init__(self, name, layers, inputs_spec, l2_regularization=None, summary_labels=None):
         """
         Single-stack layered network.
@@ -208,14 +206,62 @@ class LayeredNetwork(LayerbasedNetwork):
                 self.parse_layers_spec(layers_spec=spec, layer_counter=layer_counter)
 
         else:
-            if isinstance(layers_spec['type'], str):
-                layer_type = layers_spec['type']
+            if 'name' in layers_spec:
+                layer_name = layers_spec['name']
             else:
-                layer_type = 'layer'
-            name = layer_type + str(layer_counter[layer_type])
-            layer_counter[layer_type] += 1
+                if isinstance(layers_spec['type'], str):
+                    layer_type = layers_spec['type']
+                else:
+                    layer_type = 'layer'
+                layer_name = layer_type + str(layer_counter[layer_type])
+                layer_counter[layer_type] += 1
 
-            self.add_module(name=name, module=layers_spec, modules=layer_modules)
+            self.add_module(name=layer_name, module=layers_spec)
+
+    # (requires layers as first argument)
+    @classmethod
+    def internals_spec(cls, layers=None, network=None, **kwargs):
+        internals_spec = super().internals_spec(network=network)
+
+        if network is None:
+            for name, internal_spec in cls.internals_from_layers_spec(
+                layers_spec=layers, layer_counter=Counter()
+            ):
+                if name in internals_spec:
+                    raise TensorforceError.unexpected()
+                internals_spec[name] = internal_spec
+
+        return internals_spec
+
+    @classmethod
+    def internals_from_layers_spec(cls, layers_spec, layer_counter):
+        if isinstance(layers_spec, list):
+            for spec in layers_spec:
+                yield from cls.internals_from_layers_spec(
+                    layers_spec=spec, layer_counter=layer_counter
+                )
+
+        else:
+            if 'name' in layers_spec:
+                layer_name = layers_spec['name']
+            else:
+                if isinstance(layers_spec['type'], str):
+                    layer_type = layers_spec['type']
+                else:
+                    layer_type = 'layer'
+                layer_name = layer_type + str(layer_counter[layer_type])
+                layer_counter[layer_type] += 1
+
+            layer_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+                module=layers_spec, modules=layer_modules
+            )
+            if issubclass(layer_cls, InternalLayer):
+                if first_arg is None:
+                    internals_spec = layer_cls.internals_spec(**kwargs)
+                else:
+                    internals_spec = layer_cls.internals_spec(first_arg, **kwargs)
+                for name, spec in internals_spec.items():
+                    yield layer_name + '-' + name, spec
 
     def tf_apply(self, x, internals, return_internals=False):
         if isinstance(x, dict):
@@ -223,11 +269,11 @@ class LayeredNetwork(LayerbasedNetwork):
 
         next_internals = OrderedDict()
         for layer in self.modules.values():
-            layer_internals = {
-                name: internals[layer.name + '-' + name] for name in layer.internals_spec()
-            }
-
-            if len(layer_internals) > 0:
+            if isinstance(layer, InternalLayer):
+                layer_internals = {
+                    name: internals[layer.name + '-' + name] for name in layer.internals_spec()
+                }
+                assert len(layer_internals) > 0
                 x, layer_internals = layer.apply(x=x, **layer_internals)
                 for name, internal in layer_internals.items():
                     next_internals[layer.name + '-' + name] = internal

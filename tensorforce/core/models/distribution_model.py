@@ -37,10 +37,24 @@ class DistributionModel(MemoryModel):
         # DistributionModel
         network, distributions, entropy_regularization, requires_deterministic
     ):
+        # Network inputs specification
+        inputs_spec = OrderedDict()
+        for name, spec in states.items():
+            inputs_spec[name] = dict(**spec, batched=True)
+
+        # Network internals specification
+        network_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+            module=network, modules=network_modules, inputs_spec=inputs_spec
+        )
+        if first_arg is None:
+            internals = network_cls.internals_spec(**kwargs)
+        else:
+            internals = network_cls.internals_spec(first_arg, **kwargs)
+
         super().__init__(
             # Model
-            states=states, actions=actions, scope=scope, device=device, saver=saver,
-            summarizer=summarizer, execution=execution,
+            states=states, internals=internals, actions=actions, scope=scope, device=device,
+            saver=saver, summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
             exploration=exploration, variable_noise=variable_noise,
             states_preprocessing=states_preprocessing, reward_preprocessing=reward_preprocessing,
@@ -49,10 +63,6 @@ class DistributionModel(MemoryModel):
         )
 
         # Network
-        inputs_spec = OrderedDict()
-        for name, spec in self.states_spec.items():
-            inputs_spec[name] = dict(spec)
-            inputs_spec[name]['batched'] = True
         self.network = self.add_module(
             name='network', module=network, modules=network_modules, inputs_spec=inputs_spec
         )
@@ -104,23 +114,6 @@ class DistributionModel(MemoryModel):
 
         # For deterministic action sampling (Q vs PG model)
         self.requires_deterministic = requires_deterministic
-
-        # Internals specification
-        for name, spec in self.network.internals_spec().items():
-            if name in self.states_spec:
-                raise TensorforceError(
-                    "Name overlap between internals and states: {}.".format(name)
-                )
-            if name in self.internals_spec:
-                raise TensorforceError(
-                    "Name overlap between internals and internals: {}.".format(name)
-                )
-            if name in self.actions_spec:
-                raise TensorforceError(
-                    "Name overlap between internals and actions: {}.".format(name)
-                )
-            self.internals_spec[name] = spec
-            Module.register_tensor(name=name, spec=spec, batched=True)
 
     def tf_initialize(self):
         super().tf_initialize()

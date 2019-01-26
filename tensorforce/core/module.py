@@ -225,6 +225,8 @@ class Module(object):
 
         with self.scope:
             if self.parent is None:
+                # with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
+
                 # Global timestep
                 self.global_timestep = self.add_variable(
                     name='global-timestep', dtype='long', shape=(), is_trainable=False,
@@ -637,15 +639,8 @@ class Module(object):
             else:
                 return util.identity_operation(x=pass_tensors)
 
-    def add_module(
-        self, name, module, modules=None, default_module=None, is_trainable=True,
-        is_subscope=False, **kwargs
-    ):
-        # name
-        if not util.is_valid_name(name=name):
-            raise TensorforceError.value(name='module', argument='name', value=name)
-        elif name in self.modules:
-            raise TensorforceError.exists(name='sub-module', value=name)
+    @staticmethod
+    def get_module_class_and_kwargs(module, modules=None, default_module=None, **kwargs):
         # module
         # ???
         # modules
@@ -653,10 +648,6 @@ class Module(object):
             raise TensorforceError.type(name='module', argument='modules', value=modules)
         # default_module
         # ???
-        # is_trainable
-        if not isinstance(is_trainable, bool):
-            raise TensorforceError.type(name='module', argument='is_trainable', value=is_trainable)
-
         if isinstance(module, dict):
             # Dictionary module specification (type either given via 'type' or 'default_module')
             for key, value in module.items():
@@ -666,9 +657,8 @@ class Module(object):
                     )
                 kwargs[key] = value
             module = kwargs.pop('type', default_module)
-            return self.add_module(
-                name=name, module=module, modules=modules, default_module=default_module,
-                is_trainable=is_trainable, is_subscope=is_subscope, **kwargs
+            return Module.get_module_class_and_kwargs(
+                module=module, modules=modules, default_module=default_module, **kwargs
             )
 
         elif isinstance(module, str):
@@ -676,9 +666,8 @@ class Module(object):
                 # JSON file module specification
                 with open(module, 'r') as fp:
                     module = json.load(fp=fp)
-                return self.add_module(
-                    name=name, module=module, modules=modules, default_module=default_module,
-                    is_trainable=is_trainable, is_subscope=is_subscope, **kwargs
+                return Module.get_module_class_and_kwargs(
+                    module=module, modules=modules, default_module=default_module, **kwargs
                 )
 
             elif '.' in module:
@@ -686,16 +675,14 @@ class Module(object):
                 library_name, module_name = module.rsplit('.', 1)
                 library = importlib.import_module(name=library_name)
                 module = getattr(library, module_name)
-                return self.add_module(
-                    name=name, module=module, modules=modules, default_module=default_module,
-                    is_trainable=is_trainable, is_subscope=is_subscope, **kwargs
+                return Module.get_module_class_and_kwargs(
+                    module=module, modules=modules, default_module=default_module, **kwargs
                 )
 
             elif modules is not None and module in modules:
                 # Keyword module specification
-                return self.add_module(
-                    name=name, module=modules[module], default_module=default_module,
-                    is_trainable=is_trainable, is_subscope=is_subscope, **kwargs
+                return Module.get_module_class_and_kwargs(
+                    module=modules[module], default_module=default_module, **kwargs
                 )
 
             else:
@@ -709,53 +696,72 @@ class Module(object):
                 kwargs['_first_arg'] = module
             if default_module is None:
                 default_module = modules['default']
-            return self.add_module(
-                name=name, module=default_module, modules=modules, is_trainable=is_trainable,
-                is_subscope=is_subscope, **kwargs
+            return Module.get_module_class_and_kwargs(
+                module=default_module, modules=modules, **kwargs
             )
 
         elif callable(module):
-            # Final callable module specification
-            if Module.global_scope is None:
-                raise TensorforceError.unexpected()
-
-            # Global scope handling
-            Module.is_add_module = True
-            if is_subscope:
-                Module.global_scope.append(name)
-
-            # Inherit arguments
-            Module.inherit_l2_regularization = self.l2_regularization
-            Module.inherit_summary_labels = self.summary_labels
-
-            # Module constructor
-            if '_first_arg' in kwargs:
-                module = module(name, kwargs.pop('_first_arg'), **kwargs)
-            else:
-                module = module(name=name, **kwargs)
-
-            # Inherit arguments
-            Module.inherit_l2_regularization = None
-            Module.inherit_summary_labels = None
-
-            # Global scope handling
-            if is_subscope:
-                Module.global_scope.pop()
-            Module.is_add_module = False
-
-            # Internal attributes
-            module.parent = self
-            module.is_subscope = is_subscope
-
-            # Register module
-            self.modules[name] = module
-            if is_trainable:
-                self.trainable_modules[name] = module
-
-            return module
+            first_arg = kwargs.pop('_first_arg', None)
+            return module, first_arg, kwargs
 
         else:
             raise TensorforceError.value(name='module specification', value=module)
+
+    def add_module(
+        self, name, module, modules=None, default_module=None, is_trainable=True,
+        is_subscope=False, **kwargs
+    ):
+        # name
+        if not util.is_valid_name(name=name):
+            raise TensorforceError.value(name='module', argument='name', value=name)
+        elif name in self.modules:
+            raise TensorforceError.exists(name='sub-module', value=name)
+        # is_trainable
+        if not isinstance(is_trainable, bool):
+            raise TensorforceError.type(name='module', argument='is_trainable', value=is_trainable)
+
+        module_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+            module=module, modules=modules, default_module=default_module, **kwargs
+        )
+
+        # Final callable module specification
+        if Module.global_scope is None:
+            raise TensorforceError.unexpected()
+
+        # Global scope handling
+        Module.is_add_module = True
+        if is_subscope:
+            Module.global_scope.append(name)
+
+        # Inherit arguments
+        Module.inherit_l2_regularization = self.l2_regularization
+        Module.inherit_summary_labels = self.summary_labels
+
+        # Module constructor
+        if first_arg is None:
+            module = module_cls(name=name, **kwargs)
+        else:
+            module = module_cls(name, first_arg, **kwargs)
+
+        # Inherit arguments
+        Module.inherit_l2_regularization = None
+        Module.inherit_summary_labels = None
+
+        # Global scope handling
+        if is_subscope:
+            Module.global_scope.pop()
+        Module.is_add_module = False
+
+        # Internal attributes
+        module.parent = self
+        module.is_subscope = is_subscope
+
+        # Register module
+        self.modules[name] = module
+        if is_trainable:
+            self.trainable_modules[name] = module
+
+        return module
 
     def get_variables(self, only_trainable=False):
         # only_trainable

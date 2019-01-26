@@ -241,6 +241,10 @@ def is_valid_name(name):
     return True
 
 
+def is_nested(name):
+    return name in ('states', 'internals', 'actions')
+
+
 def is_valid_type(dtype):
     return dtype in ('bool', 'int', 'long', 'float')
 

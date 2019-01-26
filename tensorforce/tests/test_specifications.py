@@ -17,14 +17,24 @@ import unittest
 import sys
 
 from tensorforce.agents import VPGAgent
-from tensorforce.core.networks import LayeredNetwork
+from tensorforce.core.networks import LayerbasedNetwork, LayeredNetwork
 from tensorforce.tests.agent_unittest import UnittestBase
 
 
-class TestNetwork(LayeredNetwork):
+class TestNetwork(LayerbasedNetwork):
+
     def __init__(self, name, inputs_spec):
-        layers = [dict(type='dense', size=32), dict(type='dense', size=32)]
-        super().__init__(name=name, layers=layers, inputs_spec=inputs_spec)
+        super().__init__(name=name, inputs_spec=inputs_spec)
+
+        self.layer1 = self.add_module(name='dense0', module=dict(type='dense', size=32))
+        self.layer2 = self.add_module(name='dense1', module=dict(type='dense', size=32))
+
+    def tf_apply(self, x, internals, return_internals=False):
+        x = self.layer2.apply(x=self.layer1.apply(x=next(iter(x.values()))))
+        if return_internals:
+            return x, dict()
+        else:
+            return x
 
 
 class TestSpecifications(UnittestBase, unittest.TestCase):

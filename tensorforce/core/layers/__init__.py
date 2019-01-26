@@ -20,7 +20,7 @@ from tensorforce.core.layers.layer import Layer, Register, Retrieve, Transformat
 from tensorforce.core.layers.convolutions import Conv1d, Conv2d
 from tensorforce.core.layers.dense import Dense, Linear
 from tensorforce.core.layers.embeddings import Embedding
-from tensorforce.core.layers.internal_rnns import InternalGru, InternalLstm
+from tensorforce.core.layers.internal_layers import InternalGru, InternalLayer, InternalLstm
 from tensorforce.core.layers.misc import Activation, Dropout
 from tensorforce.core.layers.poolings import Pooling
 from tensorforce.core.layers.rnns import Gru, Lstm
@@ -35,6 +35,6 @@ layer_modules = dict(
 
 __all__ = [
     'Activation', 'Conv1d', 'Conv2d', 'Dense', 'Dropout', 'Embedding', 'GRU', 'InternalGru',
-    'InternalLstm', 'Layer', 'layer_modules', 'Linear', 'Lstm', 'Nonlinearity', 'Pooling',
-    'Register', 'Retrieve', 'TransformationBase'
+    'InternalLayer', 'InternalLstm', 'Layer', 'layer_modules', 'Linear', 'Lstm', 'Nonlinearity',
+    'Pooling', 'Register', 'Retrieve', 'TransformationBase'
 ]

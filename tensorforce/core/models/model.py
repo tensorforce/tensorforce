@@ -56,33 +56,10 @@ class Model(Module):
     def __init__(
         self,
         # Model
-        states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe, exploration, variable_noise, states_preprocessing, reward_preprocessing
+        states, internals, actions, scope, device, saver, summarizer, execution,
+        parallel_interactions, buffer_observe, exploration, variable_noise, states_preprocessing,
+        reward_preprocessing
     ):
-        """
-        Model.
-
-        Args:
-            states (spec): The state-space description dictionary.
-            actions (spec): The action-space description dictionary.
-            scope (str): The root scope str to use for tf variable scoping.
-            device (str): The name of the device to run the graph of this model on.
-            saver (spec): Dict specifying whether and how to save the model's parameters.
-            summarizer (spec): Dict specifying which tensorboard summaries should be created and added to the graph.
-            execution (spec): Dict specifying whether and how to do distributed training on the model's graph.
-            batching_capacity (int): Batching capacity.
-            variable_noise (float): The stddev value of a Normal distribution used for adding random
-                noise to the model's output (for each batch, noise can be toggled and - if active - will be resampled).
-                Use None for not adding any noise.
-            states_preprocessing (spec / dict of specs): Dict specifying whether and how to preprocess state signals
-                (e.g. normalization, greyscale, etc..).
-            actions_exploration (spec / dict of specs): Dict specifying whether and how to add exploration to the model's
-                "action outputs" (e.g. epsilon-greedy).
-            reward_preprocessing (spec): Dict specifying whether and how to preprocess rewards coming
-                from the Environment (e.g. reward normalization).
-            execution: (dict)
-                - num_parallel: (int) number of parallel episodes
-        """
         if summarizer is None or summarizer.get('directory') is None:
             summary_labels = None
         else:
@@ -90,11 +67,28 @@ class Model(Module):
 
         super().__init__(name=scope, l2_regularization=None, summary_labels=summary_labels)
 
-        # States/actions/internals specifications
+        # States/internals/actions specifications
         self.states_spec = states
+        self.internals_spec = OrderedDict() if internals is None else internals
+        for name in self.internals_spec:
+            if name in self.states_spec:
+                raise TensorforceError(
+                    "Name overlap between internals and states: {}.".format(name)
+                )
         self.actions_spec = actions
-        self.internals_spec = OrderedDict()
-        self.internals_init = None
+        for name in self.actions_spec:
+            if name in self.states_spec:
+                raise TensorforceError(
+                    "Name overlap between actions and states: {}.".format(name)
+                )
+            if name in self.internals_spec:
+                raise TensorforceError(
+                    "Name overlap between actions and internals: {}.".format(name)
+                )
+        self.values_spec = OrderedDict(
+            states=self.states_spec, internals=self.internals_spec, actions=self.actions_spec,
+            terminal=dict(type='bool', shape=()), reward=dict(type='float', shape=())
+        )
 
         # TensorFlow scope and device
         self.scope = scope
@@ -128,6 +122,14 @@ class Model(Module):
         # Buffer observe
         assert isinstance(buffer_observe, int) and buffer_observe >= 1
         self.buffer_observe = buffer_observe
+        # from tensorforce.core.utils import CircularBuffer
+        # values_spec = OrderedDict(
+        #     states=self.states_spec, internals=self.internals_spec, actions=self.actions_spec
+        # )
+        # self.observe_buffer = self.add_module(
+        #     name='observe-buffer', module=CircularBuffer, values_spec=values_spec,
+        #     capacity=buffer_observe
+        # )
 
         # Actions exploration
         assert exploration is None or isinstance(exploration, dict) or exploration >= 0.0
@@ -199,10 +201,12 @@ class Model(Module):
         # Register global tensors
         for name, spec in self.states_spec.items():
             Module.register_tensor(name=name, spec=spec, batched=True)
+        for name, spec in self.internals_spec.items():
+            Module.register_tensor(name=name, spec=spec, batched=True)
         for name, spec in self.actions_spec.items():
             Module.register_tensor(name=name, spec=spec, batched=True)
-        Module.register_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
         Module.register_tensor(name='terminal', spec=dict(type='bool', shape=()), batched=True)
+        Module.register_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
         Module.register_tensor(
             name='deterministic', spec=dict(type='bool', shape=()), batched=False
         )
@@ -250,27 +254,6 @@ class Model(Module):
             default=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         )
 
-        # Moved to Module
-        # # Timesteps/Episodes
-        # with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
-
-        #     # Global timestep
-        #     self.global_timestep = self.add_variable(
-        #         name='global-timestep', dtype='long', shape=(), is_trainable=False,
-        #         initializer='zeros', shared='global-timestep'
-        #     )
-        #     collection = tf.get_collection(key=tf.GraphKeys.GLOBAL_STEP)
-        #     if len(collection) == 0:
-        #         tf.add_to_collection(
-        #             name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep
-        #         )
-
-        #     # Global episode
-        #     self.global_episode = self.add_variable(
-        #         name='global-episode', dtype='long', shape=(), is_trainable=False,
-        #         initializer='zeros', shared='global-episode'
-        #     )
-
         # Local timestep
         self.timestep = self.add_variable(
             name='timestep', dtype='long', shape=(self.parallel_interactions,), is_trainable=False,
@@ -314,10 +297,6 @@ class Model(Module):
         self.buffer_index = self.add_variable(
             name='buffer-index', dtype='long', shape=(self.parallel_interactions,),
             is_trainable=False, initializer='zeros'
-        )
-        self.reset_buffer_indices = self.buffer_index.assign(
-            value=tf.zeros(shape=(self.parallel_interactions,), dtype=util.tf_dtype(dtype='long')),
-            read_value=False
         )
 
     def tf_regularize(self, states, internals):
@@ -493,8 +472,8 @@ class Model(Module):
 
         # global_variables += [self.global_episode, self.global_timestep]
 
-        for c in self.get_savable_components():
-            c.register_saver_ops()
+        # for c in self.get_savable_components():
+        #     c.register_saver_ops()
 
         # TensorFlow saver object
         # TODO potentially make other options configurable via saver spec.
@@ -579,7 +558,7 @@ class Model(Module):
                 if save_path is not None:
                     try:
                         scaffold.saver.restore(sess=session, save_path=save_path)
-                        session.run(fetches=self.reset_buffer_indices)
+                        session.run(fetches=util.join_scopes(self.name + '.reset', 'timestep-output:0'))
                     except tf.errors.NotFoundError:
                         raise TensorforceError("Error: Existing checkpoint could not be loaded! Set \"load\" to false in saver_spec.")
 
@@ -764,8 +743,23 @@ class Model(Module):
 
         return states, actions, reward
 
-    def reset(self):
-        self.session.run(fetches=self.reset_buffer_indices)
+    def api_reset(self):
+        assignment = self.buffer_index.assign(
+            value=tf.zeros(shape=(self.parallel_interactions,), dtype=util.tf_dtype(dtype='long')),
+            read_value=False
+        )
+
+        # Synchronization initial sync?
+
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            timestep = util.identity_operation(
+                x=self.global_timestep, operation_name='timestep-output'
+            )
+            episode = util.identity_operation(
+                x=self.global_episode, operation_name='episode-output'
+            )
+
+        return timestep, episode
 
     def api_act(self):
         """
@@ -1165,231 +1159,6 @@ class Model(Module):
 
         # TODO: add up rewards per episode and add summary_label 'episode-reward'
 
-    def create_atomic_observe_operations(self, states, actions, internals, terminal, reward, parallel):
-        """
-        Returns the tf op to fetch when unbuffered observations are passed in.
-
-        Args:
-            states (any): One state (usually a value tuple) or dict of states if multiple states are expected.
-            actions (any): One action (usually a value tuple) or dict of states if multiple actions are expected.
-            internals (any): Internal list.
-            terminal (bool): boolean indicating if the episode terminated after the observation.
-            reward (float): scalar reward that resulted from executing the action.
-
-        Returns: Tf op to fetch when `observe()` is called.
-        """
-        # Increment episode
-        num_episodes = tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype('int'))
-        increment_episode = tf.assign_add(ref=self.episode, value=tf.to_int64(x=num_episodes))
-        increment_global_episode = tf.assign_add(ref=self.global_episode, value=tf.to_int64(x=num_episodes))
-
-        with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
-            # Stop gradients
-            # Not using buffers here.
-            fn = (lambda x: tf.stop_gradient(input=x[:self.buffer_index[parallel]]))
-            states = util.map_tensors(fn=fn, tensors=self.states_buffer, parallel=parallel)
-            internals = util.map_tensors(fn=fn, tensors=self.internals_buffer, parallel=parallel)
-            actions = util.map_tensors(fn=fn, tensors=self.actions_buffer, parallel=parallel)
-            terminal = tf.stop_gradient(input=terminal)
-            reward = tf.stop_gradient(input=reward)
-
-            # Observation
-            observation = self.observe_timestep(
-                states=states,
-                internals=internals,
-                actions=actions,
-                terminal=terminal,
-                reward=reward
-            )
-
-        with tf.control_dependencies(control_inputs=(observation,)):
-            # Trivial operation to enforce control dependency.
-
-            self.unbuffered_episode_output = util.identity_operation(x=self.global_episode)
-
-    # def get_feed_dict(
-    #     self,
-    #     states=None,
-    #     internals=None,
-    #     actions=None,
-    #     terminal=None,
-    #     reward=None,
-    #     deterministic=None,
-    #     independent=None,
-    #     parallel=None
-    # ):
-    #     """
-    #     Returns the feed-dict for the model's acting and observing tf fetches.
-
-    #     Args:
-    #         states (dict): Dict of state values (each key represents one state space component).
-    #         internals (dict): Dict of internal state values (each key represents one internal state component).
-    #         actions (dict): Dict of actions (each key represents one action space component).
-    #         terminal (List[bool]): List of is-terminal signals.
-    #         reward (List[float]): List of reward signals.
-    #         deterministic (bool): Whether actions should be picked without exploration.
-    #         independent (bool): Whether we are doing an independent act (not followed by call to observe;
-    #             not to be stored in model's buffer).
-
-    #     Returns: The feed dict to use for the fetch.
-    #     """
-    #     feed_dict = dict()
-    #     batched = None
-
-    #     if states is not None:
-    #         if batched is None:
-    #             name = next(iter(states))
-    #             state = np.asarray(states[name])
-    #             batched = (state.ndim != len(self.states_spec[name].get('unprocessed_shape', self.states_spec[name]['shape'])))
-    #         if batched:
-    #             feed_dict.update({self.states_input[name]: states[name] for name in sorted(self.states_input)})
-    #         else:
-    #             feed_dict.update({self.states_input[name]: (states[name],) for name in sorted(self.states_input)})
-
-    #     if internals is not None:
-    #         if batched is None:
-    #             name = next(iter(internals))
-    #             internal = np.asarray(internals[name])
-    #             batched = (internal.ndim != len(self.internals_spec[name]['shape']))
-    #         if batched:
-    #             feed_dict.update({self.internals_input[name]: internals[name] for name in sorted(self.internals_input)})
-    #         else:
-    #             feed_dict.update({self.internals_input[name]: (internals[name],) for name in sorted(self.internals_input)})
-
-    #     if actions is not None:
-    #         if batched is None:
-    #             name = next(iter(actions))
-    #             action = np.asarray(actions[name])
-    #             batched = (action.ndim != len(self.actions_spec[name]['shape']))
-    #         if batched:
-    #             feed_dict.update({self.actions_input[name]: actions[name] for name in sorted(self.actions_input)})
-    #         else:
-    #             feed_dict.update({self.actions_input[name]: (actions[name],) for name in sorted(self.actions_input)})
-
-    #     if terminal is not None:
-    #         if batched is None:
-    #             terminal = np.asarray(terminal)
-    #             batched = (terminal.ndim == 1)
-    #         if batched:
-    #             feed_dict[self.terminal_input] = terminal
-    #         else:
-    #             feed_dict[self.terminal_input] = (terminal,)
-
-    #     if reward is not None:
-    #         if batched is None:
-    #             reward = np.asarray(reward)
-    #             batched = (reward.ndim == 1)
-    #         if batched:
-    #             feed_dict[self.reward_input] = reward
-    #         else:
-    #             feed_dict[self.reward_input] = (reward,)
-
-    #     if deterministic is not None:
-    #         feed_dict[self.deterministic_input] = deterministic
-
-    #     if independent is not None:
-    #         feed_dict[self.independent_input] = independent
-
-    #     feed_dict[self.parallel_input] = parallel
-
-    #     return feed_dict
-
-    # def act(self, states, internals, deterministic=False, independent=False, fetch_tensors=None, parallel=0):
-    #     """
-    #     Does a forward pass through the model to retrieve action (outputs) given inputs for state (and internal
-    #     state, if applicable (e.g. RNNs))
-
-    #     Args:
-    #         states (dict): Dict of state values (each key represents one state space component).
-    #         internals (dict): Dict of internal state values (each key represents one internal state component).
-    #         deterministic (bool): If True, will not apply exploration after actions are calculated.
-    #         independent (bool): If true, action is not followed by observe (and hence not included
-    #             in updates).
-    #         fetch_tensors (list): List of names of additional tensors (from the model's network) to fetch (and return).
-    #         parallel: (int) parallel index of the episode we want to produce the next action
-
-    #     Returns:
-    #         tuple:
-    #             - Actual action-outputs (batched if state input is a batch).
-    #             - Actual values of internal states (if applicable) (batched if state input is a batch).
-    #             - The timestep (int) after calculating the (batch of) action(s).
-    #     """
-    #     name = next(iter(states))
-    #     state = np.asarray(states[name])
-    #     batched = (state.ndim != len(self.states_spec[name].get('unprocessed_shape', self.states_spec[name]['shape'])))
-    #     if batched:
-    #         assert state.shape[0] <= self.batching_capacity
-
-    #     fetches = [self.actions_output, self.internals_output, self.timestep_output]
-    #     if hasattr(self, 'network') is not None and fetch_tensors is not None:
-    #         for name in fetch_tensors:
-    #             valid, tensor = self.network.get_named_tensor(name)
-    #             if valid:
-    #                 fetches.append(tensor)
-    #             else:
-    #                 keys = self.network.get_list_of_named_tensor()
-    #                 raise TensorforceError('Cannot fetch named tensor "{}", Available {}.'.format(name, keys))
-
-    #     # feed_dict[self.deterministic_input] = deterministic
-    #     feed_dict = self.get_feed_dict(
-    #         states=states,
-    #         internals=internals,
-    #         deterministic=deterministic,
-    #         independent=independent,
-    #         parallel=parallel
-    #     )
-
-    #     fetch_list = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-    #     actions, internals, timestep = fetch_list[0:3]
-
-    #     # Extract the first (and only) action/internal from the batch to make return values non-batched
-    #     if not batched:
-    #         actions = {name: actions[name][0] for name in sorted(actions)}
-    #         internals = {name: internals[name][0] for name in sorted(internals)}
-
-    #     if hasattr(self, 'network') and fetch_tensors is not None:
-    #         fetch_dict = dict()
-    #         for index_, tensor in enumerate(fetch_list[3:]):
-    #             name = fetch_tensors[index_]
-    #             fetch_dict[name] = tensor
-    #         return actions, internals, timestep, fetch_dict
-    #     else:
-    #         return actions, internals, timestep
-
-    # def observe(self, terminal, reward, parallel=0):
-    #     """
-    #     Adds an observation (reward and is-terminal) to the model without updating its trainable variables.
-
-    #     Args:
-    #         terminal (List[bool]): List of is-terminal signals.
-    #         reward (List[float]): List of reward signals.
-    #         parallel: (int) parallel index you want to observe
-
-    #     Returns:
-    #         The value of the model-internal episode counter.
-    #     """
-    #     fetches = self.episode_output
-    #     feed_dict = self.get_feed_dict(terminal=terminal, reward=reward, parallel=parallel)
-
-    #     episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-
-    #     return episode
-
-    def atomic_observe(self, states, actions, internals, terminal, reward, parallel=0):
-        fetches = self.unbuffered_episode_output
-        feed_dict = self.get_feed_dict(
-            states=states,
-            actions=actions,
-            internals=internals,
-            terminal=terminal,
-            reward=reward,
-            parallel=parallel
-        )
-
-        episode = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-
-        return episode
-
     def save(self, directory=None, filename=None, append_timestep=True):
         """
         Save TensorFlow model. If no checkpoint directory is given, the model's default saver
@@ -1439,74 +1208,31 @@ class Model(Module):
         else:
             save_path = os.path.join(directory, filename)
 
-        # if not os.path.isfile(file):
-        #     raise TensorForceError("Invalid model directory/file.")
-
         self.saver.restore(sess=self.session, save_path=save_path)
-        self.session.run(fetches=self.reset_buffer_indices)
+        return self.reset()
 
-    def get_components(self):
-        """
-        Returns a dictionary of component name to component of all the components within this model.
+    # def save_component(self, component_name, save_path):
+    #     """
+    #     Saves a component of this model to the designated location.
 
-        Returns:
-            (dict) The mapping of name to component.
-        """
-        return dict()
+    #     Args:
+    #         component_name: The component to save.
+    #         save_path: The location to save to.
+    #     Returns:
+    #         Checkpoint path where the component was saved.
+    #     """
+    #     component = self.get_component(component_name=component_name)
+    #     self._validate_savable(component=component, component_name=component_name)
+    #     return component.save(sess=self.session, save_path=save_path)
 
-    def get_savable_components(self):
-        """
-        Returns the list of all of the components this model consists of that can be individually saved and restored.
-        For instance the network or distribution.
+    # def restore_component(self, component_name, save_path):
+    #     """
+    #     Restores a component's parameters from a save location.
 
-        Returns:
-            List of util.SavableComponent
-        """
-        components = self.get_components()
-        components = [components[name] for name in sorted(components)]
-        return set(filter(lambda x: isinstance(x, util.SavableComponent), components))
-
-    @staticmethod
-    def _validate_savable(component, component_name):
-        if not isinstance(component, util.SavableComponent):
-            raise TensorforceError(
-                "Component %s must implement SavableComponent but is %s" % (component_name, component)
-            )
-
-    def save_component(self, component_name, save_path):
-        """
-        Saves a component of this model to the designated location.
-
-        Args:
-            component_name: The component to save.
-            save_path: The location to save to.
-        Returns:
-            Checkpoint path where the component was saved.
-        """
-        component = self.get_component(component_name=component_name)
-        self._validate_savable(component=component, component_name=component_name)
-        return component.save(sess=self.session, save_path=save_path)
-
-    def restore_component(self, component_name, save_path):
-        """
-        Restores a component's parameters from a save location.
-
-        Args:
-            component_name: The component to restore.
-            save_path: The save location.
-        """
-        component = self.get_component(component_name=component_name)
-        self._validate_savable(component=component, component_name=component_name)
-        component.restore(sess=self.session, save_path=save_path)
-
-    def get_component(self, component_name):
-        """
-        Looks up a component by its name.
-
-        Args:
-            component_name: The name of the component to look up.
-        Returns:
-            The component for the provided name or None if there is no such component.
-        """
-        mapping = self.get_components()
-        return mapping[component_name] if component_name in mapping else None
+    #     Args:
+    #         component_name: The component to restore.
+    #         save_path: The save location.
+    #     """
+    #     component = self.get_component(component_name=component_name)
+    #     self._validate_savable(component=component, component_name=component_name)
+    #     component.restore(sess=self.session, save_path=save_path)

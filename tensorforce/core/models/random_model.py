@@ -34,8 +34,8 @@ class RandomModel(Model):
     ):
         super().__init__(
             # Model
-            states=states, actions=actions, scope=scope, device=device, saver=saver,
-            summarizer=summarizer, execution=execution,
+            states=states, internals=None, actions=actions, scope=scope, device=device,
+            saver=saver,  summarizer=summarizer, execution=execution,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
             exploration=None, variable_noise=None, states_preprocessing=None,
             reward_preprocessing=None

@@ -29,6 +29,7 @@ class PPOAgent(DRLAgent):
         network,
         parallel_interactions=1,
         buffer_observe=1000,
+        seed=None,
         scope='ppo',
         device=None,
         saver=None,
@@ -81,7 +82,7 @@ class PPOAgent(DRLAgent):
         """
         super().__init__(
             states=states, actions=actions, parallel_interactions=parallel_interactions,
-            buffer_observe=buffer_observe
+            buffer_observe=buffer_observe, seed=seed
         )
 
         # Update mode

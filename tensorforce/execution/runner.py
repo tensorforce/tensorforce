@@ -159,10 +159,12 @@ class Runner(object):
                 if self.agent.model.update_unit == 'episodes':
                     self.evaluation_frequency = frequency
                 else:
+                    # Approximates maximum number of episodes for an update to happen
                     self.evaluation_frequency = frequency // self.max_episode_timesteps
             else:
                 self.evaluation_frequency = float('inf')
         else:
+            assert not update_as_evaluation_frequency
             self.evaluation_frequency = evaluation_frequency
         if max_evaluation_timesteps is None:
             self.max_evaluation_timesteps = float('inf')
@@ -238,7 +240,7 @@ class Runner(object):
                         self.best_evaluation_score = evaluation_score
                     elif evaluation_score > self.best_evaluation_score:
                         self.best_evaluation_score = evaluation_score
-                        self.agent.save_model(filename='best-model', append_timestep=False)
+                        self.agent.save(filename='best-model', append_timestep=False)
                 else:
                     self.evaluation_callback(self)
 

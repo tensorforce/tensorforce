@@ -18,10 +18,57 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core.layers import TransformationBase
+from tensorforce.core.layers import Layer, TransformationBase
 
 
-class InternalLstm(TransformationBase):
+class InternalLayer(Layer):
+    """
+    Base class for layer with internal state.
+    """
+
+    @classmethod
+    def internals_spec(cls, layer=None, **kwargs):
+        return OrderedDict()
+
+    def internals_init(self):
+        return OrderedDict()
+
+    def tf_apply(self, x, **internals):
+        return super().tf_apply(x=x)
+
+    def create_tf_function(self, name, tf_function):
+        # if name[-6:] != '.apply':
+        if tf_function.__name__ != 'tf_apply':
+            return super().create_tf_function(name=name, tf_function=tf_function)
+
+        def validated_tf_function(x, **internals):
+            if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
+                raise TensorforceError("Invalid input arguments for tf_apply.")
+            if not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
+                for name, spec in self.__class__.internals_spec(layer=self).items()
+            ):
+                raise TensorforceError("Invalid input arguments for tf_apply.")
+
+            x, internals = tf_function(x=x, **internals)
+
+            if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
+                raise TensorforceError("Invalid output arguments for tf_apply.")
+            if not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
+                for name, spec in self.__class__.internals_spec(layer=self).items()
+            ):
+                raise TensorforceError("Invalid input arguments for tf_apply.")
+
+            if len(internals) > 0:
+                return x, internals
+            else:
+                return x
+
+        return super().create_tf_function(name=name, tf_function=validated_tf_function)
+
+
+class InternalLstm(InternalLayer, TransformationBase):
     """
     LSTM layer for internal state.
     """
@@ -57,22 +104,26 @@ class InternalLstm(TransformationBase):
 
         return input_spec
 
-    def internals_spec(self):
-        specification = super().internals_spec()
+    @classmethod
+    def internals_spec(cls, layer=None, size=None, **kwargs):
+        internals_spec = super().internals_spec()
 
-        if 'state' in specification:
+        if 'state' in internals_spec:
             raise TensorforceError.unexpected()
 
-        specification['state'] = dict(type='float', shape=(2, self.size), batched=True)
+        if layer is None:
+            internals_spec['state'] = dict(type='float', shape=(2, size), batched=True)
+        else:
+            internals_spec['state'] = dict(type='float', shape=(2, layer.size), batched=True)
 
-        return specification
+        return internals_spec
 
     def internals_init(self):
-        initialization = super().internals_init()
+        internals_init = super().internals_init()
 
-        initialization['state'] = self.initial_state
+        internals_init['state'] = self.initial_state
 
-        return initialization
+        return internals_init
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -106,7 +157,7 @@ class InternalLstm(TransformationBase):
         return super().tf_apply(x=x), internals
 
 
-class InternalGru(TransformationBase):
+class InternalGru(InternalLayer, TransformationBase):
     """
     GRU layer for internal state.
     """
@@ -142,22 +193,26 @@ class InternalGru(TransformationBase):
 
         return input_spec
 
-    def internals_spec(self):
-        specification = super().internals_spec()
+    @classmethod
+    def internals_spec(cls, layer=None, size=None, **kwargs):
+        internals_spec = super().internals_spec()
 
-        if 'state' in specification:
+        if 'state' in internals_spec:
             raise TensorforceError.unexpected()
 
-        specification['state'] = dict(type='float', shape=(self.size,), batched=True)
+        if layer is None:
+            internals_spec['state'] = dict(type='float', shape=(size,), batched=True)
+        else:
+            internals_spec['state'] = dict(type='float', shape=(layer.size,), batched=True)
 
-        return specification
+        return internals_spec
 
     def internals_init(self):
-        initialization = super().internals_init()
+        internals_init = super().internals_init()
 
-        initialization['state'] = self.initial_state
+        internals_init['state'] = self.initial_state
 
-        return initialization
+        return internals_init
 
     def tf_initialize(self):
         super().tf_initialize()

@@ -58,9 +58,12 @@ class Optimizer(Module):
         if len(variables) != len(deltas):
             raise TensorforceError("Invalid variables and deltas lists.")
 
-        return tf.group(*(
-            tf.assign_add(ref=variable, value=delta) for variable, delta in zip(variables, deltas)
-        ))
+        assignments = list()
+        for variable, delta in zip(variables, deltas):
+            assignments.append(tf.assign_add(ref=variable, value=delta))
+
+        with tf.control_dependencies(control_inputs=assignments):
+            return util.no_operation()
 
     def tf_minimize(self, variables, **kwargs):
         """

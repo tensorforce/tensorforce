@@ -17,6 +17,7 @@ from collections import OrderedDict
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core import baseline_modules, Module, optimizer_modules, parameter_modules
 from tensorforce.core.models import DistributionModel
 
@@ -233,6 +234,7 @@ class PGModel(DistributionModel):
             )
             baseline_optimization = self.baseline_optimizer.minimize(**arguments)
 
-            optimization = tf.group(optimization, baseline_optimization)
+            with tf.control_dependencies(control_inputs=(optimization, baseline_optimization)):
+                optimization = util.no_operation()
 
         return optimization

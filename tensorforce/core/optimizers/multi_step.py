@@ -91,8 +91,8 @@ class MultiStep(MetaOptimizer):
                         variables=variables, arguments=arguments, **kwargs
                     )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
-                    return deltas
-                    # return num_iter_left - one, deltas
+                return deltas
+                # return num_iter_left - one, deltas
 
             num_steps = self.num_steps.value()
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))

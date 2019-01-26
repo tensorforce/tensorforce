@@ -29,6 +29,7 @@ class DQNAgent(DRLAgent):
         network,
         parallel_interactions=1,
         buffer_observe=1000,
+        seed=None,
         scope='dqn',
         device=None,
         saver=None,
@@ -70,7 +71,7 @@ class DQNAgent(DRLAgent):
         """
         super().__init__(
             states=states, actions=actions, parallel_interactions=parallel_interactions,
-            buffer_observe=buffer_observe
+            buffer_observe=buffer_observe, seed=seed
         )
 
         # Update mode

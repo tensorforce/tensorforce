@@ -246,7 +246,10 @@ class QModel(DistributionModel):
         arguments = self.target_optimizer_arguments()
         target_optimization = self.target_optimizer.minimize(**arguments)
 
-        return tf.group(optimization, target_optimization)
+        with tf.control_dependencies(control_inputs=(optimization, target_optimization)):
+            optimization = util.no_operation()
+
+        return optimization
 
     # # TEMP: Random sampling fix
     # def update(self, states, internals, actions, terminal, reward, return_loss_per_instance=False):

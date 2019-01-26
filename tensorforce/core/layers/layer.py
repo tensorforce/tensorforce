@@ -78,35 +78,6 @@ class Layer(Module):
     def get_output_spec(self, input_spec):
         return input_spec
 
-    def internals_spec(self):
-        """
-        Returns the internal states specification.
-
-        Returns:
-            Internal states specification
-        """
-        specification = OrderedDict()
-
-        for layer in self.modules.values():
-            for name, spec in layer.internals_spec().items():
-                name = layer.name + '-' + name
-                if name in specification:
-                    raise TensorforceError.unexpected()
-                # check valid names!!!
-                specification[name] = spec
-
-        return specification
-
-    def internals_init(self):
-        initialization = OrderedDict()
-
-        for layer in self.modules.values():
-            for name, init in layer.internals_init().items():
-                # check valid names!!!
-                initialization[layer.name + '-' + name] = init
-
-        return initialization
-
     def add_module(self, *args, **kwargs):
         layer = super().add_module(*args, **kwargs)
 
@@ -128,35 +99,20 @@ class Layer(Module):
         raise NotImplementedError
 
     def create_tf_function(self, name, tf_function):
-        if name[-6:] != '.apply':
+        # if name[-6:] != '.apply':
+        if tf_function.__name__ != 'tf_apply':
             return super().create_tf_function(name=name, tf_function=tf_function)
 
-        def validated_tf_function(x, **internals):
+        def validated_tf_function(x):
             if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
                 raise TensorforceError("Invalid input arguments for tf_apply.")
-            if not all(
-                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
-                for name, spec in self.internals_spec().items()
-            ):
-                raise TensorforceError("Invalid input arguments for tf_apply.")
 
-            if len(internals) > 0:
-                x, internals = tf_function(x=x, **internals)
-            else:
-                x = tf_function(x=x)
+            x = tf_function(x=x)
 
             if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
                 raise TensorforceError("Invalid output arguments for tf_apply.")
-            if not all(
-                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
-                for name, spec in self.internals_spec().items()
-            ):
-                raise TensorforceError("Invalid input arguments for tf_apply.")
 
-            if len(internals) > 0:
-                return x, internals
-            else:
-                return x
+            return x
 
         return super().create_tf_function(name=name, tf_function=validated_tf_function)
 

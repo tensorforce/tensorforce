@@ -38,7 +38,6 @@ class NetworkBaseline(Baseline):
         self.network = self.add_module(
             name='network', module=network, modules=network_modules, inputs_spec=self.inputs_spec
         )
-        assert len(self.network.internals_spec()) == 0
         output_spec = self.network.get_output_spec()
 
         self.prediction = self.add_module(

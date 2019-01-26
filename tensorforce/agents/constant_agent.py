@@ -28,6 +28,7 @@ class ConstantAgent(Agent):
         actions,
         parallel_interactions=1,
         buffer_observe=1000,
+        seed=None,
         scope='constant',
         device=None,
         saver=None,
@@ -58,7 +59,7 @@ class ConstantAgent(Agent):
         """
         super().__init__(
             states=states, actions=actions, parallel_interactions=parallel_interactions,
-            buffer_observe=buffer_observe
+            buffer_observe=buffer_observe, seed=seed
         )
 
         self.model = ConstantModel(

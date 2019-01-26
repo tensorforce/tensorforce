@@ -53,11 +53,11 @@ class TestSaving(UnittestBase, unittest.TestCase):
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
-        agent.save_model(directory=self.__class__.directory, filename=None)
+        agent.save(directory=self.__class__.directory, filename=None)
 
         agent.close()
 
-        restored_agent.restore_model(directory=self.__class__.directory, filename=None)
+        restored_agent.restore(directory=self.__class__.directory, filename=None)
 
         actions = restored_agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -87,11 +87,11 @@ class TestSaving(UnittestBase, unittest.TestCase):
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
-        agent.save_model(directory=self.__class__.directory, filename='test')
+        agent.save(directory=self.__class__.directory, filename='test')
 
         agent.close()
 
-        restored_agent.restore_model(directory=self.__class__.directory, filename='test-1')
+        restored_agent.restore(directory=self.__class__.directory, filename='test-1')
 
         actions = restored_agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -121,11 +121,11 @@ class TestSaving(UnittestBase, unittest.TestCase):
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
-        agent.save_model(directory=self.__class__.directory, append_timestep=False)
+        agent.save(directory=self.__class__.directory, append_timestep=False)
 
         agent.close()
 
-        restored_agent.restore_model(directory=self.__class__.directory)
+        restored_agent.restore(directory=self.__class__.directory)
 
         actions = restored_agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)

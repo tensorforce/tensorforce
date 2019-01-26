@@ -21,6 +21,7 @@ Agent:
 - States/actions of type `int` require a parameter `num_values` (instead of `num_actions`)
 - `execution` parameter `num_parallel` replaced by a separate argument `parallel_interactions`
 - `batched_observe` and `batching_capacity` replaced by argument `buffer_observe`
+- `Agent.save/restore_model()` renamed to `Agent.save/restore()`
 
 Networks and layers:
 - Directories restructured to `core/networks/` and `core/layers/`

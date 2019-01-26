@@ -51,8 +51,7 @@ class Synchronization(Optimizer):
         super().tf_initialize()
 
         self.last_sync = self.add_variable(
-            name='last-sync', dtype='long', shape=(), is_trainable=False,
-            initializer=(-self.sync_frequency.value())
+            name='last-sync', dtype='long', shape=(), is_trainable=False, initializer=-1
         )
 
     def tf_step(self, variables, source_variables, **kwargs):
@@ -96,5 +95,10 @@ class Synchronization(Optimizer):
             return deltas
 
         sync_frequency = self.sync_frequency.value()
-        skip_sync = (timestep - self.last_sync < sync_frequency)
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        skip_sync = tf.math.logical_and(
+            x=tf.math.less(x=(timestep - self.last_sync), y=sync_frequency),
+            y=tf.math.greater_equal(x=self.last_sync, y=zero)
+        )
+
         return self.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)

@@ -248,7 +248,7 @@ class Module(object):
                     timestep=self.global_timestep, episode=self.global_episode
                 )
 
-                if self.summarizer_specs is not None:
+                if self.summarizer_spec is not None:
                     if 'steps' in self.summarizer_spec:
                         record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
                             n=self.summarizer_spec['steps'],
@@ -323,7 +323,7 @@ class Module(object):
                         record_summaries2.__exit__(None, None, None)
 
         if self.parent is None:
-            if self.summarizer_specs is not None:
+            if self.summarizer_spec is not None:
                 record_summaries.__exit__(None, None, None)
 
     def create_tf_function(self, name, tf_function):

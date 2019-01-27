@@ -335,16 +335,16 @@ class Model(Module):
                     self.summarizer_init = self.summarizer.init()
                     self.summarizer_flush = self.summarizer.flush()
                     self.summarizer_close = self.summarizer.close()
-                    assert 'steps' not in self.summarizer_spec
+                    default_summarizer = self.summarizer.as_default()
+                    default_summarizer.__enter__()
                     # if 'steps' in self.summarizer_spec:
                     #     record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
                     #         n=self.summarizer_spec['steps'],
-                    #         global_step=self.global_timestep
+                    #         # global_step=self.global_timestep
                     #     )
-                    default_summarizer = self.summarizer.as_default()
-                    record_summaries = tf.contrib.summary.always_record_summaries()
-                    default_summarizer.__enter__()
-                    record_summaries.__enter__()
+                    # else:
+                    #     record_summaries = tf.contrib.summary.always_record_summaries()
+                    # record_summaries.__enter__()
 
             self.initialize()
 
@@ -364,7 +364,7 @@ class Model(Module):
                 self.graph_summary = None
 
             if self.summarizer_spec is not None:
-                record_summaries.__exit__(None, None, None)
+                # record_summaries.__exit__(None, None, None)
                 default_summarizer.__exit__(None, None, None)
 
         # If we are a global model -> return here.

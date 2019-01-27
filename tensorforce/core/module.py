@@ -248,14 +248,15 @@ class Module(object):
                     timestep=self.global_timestep, episode=self.global_episode
                 )
 
-                if 'steps' in self.summarizer_spec:
-                    record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
-                        n=self.summarizer_spec['steps'],
-                        global_step=self.global_timestep
-                    )
-                else:
-                    record_summaries = tf.contrib.summary.always_record_summaries()
-                record_summaries.__enter__()
+                if self.summarizer_specs is not None:
+                    if 'steps' in self.summarizer_spec:
+                        record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
+                            n=self.summarizer_spec['steps'],
+                            global_step=self.global_timestep
+                        )
+                    else:
+                        record_summaries = tf.contrib.summary.always_record_summaries()
+                    record_summaries.__enter__()
 
             for module in self.modules.values():
                 module.initialize()
@@ -296,10 +297,11 @@ class Module(object):
             if attribute.startswith('api_'):
                 function_name = attribute[4:]
 
-                # Todo: per function steps argument, plus own every_n_step implementation
-                if function_name == 'observe' and 'steps' in self.summarizer_spec:
-                    record_summaries2 = tf.contrib.summary.always_record_summaries()
-                    record_summaries2.__enter__()
+                # Todo: own every_n_step implementation, plus maybe per function steps argument
+                if function_name == 'observe':
+                    if self.summarizer_spec is not None and 'steps' in self.summarizer_spec:
+                        record_summaries2 = tf.contrib.summary.always_record_summaries()
+                        record_summaries2.__enter__()
 
                 if not util.is_valid_name(name=function_name):
                     raise TensorforceError.value(name='API-function name', value=function_name)
@@ -316,11 +318,13 @@ class Module(object):
 
                 setattr(self, function_name, function)
 
-                if function_name == 'observe' and 'steps' in self.summarizer_spec:
-                    record_summaries2.__exit__(None, None, None)
+                if function_name == 'observe':
+                    if self.summarizer_spec is not None and 'steps' in self.summarizer_spec:
+                        record_summaries2.__exit__(None, None, None)
 
         if self.parent is None:
-            record_summaries.__exit__(None, None, None)
+            if self.summarizer_specs is not None:
+                record_summaries.__exit__(None, None, None)
 
     def create_tf_function(self, name, tf_function):
         # Call internal TensorFlow function

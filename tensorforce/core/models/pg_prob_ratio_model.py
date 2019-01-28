@@ -61,7 +61,7 @@ class PGProbRatioModel(PGModel):
             else likelihood_ratio_clipping
         self.likelihood_ratio_clipping = self.add_module(
             name='likelihood-ratio-clipping', module=likelihood_ratio_clipping,
-            modules=parameter_modules, dtype='float'
+            modules=parameter_modules
         )
 
     def tf_reference(

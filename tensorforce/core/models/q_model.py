@@ -105,7 +105,7 @@ class QModel(DistributionModel):
         # Huber loss
         huber_loss = 0.0 if huber_loss is None else huber_loss
         self.huber_loss = self.add_module(
-            name='huber-loss', module=huber_loss, modules=parameter_modules, dtype='float'
+            name='huber-loss', module=huber_loss, modules=parameter_modules
         )
 
     def as_local_model(self):

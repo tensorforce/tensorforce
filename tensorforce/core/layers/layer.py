@@ -19,6 +19,7 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 from tensorforce.core import Module
+from tensorforce.core.parameters import Parameter
 
 
 class Layer(Module):
@@ -66,7 +67,7 @@ class Layer(Module):
     def add_module(self, *args, **kwargs):
         layer = super().add_module(*args, **kwargs)
 
-        if not isinstance(layer, Layer):
+        if not isinstance(layer, (Layer, Parameter)):
             raise TensorforceError.type(name='layer', argument='sub-module', value=layer)
 
         return layer

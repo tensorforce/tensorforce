@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import TensorforceError, util
 from tensorforce.core import Module
 from tensorforce.core.parameters import Parameter
 
@@ -25,7 +25,17 @@ class PiecewiseConstant(Parameter):
     Piecewise constant hyperparameter.
     """
 
-    def __init__(self, name, dtype, unit, boundaries, values, summary_labels=None):
+    def __init__(self, name, unit, boundaries, values, dtype=None, summary_labels=None):
+        if dtype is None:
+            if isinstance(values[0], bool):
+                dtype = 'bool'
+            elif isinstance(values[0], int):
+                dtype = 'int'
+            elif isinstance(values[0], float):
+                dtype = 'float'
+            else:
+                raise TensorforceError.unexpected()
+
         super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
 
         assert unit in ('timesteps', 'episodes')

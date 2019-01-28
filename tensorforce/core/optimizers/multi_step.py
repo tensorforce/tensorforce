@@ -43,7 +43,7 @@ class MultiStep(MetaOptimizer):
             self.num_steps = num_steps
         else:
             self.num_steps = self.add_module(
-                name='num-steps', module=num_steps, modules=parameter_modules, dtype='int'
+                name='num-steps', module=num_steps, modules=parameter_modules
             )
 
     def tf_step(self, variables, arguments, **kwargs):

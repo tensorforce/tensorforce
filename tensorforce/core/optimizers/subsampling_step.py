@@ -37,7 +37,7 @@ class SubsamplingStep(MetaOptimizer):
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
         self.fraction = self.add_module(
-            name='fraction', module=fraction, modules=parameter_modules, dtype='float'
+            name='fraction', module=fraction, modules=parameter_modules
         )
 
     def tf_step(self, variables, arguments, **kwargs):

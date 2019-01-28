@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import TensorforceError, util
 from tensorforce.core.parameters import Parameter
 
 
@@ -25,7 +25,17 @@ class Constant(Parameter):
     """
 
     # Argument 'value' first for default specification
-    def __init__(self, name, value, dtype, summary_labels=None):
+    def __init__(self, name, value, dtype=None, summary_labels=None):
+        if dtype is None:
+            if isinstance(value, bool):
+                dtype = 'bool'
+            elif isinstance(value, int):
+                dtype = 'int'
+            elif isinstance(value, float):
+                dtype = 'float'
+            else:
+                raise TensorforceError.unexpected()
+
         super().__init__(name=name, dtype=dtype, shape=(), summary_labels=summary_labels)
 
         self.constant_value = value

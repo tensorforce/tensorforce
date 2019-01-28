@@ -103,8 +103,7 @@ class DistributionModel(MemoryModel):
         # Entropy regularization
         entropy_regularization = 0.0 if entropy_regularization is None else entropy_regularization
         self.entropy_regularization = self.add_module(
-            name='entropy-regularization', module=entropy_regularization,
-            modules=parameter_modules, dtype='float'
+            name='entropy-regularization', module=entropy_regularization, modules=parameter_modules
         )
 
         # For deterministic action sampling (Q vs PG model)

@@ -42,7 +42,7 @@ class NaturalGradient(Optimizer):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+            name='learning-rate', module=learning_rate, modules=parameter_modules
         )
 
         self.solver = self.add_module(

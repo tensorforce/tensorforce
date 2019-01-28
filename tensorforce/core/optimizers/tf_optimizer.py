@@ -49,7 +49,7 @@ class TFOptimizer(Optimizer):
 
         assert optimizer in TFOptimizer.tensorflow_optimizers
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+            name='learning-rate', module=learning_rate, modules=parameter_modules
         )
         self.optimizer = TFOptimizer.tensorflow_optimizers[optimizer]
         self.optimizer_kwargs = kwargs

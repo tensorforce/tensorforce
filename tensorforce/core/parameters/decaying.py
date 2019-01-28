@@ -26,8 +26,8 @@ class Decaying(Parameter):
     """
 
     def __init__(
-        self, name, dtype, unit, decay, initial_value, decay_steps, inverse=False, scale=1.0,
-        summary_labels=None, **kwargs
+        self, name, unit, decay, initial_value, decay_steps, inverse=False, scale=1.0,
+        dtype='float', summary_labels=None, **kwargs
     ):
         super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
 

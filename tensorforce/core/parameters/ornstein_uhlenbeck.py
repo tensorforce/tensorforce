@@ -24,7 +24,7 @@ class OrnsteinUhlenbeck(Parameter):
     Ornstein-Uhlenbeck process.
     """
 
-    def __init__(self, name, dtype, theta=0.15, mu=0.0, sigma=0.3, summary_labels=None):
+    def __init__(self, name, theta=0.15, mu=0.0, sigma=0.3, dtype='float', summary_labels=None):
         super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
 
         self.theta = theta

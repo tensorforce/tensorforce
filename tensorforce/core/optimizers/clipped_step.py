@@ -37,7 +37,7 @@ class ClippedStep(MetaOptimizer):
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
         self.clipping_value = self.add_module(
-            name='clipping-value', module=clipping_value, modules=parameter_modules, dtype='float'
+            name='clipping-value', module=clipping_value, modules=parameter_modules
         )
 
     def tf_step(self, variables, **kwargs):

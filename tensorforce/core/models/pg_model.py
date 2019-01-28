@@ -97,7 +97,7 @@ class PGModel(DistributionModel):
             self.gae_lambda = None
         else:
             self.gae_lambda = self.add_module(
-                name='gae-lambda', module=gae_lambda, modules=parameter_modules, dtype='float'
+                name='gae-lambda', module=gae_lambda, modules=parameter_modules
             )
 
         # TODO: Baseline internal states !!! (see target_network q_model)

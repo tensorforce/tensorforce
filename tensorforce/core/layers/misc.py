@@ -106,14 +106,12 @@ class Dropout(Layer):
         Args:
             dropout (0.0 <= float < 1.0): Dropout rate.
         """
-        # Rate
-        self.rate = self.add_module(
-            name='rate', module=rate, modules=parameter_modules, dtype='float'
-        )
-
         super().__init__(
             name=name, input_spec=input_spec, l2_regularization=0.0, summary_labels=summary_labels
         )
+
+        # Rate
+        self.rate = self.add_module(name='rate', module=rate, modules=parameter_modules)
 
     def default_input_spec(self):
         return dict(type='float', shape=None)
@@ -141,5 +139,5 @@ class Dropout(Layer):
 
         skip_dropout = tf.math.logical_not(x=Module.retrieve_tensor(name='update'))
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        skip_dropout = tf.math.logical_or(x=apply_dropout, y=tf.math.equal(x=rate, y=zero))
+        skip_dropout = tf.math.logical_or(x=skip_dropout, y=tf.math.equal(x=rate, y=zero))
         return self.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)

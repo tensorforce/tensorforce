@@ -65,9 +65,7 @@ class ConjugateGradient(Iterative):
             name=name, max_iterations=max_iterations, unroll_loop=unroll_loop, use_while_v2=True
         )
 
-        self.damping = self.add_module(
-            name='damping', module=damping, modules=parameter_modules, dtype='float'
-        )
+        self.damping = self.add_module(name='damping', module=damping, modules=parameter_modules)
 
     def tf_solve(self, fn_x, x_init, b):
         """

@@ -37,7 +37,7 @@ class Evolutionary(Optimizer):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+            name='learning-rate', module=learning_rate, modules=parameter_modules
         )
 
         assert isinstance(unroll_loop, bool)
@@ -47,7 +47,7 @@ class Evolutionary(Optimizer):
             self.num_samples = num_samples
         else:
             self.num_samples = self.add_module(
-                name='num-samples', module=num_samples, modules=parameter_modules, dtype='int'
+                name='num-samples', module=num_samples, modules=parameter_modules
             )
 
     def tf_step(self, variables, arguments, fn_loss, **kwargs):

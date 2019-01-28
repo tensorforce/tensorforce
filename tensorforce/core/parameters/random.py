@@ -38,7 +38,7 @@ class Random(Parameter):
     Random hyperparameter.
     """
 
-    def __init__(self, name, dtype, distribution, shape=(), summary_labels=None, **kwargs):
+    def __init__(self, name, distribution, dtype='float', shape=(), summary_labels=None, **kwargs):
         super().__init__(name=name, dtype=dtype, shape=shape, summary_labels=summary_labels)
 
         assert distribution in ('normal', 'uniform')

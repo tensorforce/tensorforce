@@ -46,7 +46,7 @@ class LineSearch(Iterative):
 
         assert accept_ratio >= 0.0
         self.accept_ratio = self.add_module(
-            name='accept-ratio', module=accept_ratio, modules=parameter_modules, dtype='float'
+            name='accept-ratio', module=accept_ratio, modules=parameter_modules
         )
 
         # TODO: Implement such sequences more generally, also useful for learning rate decay or so.
@@ -57,7 +57,7 @@ class LineSearch(Iterative):
         self.mode = mode
 
         self.parameter = self.add_module(
-            name='parameter', module=parameter, modules=parameter_modules, dtype='float'
+            name='parameter', module=parameter, modules=parameter_modules
         )
 
     def tf_solve(self, fn_x, x_init, base_value, target_value, estimated_improvement=None):

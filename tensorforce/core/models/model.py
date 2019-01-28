@@ -142,19 +142,19 @@ class Model(Module):
                 if name in exploration:
                     self.exploration[name] = self.add_module(
                         name=(name + '-exploration'), module=exploration[name],
-                        modules=parameter_modules, dtype='float'
+                        modules=parameter_modules
                     )
         else:
             # Same exploration for all actions
             self.exploration = self.add_module(
-                name='exploration', module=exploration, modules=parameter_modules, dtype='float'
+                name='exploration', module=exploration, modules=parameter_modules
             )
 
         # Variable noise
         assert variable_noise is None or isinstance(variable_noise, dict) or variable_noise >= 0.0
         variable_noise = 0.0 if variable_noise is None else variable_noise
         self.variable_noise = self.add_module(
-            name='variable-noise', module=variable_noise, modules=parameter_modules, dtype='float'
+            name='variable-noise', module=variable_noise, modules=parameter_modules
         )
 
         # States preprocessing

@@ -44,7 +44,7 @@ class Synchronization(Optimizer):
 
         update_weight = 1.0 if update_weight is None else update_weight
         self.update_weight = self.add_module(
-            name='update-weight', module=update_weight, modules=parameter_modules, dtype='float'
+            name='update-weight', module=update_weight, modules=parameter_modules
         )
 
     def tf_initialize(self):

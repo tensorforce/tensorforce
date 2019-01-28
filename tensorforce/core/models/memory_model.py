@@ -158,7 +158,7 @@ class MemoryModel(Model):
         #     raise TensorforceError.value(name='discount', value=discount)
         discount = 1.0 if discount is None else discount
         self.discount = self.add_module(
-            name='discount', module=discount, modules=parameter_modules, dtype='float'
+            name='discount', module=discount, modules=parameter_modules
         )
 
     def as_local_model(self):

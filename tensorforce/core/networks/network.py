@@ -18,6 +18,7 @@ from collections import Counter, OrderedDict
 from tensorforce import TensorforceError, util
 from tensorforce.core import Module
 from tensorforce.core.layers import InternalLayer, Layer, layer_modules
+from tensorforce.core.parameters import Parameter
 
 
 class Network(Module):
@@ -170,7 +171,7 @@ class LayerbasedNetwork(Network):
             )
             self.output_spec = layer.output_spec
 
-        if not isinstance(layer, Layer):
+        if not isinstance(layer, (Layer, Parameter)):
             raise TensorforceError.type(
                 name='layer-based network', argument='sub-module', value=layer
             )

@@ -57,7 +57,7 @@ class SubsamplingStep(MetaOptimizer):
         some_argument = next(arguments_iter)
 
         try:
-            while not isinstance(some_argument, tf.Tensor) or util.rank(some_argument) == 0:
+            while not isinstance(some_argument, tf.Tensor) or util.rank(x=some_argument) == 0:
                 if isinstance(some_argument, dict):
                     if some_argument:
                         arguments_iter = iter(some_argument.values())
@@ -66,7 +66,7 @@ class SubsamplingStep(MetaOptimizer):
                     if some_argument:
                         arguments_iter = iter(some_argument)
                     some_argument = next(arguments_iter)
-                elif some_argument is None or util.rank(some_argument) == 0:
+                elif some_argument is None or util.rank(x=some_argument) == 0:
                     # Non-batched argument
                     some_argument = next(arguments_iter)
                 else:

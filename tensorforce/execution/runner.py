@@ -17,6 +17,7 @@ import time
 
 import numpy as np
 
+from tensorforce import util
 from tensorforce.agents import Agent
 
 
@@ -91,6 +92,15 @@ class Runner(object):
             self.callback_timestep_frequency = callback_timestep_frequency
         if callback is None:
             self.callback = (lambda r: True)
+        elif util.is_iterable(x=callback):
+            def sequential_callback(runner):
+                result = True
+                for fn in callback:
+                    x = fn(runner)
+                    if isinstance(result, bool):
+                        result = result and x
+                return result
+            self.callback = sequential_callback
         else:
             def boolean_callback(runner):
                 result = callback(runner)

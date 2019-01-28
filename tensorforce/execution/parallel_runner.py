@@ -100,6 +100,15 @@ class ParallelRunner(object):
             self.callback_timestep_frequency = callback_timestep_frequency
         if callback is None:
             self.callback = (lambda r, p: True)
+        elif util.is_iterable(x=callback):
+            def sequential_callback(runner, parallel):
+                result = True
+                for fn in callback:
+                    x = fn(runner, parallel)
+                    if isinstance(result, bool):
+                        result = result and x
+                return result
+            self.callback = sequential_callback
         else:
             def boolean_callback(runner, parallel):
                 result = callback(runner, parallel)

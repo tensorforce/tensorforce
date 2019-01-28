@@ -29,7 +29,7 @@ class QNstepModel(QModel):
             terminal = tf.expand_dims(input=terminal, axis=1)
             reward = tf.expand_dims(input=reward, axis=1)
 
-        multiples = (1,) + util.shape(q_value)[1:]
+        multiples = (1,) + util.shape(x=q_value)[1:]
         terminal = tf.tile(input=terminal, multiples=multiples)
         reward = tf.tile(input=reward, multiples=multiples)
 

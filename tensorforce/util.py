@@ -373,9 +373,6 @@ def valid_value_spec(
                 )
             if return_normalized:
                 normalized_spec['batched'] = batched
-        elif return_normalized:
-            batched = True
-            normalized_spec['batched'] = batched
 
     if dtype == 'bool' or (accept_underspecified and dtype is not None and 'bool' in dtype):
         pass
@@ -575,17 +572,17 @@ def unify_value_specs(value_spec1, value_spec2):
         shape = tuple(reversed(reverse_shape))
     unified_value_spec['shape'] = shape
 
-    # Unify batched
-    if 'batched' in value_spec1 or 'batched' in value_spec2:
-        batched1 = value_spec1.get('batched', False)
-        batched2 = value_spec2.get('batched', False)
-        if batched1 is batched2:
-            batched = batched1
-        else:
-            raise TensorforceError.mismatch(
-                name='value-spec', argument='batched', value1=batched1, value2=batched2
-            )
-        unified_value_spec['batched'] = batched
+    # # Unify batched
+    # if 'batched' in value_spec1 or 'batched' in value_spec2:
+    #     batched1 = value_spec1.get('batched', False)
+    #     batched2 = value_spec2.get('batched', False)
+    #     if batched1 is batched2:
+    #         batched = batched1
+    #     else:
+    #         raise TensorforceError.mismatch(
+    #             name='value-spec', argument='batched', value1=batched1, value2=batched2
+    #         )
+    #     unified_value_spec['batched'] = batched
 
     # Unify num_values
     if 'num_values' in value_spec1 and 'num_values' in value_spec2:
@@ -625,9 +622,9 @@ def is_consistent_with_value_spec(value_spec, x):
         return False
     if value_spec['shape'] is None:
         pass
-    elif len(shape(x=x)) != len(value_spec['shape']) + int(value_spec.get('batched', False)):
+    elif len(shape(x=x)) != len(value_spec['shape']) + int(value_spec.get('batched', True)):
         return False
-    elif value_spec.get('batched', False):
+    elif value_spec.get('batched', True):
         if not all(
             a == b or b == 0 or b == -1 for a, b in zip(shape(x=x), (-1,) + value_spec['shape'])
         ):

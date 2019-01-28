@@ -42,20 +42,10 @@ class Layer(Module):
             value_spec=self.input_spec, accept_underspecified=True, return_normalized=True
         )
 
-        if not self.input_spec['batched']:
-            raise TensorforceError.value(
-                name='default input-spec', argument='batched', value=self.input_spec['batched']
-            )
-
         if input_spec is not None:
             input_spec = util.valid_value_spec(
                 value_spec=input_spec, accept_underspecified=True, return_normalized=True
             )
-
-            if not input_spec['batched']:
-                raise TensorforceError.value(
-                    name='input-spec', argument='batched', value=input_spec['batched']
-                )
 
             self.input_spec = util.unify_value_specs(
                 value_spec1=self.input_spec, value_spec2=input_spec
@@ -66,11 +56,6 @@ class Layer(Module):
         self.output_spec = util.valid_value_spec(
             value_spec=self.output_spec, accept_underspecified=True, return_normalized=True
         )
-
-        if not self.output_spec['batched']:
-            raise TensorforceError.value(
-                name='output_spec', argument='batched', value=self.output_spec['batched']
-            )
 
     def default_input_spec(self):
         raise NotImplementedError
@@ -122,7 +107,7 @@ class Retrieve(Layer):
     Retrieve layer.
     """
 
-    def __init__(self, name, tensors, aggregation='concat', axis=1, input_spec=None):
+    def __init__(self, name, tensors, aggregation='concat', axis=0, input_spec=None):
         """
         Retrieve constructor.
 
@@ -152,12 +137,7 @@ class Retrieve(Layer):
 
     def get_output_spec(self, input_spec):
         if len(self.tensors) == 1:
-            if self.tensors[0] in Module.global_tensors_spec:
-                return Module.global_tensors_spec[self.tensors[0]]
-            else:
-                raise TensorforceError.value(
-                    name='retrieve-layer', argument='tensors', value=self.tensors
-                )
+            return Module.get_tensor_spec(name=self.tensors[0])
 
         # Get tensor types and shapes
         dtypes = list()
@@ -166,12 +146,8 @@ class Retrieve(Layer):
             # Tensor specification
             if tensor == '*':
                 spec = input_spec
-            elif tensor in Module.global_tensors_spec:
-                spec = Module.global_tensors_spec[tensor]
             else:
-                raise TensorforceError.value(
-                    name='retrieve-layer', argument='tensors', value=self.tensors
-                )
+                spec = Module.get_tensor_spec(name=tensor)
             dtypes.append(spec['type'])
             shapes.append(spec['shape'])
 
@@ -181,14 +157,37 @@ class Retrieve(Layer):
         else:
             raise TensorforceError.value(name='tensor types', value=dtypes)
 
-        # Check and unify tensor shapes
-        max_shape = ()
-        for shape in shapes:
-            if any(x != y for x, y in zip(shape, max_shape)):
-                pass
-                # raise TensorforceError.value(name='tensor shapes', value=shapes)
-            elif len(shape) > len(max_shape):
-                max_shape = shape
+        if self.aggregation == 'concat':
+            if any(len(shape) != len(shapes[0]) for shape in shapes):
+                raise TensorforceError.value(name='tensor shapes', value=shapes)
+            elif any(
+                shape[n] != shapes[0][n] for shape in shapes for n in range(len(shape))
+                if n != self.axis
+            ):
+                raise TensorforceError.value(name='tensor shapes', value=shapes)
+            shape = tuple(
+                sum(shape[n] for shape in shapes) if n == self.axis else shapes[0][n]
+                for n in range(len(shapes[0]))
+            )
+
+        elif self.aggregation == 'stack':
+            if any(len(shape) != len(shapes[0]) for shape in shapes):
+                raise TensorforceError.value(name='tensor shapes', value=shapes)
+            elif any(shape[n] != shapes[0][n] for shape in shapes for n in range(len(shape))):
+                raise TensorforceError.value(name='tensor shapes', value=shapes)
+            shape = tuple(
+                len(shapes) if n == self.axis else shapes[0][n - int(n > self.axis)]
+                for n in range(len(shapes[0]) + 1)
+            )
+
+        else:
+            # Check and unify tensor shapes
+            for shape in shapes:
+                if len(shape) != len(shapes[0]):
+                    raise TensorforceError.value(name='tensor shapes', value=shapes)
+                if any(x != y and x != 1 and y != 1 for x, y in zip(shape, shapes[0])):
+                    raise TensorforceError.value(name='tensor shapes', value=shapes)
+            shape = tuple(max(shape[n] for shape in shapes) for n in range(len(shapes[0])))
 
         # Missing num_values, min/max_value!!!
         return dict(type=dtype, shape=shape)
@@ -209,23 +208,23 @@ class Retrieve(Layer):
 
         shape = self.output_spec['shape']
         for n, tensor in enumerate(tensors):
-            for rank in range(util.rank(x=tensor), len(shape)):
-                tensor = tf.expand_dims(input=tensor, axis=rank)
+            for axis in range(util.rank(x=tensor), len(shape)):
+                tensor = tf.expand_dims(input=tensor, axis=axis)
             tensors[n] = tensor
 
         if self.aggregation == 'concat':
-            x = tf.concat(values=tensors, axis=self.axis)
+            x = tf.concat(values=tensors, axis=(self.axis + 1))
 
         elif self.aggregation == 'product':
-            x = tf.stack(values=tensors, axis=self.axis)
-            x = tf.reduce_prod(input_tensor=x, axis=self.axis)
+            x = tf.stack(values=tensors, axis=(self.axis + 1))
+            x = tf.reduce_prod(input_tensor=x, axis=(self.axis + 1))
 
         elif self.aggregation == 'stack':
-            x = tf.stack(values=tensors, axis=self.axis)
+            x = tf.stack(values=tensors, axis=(self.axis + 1))
 
         elif self.aggregation == 'sum':
-            x = tf.stack(values=tensors, axis=self.axis)
-            x = tf.reduce_sum(input_tensor=x, axis=self.axis)
+            x = tf.stack(values=tensors, axis=(self.axis + 1))
+            x = tf.reduce_sum(input_tensor=x, axis=(self.axis + 1))
 
         return x
 

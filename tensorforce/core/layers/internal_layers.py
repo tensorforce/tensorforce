@@ -112,9 +112,9 @@ class InternalLstm(InternalLayer, TransformationBase):
             raise TensorforceError.unexpected()
 
         if layer is None:
-            internals_spec['state'] = dict(type='float', shape=(2, size), batched=True)
+            internals_spec['state'] = dict(type='float', shape=(2, size))
         else:
-            internals_spec['state'] = dict(type='float', shape=(2, layer.size), batched=True)
+            internals_spec['state'] = dict(type='float', shape=(2, layer.size))
 
         return internals_spec
 

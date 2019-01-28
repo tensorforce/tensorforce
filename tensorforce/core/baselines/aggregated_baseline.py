@@ -49,7 +49,7 @@ class AggregatedBaseline(Baseline):
 
         self.prediction = self.add_module(
             name='prediction', module='linear', modules=layer_modules, size=0,
-            input_spec=dict(type='float', shape=(len(self.baselines),), batched=True)
+            input_spec=dict(type='float', shape=(len(self.baselines),))
         )
 
     def tf_predict(self, states, internals):

@@ -45,7 +45,6 @@ class Module(object):
         if Module.global_scope is None:  # ???
             raise TensorforceError.unexpected()
 
-        # scoped_name = util.join_scopes(*Module.global_scope, name)
         scoped_name = name
 
         # if scoped_name in Module.global_tensors_spec:
@@ -68,6 +67,16 @@ class Module(object):
             raise TensorforceError.unexpected()
 
         Module.global_tensors_spec[scoped_name] = spec
+
+    @staticmethod
+    def get_tensor_spec(name):
+        if name not in Module.global_tensors_spec:
+            raise TensorforceError.value(name='name', value=name)
+
+        spec = dict(Module.global_tensors_spec[name])
+        spec.pop('batched')
+
+        return spec
 
     @staticmethod
     def update_tensor(name, tensor):

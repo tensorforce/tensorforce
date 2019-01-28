@@ -65,22 +65,15 @@ class PGModel(DistributionModel):
         elif all(name in self.states_spec for name in baseline):
             # Implies AggregatedBaseline
             assert self.baseline_mode == 'states'
-            inputs_spec = OrderedDict()
-            for name, spec in self.states_spec.items():
-                inputs_spec[name] = dict(spec)
-                inputs_spec[name]['batched'] = True
             self.baseline = self.add_module(
                 name='baseline', module='aggregated', modules=baseline_modules,
                 is_trainable=(baseline_optimizer is None), is_subscope=True, baselines=baseline,
-                inputs_spec=inputs_spec
+                inputs_spec=self.states_spec
             )
         else:
             assert self.baseline_mode is not None
             if self.baseline_mode == 'states':
-                inputs_spec = OrderedDict()
-                for name, spec in self.states_spec.items():
-                    inputs_spec[name] = dict(spec)
-                    inputs_spec[name]['batched'] = True
+                inputs_spec = self.states_spec
             elif self.baseline_mode == 'network':
                 inputs_spec = self.network.get_output_spec()
             self.baseline = self.add_module(

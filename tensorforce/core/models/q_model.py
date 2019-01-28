@@ -127,7 +127,7 @@ class QModel(DistributionModel):
 
         :return: A list of deltas per action
         """
-        for _ in range(util.rank(q_value) - 1):
+        for _ in range(util.rank(x=q_value) - 1):
             terminal = tf.expand_dims(input=terminal, axis=1)
             reward = tf.expand_dims(input=reward, axis=1)
 

@@ -66,6 +66,22 @@ class TestRunners(UnittestBase, unittest.TestCase):
             callback_timestep_frequency=callback_timestep_frequency
         )
 
+        self.is_callback1 = False
+        self.is_callback2 = False
+
+        def callback1(r):
+            self.is_callback1 = True
+
+        def callback2(r):
+            self.is_callback2 = True
+
+        runner.run(
+            num_episodes=12, callback=[callback1, callback2],
+            callback_timestep_frequency=callback_timestep_frequency
+        )
+
+        self.assertTrue(expr=(self.is_callback1 and self.is_callback2))
+
         runner.close()
         sys.stdout.flush()
         self.assertTrue(expr=True)
@@ -166,6 +182,22 @@ class TestRunners(UnittestBase, unittest.TestCase):
             num_episodes=11, callback=callback,
             callback_timestep_frequency=callback_timestep_frequency
         )
+
+        self.is_callback1 = False
+        self.is_callback2 = False
+
+        def callback1(r, parallel):
+            self.is_callback1 = True
+
+        def callback2(r, parallel):
+            self.is_callback2 = True
+
+        runner.run(
+            num_episodes=12, callback=[callback1, callback2],
+            callback_timestep_frequency=callback_timestep_frequency
+        )
+
+        self.assertTrue(expr=(self.is_callback1 and self.is_callback2))
 
         runner.close()
         sys.stdout.flush()

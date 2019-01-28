@@ -37,14 +37,9 @@ class DistributionModel(MemoryModel):
         # DistributionModel
         network, distributions, entropy_regularization, requires_deterministic
     ):
-        # Network inputs specification
-        inputs_spec = OrderedDict()
-        for name, spec in states.items():
-            inputs_spec[name] = dict(**spec, batched=True)
-
         # Network internals specification
         network_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-            module=network, modules=network_modules, inputs_spec=inputs_spec
+            module=network, modules=network_modules, inputs_spec=states
         )
         if first_arg is None:
             internals = network_cls.internals_spec(**kwargs)
@@ -64,7 +59,7 @@ class DistributionModel(MemoryModel):
 
         # Network
         self.network = self.add_module(
-            name='network', module=network, modules=network_modules, inputs_spec=inputs_spec
+            name='network', module=network, modules=network_modules, inputs_spec=self.states_spec
         )
         output_spec = self.network.get_output_spec()
         if output_spec['type'] != 'float':

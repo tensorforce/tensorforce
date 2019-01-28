@@ -1135,6 +1135,7 @@ class Model(Module):
             Module.update_tensors(
                 **states, **internals, **actions, terminal=terminal, reward=reward
             )
+            reward = self.add_summary(label='reward', name='reward', tensor=reward)
             observation = self.core_observe(
                 states=states, internals=internals, actions=actions, terminal=terminal,
                 reward=reward

@@ -54,7 +54,7 @@ class TestQuickstart(unittest.TestCase):
             ),
             gae_lambda=0.97, likelihood_ratio_clipping=0.2,
             # PPO optimizer
-            step_optimizer=dict(type='adam', learning_rate=1e-3),
+            step_optimizer=dict(type='adam', learning_rate=3e-4),
             # PPO multi-step optimization: 25 updates, each calculated for 20% of the batch
             subsampling_fraction=0.2, optimization_steps=25
         )
@@ -70,7 +70,7 @@ class TestQuickstart(unittest.TestCase):
         runner.run(num_episodes=500, max_episode_timesteps=200, callback=callback)
         runner.close()
 
-        if np.mean(runner.episode_rewards[-100:]) <= 180.0:
+        if float(np.mean(runner.episode_rewards[-100:])) <= 180.0:
             sys.stdout.write('Test failed, exceeding {} episodes\n'.format(runner.episode))
             sys.stdout.flush()
             self.assertTrue(expr=False)

@@ -97,7 +97,11 @@ class Optimizer(Module):
             if name[-2:] != ':0':
                 raise TensorforceError.unexpected()
             deltas[n] = self.add_summary(
-                label='updates', name=(name[:-2] + '-update'), tensor=deltas[n], mean_variance=True
+                label=('updates', 'updates-full'), name=(name[:-2] + '-update'), tensor=deltas[n],
+                mean_variance=True
+            )
+            deltas[n] = self.add_summary(
+                label='updates-full', name=(name[:-2] + '-update'), tensor=deltas[n]
             )
 
         with tf.control_dependencies(control_inputs=deltas):

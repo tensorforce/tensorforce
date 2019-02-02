@@ -124,7 +124,7 @@ class Replay(Queue):
 
         # Concatenate randomly sampled episode indices ranges
         def cond(indices, i):
-            return tf.math.greater_equal(x=i, y=n)
+            return tf.math.less(x=i, y=n)
 
         def reduce_range_concat(indices, i):
             episode_indices = tf.range(start=starts[i], limit=limits[i])
@@ -176,7 +176,6 @@ class Replay(Queue):
         sequence_indices = tf.boolean_mask(
             tensor=sequence_indices, mask=tf.logical_not(x=terminal)
         )
-        return self.retrieve_indices(indices=sequence_indices)
 
         # Retrieve sequence indices
         sequences = self.retrieve_indices(indices=sequence_indices)

@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
@@ -90,12 +88,14 @@ class Layer(Module):
             return super().create_tf_function(name=name, tf_function=tf_function)
 
         def validated_tf_function(x):
-            if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
+            if self.input_spec is not None and \
+                    not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
                 raise TensorforceError("Invalid input arguments for tf_apply.")
 
             x = tf_function(x=x)
 
-            if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
+            if self.output_spec is not None and \
+                    not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
                 raise TensorforceError("Invalid output arguments for tf_apply.")
 
             return x
@@ -132,6 +132,8 @@ class Retrieve(Layer):
         self.axis = axis
 
         super().__init__(name=name, input_spec=input_spec, l2_regularization=0.0)
+
+        self.input_spec = None
 
     def default_input_spec(self):
         return dict(type=None, shape=None)
@@ -250,6 +252,8 @@ class Register(Layer):
         super().__init__(name=name, input_spec=input_spec, l2_regularization=0.0)
 
         Module.register_tensor(name=self.tensor, spec=self.input_spec, batched=True)
+
+        self.output_spec = None
 
     def default_input_spec(self):
         return dict(type=None, shape=None)

@@ -28,7 +28,6 @@ class AgentUnittest(UnittestBase):
     exclude_int_action = False
     exclude_float_action = False
     exclude_bounded_action = False
-    exclude_lstm = False  # TEMP
     replacement_action = 'bool'
 
     def test_bool(self):
@@ -42,12 +41,7 @@ class AgentUnittest(UnittestBase):
         else:
             actions = dict(type='bool', shape=())
 
-        network = [
-            dict(type='embedding', size=32),
-            dict(type='dense', size=32), dict(type='dense', size=32)
-        ]
-
-        self.unittest(name='bool', states=states, actions=actions, network=network)
+        self.unittest(name='bool', states=states, actions=actions)
 
     def test_int(self):
         """
@@ -60,12 +54,7 @@ class AgentUnittest(UnittestBase):
         else:
             actions = dict(type='int', shape=(), num_values=3)
 
-        network = [
-            dict(type='embedding', size=32),
-            dict(type='dense', size=32), dict(type='dense', size=32)
-        ]
-
-        self.unittest(name='int', states=states, actions=actions, network=network)
+        self.unittest(name='int', states=states, actions=actions)
 
     def test_float(self):
         """
@@ -78,9 +67,7 @@ class AgentUnittest(UnittestBase):
         else:
             actions = dict(type='float', shape=())
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        self.unittest(name='float', states=states, actions=actions, network=network)
+        self.unittest(name='float', states=states, actions=actions)
 
     def test_bounded(self):
         """
@@ -93,9 +80,7 @@ class AgentUnittest(UnittestBase):
         else:
             actions = dict(type='float', shape=(), min_value=-1.0, max_value=1.0)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        self.unittest(name='bounded', states=states, actions=actions, network=network)
+        self.unittest(name='bounded', states=states, actions=actions)
 
     def test_full(self):
         """
@@ -120,46 +105,7 @@ class AgentUnittest(UnittestBase):
                 type='float', shape=(2,), min_value=-0.5, max_value=0.5
             )
 
-        # Same in test_baselines.py
-        network = [
-            [
-                dict(type='retrieve', tensors='bool_state'),
-                dict(type='embedding', size=16),
-                dict(type='conv1d', size=16),
-                dict(type='pooling', reduction='max'),
-                dict(type='register', tensor='bool-emb')
-            ],
-            [
-                dict(type='retrieve', tensors='int_state'),
-                dict(type='embedding', size=16),
-                (
-                    dict(type='pooling', reduction='max') if self.__class__.exclude_lstm
-                    else dict(type='lstm', size=16)
-                ),
-                dict(type='register', tensor='int-emb')
-            ],
-            [
-                dict(type='retrieve', tensors='float_state'),
-                dict(type='conv2d', size=16),
-                dict(type='pooling', reduction='max'),
-                dict(type='register', tensor='float-emb')
-            ],
-            [
-                dict(type='retrieve', tensors='bounded_state'),
-                dict(type='pooling', reduction='concat'),
-                dict(type='dense', size=16),
-                dict(type='register', tensor='bounded-emb')
-            ],
-            [
-                dict(
-                    type='retrieve', tensors=('bool-emb', 'int-emb', 'float-emb', 'bounded-emb'),
-                    aggregation='product'
-                ),
-                dict(type='internal_lstm', size=16)
-            ]
-        ]
-
-        self.unittest(name='full', states=states, actions=actions, network=network)
+        self.unittest(name='full', states=states, actions=actions)
 
     def test_query(self):
         """
@@ -169,8 +115,6 @@ class AgentUnittest(UnittestBase):
 
         actions = dict(type=self.__class__.replacement_action, shape=())
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         act_query = ('state', 'action', 'deterministic', 'update', 'timestep', 'episode')
         observe_query = (
             'state', 'action', 'reward', 'terminal', 'deterministic', 'update', 'timestep',
@@ -178,7 +122,7 @@ class AgentUnittest(UnittestBase):
         )
 
         agent, environment = self.prepare(
-            name='query', states=states, actions=actions, network=network, buffer_observe=False
+            name='query', states=states, actions=actions, buffer_observe=False
         )
 
         agent.initialize()

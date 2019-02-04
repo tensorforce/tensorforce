@@ -23,5 +23,3 @@ class TestTRPOAgent(AgentUnittest, unittest.TestCase):
 
     agent = TRPOAgent
     config = dict(update_mode=dict(batch_size=2))
-
-    exclude_lstm = True

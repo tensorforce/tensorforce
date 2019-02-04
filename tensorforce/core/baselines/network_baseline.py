@@ -23,7 +23,10 @@ class NetworkBaseline(Baseline):
     function and the baseline.
     """
 
-    def __init__(self, name, network, inputs_spec, l2_regularization=None, summary_labels=None):
+    # (requires network as first argument)
+    def __init__(
+        self, name, network, inputs_spec, l2_regularization=None, summary_labels=None
+    ):
         """
         Network baseline.
 
@@ -34,6 +37,9 @@ class NetworkBaseline(Baseline):
             name=name, inputs_spec=inputs_spec, l2_regularization=l2_regularization,
             summary_labels=summary_labels
         )
+
+        if network == 'auto':
+            network = dict(type=network, internal_rnn=False)
 
         self.network = self.add_module(
             name='network', module=network, modules=network_modules, inputs_spec=self.inputs_spec

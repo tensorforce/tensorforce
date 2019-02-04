@@ -30,10 +30,8 @@ class TestParameters(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         agent, environment = self.prepare(
-            name=name, states=states, actions=actions, network=network, exploration=exploration
+            name=name, states=states, actions=actions, exploration=exploration
         )
 
         agent.initialize()

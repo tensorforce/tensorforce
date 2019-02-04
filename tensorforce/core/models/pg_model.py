@@ -75,7 +75,7 @@ class PGModel(DistributionModel):
             if self.baseline_mode == 'states':
                 inputs_spec = self.states_spec
             elif self.baseline_mode == 'network':
-                inputs_spec = self.network.get_output_spec()
+                inputs_spec = OrderedDict(embedding=self.network.get_output_spec())
             self.baseline = self.add_module(
                 name='baseline', module=baseline, modules=baseline_modules,
                 is_trainable=(baseline_optimizer is None), is_subscope=True,
@@ -121,8 +121,10 @@ class PGModel(DistributionModel):
 
             elif self.baseline_mode == 'network':
                 embedding = self.network.apply(x=states, internals=internals)
+                embedding = tf.stop_gradient(input=embedding)
+                Module.update_tensors(embedding=embedding)
                 state_value = self.baseline.predict(
-                    states=tf.stop_gradient(input=embedding), internals=internals
+                    states=OrderedDict(embedding=embedding), internals=internals
                 )
 
             if self.gae_lambda is None:
@@ -174,8 +176,12 @@ class PGModel(DistributionModel):
             loss = self.baseline.total_loss(states=states, internals=internals, reward=reward)
 
         elif self.baseline_mode == 'network':
-            states = self.network.apply(x=states, internals=internals)
-            loss = self.baseline.total_loss(states=states, internals=internals, reward=reward)
+            embedding = self.network.apply(x=states, internals=internals)
+            embedding = tf.stop_gradient(input=embedding)
+            Module.update_tensors(embedding=embedding)
+            loss = self.baseline.total_loss(
+                states=OrderedDict(embedding=embedding), internals=internals, reward=reward
+            )
 
         return loss
 

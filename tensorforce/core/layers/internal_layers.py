@@ -129,7 +129,7 @@ class InternalLstm(InternalLayer, TransformationBase):
         super().tf_initialize()
 
         self.cell = tf.nn.rnn_cell.LSTMCell(
-            num_units=self.size, name='cell', dtype=util.tf_dtype(dtype='float')
+            num_units=self.size, name='cell'  # , dtype=util.tf_dtype(dtype='float')
         )
         self.cell.build(input_shape=self.input_spec['shape'][0])
 
@@ -218,7 +218,7 @@ class InternalGru(InternalLayer, TransformationBase):
         super().tf_initialize()
 
         self.cell = tf.nn.rnn_cell.GRUCell(
-            num_units=self.size, name='cell', dtype=util.tf_dtype(dtype='float')
+            num_units=self.size, name='cell'  # , dtype=util.tf_dtype(dtype='float')
         )
         self.cell.build(input_shape=self.input_spec['shape'][0])
 

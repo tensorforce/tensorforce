@@ -83,7 +83,7 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
 
     def test_spec_module(self):
         spec_with_module = dict(
-            type='tensorforce.core.networks.network.LayeredNetwork',
+            type='tensorforce.core.networks.layered.LayeredNetwork',
             layers=[dict(type='dense', size=32), dict(type='dense', size=32)]
         )
         self.specification_unittest(name='spec-module', network=spec_with_module)

@@ -33,11 +33,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        agent, environment = self.prepare(
-            name='runner-callback', states=states, actions=actions, network=network
-        )
+        agent, environment = self.prepare(name='runner-callback', states=states, actions=actions)
         environment.timestep_range = (6, 10)
 
         runner = Runner(agent=agent, environment=environment)
@@ -91,11 +87,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        agent, environment = self.prepare(
-            name='runner-evaluation', states=states, actions=actions, network=network
-        )
+        agent, environment = self.prepare(name='runner-evaluation', states=states, actions=actions)
 
         runner = Runner(agent=agent, environment=environment)
 
@@ -127,11 +119,8 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         agent, environment1 = self.prepare(
-            name='parallel-runner', states=states, actions=actions, network=network,
-            parallel_interactions=2
+            name='parallel-runner', states=states, actions=actions, parallel_interactions=2
         )
         environment2 = copy.deepcopy(environment1)
 
@@ -147,10 +136,8 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         agent, environment1 = self.prepare(
-            name='parallel-runner-callback', states=states, actions=actions, network=network,
+            name='parallel-runner-callback', states=states, actions=actions,
             parallel_interactions=2
         )
         environment1.timestep_range = (6, 10)

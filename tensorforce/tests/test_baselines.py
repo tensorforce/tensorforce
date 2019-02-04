@@ -29,112 +29,15 @@ class TestBaselines(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             baseline_mode='states',
-            baseline=dict(type='mlp', sizes=[32, 32]),
+            baseline=dict(type='network', network='auto'),
             baseline_optimizer=dict(type='adam', learning_rate=1e-3)
         )
 
-        self.unittest(
-            name='baseline-states', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='baseline-states', states=states, actions=actions, **config)
 
-    def test_baseline_network(self):
-        states = dict(type='float', shape=(1,))
-
-        actions = dict(type='int', shape=(), num_values=3)
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        config = dict(
-            baseline_mode='network',
-            baseline=dict(type='mlp', sizes=[32, 32]),
-            baseline_optimizer=dict(type='adam', learning_rate=1e-3)
-        )
-
-        self.unittest(
-            name='baseline-network', states=states, actions=actions, network=network, **config
-        )
-
-    def test_baseline_no_optimizer(self):
-        states = dict(type='float', shape=(1,))
-
-        actions = dict(type='int', shape=(), num_values=3)
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        config = dict(
-            baseline_mode='states',
-            baseline=dict(type='mlp', sizes=[32, 32]),
-        )
-
-        self.unittest(
-            name='baseline-no-optimizer', states=states, actions=actions, network=network, **config
-        )
-
-    def test_baseline_gae(self):
-        states = dict(type='float', shape=(1,))
-
-        actions = dict(type='int', shape=(), num_values=3)
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
-        config = dict(
-            baseline_mode='states',
-            baseline=dict(type='mlp', sizes=[32, 32]),
-            baseline_optimizer=dict(type='adam', learning_rate=1e-3),
-            gae_lambda=0.95
-        )
-
-        self.unittest(
-            name='baseline-gae', states=states, actions=actions, network=network, **config
-        )
-
-    def test_aggregated_baseline(self):
-        states = dict(
-            state1=dict(type='float', shape=(1,)),
-            state2=dict(type='float', shape=(1, 1, 2))
-        )
-
-        actions = dict(type='int', shape=(), num_values=3)
-
-        network = [
-            [
-                dict(type='retrieve', tensors='state1'),
-                dict(type='dense', size=16),
-                dict(type='register', tensor='state1-emb')
-            ],
-            [
-                dict(type='retrieve', tensors='state2'),
-                dict(type='conv2d', size=16),
-                dict(type='pooling', reduction='max'),
-                dict(type='register', tensor='state2-emb')
-            ],
-            [
-                dict(type='retrieve', tensors=('state1-emb', 'state2-emb'), aggregation='product'),
-                dict(type='dense', size=16)
-            ]
-        ]
-
-        config = dict(
-            baseline_mode='states',
-            baseline=dict(
-                type='aggregated',
-                baselines=dict(
-                    state1=dict(type='mlp', sizes=[16, 16]),
-                    state2=dict(type='cnn', conv_sizes=[16], dense_sizes=[16])
-                )
-            ),
-            baseline_optimizer=dict(type='adam', learning_rate=1e-3)
-        )
-
-        self.unittest(
-            name='aggregated-baseline', states=states, actions=actions, network=network, **config
-        )
-
-    def test_network_baseline(self):
+    def test_baseline_multistates(self):
         states = dict(
             bool_state=dict(type='bool', shape=(1,)),
             int_state=dict(type='int', shape=(2,), num_values=4),
@@ -144,47 +47,49 @@ class TestBaselines(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [
-            [
-                dict(type='retrieve', tensors='bool_state'),
-                dict(type='embedding', size=16),
-                dict(type='conv1d', size=16),
-                dict(type='pooling', reduction='max'),
-                dict(type='register', tensor='bool-emb')
-            ],
-            [
-                dict(type='retrieve', tensors='int_state'),
-                dict(type='embedding', size=16),
-                dict(type='lstm', size=16),
-                dict(type='register', tensor='int-emb')
-            ],
-            [
-                dict(type='retrieve', tensors='float_state'),
-                dict(type='conv2d', size=16),
-                dict(type='pooling', reduction='max'),
-                dict(type='register', tensor='float-emb')
-            ],
-            [
-                dict(type='retrieve', tensors='bounded_state'),
-                dict(type='pooling', reduction='concat'),
-                dict(type='dense', size=16),
-                dict(type='register', tensor='bounded-emb')
-            ],
-            [
-                dict(
-                    type='retrieve', tensors=('bool-emb', 'int-emb', 'float-emb', 'bounded-emb'),
-                    aggregation='product'
-                ),
-                dict(type='dense', size=16)  # internal_lstm not yet supported!!!!!!!!!!!
-            ]
-        ]
-
         config = dict(
             baseline_mode='states',
-            baseline=dict(type='network', network=network),
+            baseline=dict(type='network', network='auto'),
             baseline_optimizer=dict(type='adam', learning_rate=1e-3)
         )
 
-        self.unittest(
-            name='network-baseline', states=states, actions=actions, network=network, **config
+        self.unittest(name='network-baseline', states=states, actions=actions, **config)
+
+    def test_baseline_network(self):
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
+
+        config = dict(
+            baseline_mode='network',
+            baseline=dict(type='network', network='auto'),
+            baseline_optimizer=dict(type='adam', learning_rate=1e-3)
         )
+
+        self.unittest(name='baseline-network', states=states, actions=actions, **config)
+
+    def test_baseline_no_optimizer(self):
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
+
+        config = dict(
+            baseline_mode='states',
+            baseline=dict(type='network', network='auto')
+        )
+
+        self.unittest(name='baseline-no-optimizer', states=states, actions=actions, **config)
+
+    def test_baseline_gae(self):
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
+
+        config = dict(
+            baseline_mode='states',
+            baseline=dict(type='network', network='auto'),
+            baseline_optimizer=dict(type='adam', learning_rate=1e-3),
+            gae_lambda=0.95
+        )
+
+        self.unittest(name='baseline-gae', states=states, actions=actions, **config)

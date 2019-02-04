@@ -28,35 +28,62 @@ class TestPrecision(UnittestBase, unittest.TestCase):
     config = dict(update_mode=dict(batch_size=2))
 
     def test_precision_dqn(self):
-        util.np_dtype_mapping = dict(bool=np.bool_, int=np.int16, long=np.int32, float=np.float16)
-        util.tf_dtype_mapping = dict(bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float16)
+        try:
+            util.np_dtype_mapping = dict(
+                bool=np.bool_, int=np.int16, long=np.int32, float=np.float16
+            )
+            util.tf_dtype_mapping = dict(
+                bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float16
+            )
 
-        states = dict(type='float', shape=(1,))
+            states = dict(type='float', shape=(1,))
 
-        actions = dict(type='int', shape=(), num_values=3)
+            actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
+            network = dict(type='auto', internal_rnn=False)
 
-        self.unittest(
-            name='precision-dqn', states=states, actions=actions, agent=DQNAgent, network=network
-        )
+            self.unittest(
+                name='precision-dqn', states=states, actions=actions, agent=DQNAgent,
+                network=network
+            )
 
-        util.np_dtype_mapping = dict(bool=np.bool_, int=np.int32, long=np.int64, float=np.float32)
-        util.tf_dtype_mapping = dict(bool=tf.bool, int=tf.int32, long=tf.int64, float=tf.float32)
+        except Exception:
+            self.assertTrue(expr=False)
+
+        finally:
+            util.np_dtype_mapping = dict(
+                bool=np.bool_, int=np.int32, long=np.int64, float=np.float32
+            )
+            util.tf_dtype_mapping = dict(
+                bool=tf.bool, int=tf.int32, long=tf.int64, float=tf.float32
+            )
 
     def test_precision_vpg(self):
-        util.np_dtype_mapping = dict(bool=np.bool_, int=np.int16, long=np.int32, float=np.float16)
-        util.tf_dtype_mapping = dict(bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float16)
+        try:
+            util.np_dtype_mapping = dict(
+                bool=np.bool_, int=np.int16, long=np.int32, float=np.float16
+            )
+            util.tf_dtype_mapping = dict(
+                bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float16
+            )
 
-        states = dict(type='int', shape=(), num_values=3)
+            states = dict(type='int', shape=(), num_values=3)
 
-        actions = dict(type='float', shape=())
+            actions = dict(type='float', shape=())
 
-        network = [dict(type='embedding', size=32), dict(type='dense', size=32)]
+            network = dict(type='auto', internal_rnn=False)
 
-        self.unittest(
-            name='precision-vpg', states=states, actions=actions, agent=VPGAgent, network=network
-        )
+            self.unittest(
+                name='precision-vpg', states=states, actions=actions, agent=VPGAgent, network=network
+            )
 
-        util.np_dtype_mapping = dict(bool=np.bool_, int=np.int32, long=np.int64, float=np.float32)
-        util.tf_dtype_mapping = dict(bool=tf.bool, int=tf.int32, long=tf.int64, float=tf.float32)
+        except Exception:
+            self.assertTrue(expr=False)
+
+        finally:
+            util.np_dtype_mapping = dict(
+                bool=np.bool_, int=np.int32, long=np.int64, float=np.float32
+            )
+            util.tf_dtype_mapping = dict(
+                bool=tf.bool, int=tf.int32, long=tf.int64, float=tf.float32
+            )

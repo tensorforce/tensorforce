@@ -29,103 +29,77 @@ class TestMemories(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             update_mode=dict(unit='timesteps', batch_size=2),
             memory=dict(type='latest', include_next_states=False, capacity=100)
         )
 
-        self.unittest(
-            name='latest-timesteps', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='latest-timesteps', states=states, actions=actions, **config)
 
     def test_latest_episodes(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             update_mode=dict(unit='episodes', batch_size=2),
             memory=dict(type='latest', include_next_states=False, capacity=100)
         )
 
-        self.unittest(
-            name='latest-episodes', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='latest-episodes', states=states, actions=actions, **config)
 
     def test_latest_sequences(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             update_mode=dict(unit='sequences', sequence_length=4, batch_size=2),
             memory=dict(type='latest', include_next_states=False, capacity=100)
         )
 
-        self.unittest(
-            name='latest-sequences', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='latest-sequences', states=states, actions=actions, **config)
 
     def test_replay_timesteps(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             update_mode=dict(unit='timesteps', batch_size=2),
             memory=dict(type='replay', include_next_states=False, capacity=100)
         )
 
-        self.unittest(
-            name='replay-timesteps', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='replay-timesteps', states=states, actions=actions, **config)
 
     def test_replay_episodes(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             update_mode=dict(unit='episodes', batch_size=2),
             memory=dict(type='replay', include_next_states=False, capacity=100)
         )
 
-        self.unittest(
-            name='replay-episodes', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='replay-episodes', states=states, actions=actions, **config)
 
     def test_replay_sequences(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             update_mode=dict(unit='sequences', sequence_length=4, batch_size=2),
             memory=dict(type='replay', include_next_states=False, capacity=100)
         )
 
-        self.unittest(
-            name='replay-sequences', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='replay-sequences', states=states, actions=actions, **config)
 
     def broken_test_prioritized_replay_timesteps(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
             update_mode=dict(unit='timesteps', batch_size=2),
@@ -135,5 +109,5 @@ class TestMemories(UnittestBase, unittest.TestCase):
         )
 
         self.unittest(
-            name='prioritized-replay-timesteps', states=states, actions=actions, network=network, **config
+            name='prioritized-replay-timesteps', states=states, actions=actions, **config
         )

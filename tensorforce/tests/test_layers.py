@@ -13,13 +13,25 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.networks.network import Network, LayerbasedNetwork
+import unittest
 
-from tensorforce.core.networks.auto import AutoNetwork
-from tensorforce.core.networks.layered import LayeredNetwork
-
-
-network_modules = dict(auto=AutoNetwork, default=LayeredNetwork, layered=LayeredNetwork)
+from tensorforce.agents import VPGAgent
+from tensorforce.tests.unittest_base import UnittestBase
 
 
-__all__ = ['AutoNetwork', 'LayerbasedNetwork', 'LayeredNetwork', 'Network', 'network_modules']
+class TestLayers(UnittestBase, unittest.TestCase):
+
+    agent = VPGAgent
+    config = dict(update_mode=dict(batch_size=2))
+
+    def test_dropout(self):
+        states = dict(type='float', shape=(1,))
+
+        actions = dict(type='int', shape=(), num_values=3)
+
+        network = [
+            dict(type='dense', size=32), dict(type='dropout', rate=0.5),
+            dict(type='dense', size=32)
+        ]
+
+        self.unittest(name='dropout', states=states, actions=actions, network=network)

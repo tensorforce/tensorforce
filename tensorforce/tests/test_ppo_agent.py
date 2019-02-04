@@ -23,5 +23,3 @@ class TestPPOAgent(AgentUnittest, unittest.TestCase):
 
     agent = PPOAgent
     config = dict(update_mode=dict(batch_size=2))
-
-    exclude_lstm = True

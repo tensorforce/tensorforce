@@ -41,10 +41,7 @@ class TestReadme(unittest.TestCase):
         agent = PPOAgent(
             states=dict(type='float', shape=(10,)),
             actions=dict(type='int', num_values=5),
-            network=[
-                dict(type='dense', size=64),
-                dict(type='dense', size=64)
-            ],
+            network='auto',
             update_mode=dict(unit='episodes', batch_size=10),
             step_optimizer=dict(type='adam', learning_rate=1e-4)
         )

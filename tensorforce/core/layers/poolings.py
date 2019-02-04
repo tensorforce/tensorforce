@@ -80,3 +80,10 @@ class Flatten(Pooling):
 
     def __init__(self, name, input_spec):
         super().__init__(name=name, reduction='concat', input_spec=input_spec)
+
+    def tf_apply(self, x):
+        if self.input_spec['shape'] == ():
+            return tf.expand_dims(input=x, axis=1)
+
+        else:
+            return super().tf_apply(x=x)

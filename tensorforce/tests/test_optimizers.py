@@ -29,22 +29,16 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             optimizer=dict(type='adam', learning_rate=1e-3)
         )
 
-        self.unittest(
-            name='adam', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='adam', states=states, actions=actions, **config)
 
     def test_clipped_step(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
             optimizer=dict(
@@ -53,29 +47,21 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             )
         )
 
-        self.unittest(
-            name='clipped-step', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='clipped-step', states=states, actions=actions, **config)
 
     def test_evolutionary(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(optimizer=dict(type='evolutionary', learning_rate=1e-3))
 
-        self.unittest(
-            name='evolutionary', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='evolutionary', states=states, actions=actions, **config)
 
     def test_meta_optimizer_wrapper(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
             optimizer=dict(
@@ -84,17 +70,12 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             )
         )
 
-        self.unittest(
-            name='meta-optimizer-wrapper', states=states, actions=actions, network=network,
-            **config
-        )
+        self.unittest(name='meta-optimizer-wrapper', states=states, actions=actions, **config)
 
     def test_multi_step(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
             optimizer=dict(
@@ -102,46 +83,34 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             )
         )
 
-        self.unittest(
-            name='multi-step', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='multi-step', states=states, actions=actions, **config)
 
     def test_natural_gradient(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             optimizer=dict(type='natural_gradient', learning_rate=1e-3)
         )
 
-        self.unittest(
-            name='natural-gradient', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='natural-gradient', states=states, actions=actions, **config)
 
     def test_optimized_step(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         config = dict(
             optimizer=dict(type='optimized_step', optimizer=dict(type='adam', learning_rate=1e-3))
         )
 
-        self.unittest(
-            name='optimized-step', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='optimized-step', states=states, actions=actions, **config)
 
     def test_subsampling_step(self):
         states = dict(type='float', shape=(1,))
 
         actions = dict(type='int', shape=(), num_values=3)
-
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
 
         config = dict(
             optimizer=dict(
@@ -150,6 +119,4 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             )
         )
 
-        self.unittest(
-            name='subsampling-step', states=states, actions=actions, network=network, **config
-        )
+        self.unittest(name='subsampling-step', states=states, actions=actions, **config)

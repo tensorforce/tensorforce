@@ -31,8 +31,6 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         actions = dict(type='int', shape=(), num_values=3)
 
-        network = [dict(type='dense', size=32), dict(type='dense', size=32)]
-
         labels = [
             'bernoulli', 'beta', 'categorical', 'distributions', 'dropout', 'entropy', 'gaussian',
             'graph', 'kl-divergence', 'loss', 'losses', 'objective-loss', 'parameters',
@@ -40,7 +38,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         ]
 
         self.unittest(
-            name='summaries', states=states, actions=actions, network=network,
+            name='summaries', states=states, actions=actions,
             summarizer=dict(directory=self.__class__.directory, labels=labels)
         )
 

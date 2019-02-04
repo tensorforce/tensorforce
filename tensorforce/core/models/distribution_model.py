@@ -70,6 +70,7 @@ class DistributionModel(MemoryModel):
             raise TensorforceError(
                 "Invalid output rank for network: {}.".format(len(output_spec['shape']))
             )
+        Module.register_tensor(name='embedding', spec=output_spec, batched=True)
         embedding_size = output_spec['shape'][0]
 
         # Distributions

@@ -24,8 +24,8 @@ environment = OpenAIGym('CartPole-v1')
 # Create the agent
 agent = PPOAgent(
     states=environment.states(), actions=environment.actions(),
-    # MLP network
-    network=[dict(type='dense', size=32), dict(type='dense', size=32)],
+    # Automatically configured network
+    network=dict(type='auto', size=32, depth=2, internal_rnn=True),
     # Update every 5 episodes, with a batch of 10 episodes
     update_mode=dict(unit='episodes', batch_size=10, frequency=5),
     # Memory sampling most recent experiences, with a capacity of 2500 timesteps

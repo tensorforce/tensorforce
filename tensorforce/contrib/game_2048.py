@@ -13,16 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Game class to represent 2048 game state."""
-
-from tensorforce.environments import Environment
 import numpy as np
 
-ACTION_NAMES = ["left", "up", "right", "down"]
-ACTION_LEFT = 0
-ACTION_UP = 1
-ACTION_RIGHT = 2
-ACTION_DOWN = 3
+from tensorforce.environments import Environment
 
 
 class Game2048(Environment):
@@ -36,13 +29,39 @@ class Game2048(Environment):
 
     Game states are represented as shape (4, 4) numpy arrays whos entries are 0
     for empty fields and ln2(value) for any tiles.
+
+    Actions: 0 - left, 1 - up, 2 - right, 3 - down
     """
 
+    def __init__(self, game_shape=(4, 4), initial_score=0.0):
+        """
+        Init the Game object.
+
+        Args:
+            state: Shape (4, 4) numpy array to initialize the state with. If None,
+                the state will be initialized with with two random tiles (as done
+                in the original game).
+            initial_score: Score to initialize the Game with.
+        """
+        assert len(game_shape) == 2
+        self.game_shape = game_shape
+
+        self.initial_score = initial_score
+
     def __str__(self):
-        self.print_state()
+        return 'Game2048'
+
+    def states(self):
+        return dict(type='float', shape=self.game_shape)
+
+    def actions(self):
+        return dict(type='int', num_values=4)
 
     def reset(self):
-        self.__init__()
+        self._score = self.initial_score
+        self._state = np.zeros(shape=self.game_shape, dtype=np.int)
+        self.add_random_tile()
+        self.add_random_tile()
         return self._state
 
     def execute(self, action):
@@ -65,30 +84,6 @@ class Game2048(Environment):
     @property
     def largest_tile(self):
         return 2**np.amax(self._state)
-
-    def states(self):
-        return dict(shape=self._state.shape, type='float')
-
-    def actions(self):
-        return dict(num_actions=len(ACTION_NAMES), type='int')
-
-    def __init__(self, state=None, initial_score=0):
-        """Init the Game object.
-        Args:
-        state: Shape (4, 4) numpy array to initialize the state with. If None,
-            the state will be initialized with with two random tiles (as done
-            in the original game).
-        initial_score: Score to initialize the Game with.
-        """
-
-        self._score = initial_score
-
-        if state is None:
-            self._state = np.zeros((4, 4), dtype=np.int)
-            self.add_random_tile()
-            self.add_random_tile()
-        else:
-            self._state = state
 
     def copy(self):
         """Return a copy of self."""

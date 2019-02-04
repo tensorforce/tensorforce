@@ -14,12 +14,7 @@
 # ==============================================================================
 
 from collections import OrderedDict
-from copy import deepcopy
-import importlib
-import json
 import logging
-import os
-import warnings
 
 import numpy as np
 import tensorflow as tf
@@ -382,6 +377,8 @@ def valid_value_spec(
             if 'num_values' not in value_spec:
                 raise TensorforceError.required(name=(value_type + ' spec'), value='num_values')
             num_values = value_spec.pop('num_values')
+            if isinstance(num_values, np_dtype(dtype='int')):
+                num_values = num_values.item()
             if not isinstance(num_values, int):
                 raise TensorforceError.type(
                     name=(value_type + ' spec'), argument='num_values', value=num_values
@@ -406,6 +403,10 @@ def valid_value_spec(
         if 'min_value' in value_spec:
             min_value = value_spec.pop('min_value')
             max_value = value_spec.pop('max_value')
+            if isinstance(min_value, np_dtype(dtype='float')):
+                min_value = min_value.item()
+            if isinstance(max_value, np_dtype(dtype='float')):
+                max_value = max_value.item()
             if not isinstance(min_value, float) or not isinstance(max_value, float):
                 raise TensorforceError.type(
                     name=(value_type + ' spec'), argument='min/max_value',

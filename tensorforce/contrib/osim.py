@@ -17,42 +17,41 @@ from osim.env import L2RunEnv, Arm2DEnv, ProstheticsEnv
 
 from tensorforce.environments import Environment
 
+
 class OpenSim(Environment):
-	"""
-	Reinforcement learning with musculoskeletal models in OpenSim Integration:
-	http://osim-rl.stanford.edu/
-	"""
+    """
+    OpenSim environment (http://osim-rl.stanford.edu/).
+    """
 
-	def __init__(self,env_id,visualize=False):
-		"""
-		Initialize OpenSimulator environment.
+    def __init__(self, env_id, visualize=False):
+        """
+        Initialize OpenSimulator environment.
 
-		Args:
-			visualize: render enviroment
-			env: environment id to use ([0:Arm2DEnv, 1:L2RunEnv, 2:ProstheticsEnv])
-		"""	
-		envs = [Arm2DEnv,L2RunEnv,ProstheticsEnv]
-		self.env = envs[env_id](visualize=visualize)
+        Args:
+            visualize: render enviroment
+            env: environment id to use ([0:Arm2DEnv, 1:L2RunEnv, 2:ProstheticsEnv])
+        """
+        envs = [Arm2DEnv, L2RunEnv, ProstheticsEnv]
+        self.environment = envs[env_id](visualize=visualize)
 
-		self.state_shape = len(self.env.reset())
-		self.num_actions = len(self.env.action_space.sample())
-	
-	def __str__(self):
-		return 'OpenSim'
+        self.state_shape = len(self.environment.reset())
+        self.num_actions = len(self.environment.action_space.sample())
 
-	def close(self):
-		self.env.close()
+    def __str__(self):
+        return 'OpenSim'
 
-	def reset(self):
-		obs = self.env.reset()
-		return obs
+    def states(self):
+        return dict(type='float', shape=self.state_shape)
 
-	def execute(self, action):
-		observation, reward, done, info = self.env.step(action)
-		return (observation,done,reward)
+    def actions(self):
+        return dict(type='float', shape=self.num_actions)
 
-	def states(self):
-		return dict(shape=self.state_shape, type='float')
+    def close(self):
+        self.environment.close()
 
-	def actions(self):
-		return dict(shape=self.num_actions, type='float')
+    def reset(self):
+        return self.environment.reset()
+
+    def execute(self, actions):
+        states, reward, terminal, _ = self.env.step(actions)
+        return states, terminal, reward

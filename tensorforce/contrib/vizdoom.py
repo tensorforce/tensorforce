@@ -14,85 +14,79 @@
 # ==============================================================================
 
 import numpy as np
-from vizdoom import DoomGame, Button, GameVariable, ScreenFormat, ScreenResolution
+from vizdoom import DoomGame  # Button, GameVariable, ScreenFormat, ScreenResolution
 
 from tensorforce.environments import Environment
 
 
 class ViZDoom(Environment):
-	"""
-	ViZDoom Integration: https://github.com/mwydmuch/ViZDoom
-	"""
+    """
+    ViZDoom environment (https://github.com/mwydmuch/ViZDoom).
+    """
 
-	def __init__(self,config_file):
-		"""
-		Initialize ViZDoom environment.
+    def __init__(self, config_file):
+        """
+        Initialize ViZDoom environment.
 
-		Args:
-			config_file: .cfg file path, which defines how a world works and look like (maps)
-		"""
-		self.game = DoomGame()
+        Args:
+            config_file: .cfg file path, which defines how a world works and look like (maps)
+        """
+        self.game = DoomGame()
 
-		# load configurations from file
-		self.game.load_config(config_file)
-		self.game.init()
+        # load configurations from file
+        self.game.load_config(config_file)
+        self.game.init()
 
-		self.state_shape = self.featurize(self.game.get_state()).shape
-		self.num_actions = len(self.game.get_available_buttons())
-		
+        self.state_shape = self.featurize(self.game.get_state()).shape
+        self.num_actions = len(self.game.get_available_buttons())
 
-	
-	def __str__(self):
-		return 'ViZDoom'
+    def __str__(self):
+        return 'ViZDoom'
 
-	def close(self):
-		self.game.close()
+    def states(self):
+        return dict(type='float', shape=self.state_shape)
 
-	def reset(self):
-		self.game.new_episode()
-		return self.featurize(self.game.get_state())
+    def actions(self):
+        return dict(type='int', shape=(), num_values=self.num_actions)
 
-	def seed(self, seed):
-		if seed is None:
-			seed = round(time.time())
-		self.game.setSeed(seed)
-		return seed
+    def close(self):
+        self.game.close()
 
-	def featurize(self,state):
-		if state is None:
-			return None
-		H = state.screen_buffer.shape[0]
-		W = state.screen_buffer.shape[1]
-		_vars=state.game_variables.reshape(-1).astype(np.float32)
-		_screen_buf=state.screen_buffer.reshape(-1).astype(np.float32)
-		
-		if state.depth_buffer is None:
-			_depth_buf = np.zeros(H*W*1,dtype=np.float32)
-		else:
-			_depth_buf=state.depth_buffer.reshape(-1).astype(np.float32)
+    def reset(self):
+        self.game.new_episode()
+        return self.featurize(self.game.get_state())
 
-		if state.labels_buffer is None:
-			_labels_buf = np.zeros(H*W*1,dtype=np.float32)
-		else:
-			_labels_buf=state.labels_buffer.reshape(-1).astype(np.float32)
+    def seed(self, seed):
+        self.game.setSeed(seed)
+        return seed
 
-		if state.automap_buffer is None:
-			_automap_buf = np.zeros(H*W*1,dtype=np.float32)			
-		else:	
-			_automap_buf=state.automap_buffer.reshape(-1).astype(np.float32)
-		return np.concatenate(
-			(_vars, _screen_buf, _depth_buf, _labels_buf, _automap_buf))
+    def featurize(self, state):
+        H = state.screen_buffer.shape[0]
+        W = state.screen_buffer.shape[1]
+        _vars = state.game_variables.reshape(-1).astype(np.float32)
+        _screen_buf = state.screen_buffer.reshape(-1).astype(np.float32)
 
-	def execute(self, action):		
-		one_hot_enc = [0] * self.num_actions
-		one_hot_enc[action] = 1
-		reward = self.game.make_action(one_hot_enc)
-		next_state = self.featurize(self.game.get_state())
-		is_terminal = self.game.is_episode_finished()
-		return (next_state,is_terminal,reward)
+        if state.depth_buffer is None:
+            _depth_buf = np.zeros(H * W * 1, dtype=np.float32)
+        else:
+            _depth_buf = state.depth_buffer.reshape(-1).astype(np.float32)
 
-	def states(self):
-		return dict(shape=self.state_shape, type='float')
+        if state.labels_buffer is None:
+            _labels_buf = np.zeros(H * W * 1, dtype=np.float32)
+        else:
+            _labels_buf = state.labels_buffer.reshape(-1).astype(np.float32)
 
-	def actions(self):
-		return dict(num_actions=self.num_actions, type='int')
+        if state.automap_buffer is None:
+            _automap_buf = np.zeros(H * W * 1, dtype=np.float32)
+        else:
+            _automap_buf = state.automap_buffer.reshape(-1).astype(np.float32)
+
+        return np.concatenate((_vars, _screen_buf, _depth_buf, _labels_buf, _automap_buf))
+
+    def execute(self, action):
+        one_hot_enc = [0] * self.num_actions
+        one_hot_enc[action] = 1
+        reward = self.game.make_action(one_hot_enc)
+        terminal = self.game.is_episode_finished()
+        states = self.featurize(self.game.get_state())
+        return states, terminal, reward

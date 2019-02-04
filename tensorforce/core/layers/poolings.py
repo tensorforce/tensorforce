@@ -74,3 +74,9 @@ class Pooling(Layer):
             for _ in range(util.rank(x=x) - 2):
                 x = tf.reduce_sum(input_tensor=x, axis=1)
             return x
+
+
+class Flatten(Pooling):
+
+    def __init__(self, name, input_spec):
+        super().__init__(name=name, reduction='concat', input_spec=input_spec)

@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from tensorforce.environments.environment import Environment
+from tensorforce.environments.multiplayer_environment import MultiplayerEnvironment
 
 
-__all__ = ['Environment']
+__all__ = ['Environment', 'MultiplayerEnvironment']

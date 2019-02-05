@@ -33,7 +33,7 @@ agent = PPOAgent(
     memory=dict(type='latest', include_next_states=False, capacity=2500),
     discount=0.99, entropy_regularization=0.01,
     # MLP baseline
-    baseline_mode='states', baseline=dict(type='mlp', sizes=[32, 32]),
+    baseline_mode='states', baseline=dict(type='network', network='auto'),
     # Baseline optimizer
     baseline_optimizer=dict(
         type='multi_step', optimizer=dict(type='adam', learning_rate=1e-3), num_steps=5
@@ -49,5 +49,5 @@ agent = PPOAgent(
 runner = Runner(agent=agent, environment=environment)
 
 # Start the runner
-runner.run(num_episodes=1000, max_episode_timesteps=200)
+runner.run(num_episodes=500, max_episode_timesteps=200)
 runner.close()

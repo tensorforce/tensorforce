@@ -115,11 +115,9 @@ class QModel(DistributionModel):
             optimizer=self.target_optimizer_spec
         )
 
-    def tf_q_value(self, embedding, distr_params, action, name):
+    def tf_q_value(self, embedding, parameters, action, name):
         # Mainly for NAF.
-        return self.distributions[name].state_action_value(
-            distr_params=distr_params, action=action
-        )
+        return self.distributions[name].action_value(parameters=parameters, action=action)
 
     def tf_q_delta(self, q_value, next_q_value, terminal, reward):
         """
@@ -159,26 +157,26 @@ class QModel(DistributionModel):
         for name, distribution in self.distributions.items():
             target_distribution = self.target_distributions[name]
 
-            distr_params = distribution.parametrize(x=embedding)
-            target_distr_params = target_distribution.parametrize(x=target_embedding)
+            parameters = distribution.parametrize(x=embedding)
+            target_parameters = target_distribution.parametrize(x=target_embedding)
 
             q_value = self.tf_q_value(
-                embedding=embedding, distr_params=distr_params, action=actions[name], name=name
+                embedding=embedding, parameters=parameters, action=actions[name], name=name
             )
 
             if self.double_q_model:
                 # fix
-                next_distr_params = distribution.parametrize(x=next_embedding)
+                next_parameters = distribution.parametrize(x=next_embedding)
                 action_taken = distribution.sample(
-                    distr_params=next_distr_params, deterministic=True
+                    parameters=next_parameters, deterministic=True
                 )
             else:
                 action_taken = target_distribution.sample(
-                    distr_params=target_distr_params, deterministic=True
+                    parameters=target_parameters, deterministic=True
                 )
 
-            next_q_value = target_distribution.state_action_value(
-                distr_params=target_distr_params, action=action_taken
+            next_q_value = target_distribution.action_value(
+                parameters=target_parameters, action=action_taken
             )
 
             delta = self.q_delta(

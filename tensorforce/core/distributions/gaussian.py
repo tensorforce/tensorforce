@@ -48,19 +48,21 @@ class Gaussian(Distribution):
         )
 
     def tf_parametrize(self, x):
-        # Flat mean and log standard deviation
-        mean = self.mean.apply(x=x)
-        log_stddev = self.log_stddev.apply(x=x)
-
-        # Reshape mean and log stddev to action shape
+        log_epsilon = tf.constant(value=log(util.epsilon), dtype=util.tf_dtype(dtype='float'))
         shape = (-1,) + self.action_spec['shape']
+
+        # Mean
+        mean = self.mean.apply(x=x)
         mean = tf.reshape(tensor=mean, shape=shape)
+
+        # Log standard deviation
+        log_stddev = self.log_stddev.apply(x=x)
         log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
 
-        # Clip log stddev for numerical stability
-        log_eps = log(util.epsilon)  # epsilon < 1.0, hence negative
+        # Clip log_stddev for numerical stability
+        # epsilon < 1.0, hence negative
         log_stddev = tf.clip_by_value(
-            t=log_stddev, clip_value_min=log_eps, clip_value_max=-log_eps
+            t=log_stddev, clip_value_min=log_epsilon, clip_value_max=-log_epsilon
         )
 
         # Standard deviation
@@ -77,18 +79,8 @@ class Gaussian(Distribution):
 
         return mean, stddev, log_stddev
 
-    def state_value(self, distr_params):
-        _, _, log_stddev = distr_params
-        return -log_stddev - 0.5 * log(2.0 * pi)
-
-    def state_action_value(self, distr_params, action):
-        mean, stddev, log_stddev = distr_params
-        sq_mean_distance = tf.square(x=(action - mean))
-        sq_stddev = tf.maximum(x=tf.square(x=stddev), y=util.epsilon)
-        return -0.5 * sq_mean_distance / sq_stddev - 2.0 * log_stddev - log(2.0 * pi)
-
-    def tf_sample(self, distr_params, deterministic):
-        mean, stddev, _ = distr_params
+    def tf_sample(self, parameters, deterministic):
+        mean, stddev, _ = parameters
 
         # Deterministic: mean as action
         definite = mean
@@ -101,23 +93,63 @@ class Gaussian(Distribution):
 
         return tf.where(condition=deterministic, x=definite, y=sampled)
 
-    def tf_log_probability(self, distr_params, action):
-        mean, stddev, log_stddev = distr_params
+    def tf_log_probability(self, parameters, action):
+        mean, stddev, log_stddev = parameters
+
+        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
+        two = tf.constant(value=2.0, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        pi_const = tf.constant(value=pi, dtype=util.tf_dtype(dtype='float'))
+
         sq_mean_distance = tf.square(x=(action - mean))
-        sq_stddev = tf.maximum(x=tf.square(x=stddev), y=util.epsilon)
-        return -0.5 * sq_mean_distance / sq_stddev - log_stddev - 0.5 * log(2.0 * pi)
+        sq_stddev = tf.maximum(x=tf.square(x=stddev), y=epsilon)
 
-    def tf_entropy(self, distr_params):
-        _, _, log_stddev = distr_params
-        return log_stddev + 0.5 * log(2.0 * pi * e)
+        return -half * sq_mean_distance / sq_stddev - log_stddev - \
+            half * tf.math.log(x=(two * pi_const))
 
-    def tf_kl_divergence(self, distr_params1, distr_params2):
-        mean1, stddev1, log_stddev1 = distr_params1
-        mean2, stddev2, log_stddev2 = distr_params2
+    def tf_entropy(self, parameters):
+        _, _, log_stddev = parameters
+
+        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
+        two = tf.constant(value=2.0, dtype=util.tf_dtype(dtype='float'))
+        e_const = tf.constant(value=e, dtype=util.tf_dtype(dtype='float'))
+        pi_const = tf.constant(value=pi, dtype=util.tf_dtype(dtype='float'))
+
+        return log_stddev + half * tf.math.log(x=(two * pi_const * e_const))
+
+    def tf_kl_divergence(self, parameters1, parameters2):
+        mean1, stddev1, log_stddev1 = parameters1
+        mean2, stddev2, log_stddev2 = parameters2
+
+        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
 
         log_stddev_ratio = log_stddev2 - log_stddev1
         sq_mean_distance = tf.square(x=(mean1 - mean2))
         sq_stddev1 = tf.square(x=stddev1)
-        sq_stddev2 = tf.maximum(x=tf.square(x=stddev2), y=util.epsilon)
+        sq_stddev2 = tf.maximum(x=tf.square(x=stddev2), y=epsilon)
 
-        return log_stddev_ratio + 0.5 * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - 0.5
+        return log_stddev_ratio + half * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - half
+
+    def tf_action_value(self, parameters, action):
+        mean, stddev, log_stddev = parameters
+
+        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
+        two = tf.constant(value=2.0, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        pi_const = tf.constant(value=pi, dtype=util.tf_dtype(dtype='float'))
+
+        sq_mean_distance = tf.square(x=(action - mean))
+        sq_stddev = tf.maximum(x=tf.square(x=stddev), y=epsilon)
+
+        return -half * sq_mean_distance / sq_stddev - two * log_stddev - \
+            tf.math.log(x=(two * pi_const))
+
+    def tf_states_value(self, parameters):
+        _, _, log_stddev = parameters
+
+        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
+        two = tf.constant(value=2.0, dtype=util.tf_dtype(dtype='float'))
+        pi_const = tf.constant(value=pi, dtype=util.tf_dtype(dtype='float'))
+
+        return -log_stddev - half * tf.math.log(x=(two * pi_const))

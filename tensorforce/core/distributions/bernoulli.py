@@ -42,75 +42,88 @@ class Bernoulli(Distribution):
         )
 
     def tf_parametrize(self, x):
-        # Flat logit
-        logit = self.logit.apply(x=x)
-
-        # Reshape logit to action shape
+        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
         shape = (-1,) + self.action_spec['shape']
+
+        # Logit
+        logit = self.logit.apply(x=x)
         logit = tf.reshape(tensor=logit, shape=shape)
 
-        # TODO rename
-        state_value = logit
+        # States value
+        states_value = logit
 
         # Sigmoid for corresponding probability
         probability = tf.sigmoid(x=logit)
 
-        # Min epsilon probability for numerical stability
+        # Clip probability for numerical stability
         probability = tf.clip_by_value(
-            t=probability,
-            clip_value_min=util.epsilon,
-            clip_value_max=(1.0 - util.epsilon)
+            t=probability, clip_value_min=epsilon, clip_value_max=(one - epsilon)
         )
 
         # "Normalized" logits
         true_logit = tf.log(x=probability)
-        false_logit = tf.log(x=(1.0 - probability))
+        false_logit = tf.log(x=(one - probability))
 
-        true_logit, false_logit, probability, state_value = self.add_summary(
+        true_logit, false_logit, probability, states_value = self.add_summary(
             label=('distributions', 'bernoulli'), name='probability', tensor=probability,
-            pass_tensors=(true_logit, false_logit, probability, state_value)
+            pass_tensors=(true_logit, false_logit, probability, states_value)
         )
 
-        return true_logit, false_logit, probability, state_value
+        return true_logit, false_logit, probability, states_value
 
-    def state_value(self, distr_params):
-        _, _, _, state_value = distr_params
-        return state_value
+    def tf_sample(self, parameters, deterministic):
+        _, _, probability, _ = parameters
 
-    def state_action_value(self, distr_params, action=None):
-        true_logit, false_logit, _, state_value = distr_params
-        if action is None:
-            state_value = tf.expand_dims(input=state_value, axis=-1)
-            logits = tf.stack(values=(false_logit, true_logit), axis=-1)
-        else:
-            logits = tf.where(condition=action, x=true_logit, y=false_logit)
-        return state_value + logits
-
-    def tf_sample(self, distr_params, deterministic):
-        _, _, probability, _ = distr_params
+        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
 
         # Deterministic: true if >= 0.5
-        definite = tf.greater_equal(x=probability, y=0.5)
+        definite = tf.greater_equal(x=probability, y=half)
 
         # Non-deterministic: sample true if >= uniform distribution
         uniform = tf.random.uniform(
-            shape=tf.shape(probability), dtype=util.tf_dtype(dtype='float')
+            shape=tf.shape(input=probability), dtype=util.tf_dtype(dtype='float')
         )
         sampled = tf.greater_equal(x=probability, y=uniform)
 
         return tf.where(condition=deterministic, x=definite, y=sampled)
 
-    def tf_log_probability(self, distr_params, action):
-        true_logit, false_logit, _, _ = distr_params
+    def tf_log_probability(self, parameters, action):
+        true_logit, false_logit, _, _ = parameters
+
         return tf.where(condition=action, x=true_logit, y=false_logit)
 
-    def tf_entropy(self, distr_params):
-        true_logit, false_logit, probability, _ = distr_params
-        return -probability * true_logit - (1.0 - probability) * false_logit
+    def tf_entropy(self, parameters):
+        true_logit, false_logit, probability, _ = parameters
 
-    def tf_kl_divergence(self, distr_params1, distr_params2):
-        true_logit1, false_logit1, probability1, _ = distr_params1
-        true_logit2, false_logit2, _, _ = distr_params2
+        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+
+        return -probability * true_logit - (one - probability) * false_logit
+
+    def tf_kl_divergence(self, parameters1, parameters2):
+        true_logit1, false_logit1, probability1, _ = parameters1
+        true_logit2, false_logit2, _, _ = parameters2
+
         true_log_prob_ratio = true_logit1 - true_logit2
         false_log_prob_ratio = false_logit1 - false_logit2
-        return probability1 * true_log_prob_ratio + (1.0 - probability1) * false_log_prob_ratio
+
+        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+
+        return probability1 * true_log_prob_ratio + (one - probability1) * false_log_prob_ratio
+
+    def tf_action_value(self, parameters, action=None):
+        true_logit, false_logit, _, states_value = parameters
+
+        if action is None:
+            states_value = tf.expand_dims(input=states_value, axis=-1)
+            logits = tf.stack(values=(false_logit, true_logit), axis=-1)
+
+        else:
+            logits = tf.where(condition=action, x=true_logit, y=false_logit)
+
+        return states_value + logits
+
+    def tf_states_value(self, parameters):
+        _, _, _, states_value = parameters
+
+        return states_value

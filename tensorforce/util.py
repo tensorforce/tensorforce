@@ -114,6 +114,14 @@ def flatten(xs):
         return [xs]
 
 
+def zip_items(*args):
+    assert len(args) > 0 and all(arg is None or isinstance(arg, dict) for arg in args)
+    assert args[0] is not None
+    for key in args[0]:
+        key_values = (key,) + tuple(None if arg is None else arg[key] for arg in args)
+        yield key_values
+
+
 def dtype(x):
     for dtype, tf_dtype in tf_dtype_mapping.items():
         if x.dtype == tf_dtype:

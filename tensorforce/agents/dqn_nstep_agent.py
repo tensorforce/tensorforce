@@ -26,6 +26,7 @@ class DQNNstepAgent(DRLAgent):
         self,
         states,
         actions,
+        memory,
         parallel_interactions=1,
         buffer_observe=1000,
         seed=None,
@@ -39,7 +40,6 @@ class DQNNstepAgent(DRLAgent):
         states_preprocessing=None,
         reward_preprocessing=None,
         update_mode=None,
-        memory=None,
         optimizer=None,
         discount=None,
         network='auto',
@@ -81,11 +81,8 @@ class DQNNstepAgent(DRLAgent):
             update_mode['unit'] = 'episodes'
 
         # Memory
-        if memory is None:
-            # Assumed episode length of 1000 timesteps.
-            memory = dict(
-                type='latest', include_next_states=True, capacity=(1000 * update_mode['batch_size'])
-            )
+        if isinstance(memory, int):
+            memory = dict(type='latest', include_next_states=True, capacity=memory)
         else:
             assert memory['include_next_states']
 

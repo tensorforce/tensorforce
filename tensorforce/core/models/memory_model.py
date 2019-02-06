@@ -458,6 +458,7 @@ class MemoryModel(Model):
 
         # Periodic optimization
         with tf.control_dependencies(control_inputs=(stored,)):
+            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
             batch_size = self.update_batch_size.value()
             frequency = self.update_frequency.value()
             start = self.update_start.value()
@@ -466,35 +467,22 @@ class MemoryModel(Model):
             if self.update_unit == 'timesteps':
                 # Timestep-based batch
                 timestep = Module.retrieve_tensor(name='timestep')
-                is_frequency = tf.math.equal(
-                    x=tf.mod(x=timestep, y=frequency),
-                    y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-                )
+                is_frequency = tf.math.equal(x=tf.mod(x=timestep, y=frequency), y=zero)
                 at_least_start = tf.math.greater_equal(x=timestep, y=start)
 
             elif self.update_unit == 'sequences':
                 # Timestep-sequence-based batch
                 timestep = Module.retrieve_tensor(name='timestep')
                 sequence_length = self.update_sequence_length.value()
-                is_frequency = tf.math.equal(
-                    x=tf.mod(x=timestep, y=frequency),
-                    y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-                )
-                at_least_start = tf.math.greater_equal(
-                    x=timestep, y=(start + sequence_length - 1)
-                )
+                is_frequency = tf.math.equal(x=tf.mod(x=timestep, y=frequency), y=zero)
+                at_least_start = tf.math.greater_equal(x=timestep, y=(start + sequence_length - 1))
 
             elif self.update_unit == 'episodes':
                 # Episode-based batch
                 episode = Module.retrieve_tensor(name='episode')
-                is_frequency = tf.math.equal(
-                    x=tf.mod(x=episode, y=frequency),
-                    y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-                )
+                is_frequency = tf.math.equal(x=tf.mod(x=episode, y=frequency), y=zero)
                 # Only update once per episode increment
-                is_frequency = tf.math.logical_and(
-                    x=is_frequency, y=tf.reduce_any(input_tensor=terminal)
-                )
+                is_frequency = tf.math.logical_and(x=is_frequency, y=terminal[-1])
                 at_least_start = tf.math.greater_equal(x=episode, y=start)
 
             def optimize():

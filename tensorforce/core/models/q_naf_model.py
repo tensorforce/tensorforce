@@ -75,10 +75,10 @@ class QNAFModel(QModel):
                 size=action_size, input_spec=input_spec
             )
 
-    def tf_q_value(self, embedding, distr_params, action, name):
+    def tf_q_value(self, embedding, parameters, action, name):
         num_action = util.product(xs=self.actions_spec[name]['shape'])
 
-        mean, stddev, _ = distr_params
+        mean, stddev, _ = parameters
         flat_mean = tf.reshape(tensor=mean, shape=(-1, num_action))
         flat_stddev = tf.reshape(tensor=stddev, shape=(-1, num_action))
 
@@ -134,15 +134,15 @@ class QNAFModel(QModel):
             distribution = self.distributions[name]
             target_distribution = self.target_distributions[name]
 
-            distr_params = distribution.parametrize(x=embedding)
-            target_distr_params = target_distribution.parametrize(x=target_embedding)
+            parameters = distribution.parametrize(x=embedding)
+            target_parameters = target_distribution.parametrize(x=target_embedding)
 
             q_value = self.tf_q_value(
-                embedding=embedding, distr_params=distr_params, action=actions[name], name=name
+                embedding=embedding, parameters=parameters, action=actions[name], name=name
             )
 
             # Notice, this is V', not Q' because NAF outputs V(s) separately
-            next_state_value = target_distribution.state_value(distr_params=target_distr_params)
+            next_state_value = target_distribution.states_value(parameters=target_parameters)
 
             delta = self.tf_q_delta(
                 q_value=q_value, next_q_value=next_state_value, terminal=terminal, reward=reward

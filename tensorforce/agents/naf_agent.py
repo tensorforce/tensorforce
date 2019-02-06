@@ -26,6 +26,7 @@ class NAFAgent(DRLAgent):
         self,
         states,
         actions,
+        memory,
         parallel_interactions=1,
         buffer_observe=1000,
         seed=None,
@@ -39,7 +40,6 @@ class NAFAgent(DRLAgent):
         states_preprocessing=None,
         reward_preprocessing=None,
         update_mode=None,
-        memory=None,
         optimizer=None,
         discount=None,
         network='auto',
@@ -83,11 +83,8 @@ class NAFAgent(DRLAgent):
             update_mode['unit'] = 'timesteps'
 
         # Memory
-        if memory is None:
-            # Default capacity of 1000 batches
-            memory = dict(
-                type='replay', include_next_states=True, capacity=(1000 * update_mode['batch_size'])
-            )
+        if isinstance(memory, int):
+            memory = dict(type='latest', include_next_states=True, capacity=memory)
         else:
             assert memory['include_next_states']
 

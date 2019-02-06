@@ -26,6 +26,7 @@ class PPOAgent(DRLAgent):
         self,
         states,
         actions,
+        memory,
         parallel_interactions=1,
         buffer_observe=1000,
         seed=None,
@@ -39,7 +40,6 @@ class PPOAgent(DRLAgent):
         states_preprocessing=None,
         reward_preprocessing=None,
         update_mode=None,
-        memory=None,
         discount=None,
         network='auto',
         distributions=None,
@@ -95,12 +95,8 @@ class PPOAgent(DRLAgent):
             update_mode['unit'] = 'episodes'
 
         # Memory
-        if memory is None:
-            # Assumed episode length of 1000 timesteps.
-            memory = dict(
-                type='latest', include_next_states=False,
-                capacity=(1000 * update_mode['batch_size'])
-            )
+        if isinstance(memory, int):
+            memory = dict(type='latest', include_next_states=False, capacity=memory)
         else:
             assert not memory['include_next_states']
 

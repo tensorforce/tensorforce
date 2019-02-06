@@ -33,9 +33,9 @@ class PGLogProbModel(PGModel):
 
         log_probs = list()
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parametrize(x=embedding)
+            parameters = distribution.parametrize(x=embedding)
             action = actions[name]
-            log_prob = distribution.log_probability(distr_params=distr_params, action=action)
+            log_prob = distribution.log_probability(parameters=parameters, action=action)
             collapsed_size = util.product(xs=util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))
             log_probs.append(log_prob)

@@ -41,7 +41,7 @@ class TestQuickstart(unittest.TestCase):
             # Automatically configured network
             network=dict(type='auto', size=32, depth=2, internal_rnn=True),
             # Update every 5 episodes, with a batch of 10 episodes
-            update_mode=dict(unit='episodes', batch_size=10, frequency=5),
+            update_mode=dict(unit='episodes', batch_size=2, frequency=1),
             # Memory sampling most recent experiences, with a capacity of 2500 timesteps
             # (2500 > [10 episodes] * [200 max timesteps per episode])
             memory=dict(type='latest', include_next_states=False, capacity=2500),

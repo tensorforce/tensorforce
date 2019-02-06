@@ -46,12 +46,12 @@ class Distribution(Module):
         """
         raise NotImplementedError
 
-    def tf_sample(self, distr_params, deterministic):
+    def tf_sample(self, parameters, deterministic):
         """
         Creates the tensorFlow operations for sampling an action based on a distribution.
 
         Args:
-            distr_params: tuple of distribution parameter tensors.
+            parameters: tuple of distribution parameter tensors.
             deterministic: Boolean input tensor indicating whether the maximum likelihood action
                 should be returned.
 
@@ -60,13 +60,13 @@ class Distribution(Module):
         """
         raise NotImplementedError
 
-    def tf_log_probability(self, distr_params, action):
+    def tf_log_probability(self, parameters, action):
         """
         Creates the tensorFlow operations for calculating the log probability of an action for a  
         distribution.
 
         Args:
-            distr_params: tuple of distribution parameter tensors.
+            parameters: tuple of distribution parameter tensors.
             action: Action tensor.
 
         Returns:
@@ -74,28 +74,34 @@ class Distribution(Module):
         """
         raise NotImplementedError
 
-    def tf_entropy(self, distr_params):
+    def tf_entropy(self, parameters):
         """
         Creates the tensorFlow operations for calculating the entropy of a distribution.
 
         Args:
-            distr_params: tuple of distribution parameter tensors.
+            parameters: tuple of distribution parameter tensors.
 
         Returns:
             Entropy tensor.
         """
         raise NotImplementedError
 
-    def tf_kl_divergence(self, distr_params1, distr_params2):
+    def tf_kl_divergence(self, parameters1, parameters2):
         """
         Creates the tensorFlow operations for calculating the KL divergence between two  
         distributions.
 
         Args:
-            distr_params1: tuple of parameter tensors for first distribution.
-            distr_params2: tuple of parameter tensors for second distribution.
+            parameters1: tuple of parameter tensors for first distribution.
+            parameters2: tuple of parameter tensors for second distribution.
 
         Returns:
             KL divergence tensor.
         """
+        raise NotImplementedError
+
+    def tf_action_value(self, parameters, action=None):
+        raise NotImplementedError
+
+    def tf_states_value(self, parameters):
         raise NotImplementedError

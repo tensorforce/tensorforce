@@ -122,17 +122,17 @@ class DistributionModel(MemoryModel):
 
         actions = OrderedDict()
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parametrize(x=embedding)
+            parameters = distribution.parametrize(x=embedding)
             deterministic = Module.retrieve_tensor(name='deterministic')
             deterministic = tf.logical_or(
                 x=deterministic,
                 y=tf.constant(value=self.requires_deterministic, dtype=util.tf_dtype(dtype='bool'))
             )
             action = distribution.sample(
-                distr_params=distr_params, deterministic=deterministic
+                parameters=parameters, deterministic=deterministic
             )
 
-            entropy = distribution.entropy(distr_params=distr_params)
+            entropy = distribution.entropy(parameters=parameters)
             collapsed_size = util.product(xs=util.shape(entropy)[1:])
             entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
             entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
@@ -161,12 +161,12 @@ class DistributionModel(MemoryModel):
         Returns:
             The optimization operation.
         """
-        distr_params_before = OrderedDict()
+        parameters_before = OrderedDict()
         embedding = self.network.apply(x=states, internals=internals)
         for name, distribution in self.distributions.items():
-            distr_params_before[name] = distribution.parametrize(x=embedding)
+            parameters_before[name] = distribution.parametrize(x=embedding)
 
-        with tf.control_dependencies(control_inputs=util.flatten(xs=distr_params_before)):
+        with tf.control_dependencies(control_inputs=util.flatten(xs=parameters_before)):
             optimized = super().tf_optimization(
                 states=states, internals=internals, actions=actions, terminal=terminal,
                 reward=reward, next_states=next_states, next_internals=next_internals
@@ -176,9 +176,9 @@ class DistributionModel(MemoryModel):
             summaries = list()
             embedding = self.network.apply(x=states, internals=internals)
             for name, distribution in self.distributions.items():
-                distr_params = distribution.parametrize(x=embedding)
+                parameters = distribution.parametrize(x=embedding)
                 kl_divergence = distribution.kl_divergence(
-                    distr_params1=distr_params_before[name], distr_params2=distr_params
+                    parameters1=parameters_before[name], parameters2=parameters
                 )
                 collapsed_size = util.product(xs=util.shape(kl_divergence)[1:])
                 kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))
@@ -188,7 +188,7 @@ class DistributionModel(MemoryModel):
                 )
                 summaries.append(kl_divergence)
 
-                entropy = distribution.entropy(distr_params=distr_params)
+                entropy = distribution.entropy(parameters=parameters)
                 entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
                 entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
                 entropy = self.add_summary(
@@ -205,8 +205,8 @@ class DistributionModel(MemoryModel):
         entropies = list()
         embedding = self.network.apply(x=states, internals=internals)
         for name, distribution in self.distributions.items():
-            distr_params = distribution.parametrize(x=embedding)
-            entropy = distribution.entropy(distr_params=distr_params)
+            parameters = distribution.parametrize(x=embedding)
+            entropy = distribution.entropy(parameters=parameters)
             collapsed_size = util.product(xs=util.shape(entropy)[1:])
             entropy = tf.reshape(tensor=entropy, shape=(-1, collapsed_size))
             entropies.append(entropy)
@@ -242,10 +242,10 @@ class DistributionModel(MemoryModel):
         kl_divergences = list()
         for name, distribution in self.distributions.items():
             distribution = self.distributions[name]
-            distr_params = distribution.parametrize(x=embedding)
-            fixed_distr_params = tuple(tf.stop_gradient(input=value) for value in distr_params)
+            parameters = distribution.parametrize(x=embedding)
+            fixed_parameters = tuple(tf.stop_gradient(input=value) for value in parameters)
             kl_divergence = distribution.kl_divergence(
-                distr_params1=fixed_distr_params, distr_params2=distr_params
+                parameters1=fixed_parameters, parameters2=parameters
             )
             collapsed_size = util.product(xs=util.shape(kl_divergence)[1:])
             kl_divergence = tf.reshape(tensor=kl_divergence, shape=(-1, collapsed_size))

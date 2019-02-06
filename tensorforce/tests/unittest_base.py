@@ -53,6 +53,8 @@ class UnittestBase(object):
         kwargs['actions'] = environment.actions()
         if self.__class__.ignore_network:
             kwargs.pop('network', None)
+        elif 'memory' not in kwargs:
+            kwargs['memory'] = 100
 
         agent = agent(**kwargs)
 

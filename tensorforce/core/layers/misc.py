@@ -131,7 +131,8 @@ class Dropout(Layer):
             return x
 
         def apply_dropout():
-            dropout = tf.nn.dropout(x=x, keep_prob=(1.0 - rate))
+            one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+            dropout = tf.nn.dropout(x=x, keep_prob=(one - rate))
             return self.add_summary(
                 label='dropout', name='dropout', tensor=tf.math.zero_fraction(value=dropout),
                 pass_tensors=dropout

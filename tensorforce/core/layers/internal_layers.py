@@ -147,7 +147,7 @@ class InternalLstm(InternalLayer, TransformationBase):
         )
 
     def tf_apply(self, x, state):
-        state = tf.contrib.rnn.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
+        state = tf.nn.rnn_cell.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
 
         x, state = self.cell(inputs=x, state=state)
         state = tf.stack(values=(state.c, state.h), axis=1)

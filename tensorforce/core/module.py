@@ -20,6 +20,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.ops import cond_v2
 from tensorflow.python.ops import while_v2
 
 from tensorforce import TensorforceError, util
@@ -411,7 +412,10 @@ class Module(object):
 
     def cond(self, pred, true_fn, false_fn):
         Module.global_scope.append('cond')
-        x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn, strict=True)
+        if tf.__version__.startswith('1.13'):
+            x = cond_v2.cond_v2(pred=pred, true_fn=true_fn, false_fn=false_fn)
+        else:
+            x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn, strict=True)
         Module.global_scope.pop()
         return x
 
@@ -421,7 +425,12 @@ class Module(object):
         use_while_v2=False
     ):
         Module.global_scope.append('while')
-        if use_while_v2:
+        if tf.__version__.startswith('1.13'):
+            x = while_v2.while_loop(
+                cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
+                maximum_iterations=maximum_iterations, return_same_structure=return_same_structure
+            )
+        elif use_while_v2:
             x = while_v2.while_loop(cond=cond, body=body, loop_vars=loop_vars)
         else:
             x = tf.while_loop(

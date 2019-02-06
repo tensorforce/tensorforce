@@ -63,27 +63,16 @@ class Evolutionary(Optimizer):
         Returns:
             List of delta tensors corresponding to the updates for each optimized variable.
         """
+        learning_rate = self.learning_rate.value()
         unperturbed_loss = fn_loss(**arguments)
 
-        # First sample
-        learning_rate = self.learning_rate.value()
-        perturbations = [
-            tf.random_normal(shape=util.shape(variable)) * learning_rate
-            for variable in variables
-        ]
-        applied = self.apply_step(variables=variables, deltas=perturbations)
-
-        with tf.control_dependencies(control_inputs=(applied,)):
-            perturbed_loss = fn_loss(**arguments)
-            direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
-            deltas_sum = [direction * perturbation for perturbation in perturbations]
+        deltas = [tf.zeros_like(tensor=variable) for variable in variables]
+        previous_perturbations = [tf.zeros_like(tensor=variable) for variable in variables]
 
         if self.unroll_loop:
             # Unrolled for loop
-            previous_perturbations = perturbations
-            for sample in range(self.num_samples - 1):
-
-                with tf.control_dependencies(control_inputs=deltas_sum):
+            for sample in range(self.num_samples):
+                with tf.control_dependencies(control_inputs=deltas):
                     perturbations = [
                         tf.random_normal(shape=util.shape(variable)) * learning_rate
                         for variable in variables
@@ -98,16 +87,15 @@ class Evolutionary(Optimizer):
                 with tf.control_dependencies(control_inputs=(applied,)):
                     perturbed_loss = fn_loss(**arguments)
                     direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
-                    deltas_sum = [
+                    deltas = [
                         delta + direction * perturbation
-                        for delta, perturbation in zip(deltas_sum, perturbations)
+                        for delta, perturbation in zip(deltas, perturbations)
                     ]
 
         else:
             # TensorFlow while loop
-            def body(deltas_sum, previous_perturbations):
-
-                with tf.control_dependencies(control_inputs=deltas_sum):
+            def body(deltas, previous_perturbations):
+                with tf.control_dependencies(control_inputs=deltas):
                     perturbations = [
                         tf.random_normal(shape=util.shape(variable)) * learning_rate
                         for variable in variables
@@ -121,23 +109,22 @@ class Evolutionary(Optimizer):
                 with tf.control_dependencies(control_inputs=(applied,)):
                     perturbed_loss = fn_loss(**arguments)
                     direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
-                    deltas_sum = [
+                    deltas = [
                         delta + direction * perturbation
-                        for delta, perturbation in zip(deltas_sum, perturbations)
+                        for delta, perturbation in zip(deltas, perturbations)
                     ]
 
-                return deltas_sum, perturbations
+                return deltas, perturbations
 
             num_samples = self.num_samples.value()
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
-            deltas_sum, perturbations = self.while_loop(
-                cond=util.tf_always_true, body=body, loop_vars=(deltas_sum, perturbations),
-                maximum_iterations=(num_samples - one)
+            deltas, perturbations = self.while_loop(
+                cond=util.tf_always_true, body=body, loop_vars=(deltas, previous_perturbations),
+                maximum_iterations=num_samples
             )
 
-        with tf.control_dependencies(control_inputs=deltas_sum):
+        with tf.control_dependencies(control_inputs=deltas):
             num_samples = tf.dtypes.cast(x=num_samples, dtype=util.tf_dtype(dtype='float'))
-            deltas = [delta / num_samples for delta in deltas_sum]
+            deltas = [delta / num_samples for delta in deltas]
             perturbation_deltas = [delta - pert for delta, pert in zip(deltas, perturbations)]
             applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
 

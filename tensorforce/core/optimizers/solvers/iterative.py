@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce import util
 from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers.solvers import Solver
 
@@ -23,7 +24,7 @@ class Iterative(Solver):
     initialization step, the iteration loop body and the termination condition.
     """
 
-    def __init__(self, name, max_iterations, unroll_loop, use_while_v2=False):
+    def __init__(self, name, max_iterations, unroll_loop):
         """
         Creates a new iterative solver instance.
 
@@ -35,7 +36,6 @@ class Iterative(Solver):
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
-        self.use_while_v2 = use_while_v2
 
         if self.unroll_loop:
             self.max_iterations = max_iterations
@@ -76,16 +76,16 @@ class Iterative(Solver):
             max_iterations = self.max_iterations.value()
             args = self.while_loop(
                 cond=self.next_step, body=self.step, loop_vars=args,
-                maximum_iterations=max_iterations, use_while_v2=self.use_while_v2
+                maximum_iterations=max_iterations
             )
 
-        # First argument contains solution
-        return args[0]
+        solution = self.end(*args)
+
+        return solution
 
     def tf_start(self, x_init, *args):
         """
-        Initialization step preparing the arguments for the first iteration of the loop body  
-        (default: initial solution guess and iteration counter).
+        Initialization step preparing the arguments for the first iteration of the loop body.
 
         Args:
             x_init: Initial solution guess $x_0$.
@@ -94,16 +94,14 @@ class Iterative(Solver):
         Returns:
             Initial arguments for tf_step.
         """
-        raise NotImplementedError
+        return (x_init,) + args
 
     def tf_step(self, x, *args):
         """
-        Iteration loop body of the iterative solver (default: increment iteration step). The  
-        first two loop arguments have to be the current solution estimate and the iteration step.
+        Iteration loop body of the iterative solver.
 
         Args:
             x: Current solution estimate.
-            iteration: Current iteration counter.
             *args: Additional solver-specific arguments.
 
         Returns:
@@ -117,10 +115,22 @@ class Iterative(Solver):
 
         Args:
             x: Current solution estimate.
-            iteration: Current iteration counter.
             *args: Additional solver-specific arguments.
 
         Returns:
             True if another iteration should be performed.
         """
-        raise NotImplementedError
+        return util.tf_always_true()
+
+    def tf_end(self, x_final, *args):
+        """
+        Termination step preparing the return value.
+
+        Args:
+            x: Final solution estimate.
+            *args: Additional solver-specific arguments.
+
+        Returns:
+            Final solution.
+        """
+        return x_final

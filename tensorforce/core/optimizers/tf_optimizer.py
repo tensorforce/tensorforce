@@ -31,7 +31,6 @@ class TFOptimizer(Optimizer):
         adam=tf.train.AdamOptimizer,
         gradient_descent=tf.train.GradientDescentOptimizer,
         momentum=tf.train.MomentumOptimizer,
-        nadam=tf.contrib.opt.NadamOptimizer,
         proximal_adagrad=tf.train.ProximalAdagradOptimizer,
         proximal_gradient_descent=tf.train.ProximalGradientDescentOptimizer,
         rmsprop=tf.train.RMSPropOptimizer
@@ -89,13 +88,5 @@ class TFOptimizer(Optimizer):
         variables = super().get_variables(only_trainable=only_trainable)
 
         variables.extend(self.optimizer.variables())
-
-        # variables.extend(
-        #     self.optimizer._slots[slot][key] for slot in sorted(self.optimizer._slots)
-        #     for key in sorted(self.optimizer._slots[slot])
-        # )
-
-        # if isinstance(self.optimizer, (tf.train.AdamOptimizer, tf.contrib.opt.NadamOptimizer)):
-        #     variables.extend(self.optimizer._get_beta_accumulators())
 
         return variables

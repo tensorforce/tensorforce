@@ -160,17 +160,33 @@ class LineSearch(Iterative):
         Returns:
             True if another iteration should be performed.
         """
+        improved = improvement > last_improvement
+        accept_ratio = self.accept_ratio.value()
+        next_step = tf.logical_and(x=improved, y=(improvement < accept_ratio))
+        return tf.logical_and(x=next_step, y=(estimated_improvement > util.epsilon))
+
+    def tf_end(self, x_final, deltas, improvement, last_improvement, estimated_improvement):
+        """
+        Termination step preparing the return value.
+
+        Args:
+            x_init: Final solution estimate $x_n$.
+            deltas: Current difference $x_n - x'$.
+            improvement: Current improvement $(f(x_n) - f(x')) / v'$.
+            last_improvement: Last improvement $(f(x_{n-1}) - f(x')) / v'$.
+            estimated_improvement: Current estimated value $v'$.
+
+        Returns:
+            Final solution.
+        """
+        def accept_deltas():
+            return [t + delta for t, delta in zip(x_final, deltas)]
 
         def undo_deltas():
             value = self.fn_x([-delta for delta in deltas])
             with tf.control_dependencies(control_inputs=(value,)):
-                # Trivial operation to enforce control dependency
-                return tf.less(x=value, y=value)  # == False
+                return [util.identity_operation(x=t) for t in x_final]
 
         skip_undo_deltas = improvement > last_improvement
-        improved = self.cond(
-            pred=skip_undo_deltas, true_fn=util.tf_always_true, false_fn=undo_deltas
-        )
-        accept_ratio = self.accept_ratio.value()
-        next_step = tf.logical_and(x=improved, y=(improvement < accept_ratio))
-        return tf.logical_and(x=next_step, y=(estimated_improvement > util.epsilon))
+        x_final = self.cond(pred=skip_undo_deltas, true_fn=accept_deltas, false_fn=undo_deltas)
+        return x_final

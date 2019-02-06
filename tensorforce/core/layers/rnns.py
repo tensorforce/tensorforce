@@ -26,7 +26,8 @@ class Lstm(TransformationBase):
 
     def __init__(
         self, name, size, return_final_state=True, bias=False, activation=None, dropout=None,
-        input_spec=None, summary_labels=None  # l2_regularization=None
+        output_dropout=None, state_dropout=None, input_spec=None, summary_labels=None
+        # l2_regularization=None
     ):
         """
         LSTM layer.
@@ -53,6 +54,9 @@ class Lstm(TransformationBase):
                 "Invalid combination for Lstm layer: size=0 and return_final_state=True."
             )
 
+        self.output_dropout = 0.0 if output_dropout is None else output_dropout
+        self.state_dropout = 0.0 if state_dropout is None else state_dropout
+
     def default_input_spec(self):
         return dict(type='float', shape=(-1, 0))
 
@@ -74,6 +78,13 @@ class Lstm(TransformationBase):
         self.cell = tf.nn.rnn_cell.LSTMCell(
             num_units=self.lstm_size, name='cell', dtype=util.tf_dtype(dtype='float')
         )
+
+        if self.output_dropout > 0.0 or self.state_dropout > 0.0:
+            self.cell = tf.nn.rnn_cell.DropoutWrapper(
+                cell=self.cell, output_keep_prob=(1.0 - self.output_dropout),
+                state_keep_prob=(1.0 - self.state_dropout)
+            )
+
         self.cell.build(input_shape=self.input_spec['shape'][1])
 
         for variable in self.cell.trainable_weights:
@@ -83,10 +94,6 @@ class Lstm(TransformationBase):
         for variable in self.cell.non_trainable_weights:
             name = variable.name[variable.name.rindex('cell/') + 5: -2]
             self.variables[name] = variable
-
-        # if self.lstm_dropout is not None:
-        #     keep_prob = self.cond(pred=update, true_fn=(lambda: 1.0 - self.lstm_dropout), false_fn=(lambda: 1.0))
-        #     self.lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=self.lstm_cell, output_keep_prob=keep_prob)
 
     def tf_apply(self, x, sequence_length=None):
         x, state = tf.nn.dynamic_rnn(
@@ -109,7 +116,8 @@ class Gru(TransformationBase):
 
     def __init__(
         self, name, size, return_final_state=True, bias=False, activation=None, dropout=None,
-        input_spec=None, summary_labels=None  # l2_regularization=None
+        output_dropout=None, state_dropout=None, input_spec=None, summary_labels=None
+        # l2_regularization=None
     ):
         """
         GRU layer.
@@ -129,6 +137,9 @@ class Gru(TransformationBase):
             raise TensorforceError(
                 "Invalid combination for Gru layer: size=0 and return_final_state=True."
             )
+
+        self.output_dropout = 0.0 if output_dropout is None else output_dropout
+        self.state_dropout = 0.0 if state_dropout is None else state_dropout
 
     def default_input_spec(self):
         return dict(type='float', shape=(-1, 0))
@@ -151,6 +162,13 @@ class Gru(TransformationBase):
         self.cell = tf.nn.rnn_cell.GRUCell(
             num_units=self.size, name='cell', dtype=util.tf_dtype(dtype='float')
         )
+
+        if self.output_dropout > 0.0 or self.state_dropout > 0.0:
+            self.cell = tf.nn.rnn_cell.DropoutWrapper(
+                cell=self.cell, output_keep_prob=(1.0 - self.output_dropout),
+                state_keep_prob=(1.0 - self.state_dropout)
+            )
+
         self.cell.build(input_shape=self.input_spec['shape'][1])
 
         for variable in self.cell.trainable_weights:
@@ -160,10 +178,6 @@ class Gru(TransformationBase):
         for variable in self.cell.non_trainable_weights:
             name = variable.name[variable.name.rindex('cell/') + 5: -2]
             self.variables[name] = variable
-
-        # if self.lstm_dropout is not None:
-        #     keep_prob = self.cond(pred=update, true_fn=(lambda: 1.0 - self.lstm_dropout), false_fn=(lambda: 1.0))
-        #     self.lstm_cell = tf.contrib.rnn.DropoutWrapper(cell=self.lstm_cell, output_keep_prob=keep_prob)
 
     def tf_apply(self, x, sequence_length=None):
         x, state = tf.nn.dynamic_rnn(

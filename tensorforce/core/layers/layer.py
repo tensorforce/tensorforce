@@ -56,8 +56,6 @@ class Layer(Module):
             value_spec=self.output_spec, accept_underspecified=True, return_normalized=True
         )
 
-        print(self.output_spec)
-
     def default_input_spec(self):
         raise NotImplementedError
 

@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from math import ceil
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError
@@ -53,12 +55,16 @@ class Conv1d(TransformationBase):
         return dict(type='float', shape=(0, 0))
 
     def get_output_spec(self, input_spec):
-        if self.stride != 1:
-            raise NotImplementedError
-        elif self.squeeze:
-            input_spec['shape'] = input_spec['shape'][:-1]
+        if self.padding == 'SAME':
+            shape = (ceil(input_spec['shape'][0] / self.stride),)
+        elif self.padding == 'VALID':
+            shape = (ceil((input_spec['shape'][0] - (self.window - 1)) / self.stride),)
+
+        if self.squeeze:
+            input_spec['shape'] = shape
         else:
-            input_spec['shape'] = input_spec['shape'][:-1] + (self.size,)
+            input_spec['shape'] = shape + (self.size,)
+
         input_spec.pop('min_value', None)
         input_spec.pop('max_value', None)
 
@@ -133,12 +139,22 @@ class Conv2d(TransformationBase):
         return dict(type='float', shape=(0, 0, 0))
 
     def get_output_spec(self, input_spec):
-        if self.stride != (1, 1, 1, 1):
-            raise NotImplementedError
-        elif self.squeeze:
-            input_spec['shape'] = input_spec['shape'][:-1]
+        if self.padding == 'SAME':
+            shape = (
+                ceil(input_spec['shape'][0] / self.stride[1]),
+                ceil(input_spec['shape'][1] / self.stride[2])
+            )
+        elif self.padding == 'VALID':
+            shape = (
+                ceil((input_spec['shape'][0] - (self.window[1] - 1)) / self.stride[1]),
+                ceil((input_spec['shape'][1] - (self.window[2] - 1)) / self.stride[2])
+            )
+
+        if self.squeeze:
+            input_spec['shape'] = shape
         else:
-            input_spec['shape'] = input_spec['shape'][:-1] + (self.size,)
+            input_spec['shape'] = shape + (self.size,)
+
         input_spec.pop('min_value', None)
         input_spec.pop('max_value', None)
 

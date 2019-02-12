@@ -202,9 +202,7 @@ class Module(object):
                 tf.reduce_sum(input_tensor=tf.square(x=variable))
                 for variable in self.trainable_variables.values()
             ]
-            regularization_loss += self.l2_regularization * tf.math.accumulate_n(
-                inputs=l2_variables, shape=(), tensor_dtype=util.tf_dtype(dtype='float')
-            )
+            regularization_loss += self.l2_regularization * tf.math.add_n(inputs=l2_variables)
 
         for module in self.trainable_modules.values():
             regularization_loss += module.regularize()

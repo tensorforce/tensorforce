@@ -35,3 +35,55 @@ class TestLayers(UnittestBase, unittest.TestCase):
         ]
 
         self.unittest(name='dropout', states=states, actions=actions, network=network)
+
+    def test_keras(self):
+        states = dict(
+            bool_state=dict(type='bool', shape=(3,)),
+            int_state=dict(type='int', shape=(2,), num_values=4),
+            float_state=dict(type='float', shape=(4, 4, 1)),
+            bounded_state=dict(type='float', shape=(2,), min_value=-0.5, max_value=0.5)
+        )
+
+        actions = dict(
+            bool_action=dict(type='bool', shape=()),
+            int_action=dict(type='int', shape=(2,), num_values=4),
+            float_action=dict(type='float', shape=(1, 1)),
+            bounded_action=dict(type='float', shape=(), min_value=-0.5, max_value=0.5)
+        )
+
+        network = [
+            [
+                dict(type='retrieve', tensors='bool_state'),
+                dict(type='keras', layer='Embedding', input_dim=2, output_dim=16),
+                dict(type='keras', layer='Conv1D', filters=16, kernel_size=3),
+                dict(type='keras', layer='GlobalMaxPool1D'),
+                dict(type='register', tensor='bool-emb')
+            ],
+            [
+                dict(type='retrieve', tensors='int_state'),
+                dict(type='keras', layer='Embedding', input_dim=4, output_dim=16),
+                dict(type='keras', layer='LSTM', units=16),
+                dict(type='register', tensor='int-emb')
+            ],
+            [
+                dict(type='retrieve', tensors='float_state'),
+                dict(type='keras', layer='Conv2D', filters=16, kernel_size=3),
+                dict(type='keras', layer='MaxPool2D'),
+                dict(type='keras', layer='GlobalMaxPool2D'),
+                dict(type='register', tensor='float-emb')
+            ],
+            [
+                dict(type='retrieve', tensors='bounded_state'),
+                dict(type='keras', layer='Dense', units=16),
+                dict(type='register', tensor='bounded-emb')
+            ],
+            [
+                dict(
+                    type='retrieve', tensors=('bool-emb', 'int-emb', 'float-emb', 'bounded-emb'),
+                    aggregation='product'
+                ),
+                dict(type='keras', layer='Dense', units=16)
+            ]
+        ]
+
+        self.unittest(name='keras', states=states, actions=actions, network=network)

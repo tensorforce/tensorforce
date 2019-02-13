@@ -36,6 +36,37 @@ class TestLayers(UnittestBase, unittest.TestCase):
 
         self.unittest(name='dropout', states=states, actions=actions, network=network)
 
+    def test_rnn(self):
+        states = dict(
+            bool_state=dict(type='bool', shape=(3,)),
+            int_state=dict(type='int', shape=(2,), num_values=4)
+        )
+
+        actions = dict(type='int', shape=(), num_values=3)
+
+        network = [
+            [
+                dict(type='retrieve', tensors='bool_state'),
+                dict(type='embedding', size=16),
+                dict(type='gru', size=16, return_final_state=False),
+                dict(type='gru', size=16),
+                dict(type='register', tensor='bool-emb')
+            ],
+            [
+                dict(type='retrieve', tensors='int_state'),
+                dict(type='embedding', size=16),
+                dict(type='lstm', size=16, return_final_state=False),
+                dict(type='lstm', size=16),
+                dict(type='register', tensor='int-emb')
+            ],
+            [
+                dict(type='retrieve', tensors=('bool-emb', 'int-emb'), aggregation='product'),
+                dict(type='dense', size=16)
+            ]
+        ]
+
+        self.unittest(name='rnn', states=states, actions=actions, network=network)
+
     def test_keras(self):
         states = dict(
             bool_state=dict(type='bool', shape=(3,)),
@@ -44,12 +75,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             bounded_state=dict(type='float', shape=(2,), min_value=-0.5, max_value=0.5)
         )
 
-        actions = dict(
-            bool_action=dict(type='bool', shape=()),
-            int_action=dict(type='int', shape=(2,), num_values=4),
-            float_action=dict(type='float', shape=(1, 1)),
-            bounded_action=dict(type='float', shape=(), min_value=-0.5, max_value=0.5)
-        )
+        actions = dict(type='int', shape=(), num_values=3)
 
         network = [
             [

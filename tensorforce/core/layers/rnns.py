@@ -19,30 +19,39 @@ from tensorforce import TensorforceError, util
 from tensorforce.core.layers import TransformationBase
 
 
-class Lstm(TransformationBase):
+class Rnn(TransformationBase):
     """
-    LSTM layer.
+    RNN layer.
     """
 
     def __init__(
-        self, name, size, return_final_state=True, bias=False, activation=None, dropout=None,
-        output_dropout=None, state_dropout=None, input_spec=None, summary_labels=None
-        # l2_regularization=None
+        self, cell, name, size, return_final_state=True, bias=False, activation=None, dropout=None,
+        input_spec=None, summary_labels=None, **kwargs  # l2_regularization=None
     ):
         """
-        LSTM layer.
-
-        Args:
-            size: LSTM size (takes into account return_final_state)
-            return_final_state: ???
+        RNN layer.
         """
-        if return_final_state:
-            assert size % 2 == 0
-            self.lstm_size = size // 2
-        else:
-            self.lstm_size = size
-
+        self.cell = cell
         self.return_final_state = return_final_state
+
+        if self.return_final_state and self.cell == 'lstm':
+            assert size % 2 == 0
+            self.size = size // 2
+        else:
+            self.size = size
+
+        if self.cell == 'gru':
+            self.rnn = tf.keras.layers.GRU(
+                units=self.size, return_sequences=True, return_state=True, name='rnn',
+                dtype=util.tf_dtype(dtype='float'), input_shape=input_spec['shape'], **kwargs
+            )
+        elif self.cell == 'lstm':
+            self.rnn = tf.keras.layers.LSTM(
+                units=self.size, return_sequences=True, return_state=True, name='rnn',
+                dtype=util.tf_dtype(dtype='float'), input_shape=input_spec['shape'], **kwargs
+            )
+        else:
+            raise TensorforceError.unexpected()
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
@@ -53,93 +62,6 @@ class Lstm(TransformationBase):
             raise TensorforceError(
                 "Invalid combination for Lstm layer: size=0 and return_final_state=True."
             )
-
-        self.output_dropout = 0.0 if output_dropout is None else output_dropout
-        self.state_dropout = 0.0 if state_dropout is None else state_dropout
-
-    def default_input_spec(self):
-        return dict(type='float', shape=(-1, 0))
-
-    def get_output_spec(self, input_spec):
-        if self.return_final_state:
-            input_spec['shape'] = input_spec['shape'][:-2] + (2 * self.lstm_size,)
-        elif self.squeeze:
-            input_spec['shape'] = input_spec['shape'][:-1]
-        else:
-            input_spec['shape'] = input_spec['shape'][:-1] + (self.lstm_size,)
-        input_spec.pop('min_value', None)
-        input_spec.pop('max_value', None)
-
-        return input_spec
-
-    def tf_initialize(self):
-        super().tf_initialize()
-
-        self.cell = tf.nn.rnn_cell.LSTMCell(
-            num_units=self.lstm_size, name='cell', dtype=util.tf_dtype(dtype='float')
-        )
-
-        if self.output_dropout > 0.0 or self.state_dropout > 0.0:
-            self.cell = tf.nn.rnn_cell.DropoutWrapper(
-                cell=self.cell, output_keep_prob=(1.0 - self.output_dropout),
-                state_keep_prob=(1.0 - self.state_dropout)
-            )
-
-        self.cell.build(input_shape=self.input_spec['shape'][1])
-
-        for variable in self.cell.trainable_weights:
-            name = variable.name[variable.name.rindex('cell/') + 5: -2]
-            self.variables[name] = variable
-            self.trainable_variables[name] = variable
-        for variable in self.cell.non_trainable_weights:
-            name = variable.name[variable.name.rindex('cell/') + 5: -2]
-            self.variables[name] = variable
-
-    def tf_apply(self, x, sequence_length=None):
-        x, state = tf.nn.dynamic_rnn(
-            cell=self.cell, inputs=x, sequence_length=sequence_length, initial_state=None,
-            dtype=util.tf_dtype(dtype='float'),
-            # Weird TensorFlow behavior? (https://github.com/tensorflow/tensorflow/issues/15874)
-            parallel_iterations=(self.input_spec['shape'][0] + 1)
-        )
-
-        if self.return_final_state:
-            x = tf.concat(values=(state.c, state.h), axis=1)
-
-        return super().tf_apply(x=x)
-
-
-class Gru(TransformationBase):
-    """
-    GRU layer.
-    """
-
-    def __init__(
-        self, name, size, return_final_state=True, bias=False, activation=None, dropout=None,
-        output_dropout=None, state_dropout=None, input_spec=None, summary_labels=None
-        # l2_regularization=None
-    ):
-        """
-        GRU layer.
-
-        Args:
-            size: GRU size (takes into account return_final_state)
-            return_final_state: ???
-        """
-        self.return_final_state = return_final_state
-
-        super().__init__(
-            name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            input_spec=input_spec, l2_regularization=0.0, summary_labels=summary_labels
-        )
-
-        if self.squeeze and self.return_final_state:
-            raise TensorforceError(
-                "Invalid combination for Gru layer: size=0 and return_final_state=True."
-            )
-
-        self.output_dropout = 0.0 if output_dropout is None else output_dropout
-        self.state_dropout = 0.0 if state_dropout is None else state_dropout
 
     def default_input_spec(self):
         return dict(type='float', shape=(-1, 0))
@@ -159,35 +81,59 @@ class Gru(TransformationBase):
     def tf_initialize(self):
         super().tf_initialize()
 
-        self.cell = tf.nn.rnn_cell.GRUCell(
-            num_units=self.size, name='cell', dtype=util.tf_dtype(dtype='float')
-        )
+        self.rnn.build(input_shape=((None,) + self.input_spec['shape']))
 
-        if self.output_dropout > 0.0 or self.state_dropout > 0.0:
-            self.cell = tf.nn.rnn_cell.DropoutWrapper(
-                cell=self.cell, output_keep_prob=(1.0 - self.output_dropout),
-                state_keep_prob=(1.0 - self.state_dropout)
-            )
-
-        self.cell.build(input_shape=self.input_spec['shape'][1])
-
-        for variable in self.cell.trainable_weights:
-            name = variable.name[variable.name.rindex('cell/') + 5: -2]
+        for variable in self.rnn.trainable_weights:
+            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
             self.variables[name] = variable
             self.trainable_variables[name] = variable
-        for variable in self.cell.non_trainable_weights:
-            name = variable.name[variable.name.rindex('cell/') + 5: -2]
+        for variable in self.rnn.non_trainable_weights:
+            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
             self.variables[name] = variable
 
+    def tf_regularize(self):
+        regularization_loss = super().tf_regularize()
+
+        if len(self.rnn.losses) > 0:
+            regularization_loss += tf.math.add_n(inputs=self.rnn.losses)
+
+        return regularization_loss
+
     def tf_apply(self, x, sequence_length=None):
-        x, state = tf.nn.dynamic_rnn(
-            cell=self.cell, inputs=x, sequence_length=sequence_length, initial_state=None,
-            dtype=util.tf_dtype(dtype='float'),
-            # Weird TensorFlow behavior? (https://github.com/tensorflow/tensorflow/issues/15874)
-            parallel_iterations=(self.input_spec['shape'][0] + 1)
-        )
+        x = self.rnn(inputs=x, initial_state=None)
 
         if self.return_final_state:
-            x = state
+            if self.cell == 'gru':
+                x = x[1]
+            elif self.cell == 'lstm':
+                x = tf.concat(values=(x[1], x[2]), axis=1)
+        else:
+            x = x[0]
 
         return super().tf_apply(x=x)
+
+
+class Gru(Rnn):
+
+    def __init__(
+        self, name, size, return_final_state=True, bias=False, activation=None, dropout=None,
+        input_spec=None, summary_labels=None, **kwargs
+    ):
+        super().__init__(
+            name=name, cell='gru', size=size, return_final_state=return_final_state, bias=bias,
+            activation=activation, dropout=dropout, input_spec=input_spec,
+            summary_labels=summary_labels, **kwargs
+        )
+
+
+class Lstm(Rnn):
+
+    def __init__(
+        self, name, size, return_final_state=True, bias=False, activation=None, dropout=None,
+        input_spec=None, summary_labels=None, **kwargs
+    ):
+        super().__init__(
+            name=name, cell='lstm', size=size, return_final_state=return_final_state, bias=bias,
+            activation=activation, dropout=dropout, input_spec=input_spec,
+            summary_labels=summary_labels, **kwargs
+        )

@@ -148,15 +148,15 @@ class PGModel(DistributionModel):
 
             return advantage
 
-    def tf_regularization_losses(self, states, internals):
-        losses = super().tf_regularization_losses(states=states, internals=internals)
+    def tf_regularize(self, states, internals):
+        regularization_loss = super().tf_regularize(states=states, internals=internals)
 
         if self.baseline_mode is not None and self.baseline_optimizer is None:
-            baseline_regularization_loss = self.baseline.regularization_loss()
+            baseline_regularization_loss = self.baseline.regularize()
             if baseline_regularization_loss is not None:
-                losses['baseline'] = baseline_regularization_loss
+                regularization_loss = regularization_loss + baseline_regularization_loss
 
-        return losses
+        return regularization_loss
 
     def tf_baseline_loss(self, states, internals, reward, reference=None):
         """
@@ -183,6 +183,10 @@ class PGModel(DistributionModel):
                 states=OrderedDict(embedding=embedding), internals=internals, reward=reward
             )
 
+        regularization_loss = self.baseline.regularize()
+        if regularization_loss is not None:
+            loss += regularization_loss
+
         return loss
 
     def baseline_optimizer_arguments(self, states, internals, reward):
@@ -200,16 +204,21 @@ class PGModel(DistributionModel):
             Baseline optimizer arguments as dict.
         """
         arguments = dict(
-            time=self.global_timestep, variables=self.baseline.get_variables(),
+            time=self.global_timestep, variables=self.baseline.get_variables(only_trainable=True),
             arguments=dict(states=states, internals=internals, reward=reward),
             fn_reference=self.baseline.reference, fn_loss=self.baseline_loss,
             # source_variables=self.network.get_variables()
         )
+        # TODO: wrong? should be in optimizer_arguments()?
         if self.global_model is not None:
-            arguments['global_variables'] = self.global_model.baseline.get_variables()
+            arguments['global_variables'] = self.global_model.baseline.get_variables(
+                only_trainable=True
+            )
         return arguments
 
-    def tf_optimization(self, states, internals, actions, terminal, reward, next_states=None, next_internals=None):
+    def tf_optimization(
+        self, states, internals, actions, terminal, reward, next_states=None, next_internals=None
+    ):
         assert next_states is None and next_internals is None  # temporary
 
         estimated_reward = self.reward_estimation(
@@ -227,9 +236,7 @@ class PGModel(DistributionModel):
             cumulative_reward = self.discounted_cumulative_reward(terminal=terminal, reward=reward)
 
             arguments = self.baseline_optimizer_arguments(
-                states=states,
-                internals=internals,
-                reward=cumulative_reward,
+                states=states, internals=internals, reward=cumulative_reward
             )
             baseline_optimization = self.baseline_optimizer.minimize(**arguments)
 

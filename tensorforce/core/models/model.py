@@ -1106,13 +1106,13 @@ class Model(Module):
         # at most one terminal
         assertions.append(
             tf.debugging.assert_less_equal(
-                x=tf.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='int')),
+                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='int')),
                 y=tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
             )
         )
         # if terminal, last timestep in batch
         assertions.append(
-            tf.debugging.assert_equal(x=tf.reduce_any(input_tensor=terminal), y=terminal[-1])
+            tf.debugging.assert_equal(x=tf.math.reduce_any(input_tensor=terminal), y=terminal[-1])
         )
 
         # Set global tensors

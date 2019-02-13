@@ -84,12 +84,17 @@ class InternalLstm(InternalLayer, TransformationBase):
             size: LSTM size
 
         """
-        self.is_initial_state_trainable = is_initial_state_trainable
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
             input_spec=input_spec, l2_regularization=0.0, summary_labels=summary_labels
         )
+
+        self.cell = tf.keras.layers.LSTMCell(
+            units=self.size, name='cell', dtype=util.tf_dtype(dtype='float')
+        )
+
+        self.is_initial_state_trainable = is_initial_state_trainable
 
     def default_input_spec(self):
         return dict(type='float', shape=(0,))
@@ -128,17 +133,14 @@ class InternalLstm(InternalLayer, TransformationBase):
     def tf_initialize(self):
         super().tf_initialize()
 
-        self.cell = tf.nn.rnn_cell.LSTMCell(
-            num_units=self.size, name='cell'  # , dtype=util.tf_dtype(dtype='float')
-        )
         self.cell.build(input_shape=self.input_spec['shape'][0])
 
         for variable in self.cell.trainable_weights:
-            name = variable.name[variable.name.rindex('cell/') + 5: -2]
+            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
             self.variables[name] = variable
             self.trainable_variables[name] = variable
         for variable in self.cell.non_trainable_weights:
-            name = variable.name[variable.name.rindex('cell/') + 5: -2]
+            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
             self.variables[name] = variable
 
         self.initial_state = self.add_variable(
@@ -147,14 +149,11 @@ class InternalLstm(InternalLayer, TransformationBase):
         )
 
     def tf_apply(self, x, state):
-        state = tf.nn.rnn_cell.LSTMStateTuple(c=state[:, 0, :], h=state[:, 1, :])
+        states = (state[:, 0, :], state[:, 1, :])
+        x, states = self.cell(inputs=x, states=states)
+        state = tf.stack(values=states, axis=1)
 
-        x, state = self.cell(inputs=x, state=state)
-        state = tf.stack(values=(state.c, state.h), axis=1)
-
-        internals = OrderedDict(state=state)
-
-        return super().tf_apply(x=x), internals
+        return super().tf_apply(x=x), OrderedDict(state=state)
 
 
 class InternalGru(InternalLayer, TransformationBase):
@@ -173,12 +172,16 @@ class InternalGru(InternalLayer, TransformationBase):
             size: GRU size
 
         """
-        self.is_initial_state_trainable = is_initial_state_trainable
-
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
             input_spec=input_spec, l2_regularization=0.0, summary_labels=summary_labels
         )
+
+        self.cell = tf.keras.layers.GRUCell(
+            units=self.size, name='cell', dtype=util.tf_dtype(dtype='float')
+        )
+
+        self.is_initial_state_trainable = is_initial_state_trainable
 
     def default_input_spec(self):
         return dict(type='float', shape=(0,))
@@ -201,9 +204,9 @@ class InternalGru(InternalLayer, TransformationBase):
             raise TensorforceError.unexpected()
 
         if layer is None:
-            internals_spec['state'] = dict(type='float', shape=(size,), batched=True)
+            internals_spec['state'] = dict(type='float', shape=(size,))
         else:
-            internals_spec['state'] = dict(type='float', shape=(layer.size,), batched=True)
+            internals_spec['state'] = dict(type='float', shape=(layer.size,))
 
         return internals_spec
 
@@ -217,9 +220,6 @@ class InternalGru(InternalLayer, TransformationBase):
     def tf_initialize(self):
         super().tf_initialize()
 
-        self.cell = tf.nn.rnn_cell.GRUCell(
-            num_units=self.size, name='cell'  # , dtype=util.tf_dtype(dtype='float')
-        )
         self.cell.build(input_shape=self.input_spec['shape'][0])
 
         for variable in self.cell.trainable_weights:
@@ -236,8 +236,6 @@ class InternalGru(InternalLayer, TransformationBase):
         )
 
     def tf_apply(self, x, state):
-        x, state = self.cell(inputs=x, state=state)
+        x, state = self.cell(inputs=x, states=state)
 
-        internals = OrderedDict(state=state)
-
-        return super().tf_apply(x=x), internals
+        return super().tf_apply(x=x), OrderedDict(state=state)

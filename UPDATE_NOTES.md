@@ -11,6 +11,7 @@ New features:
 - Many hyperparameters support scheduling and explicit manual re-definition (`tensorforce.core.parameters`)
 - New argument `query` for `Agent.act()` and `Agent.observe()`
 - Networks and layers functionality improved and extended
+- Keras layer support
 - Default optimizer plus meta-optimizer features via, for instance, `dict(optimizer='adam', learning_rate=1e-3, multi_step=10, subsampling_fraction=0.2, clipping_value=1e-2, optimized_iterations=5)`
 
 Environment:

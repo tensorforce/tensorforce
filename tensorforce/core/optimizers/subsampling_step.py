@@ -81,7 +81,7 @@ class SubsamplingStep(MetaOptimizer):
         num_samples = tf.maximum(x=tf.cast(x=num_samples, dtype=util.tf_dtype('int')), y=one)
         indices = tf.random.uniform(shape=(num_samples,), maxval=batch_size, dtype=tf.int32)
 
-        function = (lambda x: x if util.rank(x=x) == 0 else tf.gather(params=x, indices=indices))
+        function = (lambda x: tf.gather(params=x, indices=indices))
         subsampled_arguments = util.fmap(function=function, xs=arguments)
 
         return self.optimizer.step(variables=variables, arguments=subsampled_arguments, **kwargs)

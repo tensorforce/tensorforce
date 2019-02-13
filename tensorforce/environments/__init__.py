@@ -16,5 +16,7 @@
 from tensorforce.environments.environment import Environment
 from tensorforce.environments.multiplayer_environment import MultiplayerEnvironment
 
+from tensorforce.environments.openai_gym import OpenAIGym
 
-__all__ = ['Environment', 'MultiplayerEnvironment']
+
+__all__ = ['Environment', 'MultiplayerEnvironment', 'OpenAIGym']

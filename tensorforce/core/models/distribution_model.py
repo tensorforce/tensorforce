@@ -39,12 +39,12 @@ class DistributionModel(MemoryModel):
     ):
         # Network internals specification
         network_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-            module=network, modules=network_modules, inputs_spec=states
+            name='network', module=network, modules=network_modules, inputs_spec=states
         )
         if first_arg is None:
-            internals = network_cls.internals_spec(**kwargs)
+            internals = network_cls.internals_spec(name='network', **kwargs)
         else:
-            internals = network_cls.internals_spec(first_arg, **kwargs)
+            internals = network_cls.internals_spec('network', first_arg, **kwargs)
 
         super().__init__(
             # Model
@@ -128,9 +128,7 @@ class DistributionModel(MemoryModel):
                 x=deterministic,
                 y=tf.constant(value=self.requires_deterministic, dtype=util.tf_dtype(dtype='bool'))
             )
-            action = distribution.sample(
-                parameters=parameters, deterministic=deterministic
-            )
+            action = distribution.sample(parameters=parameters, deterministic=deterministic)
 
             entropy = distribution.entropy(parameters=parameters)
             collapsed_size = util.product(xs=util.shape(entropy)[1:])

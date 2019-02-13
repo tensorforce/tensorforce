@@ -166,7 +166,7 @@ class OpenAIGym(Environment):
                     for name, state in state.items():
                         states['{}-{}'.format(state_name, name)] = state
                 else:
-                    states['{}'.format(state_name)] = state
+                    states[state_name] = state
             return states
 
         else:

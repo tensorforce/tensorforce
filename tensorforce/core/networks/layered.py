@@ -57,12 +57,12 @@ class LayeredNetwork(LayerbasedNetwork):
 
     # (requires layers as first argument)
     @classmethod
-    def internals_spec(cls, layers=None, network=None, **kwargs):
+    def internals_spec(cls, name=None, layers=None, network=None, **kwargs):
         internals_spec = super().internals_spec(network=network)
 
         if network is None:
             for name, internal_spec in cls.internals_from_layers_spec(
-                layers_spec=layers, layer_counter=Counter()
+                name=name, layers_spec=layers, layer_counter=Counter()
             ):
                 if name in internals_spec:
                     raise TensorforceError.unexpected()
@@ -71,11 +71,11 @@ class LayeredNetwork(LayerbasedNetwork):
         return internals_spec
 
     @classmethod
-    def internals_from_layers_spec(cls, layers_spec, layer_counter):
+    def internals_from_layers_spec(cls, name, layers_spec, layer_counter):
         if isinstance(layers_spec, list):
             for spec in layers_spec:
                 yield from cls.internals_from_layers_spec(
-                    layers_spec=spec, layer_counter=layer_counter
+                    name=name, layers_spec=spec, layer_counter=layer_counter
                 )
 
         else:
@@ -90,15 +90,16 @@ class LayeredNetwork(LayerbasedNetwork):
                 layer_counter[layer_type] += 1
 
             layer_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                module=layers_spec, modules=layer_modules
+                name=layer_name, module=layers_spec, modules=layer_modules
             )
             if issubclass(layer_cls, InternalLayer):
                 if first_arg is None:
                     internals_spec = layer_cls.internals_spec(**kwargs)
                 else:
                     internals_spec = layer_cls.internals_spec(first_arg, **kwargs)
-                for name, spec in internals_spec.items():
-                    yield layer_name + '-' + name, spec
+                for internal_name, spec in internals_spec.items():
+                    internal_name = '{}-{}-{}'.format(name, layer_name, internal_name)
+                    yield internal_name, spec
 
     def tf_apply(self, x, internals, return_internals=False):
         if isinstance(x, dict):
@@ -108,12 +109,13 @@ class LayeredNetwork(LayerbasedNetwork):
         for layer in self.modules.values():
             if isinstance(layer, InternalLayer):
                 layer_internals = {
-                    name: internals[layer.name + '-' + name] for name in layer.internals_spec()
+                    name: internals['{}-{}-{}'.format(self.name, layer.name, name)]
+                    for name in layer.internals_spec()
                 }
                 assert len(layer_internals) > 0
                 x, layer_internals = layer.apply(x=x, **layer_internals)
                 for name, internal in layer_internals.items():
-                    next_internals[layer.name + '-' + name] = internal
+                    next_internals['{}-{}-{}'.format(self.name, layer.name, name)] = internal
 
             else:
                 x = layer.apply(x=x)

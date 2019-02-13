@@ -105,13 +105,47 @@ class Queue(Memory):
     def tf_store(self, states, internals, actions, terminal, reward):
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
-
-        # Check whether instances fit into memory
         num_timesteps = tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0]
-        assertion = tf.debugging.assert_less_equal(x=num_timesteps, y=capacity)
+
+        # Assertions
+        assertions = list()
+        # general check: all terminal indices true
+        assertions.append(
+            tf.debugging.assert_equal(
+                x=tf.reduce_all(
+                    input_tensor=tf.gather(
+                        params=self.memories['terminal'],
+                        indices=self.terminal_indices[:self.episode_count + one]
+                    )
+                ),
+                y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+            )
+        )
+        # general check: only terminal indices true
+        assertions.append(
+            tf.debugging.assert_equal(
+                x=tf.math.count_nonzero(
+                    input_tensor=self.memories['terminal'], dtype=util.tf_dtype(dtype='long')
+                ),
+                y=(self.episode_count + one)
+            )
+        )
+        # instances fit into memory
+        assertions.append(tf.debugging.assert_less_equal(x=num_timesteps, y=capacity))
+        # at most one terminal
+        assertions.append(
+            tf.debugging.assert_less_equal(
+                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
+                y=one
+            )
+        )
+        # if terminal, last timestep in batch
+        assertions.append(
+            tf.debugging.assert_equal(x=tf.math.reduce_any(input_tensor=terminal), y=terminal[-1])
+        )
 
         # Memory indices to overwrite
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             indices = tf.range(start=self.memory_index, limit=(self.memory_index + num_timesteps))
             indices = tf.mod(x=indices, y=capacity)
 

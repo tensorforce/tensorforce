@@ -19,7 +19,7 @@ import sys
 import unittest
 
 from tensorforce.agents import PPOAgent
-from tensorforce.contrib.openai_gym import OpenAIGym
+from tensorforce.environments import OpenAIGym
 from tensorforce.execution import Runner
 
 
@@ -39,24 +39,24 @@ class TestQuickstart(unittest.TestCase):
         agent = PPOAgent(
             states=environment.states(), actions=environment.actions(),
             # Automatically configured network
-            network=dict(type='auto', size=32, depth=2, internal_rnn=True),
-            # Update every 5 episodes, with a batch of 10 episodes
-            update_mode=dict(unit='episodes', batch_size=2, frequency=1),
+            network='auto',
             # Memory sampling most recent experiences, with a capacity of 2500 timesteps
-            # (2500 > [10 episodes] * [200 max timesteps per episode])
-            memory=dict(type='latest', include_next_states=False, capacity=2500),
-            discount=0.99, entropy_regularization=0.01,
+            # (6100 > [30 batch episodes] * [200 max timesteps per episode])
+            memory=6100,
+            # Update every 10 episodes, with a batch of 30 episodes
+            update_mode=dict(unit='episodes', batch_size=30, frequency=10),
+            # PPO optimizer
+            step_optimizer=dict(type='adam', learning_rate=1e-3),
+            # PPO multi-step optimization: 10 updates, each based on a third of the batch
+            subsampling_fraction=0.33, optimization_steps=10,
             # MLP baseline
             baseline_mode='states', baseline=dict(type='network', network='auto'),
             # Baseline optimizer
             baseline_optimizer=dict(
-                type='multi_step', optimizer=dict(type='adam', learning_rate=1e-3), num_steps=5
+                type='multi_step', optimizer=dict(type='adam', learning_rate=1e-4), num_steps=5
             ),
-            gae_lambda=0.97, likelihood_ratio_clipping=0.2,
-            # PPO optimizer
-            step_optimizer=dict(type='adam', learning_rate=3e-4),
-            # PPO multi-step optimization: 25 updates, each calculated for 20% of the batch
-            subsampling_fraction=0.2, optimization_steps=25
+            # Other parameters
+            discount=0.99, entropy_regularization=1e-2, gae_lambda=None, likelihood_ratio_clipping=0.2
         )
 
         # Initialize the runner
@@ -67,7 +67,7 @@ class TestQuickstart(unittest.TestCase):
             return float(np.mean(r.episode_rewards[-100:])) <= 180.0
 
         # Start the runner
-        runner.run(num_episodes=500, max_episode_timesteps=200, callback=callback)
+        runner.run(num_episodes=1000, max_episode_timesteps=200, callback=callback)
         runner.close()
 
         if float(np.mean(runner.episode_rewards[-100:])) <= 180.0:

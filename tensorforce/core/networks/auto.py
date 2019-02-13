@@ -26,8 +26,8 @@ class AutoNetwork(LayerbasedNetwork):
     """
 
     def __init__(
-        self, name, inputs_spec, size=32, depth=2, final_size=64, final_depth=1, internal_rnn=True,
-        l2_regularization=None, summary_labels=None
+        self, name, inputs_spec, size=64, depth=2, final_size=None, final_depth=1,
+        internal_rnn=False, l2_regularization=None, summary_labels=None
     ):
         super().__init__(
             name=name, inputs_spec=inputs_spec, l2_regularization=l2_regularization,
@@ -36,7 +36,7 @@ class AutoNetwork(LayerbasedNetwork):
 
         self.size = size
         self.depth = depth
-        self.final_size = final_size
+        self.final_size = size if final_size is None else final_size
         self.final_depth = final_depth
         self.internal_rnn = internal_rnn
 
@@ -89,7 +89,8 @@ class AutoNetwork(LayerbasedNetwork):
             # Register state-specific embedding
             layers.append(
                 self.add_module(
-                    name=(name + '-register'), module='register', tensor=(name + '-embedding')
+                    name=(name + '-register'), module='register',
+                    tensor='{}-{}-embedding'.format(self.name, name)
                 )
             )
 
@@ -102,7 +103,8 @@ class AutoNetwork(LayerbasedNetwork):
         self.final_layers.append(
             self.add_module(
                 name='retrieve', module='retrieve',
-                tensors=tuple(name + '-embedding' for name in inputs_spec), aggregation='concat'
+                tensors=tuple('{}-{}-embedding'.format(self.name, name) for name in inputs_spec),
+                aggregation='concat'
             )
         )
 
@@ -122,13 +124,15 @@ class AutoNetwork(LayerbasedNetwork):
             self.internal_rnn = None
 
     @classmethod
-    def internals_spec(cls, final_size=64, internal_rnn=True, network=None, **kwargs):
+    def internals_spec(
+        cls, name=None, size=64, final_size=None, internal_rnn=False, network=None, **kwargs
+    ):
         internals_spec = super().internals_spec(network=network)
 
-        if network is None:
-            if internal_rnn:
-                for name, internal_spec in InternalLstm.internals_spec(size=final_size).items():
-                    internals_spec['internal_lstm-' + name] = internal_spec
+        if network is None and internal_rnn:
+            final_size = size if final_size is None else final_size
+            for internal_name, spec in InternalLstm.internals_spec(size=final_size).items():
+                internals_spec['{}-internal_lstm-{}'.format(name, internal_name)] = spec
 
         return internals_spec
 
@@ -146,10 +150,14 @@ class AutoNetwork(LayerbasedNetwork):
         # Internal Rnn
         next_internals = OrderedDict()
         if self.internal_rnn is not None:
-            internals = {name[14:]: internal for name, internal in internals.items()}
+            internals = {
+                name: internals['{}-internal_lstm-{}'.format(self.name, name)]
+                for name in self.internal_rnn.internals_spec()
+            }
+            assert len(internals) > 0
             tensor, internals = self.internal_rnn.apply(x=tensor, **internals)
             for name, internal in internals.items():
-                next_internals['internal_lstm-' + name] = internal
+                next_internals['{}-internal_lstm-{}'.format(self.name, name)] = internal
 
         if return_internals:
             return tensor, next_internals

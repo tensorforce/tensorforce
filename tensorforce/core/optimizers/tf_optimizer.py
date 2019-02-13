@@ -73,9 +73,9 @@ class TFOptimizer(Optimizer):
         with tf.control_dependencies(control_inputs=previous_variables):
             loss = fn_loss(**arguments)
 
-        # The actual tensorflow minimize op.
-        applied = self.optimizer.minimize(loss=loss, var_list=variables)
-        # colocate_gradients_with_ops=True
+            # The actual tensorflow minimize op.
+            applied = self.optimizer.minimize(loss=loss, var_list=variables)
+            # colocate_gradients_with_ops=True
 
         # Return deltas after actually having change the variables.
         with tf.control_dependencies(control_inputs=(applied,)):
@@ -87,6 +87,7 @@ class TFOptimizer(Optimizer):
     def get_variables(self, only_trainable=True):
         variables = super().get_variables(only_trainable=only_trainable)
 
-        variables.extend(self.optimizer.variables())
+        if not only_trainable:
+            variables.extend(self.optimizer.variables())
 
         return variables

@@ -1,17 +1,14 @@
 {
-    "type": "vpg_agent",
+    "type": "vpg",
 
     "update_mode": {
         "unit": "episodes",
-        "batch_size": 20,
-        "frequency": 20
+        "batch_size": 1,
+        "frequency": 1
     },
-    "memory": {
-        "type": "latest",
-        "include_next_states": false,
-        "capacity": 5000
-    },
+    "memory": 5000,
 
+    "network": "auto",
     "optimizer": {
         "type": "adam",
         "learning_rate": 2e-2
@@ -22,10 +19,7 @@
     "gae_lambda": null,
 
     "baseline_mode": "states",
-    "baseline": {
-        "type": "mlp",
-        "sizes": [32, 32]
-    },
+    "baseline": "auto",
     "baseline_optimizer": {
         "type": "multi_step",
         "optimizer": {

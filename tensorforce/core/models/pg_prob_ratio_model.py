@@ -70,9 +70,8 @@ class PGProbRatioModel(PGModel):
         embedding = self.network.apply(x=states, internals=internals)
 
         log_probs = list()
-        for name, distribution in self.distributions.items():
+        for name, distribution, action in util.zip_items(self.distributions, actions):
             parameters = distribution.parametrize(x=embedding)
-            action = actions[name]
             log_prob = distribution.log_probability(parameters=parameters, action=action)
             collapsed_size = util.product(xs=util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))
@@ -88,9 +87,8 @@ class PGProbRatioModel(PGModel):
         embedding = self.network.apply(x=states, internals=internals)
 
         log_probs = list()
-        for name, distribution in self.distributions.items():
+        for name, distribution, action in util.zip_items(self.distributions, actions):
             parameters = distribution.parametrize(x=embedding)
-            action = actions[name]
             log_prob = distribution.log_probability(parameters=parameters, action=action)
             collapsed_size = util.product(xs=util.shape(log_prob)[1:])
             log_prob = tf.reshape(tensor=log_prob, shape=(-1, collapsed_size))

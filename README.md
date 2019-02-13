@@ -114,7 +114,7 @@ agent.observe(reward=reward, terminal=False)
 
 ## Features
 
-- **Neural network layers**: Dense fully-connected layer, embedding layer, 1- and 2-dimensional convolution, LSTM, activation layer, dropout.
+- **Neural network layers**: Dense fully-connected layer, embedding layer, 1- and 2-dimensional convolution, LSTM, activation layer, dropout, and more; *plus* support of Keras layers.
 - **Memory types**: Simple batch buffer memory, random replay memory.
 - **Policy distributions**: Bernoulli distribution for boolean actions, categorical distribution for (finite) integer actions, Gaussian distribution for continuous actions, Beta distribution for range-constrained continuous actions.
 - **Optimization algorithms**: Various gradient-based optimizers provided by TensorFlow like Adam/AdaDelta/Momentum/RMSProp/etc, evolutionary optimizer, natural-gradient-based optimizer, plus a variety of meta-optimizer.

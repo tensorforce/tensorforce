@@ -18,7 +18,7 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import distribution_modules, network_modules, optimizer_modules, \
+from tensorforce.core import distribution_modules, Module, network_modules, optimizer_modules, \
     parameter_modules
 from tensorforce.core.models import DistributionModel
 
@@ -53,6 +53,9 @@ class QModel(DistributionModel):
             network=network, distributions=distributions,
             entropy_regularization=entropy_regularization, requires_deterministic=True
         )
+
+        for name, spec in self.internals_spec.items():
+            Module.register_tensor(name=('target-' + name), spec=spec, batched=True)
 
         # Target network
         inputs_spec = OrderedDict()
@@ -151,7 +154,11 @@ class QModel(DistributionModel):
 
         # Both networks can use the same internals, could that be a problem?
         # Otherwise need to handle internals indices correctly everywhere
-        target_embedding = self.target_network.apply(x=next_states, internals=next_internals)
+        target_internals = OrderedDict()
+        for name, internal in next_internals.items():
+            target_internals['target-' + name] = internal
+        Module.update_tensors(**target_internals)
+        target_embedding = self.target_network.apply(x=next_states, internals=target_internals)
 
         deltas = list()
         for name, distribution in self.distributions.items():
@@ -217,6 +224,7 @@ class QModel(DistributionModel):
         Returns:
             Target optimizer arguments as dict.
         """
+        # TODO: wrong???
         variables = self.target_network.get_variables() + [
             variable for distribution in self.target_distributions.values()
             for variable in distribution.get_variables()

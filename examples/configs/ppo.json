@@ -1,5 +1,5 @@
 {
-    "type": "ppo_agent",
+    "type": "ppo",
 
     "update_mode": {
         "unit": "episodes",

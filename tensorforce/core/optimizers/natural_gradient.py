@@ -74,22 +74,21 @@ class NaturalGradient(Optimizer):
         # For more details, see our blogpost:
         # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/
 
-        # from tensorforce import util
-        # arguments = util.map_tensors(fn=tf.stop_gradient, tensors=arguments)
-
-        # kldiv
-        kldiv = fn_kl_divergence(**arguments)
-
-        # grad(kldiv)
-        kldiv_gradients = [
-            tf.convert_to_tensor(value=grad) for grad in tf.gradients(ys=kldiv, xs=variables)
-        ]
+        arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to calculate the entire matrix explicitly.
         def fisher_matrix_product(deltas):
             # Gradient is not propagated through solver.
             deltas = [tf.stop_gradient(input=delta) for delta in deltas]
+
+            # kldiv
+            kldiv = fn_kl_divergence(**arguments)
+
+            # grad(kldiv)
+            kldiv_gradients = [
+                tf.convert_to_tensor(value=grad) for grad in tf.gradients(ys=kldiv, xs=variables)
+            ]
 
             # delta' * grad(kldiv)
             delta_kldiv_gradients = tf.add_n(inputs=[
@@ -121,7 +120,8 @@ class NaturalGradient(Optimizer):
 
         # c' = 0.5 * delta' * F * delta'  (= lambda * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?
-        constant = 0.5 * tf.add_n(inputs=[
+        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
+        constant = half * tf.add_n(inputs=[
             tf.reduce_sum(input_tensor=(delta_F * delta))
             for delta_F, delta in zip(delta_fisher_matrix_product, deltas)
         ])
@@ -130,9 +130,7 @@ class NaturalGradient(Optimizer):
 
         # Zero step if constant <= 0
         def no_step():
-            zero_deltas = [
-                tf.zeros_like(tensor=delta, dtype=util.tf_dtype(dtype='float')) for delta in deltas
-            ]
+            zero_deltas = [tf.zeros_like(tensor=delta) for delta in deltas]
             if return_estimated_improvement:
                 return zero_deltas, tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
             else:
@@ -167,5 +165,5 @@ class NaturalGradient(Optimizer):
                     return estimated_delta
 
         # Natural gradient step only works if constant > 0
-        skip_step = constant > 0.0
+        skip_step = constant > tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
         return self.cond(pred=skip_step, true_fn=no_step, false_fn=apply_step)

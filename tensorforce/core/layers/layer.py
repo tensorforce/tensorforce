@@ -296,33 +296,31 @@ class TransformationBase(Layer):
 
         from tensorforce.core import layer_modules
 
-        input_spec = self.output_spec
         if activation is None:
             self.activation = None
         else:
             self.activation = self.add_module(
                 name='activation', module='activation', modules=layer_modules,
-                nonlinearity=activation, input_spec=input_spec
+                nonlinearity=activation, input_spec=self.output_spec
             )
-            input_spec = self.activation.output_spec
 
         if dropout is None:
             self.dropout = None
         else:
             self.dropout = self.add_module(
                 name='dropout', module='dropout', modules=layer_modules, rate=dropout,
-                input_spec=input_spec
+                input_spec=self.output_spec
             )
 
     def specify_input_output_spec(self, input_spec):
         super().specify_input_output_spec(input_spec=input_spec)
 
-        input_spec = self.output_spec
         if self.activation is not None:
-            self.activation.specify_input_output_spec(input_spec=input_spec)
-            input_spec = self.activation.output_spec
+            self.activation.specify_input_output_spec(input_spec=self.output_spec)
+            assert self.activation.output_spec == self.output_spec
         if self.dropout is not None:
-            self.dropout.specify_input_output_spec(input_spec=input_spec)
+            self.dropout.specify_input_output_spec(input_spec=self.output_spec)
+            assert self.dropout.output_spec == self.output_spec
 
     def tf_initialize(self):
         super().tf_initialize()

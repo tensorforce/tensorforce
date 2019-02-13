@@ -130,7 +130,7 @@ class LayerbasedNetwork(Network):
                 if not isinstance(layer, InternalLayer):
                     continue
                 for name, spec in layer.__class__.internals_spec(layer=layer).items():
-                    name = layer.name + '-' + name
+                    name = '{}-{}-{}'.format(network.name, layer.name, name)
                     if name in internals_spec:
                         raise TensorforceError.unexpected()
                     internals_spec[name] = spec
@@ -144,16 +144,14 @@ class LayerbasedNetwork(Network):
             if not isinstance(layer, InternalLayer):
                 continue
             for name, internal_init in layer.internals_init().items():
-                internals_init[layer.name + '-' + name] = internal_init
+                internals_init['{}-{}-{}'.format(self.name, layer.name, name)] = internal_init
 
         return internals_init
 
     def add_module(self, *args, **kwargs):
         if 'input_spec' in kwargs:
-            if kwargs['input_spec'] != self.output_spec:
-                raise TensorforceError(message="Unexpected specification mismatch.")
-
             layer = super().add_module(*args, modules=layer_modules, **kwargs)
+            self.output_spec = layer.output_spec
 
         else:
             if self.output_spec is None:

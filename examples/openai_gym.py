@@ -15,11 +15,9 @@
 
 import argparse
 import importlib
-import os
-import time
 
 from tensorforce.agents import Agent
-from tensorforce.contrib.openai_gym import OpenAIGym
+from tensorforce.environments import OpenAIGym
 from tensorforce.execution import Runner
 
 

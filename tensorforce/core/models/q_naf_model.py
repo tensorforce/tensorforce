@@ -18,7 +18,7 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules
+from tensorforce.core import layer_modules, Module
 from tensorforce.core.models import QModel
 
 
@@ -127,7 +127,11 @@ class QNAFModel(QModel):
 
         # Both networks can use the same internals, could that be a problem?
         # Otherwise need to handle internals indices correctly everywhere
-        target_embedding = self.target_network.apply(x=next_states, internals=next_internals)
+        target_internals = OrderedDict()
+        for name, internal in next_internals.items():
+            target_internals['target-' + name] = internal
+        Module.update_tensors(**target_internals)
+        target_embedding = self.target_network.apply(x=next_states, internals=target_internals)
 
         deltas = list()
         for name in sorted(self.distributions):

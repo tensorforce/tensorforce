@@ -42,7 +42,7 @@ class NetworkBaseline(Baseline):
             network = dict(type=network, internal_rnn=False)
 
         self.network = self.add_module(
-            name='network', module=network, modules=network_modules, inputs_spec=self.inputs_spec
+            name='baseline-network', module=network, modules=network_modules, inputs_spec=self.inputs_spec
         )
         output_spec = self.network.get_output_spec()
 

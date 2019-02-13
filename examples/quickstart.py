@@ -13,41 +13,54 @@
 # limitations under the License.
 # ==============================================================================
 
+import os
+
+import tensorflow as tf
+
 from tensorforce.agents import PPOAgent
 from tensorforce.execution import Runner
-from tensorforce.contrib.openai_gym import OpenAIGym
+from tensorforce.environments import OpenAIGym
 
 
-# Create an OpenAI-Gym environment
-environment = OpenAIGym('CartPole-v1')
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+tf.logging.set_verbosity(v=tf.logging.ERROR)
 
-# Create the agent
-agent = PPOAgent(
-    states=environment.states(), actions=environment.actions(),
-    # Automatically configured network
-    network=dict(type='auto', size=32, depth=2, internal_rnn=True),
-    # Update every 5 episodes, with a batch of 10 episodes
-    update_mode=dict(unit='episodes', batch_size=10, frequency=5),
-    # Memory sampling most recent experiences, with a capacity of 2500 timesteps
-    # (2500 > [10 episodes] * [200 max timesteps per episode])
-    memory=dict(type='latest', include_next_states=False, capacity=2500),
-    discount=0.99, entropy_regularization=0.01,
-    # MLP baseline
-    baseline_mode='states', baseline=dict(type='network', network='auto'),
-    # Baseline optimizer
-    baseline_optimizer=dict(
-        type='multi_step', optimizer=dict(type='adam', learning_rate=1e-3), num_steps=5
-    ),
-    gae_lambda=0.97, likelihood_ratio_clipping=0.2,
-    # PPO optimizer
-    step_optimizer=dict(type='adam', learning_rate=3e-4),
-    # PPO multi-step optimization: 25 updates, each calculated for 20% of the batch
-    subsampling_fraction=0.2, optimization_steps=25
-)
 
-# Initialize the runner
-runner = Runner(agent=agent, environment=environment)
+def main():
+    # Create an OpenAI-Gym environment
+    environment = OpenAIGym('CartPole-v1')
 
-# Start the runner
-runner.run(num_episodes=500, max_episode_timesteps=200)
-runner.close()
+    # Create the agent
+    agent = PPOAgent(
+        states=environment.states(), actions=environment.actions(),
+        # Automatically configured network
+        network='auto',
+        # Memory sampling most recent experiences, with a capacity of 2500 timesteps
+        # (6100 > [30 batch episodes] * [200 max timesteps per episode])
+        memory=6100,
+        # Update every 10 episodes, with a batch of 30 episodes
+        update_mode=dict(unit='episodes', batch_size=30, frequency=10),
+        # PPO optimizer
+        step_optimizer=dict(type='adam', learning_rate=1e-3),
+        # PPO multi-step optimization: 10 updates, each based on a third of the batch
+        subsampling_fraction=0.33, optimization_steps=10,
+        # MLP baseline
+        baseline_mode='states', baseline=dict(type='network', network='auto'),
+        # Baseline optimizer
+        baseline_optimizer=dict(
+            type='multi_step', optimizer=dict(type='adam', learning_rate=1e-4), num_steps=5
+        ),
+        # Other parameters
+        discount=0.99, entropy_regularization=1e-2, gae_lambda=None, likelihood_ratio_clipping=0.2
+    )
+
+    # Initialize the runner
+    runner = Runner(agent=agent, environment=environment)
+
+    # Start the runner
+    runner.run(num_episodes=1000, max_episode_timesteps=200)
+    runner.close()
+
+
+if __name__ == '__main__':
+    main()

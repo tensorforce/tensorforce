@@ -16,6 +16,7 @@
 from collections import OrderedDict
 import importlib
 import json
+from math import sqrt
 import os
 
 import numpy as np
@@ -520,8 +521,9 @@ class Module(object):
             elif not isinstance(initializer, str):
                 raise TensorforceError("Invalid variable initializer: {}".format(initializer))
             elif initializer == 'random':
+                stddev = min(0.1, sqrt(2.0 / (util.product(xs=shape[:-1]) + shape[-1])))
                 initializer = tf.random_normal(
-                    shape=shape, mean=0.0, stddev=1e-2, dtype=util.tf_dtype(dtype=dtype)
+                    shape=shape, mean=0.0, stddev=stddev, dtype=util.tf_dtype(dtype=dtype)
                 )
             elif initializer == 'zeros':
                 initializer = tf.zeros(shape=shape, dtype=tf_dtype)
@@ -680,7 +682,10 @@ class Module(object):
                 return util.identity_operation(x=pass_tensors)
 
     @staticmethod
-    def get_module_class_and_kwargs(module, modules=None, default_module=None, **kwargs):
+    def get_module_class_and_kwargs(name, module, modules=None, default_module=None, **kwargs):
+        # name
+        if not util.is_valid_name(name=name):
+            raise TensorforceError.value(name='module', argument='name', value=name)
         # module
         # ???
         # modules
@@ -698,7 +703,7 @@ class Module(object):
                 kwargs[key] = value
             module = kwargs.pop('type', default_module)
             return Module.get_module_class_and_kwargs(
-                module=module, modules=modules, default_module=default_module, **kwargs
+                name=name, module=module, modules=modules, default_module=default_module, **kwargs
             )
 
         elif isinstance(module, str):
@@ -707,7 +712,8 @@ class Module(object):
                 with open(module, 'r') as fp:
                     module = json.load(fp=fp)
                 return Module.get_module_class_and_kwargs(
-                    module=module, modules=modules, default_module=default_module, **kwargs
+                    name=name, module=module, modules=modules, default_module=default_module,
+                    **kwargs
                 )
 
             elif '.' in module:
@@ -716,13 +722,14 @@ class Module(object):
                 library = importlib.import_module(name=library_name)
                 module = getattr(library, module_name)
                 return Module.get_module_class_and_kwargs(
-                    module=module, modules=modules, default_module=default_module, **kwargs
+                    name=name, module=module, modules=modules, default_module=default_module,
+                    **kwargs
                 )
 
             elif modules is not None and module in modules:
                 # Keyword module specification
                 return Module.get_module_class_and_kwargs(
-                    module=modules[module], default_module=default_module, **kwargs
+                    name=name, module=modules[module], default_module=default_module, **kwargs
                 )
 
             else:
@@ -737,7 +744,7 @@ class Module(object):
             if default_module is None:
                 default_module = modules['default']
             return Module.get_module_class_and_kwargs(
-                module=default_module, modules=modules, **kwargs
+                name=name, module=default_module, modules=modules, **kwargs
             )
 
         elif callable(module):
@@ -752,16 +759,14 @@ class Module(object):
         is_subscope=False, **kwargs
     ):
         # name
-        if not util.is_valid_name(name=name):
-            raise TensorforceError.value(name='module', argument='name', value=name)
-        elif name in self.modules:
+        if name in self.modules:
             raise TensorforceError.exists(name='sub-module', value=name)
         # is_trainable
         if not isinstance(is_trainable, bool):
             raise TensorforceError.type(name='module', argument='is_trainable', value=is_trainable)
 
         module_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-            module=module, modules=modules, default_module=default_module, **kwargs
+            name=name, module=module, modules=modules, default_module=default_module, **kwargs
         )
 
         # Final callable module specification
@@ -779,7 +784,7 @@ class Module(object):
 
         # Module constructor
         if first_arg is None:
-            module = module_cls(name=name, **kwargs)
+            module = module_cls(name, **kwargs)
         else:
             module = module_cls(name, first_arg, **kwargs)
 

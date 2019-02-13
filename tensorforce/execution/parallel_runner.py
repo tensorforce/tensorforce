@@ -133,13 +133,13 @@ class ParallelRunner(object):
                 assert self.num_episodes != float('inf')
                 self.tqdm = tqdm(
                     desc='Episodes', total=self.num_episodes, initial=self.global_episode,
-                    postfix=dict(mean_reward=0.0)
+                    postfix=dict(mean_reward='{:.2f}'.format(0.0))
                 )
                 self.tqdm_last_update = self.global_episode
 
                 def tqdm_callback(runner, parallel):
                     mean_reward = float(np.mean(runner.episode_rewards[-num_mean_reward:]))
-                    runner.tqdm.set_postfix(mean_reward=mean_reward)
+                    runner.tqdm.set_postfix(mean_reward='{:.2f}'.format(mean_reward))
                     runner.tqdm.update(n=(runner.global_episode - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.global_episode
                     return inner_callback(runner, parallel)

@@ -123,7 +123,9 @@ class OpenAIGym(Environment):
             specs = dict()
             n = 0
             for n, space in enumerate(space.spaces):
-                spec = OpenAIGym.specs_from_gym_space(space=space)
+                spec = OpenAIGym.specs_from_gym_space(
+                    space=space, ignore_value_bounds=ignore_value_bounds
+                )
                 if 'type' in spec:
                     specs['gymtpl{}'.format(n)] = spec
                 else:
@@ -134,7 +136,9 @@ class OpenAIGym(Environment):
         elif isinstance(space, gym.spaces.Dict):
             specs = dict()
             for space_name, space in space.spaces.items():
-                spec = OpenAIGym.specs_from_gym_space(space=space)
+                spec = OpenAIGym.specs_from_gym_space(
+                    space=space, ignore_value_bounds=ignore_value_bounds
+                )
                 if 'type' in spec:
                     specs[space_name] = spec
                 else:

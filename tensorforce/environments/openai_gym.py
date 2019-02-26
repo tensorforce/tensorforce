@@ -14,6 +14,7 @@
 # ==============================================================================
 
 import gym
+from gym.wrappers import Monitor
 
 from tensorforce import TensorforceError
 from tensorforce.environments import Environment
@@ -69,7 +70,7 @@ class OpenAIGym(Environment):
         self.gym = None
 
     def reset(self):
-        if isinstance(self.gym, gym.wrappers.Monitor):
+        if isinstance(self.gym, Monitor):
             self.gym.stats_recorder.done = True
         states = self.gym.reset()
         return OpenAIGym.flatten_state(state=states)

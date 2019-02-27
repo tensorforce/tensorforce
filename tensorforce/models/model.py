@@ -987,7 +987,8 @@ class Model(object):
             )
 
         elif action_spec['type'] == 'float':
-            action += exploration_value
+            noise = tf.random_normal(shape=action_shape, dtype=util.tf_dtype('float'))
+            action += noise * exploration_value
             if 'min_value' in action_spec:
                 action = tf.clip_by_value(
                     t=action,

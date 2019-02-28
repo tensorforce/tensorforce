@@ -1224,10 +1224,9 @@ class Model(object):
         with tf.control_dependencies(control_inputs=(increment_episode, increment_global_episode)):
             # Stop gradients
             # Not using buffers here.
-            fn = (lambda x: tf.stop_gradient(input=x[:self.list_buffer_index[index]]))
-            states = util.map_tensors(fn=fn, tensors=self.list_states_buffer, index=index)
-            internals = util.map_tensors(fn=fn, tensors=self.list_internals_buffer, index=index)
-            actions = util.map_tensors(fn=fn, tensors=self.list_actions_buffer, index=index)
+            states = util.map_tensors(fn=tf.stop_gradient, tensors=states)
+            internals = util.map_tensors(fn=tf.stop_gradient, tensors=internals)
+            actions = util.map_tensors(fn=tf.stop_gradient, tensors=actions)
             terminal = tf.stop_gradient(input=terminal)
             reward = tf.stop_gradient(input=reward)
 

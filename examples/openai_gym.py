@@ -92,18 +92,23 @@ def main():
     if args.network is not None:
         with open(args.network, 'r') as fp:
             network = json.load(fp=fp)
-    else:
-        network = None
-        logger.info("No network configuration provided.")
-
-    agent = Agent.from_spec(
-        spec=agent,
-        kwargs=dict(
-            states=environment.states,
-            actions=environment.actions,
-            network=network,
+        agent = Agent.from_spec(
+            spec=agent,
+            kwargs=dict(
+                states=environment.states,
+                actions=environment.actions,
+                network=network
+            )
         )
-    )
+    else:
+        logger.info("No network configuration provided.")
+        agent = Agent.from_spec(
+            spec=agent,
+            kwargs=dict(
+                states=environment.states,
+                actions=environment.actions
+            )
+        )
 
     if args.load:
         load_dir = os.path.dirname(args.load)

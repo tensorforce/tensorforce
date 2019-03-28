@@ -306,7 +306,9 @@ class PGModel(DistributionModel):
         )
 
         if self.baseline_optimizer is not None:
-            cumulative_reward = self.fn_discounted_cumulative_reward(terminal=terminal, reward=reward, discount=self.discount)
+            cumulative_reward = self.fn_discounted_cumulative_reward(
+                terminal=terminal, reward=reward, discount=self.discount
+            )
 
             arguments = self.baseline_optimizer_arguments(
                 states=states,

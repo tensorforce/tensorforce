@@ -22,9 +22,11 @@ from __future__ import print_function
 from __future__ import division
 
 import gym
+import gym.wrappers
 import numpy as np
 from tensorforce import TensorForceError
 from tensorforce.environments import Environment
+
 
 class OpenAIGym(Environment):
     """

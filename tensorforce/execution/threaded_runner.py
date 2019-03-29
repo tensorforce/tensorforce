@@ -53,7 +53,7 @@ class ThreadedRunner(BaseRunner):
                           category=DeprecationWarning)
             agent = agents
         if environments is not None:
-            warnings.warn("WARNING: `environments` parameter is deprecated, use `environments` instead.",
+            warnings.warn("WARNING: `environments` parameter is deprecated, use `environment` instead.",
                           category=DeprecationWarning)
             environment = environments
         super(ThreadedRunner, self).__init__(agent, environment, repeat_actions)

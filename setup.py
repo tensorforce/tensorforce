@@ -83,7 +83,7 @@ setup(
     author='Alexander Kuhnle',
     author_email='tensorforce.team@gmail.com',
     url='http://github.com/tensorforce/tensorforce',
-    packages=['tensorforce', 'examples'],
+    packages=['tensorforce'],
     download_url='https://github.com/tensorforce/tensorforce/archive/0.5.0.tar.gz',
     license='Apache 2.0',
     install_requires=install_requires,

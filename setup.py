@@ -91,21 +91,10 @@ setup(
         tf=["tensorflow==1.13.1"],
         tf_gpu=["tensorflow-gpu==1.13.1"],
         docs=["m2r", "recommonmark", "sphinx", "sphinx-rtd-theme"],
-        envs=[
-            "git+https://github.com/mgbellemare/Arcade-Learning-Environment.git", "mazeexp",
-            "gym[all]", "gym-retro", "git+https://github.com/stanfordnmbl/osim-rl.git",
-            "git+https://github.com/pygame/pygame.git",
-            "git+https://github.com/ntasfi/PyGame-Learning-Environment.git", "vizdoom"
-        ],
-        ale=["git+https://github.com/mgbellemare/Arcade-Learning-Environment.git"],
+        envs=["mazeexp", "gym[all]", "gym-retro", "vizdoom"],
         mazeexp=["mazeexp"],
         gym=["gym[all]"],
         retro=["gym-retro"],
-        osim=["git+https://github.com/stanfordnmbl/osim-rl.git"],
-        ple=[
-            "git+https://github.com/pygame/pygame.git",
-            "git+https://github.com/ntasfi/PyGame-Learning-Environment.git"
-        ],
         vizdoom=["vizdoom"]
     ),
     zip_safe=False

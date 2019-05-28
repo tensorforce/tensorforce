@@ -19,7 +19,7 @@ from tensorforce import util
 
 __all__ = ['TensorforceError', 'util']
 
-# (also needs to be changed in docs/conf.py)
+
 __version__ = '0.5.0'
 
 

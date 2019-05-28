@@ -20,9 +20,9 @@
 
 # SPHINX_APIDOC_OPTIONS=members,undoc-members,inherited-members,show-inheritance sphinx-apidoc /data/coding/tensorforce/tensorforce -o tensorforce
 
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))
 
 # import CommonMark
 from m2r import M2R

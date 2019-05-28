@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorforce.core
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -23,16 +24,15 @@ class MetaOptimizer(Optimizer):
     more optimal step size.
     """
 
-    def __init__(self, name, optimizer, summary_labels=None, **kwargs):
+    def __init__(self, name, optimizer, summary_labels=None):
         """
-        Creates a new meta optimizer instance.
+        Meta-optimizer constructor.
 
         Args:
-            optimizer: The optimizer which is modified by this meta optimizer.
+            optimizer (specification): The underlying optimizer which is modified (**required**).
         """
         super().__init__(name=name, summary_labels=summary_labels)
 
-        from tensorforce.core.optimizers import optimizer_modules
         self.optimizer = self.add_module(
-            name='inner-optimizer', module=optimizer, modules=optimizer_modules, **kwargs
+            name='inner-optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules
         )

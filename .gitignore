@@ -4,6 +4,7 @@
 .DS_Store
 
 /.eggs/
+/.pytest_cache/
 /dist/
 /docs/_*
 /tensorforce.egg-info/
@@ -14,3 +15,6 @@
 /summaries-test/
 /temp/
 /tensorboard/
+/tuner/
+
+*/_old*

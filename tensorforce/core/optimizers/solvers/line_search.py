@@ -46,7 +46,7 @@ class LineSearch(Iterative):
 
         assert accept_ratio >= 0.0
         self.accept_ratio = self.add_module(
-            name='accept-ratio', module=accept_ratio, modules=parameter_modules
+            name='accept-ratio', module=accept_ratio, modules=parameter_modules, dtype='float'
         )
 
         # TODO: Implement such sequences more generally, also useful for learning rate decay or so.
@@ -57,7 +57,7 @@ class LineSearch(Iterative):
         self.mode = mode
 
         self.parameter = self.add_module(
-            name='parameter', module=parameter, modules=parameter_modules
+            name='parameter', module=parameter, modules=parameter_modules, dtype='float'
         )
 
     def tf_solve(self, fn_x, x_init, base_value, target_value, estimated_improvement=None):
@@ -94,10 +94,9 @@ class LineSearch(Iterative):
         if estimated_improvement is None:  # TODO: Is this a good alternative?
             estimated_improvement = tf.abs(x=base_value)
 
-        improvement = tf.divide(
-            x=(target_value - self.base_value),
-            y=tf.maximum(x=estimated_improvement, y=util.epsilon)
-        )
+        difference = target_value - self.base_value
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        improvement = difference / tf.maximum(x=estimated_improvement, y=epsilon)
 
         last_improvement = improvement - 1.0
         parameter = self.parameter.value()
@@ -138,10 +137,9 @@ class LineSearch(Iterative):
 
         target_value = self.fn_x(next_deltas)
 
-        next_improvement = tf.divide(
-            x=(target_value - self.base_value),
-            y=tf.maximum(x=next_estimated_improvement, y=util.epsilon)
-        )
+        difference = target_value - self.base_value
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        next_improvement = difference / tf.maximum(x=next_estimated_improvement, y=epsilon)
 
         return next_x, next_deltas, next_improvement, improvement, next_estimated_improvement
 
@@ -162,8 +160,9 @@ class LineSearch(Iterative):
         """
         improved = improvement > last_improvement
         accept_ratio = self.accept_ratio.value()
-        next_step = tf.logical_and(x=improved, y=(improvement < accept_ratio))
-        return tf.logical_and(x=next_step, y=(estimated_improvement > util.epsilon))
+        next_step = tf.math.logical_and(x=improved, y=(improvement < accept_ratio))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        return tf.math.logical_and(x=next_step, y=(estimated_improvement > epsilon))
 
     def tf_end(self, x_final, deltas, improvement, last_improvement, estimated_improvement):
         """
@@ -185,7 +184,7 @@ class LineSearch(Iterative):
         def undo_deltas():
             value = self.fn_x([-delta for delta in deltas])
             with tf.control_dependencies(control_inputs=(value,)):
-                return [util.identity_operation(x=t) for t in x_final]
+                return util.fmap(function=util.identity_operation, xs=x_final)
 
         skip_undo_deltas = improvement > last_improvement
         x_final = self.cond(pred=skip_undo_deltas, true_fn=accept_deltas, false_fn=undo_deltas)

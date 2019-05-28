@@ -1,112 +1,62 @@
-*TensorForce - modular deep reinforcement learning in TensorFlow*
-=================================================================================
+Tensorforce: a TensorFlow library for applied reinforcement learning
+====================================================================
 
-TensorForce is an open source reinforcement learning library focused on
-providing clear APIs, readability and modularisation to deploy
-reinforcement learning solutions both in research and practice.
-TensorForce is built on top on TensorFlow.
+Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
 
-Quick start
------------
+Tensorforce follows a set of high-level design choices which differentiate it from other similar libraries:
 
-For a quick start, you can run one of our example scripts using the
-provided configurations, e.g. to run the PPO agent on CartPole, execute
-from the examples folder:
-
-.. code:: bash
-
-    python examples/openai_gym.py CartPole-v0 -a examples/configs/ppo.json -n examples/configs/mlp2_network.json
-
-
-In python, it could look like this:
-
-.. code:: python
-
-    # examples/quickstart.py
-
-   import numpy as np
-
-   from tensorforce.agents import PPOAgent
-   from tensorforce.execution import Runner
-   from tensorforce.contrib.openai_gym import OpenAIGym
-
-   # Create an OpenAIgym environment
-   env = OpenAIGym('CartPole-v0', visualize=True)
-
-   # Network as list of layers
-   network_spec = [
-       dict(type='dense', size=32, activation='tanh'),
-       dict(type='dense', size=32, activation='tanh')
-   ]
-
-   agent = PPOAgent(
-       states=env.states,
-       actions=env.actions,
-       network=network_spec,
-       batch_size=4096,
-       # BatchAgent
-       keep_last_timestep=True,
-       # PPOAgent
-       step_optimizer=dict(
-           type='adam',
-           learning_rate=1e-3
-       ),
-       optimization_steps=10,
-       # Model
-       scope='ppo',
-       discount=0.99,
-       # DistributionModel
-       distributions_spec=None,
-       entropy_regularization=0.01,
-       # PGModel
-       baseline_mode=None,
-       baseline=None,
-       baseline_optimizer=None,
-       gae_lambda=None,
-       # PGLRModel
-       likelihood_ratio_clipping=0.2,
-       summary_spec=None,
-       distributed_spec=None
-   )
-
-   # Create the runner
-   runner = Runner(agent=agent, environment=env)
-
-
-   # Callback function printing episode statistics
-   def episode_finished(r):
-       print("Finished episode {ep} after {ts} timesteps (reward: {reward})".format(ep=r.episode, ts=r.episode_timestep,
-                                                                                    reward=r.episode_rewards[-1]))
-       return True
-
-
-   # Start learning
-   runner.run(episodes=3000, max_episode_timesteps=200, episode_finished=episode_finished)
-   runner.close()
-
-   # Print statistics
-   print("Learning finished. Total episodes: {ep}. Average reward of last 100 episodes: {ar}.".format(
-       ep=runner.episode,
-       ar=np.mean(runner.episode_rewards[-100:]))
-   )
+- **Modular component-based design**: Feature implementations, above all, strive to be as generally applicable and configurable as possible, potentially at some cost of faithfully resembling details of the introducing paper.
+- **Separation of RL algorithm and application**: Algorithms are agnostic to the type and structure of inputs (states/observations) and outputs (actions/decisions), as well as the interaction with the application environment.
+- **Full-on TensorFlow models**: The entire reinforcement learning logic, including control flow, is implemented in TensorFlow, to enable portable computation graphs independent of application programming language, and to facilitate the deployment of models.
 
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-   
-   agents_models
-   environments
-   preprocessing
-   summary_spec
-   runner
-   tensorforce/tensorforce
+  :maxdepth: 0
+  :caption: Basics
+
+  basics/overview
+  basics/run
+  basics/tune
 
 
-More information
-----------------
+.. toctree::
+  :maxdepth: 0
+  :caption: Agents
 
-You can find more information at our `TensorForce GitHub repository <https://github.com/reinforceio/TensorForce>`__.
+  agents/agent
+  agents/constant
+  agents/random
+  agents/policy
+  agents/dqn
+  agents/vpg
+  agents/ppo
+  agents/trpo
 
-We have a separate repository available for benchmarking our algorithm implementations
-[here](https://github.com/reinforceio/tensorforce-benchmark).
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Modules
+
+   modules/distributions
+   modules/layers
+   modules/memories
+   modules/networks
+   modules/objectives
+   modules/optimizers
+   modules/parameters
+   modules/preprocessing
+   modules/policies
+
+
+.. toctree::
+   :maxdepth: 0
+   :caption: Environments
+
+   environments/environment
+   environments/ale
+   environments/maze_explorer
+   environments/open_sim
+   environments/openai_gym
+   environments/openai_retro
+   environments/ple
+   environments/vizdoom

@@ -25,6 +25,13 @@ class MetaOptimizerWrapper(MetaOptimizer):
         self, name, optimizer, multi_step=1, subsampling_fraction=1.0, clipping_value=None,
         optimized_iterations=0, summary_labels=None, **kwargs
     ):
+        """
+        Meta-optimizer wrapper constructor.
+
+        Args:
+            multi_step
+            ...
+        """
         optimizer = dict(type=optimizer)
         optimizer.update(kwargs)
         if optimized_iterations > 0:

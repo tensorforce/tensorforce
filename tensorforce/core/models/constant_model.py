@@ -29,42 +29,44 @@ class ConstantModel(Model):
     def __init__(
         self,
         # Model
-        states, actions, scope, device, saver, summarizer, execution, parallel_interactions,
-        buffer_observe,
+        name, device, parallel_interactions, buffer_observe, summarizer, states, actions,
         # ConstantModel
         action_values
     ):
         super().__init__(
             # Model
-            states=states, internals=None, actions=actions, scope=scope, device=device,
-            saver=saver, summarizer=summarizer, execution=execution,
-            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe,
-            exploration=None, variable_noise=None, states_preprocessing=None,
-            reward_preprocessing=None
+            name=name, device=None, parallel_interactions=parallel_interactions,
+            buffer_observe=buffer_observe, execution=None, saver=None, summarizer=summarizer,
+            states=states, internals=OrderedDict(), actions=actions, preprocessing=None,
+            exploration=0.0, variable_noise=0.0, l2_regularization=0.0
         )
 
         # check values
         self.action_values = action_values
 
-    def tf_core_act(self, states, internals):
+    def tf_core_act(self, states, internals, auxiliaries):
         assert len(internals) == 0
 
         actions = OrderedDict()
-        for name, action_spec in self.actions_spec.items():
-            batch_size = tf.shape(
-                input=next(iter(states.values())), out_type=util.tf_dtype(dtype='int')
-            )[0:1]
-            shape = tf.constant(value=action_spec['shape'], dtype=util.tf_dtype(dtype='int'))
+        for name, spec in self.actions_spec.items():
+            some_state = next(iter(states.values()))
+            if util.tf_dtype(dtype='int') in (tf.int32, tf.int64):
+                batch_size = tf.shape(input=some_state, out_type=util.tf_dtype(dtype='int'))[0:1]
+            else:
+                batch_size = tf.dtypes.cast(
+                    x=tf.shape(input=some_state)[0:1], dtype=util.tf_dtype(dtype='int')
+                )
+            shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='int'))
             shape = tf.concat(values=(batch_size, shape), axis=0)
-            dtype = util.tf_dtype(dtype=action_spec['type'])
+            dtype = util.tf_dtype(dtype=spec['type'])
 
             if self.action_values is not None and name in self.action_values:
                 value = self.action_values[name]
                 actions[name] = tf.fill(dims=shape, value=tf.constant(value=value, dtype=dtype))
 
-            elif action_spec['type'] == 'float' and 'min_value' in action_spec:
-                min_value = action_spec['min_value']
-                max_value = action_spec['max_value']
+            elif spec['type'] == 'float' and 'min_value' in spec:
+                min_value = spec['min_value']
+                max_value = spec['max_value']
                 mean = min_value + 0.5 * (max_value - min_value)
                 actions[name] = tf.fill(dims=shape, value=tf.constant(value=mean, dtype=dtype))
 
@@ -73,5 +75,5 @@ class ConstantModel(Model):
 
         return actions, OrderedDict()
 
-    def tf_core_observe(self, states, internals, actions, terminal, reward):
+    def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
         return util.no_operation()

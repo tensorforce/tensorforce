@@ -17,9 +17,15 @@ from tensorforce.core.networks.network import Network, LayerbasedNetwork
 
 from tensorforce.core.networks.auto import AutoNetwork
 from tensorforce.core.networks.layered import LayeredNetwork
+from tensorforce.core.networks.preprocessor import Preprocessor
 
 
-network_modules = dict(auto=AutoNetwork, default=LayeredNetwork, layered=LayeredNetwork)
+network_modules = dict(
+    auto=AutoNetwork, custom=LayeredNetwork, default=LayeredNetwork, layered=LayeredNetwork
+)
 
 
-__all__ = ['AutoNetwork', 'LayerbasedNetwork', 'LayeredNetwork', 'Network', 'network_modules']
+__all__ = [
+    'AutoNetwork', 'LayerbasedNetwork', 'LayeredNetwork', 'Network', 'network_modules',
+    'Preprocessor'
+]

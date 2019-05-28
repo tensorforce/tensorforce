@@ -23,26 +23,27 @@ from tensorforce.core.optimizers.solvers import solver_modules
 
 class NaturalGradient(Optimizer):
     """
-    Natural gradient optimizer.
+    Natural-gradient optimizer.
     """
 
     def __init__(
-        self, name, learning_rate, cg_max_iterations=20, cg_damping=1e-3, cg_unroll_loop=False,
+        self, name, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
         summary_labels=None
     ):
         """
-        Creates a new natural gradient optimizer instance.
+        Natural-gradient optimizer constructor.
 
         Args:
-            learning_rate: Learning rate, i.e. KL-divergence of distributions between optimization steps.
-            cg_max_iterations: Conjugate gradient solver max iterations.
-            cg_damping: Conjugate gradient solver damping factor.
-            cg_unroll_loop: Unroll conjugate gradient loop if true.
+            learning_rate (parameter, float > 0.0): Learning rate, i.e. KL-divergence of
+                distributions between optimization steps (**required**).
+            cg_max_iterations (int > 0): Maximum number of conjugate gradient iterations.
+            cg_damping: Conjugate gradient damping factor.
+            cg_unroll_loop (bool): Whether to unroll the conjugate gradient loop (default: false).
         """
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
         )
 
         self.solver = self.add_module(
@@ -73,8 +74,6 @@ class NaturalGradient(Optimizer):
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
         # For more details, see our blogpost:
         # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/
-
-        arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to calculate the entire matrix explicitly.
@@ -155,10 +154,7 @@ class NaturalGradient(Optimizer):
 
             with tf.control_dependencies(control_inputs=(applied,)):
                 # Trivial operation to enforce control dependency
-                estimated_delta = [
-                    util.identity_operation(x=estimated_delta)
-                    for estimated_delta in estimated_deltas
-                ]
+                estimated_delta = util.fmap(function=util.identity_operation, xs=estimated_deltas)
                 if return_estimated_improvement:
                     return estimated_delta, estimated_improvement
                 else:

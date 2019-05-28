@@ -41,7 +41,8 @@ class Iterative(Solver):
             self.max_iterations = max_iterations
         else:
             self.max_iterations = self.add_module(
-                name='max-iterations', module=max_iterations, modules=parameter_modules
+                name='max-iterations', module=max_iterations, modules=parameter_modules,
+                dtype='int'
             )
 
     def tf_solve(self, fn_x, x_init, *args):
@@ -60,7 +61,6 @@ class Iterative(Solver):
 
         # Initialization step
         args = self.start(x_init, *args)
-        # args = util.map_tensors(fn=tf.stop_gradient, tensors=args)
 
         # Iteration loop with termination condition
         if self.unroll_loop:
@@ -75,8 +75,8 @@ class Iterative(Solver):
             # TensorFlow while loop
             max_iterations = self.max_iterations.value()
             args = self.while_loop(
-                cond=self.next_step, body=self.step, loop_vars=args,
-                maximum_iterations=max_iterations
+                cond=self.next_step, body=self.step, loop_vars=args, back_prop=False,
+                maximum_iterations=max_iterations, use_while_v2=True
             )
 
         solution = self.end(*args)

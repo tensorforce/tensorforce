@@ -15,6 +15,11 @@
 
 import os
 from setuptools import setup
+import sys
+
+
+if sys.version_info.major != 3:
+    raise NotImplementedError("Tensorforce is only compatible with Python 3.")
 
 
 tensorforce_directory = os.path.abspath(os.path.dirname(__file__))
@@ -24,6 +29,38 @@ with open(os.path.join(tensorforce_directory, 'tensorforce', '__init__.py'), 'r'
     for line in filehandle:
         if line.startswith('__version__'):
             version = line[15:-2]
+
+
+# Extract long_description from README.md introduction
+long_description = list()
+with open(os.path.join(tensorforce_directory, 'README.md'), 'r') as filehandle:
+    lines = iter(filehandle)
+    line = next(lines)
+    if not line.startswith('# Tensorforce:'):
+        raise NotImplementedError
+    long_description.append(line)
+    for line in lines:
+        if line == '#### Introduction\n':
+            break
+    if next(lines) != '\n':
+        raise NotImplementedError
+    while True:
+        line = next(lines)
+        if line == '\n':
+            line = next(lines)
+            if line == '\n':
+                break
+            else:
+                long_description.append('\n')
+                long_description.append(line)
+        else:
+            long_description.append(line)
+    while line == '\n':
+        line = next(lines)
+    if not line.startswith('#### '):
+        raise NotImplementedError
+long_description = ''.join(long_description)
+
 
 # Extract install_requires from requirements.txt
 install_requires = list()
@@ -41,17 +78,35 @@ setup(
     name='Tensorforce',
     version=version,
     description='Tensorforce: a TensorFlow library for applied reinforcement learning',
-    author='Tensorforce Team',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    author='Alexander Kuhnle',
     author_email='tensorforce.team@gmail.com',
-    url='http://github.com/reinforceio/tensorforce',
+    url='http://github.com/tensorforce/tensorforce',
     packages=['tensorforce', 'examples'],
-    download_url='https://github.com/reinforceio/tensorforce/archive/0.5.0.tar.gz',
+    download_url='https://github.com/tensorforce/tensorforce/archive/0.5.0.tar.gz',
     license='Apache 2.0',
     install_requires=install_requires,
-    setup_requires=['numpy', 'recommonmark'],  # ???????????
     extras_require=dict(
-        tf=["tensorflow>=1.6.0"],
-        tf_gpu=["tensorflow-gpu>=1.6.0"]
+        tf=["tensorflow==1.13.1"],
+        tf_gpu=["tensorflow-gpu==1.13.1"],
+        docs=["m2r", "recommonmark", "sphinx", "sphinx-rtd-theme"],
+        envs=[
+            "git+https://github.com/mgbellemare/Arcade-Learning-Environment.git", "mazeexp",
+            "gym[all]", "gym-retro", "git+https://github.com/stanfordnmbl/osim-rl.git",
+            "git+https://github.com/pygame/pygame.git",
+            "git+https://github.com/ntasfi/PyGame-Learning-Environment.git", "vizdoom"
+        ],
+        ale=["git+https://github.com/mgbellemare/Arcade-Learning-Environment.git"],
+        mazeexp=["mazeexp"],
+        gym=["gym[all]"],
+        retro=["gym-retro"],
+        osim=["git+https://github.com/stanfordnmbl/osim-rl.git"],
+        ple=[
+            "git+https://github.com/pygame/pygame.git",
+            "git+https://github.com/ntasfi/PyGame-Learning-Environment.git"
+        ],
+        vizdoom=["vizdoom"]
     ),
-    zip_safe=False  # ???????????
+    zip_safe=False
 )

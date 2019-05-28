@@ -16,12 +16,12 @@
 from tensorforce.core.memories.memory import Memory
 from tensorforce.core.memories.queue import Queue
 
-from tensorforce.core.memories.latest import Latest
-from tensorforce.core.memories.prioritized_replay import PrioritizedReplay
+# from tensorforce.core.memories.prioritized_replay import PrioritizedReplay
+from tensorforce.core.memories.recent import Recent
 from tensorforce.core.memories.replay import Replay
 
 
-memory_modules = dict(latest=Latest, prioritized_replay=PrioritizedReplay, replay=Replay)
+memory_modules = dict(default=Replay, recent=Recent, replay=Replay)
 
 
-__all__ = ['Latest', 'Memory', 'memory_modules', 'PrioritizedReplay', 'Queue', 'Replay']
+__all__ = ['Memory', 'memory_modules', 'Queue', 'Recent', 'Replay']

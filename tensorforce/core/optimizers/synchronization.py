@@ -28,13 +28,12 @@ class Synchronization(Optimizer):
 
     def __init__(self, name, sync_frequency=1, update_weight=1.0, summary_labels=None):
         """
-        Creates a new synchronization optimizer instance.
+        Synchronization optimizer constructor.
 
         Args:
-            sync_frequency: The interval between optimization calls actually performing a  
-            synchronization step.
-            update_weight: The update weight, 1.0 meaning a full assignment of the source  
-            variables values.
+            sync_frequency (parameter, int > 0): Interval between optimization calls which
+                perform a synchronization step (default: every time).
+            update_weight (parameter, 0.0 < float <= 1.0): Update weight (default: 1.0)
         """
         super().__init__(name=name, summary_labels=summary_labels)
 
@@ -42,9 +41,8 @@ class Synchronization(Optimizer):
             name='sync-frequency', module=sync_frequency, modules=parameter_modules, dtype='long'
         )
 
-        update_weight = 1.0 if update_weight is None else update_weight
         self.update_weight = self.add_module(
-            name='update-weight', module=update_weight, modules=parameter_modules
+            name='update-weight', module=update_weight, modules=parameter_modules, dtype='float'
         )
 
     def tf_initialize(self):
@@ -55,17 +53,6 @@ class Synchronization(Optimizer):
         )
 
     def tf_step(self, variables, source_variables, **kwargs):
-        """
-        Creates the TensorFlow operations for performing an optimization step.
-
-        Args:
-            variables: List of variables to optimize.
-            source_variables: List of source variables to synchronize with.
-            **kwargs: Additional arguments, not used.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
         assert all(
             util.shape(source) == util.shape(target)
             for source, target in zip(source_variables, variables)
@@ -85,7 +72,7 @@ class Synchronization(Optimizer):
 
             with tf.control_dependencies(control_inputs=(applied, last_sync_updated)):
                 # Trivial operation to enforce control dependency
-                return [util.identity_operation(x=delta) for delta in deltas]
+                return util.fmap(function=util.identity_operation, xs=deltas)
 
         def no_sync():
             deltas = list()
@@ -96,9 +83,7 @@ class Synchronization(Optimizer):
 
         sync_frequency = self.sync_frequency.value()
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-        skip_sync = tf.math.logical_and(
-            x=tf.math.less(x=(timestep - self.last_sync), y=sync_frequency),
-            y=tf.math.greater_equal(x=self.last_sync, y=zero)
-        )
+        skip_sync = tf.math.less(x=(timestep - self.last_sync), y=sync_frequency)
+        skip_sync = skip_sync and tf.math.greater_equal(x=self.last_sync, y=zero)
 
         return self.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)

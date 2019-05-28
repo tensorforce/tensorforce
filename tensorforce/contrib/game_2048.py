@@ -22,7 +22,7 @@ class Game2048(Environment):
     """
     Represents a 2048 Game state and implements the actions.
 
-    Most of this code comes from https://github.com/georgwiese/2048-rl/blob/master/py_2048_rl/game/game.py .
+    Most of this code comes from https://github.com/georgwiese/2048-rl/blob/master/py_2048_rl/game/game.py.
     Which implements the 2048 Game logic, as specified by this source file:
 
     https://github.com/gabrielecirulli/2048/blob/master/js/game_manager.js
@@ -64,7 +64,7 @@ class Game2048(Environment):
         self.add_random_tile()
         return self._state
 
-    def execute(self, action):
+    def execute(self, actions):
         reward = 0
 
         # Terminal
@@ -73,11 +73,11 @@ class Game2048(Environment):
             return self._state, terminal, reward
 
         # Valid action
-        action_available = self.is_action_available(action)
+        action_available = self.is_action_available(actions)
         if not action_available:
             return self._state, terminal, reward
 
-        reward = self.do_action(action)
+        reward = self.do_action(actions)
 
         return self._state, terminal, reward
 

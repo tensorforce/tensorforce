@@ -17,7 +17,7 @@ import itertools
 import re
 import time
 
-from tensorforce import TensorForceError
+from tensorforce import TensorforceError
 from tensorforce.contrib.remote_environment import RemoteEnvironment, MsgPackNumpyProtocol
 from tensorforce.contrib.state_settable_environment import StateSettableEnvironment
 
@@ -84,11 +84,11 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         self.game_name = response.get("game_name")  # keep non-mandatory for now
         # Observers
         if "observation_space_desc" not in response:
-            raise TensorForceError("Response to `get_spec` does not contain field `observation_space_desc`!")
+            raise TensorforceError("Response to `get_spec` does not contain field `observation_space_desc`!")
         self.observation_space_desc = response["observation_space_desc"]
         # Action-mappings
         if "action_space_desc" not in response:
-            raise TensorForceError("Response to `get_spec` does not contain field `action_space_desc`!")
+            raise TensorforceError("Response to `get_spec` does not contain field `action_space_desc`!")
         self.action_space_desc = response["action_space_desc"]
 
         if self.discretize_actions:
@@ -108,9 +108,9 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
         # Wait for response.
         response = self.protocol.recv(self.socket, "utf-8")
         if "status" not in response:
-            raise TensorForceError("Message without field 'status' received!")
+            raise TensorforceError("Message without field 'status' received!")
         elif response["status"] != "ok":
-            raise TensorForceError("Message 'status' for seed command is not 'ok' ({})!".format(response["status"]))
+            raise TensorforceError("Message 'status' for seed command is not 'ok' ({})!".format(response["status"]))
         return seed
 
     def reset(self):
@@ -127,7 +127,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
 
     def set_state(self, setters, **kwargs):
         if "cmd" in kwargs:
-            raise TensorForceError("Key 'cmd' must not be present in **kwargs to method `set`!")
+            raise TensorforceError("Key 'cmd' must not be present in **kwargs to method `set`!")
 
         # Forward kwargs to remote (only add command: set).
         message = kwargs
@@ -139,10 +139,10 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             setters = list((setters,))
         for set_cmd in setters:
             if not re.match(r'\w+(:\w+)*', set_cmd[0]):
-                raise TensorForceError("ERROR: property ({}) in setter-command does not match correct pattern!".
+                raise TensorforceError("ERROR: property ({}) in setter-command does not match correct pattern!".
                                        format(set_cmd[0]))
             if len(set_cmd) == 3 and not isinstance(set_cmd[2], bool):
-                raise TensorForceError("ERROR: 3rd item in setter-command must be of type bool ('is_relative' flag)!")
+                raise TensorforceError("ERROR: 3rd item in setter-command must be of type bool ('is_relative' flag)!")
         message["setters"] = setters
 
         self.protocol.send(message, self.socket)
@@ -181,7 +181,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             try:
                 action_mappings, axis_mappings = self.translate_abstract_actions_to_keys(action)
             except KeyError as e:
-                raise TensorForceError("Action- or axis-mapping with name '{}' not defined in connected UE4 game!".
+                raise TensorforceError("Action- or axis-mapping with name '{}' not defined in connected UE4 game!".
                                        format(e))
 
         # message = {"cmd": "step", 'delta_time': 0.33,
@@ -230,7 +230,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
                     )
                 # TODO: Enums
                 else:
-                    raise TensorForceError("Unsupported space type {} coming from Environment ("
+                    raise TensorforceError("Unsupported space type {} coming from Environment ("
                                            "observation_space_desc)!".format(type_))
 
                 observation_space[key] = space
@@ -302,7 +302,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
             elif isinstance(first_key, tuple):
                 axes.append((first_key[0], a[1] * first_key[1]))
             else:
-                raise TensorForceError("action_space_desc contains unsupported type for key {}!".format(a[0]))
+                raise TensorforceError("action_space_desc contains unsupported type for key {}!".format(a[0]))
 
         return actions, axes
 
@@ -374,7 +374,7 @@ class UE4Environment(RemoteEnvironment, StateSettableEnvironment):
     @staticmethod
     def extract_observation(message):
         if b"obs_dict" not in message:
-            raise TensorForceError("Message without field 'obs_dict' received!")
+            raise TensorforceError("Message without field 'obs_dict' received!")
 
         ret = message[b"obs_dict"]
         # Only one observer -> use that one (no dict of dicts).

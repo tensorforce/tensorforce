@@ -22,9 +22,23 @@ from tensorforce.core.parameters import Parameter
 class OrnsteinUhlenbeck(Parameter):
     """
     Ornstein-Uhlenbeck process.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        dtype ("bool" | "int" | "long" | "float"): Tensor type
+            (<span style="color:#C00000"><b>required</b></span>).
+        theta (float > 0.0): Theta value
+            (<span style="color:#00C000"><b>default</b></span>: 0.15).
+        sigma (float > 0.0): Sigma value
+            (<span style="color:#00C000"><b>default</b></span>: 0.3).
+        mu (float): Mu value
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, name, theta=0.15, mu=0.0, sigma=0.3, dtype='float', summary_labels=None):
+    def __init__(self, name, dtype, theta=0.15, sigma=0.3, mu=0.0, summary_labels=None):
         super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
 
         self.theta = theta

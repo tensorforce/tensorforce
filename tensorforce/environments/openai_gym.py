@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-import gym
+import numpy as np
 
 from tensorforce import TensorforceError
 from tensorforce.environments import Environment
@@ -21,42 +21,52 @@ from tensorforce.environments import Environment
 
 class OpenAIGym(Environment):
     """
-    OpenAI Gym environment (https://gym.openai.com/).
-    Requires installation via `pip install gym`.
+    [OpenAI Gym](https://gym.openai.com/) environment adapter (specification key: `gym`,
+    `openai_gym`).
+
+    May require:
+    ```bash
+    pip install gym[all]
+    ```
+
+    Args:
+        level (string): Gym id
+            (<span style="color:#C00000"><b>required</b></span>).
+        visualize (bool): Whether to visualize interaction
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        monitor_directory (string): Monitor output directory
+            (<span style="color:#00C000"><b>default</b></span>: none).
     """
 
-    def __init__(self, gym_id, monitor=None, monitor_safe=False, monitor_video=0, visualize=False):
-        """
-        Initialize OpenAI Gym.
+    @staticmethod
+    def levels():
+        import gym
 
-        Args:
-            gym_id: OpenAI Gym environment ID. See https://gym.openai.com/envs
-            monitor: Output directory. Setting this to None disables monitoring.
-            monitor_safe: Setting this to True prevents existing log files to be overwritten. Default False.
-            monitor_video: Save a video every monitor_video steps. Setting this to 0 disables recording of videos.
-            visualize: If set True, the program will visualize the trainings of gym's environment. Note that such
-                visualization is probabily going to slow down the training.
-        """
-        self.gym_id = gym_id
-        self.gym = gym.make(gym_id)  # Might raise gym.error.UnregisteredEnv or gym.error.DeprecatedEnv
+        return list(gym.envs.registry.env_specs)
+
+    def __init__(self, level, visualize=False, monitor_directory=None):
+        import gym
+
+        assert level in OpenAIGym.levels()
+
+        self.env_id = level
         self.visualize = visualize
 
-        if monitor:
-            if monitor_video == 0:
-                video_callable = False
-            else:
-                video_callable = (lambda x: x % monitor_video == 0)
-            self.gym = gym.wrappers.Monitor(self.gym, monitor, force=not monitor_safe, video_callable=video_callable)
+        self.environment = gym.make(id=self.env_id)
+        if monitor_directory is not None:
+            self.environment = gym.wrappers.Monitor(
+                env=self.environment, directory=monitor_directory
+            )
 
         self.states_spec = OpenAIGym.specs_from_gym_space(
-            space=self.gym.observation_space, ignore_value_bounds=True
+            space=self.environment.observation_space, ignore_value_bounds=True
         )
         self.actions_spec = OpenAIGym.specs_from_gym_space(
-            space=self.gym.action_space, ignore_value_bounds=False
+            space=self.environment.action_space, ignore_value_bounds=False
         )
 
     def __str__(self):
-        return 'OpenAIGym({})'.format(self.gym_id)
+        return super().__str__() + '({})'.format(self.env_id)
 
     def states(self):
         return self.states_spec
@@ -64,25 +74,33 @@ class OpenAIGym(Environment):
     def actions(self):
         return self.actions_spec
 
+    def max_episode_timesteps(self):
+        if hasattr(self.environment, '_max_episode_steps'):
+            return self.environment._max_episode_steps
+        else:
+            return super().max_episode_timesteps()
+
     def close(self):
-        self.gym.close()
-        self.gym = None
+        self.environment.close()
+        self.environment = None
 
     def reset(self):
-        if isinstance(self.gym, gym.wrappers.Monitor):
-            self.gym.stats_recorder.done = True
-        states = self.gym.reset()
+        import gym
+        if isinstance(self.environment, gym.wrappers.Monitor):
+            self.environment.stats_recorder.done = True
+        states = self.environment.reset()
         return OpenAIGym.flatten_state(state=states)
 
     def execute(self, actions):
         if self.visualize:
-            self.gym.render()
+            self.environment.render()
         actions = OpenAIGym.unflatten_action(action=actions)
-        states, reward, terminal, _ = self.gym.step(actions)
+        states, reward, terminal, _ = self.environment.step(actions)
         return OpenAIGym.flatten_state(state=states), terminal, reward
 
     @staticmethod
     def specs_from_gym_space(space, ignore_value_bounds):
+        import gym
         if isinstance(space, gym.spaces.Discrete):
             return dict(type='int', shape=(), num_values=space.n)
 
@@ -173,12 +191,18 @@ class OpenAIGym(Environment):
                     states[state_name] = state
             return states
 
+        elif np.isinf(state).any() or np.isnan(state).any():
+            raise TensorforceError("State contains inf or nan.")
+
         else:
             return state
 
     @staticmethod
     def unflatten_action(action):
         if not isinstance(action, dict):
+            if np.isinf(action).any() or np.isnan(action).any():
+                raise TensorforceError("Action contains inf or nan.")
+
             return action
 
         elif all(name.startswith('gymmdc') for name in action) or \
@@ -195,7 +219,7 @@ class OpenAIGym(Environment):
                     }
                     actions.append(OpenAIGym.unflatten_action(action=inner_action))
                 elif any(name == space_type + str(n) for name in action):
-                    actions.append(action[space_type + str(n)])
+                    actions.append(OpenAIGym.unflatten_action(action=action[space_type + str(n)]))
                 else:
                     break
                 n += 1

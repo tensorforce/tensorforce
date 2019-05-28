@@ -19,6 +19,7 @@ from tensorforce.core.parameters import parameter_modules
 # Require parameter_modules
 from tensorforce.core.layers import layer_modules
 from tensorforce.core.memories import memory_modules
+from tensorforce.core.objectives import objective_modules
 from tensorforce.core.optimizers import optimizer_modules
 
 # Require layer_modules
@@ -26,10 +27,9 @@ from tensorforce.core.distributions import distribution_modules
 from tensorforce.core.networks import network_modules
 
 # Require network_modules
-from tensorforce.core.baselines import baseline_modules
 
 
 __all__ = [
-    'baseline_modules', 'distribution_modules', 'layer_modules', 'memory_modules', 'Module',
-    'network_modules', 'optimizer_modules', 'parameter_modules'
+    'distribution_modules', 'layer_modules', 'memory_modules', 'Module', 'network_modules',
+    'optimizer_modules', 'parameter_modules'
 ]

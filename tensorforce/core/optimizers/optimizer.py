@@ -21,13 +21,14 @@ from tensorforce.core import Module
 
 class Optimizer(Module):
     """
-    Base class for optimizers which minimize a not yet further specified expression, usually some
-    kind of loss function. More generally, an optimizer can be considered as some method of
-    updating a set of variables.
+    Base class for optimizers.
     """
 
     def __init__(self, name, summary_labels=None):
-        super().__init__(name=name, l2_regularization=0.0, summary_labels=summary_labels)
+        """
+        Optimizer constructor.
+        """
+        super().__init__(name=name, summary_labels=summary_labels)
 
     def tf_step(self, variables, **kwargs):
         """
@@ -45,16 +46,6 @@ class Optimizer(Module):
         raise NotImplementedError
 
     def tf_apply_step(self, variables, deltas):
-        """
-        Applies the given (and already calculated) step deltas to the variable values.
-
-        Args:
-            variables: List of variables.
-            deltas: List of deltas of same length.
-
-        Returns:
-            The step-applied operation. A tf.group of tf.assign_add ops.
-        """
         if len(variables) != len(deltas):
             raise TensorforceError("Invalid variables and deltas lists.")
 
@@ -73,23 +64,24 @@ class Optimizer(Module):
             variables: List of variables to optimize.
             **kwargs: Additional optimizer-specific arguments. The following arguments are used
                 by some optimizers:
-            - arguments: Dict of arguments for callables, like fn_loss.
-            - fn_loss: A callable returning the loss of the current model.
-            - fn_reference: A callable returning the reference values, in case of a comparative  
-                loss.
-            - fn_kl_divergence: A callable returning the KL-divergence relative to the
-                current model.
-            - sampled_loss: A sampled loss (integer).
-            - return_estimated_improvement: Returns the estimated improvement resulting from
-                the natural gradient calculation if true.
-            - source_variables: List of source variables to synchronize with.
-            - global_variables: List of global variables to apply the proposed optimization
-                step to.
-
+                - arguments: Dict of arguments for callables, like fn_loss.
+                - fn_loss: A callable returning the loss of the current model.
+                - fn_reference: A callable returning the reference values, in case of a comparative
+                    loss.
+                - fn_kl_divergence: A callable returning the KL-divergence relative to the
+                    current model.
+                - return_estimated_improvement: Returns the estimated improvement resulting from
+                    the natural gradient calculation if true.
+                - source_variables: List of source variables to synchronize with.
+                - global_variables: List of global variables to apply the proposed optimization
+                    step to.
 
         Returns:
             The optimization operation.
         """
+        if any(variable.dtype != util.tf_dtype(dtype='float') for variable in variables):
+            TensorforceError.unexpected()
+
         deltas = self.step(variables=variables, **kwargs)
 
         for n in range(len(variables)):
@@ -104,6 +96,21 @@ class Optimizer(Module):
                 label='updates-full', name=(name[:-2] + '-update'), tensor=deltas[n]
             )
 
+        # with tf.control_dependencies(control_inputs=deltas):
+        #     zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        #     false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+        #     deltas = [self.cond(
+        #         pred=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)),
+        #         true_fn=(lambda: tf.Print(delta, (variable.name,))),
+        #         false_fn=(lambda: delta)) for delta, variable in zip(deltas, variables)
+        #     ]
+        #     # assertions = [
+        #     #     tf.debugging.assert_equal(
+        #     #         x=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)), y=false
+        #     #     ) for delta in deltas if util.product(xs=util.shape(x=delta)) > 4
+        #     # ]
+
+        # with tf.control_dependencies(control_inputs=assertions):
         with tf.control_dependencies(control_inputs=deltas):
             return util.no_operation()
 

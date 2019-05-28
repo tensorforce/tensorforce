@@ -16,7 +16,27 @@
 from tensorforce.environments.environment import Environment
 from tensorforce.environments.multiplayer_environment import MultiplayerEnvironment
 
+from tensorforce.environments.arcade_learning_environment import ArcadeLearningEnvironment
+from tensorforce.environments.maze_explorer import MazeExplorer
 from tensorforce.environments.openai_gym import OpenAIGym
+from tensorforce.environments.openai_retro import OpenAIRetro
+from tensorforce.environments.open_sim import OpenSim
+from tensorforce.environments.pygame_learning_environment import PyGameLearningEnvironment
+from tensorforce.environments.vizdoom import ViZDoom
 
 
-__all__ = ['Environment', 'MultiplayerEnvironment', 'OpenAIGym']
+environments = dict(
+    ale=ArcadeLearningEnvironment, arcade_learning_environment=ArcadeLearningEnvironment,
+    mazeexp=MazeExplorer, maze_explorer=MazeExplorer,
+    gym=OpenAIGym, openai_gym=OpenAIGym,
+    retro=OpenAIRetro, openai_retro=OpenAIRetro,
+    osim=OpenSim, open_sim=OpenSim,
+    ple=PyGameLearningEnvironment, pygame_learning_environment=PyGameLearningEnvironment,
+    vizdoom=ViZDoom
+)
+
+
+__all__ = [
+    'ArcadeLearningEnvironment', 'Environment', 'MazeExplorer', 'MultiplayerEnvironment',
+    'OpenAIGym', 'OpenAIRetro', 'OpenSim', 'PyGameLearningEnvironment', 'ViZDoom'
+]

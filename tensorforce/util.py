@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from collections import OrderedDict
+from datetime import datetime
 import logging
 
 import numpy as np
@@ -32,6 +33,10 @@ log_levels = dict(
     warning=logging.WARNING,
     fatal=logging.FATAL
 )
+
+
+def debug(message):
+    logging.warning('{}: {}'.format(datetime.now().strftime('%H:%M:%S-%f')[:-3], message))
 
 
 def is_iterable(x):
@@ -127,7 +132,10 @@ def dtype(x):
         if x.dtype == tf_dtype:
             return dtype
     else:
-        raise TensorforceError.value(name='dtype', value=x.dtype)
+        if x.dtype == tf.float32:
+            return 'float'
+        else:
+            raise TensorforceError.value(name='dtype', value=x.dtype)
 
 
 def rank(x):
@@ -135,11 +143,11 @@ def rank(x):
 
 
 def shape(x, unknown=-1):
-    return tuple(unknown if num_dims is None else num_dims for num_dims in x.get_shape().as_list())
+    return tuple(unknown if dims is None else dims for dims in x.get_shape().as_list())
 
 
 def no_operation():
-    # return tf.constant(value=False, dtype=tf_dtype(dtype='bool'))
+    # Operation required, constant not enough.
     return identity_operation(x=tf.constant(value=False, dtype=tf_dtype(dtype='bool')))
 
 
@@ -220,13 +228,13 @@ def get_tensor_dependencies(tensor):
 
 
 reserved_names = {
-    '', 'states', 'actions', 'state', 'action', 'terminal', 'reward', 'deterministic', 'update',
+    'states', 'actions', 'state', 'action', 'terminal', 'reward', 'deterministic', 'optimization',
     # Types
     'bool', 'int', 'long', 'float',
     # Value specification attributes
     'shape', 'type', 'num_values', 'min_value', 'max_value'
     # Special values?
-    'x', '*', 'loss'
+    'equal', 'loss', 'same', 'x', '*'
 }
 
 
@@ -237,7 +245,11 @@ def join_scopes(*args):
 def is_valid_name(name):
     if not isinstance(name, str):
         return False
+    if name == '':
+        return False
     if '/' in name:
+        return False
+    if '.' in name:
         return False
     if name in reserved_names:
         return False
@@ -245,7 +257,7 @@ def is_valid_name(name):
 
 
 def is_nested(name):
-    return name in ('states', 'internals', 'actions')
+    return name in ('states', 'internals', 'auxiliaries', 'actions')
 
 
 def is_valid_type(dtype):
@@ -335,17 +347,17 @@ def valid_value_spec(
             normalized_spec['shape'] = None
     elif is_iterable(x=shape):
         start = int(accept_underspecified and len(shape) > 0 and shape[0] is None)
-        if not all(isinstance(num_dims, int) for num_dims in shape[start:]):
+        if not all(isinstance(dims, int) for dims in shape[start:]):
             raise TensorforceError.value(
                 name=(value_type + ' spec'), argument='shape', value=shape
             )
         if accept_underspecified:
-            if not all(num_dims >= -1 for num_dims in shape[start:]):
+            if not all(dims >= -1 for dims in shape[start:]):
                 raise TensorforceError.value(
                     name=(value_type + ' spec'), argument='shape', value=shape
                 )
         else:
-            if not all(num_dims > 0 or num_dims == -1 for num_dims in shape):
+            if not all(dims > 0 or dims == -1 for dims in shape):
                 raise TensorforceError.value(
                     name=(value_type + ' spec'), argument='shape', value=shape
                 )

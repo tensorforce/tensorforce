@@ -30,6 +30,7 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 #### Quicklinks
 
 - [Documentation](http://tensorforce.readthedocs.io) and [update notes](https://github.com/tensorforce/tensorforce/blob/master/UPDATE_NOTES.md)
+- [Benchmarks]((https://github.com/tensorforce/tensorforce/blob/master/benchmarks) and [projects using Tensorforce](https://github.com/tensorforce/tensorforce/blob/master/PROJECTS.md)
 - [Contact](mailto:tensorforce.team@gmail.com) and [Gitter channel](https://gitter.im/tensorforce/community)
 - [Roadmap](https://github.com/tensorforce/tensorforce/blob/master/ROADMAP.md) and [contribution guidelines](https://github.com/tensorforce/tensorforce/blob/master/CONTRIBUTING.md)
 - [Blog](https://reinforce.io/blog/)
@@ -39,10 +40,11 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 #### Table of content
 
 - [Installation](#installation)
-- [Features](#features)
-- [Examples and documentation](#examples-and-documentation)
 - [Quickstart example code](#quickstart-example-code)
-- [Contact for support and feedback](#contact-for-support=and-feedback)
+- [Command line usage](#command-line-usage)
+- [Features](#features)
+- [Environment adapters](#environment-adapters)
+- [Contact for support and feedback](#contact-for-support-and-feedback)
 - [Core team and contributors](#core-team-and-contributors)
 - [Cite Tensorforce](#cite-tensorforce)
 
@@ -75,23 +77,25 @@ pip install tensorforce[tf]
 pip install -e .[tf_gpu]
 ```
 
-Some scripts require additional packages like, for instance, [OpenAI Gym](https://gym.openai.com/), which have to be installed separately.
+Some environments require additional packages, for which there are also options available (`ale`, `mazeexp`, `gym`, `retro`, `osim`, `ple`, `vizdoom`; or `envs` for all environments), however, some require other tools to be installed (see [environments documentation](http://tensorforce.readthedocs.io)).
 
 
 
 ## Quickstart example code
 
 ```python
-from tensorforce.agents import PPOAgent
+from tensorforce.agents import PolicyAgent
 
 # Instantiate a Tensorforce agent
-agent = PPOAgent(
+agent = PolicyAgent(
     states=dict(type='float', shape=(10,)),
     actions=dict(type='int', num_values=5),
     memory=10000,
+    update=dict(unit='timesteps', batch_size=64),
+    optimizer=dict(type='adam', learning_rate=3e-4),
     network='auto',
-    update_mode=dict(unit='episodes', batch_size=10),
-    step_optimizer=dict(type='adam', learning_rate=1e-4)
+    objective='policy_gradient',
+    reward_estimation=dict(horizon=20)
 )
 
 # Initialize the agent
@@ -112,14 +116,26 @@ agent.observe(reward=reward, terminal=False)
 
 
 
+## Command line usage
+
+Tensorforce comes with a range of [example configurations](https://github.com/tensorforce/tensorforce/tree/master/benchmarks/configs) for different popular reinforcement learning environments. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
+
+```bash
+python run.py benchmarks/configs/ppo.json gym --level CartPole-v1 -e 300
+```
+
+For more information check out the [documentation](http://tensorforce.readthedocs.io).
+
+
+
 ## Features
 
-- **Neural network layers**: Dense fully-connected layer, embedding layer, 1- and 2-dimensional convolution, LSTM, activation layer, dropout, and more; *plus* support of Keras layers.
+- **Neural network layers**: Dense fully-connected layer, embedding layer, 1- and 2-dimensional convolution, pooling, LSTM, activation, dropout, normalization, and more; *plus* support of Keras layers.
 - **Memory types**: Simple batch buffer memory, random replay memory.
 - **Policy distributions**: Bernoulli distribution for boolean actions, categorical distribution for (finite) integer actions, Gaussian distribution for continuous actions, Beta distribution for range-constrained continuous actions.
-- **Optimization algorithms**: Various gradient-based optimizers provided by TensorFlow like Adam/AdaDelta/Momentum/RMSProp/etc, evolutionary optimizer, natural-gradient-based optimizer, plus a variety of meta-optimizer.
+- **Optimization algorithms**: Various gradient-based optimizers provided by TensorFlow like Adam/AdaDelta/Momentum/RMSProp/etc, evolutionary optimizer, natural-gradient-based optimizer, plus a range of meta-optimizers.
 - **Execution modes**: Parallel execution, distributed execution.
-- **Other features**: Input normalization preprocessing, exploration, variable noise, regularization losses.
+- **Other features**: state/reward preprocessing, exploration, variable noise, regularization losses.
 - **TensorBoard support**.
 
 By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated: [Deep Q-learning (DQN)](https://arxiv.org/abs/1312.5602) and variations like [Double-DQN](https://arxiv.org/abs/1509.06461) or [Deep Q-learning from Demonstrations (DQfD)](https://arxiv.org/abs/1704.03732), [vanilla policy-gradient algorithm / REINFORCE](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf), [Proximal Policy Optimization (PPO)](https://arxiv.org/abs/1707.06347), [Actor-critic and A3C](https://arxiv.org/abs/1602.01783), [Trust Region Policy Optimization (TRPO)](https://arxiv.org/abs/1502.05477), [Normalised Advantage Function (NAF)](https://arxiv.org/abs/1603.00748), [Generalized Advantage estimation (GAE)](https://arxiv.org/abs/1506.02438), etc.
@@ -128,15 +144,15 @@ Note that in general the replication is not 100% faithful, since the models as d
 
 
 
-## Examples and documentation
+## Environment adapters
 
-Tensorforce comes with a range of [example scripts and configurations](https://github.com/tensorforce/tensorforce/tree/master/examples) for different popular reinforcement learning environments/benchmarks. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
-
-```bash
-python examples/openai_gym.py CartPole-v1 --agent examples/configs/ppo.json --network examples/configs/mlp2_network.json
-```
-
-For more information check out [Tensorforce's documentation](http://tensorforce.readthedocs.io).
+- [Arcade Learning Environment](https://github.com/mgbellemare/Arcade-Learning-Environment), a simple object-oriented framework that allows researchers and hobbyists to develop AI agents for Atari 2600 games.
+- [MazeExplorer](https://github.com/mryellow/maze_explorer), a maze exploration game for AI agents.
+- [OpenAI Gym](https://gym.openai.com/), a toolkit for developing and comparing reinforcement learning algorithms which supports teaching agents everything from walking to playing games like Pong or Pinball.
+- [OpenAI Retro](https://github.com/openai/retro), lets you turn classic video games into Gym environments for reinforcement learning and comes with integrations for ~1000 games.
+- [OpenSim](http://osim-rl.stanford.edu/), reinforcement learning with musculoskeletal models.
+- [PyGame Learning Environment](https://github.com/ntasfi/PyGame-Learning-Environment/), learning environment which allows a quick start to Reinforcement Learning in Python.
+- [ViZDoom](https://github.com/mwydmuch/ViZDoom), allows developing AI bots that play Doom using only the visual information.
 
 
 

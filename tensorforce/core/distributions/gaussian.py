@@ -24,13 +24,20 @@ from tensorforce.core.distributions import Distribution
 
 class Gaussian(Distribution):
     """
-    Gaussian distribution, for unbounded continuous actions.
+    Gaussian distribution, for unbounded continuous actions (specification key: `gaussian`).
+
+    Args:
+        name (string): Distribution name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        action_spec (specification): Action specification
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        embedding_size (int > 0): Embedding size
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(self, name, action_spec, embedding_size, summary_labels=None):
-        """
-        Categorical distribution.
-        """
         super().__init__(
             name=name, action_spec=action_spec, embedding_size=embedding_size,
             summary_labels=summary_labels

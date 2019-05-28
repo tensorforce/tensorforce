@@ -15,27 +15,34 @@
 
 from tensorforce.agents.agent import Agent
 
-from tensorforce.agents.constant_agent import ConstantAgent
-from tensorforce.agents.drl_agent import DRLAgent
-from tensorforce.agents.random_agent import RandomAgent
+from tensorforce.agents.constant import ConstantAgent
+from tensorforce.agents.policy_agent import PolicyAgent
+from tensorforce.agents.random import RandomAgent
 
-from tensorforce.agents.ddpg_agent import DDPGAgent
-from tensorforce.agents.dqfd_agent import DQFDAgent
-from tensorforce.agents.dqn_agent import DQNAgent
-from tensorforce.agents.dqn_nstep_agent import DQNNstepAgent
-from tensorforce.agents.naf_agent import NAFAgent
-from tensorforce.agents.ppo_agent import PPOAgent
-from tensorforce.agents.trpo_agent import TRPOAgent
-from tensorforce.agents.vpg_agent import VPGAgent
+from tensorforce.agents.dpg import DeterministicPolicyGradient
+from tensorforce.agents.dqn import DeepQNetwork
+from tensorforce.agents.ppo import ProximalPolicyOptimization
+from tensorforce.agents.trpo import TrustRegionPolicyOptimization
+from tensorforce.agents.vpg import VanillaPolicyGradient
+
+
+DPG = DPGAgent = DeterministicPolicyGradient
+DQN = DQNAgent = DeepQNetwork
+PPO = PPOAgent = ProximalPolicyOptimization
+TRPO = TRPOAgent = TrustRegionPolicyOptimization
+VPG = VPGAgent = VanillaPolicyGradient
 
 
 agents = dict(
-    constant=ConstantAgent, ddpg=DDPGAgent, dqfd=DQFDAgent, dqn=DQNAgent, dqn_nstep=DQNNstepAgent,
-    naf=NAFAgent, ppo=PPOAgent, random=RandomAgent, trpo=TRPOAgent, vpg=VPGAgent
+    constant=ConstantAgent, default=PolicyAgent, dpg=DeterministicPolicyGradient,
+    dqn=DeepQNetwork, policy=PolicyAgent, ppo=ProximalPolicyOptimization, random=RandomAgent,
+    trpo=TrustRegionPolicyOptimization, vpg=VanillaPolicyGradient
 )
 
 
 __all__ = [
-    'Agent', 'agents', 'ConstantAgent', 'DDPGAgent', 'DQFDAgent', 'DQNAgent', 'DQNNstepAgent',
-    'DRLAgent', 'NAFAgent', 'PPOAgent', 'RandomAgent', 'TRPOAgent', 'VPGAgent'
+    'Agent', 'agents', 'ConstantAgent', 'DeepQNetwork', 'DeterministicPolicyGradient', 'DPG',
+    'DPGAgent', 'DQN', 'DQNAgent', 'PolicyAgent', 'PPO', 'PPOAgent', 'ProximalPolicyOptimization',
+    'RandomAgent', 'TRPO', 'TRPOAgent', 'TrustRegionPolicyOptimization', 'VanillaPolicyGradient',
+    'VPG', 'VPGAgent'
 ]

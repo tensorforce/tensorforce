@@ -13,89 +13,41 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import util
 from tensorforce.core import Module
 
 
 class Memory(Module):
     """
     Base class for memories.
+
+    Args:
+        name (string): Memory name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        device (string): Device name
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(
-        self, name, states_spec, internals_spec, actions_spec, include_next_states,
-        summary_labels=None
-    ):
-        """
-        Args:
-            state_spec (dict): State specification.
-            internals_spec (dict): Internal state specification.
-            action_spec (dict): Action specification.
-            include_next_states (bool): Include subsequent state if true.
-        """
-        super().__init__(name=name, l2_regularization=0.0, summary_labels=summary_labels)
+    def tf_enqueue(self, states, internals, actions, terminal, reward):
+        raise NotImplementedError
 
-        self.states_spec = states_spec
-        self.internals_spec = internals_spec
-        self.actions_spec = actions_spec
-        self.include_next_states = include_next_states
+    def tf_retrieve(self, indices, values=None):
+        raise NotImplementedError
 
-    def tf_store(self, states, internals, actions, terminal, reward):
-        """"
-        Stores experiences, i.e. a batch of timesteps.
+    def tf_successors(self, indices, horizon, sequence_values=(), final_values=()):
+        raise NotImplementedError
 
-        Args:
-            state: Dict of state tensors.
-            internal: List of prior internal state tensors.
-            action: Dict of action tensors.
-            terminal: Terminal boolean tensor.
-            reward: Reward tensor.
-        """
+    def tf_predecessors(self, indices, horizon, sequence_values=(), initial_values=()):
         raise NotImplementedError
 
     def tf_retrieve_timesteps(self, n):
-        """
-        Retrieves a given number of timesteps from the stored experiences.
-
-        Args:
-            n: Number of timesteps to retrieve.
-
-        Returns:
-            Dicts containing the retrieved experiences.
-        """
         raise NotImplementedError
 
     def tf_retrieve_episodes(self, n):
-        """
-        Retrieves a given number of episodes from the stored experiences.
-
-        Args:
-            n: Number of episodes to retrieve.
-
-        Returns:
-            Dicts containing the retrieved experiences.
-        """
         raise NotImplementedError
 
     def tf_retrieve_sequences(self, n, sequence_length):
-        """
-        Retrieves a given number of temporally consistent timestep sequences from the stored
-        experiences.
-
-        Args:
-            n: Number of sequences to retrieve.
-            sequence_length: Length of timestep sequences.
-
-        Returns:
-            Dicts containing the retrieved experiences.
-        """
         raise NotImplementedError
-
-    def tf_update_batch(self, loss_per_instance):
-        """
-        Updates the internal information of the latest batch instances based on their loss.
-
-        Args:
-            loss_per_instance: Loss per instance tensor.
-        """
-        return util.no_operation()

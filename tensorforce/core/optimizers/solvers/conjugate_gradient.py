@@ -63,7 +63,9 @@ class ConjugateGradient(Iterative):
         """
         super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
 
-        self.damping = self.add_module(name='damping', module=damping, modules=parameter_modules)
+        self.damping = self.add_module(
+            name='damping', module=damping, modules=parameter_modules, dtype='float'
+        )
 
     def tf_solve(self, fn_x, x_init, b):
         """
@@ -118,7 +120,8 @@ class ConjugateGradient(Iterative):
         )
 
         # \alpha := r_t^2 / cAc
-        alpha = squared_residual / tf.maximum(x=conjugate_A_conjugate, y=util.epsilon)
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        alpha = squared_residual / tf.maximum(x=conjugate_A_conjugate, y=epsilon)
 
         # x_{t+1} := x_t + \alpha * c_t
         next_x = [t + alpha * conj for t, conj in zip(x, conjugate)]
@@ -132,7 +135,7 @@ class ConjugateGradient(Iterative):
         )
 
         # \beta = r_{t+1}^2 / r_t^2
-        beta = next_squared_residual / tf.maximum(x=squared_residual, y=util.epsilon)
+        beta = next_squared_residual / tf.maximum(x=squared_residual, y=epsilon)
 
         # c_{t+1} := r_{t+1} + \beta * c_t
         next_conjugate = [res + beta * conj for res, conj in zip(next_residual, conjugate)]
@@ -152,7 +155,9 @@ class ConjugateGradient(Iterative):
         Returns:
             True if another iteration should be performed.
         """
-        return squared_residual >= util.epsilon
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+
+        return squared_residual >= epsilon
 
     def tf_start(self, x_init, b):
         """

@@ -23,18 +23,117 @@ from tensorforce.core.parameters import Parameter
 class Decaying(Parameter):
     """
     Decaying hyperparameter.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        dtype ("bool" | "int" | "long" | "float"): Tensor type
+            (<span style="color:#C00000"><b>required</b></span>).
+        unit ("timesteps" | "episodes" | "updates"): Unit of decay schedule
+            (<span style="color:#C00000"><b>required</b></span>).
+        decay ("cosine" | "cosine_restarts" | "exponential" | "inverse_time" | "linear_cosine" | "linear_cosine_noisy" | "natural_exponential" | "polynomial"):
+            Decay type
+            (<span style="color:#C00000"><b>required</b></span>).
+        initial_value (float): Initial value
+            (<span style="color:#C00000"><b>required</b></span>).
+        decay_steps (long): Number of decay steps
+            (<span style="color:#C00000"><b>required</b></span>).
+        increasing (bool): Whether to subtract the decayed value from 1.0
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        inverse (bool): Whether to take the inverse of the decayed value
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        scale (float): Scaling factor for (inverse) decayed value
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).
+        summary_labels ("all" | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        kwargs: Additional arguments dependent on decay mechanism.<br>
+            Cosine decay:
+            <ul>
+            <li><b>alpha</b> (<i>float</i>) &ndash; Minimum learning rate value as a fraction of
+            learning_rate
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).</li>
+            </ul>
+            Cosine decay with restarts:
+            <ul>
+            <li><b>t_mul</b> (<i>float</i>) &ndash; Used to derive the number of iterations in the
+            i-th period
+            (<span style="color:#00C000"><b>default</b></span>: 2.0).</li>
+            <li><b>m_mul</b> (<i>float</i>) &ndash; Used to derive the initial learning rate of the
+            i-th period
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
+            <li><b>alpha</b> (<i>float</i>) &ndash; Minimum learning rate value as a fraction of
+            the learning_rate
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).</li>
+            </ul>
+            Exponential decay:
+            <ul>
+            <li><b>decay_rate</b> (<i>float</i>) &ndash; Decay rate
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>staircase</b> (<i>bool</i>) &ndash; Whether to apply decay in a discrete
+            staircase, as opposed to continuous, fashion.
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            </ul>
+            Inverse time decay:
+            <ul>
+            <li><b>decay_rate</b> (<i>float</i>) &ndash; Decay rate
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>staircase</b> (<i>bool</i>) &ndash; Whether to apply decay in a discrete
+            staircase, as opposed to continuous, fashion.
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            </ul>
+            Linear cosine decay:
+            <ul>
+            <li><b>num_periods</b> (<i>float</i>) &ndash; Number of periods in the cosine part of
+            the decay
+            (<span style="color:#00C000"><b>default</b></span>: 0.5).</li>
+            <li><b>alpha</b> (<i>float</i>) &ndash; Alpha value
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).</li>
+            <li><b>beta</b> (<i>float</i>) &ndash; Beta value
+            (<span style="color:#00C000"><b>default</b></span>: 0.001).</li>
+            </ul>
+            Natural exponential decay:
+            <ul>
+            <li><b>decay_rate</b> (<i>float</i>) &ndash; Decay rate
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>staircase</b> (<i>bool</i>) &ndash; Whether to apply decay in a discrete
+            staircase, as opposed to continuous, fashion.
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            </ul>
+            Noisy linear cosine decay:
+            <ul>
+            <li><b>initial_variance</b> (<i>float</i>) &ndash; Initial variance for the noise
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
+            <li><b>variance_decay</b> (<i>float</i>) &ndash; Decay for the noise's variance
+            (<span style="color:#00C000"><b>default</b></span>: 0.55).</li>
+            <li><b>num_periods</b> (<i>float</i>) &ndash; Number of periods in the cosine part of
+            the decay
+            (<span style="color:#00C000"><b>default</b></span>: 0.5).</li>
+            <li><b>alpha</b> (<i>float</i>) &ndash; Alpha value
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).</li>
+            <li><b>beta</b> (<i>float</i>) &ndash; Beta value
+            (<span style="color:#00C000"><b>default</b></span>: 0.001).</li>
+            </ul>
+            Polynomial decay:
+            <ul>
+            <li><b>final_value</b> (<i>float</i>) &ndash; Final value
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>power</b> (<i>float</i>) &ndash; Power of polynomial
+            (<span style="color:#00C000"><b>default</b></span>: 1.0, thus linear).</li>
+            <li><b>cycle</b> (<i>bool</i>) &ndash; Whether to cycle beyond decay_steps
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            </ul>
     """
 
     def __init__(
-        self, name, unit, decay, initial_value, decay_steps, inverse=False, scale=1.0,
-        dtype='float', summary_labels=None, **kwargs
+        self, name, dtype, unit, decay, initial_value, decay_steps, increasing=False,
+        inverse=False, scale=1.0, summary_labels=None, **kwargs
     ):
         super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
 
-        assert unit in ('timesteps', 'episodes')
+        assert unit in ("timesteps", "episodes", "updates")
         assert decay in (
-            'cosine', 'cosine_restarts', 'exponential', 'inverse_time', 'linear_cosine',
-            'linear_cosine_noisy', 'natural_exponential', 'polynomial'
+            "cosine", "cosine_restarts", "exponential", "inverse_time", "linear_cosine",
+            "linear_cosine_noisy", "natural_exponential", "polynomial"
         )
         assert isinstance(initial_value, float)
         assert isinstance(decay_steps, int)
@@ -43,80 +142,88 @@ class Decaying(Parameter):
         self.decay = decay
         self.initial_value = initial_value
         self.decay_steps = decay_steps
+        self.increasing = increasing
         self.inverse = inverse
         self.scale = scale
         self.kwargs = kwargs
 
     def get_parameter_value(self):
-        if self.unit == 'timesteps':
-            step = Module.retrieve_tensor(name='timestep')
-        elif self.unit == 'episodes':
-            step = Module.retrieve_tensor(name='episode')
+        if self.unit == "timesteps":
+            step = Module.retrieve_tensor(name="timestep")
+        elif self.unit == "episodes":
+            step = Module.retrieve_tensor(name="episode")
+        elif self.unit == "updates":
+            step = Module.retrieve_tensor(name="update")
 
-        initial_value = tf.constant(value=self.initial_value, dtype=util.tf_dtype(dtype='float'))
+        initial_value = tf.constant(value=self.initial_value, dtype=util.tf_dtype(dtype="float"))
 
-        if self.decay == 'cosine':
+        if self.decay == "cosine":
             parameter = tf.train.cosine_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
-                alpha=self.kwargs.get('alpha', 0.0)
+                alpha=self.kwargs.get("alpha", 0.0)
             )
 
-        elif self.decay == 'cosine_restarts':
+        elif self.decay == "cosine_restarts":
             parameter = tf.train.cosine_decay_restarts(
                 learning_rate=initial_value, global_step=step,
-                first_decay_steps=self.decay_steps, t_mul=self.kwargs.get('t_mul', 2.0),
-                m_mul=self.kwargs.get('m_mul', 1.0), alpha=self.kwargs.get('alpha', 0.0)
+                first_decay_steps=self.decay_steps, t_mul=self.kwargs.get("t_mul", 2.0),
+                m_mul=self.kwargs.get("m_mul", 1.0), alpha=self.kwargs.get("alpha", 0.0)
             )
 
-        elif self.decay == 'exponential':
+        elif self.decay == "exponential":
             parameter = tf.train.exponential_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
-                decay_rate=self.kwargs['decay_rate'], staircase=self.kwargs.get('staircase', False)
+                decay_rate=self.kwargs["decay_rate"], staircase=self.kwargs.get("staircase", False)
             )
 
-        elif self.decay == 'inverse_time':
+        elif self.decay == "inverse_time":
             parameter = tf.train.inverse_time_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
-                decay_rate=self.kwargs['decay_rate'], staircase=self.kwargs.get('staircase', False)
+                decay_rate=self.kwargs["decay_rate"], staircase=self.kwargs.get("staircase", False)
             )
 
-        elif self.decay == 'linear_cosine':
+        elif self.decay == "linear_cosine":
             parameter = tf.train.linear_cosine_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
-                num_periods=self.kwargs.get('num_periods', 0.5),
-                alpha=self.kwargs.get('alpha', 0.0), beta=self.kwargs.get('beta', 0.001)
+                num_periods=self.kwargs.get("num_periods", 0.5),
+                alpha=self.kwargs.get("alpha", 0.0), beta=self.kwargs.get("beta", 0.001)
             )
 
-        elif self.decay == 'linear_cosine_noisy':
+        elif self.decay == "linear_cosine_noisy":
             parameter = tf.train.noisy_linear_cosine_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
-                initial_variance=self.kwargs.get('initial_variance', 1.0),
-                variance_decay=self.kwargs.get('variance_decay', 0.55),
-                num_periods=self.kwargs.get('num_periods', 0.5),
-                alpha=self.kwargs.get('alpha', 0.0), beta=self.kwargs.get('beta', 0.001)
+                initial_variance=self.kwargs.get("initial_variance", 1.0),
+                variance_decay=self.kwargs.get("variance_decay", 0.55),
+                num_periods=self.kwargs.get("num_periods", 0.5),
+                alpha=self.kwargs.get("alpha", 0.0), beta=self.kwargs.get("beta", 0.001)
             )
-        elif self.decay == 'natural_exponential':
+
+        elif self.decay == "natural_exponential":
             parameter = tf.train.natural_exp_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
-                decay_rate=self.kwargs['decay_rate'], staircase=self.kwargs.get('staircase', False)
+                decay_rate=self.kwargs["decay_rate"], staircase=self.kwargs.get("staircase", False)
             )
 
-        elif self.decay == 'polynomial':
+        elif self.decay == "polynomial":
             parameter = tf.train.polynomial_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
-                end_learning_rate=self.kwargs.get('final_value', 0.0001),
-                power=self.kwargs.get('power', 1.0), cycle=self.kwargs.get('cycle', False)
+                end_learning_rate=self.kwargs["final_value"], power=self.kwargs.get("power", 1.0),
+                cycle=self.kwargs.get("cycle", False)
             )
 
-        if self.inverse:
-            one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+        if self.increasing:
+            one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype="float"))
             parameter = one - parameter
 
+        if self.inverse:
+            one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype="float"))
+            parameter = one / parameter
+
         if self.scale != 1.0:
-            scale = tf.constant(value=self.scale, dtype=util.tf_dtype(dtype='float'))
+            scale = tf.constant(value=self.scale, dtype=util.tf_dtype(dtype="float"))
             parameter = parameter * scale
 
-        if self.dtype != 'float':
+        if self.dtype != "float":
             parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter

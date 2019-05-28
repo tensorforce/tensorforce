@@ -22,16 +22,40 @@ from tensorforce.core.networks import LayerbasedNetwork
 
 class AutoNetwork(LayerbasedNetwork):
     """
-    Automatically configured layer-based network.
+    Network which is automatically configured based on its input tensors, offering high-level
+    customization (specification key: `auto`).
+
+    Args:
+        name (string): Network name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        inputs_spec (specification): Input tensors specification
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        size (int > 0): Layer size, before concatenation if multiple states
+            (<span style="color:#00C000"><b>default</b></span>: 64).
+        depth (int > 0): Number of layers per state, before concatenation if multiple states
+            (<span style="color:#00C000"><b>default</b></span>: 2).
+        final_size (int > 0): Layer size after concatenation if multiple states
+            (<span style="color:#00C000"><b>default</b></span>: layer size).
+        final_depth (int > 0): Number of layers after concatenation if multiple states
+            (<span style="color:#00C000"><b>default</b></span>: 1).
+        internal_rnn (false | parameter, long >= 0): Whether to add an internal state LSTM cell
+            as last layer, and if so, horizon of the LSTM
+            (<span style="color:#00C000"><b>default</b></span>: 8).
+        device (string): Device name
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(
         self, name, inputs_spec, size=64, depth=2, final_size=None, final_depth=1,
-        internal_rnn=False, l2_regularization=None, summary_labels=None
+        internal_rnn=8, device=None, summary_labels=None, l2_regularization=None
     ):
         super().__init__(
-            name=name, inputs_spec=inputs_spec, l2_regularization=l2_regularization,
-            summary_labels=summary_labels
+            name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
+            l2_regularization=l2_regularization
         )
 
         self.size = size
@@ -116,27 +140,55 @@ class AutoNetwork(LayerbasedNetwork):
                 )
 
         # Internal Rnn
-        if self.internal_rnn:
-            self.internal_rnn = self.add_module(
-                name='internal_lstm', module='internal_lstm', size=self.final_size
-            )
-        else:
+        if self.internal_rnn is False:
             self.internal_rnn = None
+        else:
+            self.internal_rnn = self.add_module(
+                name='internal_lstm', module='internal_lstm', size=self.final_size,
+                length=self.internal_rnn
+            )
 
     @classmethod
     def internals_spec(
-        cls, name=None, size=64, final_size=None, internal_rnn=False, network=None, **kwargs
+        cls, network=None, name=None, size=None, final_size=None, internal_rnn=None, **kwargs
     ):
-        internals_spec = super().internals_spec(network=network)
+        internals_spec = OrderedDict()
 
-        if network is None and internal_rnn:
-            final_size = size if final_size is None else final_size
-            for internal_name, spec in InternalLstm.internals_spec(size=final_size).items():
-                internals_spec['{}-internal_lstm-{}'.format(name, internal_name)] = spec
+        if network is None:
+            assert name is not None
+            if size is None:
+                size = 64
+            if internal_rnn is None:
+                internal_rnn = 8
+
+            if internal_rnn > 0:
+                final_size = size if final_size is None else final_size
+                for internal_name, spec in InternalLstm.internals_spec(size=final_size).items():
+                    internals_spec[name + '-' + internal_name] = spec
+
+        else:
+            assert name is None and size is None and final_size is None and internal_rnn is None
+
+            if network.internal_rnn is not None:
+                for internal_name, spec in network.internal_rnn.__class__.internals_spec(
+                    layer=network.internal_rnn
+                ).items():
+                    internals_spec[network.name + '-' + internal_name] = spec
 
         return internals_spec
 
+    def internals_init(self):
+        internals_init = OrderedDict()
+
+        if self.internal_rnn is not None:
+            for name, internal_init in self.internal_rnn.internals_init().items():
+                internals_init[self.name + '-' + name] = internal_init
+
+        return internals_init
+
     def tf_apply(self, x, internals, return_internals=False):
+        super().tf_apply(x=x, internals=internals, return_internals=return_internals)
+
         # State-specific layers
         for name, layers in self.state_specific_layers.items():
             tensor = x[name]
@@ -151,13 +203,13 @@ class AutoNetwork(LayerbasedNetwork):
         next_internals = OrderedDict()
         if self.internal_rnn is not None:
             internals = {
-                name: internals['{}-internal_lstm-{}'.format(self.name, name)]
-                for name in self.internal_rnn.internals_spec()
+                name: internals[self.name + '-' + name]
+                for name in self.internal_rnn.__class__.internals_spec(layer=self.internal_rnn)
             }
             assert len(internals) > 0
-            tensor, internals = self.internal_rnn.apply(x=tensor, **internals)
+            tensor, internals = self.internal_rnn.apply(x=tensor, initial=internals)
             for name, internal in internals.items():
-                next_internals['{}-internal_lstm-{}'.format(self.name, name)] = internal
+                next_internals[self.name + '-' + name] = internal
 
         if return_internals:
             return tensor, next_internals

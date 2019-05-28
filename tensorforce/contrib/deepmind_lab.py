@@ -27,7 +27,7 @@ class DeepMindLab(Environment):
 
     Since DeepMind lab is only available as source code, a manual install
     via bazel is required. Further, due to the way bazel handles external
-    dependencies, cloning TensorForce into lab is the most convenient way to
+    dependencies, cloning Tensorforce into lab is the most convenient way to
     run it using the bazel BUILD file we provide. To use lab, first download
     and install it according to instructions
     <https://github.com/deepmind/lab/blob/master/docs/build.md>:
@@ -42,7 +42,7 @@ class DeepMindLab(Environment):
     package(default_visibility = ["//visibility:public"])
     ```
 
-    Clone TensorForce into the lab directory, then run the TensorForce bazel runner.
+    Clone Tensorforce into the lab directory, then run the Tensorforce bazel runner.
 
     Note that using any specific configuration file currently requires changing the Tensorforce
     BUILD file to adjust environment parameters.

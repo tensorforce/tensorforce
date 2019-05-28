@@ -1,4 +1,4 @@
-# Copyright 2018 TensorForce Team. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,17 @@ tf.enable_resource_variables()
 
 class Module(object):
     """
-    Base class for TensorFlow modules.
+    Base class for modules.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        device (string): Device name
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     global_scope = None
@@ -139,23 +149,32 @@ class Module(object):
 
     is_add_module = False
 
+    # Set internal attributes
+    set_parent = None
+
     # Inherit arguments
     inherit_l2_regularization = None
     inherit_summary_labels = None
 
-    def __init__(self, name, l2_regularization=None, summary_labels=None, device=None):
+    def __init__(self, name, device=None, summary_labels=None, l2_regularization=None):
+        # Internal attributes
+        self.parent = Module.set_parent
+        self.scope = None
+        self.is_subscope = None
+        self.modules = OrderedDict()
+        self.trainable_modules = OrderedDict()
+        self.saved_modules = OrderedDict()
+        self.is_initialized = False
+        self.variables = None
+        self.trainable_variables = None
+        self.saved_variables = None
+        self.output_tensors = None
+        self.query_tensors = None
+        self.available_summaries = None
+
         # name
         if not util.is_valid_name(name=name):
             raise TensorforceError.value(name='module', argument='name', value=name)
-        # l2_regularization
-        if l2_regularization is not None and not isinstance(l2_regularization, float):
-            raise TensorforceError.type(
-                name='module', argument='l2_regularization', value=l2_regularization
-            )
-        if l2_regularization is not None and l2_regularization < 0.0:
-            raise TensorforceError.value(
-                name='module', argument='l2_regularization', value=l2_regularization
-            )
         # summary_labels
         if summary_labels is not None and \
                 not all(isinstance(label, str) for label in summary_labels):
@@ -165,45 +184,61 @@ class Module(object):
         # device
         # ???
 
-        # Attributes specified via constructor arguments
         self.name = name
-        self.l2_regularization = l2_regularization
-        self.summary_labels = None if summary_labels is None else set(summary_labels)
         self.device = device
-
-        # Otherwise inherit arguments
-        if self.l2_regularization is None:
-            self.l2_regularization = Module.inherit_l2_regularization
-        if self.summary_labels is None:
+        if summary_labels is None:
+            # Otherwise inherit arguments
             self.summary_labels = Module.inherit_summary_labels
-
-        # Internal attributes
-        self.parent = None
-        self.scope = None
-        self.is_subscope = None
-        self.modules = OrderedDict()
-        self.trainable_modules = OrderedDict()
-        self.is_initialized = False
-        self.variables = None
-        self.trainable_variables = None
-        self.regularized_variables = None
+        elif summary_labels == 'all':
+            self.summary_labels = summary_labels
+        else:
+            self.summary_labels = set(summary_labels)
 
         if not Module.is_add_module:
             Module.global_scope = list()
             Module.global_tensors_spec = OrderedDict()
 
+        if Module.inherit_l2_regularization is None and l2_regularization is None:
+            self.l2_regularization = None  # otherwise infinite recursion
+        elif l2_regularization is not None:
+            from tensorforce.core import parameter_modules
+            self.l2_regularization = None  # for first module
+            self.l2_regularization = self.add_module(
+                name='l2-regularization', module=l2_regularization, modules=parameter_modules,
+                is_trainable=False, dtype='float'
+            )
+        else:
+            # Otherwise inherit arguments
+            self.l2_regularization = Module.inherit_l2_regularization
+
     def tf_initialize(self):
         pass
 
     def tf_regularize(self):
-        regularization_loss = tf.zeros(shape=(), dtype=util.tf_dtype(dtype='float'))
+        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
-        if self.l2_regularization is not None and self.l2_regularization > 0.0:
-            l2_variables = [
-                tf.reduce_sum(input_tensor=tf.square(x=variable))
-                for variable in self.trainable_variables.values()
-            ]
-            regularization_loss += self.l2_regularization * tf.math.add_n(inputs=l2_variables)
+        if len(self.trainable_variables) == 0:
+            regularization_loss = zero
+
+        else:
+            l2_regularization = self.l2_regularization.value()
+
+            def no_l2_regularization():
+                return zero
+
+            def apply_l2_regularization():
+                l2_variables = list()
+                for variable in self.trainable_variables.values():
+                    if variable.dtype != util.tf_dtype(dtype='float'):
+                        variable = tf.dtypes.cast(x=variable, dtype=util.tf_dtype(dtype='float'))
+                    l2_variables.append(tf.reduce_sum(input_tensor=tf.square(x=variable)))
+                return l2_regularization * tf.math.add_n(inputs=l2_variables)
+
+            skip_l2_regularization = tf.math.equal(x=l2_regularization, y=zero)
+            regularization_loss = self.cond(
+                pred=skip_l2_regularization, true_fn=no_l2_regularization,
+                false_fn=apply_l2_regularization  # , use_cond_v2=True
+            )
 
         for module in self.trainable_modules.values():
             regularization_loss += module.regularize()
@@ -219,18 +254,54 @@ class Module(object):
         self.is_initialized = True
         self.variables = OrderedDict()
         self.trainable_variables = OrderedDict()
-        self.regularized_variables = OrderedDict()
+        self.saved_variables = OrderedDict()
+        self.output_tensors = dict()
+        self.query_tensors = dict()
+        self.available_summaries = set()
 
         if self.parent is None:
             Module.global_scope = list()
 
         Module.global_scope.append(self.name)
 
+        if self.parent is None:
+            if self.summarizer_spec is not None:
+                with tf.name_scope(name='summarizer'):
+                    self.summarizer = tf.contrib.summary.create_file_writer(
+                        logdir=self.summarizer_spec['directory'],
+                        flush_millis=(self.summarizer_spec.get('flush', 10) * 1000),
+                        max_queue=None, filename_suffix=None  # ???
+                    )
+                    self.summarizer_init = self.summarizer.init()
+                    self.summarizer_flush = self.summarizer.flush()
+                    self.summarizer_close = self.summarizer.close()
+                    default_summarizer = self.summarizer.as_default()
+                    default_summarizer.__enter__()
+
+                    if 'steps' in self.summarizer_spec:
+                        if isinstance(self.summarizer_spec['steps'], int):
+                            record_summaries = \
+                                tf.contrib.summary.record_summaries_every_n_global_steps(
+                                    n=self.summarizer_spec['steps'],
+                                    global_step=self.global_timestep
+                                )
+                        elif 'variables' in self.summarizer_spec['steps']:
+                            record_summaries = \
+                                tf.contrib.summary.record_summaries_every_n_global_steps(
+                                    n=self.summarizer_spec['steps']['variables'],
+                                    global_step=self.global_timestep
+                                )
+                        else:
+                            record_summaries = tf.contrib.summary.never_record_summaries()
+                    else:
+                        record_summaries = tf.contrib.summary.always_record_summaries()
+                    record_summaries.__enter__()
+
         # TensorFlow device and variable scope
-        self.scope = tf.variable_scope(name_or_scope=self.name, use_resource=True)
         if self.device is not None:
             self.device = tf.device(device_name_or_function=self.device)
             self.device.__enter__()
+        self.scope = tf.variable_scope(name_or_scope=self.name, use_resource=True)
 
         with self.scope:
             if self.parent is None:
@@ -253,19 +324,26 @@ class Module(object):
                     initializer='zeros', shared='global-episode'
                 )
 
-                Module.global_tensors = OrderedDict(
-                    timestep=self.global_timestep, episode=self.global_episode
+                # Global update
+                self.global_update = self.add_variable(
+                    name='global-update', dtype='long', shape=(), is_trainable=False,
+                    initializer='zeros', shared='global-update'
                 )
 
-                if self.summarizer_spec is not None:
-                    if 'steps' in self.summarizer_spec:
-                        record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
-                            n=self.summarizer_spec['steps'],
-                            global_step=self.global_timestep
-                        )
-                    else:
-                        record_summaries = tf.contrib.summary.always_record_summaries()
-                    record_summaries.__enter__()
+                Module.global_tensors = OrderedDict(
+                    timestep=self.global_timestep, episode=self.global_episode,
+                    update=self.global_update
+                )
+
+                # if self.summarizer_spec is not None:
+                #     if 'steps' in self.summarizer_spec:
+                #         record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
+                #             n=self.summarizer_spec['steps'],
+                #             global_step=self.global_timestep
+                #         )
+                #     else:
+                #         record_summaries = tf.contrib.summary.always_record_summaries()
+                #     record_summaries.__enter__()
 
             for module in self.modules.values():
                 module.initialize()
@@ -280,6 +358,8 @@ class Module(object):
             assert len(Module.global_scope) == 0
             Module.global_tensors = None
             Module.global_scope = None
+
+        num_variables = len(tf.trainable_variables())
 
         # Internal TensorFlow functions, prefixed by 'tf_'
         for attribute in sorted(dir(self)):
@@ -307,10 +387,24 @@ class Module(object):
                 function_name = attribute[4:]
 
                 # Todo: own every_n_step implementation, plus maybe per function steps argument
-                if function_name == 'observe':
-                    if self.summarizer_spec is not None and 'steps' in self.summarizer_spec:
-                        record_summaries2 = tf.contrib.summary.always_record_summaries()
-                        record_summaries2.__enter__()
+                fct_record_summaries = None
+                if self.summarizer_spec is not None and 'steps' in self.summarizer_spec:
+                    if isinstance(self.summarizer_spec['steps'], int):
+                        if function_name in ('observe', 'update'):
+                            fct_record_summaries = tf.contrib.summary.always_record_summaries()
+                    elif function_name in self.summarizer_spec['steps']:
+                        if function_name in ('observe', 'update'):
+                            step = self.global_update
+                        else:
+                            step = self.global_timestep
+                        fct_record_summaries = \
+                            tf.contrib.summary.record_summaries_every_n_global_steps(
+                                n=self.summarizer_spec['steps'][function_name], global_step=step
+                            )
+                    else:
+                        fct_record_summaries = tf.contrib.summary.never_record_summaries()
+                if fct_record_summaries is not None:
+                    fct_record_summaries.__enter__()
 
                 if not util.is_valid_name(name=function_name):
                     raise TensorforceError.value(name='API-function name', value=function_name)
@@ -327,13 +421,35 @@ class Module(object):
 
                 setattr(self, function_name, function)
 
-                if function_name == 'observe':
-                    if self.summarizer_spec is not None and 'steps' in self.summarizer_spec:
-                        record_summaries2.__exit__(None, None, None)
+                if fct_record_summaries is not None:
+                    fct_record_summaries.__exit__(None, None, None)
+
+        assert num_variables == len(tf.trainable_variables())
 
         if self.parent is None:
+            # if self.summarizer_spec is not None:
+            #     record_summaries.__exit__(None, None, None)
+
+            if self.summary_labels is not None and \
+                    (self.summary_labels == 'all' or 'graph' in self.summary_labels):
+                self.available_summaries.add('graph')
+                with tf.name_scope(name='summarizer'):
+                    # summarizer_init = tf.contrib.summary.summary_writer_initializer_op()
+                    # assert len(summarizer_init) == 1
+                    # initialization = (tf.global_variables_initializer(), summarizer_init[0])
+                    graph_def = self.graph.as_graph_def()
+                    graph_str = tf.constant(
+                        value=graph_def.SerializeToString(), dtype=tf.string, shape=()
+                    )
+                    self.graph_summary = tf.contrib.summary.graph(
+                        param=graph_str, step=self.global_timestep  # episode?
+                    )
+            else:
+                self.graph_summary = None
+
             if self.summarizer_spec is not None:
                 record_summaries.__exit__(None, None, None)
+                default_summarizer.__exit__(None, None, None)
 
     def create_tf_function(self, name, tf_function):
         # Call internal TensorFlow function
@@ -360,11 +476,19 @@ class Module(object):
             self.device.__enter__()
         with tf.name_scope(name=name):
             results = api_function()
+            self.output_tensors[name[name.index('.') + 1:]] = sorted(
+                x.name[len(name) + 1: -9] for x in util.flatten(xs=results)
+            )
 
             # Function-level identity operation for retrieval
+            query_tensors = set()
             for scoped_name, tensor in Module.global_tensors.items():
-                if '/cond/' not in scoped_name and '/while/' not in scoped_name:
+                if not scoped_name.startswith('cond/') and '/cond/' not in scoped_name and \
+                        not scoped_name.startswith('while/') and '/while/' not in scoped_name:
                     util.identity_operation(x=tensor, operation_name=(scoped_name + '-output'))
+                    assert scoped_name not in query_tensors
+                    query_tensors.add(scoped_name)
+            self.query_tensors[name[name.index('.') + 1:]] = sorted(query_tensors)
 
         if self.device is not None:
             self.device.__exit__(None, None, None)
@@ -409,12 +533,12 @@ class Module(object):
 
         return fn
 
-    def cond(self, pred, true_fn, false_fn):
+    def cond(self, pred, true_fn, false_fn, use_cond_v2=False):
         Module.global_scope.append('cond')
-        if tf.__version__.startswith('1.13'):
+        if use_cond_v2:
             x = cond_v2.cond_v2(pred=pred, true_fn=true_fn, false_fn=false_fn)
         else:
-            x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn, strict=True)
+            x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)
         Module.global_scope.pop()
         return x
 
@@ -424,13 +548,13 @@ class Module(object):
         use_while_v2=False
     ):
         Module.global_scope.append('while')
-        if tf.__version__.startswith('1.13'):
+        if maximum_iterations is not None and maximum_iterations.dtype not in (tf.int32, tf.int64):
+            maximum_iterations = tf.dtypes.cast(x=maximum_iterations, dtype=tf.int32)
+        if use_while_v2:
             x = while_v2.while_loop(
                 cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
                 maximum_iterations=maximum_iterations, return_same_structure=return_same_structure
             )
-        elif use_while_v2:
-            x = while_v2.while_loop(cond=cond, body=body, loop_vars=loop_vars)
         else:
             x = tf.while_loop(
                 cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
@@ -438,11 +562,13 @@ class Module(object):
                 swap_memory=swap_memory, maximum_iterations=maximum_iterations,
                 return_same_structure=return_same_structure
             )
+
         Module.global_scope.pop()
         return x
 
     def add_variable(
-        self, name, dtype, shape, is_trainable, initializer='zeros', summarize=None, shared=None
+        self, name, dtype, shape, is_trainable, initializer='zeros', is_saved=True, summarize=None,
+        shared=None
     ):
         # name
         if not util.is_valid_name(name=name):
@@ -453,19 +579,23 @@ class Module(object):
         if not util.is_valid_type(dtype=dtype):
             raise TensorforceError.value(name='variable', argument='dtype', value=dtype)
         # shape
-        if not util.is_iterable(x=shape) or \
-                not all(isinstance(num_dims, int) for num_dims in shape):
+        if not util.is_iterable(x=shape) or not all(isinstance(dims, int) for dims in shape):
             raise TensorforceError.type(name='variable', argument='shape', value=shape)
-        elif not all(num_dims > 0 for num_dims in shape):
+        elif not all(dims > 0 for dims in shape):
             raise TensorforceError.value(name='variable', argument='shape', value=shape)
         # is_trainable
         if not isinstance(is_trainable, bool):
             raise TensorforceError.type(
                 name='variable', argument='is_trainable', value=is_trainable
             )
+        elif is_trainable and dtype != 'float':
+            raise TensorforceError.unexpected()
         # initializer
+        initializer_names = (
+            'normal', 'normal-relu', 'orthogonal', 'orthogonal-relu', 'zeros', 'ones'
+        )
         if not isinstance(initializer, (util.py_dtype(dtype=dtype), np.ndarray, tf.Tensor)) and \
-                initializer not in ('random', 'zeros', 'ones'):
+                initializer not in initializer_names:
             raise TensorforceError.value(
                 name='variable', argument='initializer', value=initializer
             )
@@ -478,12 +608,9 @@ class Module(object):
             raise TensorforceError.type(
                 name='variable', argument='initializer', value=initializer
             )
-        elif isinstance(initializer, str) and initializer == 'random' and dtype != 'float':
-            raise TensorforceError(
-                message="Invalid variable initializer value for non-float variable: {}.".format(
-                    initializer
-                )
-            )
+        # is_saved
+        if not isinstance(is_saved, bool):
+            raise TensorforceError.type(name='variable', argument='is_saved', value=is_saved)
         # summarize
         if summarize is not None and not isinstance(summarize, bool):
             raise TensorforceError.type(name='variable', argument='summarize', value=summarize)
@@ -511,7 +638,7 @@ class Module(object):
                     raise TensorforceError(
                         "Invalid variable initializer shape: {}.".format(initializer.shape)
                     )
-                initializer = initializer
+                initializer = tf.constant(value=initializer, dtype=tf_dtype)
             elif isinstance(initializer, tf.Tensor):
                 if util.shape(x=initializer) != shape:
                     raise TensorforceError(
@@ -520,11 +647,37 @@ class Module(object):
                 initializer = initializer
             elif not isinstance(initializer, str):
                 raise TensorforceError("Invalid variable initializer: {}".format(initializer))
-            elif initializer == 'random':
-                stddev = min(0.1, sqrt(2.0 / (util.product(xs=shape[:-1]) + shape[-1])))
-                initializer = tf.random_normal(
-                    shape=shape, mean=0.0, stddev=stddev, dtype=util.tf_dtype(dtype=dtype)
-                )
+            elif initializer[:6] == 'normal':
+                if dtype != 'float':
+                    raise TensorforceError(
+                        message="Invalid variable initializer value for non-float variable: {}.".format(
+                            initializer
+                        )
+                    )
+                if initializer[6:] == '-relu':
+                    stddev = min(0.1, sqrt(2.0 / util.product(xs=shape[:-1])))
+                else:
+                    stddev = min(0.1, sqrt(2.0 / (util.product(xs=shape[:-1]) + shape[-1])))
+                initializer = tf.random.normal(shape=shape, stddev=stddev, dtype=tf_dtype)
+            elif initializer[:10] == 'orthogonal':
+                if dtype != 'float':
+                    raise TensorforceError(
+                        message="Invalid variable initializer value for non-float variable: {}.".format(
+                            initializer
+                        )
+                    )
+                if len(shape) < 2:
+                    raise TensorforceError(
+                        message="Invalid variable initializer value for 0/1-rank variable: {}.".format(
+                            initializer
+                        )
+                    )
+                normal = np.random.normal(size=(util.product(xs=shape[:-1]), shape[-1]))
+                u, _, v = np.linalg.svd(a=normal, full_matrices=False)
+                orthogonal = u if u.shape[1] == shape[-1] else v
+                if initializer[10:] == '-relu':
+                    orthogonal = orthogonal * sqrt(2.0)
+                initializer = tf.constant(value=orthogonal.reshape(shape), dtype=tf_dtype)
             elif initializer == 'zeros':
                 initializer = tf.zeros(shape=shape, dtype=tf_dtype)
             elif initializer == 'ones':
@@ -544,13 +697,16 @@ class Module(object):
         self.variables[name] = variable
         if is_trainable:
             self.trainable_variables[name] = variable
+        if is_saved:
+            self.saved_variables[name] = variable
 
         # Add summary
         if (summarize is None and is_trainable) or summarize:
-            variable = tf.identity(input=variable)
             variable = self.add_summary(
-                label='variables', name=name, tensor=variable, mean_variance=True
+                label=('variables', 'variables-full'), name=name, tensor=variable,
+                mean_variance=True
             )
+            variable = self.add_summary(label='variables-full', name=name, tensor=variable)
 
         return variable
 
@@ -563,19 +719,18 @@ class Module(object):
         if not util.is_valid_type(dtype=dtype):
             raise TensorforceError.value(name='placeholder', argument='dtype', value=dtype)
         # shape
-        if not util.is_iterable(x=shape) or \
-                not all(isinstance(num_dims, int) for num_dims in shape):
+        if not util.is_iterable(x=shape) or not all(isinstance(dims, int) for dims in shape):
             raise TensorforceError.type(name='placeholder', argument='shape', value=shape)
-        elif not all(num_dims > 0 for num_dims in shape):
+        elif not all(dims > 0 for dims in shape):
             raise TensorforceError.value(name='placeholder', argument='shape', value=shape)
         # batched
         if not isinstance(batched, bool):
             raise TensorforceError.type(name='placeholder', argument='batched', value=batched)
         # default
         if default is not None:
-            if batched:
-                raise TensorforceError.unexpected()
-            elif not isinstance(default, tf.Tensor):
+            # if batched:
+            #     raise TensorforceError.unexpected()
+            if not isinstance(default, tf.Tensor):
                 raise TensorforceError.unexpected()
             elif util.dtype(x=default) != dtype:
                 raise TensorforceError.unexpected()
@@ -608,11 +763,11 @@ class Module(object):
         if not isinstance(name, str):
             raise TensorforceError.type(name='summary', argument='name', value=name)
         # tensor
-        if not isinstance(tensor, tf.Tensor):
+        if not isinstance(tensor, (tf.Tensor, tf.Variable)):
             raise TensorforceError.type(name='summary', argument='tensor', value=tensor)
         # pass_tensors
         if util.is_iterable(x=pass_tensors):
-            if not all(isinstance(x, tf.Tensor) for x in pass_tensors):
+            if not all(isinstance(x, (tf.Tensor, tf.IndexedSlices)) for x in pass_tensors):
                 raise TensorforceError.type(
                     name='summary', argument='pass_tensors', value=pass_tensors
                 )
@@ -640,16 +795,18 @@ class Module(object):
 
         # Check whether given label is logged
         if util.is_iterable(x=label):
-            if all(x not in self.summary_labels for x in label):
+            if self.summary_labels != 'all' and all(x not in self.summary_labels for x in label):
                 return pass_tensors
+            self.available_summaries.update(label)
         else:
-            if label not in self.summary_labels:
+            if self.summary_labels != 'all' and label not in self.summary_labels:
                 return pass_tensors
+            self.available_summaries.add(label)
 
         # Handle enumerate_last_rank
         if enumerate_last_rank:
-            num_dims = util.shape(x=tensor)[-1]
-            tensors = OrderedDict([(name + str(n), tensor[..., n]) for n in range(num_dims)])
+            dims = util.shape(x=tensor)[-1]
+            tensors = OrderedDict([(name + str(n), tensor[..., n]) for n in range(dims)])
         else:
             tensors = OrderedDict([(name, tensor)])
 
@@ -676,10 +833,7 @@ class Module(object):
                 summaries.append(tf.contrib.summary.histogram(name=name, tensor=tensor))
 
         with tf.control_dependencies(control_inputs=summaries):
-            if util.is_iterable(x=pass_tensors):
-                return tuple(util.identity_operation(x=x) for x in pass_tensors)
-            else:
-                return util.identity_operation(x=pass_tensors)
+            return util.fmap(function=util.identity_operation, xs=pass_tensors)
 
     @staticmethod
     def get_module_class_and_kwargs(name, module, modules=None, default_module=None, **kwargs):
@@ -748,6 +902,11 @@ class Module(object):
             )
 
         elif callable(module):
+            for key, arg in kwargs.items():
+                assert arg is not None, (key, arg)
+                if arg is None:
+                    assert False
+                    kwargs.pop(key)
             first_arg = kwargs.pop('_first_arg', None)
             return module, first_arg, kwargs
 
@@ -755,7 +914,7 @@ class Module(object):
             raise TensorforceError.value(name='module specification', value=module)
 
     def add_module(
-        self, name, module, modules=None, default_module=None, is_trainable=True,
+        self, name, module, modules=None, default_module=None, is_trainable=True, is_saved=True,
         is_subscope=False, **kwargs
     ):
         # name
@@ -764,6 +923,9 @@ class Module(object):
         # is_trainable
         if not isinstance(is_trainable, bool):
             raise TensorforceError.type(name='module', argument='is_trainable', value=is_trainable)
+        # is_saved
+        if not isinstance(is_saved, bool):
+            raise TensorforceError.type(name='module', argument='is_saved', value=is_saved)
 
         module_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
             name=name, module=module, modules=modules, default_module=default_module, **kwargs
@@ -778,6 +940,9 @@ class Module(object):
         if is_subscope:
             Module.global_scope.append(name)
 
+        # Set internal attributes
+        Module.set_parent = self
+
         # Inherit arguments
         Module.inherit_l2_regularization = self.l2_regularization
         Module.inherit_summary_labels = self.summary_labels
@@ -788,7 +953,8 @@ class Module(object):
         else:
             module = module_cls(name, first_arg, **kwargs)
 
-        # Inherit arguments
+        # Reset
+        Module.set_parent = None
         Module.inherit_l2_regularization = None
         Module.inherit_summary_labels = None
 
@@ -798,26 +964,36 @@ class Module(object):
         Module.is_add_module = False
 
         # Internal attributes
-        module.parent = self
         module.is_subscope = is_subscope
 
         # Register module
         self.modules[name] = module
         if is_trainable:
             self.trainable_modules[name] = module
+        if is_saved:
+            self.saved_modules[name] = module
 
         return module
 
-    def get_variables(self, only_trainable=False):
+    def get_variables(self, only_trainable=False, only_saved=False):
         # only_trainable
         if not isinstance(only_trainable, bool):
             raise TensorforceError.type(name='get_variables', argument='only_trainable', value=only_trainable)
+        # only_saved
+        if not isinstance(only_saved, bool):
+            raise TensorforceError.type(name='get_variables', argument='only_saved', value=only_saved)
 
         if only_trainable:
             # Only trainable variables
             variables = list(self.trainable_variables.values())
             for module in self.trainable_modules.values():
                 variables.extend(module.get_variables(only_trainable=only_trainable))
+
+        elif only_saved:
+            # Only saved variables
+            variables = list(self.saved_variables.values())
+            for module in self.saved_modules.values():
+                variables.extend(module.get_variables(only_saved=only_saved))
 
         else:
             # All variables
@@ -826,3 +1002,9 @@ class Module(object):
                 variables.extend(module.get_variables(only_trainable=only_trainable))
 
         return variables
+
+    def get_available_summaries(self):
+        summaries = set(self.available_summaries)
+        for module in self.modules.values():
+            summaries.update(module.get_available_summaries())
+        return sorted(summaries)

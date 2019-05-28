@@ -14,31 +14,10 @@
 # ==============================================================================
 
 from tensorforce.core.models.model import Model
-from tensorforce.core.models.memory_model import MemoryModel
-from tensorforce.core.models.distribution_model import DistributionModel
-from tensorforce.core.models.pg_model import PGModel
-from tensorforce.core.models.q_model import QModel
-
 
 from tensorforce.core.models.constant_model import ConstantModel
-from tensorforce.core.models.dpg_target_model import DPGTargetModel
-from tensorforce.core.models.pg_log_prob_model import PGLogProbModel
-from tensorforce.core.models.pg_prob_ratio_model import PGProbRatioModel
-from tensorforce.core.models.q_demo_model import QDemoModel
-from tensorforce.core.models.q_naf_model import QNAFModel
-from tensorforce.core.models.q_nstep_model import QNstepModel
+from tensorforce.core.models.policy_model import PolicyModel
 from tensorforce.core.models.random_model import RandomModel
 
 
-models = dict(
-    constant=ConstantModel, pg_log_prob=PGLogProbModel, pg_log_prob_target=DPGTargetModel,
-    pg_prob_ratio=PGProbRatioModel, q_demo=QDemoModel, q=QModel, q_naf=QNAFModel,
-    q_nstep=QNstepModel, random=RandomModel
-)
-
-
-__all__ = [
-    'ConstantModel', 'DistributionModel', 'DPGTargetModel', 'MemoryModel', 'Model', 'models',
-    'RandomModel', 'PGModel', 'PGLogProbModel', 'PGProbRatioModel', 'QDemoModel', 'QModel',
-    'QNAFModel', 'QNstepModel', 'RandomModel'
-]
+__all__ = ['ConstantModel', 'Model', 'PolicyModel', 'RandomModel']

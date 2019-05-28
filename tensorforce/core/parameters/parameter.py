@@ -15,22 +15,27 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core import Module
 
 
 class Parameter(Module):
     """
-    Base class for hyperparameters.
+    Base class for dynamic hyperparameters.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        dtype ("bool" | "int" | "long" | "float"): Tensor type
+            (<span style="color:#C00000"><b>required</b></span>).
+        shape (iter[int > 0]): Tensor shape
+            (<span style="color:#00C000"><b>default</b></span>: scalar).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(self, name, dtype, shape=(), summary_labels=None):
-        """
-        Hyperparameter.
-
-        Args:
-        """
-        super().__init__(name=name, l2_regularization=0.0, summary_labels=summary_labels)
+        super().__init__(name=name, summary_labels=summary_labels)
 
         self.dtype = dtype
         self.shape = shape

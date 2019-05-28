@@ -21,17 +21,26 @@ from tensorforce.core.layers import Layer
 
 class Keras(Layer):
     """
-    Keras layer.
+    Keras layer (specification key: `keras`).
+
+    Args:
+        layer (string): Keras layer class name, see, see
+            `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers>`__
+            (<span style="color:#C00000"><b>required</b></span>).
+        kwargs: Arguments for the Keras layer.
     """
 
-    def __init__(self, name, layer, input_spec=None, summary_labels=None, **kwargs):
+    def __init__(
+        self, name, layer, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+    ):
         self.keras_layer = getattr(tf.keras.layers, layer)(
             name=name, dtype=util.tf_dtype(dtype='float'), input_shape=input_spec['shape'],
             **kwargs
         )
 
         super().__init__(
-            name=name, input_spec=input_spec, l2_regularization=None, summary_labels=summary_labels
+            name=name, input_spec=input_spec, summary_labels=summary_labels,
+            l2_regularization=l2_regularization
         )
 
     def default_input_spec(self):

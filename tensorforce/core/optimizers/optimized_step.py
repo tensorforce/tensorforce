@@ -22,7 +22,7 @@ from tensorforce.core.optimizers.solvers import solver_modules
 
 class OptimizedStep(MetaOptimizer):
     """
-    The optimized-step meta optimizer applies line search to the proposed optimization step of  
+    The optimized-step optimizer applies line search to the proposed optimization step of  
     another optimizer to find a more optimal step size.
     """
 
@@ -31,15 +31,14 @@ class OptimizedStep(MetaOptimizer):
         ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None
     ):
         """
-        Creates a new optimized step meta optimizer instance.
+        Optimized-step optimizer constructor.
 
         Args:
-            optimizer: The optimizer which is modified by this meta optimizer.
-            ls_max_iterations: Maximum number of line search iterations.
+            ls_max_iterations (int > 0): Maximum number of line search iterations.
             ls_accept_ratio: Line search acceptance ratio.
             ls_mode: Line search mode, see LineSearch solver.
             ls_parameter: Line search parameter, see LineSearch solver.
-            ls_unroll_loop: Unroll line search loop if true.
+            ls_unroll_loop (bool): Whether to unroll the line search loop (default: false).
         """
         super().__init__(name=name, optimizer=optimizer)
 
@@ -49,30 +48,22 @@ class OptimizedStep(MetaOptimizer):
             parameter=ls_parameter, unroll_loop=ls_unroll_loop
         )
 
-    def tf_step(self, variables, arguments, fn_loss, fn_reference, **kwargs):
-        """
-        Creates the TensorFlow operations for performing an optimization step.
+    def tf_step(self, variables, arguments, fn_loss, fn_reference=None, **kwargs):
+        augmented_arguments = dict(arguments)
 
-        Args:
-            variables: List of variables to optimize.
-            arguments: Dict of arguments for callables, like fn_loss.
-            fn_loss: A callable returning the loss of the current model.
-            fn_reference: A callable returning the reference values, in case of a comparative loss.
-            **kwargs: Additional arguments passed on to the internal optimizer.
+        if fn_reference is not None:
+            # Set reference to compare with at each step, in case of a comparative loss.
+            reference = fn_reference(**arguments)  # ?????????????????????????????????????????????
 
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
-
-        # Set reference to compare with at each optimization step, in case of a comparative loss.
-        arguments['reference'] = fn_reference(**arguments)
+            assert 'reference' not in augmented_arguments
+            augmented_arguments['reference'] = reference
 
         # Negative value since line search maximizes.
-        loss_before = -fn_loss(**arguments)
+        loss_before = -fn_loss(**augmented_arguments)
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
-                variables=variables, arguments=arguments, fn_loss=fn_loss,
+                variables=variables, arguments=arguments, fn_loss=fn_loss,  # no reference here?
                 return_estimated_improvement=True, **kwargs
             )
 
@@ -87,8 +78,8 @@ class OptimizedStep(MetaOptimizer):
                 estimated_improvement = None
 
         with tf.control_dependencies(control_inputs=deltas):
-                # Negative value since line search maximizes.
-            loss_step = -fn_loss(**arguments)
+            # Negative value since line search maximizes.
+            loss_step = -fn_loss(**augmented_arguments)
 
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
@@ -97,7 +88,7 @@ class OptimizedStep(MetaOptimizer):
                     applied = self.apply_step(variables=variables, deltas=deltas)
                 with tf.control_dependencies(control_inputs=(applied,)):
                     # Negative value since line search maximizes.
-                    return -fn_loss(**arguments)
+                    return -fn_loss(**augmented_arguments)
 
             return self.solver.solve(
                 fn_x=evaluate_step, x_init=deltas, base_value=loss_before, target_value=loss_step,

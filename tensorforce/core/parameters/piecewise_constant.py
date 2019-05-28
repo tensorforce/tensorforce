@@ -22,24 +22,41 @@ from tensorforce.core.parameters import Parameter
 
 class PiecewiseConstant(Parameter):
     """
-    Piecewise constant hyperparameter.
+    Piecewise-constant hyperparameter.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        dtype ("bool" | "int" | "long" | "float"): Tensor type
+            (<span style="color:#C00000"><b>required</b></span>).
+        unit ("timesteps" | "episodes" | "updates"): Unit of interval boundaries
+            (<span style="color:#C00000"><b>required</b></span>).
+        boundaries (iter[long]): Strictly increasing interval boundaries for constant segments
+            (<span style="color:#C00000"><b>required</b></span>).
+        values (iter[dtype-dependent]): Interval values of constant segments, one more than
+            (<span style="color:#C00000"><b>required</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, name, unit, boundaries, values, dtype=None, summary_labels=None):
-        if dtype is None:
-            if isinstance(values[0], bool):
-                dtype = 'bool'
-            elif isinstance(values[0], int):
-                dtype = 'int'
-            elif isinstance(values[0], float):
-                dtype = 'float'
-            else:
+    def __init__(self, name, dtype, unit, boundaries, values, summary_labels=None):
+        if isinstance(values[0], bool):
+            if dtype != 'bool':
                 raise TensorforceError.unexpected()
+        elif isinstance(values[0], int):
+            if dtype not in ('int', 'long'):
+                raise TensorforceError.unexpected()
+        elif isinstance(values[0], float):
+            if dtype != 'float':
+                raise TensorforceError.unexpected()
+        else:
+            raise TensorforceError.unexpected()
 
         super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
 
-        assert unit in ('timesteps', 'episodes')
+        assert unit in ('timesteps', 'episodes', 'updates')
         assert len(values) == len(boundaries) + 1
+        assert all(isinstance(value, type(values[0])) for value in values)
 
         self.unit = unit
         self.boundaries = boundaries
@@ -50,6 +67,8 @@ class PiecewiseConstant(Parameter):
             step = Module.retrieve_tensor(name='timestep')
         elif self.unit == 'episodes':
             step = Module.retrieve_tensor(name='episode')
+        elif self.unit == 'updates':
+            step = Module.retrieve_tensor(name='update')
 
         parameter = tf.train.piecewise_constant(
             x=step, boundaries=self.boundaries, values=self.values

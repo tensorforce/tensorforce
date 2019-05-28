@@ -13,29 +13,37 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.layers.layer import Layer, Register, Retrieve, TransformationBase
+from tensorforce.core.layers.layer import Layer, StatefulLayer, TemporalLayer, TransformationBase
 
-from tensorforce.core.layers.convolutions import Conv1d, Conv2d
+from tensorforce.core.layers.convolution import Conv1d, Conv2d
 from tensorforce.core.layers.dense import Dense, Linear
-from tensorforce.core.layers.embeddings import Embedding
-from tensorforce.core.layers.internal_layers import InternalGru, InternalLayer, InternalLstm
+from tensorforce.core.layers.embedding import Embedding
+from tensorforce.core.layers.internal_rnn import InternalGru, InternalLstm, InternalRnn
 from tensorforce.core.layers.keras import Keras
-from tensorforce.core.layers.misc import Activation, Dropout
-from tensorforce.core.layers.poolings import Flatten, Pooling, Pool1d, Pool2d
-from tensorforce.core.layers.rnns import Gru, Lstm, Rnn
+from tensorforce.core.layers.misc import Activation, Dropout, Function, Register, Retrieve, Reuse
+from tensorforce.core.layers.normalization import ExponentialNormalization, InstanceNormalization
+from tensorforce.core.layers.pooling import Flatten, Pooling, Pool1d, Pool2d
+from tensorforce.core.layers.preprocessing import Clipping, Deltafier, Image, PreprocessingLayer, \
+    Sequence
+from tensorforce.core.layers.rnn import Gru, Lstm, Rnn
 
 
 layer_modules = dict(
-    activation=Activation, conv1d=Conv1d, conv2d=Conv2d, dense=Dense, dropout=Dropout,
-    embedding=Embedding, flatten=Flatten, gru=Gru, internal_gru=InternalGru,
-    internal_lstm=InternalLstm, keras=Keras, linear=Linear, lstm=Lstm, pooling=Pooling,
-    pool1d=Pool1d, pool2d=Pool2d, register=Register, retrieve=Retrieve, rnn=Rnn
+    activation=Activation, clipping=Clipping, conv1d=Conv1d, conv2d=Conv2d, default=Function,
+    deltafier=Deltafier, dense=Dense, dropout=Dropout, embedding=Embedding,
+    exponential_normalization=ExponentialNormalization, flatten=Flatten, function=Function,
+    gru=Gru, image=Image, instance_normalization=InstanceNormalization, internal_gru=InternalGru,
+    internal_lstm=InternalLstm, internal_rnn=InternalRnn, keras=Keras, linear=Linear, lstm=Lstm,
+    pooling=Pooling, pool1d=Pool1d, pool2d=Pool2d, register=Register, retrieve=Retrieve,
+    reuse=Reuse, rnn=Rnn, sequence=Sequence
 )
 
 
 __all__ = [
-    'Activation', 'Conv1d', 'Conv2d', 'Dense', 'Dropout', 'Embedding', 'Flatten', 'GRU',
-    'InternalGru', 'InternalLayer', 'InternalLstm', 'Keras', 'Layer', 'layer_modules', 'Linear',
-    'Lstm', 'Nonlinearity', 'Pooling', 'Pool1d', 'Pool2d', 'Register', 'Retrieve', 'Rnn',
-    'TransformationBase'
+    'Activation', 'Clipping', 'Conv1d', 'Conv2d', 'Deltafier', 'Dense', 'Dropout', 'Embedding',
+    'ExponentialNormalization', 'Flatten', 'Function', 'GRU', 'Image', 'InstanceNormalization',
+    'InternalGru', 'InternalLayer', 'InternalLstm', 'InternalRnn', 'Keras', 'Layer',
+    'layer_modules', 'Linear', 'Lstm', 'Nonlinearity', 'Pooling', 'Pool1d', 'Pool2d',
+    'PreprocessingLayer', 'Register', 'Retrieve', 'Rnn', 'Sequence', 'StatefulLayer',
+    'TemporalLayer', 'TransformationBase'
 ]

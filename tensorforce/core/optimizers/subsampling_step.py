@@ -22,36 +22,25 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class SubsamplingStep(MetaOptimizer):
     """
-    The subsampling-step meta optimizer randomly samples a subset of batch instances to calculate  
+    The subsampling-step meta optimizer randomly samples a subset of batch instances to calculate
     the optimization step of another optimizer.
     """
 
     def __init__(self, name, optimizer, fraction, summary_labels=None):
         """
-        Creates a new subsampling-step meta optimizer instance.
+        Subsampling-step optimizer constructor.
 
         Args:
-            optimizer: The optimizer which is modified by this meta optimizer.
-            fraction: The fraction of instances of the batch to subsample.
+            fraction (parameter, 0.0 < float <= 1.0): Fraction of instances of the batch to
+                subsample (**required**).
         """
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
         self.fraction = self.add_module(
-            name='fraction', module=fraction, modules=parameter_modules
+            name='fraction', module=fraction, modules=parameter_modules, dtype='float'
         )
 
     def tf_step(self, variables, arguments, **kwargs):
-        """
-        Creates the TensorFlow operations for performing an optimization step.
-
-        Args:
-            variables: List of variables to optimize.
-            arguments: Dict of arguments for callables, like fn_loss.
-            **kwargs: Additional arguments passed on to the internal optimizer.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
         # Get some (batched) argument to determine batch size.
         arguments_iter = iter(arguments.values())
         some_argument = next(arguments_iter)
@@ -74,12 +63,20 @@ class SubsamplingStep(MetaOptimizer):
         except StopIteration:
             raise TensorforceError("Invalid argument type.")
 
-        batch_size = tf.shape(input=some_argument)[0]
+        if util.tf_dtype(dtype='int') in (tf.int32, tf.int64):
+            batch_size = tf.shape(input=some_argument, out_type=util.tf_dtype(dtype='int'))[0]
+        else:
+            batch_size = tf.dtypes.cast(
+                x=tf.shape(input=some_argument)[0], dtype=util.tf_dtype(dtype='int')
+            )
         fraction = self.fraction.value()
-        num_samples = fraction * tf.cast(x=batch_size, dtype=util.tf_dtype('float'))
+        num_samples = fraction * tf.dtypes.cast(x=batch_size, dtype=util.tf_dtype('float'))
+        num_samples = tf.dtypes.cast(x=num_samples, dtype=util.tf_dtype('int'))
         one = tf.constant(value=1, dtype=util.tf_dtype('int'))
-        num_samples = tf.maximum(x=tf.cast(x=num_samples, dtype=util.tf_dtype('int')), y=one)
-        indices = tf.random.uniform(shape=(num_samples,), maxval=batch_size, dtype=tf.int32)
+        num_samples = tf.maximum(x=num_samples, y=one)
+        indices = tf.random.uniform(
+            shape=(num_samples,), maxval=batch_size, dtype=util.tf_dtype(dtype='int')
+        )
 
         function = (lambda x: tf.gather(params=x, indices=indices))
         subsampled_arguments = util.fmap(function=function, xs=arguments)

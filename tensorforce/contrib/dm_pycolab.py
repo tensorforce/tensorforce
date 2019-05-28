@@ -19,7 +19,7 @@ Deepmind Pycolab Integration: https://github.com/deepmind/pycolab.
 
 import numpy as np
 import copy
-from tensorforce import TensorForceError
+from tensorforce import TensorforceError
 from tensorforce.environments import Environment
 
 

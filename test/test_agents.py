@@ -1,0 +1,47 @@
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+import unittest
+
+from test.unittest_base import UnittestBase
+
+
+class TestAgents(UnittestBase, unittest.TestCase):
+
+    config = dict()
+    exclude_bounded_action = True  # TODO: shouldn't be necessary!
+
+    def test_dpg(self):
+        self.start_tests(name='DPG')
+        self.unittest(
+            agent='dpg', exclude_bool_action=True, exclude_int_action=True,
+            network=dict(type='auto', internal_rnn=False), critic_network='same'
+        )
+
+    def test_dqn(self):
+        self.start_tests(name='DQN')
+        self.unittest(agent='dqn')
+
+    def test_ppo(self):
+        self.start_tests(name='PPO')
+        self.unittest(agent='ppo', network=dict(type='auto', internal_rnn=False))  # TODO: shouldn't be necessary!
+
+    def test_trpo(self):
+        self.start_tests(name='TRPO')
+        self.unittest(agent='trpo', network=dict(type='auto', internal_rnn=False))  # TODO: shouldn't be necessary!
+
+    def test_vpg(self):
+        self.start_tests(name='VPG')
+        self.unittest(agent='vpg')

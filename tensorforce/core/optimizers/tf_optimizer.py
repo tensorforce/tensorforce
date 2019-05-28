@@ -22,7 +22,7 @@ from tensorforce.core.optimizers import Optimizer
 
 class TFOptimizer(Optimizer):
     """
-    Wrapper class for TensorFlow optimizers.
+    TensorFlow optimizer (specification key: `tf_optimizer`, `adam`).
     """
 
     tensorflow_optimizers = dict(
@@ -35,20 +35,43 @@ class TFOptimizer(Optimizer):
         proximal_gradient_descent=tf.train.ProximalGradientDescentOptimizer,
         rmsprop=tf.train.RMSPropOptimizer
     )
+    # tensorflow_optimizers = dict(
+    #     adadelta=tf.optimizers.Adadelta,
+    #     adagrad=tf.optimizers.Adagrad,
+    #     adam=tf.optimizers.Adam,
+    #     adamax=tf.optimizers.Adamax,
+    #     ftrl=tf.optimizers.Ftrl,
+    #     nadam=tf.optimizers.Nadam,
+    #     rmsprop=tf.optimizers.RMSprop,
+    #     sgd=tf.optimizers.SGD
+    # )
+    # "clipnorm", "clipvalue", "lr", "decay"}
 
-    def __init__(self, name, optimizer, learning_rate, summary_labels=None, **kwargs):
+    def __init__(
+        self, name, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
+        **kwargs
+    ):
         """
-        Creates a new optimizer instance of a TensorFlow optimizer.
+        TensorFlow optimizer constructor.
 
         Args:
-            optimizer: The name of the optimizer. Must be a key of the tensorflow_optimizers dict.
-            **kwargs: Arguments passed on to the TensorFlow optimizer constructor as **kwargs.
+            optimizer ('adadelta' | 'adagrad' | 'adam' | 'gradient_descent' | 'momentum' |
+                'proximal_adagrad' | 'proximal_gradient_descent' | 'rmsprop'): TensorFlow optimizer
+                name (**required**).
+            learning_rate (parameter, float > 0.0): Learning rate (default: 3e-4).
+            gradient_norm_clipping (parameter, float > 0.0): Clip gradients by the ratio of the sum
+                of their norms (default: 1.0).
+            kwargs: Arguments for the TensorFlow optimizer.
         """
         super().__init__(name=name, summary_labels=summary_labels)
 
         assert optimizer in TFOptimizer.tensorflow_optimizers
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+        )
+        self.gradient_norm_clipping = self.add_module(
+            name='gradient-norm-clipping', module=gradient_norm_clipping,
+            modules=parameter_modules, dtype='float'
         )
         self.optimizer = TFOptimizer.tensorflow_optimizers[optimizer]
         self.optimizer_kwargs = kwargs
@@ -60,22 +83,36 @@ class TFOptimizer(Optimizer):
             learning_rate=self.learning_rate.value, **self.optimizer_kwargs
         )
 
-    def tf_step(self, variables, arguments, fn_loss, **kwargs):
-        """
-        Keyword Args:
-            arguments: Dict of arguments for passing to fn_loss as **kwargs.
-            fn_loss: A callable taking arguments as kwargs and returning the loss op.
-        """
+    def tf_step(self, variables, arguments, fn_loss, fn_initial_gradients=None, **kwargs):
         # Trivial operation to enforce control dependency
-        previous_variables = [util.identity_operation(x=variable) for variable in variables]
+        previous_variables = util.fmap(function=util.identity_operation, xs=variables)
 
-        # Force loss value to be calculated.
         with tf.control_dependencies(control_inputs=previous_variables):
             loss = fn_loss(**arguments)
 
-            # The actual tensorflow minimize op.
-            applied = self.optimizer.minimize(loss=loss, var_list=variables)
-            # colocate_gradients_with_ops=True
+        # Force loss value and attached control flow to be computed.
+        with tf.control_dependencies(control_inputs=(loss,)):
+            # applied = self.optimizer.minimize(loss=loss, var_list=variables)
+            # grads_and_vars = self.optimizer.compute_gradients(loss=loss, var_list=variables)
+            # gradients, variables = zip(*grads_and_vars)
+            if fn_initial_gradients is None:
+                initial_gradients = None
+            else:
+                initial_gradients = fn_initial_gradients(**arguments)
+                initial_gradients = util.fmap(function=tf.stop_gradient, xs=initial_gradients)
+
+            gradients = tf.gradients(ys=loss, xs=variables, grad_ys=initial_gradients)
+
+            gradient_norm_clipping = self.gradient_norm_clipping.value()
+            gradients, gradient_norm = tf.clip_by_global_norm(
+                t_list=gradients, clip_norm=gradient_norm_clipping
+            )
+            gradients = self.add_summary(
+                label='gradient-norm', name='gradient-norm', tensor=gradient_norm,
+                pass_tensors=gradients
+            )
+
+            applied = self.optimizer.apply_gradients(grads_and_vars=zip(gradients, variables))
 
         # Return deltas after actually having change the variables.
         with tf.control_dependencies(control_inputs=(applied,)):
@@ -84,8 +121,8 @@ class TFOptimizer(Optimizer):
                 for variable, previous_variable in zip(variables, previous_variables)
             ]
 
-    def get_variables(self, only_trainable=True):
-        variables = super().get_variables(only_trainable=only_trainable)
+    def get_variables(self, only_trainable=False, only_saved=False):
+        variables = super().get_variables(only_trainable=only_trainable, only_saved=only_saved)
 
         if not only_trainable:
             variables.extend(self.optimizer.variables())

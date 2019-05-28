@@ -29,14 +29,6 @@ class GlobalOptimizer(MetaOptimizer):
     """
 
     def tf_step(self, variables, **kwargs):
-        """
-        Keyword Args:
-            global_variables: List of global variables to apply the proposed optimization step to.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
-
         global_variables = kwargs["global_variables"]
 
         assert all(

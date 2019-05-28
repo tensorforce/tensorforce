@@ -29,7 +29,7 @@ __version__ = '0.5.0'
 import logging
 
 try:
-    from logging import NullHandler
+    NullHandler = logging.NullHandler
 except ImportError:
     class NullHandler(logging.Handler):
         def emit(self, record):

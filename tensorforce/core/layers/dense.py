@@ -20,17 +20,38 @@ from tensorforce.core.layers import TransformationBase
 
 class Dense(TransformationBase):
     """
-    Dense fully-connected layer.
+    Dense fully-connected layer (specification key: `dense`).
+
+    Args:
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        size (int >= 0): Layer output size, 0 implies additionally removing the axis
+            (<span style="color:#C00000"><b>required</b></span>).
+        bias (bool): Whether to add a trainable bias variable
+            (<span style="color:#00C000"><b>default</b></span>: true).
+        activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
+            'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
+            (<span style="color:#00C000"><b>default</b></span>: "relu").
+        dropout (parameter, 0.0 <= float < 1.0): Dropout rate
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        is_trainable (bool): Whether layer variables are trainable
+            (<span style="color:#00C000"><b>default</b></span>: true).
+        input_spec (specification): Input tensor specification
+            (<span style="color:#00C000"><b>internal use</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(
-        self, name, size, bias=True, activation='relu', dropout=None, input_spec=None,
-        l2_regularization=None, summary_labels=None
+        self, name, size, bias=True, activation='relu', dropout=0.0, is_trainable=True,
+        input_spec=None, summary_labels=None, l2_regularization=None
     ):
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            input_spec=input_spec, l2_regularization=l2_regularization,
-            summary_labels=summary_labels
+            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            l2_regularization=l2_regularization
         )
 
     def default_input_spec(self):
@@ -49,10 +70,14 @@ class Dense(TransformationBase):
     def tf_initialize(self):
         super().tf_initialize()
 
+        initializer = 'orthogonal'
+        if self.activation is not None and self.activation.nonlinearity == 'relu':
+            initializer += '-relu'
+
         in_size = self.input_spec['shape'][0]
         self.weights = self.add_variable(
-            name='weights', dtype='float', shape=(in_size, self.size), is_trainable=True,
-            initializer='random'
+            name='weights', dtype='float', shape=(in_size, self.size),
+            is_trainable=self.is_trainable, initializer=initializer
         )
 
     def tf_apply(self, x):
@@ -64,14 +89,31 @@ class Dense(TransformationBase):
 
 class Linear(Dense):
     """
-    Linear layer.
+    Linear layer (specification key: `linear`).
+
+    Args:
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        size (int >= 0): Layer output size, 0 implies additionally removing the axis
+            (<span style="color:#C00000"><b>required</b></span>).
+        bias (bool): Whether to add a trainable bias variable
+            (<span style="color:#00C000"><b>default</b></span>: true).
+        is_trainable (bool): Whether layer variables are trainable
+            (<span style="color:#00C000"><b>default</b></span>: true).
+        input_spec (specification): Input tensor specification
+            (<span style="color:#00C000"><b>internal use</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, name, size, bias=True, input_spec=None, summary_labels=None):
-        """
-        Linear constructor.
-        """
+    def __init__(
+        self, name, size, bias=True, is_trainable=True, input_spec=None, summary_labels=None,
+        l2_regularization=None
+    ):
         super().__init__(
-            name=name, size=size, bias=bias, activation=None, dropout=None, input_spec=input_spec,
-            l2_regularization=0.0, summary_labels=summary_labels
+            name=name, size=size, bias=bias, activation=None, dropout=0.0,
+            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            l2_regularization=l2_regularization
         )

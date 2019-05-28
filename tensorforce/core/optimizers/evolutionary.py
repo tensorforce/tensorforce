@@ -28,16 +28,17 @@ class Evolutionary(Optimizer):
 
     def __init__(self, name, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None):
         """
-        Creates a new evolutionary optimizer instance.
+        Evolutionary optimizer constructor.
 
         Args:
-            learning_rate: Learning rate.
-            num_samples: Number of sampled perturbations.
+            learning_rate (parameter, float > 0.0): Learning rate (**required**).
+            num_samples (parameter, int > 0): Number of sampled perturbations (default: 1).
+            unroll_loop (bool): Whether to unroll the loop (default: false).
         """
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
         )
 
         assert isinstance(unroll_loop, bool)
@@ -47,22 +48,10 @@ class Evolutionary(Optimizer):
             self.num_samples = num_samples
         else:
             self.num_samples = self.add_module(
-                name='num-samples', module=num_samples, modules=parameter_modules
+                name='num-samples', module=num_samples, modules=parameter_modules, dtype='int'
             )
 
     def tf_step(self, variables, arguments, fn_loss, **kwargs):
-        """
-        Creates the TensorFlow operations for performing an optimization step.
-
-        Args:
-            variables: List of variables to optimize.
-            arguments: Dict of arguments for callables, like fn_loss.
-            fn_loss: A callable returning the loss of the current model.
-            **kwargs: Additional arguments, not used.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
         learning_rate = self.learning_rate.value()
         unperturbed_loss = fn_loss(**arguments)
 
@@ -97,8 +86,9 @@ class Evolutionary(Optimizer):
             def body(deltas, previous_perturbations):
                 with tf.control_dependencies(control_inputs=deltas):
                     perturbations = [
-                        tf.random_normal(shape=util.shape(variable)) * learning_rate
-                        for variable in variables
+                        learning_rate * tf.random_normal(
+                            shape=util.shape(x=variable), dtype=util.tf_dtype(dtype='float')
+                        ) for variable in variables
                     ]
                     perturbation_deltas = [
                         pert - prev_pert
@@ -119,7 +109,7 @@ class Evolutionary(Optimizer):
             num_samples = self.num_samples.value()
             deltas, perturbations = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas, previous_perturbations),
-                maximum_iterations=num_samples
+                back_prop=False, maximum_iterations=num_samples, use_while_v2=True
             )
 
         with tf.control_dependencies(control_inputs=deltas):
@@ -130,4 +120,4 @@ class Evolutionary(Optimizer):
 
         with tf.control_dependencies(control_inputs=(applied,)):
             # Trivial operation to enforce control dependency
-            return [util.identity_operation(x=delta) for delta in deltas]
+            return util.fmap(function=util.identity_operation, xs=deltas)

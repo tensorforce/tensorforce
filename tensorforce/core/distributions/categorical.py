@@ -22,13 +22,20 @@ from tensorforce.core.distributions import Distribution
 
 class Categorical(Distribution):
     """
-    Categorical distribution, for discrete actions.
+    Categorical distribution, for discrete integer actions (specification key: `categorical`).
+
+    Args:
+        name (string): Distribution name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        action_spec (specification): Action specification
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        embedding_size (int > 0): Embedding size
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(self, name, action_spec, embedding_size, summary_labels=None):
-        """
-        Categorical distribution.
-        """
         super().__init__(
             name=name, action_spec=action_spec, embedding_size=embedding_size,
             summary_labels=summary_labels
@@ -41,13 +48,15 @@ class Categorical(Distribution):
             input_spec=input_spec
         )
 
-    def tf_parametrize(self, x):
+    def tf_parametrize(self, x, mask):
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
         shape = (-1,) + self.action_spec['shape'] + (self.action_spec['num_values'],)
 
         # Logits
         logits = self.logits.apply(x=x)
         logits = tf.reshape(tensor=logits, shape=shape)
+        min_float = tf.fill(dims=tf.shape(input=logits), value=util.tf_dtype(dtype='float').min)
+        logits = tf.where(condition=mask, x=logits, y=min_float)
 
         # States value
         states_value = tf.reduce_logsumexp(input_tensor=logits, axis=-1)
@@ -55,11 +64,8 @@ class Categorical(Distribution):
         # Softmax for corresponding probabilities
         probabilities = tf.nn.softmax(logits=logits, axis=-1)
 
-        # Min epsilon probability for numerical stability
-        probabilities = tf.maximum(x=probabilities, y=epsilon)
-
         # "Normalized" logits
-        logits = tf.log(x=probabilities)
+        logits = tf.log(x=tf.maximum(x=probabilities, y=epsilon))
 
         # Logits as pass_tensor since used for sampling
         logits, probabilities, states_value = self.add_summary(
@@ -70,7 +76,7 @@ class Categorical(Distribution):
         return logits, probabilities, states_value
 
     def tf_sample(self, parameters, deterministic):
-        logits, _, _ = parameters
+        logits, probabilities, _ = parameters
 
         # Deterministic: maximum likelihood action
         definite = tf.argmax(input=logits, axis=-1)
@@ -78,6 +84,10 @@ class Categorical(Distribution):
 
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+
+        # Set logits to minimal value
+        min_float = tf.fill(dims=tf.shape(input=logits), value=util.tf_dtype(dtype='float').min)
+        logits = tf.where(condition=(probabilities < epsilon), x=min_float, y=logits)
 
         # Non-deterministic: sample action using Gumbel distribution
         uniform_distribution = tf.random.uniform(
@@ -93,9 +103,12 @@ class Categorical(Distribution):
     def tf_log_probability(self, parameters, action):
         logits, _, _ = parameters
 
+        if util.tf_dtype(dtype='int') not in (tf.int32, tf.int64):
+            action = tf.dtypes.cast(x=action, dtype=tf.int32)
+
         # better way?
         one_hot = tf.one_hot(
-            indices=tf.dtypes.cast(x=action, dtype=tf.int32), depth=self.action_spec['num_values'],
+            indices=action, depth=self.action_spec['num_values'],
             dtype=util.tf_dtype(dtype='float')
         )
 
@@ -121,9 +134,12 @@ class Categorical(Distribution):
             states_value = tf.expand_dims(input=states_value, axis=-1)
 
         else:
+            if util.tf_dtype(dtype='int') not in (tf.int32, tf.int64):
+                action = tf.dtypes.cast(x=action, dtype=tf.int32)
+
             one_hot = tf.one_hot(
-                indices=tf.dtypes.cast(x=action, dtype=tf.int32),
-                depth=self.action_spec['num_values'], dtype=util.tf_dtype(dtype='float')
+                indices=action, depth=self.action_spec['num_values'],
+                dtype=util.tf_dtype(dtype='float')
             )
             logits = tf.reduce_sum(input_tensor=(logits * one_hot), axis=-1)
 

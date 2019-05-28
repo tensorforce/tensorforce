@@ -22,17 +22,17 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class MultiStep(MetaOptimizer):
     """
-    The multi-step meta optimizer repeatedly applies the optimization step proposed by another  
+    The multi-step optimizer repeatedly applies the optimization step proposed by another  
     optimizer a number of times.
     """
 
     def __init__(self, name, optimizer, num_steps, unroll_loop=False, summary_labels=None):
         """
-        Creates a new multi-step meta optimizer instance.
+        Multi-step optimizer constructor.
 
         Args:
-            optimizer: The optimizer which is modified by this meta optimizer.
-            num_steps: Number of optimization steps to perform.
+            num_steps (parameter, int > 0): Number of optimization steps (**required**).
+            unroll_loop (bool): Whether to unroll the loop (default: false).
         """
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
@@ -43,22 +43,10 @@ class MultiStep(MetaOptimizer):
             self.num_steps = num_steps
         else:
             self.num_steps = self.add_module(
-                name='num-steps', module=num_steps, modules=parameter_modules
+                name='num-steps', module=num_steps, modules=parameter_modules, dtype='int'
             )
 
     def tf_step(self, variables, arguments, **kwargs):
-        """
-        Creates the TensorFlow operations for performing an optimization step.
-
-        Args:
-            variables: List of variables to optimize.
-            arguments: Dict of arguments for callables, like fn_loss.
-            **kwargs: Additional arguments passed on to the internal optimizer.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
-
         # # Set reference to compare with at each optimization step, in case of a comparative loss.
         # arguments['reference'] = fn_reference(**arguments)
         deltas = [tf.zeros_like(tensor=variable) for variable in variables]
@@ -76,18 +64,18 @@ class MultiStep(MetaOptimizer):
 
         else:
             # TensorFlow while loop
-            def body(*deltas):
+            def body(deltas):
                 with tf.control_dependencies(control_inputs=deltas):
                     step_deltas = self.optimizer.step(
                         variables=variables, arguments=arguments, **kwargs
                     )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
-                return deltas
+                return (deltas,)
 
             num_steps = self.num_steps.value()
             deltas = self.while_loop(
-                cond=util.tf_always_true, body=body, loop_vars=deltas, maximum_iterations=num_steps,
-                use_while_v2=True
-            )
+                cond=util.tf_always_true, body=body, loop_vars=(deltas,), back_prop=False,
+                maximum_iterations=num_steps, use_while_v2=True
+            )[0]
 
             return deltas

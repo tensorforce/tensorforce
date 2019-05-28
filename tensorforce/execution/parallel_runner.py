@@ -14,11 +14,13 @@
 # ==============================================================================
 
 import time
+from tqdm import tqdm
 
 import numpy as np
 
 from tensorforce import TensorforceError, util
 from tensorforce.agents import Agent
+from tensorforce.environments import Environment
 
 
 class ParallelRunner(object):
@@ -33,17 +35,15 @@ class ParallelRunner(object):
                 name='parallel-runner', argument='environments', value=environments
             )
 
-        if not isinstance(agent, Agent):
-            agent = Agent.from_spec(
-                spec=agent, states=environments[0].states(), actions=environments[0].actions(),
-                parallel_interactions=len(environments)
-            )
+        self.environments = tuple(
+            Environment.create(environment=environment) for environment in environments
+        )
+        self.agent = Agent.create(
+            agent=agent, environment=self.environments[0], parallel_interactions=len(environments)
+        )
 
         if len(environments) > agent.parallel_interactions:
             raise TensorforceError(message="Too many environments.")
-
-        self.agent = agent
-        self.environments = tuple(environments)
 
         self.agent.initialize()
         self.global_episode = self.agent.episode
@@ -63,12 +63,11 @@ class ParallelRunner(object):
     def run(
         self,
         # General
-        num_episodes=None, num_timesteps=None, max_episode_timesteps=None, deterministic=False,
-        num_sleep_secs=0.1,
+        num_episodes=None, num_timesteps=None, max_episode_timesteps=None, num_sleep_secs=0.1,
         # Callback
         callback=None, callback_episode_frequency=None, callback_timestep_frequency=None,
         # Tqdm
-        use_tqdm=True, num_mean_reward=100
+        use_tqdm=True, mean_horizon=10
     ):
         # General
         if num_episodes is None:
@@ -83,7 +82,6 @@ class ParallelRunner(object):
             self.max_episode_timesteps = float('inf')
         else:
             self.max_episode_timesteps = max_episode_timesteps
-        self.deterministic = deterministic
         self.num_sleep_secs = num_sleep_secs
 
         # Callback
@@ -120,8 +118,6 @@ class ParallelRunner(object):
 
         # Tqdm
         if use_tqdm:
-            from tqdm import tqdm
-
             if hasattr(self, 'tqdm'):
                 self.tqdm.close()
 
@@ -133,13 +129,22 @@ class ParallelRunner(object):
                 assert self.num_episodes != float('inf')
                 self.tqdm = tqdm(
                     desc='Episodes', total=self.num_episodes, initial=self.global_episode,
-                    postfix=dict(mean_reward='{:.2f}'.format(0.0))
+                    postfix={
+                        'reward': '{:.2f}'.format(0.0), 'ts/ep': str(0),
+                        'sec/ep': '{:.2f}'.format(0.0), 'ms/ts': str(0)
+                    }
                 )
                 self.tqdm_last_update = self.global_episode
 
                 def tqdm_callback(runner, parallel):
-                    mean_reward = float(np.mean(runner.episode_rewards[-num_mean_reward:]))
-                    runner.tqdm.set_postfix(mean_reward='{:.2f}'.format(mean_reward))
+                    mean_reward = float(np.mean(runner.episode_rewards[-mean_horizon:]))
+                    mean_ts_per_ep = int(np.mean(runner.episode_timesteps[-mean_horizon:]))
+                    mean_sec_per_ep = float(np.mean(runner.episode_times[-mean_horizon:]))
+                    mean_ms_per_ts = int(mean_sec_per_ep * 1000.0 / mean_ts_per_ep)
+                    runner.tqdm.set_postfix({
+                        'reward': '{:.2f}'.format(mean_reward), 'ts/ep': str(mean_ts_per_ep),
+                        'sec/ep': '{:.2f}'.format(mean_sec_per_ep), 'ms/ts': str(mean_ms_per_ts)
+                    })
                     runner.tqdm.update(n=(runner.global_episode - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.global_episode
                     return inner_callback(runner, parallel)
@@ -192,9 +197,7 @@ class ParallelRunner(object):
 
                 if terminal is None:
                     # Retrieve actions from agent
-                    actions = self.agent.act(
-                        states=states, deterministic=deterministic, parallel=parallel
-                    )
+                    actions = self.agent.act(states=states, parallel=parallel)
                     self.episode_timestep[parallel] += 1
 
                     # Execute actions in environment
@@ -252,9 +255,7 @@ class ParallelRunner(object):
 
                 else:
                     # Retrieve actions from agent
-                    actions = self.agent.act(
-                        states=states, deterministic=deterministic, parallel=parallel
-                    )
+                    actions = self.agent.act(states=states, parallel=parallel)
                     self.episode_timestep[parallel] += 1
 
                     # Execute actions in environment

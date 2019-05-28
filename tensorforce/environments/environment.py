@@ -13,51 +13,136 @@
 # limitations under the License.
 # ==============================================================================
 
+import importlib
+import json
+import os
 from threading import Thread
 
 from tensorforce import TensorforceError
+import tensorforce.environments
 
 
 class Environment(object):
     """
-    Environment base class.
+    Tensorforce environment interface.
     """
 
+    @staticmethod
+    def create(environment, **kwargs):
+        """
+        Creates an environment from a specification.
+
+        Args:
+            environment (specification): JSON file, specification key, configuration dictionary,
+                library module, or `Environment` subclass
+                (<span style="color:#C00000"><b>required</b></span>).
+            kwargs: Additional arguments.
+        """
+        if isinstance(environment, Environment):
+            # TODO: asserts???????
+            return environment
+
+        elif isinstance(environment, dict):
+            # Dictionary specification
+            kwargs.update(environment)
+            environment = kwargs.pop('environment', kwargs.pop('type', None))
+            assert environment is not None
+
+            return Environment.create(environment=environment, **kwargs)
+
+        elif isinstance(environment, str):
+            if os.path.isfile(environment):
+                # JSON file specification
+                with open(environment, 'r') as fp:
+                    environment = json.load(fp=fp)
+
+                kwargs.update(environment)
+                environment = kwargs.pop('environment', kwargs.pop('type', None))
+                assert environment is not None
+
+                return Environment.create(environment=environment, **kwargs)
+
+            elif '.' in environment:
+                # Library specification
+                library_name, module_name = environment.rsplit('.', 1)
+                library = importlib.import_module(name=library_name)
+                environment = getattr(library, module_name)
+
+                environment = environment(**kwargs)
+                assert isinstance(environment, Environment)
+
+                return environment
+
+            else:
+                # Keyword specification
+                environment = tensorforce.environments.environments[environment](**kwargs)
+                assert isinstance(environment, Environment)
+
+                return environment
+
+        else:
+            assert False
+
     def __init__(self):
+        # first two arguments, if applicable: level, visualize=False
         self.observation = None
         self.thread = None
 
+    def __str__(self):
+        return self.__class__.__name__
+
     def states(self):
         """
-        Return the state space. Might include subdicts if multiple states are 
-        available simultaneously.
+        Returns the state space specification.
 
         Returns:
-            States specification, with the following attributes
-                (required):
-                - type: one of 'bool', 'int', 'float' (default: 'float').
-                - shape: integer, or list/tuple of integers (required).
+            specification: Arbitrarily nested dictionary of state descriptions with the following
+            attributes:
+            <ul>
+            <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; state data type
+            (<span style="color:#00C000"><b>default</b></span>: "float").</li>
+            <li><b>shape</b> (<i>int | iter[int]</i>) &ndash; state shape
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>num_states</b> (<i>int > 0</i>) &ndash; number of discrete state values
+            (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
+            <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum state value
+            (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
+            </ul>
         """
         raise NotImplementedError
 
     def actions(self):
         """
-        Return the action space. Might include subdicts if multiple actions are 
-        available simultaneously.
+        Returns the action space specification.
 
         Returns:
-            actions (spec, or dict of specs): Actions specification, with the following attributes
-                (required):
-                - type: one of 'bool', 'int', 'float' (required).
-                - shape: integer, or list/tuple of integers (default: []).
-                - num_actions: integer (required if type == 'int').
-                - min_value and max_value: float (optional if type == 'float', default: none).
+            specification: Arbitrarily nested dictionary of action descriptions with the following
+            attributes:
+            <ul>
+            <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; action data type
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>shape</b> (<i>int > 0 | iter[int > 0]</i>) &ndash; action shape
+            (<span style="color:#00C000"><b>default</b></span>: scalar).</li>
+            <li><b>num_actions</b> (<i>int > 0</i>) &ndash; number of discrete action values
+            (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
+            <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum action value
+            (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
+            </ul>
         """
         raise NotImplementedError
 
+    def max_episode_timesteps(self):
+        """
+        Returns the maximum number of timesteps per episode.
+
+        Returns:
+            int: Maximum number of timesteps per episode.
+        """
+        return None
+
     def close(self):
         """
-        Close environment. No other method calls possible afterwards.
+        Closes the environment.
         """
         if self.thread is not None:
             self.thread.join()
@@ -66,10 +151,10 @@ class Environment(object):
 
     def reset(self):
         """
-        Reset environment and setup for new episode.
+        Resets the environment to start a new episode.
 
         Returns:
-            initial state of reset environment.
+            dict[state]: Dictionary containing initial state(s) and auxiliary information.
         """
         raise NotImplementedError
         # if self.observation is not None or self.thread is not None:
@@ -83,13 +168,15 @@ class Environment(object):
 
     def execute(self, actions):
         """
-        Executes action, observes next state(s) and reward.
+        Executes the given action(s) and advances the environment by one step.
 
         Args:
-            actions: Actions to execute.
+            actions (dict[action]): Dictionary containing action(s) to be executed
+                (<span style="color:#C00000"><b>required</b></span>).
 
         Returns:
-            Tuple of (next state, bool indicating terminal, reward)
+            ((dict[state], bool, float)): Dictionary containing next state(s), whether a terminal
+            state is reached, and observed reward.
         """
         raise NotImplementedError
         # if self.observation is not None or self.thread is not None:

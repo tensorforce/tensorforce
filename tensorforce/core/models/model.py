@@ -849,7 +849,8 @@ class Model(Module):
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         for name, spec in self.actions_spec.items():
             if spec['type'] == 'int':
-                indices = tf.expand_dims(input=actions[name], axis=-1)
+                indices = tf.dtypes.cast(x=actions[name], dtype=tf.int64)
+                indices = tf.expand_dims(input=indices, axis=-1)
                 is_unmasked = tf.batch_gather(params=auxiliaries[name + '_mask'], indices=indices)
                 assertions.append(tf.debugging.assert_equal(
                     x=tf.math.reduce_all(input_tensor=is_unmasked), y=true
@@ -895,20 +896,20 @@ class Model(Module):
                         choices = np.tile(A=[choices], reps=choices_tile)
                         choices_shape = ((1,) + spec['shape'] + (spec['num_values'],))
                         choices = tf.constant(value=choices, dtype=int_dtype, shape=choices_shape)
-                        ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=int_dtype)
-                        batch_size = tf.dtypes.cast(x=shape[0:1], dtype=int_dtype)
+                        ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=tf.int64)
+                        batch_size = tf.dtypes.cast(x=shape[0:1], dtype=tf.int64)
                         multiples = tf.concat(values=(batch_size, ones), axis=0)
                         choices = tf.tile(input=choices, multiples=multiples)
 
                         # Random unmasked action
                         mask = auxiliaries[name + '_mask']
                         num_values = tf.math.count_nonzero(
-                            input_tensor=mask, axis=-1, dtype=int_dtype
+                            input_tensor=mask, axis=-1, dtype=tf.int64
                         )
                         random_action = tf.random.uniform(shape=shape, dtype=float_dtype)
                         random_action = tf.dtypes.cast(
                             x=(random_action * tf.dtypes.cast(x=num_values, dtype=float_dtype)),
-                            dtype=int_dtype
+                            dtype=tf.int64
                         )
 
                         # Correct for masked actions

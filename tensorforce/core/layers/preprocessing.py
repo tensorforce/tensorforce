@@ -136,7 +136,7 @@ class Deltafier(PreprocessingLayer):
                 value=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')), read_value=False
             )
             with tf.control_dependencies(control_inputs=(assignment,)):
-                return tf.concat(values=(tf.zeros_like(tensor=x[:1]), x[1:] - x[:-1]), axis=0)
+                return tf.concat(values=(tf.zeros_like(tensor=x[:1]), x[1:] - x[:-1]), axis=0)  # dtype=util.tf_dtype(dtype='???'))
 
         def later_delta():
             return x - tf.concat(values=(self.previous, x[:-1]), axis=0)

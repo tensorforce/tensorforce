@@ -35,8 +35,8 @@ class MazeExplorer(Environment):
             (<span style="color:#00C000"><b>default</b></span>: false).
     """
 
-    @staticmethod
-    def levels():
+    @classmethod
+    def levels(cls):
         import mazeexp
 
         return list(range(len(mazeexp.engine.config.modes)))

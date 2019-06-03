@@ -52,8 +52,8 @@ class PyGameLearningEnvironment(Environment):
             (<span style="color:#00C000"><b>default</b></span>: 30).
     """
 
-    @staticmethod
-    def levels():
+    @classmethod
+    def levels(cls):
         import ple
 
         levels = list()

@@ -134,9 +134,11 @@ class UnittestBase(object):
 
         self.runner = Runner(agent=agent, environment=environment)
         if num_episodes is None:
-            self.runner.run(num_episodes=randint(5, 10), use_tqdm=False)
-        else:
-            self.runner.run(num_episodes=num_episodes, use_tqdm=False)
+            num_episodes = randint(5, 10)
+        self.runner.run(
+            num_episodes=num_episodes, max_episode_timesteps=config.get('max_episode_timesteps'),
+            use_tqdm=False
+        )
         self.runner.close()
 
         self.finished_test()

@@ -12,6 +12,6 @@ python run.py benchmarks/configs/$1.json gym -l CartPole-v1 -e 300 -r 10 -p benc
 # echo "> Pendulum-v0"
 # python run.py benchmarks/configs/$1.json gym -l Pendulum-v0 -e 300 -r 10 -p benchmarks/gym-pendulum/$1
 
-echo "OpenAI Gym: Box2D"
-echo "> LunarLander-v2"
-python run.py benchmarks/configs/$1.json gym -l LunarLander-v2 -e 300 -r 10 -p benchmarks/gym-lunarlander/$1
+# echo "OpenAI Gym: Box2D"
+# echo "> LunarLander-v2"
+# python run.py benchmarks/configs/$1.json gym -l LunarLander-v2 -e 300 -r 10 -p benchmarks/gym-lunarlander/$1

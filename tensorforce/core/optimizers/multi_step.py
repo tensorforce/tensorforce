@@ -46,9 +46,12 @@ class MultiStep(MetaOptimizer):
                 name='num-steps', module=num_steps, modules=parameter_modules, dtype='int'
             )
 
-    def tf_step(self, variables, arguments, **kwargs):
-        # # Set reference to compare with at each optimization step, in case of a comparative loss.
-        # arguments['reference'] = fn_reference(**arguments)
+    def tf_step(self, variables, arguments, fn_reference=None, **kwargs):
+        # Set reference to compare with at each optimization step, in case of a comparative loss.
+        if fn_reference is not None:
+            assert 'reference' not in arguments
+            arguments['reference'] = fn_reference(**arguments)
+
         deltas = [tf.zeros_like(tensor=variable) for variable in variables]
 
         if self.unroll_loop:

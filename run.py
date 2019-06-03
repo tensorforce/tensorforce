@@ -157,6 +157,8 @@ def main():
         median_rewards = np.median(rewards, axis=1)
         plt.plot(xs, median_rewards, color='green', linewidth=2.0)
         plt.fill_between(xs, min_rewards, max_rewards, color='green', alpha=0.4)
+        plt.xlabel('episodes')
+        plt.ylabel('reward')
         plt.savefig(fname=(args.path + '.png'))
 
 

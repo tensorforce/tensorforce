@@ -30,8 +30,8 @@ class OpenSim(Environment):
             (<span style="color:#00C000"><b>default</b></span>: 5e-5).
     """
 
-    @staticmethod
-    def levels():
+    @classmethod
+    def levels(cls):
         return ['Arm2D', 'L2Run', 'Prosthetics']
 
     def __init__(self, level, visualize=False, integrator_accuracy=5e-5):

@@ -84,14 +84,15 @@ class TFOptimizer(Optimizer):
         )
 
     def tf_step(self, variables, arguments, fn_loss, fn_initial_gradients=None, **kwargs):
-        # Trivial operation to enforce control dependency
-        previous_variables = util.fmap(function=util.identity_operation, xs=variables)
-
-        with tf.control_dependencies(control_inputs=previous_variables):
-            loss = fn_loss(**arguments)
+        loss = fn_loss(**arguments)
 
         # Force loss value and attached control flow to be computed.
         with tf.control_dependencies(control_inputs=(loss,)):
+            # Trivial operation to enforce control dependency
+            previous_variables = util.fmap(function=util.identity_operation, xs=variables)
+
+        # Get variables before update.
+        with tf.control_dependencies(control_inputs=previous_variables):
             # applied = self.optimizer.minimize(loss=loss, var_list=variables)
             # grads_and_vars = self.optimizer.compute_gradients(loss=loss, var_list=variables)
             # gradients, variables = zip(*grads_and_vars)

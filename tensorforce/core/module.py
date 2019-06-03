@@ -548,7 +548,7 @@ class Module(object):
         use_while_v2=False
     ):
         Module.global_scope.append('while')
-        if maximum_iterations is not None and maximum_iterations.dtype not in (tf.int32, tf.int64):
+        if maximum_iterations is not None and maximum_iterations.dtype is not tf.int32:
             maximum_iterations = tf.dtypes.cast(x=maximum_iterations, dtype=tf.int32)
         if use_while_v2:
             x = while_v2.while_loop(

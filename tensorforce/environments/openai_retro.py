@@ -31,28 +31,39 @@ class OpenAIRetro(OpenAIGym):
             (<span style="color:#C00000"><b>required</b></span>).
         visualize (bool): Whether to visualize interaction
             (<span style="color:#00C000"><b>default</b></span>: false).
-        kwargs: Environment arguments.
+        monitor_directory (string): Monitor output directory
+            (<span style="color:#00C000"><b>default</b></span>: none).
+        kwargs: Retro environment arguments.
     """
 
-    @staticmethod
-    def levels():
+    @classmethod
+    def levels(cls):
         import retro
 
         return list(retro.data.list_games())
 
-    def __init__(self, level, visualize=False, **kwargs):
+    def __init__(self, level, visualize=False, monitor_directory=None, **kwargs):
         import retro
 
-        assert level in OpenAIRetro.levels()
+        super().__init__(
+            level=level, visualize=visualize, monitor_directory=monitor_directory, **kwargs
+        )
 
-        self.env_id = level
-        self.visualize = visualize
+    #     assert level in OpenAIRetro.levels()
+
+    #     self.env_id = level
+    #     self.visualize = visualize
+
+    #     self.environment = retro.make(game=self.env_id, **kwargs)
+
+    #     self.states_spec = OpenAIGym.specs_from_gym_space(
+    #         space=self.environment.observation_space, ignore_value_bounds=True
+    #     )
+    #     self.actions_spec = OpenAIGym.specs_from_gym_space(
+    #         space=self.environment.action_space, ignore_value_bounds=False
+    #     )
+
+    def create_gym(self, **kwargs):
+        import retro
 
         self.environment = retro.make(game=self.env_id, **kwargs)
-
-        self.states_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.observation_space, ignore_value_bounds=True
-        )
-        self.actions_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.action_space, ignore_value_bounds=False
-        )

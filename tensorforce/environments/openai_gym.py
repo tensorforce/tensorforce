@@ -36,34 +36,41 @@ class OpenAIGym(Environment):
             (<span style="color:#00C000"><b>default</b></span>: false).
         monitor_directory (string): Monitor output directory
             (<span style="color:#00C000"><b>default</b></span>: none).
+        kwargs: Gym environment arguments.
     """
 
-    @staticmethod
-    def levels():
+    @classmethod
+    def levels(cls):
         import gym
 
         return list(gym.envs.registry.env_specs)
 
-    def __init__(self, level, visualize=False, monitor_directory=None):
+    def __init__(self, level, visualize=False, monitor_directory=None, **kwargs):
         import gym
+        import gym.wrappers
 
-        assert level in OpenAIGym.levels()
+        assert level in self.__class__.levels()
 
         self.env_id = level
         self.visualize = visualize
 
-        self.environment = gym.make(id=self.env_id)
+        self.create_gym(**kwargs)
         if monitor_directory is not None:
             self.environment = gym.wrappers.Monitor(
                 env=self.environment, directory=monitor_directory
             )
 
         self.states_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.observation_space, ignore_value_bounds=True
+            space=self.environment.observation_space, ignore_value_bounds=True  # TODO: not ignore?
         )
         self.actions_spec = OpenAIGym.specs_from_gym_space(
             space=self.environment.action_space, ignore_value_bounds=False
         )
+
+    def create_gym(self, **kwargs):
+        import gym
+
+        self.environment = gym.make(id=self.env_id, **kwargs)
 
     def __str__(self):
         return super().__str__() + '({})'.format(self.env_id)
@@ -85,7 +92,8 @@ class OpenAIGym(Environment):
         self.environment = None
 
     def reset(self):
-        import gym
+        import gym.wrappers
+
         if isinstance(self.environment, gym.wrappers.Monitor):
             self.environment.stats_recorder.done = True
         states = self.environment.reset()

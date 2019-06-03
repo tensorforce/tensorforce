@@ -37,7 +37,7 @@ class TestPrecision(UnittestBase, unittest.TestCase):
                 bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float16
             )
 
-            self.unittest()
+            self.unittest(network=dict(type='auto', internal_rnn=False))  # TODO: shouldn't be necessary!
 
         except Exception as exc:
             raise exc

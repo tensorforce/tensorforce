@@ -22,7 +22,7 @@ from test.unittest_base import UnittestBase
 
 class TestSaving(UnittestBase, unittest.TestCase):
 
-    directory = 'saving-test'
+    directory = 'test-saving'
 
     def test_explicit(self):
         self.start_tests(name='explicit')

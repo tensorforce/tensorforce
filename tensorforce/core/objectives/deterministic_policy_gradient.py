@@ -59,6 +59,7 @@ class DeterministicPolicyGradient(Objective):
         actions_value = baseline.actions_value(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
         )
+        # TODO: assert only one action
         gradients = tf.gradients(ys=actions_value, xs=list(actions.values()))
 
         return gradients

@@ -59,10 +59,13 @@ class VanillaPolicyGradient(PolicyAgent):
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
         if critic_network is None:
+            baseline_policy = None
             baseline_objective = None
         else:
-            baseline_objective = 'state_value'
+            # State value doesn't exist for Beta
+            baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
             assert critic_optimizer is not None
+            baseline_objective = 'state_value'
 
         super().__init__(
             # Agent
@@ -75,7 +78,8 @@ class VanillaPolicyGradient(PolicyAgent):
             l2_regularization=l2_regularization,
             # PolicyModel
             policy=None, network=network, memory=memory, update=update, optimizer=optimizer,
-            objective=objective, reward_estimation=reward_estimation, baseline_policy=None,
-            baseline_network=critic_network, baseline_objective=baseline_objective,
-            baseline_optimizer=critic_optimizer, entropy_regularization=entropy_regularization
+            objective=objective, reward_estimation=reward_estimation,
+            baseline_policy=baseline_policy, baseline_network=None,
+            baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
+            entropy_regularization=entropy_regularization
         )

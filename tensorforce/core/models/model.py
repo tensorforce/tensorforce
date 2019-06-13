@@ -596,6 +596,12 @@ class Model(Module):
             is_trainable=False
         )
 
+        # Episode reward
+        self.episode_reward = self.add_variable(
+            name='episode-reward', dtype='float', shape=(self.parallel_interactions,),
+            initializer='zeros', is_trainable=False
+        )
+
         # States buffer variable
         self.states_buffer = OrderedDict()
         for name, spec in self.states_spec.items():
@@ -725,7 +731,7 @@ class Model(Module):
         Module.update_tensors(
             deterministic=deterministic, independent=independent,
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.timestep[parallel], episode=self.episode[parallel]
+            timestep=self.global_timestep, episode=self.global_episode
         )
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -1063,20 +1069,35 @@ class Model(Module):
             deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.timestep[parallel], episode=self.episode[parallel]
+            timestep=self.global_timestep, episode=self.global_episode
         )
 
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        with tf.control_dependencies(control_inputs=assertions):
+            reward = self.add_summary(
+                label=('timestep-reward', 'rewards'), name='timestep-reward', tensor=reward
+            )
+            assignment = self.episode_reward.scatter_nd_add(
+                indices=[(parallel,)], updates=[tf.math.reduce_sum(input_tensor=reward, axis=0)]
+            )
 
         # Increment episode
         def increment_episode():
             assignments = list()
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             assignments.append(self.episode.scatter_nd_add(indices=[(parallel,)], updates=[one]))
             assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
+            zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+            zero = self.add_summary(
+                label=('episode-reward', 'rewards'), name='episode-reward',
+                tensor=self.episode_reward[parallel], pass_tensors=zero, step='episode'
+            )
+            assignments.append(
+                self.episode_reward.scatter_nd_update(indices=[(parallel,)], updates=[zero])
+            )
             with tf.control_dependencies(control_inputs=assignments):
                 return util.no_operation()
 
-        with tf.control_dependencies(control_inputs=assertions):
+        with tf.control_dependencies(control_inputs=(assignment,)):
             incremented_episode = self.cond(
                 pred=terminal[-1], true_fn=increment_episode, false_fn=util.no_operation
             )

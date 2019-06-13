@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce import TensorforceError
 from tensorforce.agents import PolicyAgent
 
 
@@ -54,6 +55,8 @@ class DeterministicPolicyGradient(PolicyAgent):
         reward_estimation = dict(
             horizon=n_step, discount=discount, estimate_horizon='late', estimate_actions=True
         )
+        # Action value doesn't exist for Beta
+        baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
         baseline_objective = 'action_value'
 
         super().__init__(
@@ -67,7 +70,13 @@ class DeterministicPolicyGradient(PolicyAgent):
             l2_regularization=l2_regularization,
             # PolicyModel
             policy=None, network=network, memory=memory, update=update, optimizer=optimizer,
-            objective=objective, reward_estimation=reward_estimation, baseline_policy=None,
-            baseline_network=critic_network, baseline_objective=baseline_objective,
-            baseline_optimizer=critic_optimizer, entropy_regularization=entropy_regularization
+            objective=objective, reward_estimation=reward_estimation,
+            baseline_policy=baseline_policy, baseline_network=None,
+            baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
+            entropy_regularization=entropy_regularization
         )
+
+        action_spec = next(iter(self.actions_spec.values()))
+        if len(self.actions_spec) > 1 or action_spec['type'] != 'float' or \
+                action_spec['shape'] != ():
+            raise TensorforceError.unexpected()

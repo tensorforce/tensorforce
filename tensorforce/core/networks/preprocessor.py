@@ -51,7 +51,7 @@ class Preprocessor(LayerbasedNetwork):
             l2_regularization=l2_regularization
         )
 
-        if isinstance(layers, dict):
+        if isinstance(layers, (dict, str)):
             layers = [layers]
 
         layer_counter = Counter()
@@ -59,7 +59,7 @@ class Preprocessor(LayerbasedNetwork):
             if 'name' in layer_spec:
                 layer_name = layer_spec['name']
             else:
-                if isinstance(layer_spec.get('type'), str):
+                if isinstance(layer_spec, dict) and isinstance(layer_spec.get('type'), str):
                     layer_type = layer_spec['type']
                 else:
                     layer_type = 'layer'

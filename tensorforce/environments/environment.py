@@ -45,7 +45,7 @@ class Environment(object):
         elif isinstance(environment, dict):
             # Dictionary specification
             kwargs.update(environment)
-            environment = kwargs.pop('environment', kwargs.pop('type', None))
+            environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
             assert environment is not None
 
             return Environment.create(environment=environment, **kwargs)
@@ -57,7 +57,7 @@ class Environment(object):
                     environment = json.load(fp=fp)
 
                 kwargs.update(environment)
-                environment = kwargs.pop('environment', kwargs.pop('type', None))
+                environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
                 assert environment is not None
 
                 return Environment.create(environment=environment, **kwargs)

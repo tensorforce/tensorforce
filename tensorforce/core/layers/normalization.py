@@ -59,7 +59,11 @@ class ExponentialNormalization(Layer):
 
         shape = self.input_spec['shape']
         if self.axes is None:
-            shape = tuple(1 for _ in shape[:-1]) + (shape[-1],)
+            if len(shape) > 0:
+                self.axes = tuple(range(len(self.input_spec['shape']) - 1))
+                shape = tuple(1 for _ in shape[:-1]) + (shape[-1],)
+            else:
+                self.axes = ()
         else:
             shape = tuple(1 if axis in self.axes else dims for axis, dims in enumerate(shape))
         shape = (1,) + shape
@@ -89,22 +93,21 @@ class ExponentialNormalization(Layer):
 
         def apply_update():
             one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+            axes = tuple(1 + axis for axis in self.axes)
+
             decay = self.decay.value()
             batch_size = tf.dtypes.cast(x=tf.shape(input=x)[0], dtype=util.tf_dtype(dtype='float'))
             decay = tf.math.pow(x=decay, y=batch_size)
 
-            if self.axes is None:
-                mean, variance = tf.nn.moments(
-                    x=x, axes=tuple(range(0, len(self.input_spec['shape']))), keep_dims=True
-                )
-            else:
-                mean, variance = tf.nn.moments(
-                    x=x, axes=((0,) + tuple(1 + axis for axis in self.axes)), keep_dims=True
-                )
-
+            mean = tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
             mean = tf.where(
                 condition=self.after_first_call,
                 x=(decay * self.moving_mean + (one - decay) * mean), y=mean
+            )
+
+            variance = tf.reduce_mean(
+                input_tensor=tf.math.squared_difference(x=x, y=tf.stop_gradient(input=mean)),
+                axis=axes, keepdims=True
             )
             variance = tf.where(
                 condition=self.after_first_call,
@@ -130,7 +133,7 @@ class ExponentialNormalization(Layer):
         update_on_optimization = self.update_on_optimization.assign(value=update_on_optimization)
         skip_update = tf.math.logical_or(
             x=Module.retrieve_tensor(name='independent'),
-            y=(update_on_optimization != optimization)
+            y=tf.math.not_equal(x=update_on_optimization, y=optimization)
         )
 
         mean, variance = self.cond(pred=skip_update, true_fn=no_update, false_fn=apply_update)

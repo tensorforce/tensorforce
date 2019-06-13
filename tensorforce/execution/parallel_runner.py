@@ -63,7 +63,8 @@ class ParallelRunner(object):
     def run(
         self,
         # General
-        num_episodes=None, num_timesteps=None, max_episode_timesteps=None, num_sleep_secs=0.1,
+        num_episodes=None, num_timesteps=None, max_episode_timesteps=None, num_sleep_secs=0.01,
+        sync_timesteps=False, sync_episodes=False,
         # Callback
         callback=None, callback_episode_frequency=None, callback_timestep_frequency=None,
         # Tqdm
@@ -83,6 +84,8 @@ class ParallelRunner(object):
         else:
             self.max_episode_timesteps = max_episode_timesteps
         self.num_sleep_secs = num_sleep_secs
+        self.sync_timesteps = sync_timesteps
+        self.sync_episodes = sync_episodes
 
         # Callback
         assert callback_episode_frequency is None or callback_timestep_frequency is None
@@ -181,18 +184,37 @@ class ParallelRunner(object):
         self.episode_timestep = [0 for _ in self.environments]
         episode_start = [time.time() for _ in self.environments]
 
+        if self.sync_episodes:
+            terminated = [False for _ in self.environments]
+
         # Runner loop
         while True:
-            # Parallel environments loop
-            no_environment_ready = True
-            for parallel, environment in enumerate(self.environments):
-                observation = environment.retrieve_execute()
 
-                # Check whether environment is ready
-                if observation is None:
+            if not self.sync_timesteps:
+                no_environment_ready = True
+
+            # Parallel environments loop
+            for parallel, environment in enumerate(self.environments):
+
+                if self.sync_episodes and terminated[parallel]:
+                    # Continue if episode terminated
                     continue
 
-                no_environment_ready = False
+                if self.sync_timesteps:
+                    # Wait until environment is ready
+                    while True:
+                        observation = environment.retrieve_execute()
+                        if observation is not None:
+                            break
+                        time.sleep(num_sleep_secs)
+
+                else:
+                    # Check whether environment is ready
+                    observation = environment.retrieve_execute()
+                    if observation is None:
+                        continue
+                    no_environment_ready = False
+
                 states, terminal, reward = observation
 
                 if terminal is None:
@@ -253,6 +275,9 @@ class ParallelRunner(object):
                     self.episode_timestep[parallel] = 0
                     episode_start[parallel] = time.time()
 
+                    if self.sync_episodes:
+                        terminated[parallel] = True
+
                 else:
                     # Retrieve actions from agent
                     actions = self.agent.act(states=states, parallel=parallel)
@@ -261,6 +286,10 @@ class ParallelRunner(object):
                     # Execute actions in environment
                     environment.start_execute(actions=actions)
 
-            # Sleep if no environment was ready
-            if no_environment_ready:
+            if not self.sync_timesteps and no_environment_ready:
+                # Sleep if no environment was ready
                 time.sleep(num_sleep_secs)
+
+            if self.sync_episodes and all(terminated):
+                # Reset if all episodes terminated
+                terminated = [False for _ in self.environments]

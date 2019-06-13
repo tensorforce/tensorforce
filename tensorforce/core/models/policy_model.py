@@ -34,15 +34,21 @@ class PolicyModel(Model):
         actions, preprocessing, exploration, variable_noise, l2_regularization,
         # PolicyModel
         policy, network, memory, update, optimizer, objective, reward_estimation, baseline_policy,
-        baseline_network, baseline_objective, baseline_optimizer, entropy_regularization
+        baseline_network, baseline_optimizer, baseline_objective, entropy_regularization
     ):
         # Policy internals specification
-        if (policy is None) == (network is None):
-            raise TensorforceError.unexpected()
-        policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-            name='policy', module=policy, modules=policy_modules, states_spec=states,
-            actions_spec=actions, network=network
-        )
+        # if (policy is None) == (network is None):
+        #     raise TensorforceError.unexpected()
+        if network is None:
+            policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+                name='policy', module=policy, modules=policy_modules, states_spec=states,
+                actions_spec=actions
+            )
+        else:
+            policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+                name='policy', module=policy, modules=policy_modules, states_spec=states,
+                actions_spec=actions, network=network
+            )
         if first_arg is None:
             internals = policy_cls.internals_spec(name='policy', **kwargs)
         else:
@@ -183,8 +189,8 @@ class PolicyModel(Model):
         )
 
         # Baseline
-        if baseline_objective == 'same' or baseline_optimizer == 'same':
-            assert baseline_objective == 'same' and baseline_optimizer == 'same'
+        if baseline_optimizer == 'same' or baseline_objective == 'same':
+            assert baseline_optimizer == 'same' and baseline_objective == 'same'
             assert self.estimator.estimate_advantage  # since otherwise not part of training
             is_trainable = True
         else:
@@ -192,7 +198,7 @@ class PolicyModel(Model):
         self.separate_baseline_internals = True
         self.shared_baseline_network = False
         if baseline_policy is None and baseline_network is None:
-            assert baseline_objective is None and baseline_optimizer is None
+            assert baseline_optimizer is None and baseline_objective is None
             self.baseline_policy = None
             self.separate_baseline_internals = False
         elif baseline_policy == 'same':
@@ -219,24 +225,6 @@ class PolicyModel(Model):
                 actions_spec=self.actions_spec, network=baseline_network
             )
 
-        # Baseline objective
-        if baseline_objective is None:
-            assert baseline_policy is None or baseline_policy == 'same'
-            self.baseline_objective = None
-        elif baseline_objective == 'same':
-            assert baseline_optimizer == 'same'
-            self.baseline_objective = 'same'
-        elif baseline_objective == 'equal':
-            self.baseline_objective = self.add_module(
-                name='baseline-objective', module=objective, modules=objective_modules,
-                is_trainable=False
-            )
-        else:
-            self.baseline_objective = self.add_module(
-                name='baseline-objective', module=baseline_objective, modules=objective_modules,
-                is_trainable=False
-            )
-
         # Baseline optimizer
         if baseline_optimizer is None:
             assert baseline_objective is None
@@ -255,6 +243,23 @@ class PolicyModel(Model):
                 is_trainable=False
             )
 
+        # Baseline objective
+        if baseline_objective is None:
+            self.baseline_objective = None
+        elif baseline_objective == 'same':
+            assert baseline_optimizer == 'same'
+            self.baseline_objective = 'same'
+        elif baseline_objective == 'equal':
+            self.baseline_objective = self.add_module(
+                name='baseline-objective', module=objective, modules=objective_modules,
+                is_trainable=False
+            )
+        else:
+            self.baseline_objective = self.add_module(
+                name='baseline-objective', module=baseline_objective, modules=objective_modules,
+                is_trainable=False
+            )
+
         # Entropy regularization
         entropy_regularization = 0.0 if entropy_regularization is None else entropy_regularization
         self.entropy_regularization = self.add_module(
@@ -270,6 +275,7 @@ class PolicyModel(Model):
             raise TensorforceError.unexpected()
 
         # Register global tensors
+        Module.register_tensor(name='update', spec=dict(type='long', shape=()), batched=False)
         Module.register_tensor(
             name='optimization', spec=dict(type='bool', shape=()), batched=False
         )
@@ -433,6 +439,9 @@ class PolicyModel(Model):
         return updated
 
     def tf_core_update(self):
+        Module.update_tensor(name='update', tensor=self.global_update)
+        Module.global_summary_step = 'update'
+
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         assignment = self.global_update.assign_add(delta=one, read_value=False)
 
@@ -501,8 +510,8 @@ class PolicyModel(Model):
         #     baseline_internals = internals
 
         # Baseline optimization using early reward estimates
-        if self.baseline_policy is not None and self.baseline_objective is not None and \
-                self.baseline_objective != 'same':
+        if self.baseline_policy is not None and self.baseline_optimizer is not None and \
+                self.baseline_optimizer != 'same':
             # optimized = self.optimize_baseline(
             #     indices=indices, states=states, internals=internals, actions=actions, reward=reward
             # )
@@ -515,12 +524,15 @@ class PolicyModel(Model):
         with tf.control_dependencies(control_inputs=dependencies):
             # Retrieve reward
             reward = self.memory.tf_retrieve(indices=indices, values='reward')
+            reward = self.estimator.estimate1(
+                baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
+            )
             reward = self.add_summary(
                 label=('processed-reward', 'rewards'), name='processed-reward', tensor=reward
             )
 
             # Reward estimation
-            reward = self.estimator.estimate(
+            reward = self.estimator.estimate2(
                 baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
             )
             reward = self.add_summary(
@@ -668,6 +680,11 @@ class PolicyModel(Model):
             indices=indices, values=('auxiliaries', 'actions', 'reward')
         )
 
+        # Reward estimation
+        reward = self.estimator.estimate1(
+            baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
+        )
+
         # Optimizer arguments
         variables = self.baseline_policy.get_variables(only_trainable=True)
         if self.shared_baseline_network:
@@ -692,7 +709,10 @@ class PolicyModel(Model):
         else:
             global_variables = self.global_model.baseline_policy.get_variables(only_trainable=True)
 
-        kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline_policy)
+        if self.baseline_objective is None:
+            kwargs = dict()
+        else:
+            kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline_policy)
 
         # Optimization
         optimized = self.baseline_optimizer.minimize(

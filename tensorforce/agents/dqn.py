@@ -44,6 +44,8 @@ class DeepQNetwork(PolicyAgent):
         name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
         summarizer=None
     ):
+        # Action value doesn't exist for Beta
+        policy = dict(network=network, distributions=dict(float='gaussian'))
         assert max_episode_timesteps is None or memory >= (batch_size + 1) * max_episode_timesteps
         memory = dict(type='replay', capacity=memory)
         update = dict(
@@ -55,12 +57,12 @@ class DeepQNetwork(PolicyAgent):
         reward_estimation = dict(
             horizon=n_step, discount=discount, estimate_horizon='late', estimate_actions=True
         )
-        baseline_network = 'equal'
-        baseline_objective = None
+        baseline_policy = 'equal'
         baseline_optimizer = dict(
             type='synchronization', sync_frequency=target_sync_frequency,
             update_weight=target_update_weight
         )
+        baseline_objective = None
 
         super().__init__(
             # Agent
@@ -72,8 +74,9 @@ class DeepQNetwork(PolicyAgent):
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization,
             # PolicyModel
-            policy=None, network=network, memory=memory, update=update, optimizer=optimizer,
-            objective=objective, reward_estimation=reward_estimation, baseline_policy=None,
-            baseline_network=baseline_network, baseline_objective=baseline_objective,
-            baseline_optimizer=baseline_optimizer, entropy_regularization=entropy_regularization
+            policy=policy, network=None, memory=memory, update=update, optimizer=optimizer,
+            objective=objective, reward_estimation=reward_estimation,
+            baseline_policy=baseline_policy, baseline_network=None,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
+            entropy_regularization=entropy_regularization
         )

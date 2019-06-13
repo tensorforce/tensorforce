@@ -21,13 +21,13 @@ from test.unittest_base import UnittestBase
 class TestAgents(UnittestBase, unittest.TestCase):
 
     config = dict()
-    exclude_bounded_action = True  # TODO: shouldn't be necessary!
 
     def test_dpg(self):
         self.start_tests(name='DPG')
         self.unittest(
-            agent='dpg', exclude_bool_action=True, exclude_int_action=True,
-            network=dict(type='auto', internal_rnn=False), critic_network='same'
+            actions=dict(type='float', shape=()), agent='dpg', exclude_bool_action=True,
+            exclude_int_action=True, network=dict(type='auto', internal_rnn=False),
+            critic_network=dict(type='auto', internal_rnn=False)
         )
 
     def test_dqn(self):

@@ -18,6 +18,7 @@ import importlib
 import json
 from math import sqrt
 import os
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -48,6 +49,7 @@ class Module(object):
     global_scope = None
     global_tensors_spec = None
     global_tensors = None  # per agent, main module, or so
+    global_summary_step = None
 
     @staticmethod
     def register_tensor(name, spec, batched):
@@ -261,16 +263,20 @@ class Module(object):
 
         if self.parent is None:
             Module.global_scope = list()
+            Module.global_summary_step = 'timestep'
 
         Module.global_scope.append(self.name)
 
         if self.parent is None:
             if self.summarizer_spec is not None:
                 with tf.name_scope(name='summarizer'):
+                    logdir = os.path.join(
+                        self.summarizer_spec['directory'], time.strftime('%Y%m%d-%H%M%S')
+                    )
+                    flush_millis = (self.summarizer_spec.get('flush', 10) * 1000)
                     self.summarizer = tf.contrib.summary.create_file_writer(
-                        logdir=self.summarizer_spec['directory'],
-                        flush_millis=(self.summarizer_spec.get('flush', 10) * 1000),
-                        max_queue=None, filename_suffix=None  # ???
+                        logdir=logdir, flush_millis=flush_millis, max_queue=None,
+                        filename_suffix=None
                     )
                     self.summarizer_init = self.summarizer.init()
                     self.summarizer_flush = self.summarizer.flush()
@@ -358,6 +364,7 @@ class Module(object):
             assert len(Module.global_scope) == 0
             Module.global_tensors = None
             Module.global_scope = None
+            Module.global_summary_step = None
 
         num_variables = len(tf.trainable_variables())
 
@@ -472,6 +479,7 @@ class Module(object):
         # Call API TensorFlow function
         Module.global_scope = list()
         Module.global_tensors = OrderedDict()
+        Module.global_summary_step = 'timestep'
         if self.device is not None:
             self.device.__enter__()
         with tf.name_scope(name=name):
@@ -494,6 +502,7 @@ class Module(object):
             self.device.__exit__(None, None, None)
         Module.global_tensors = None
         Module.global_scope = None
+        Module.global_summary_step = None
 
         def fn(query=None, **kwargs):
             # Feed_dict dictionary
@@ -748,8 +757,8 @@ class Module(object):
         return placeholder
 
     def add_summary(
-        self, label, name, tensor, pass_tensors=None, return_summaries=False, mean_variance=False,
-        enumerate_last_rank=False
+        self, label, name, tensor, pass_tensors=None, step=None, return_summaries=False,
+        mean_variance=False, enumerate_last_rank=False
     ):
         # should be "labels" !!!
         # label
@@ -776,6 +785,7 @@ class Module(object):
                 raise TensorforceError.type(
                     name='summary', argument='pass_tensors', value=pass_tensors
                 )
+        # step
         # enumerate_last_rank
         if not isinstance(enumerate_last_rank, bool):
             raise TensorforceError.type(
@@ -819,24 +829,31 @@ class Module(object):
 
         # TensorFlow summaries
         summaries = list()
+        if step is None:
+            assert Module.global_summary_step is not None
+            step = Module.retrieve_tensor(name=Module.global_summary_step)
+        else:
+            step = Module.retrieve_tensor(name=step)
         for name, tensor in tensors.items():
             shape = util.shape(x=tensor)
             if shape == () or shape == (-1,):
                 # Scalar
-                summaries.append(tf.contrib.summary.scalar(name=name, tensor=tensor))
+                summaries.append(tf.contrib.summary.scalar(name=name, tensor=tensor, step=step))
             elif shape == (1,) or shape == (-1, 1):
                 # Single-value tensor as scalar
                 tensor = tf.squeeze(input=tensor, axis=-1)
-                summaries.append(tf.contrib.summary.scalar(name=name, tensor=tensor))
+                summaries.append(tf.contrib.summary.scalar(name=name, tensor=tensor, step=step))
             else:
                 # General tensor as histogram
-                summaries.append(tf.contrib.summary.histogram(name=name, tensor=tensor))
+                summaries.append(tf.contrib.summary.histogram(name=name, tensor=tensor, step=step))
 
         with tf.control_dependencies(control_inputs=summaries):
             return util.fmap(function=util.identity_operation, xs=pass_tensors)
 
     @staticmethod
-    def get_module_class_and_kwargs(name, module, modules=None, default_module=None, **kwargs):
+    def get_module_class_and_kwargs(
+        name, module=None, modules=None, default_module=None, **kwargs
+    ):
         # name
         if not util.is_valid_name(name=name):
             raise TensorforceError.value(name='module', argument='name', value=name)
@@ -914,8 +931,8 @@ class Module(object):
             raise TensorforceError.value(name='module specification', value=module)
 
     def add_module(
-        self, name, module, modules=None, default_module=None, is_trainable=True, is_saved=True,
-        is_subscope=False, **kwargs
+        self, name, module=None, modules=None, default_module=None, is_trainable=True,
+        is_saved=True, is_subscope=False, **kwargs
     ):
         # name
         if name in self.modules:

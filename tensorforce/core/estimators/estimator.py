@@ -389,14 +389,7 @@ class Estimator(CircularBuffer):
         with tf.control_dependencies(control_inputs=(updated_rewards,)):
             return super().tf_enqueue(**values)
 
-    def tf_estimate(self, baseline, memory, indices, reward):
-        if False:
-            orig_indices = indices
-            starts, lengths, rewards = memory.successors(
-                indices=indices, horizon=horizon, sequence_values='reward'
-            )
-            indices = starts + lengths
-
+    def tf_estimate1(self, baseline, memory, indices, reward):
         if (self.estimate_horizon == 'late' and baseline is not None) or self.estimate_advantage:
             assert baseline is not None
             # # TODO: dependency_horizon < horizon, get sequence of states of length dependency_horizon only
@@ -451,6 +444,16 @@ class Estimator(CircularBuffer):
                 )
             reward = reward + discounts * horizon_estimate
             # TODO: stop gradients?
+
+        return reward
+
+    def tf_estimate2(self, baseline, memory, indices, reward):
+        if False:
+            orig_indices = indices
+            starts, lengths, rewards = memory.successors(
+                indices=indices, horizon=horizon, sequence_values='reward'
+            )
+            indices = starts + lengths
 
         if self.estimate_advantage:
             # possible with optimizer 'same'

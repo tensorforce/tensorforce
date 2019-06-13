@@ -98,7 +98,19 @@ class Gaussian(Distribution):
         )
         sampled = mean + stddev * normal_distribution
 
-        return tf.where(condition=deterministic, x=definite, y=sampled)
+        action = tf.where(condition=deterministic, x=definite, y=sampled)
+
+        # Clip if bounded action
+        if 'min_value' in self.action_spec:
+            min_value = tf.constant(
+                value=self.action_spec['min_value'], dtype=util.tf_dtype(dtype='float')
+            )
+            max_value = tf.constant(
+                value=self.action_spec['max_value'], dtype=util.tf_dtype(dtype='float')
+            )
+            action = tf.clip_by_value(t=action, clip_value_min=min_value, clip_value_max=max_value)
+
+        return action
 
     def tf_log_probability(self, parameters, action):
         mean, stddev, log_stddev = parameters

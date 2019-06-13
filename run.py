@@ -104,22 +104,21 @@ def main():
             seconds[r.episode - 1].append(r.episode_second)
             return True
 
-    for _ in range(args.repeat):
-
-        if args.visualize:
-            if args.level is None:
-                environment = Environment.create(environment=args.environment, visualize=True)
-            else:
-                environment = Environment.create(
-                    environment=args.environment, level=args.level, visualize=True
-                )
-
+    if args.visualize:
+        if args.level is None:
+            environment = Environment.create(environment=args.environment, visualize=True)
         else:
-            if args.level is None:
-                environment = Environment.create(environment=args.environment)
-            else:
-                environment = Environment.create(environment=args.environment, level=args.level)
+            environment = Environment.create(
+                environment=args.environment, level=args.level, visualize=True
+            )
 
+    else:
+        if args.level is None:
+            environment = Environment.create(environment=args.environment)
+        else:
+            environment = Environment.create(environment=args.environment, level=args.level)
+
+    for _ in range(args.repeat):
         agent_kwargs = dict()
         if args.network is not None:
             agent_kwargs['network'] = args.network

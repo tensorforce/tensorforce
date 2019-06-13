@@ -34,9 +34,21 @@ class OpenAIGym(Environment):
             (<span style="color:#C00000"><b>required</b></span>).
         visualize (bool): Whether to visualize interaction
             (<span style="color:#00C000"><b>default</b></span>: false).
+        max_episode_timesteps (false | int > 0): Whether to terminate an episode after a while,
+            and if so, maximum number of timesteps per episode
+            (<span style="color:#00C000"><b>default</b></span>: Gym default).
+        terminal_reward (float): Additional reward for early termination, if otherwise
+            indistinguishable from termination due to maximum number of timesteps
+            (<span style="color:#00C000"><b>default</b></span>: Gym default).
+        reward_threshold (float): Gym environment argument, the reward threshold before the task is
+            considered solved
+            (<span style="color:#00C000"><b>default</b></span>: Gym default).
+        tags (dict): Gym environment argument, a set of arbitrary key-value tags on this
+            environment, including simple property=True tags
+            (<span style="color:#00C000"><b>default</b></span>: Gym default).
         monitor_directory (string): Monitor output directory
             (<span style="color:#00C000"><b>default</b></span>: none).
-        kwargs: Gym environment arguments.
+        kwargs: Additional Gym environment arguments.
     """
 
     @classmethod
@@ -45,13 +57,78 @@ class OpenAIGym(Environment):
 
         return list(gym.envs.registry.env_specs)
 
-    def __init__(self, level, visualize=False, monitor_directory=None, **kwargs):
+    def __init__(
+        self, level, visualize=False, max_episode_timesteps=None, terminal_reward=0.0,
+        reward_threshold=None, tags=None, monitor_directory=None, **kwargs
+    ):
         import gym
         import gym.wrappers
 
+        # Find level
+        if level not in gym.envs.registry.env_specs:
+            if level + '-v0' in gym.envs.registry.env_specs:
+                level = level + '-v0'
+            else:
+                for name in gym.envs.registry.env_specs:
+                    if level == name[:name.rindex('-v')]:
+                        level = name
+                        break
         assert level in self.__class__.levels()
 
-        self.env_id = level
+        self._max_episode_timesteps = max_episode_timesteps
+        self.terminal_reward = terminal_reward
+
+        # Check/update attributes
+        requires_register = False
+        if self._max_episode_timesteps is None:
+            self._max_episode_timesteps = gym.envs.registry.env_specs[level].max_episode_steps
+            if self._max_episode_timesteps is None:
+                self._max_episode_timesteps = False
+        elif self._max_episode_timesteps != gym.envs.registry.env_specs[level].max_episode_steps:
+            if (self._max_episode_timesteps is False) != \
+                    (gym.envs.registry.env_specs[level].max_episode_steps is None):
+                requires_register = True
+        if reward_threshold is None:
+            reward_threshold = gym.envs.registry.env_specs[level].reward_threshold
+        elif reward_threshold != gym.envs.registry.env_specs[level].reward_threshold:
+            requires_register = True
+        if tags is None:
+            tags = dict(gym.envs.registry.env_specs[level].tags)
+            if 'wrapper_config.TimeLimit.max_episode_steps' in tags and \
+                    max_episode_timesteps is not None:
+                tags.pop('wrapper_config.TimeLimit.max_episode_steps')
+        elif tags != gym.envs.registry.env_specs[level].tags:
+            requires_register = True
+
+        # Modified specification
+        if requires_register:
+            entry_point = gym.envs.registry.env_specs[level]._entry_point
+            _kwargs = dict(gym.envs.registry.env_specs[level]._kwargs)
+            nondeterministic = gym.envs.registry.env_specs[level].nondeterministic
+            if self._max_episode_timesteps is False:
+                max_episode_steps = None
+            else:
+                max_episode_steps = self._max_episode_timesteps
+
+            if '-v' in level and level[level.rindex('-v') + 2:].isdigit():
+                version = int(level[level.rindex('-v') + 2:])
+                level = level[:level.rindex('-v') + 2]
+            else:
+                version = -1
+            while True:
+                version += 1
+                if level + str(version) not in gym.envs.registry.env_specs:
+                    level = level + str(version)
+                    break
+
+            gym.register(
+                id=level, entry_point=entry_point, reward_threshold=reward_threshold,
+                kwargs=_kwargs, nondeterministic=nondeterministic, tags=tags,
+                max_episode_steps=max_episode_steps
+            )
+            assert level in self.__class__.levels()
+
+        self.level = level
         self.visualize = visualize
 
         self.create_gym(**kwargs)
@@ -70,10 +147,10 @@ class OpenAIGym(Environment):
     def create_gym(self, **kwargs):
         import gym
 
-        self.environment = gym.make(id=self.env_id, **kwargs)
+        self.environment = gym.make(id=self.level, **kwargs)
 
     def __str__(self):
-        return super().__str__() + '({})'.format(self.env_id)
+        return super().__str__() + '({})'.format(self.level)
 
     def states(self):
         return self.states_spec
@@ -82,10 +159,10 @@ class OpenAIGym(Environment):
         return self.actions_spec
 
     def max_episode_timesteps(self):
-        if hasattr(self.environment, '_max_episode_steps'):
-            return self.environment._max_episode_steps
-        else:
+        if self._max_episode_timesteps is False:
             return super().max_episode_timesteps()
+        else:
+            return self._max_episode_timesteps
 
     def close(self):
         self.environment.close()
@@ -97,6 +174,7 @@ class OpenAIGym(Environment):
         if isinstance(self.environment, gym.wrappers.Monitor):
             self.environment.stats_recorder.done = True
         states = self.environment.reset()
+        self.timestep = 0
         return OpenAIGym.flatten_state(state=states)
 
     def execute(self, actions):
@@ -104,6 +182,13 @@ class OpenAIGym(Environment):
             self.environment.render()
         actions = OpenAIGym.unflatten_action(action=actions)
         states, reward, terminal, _ = self.environment.step(actions)
+        self.timestep += 1
+        if self.timestep == self._max_episode_timesteps:
+            assert terminal
+        elif terminal:
+            assert self._max_episode_timesteps is False or \
+                self.timestep < self._max_episode_timesteps
+            reward += self.terminal_reward
         return OpenAIGym.flatten_state(state=states), terminal, reward
 
     @staticmethod

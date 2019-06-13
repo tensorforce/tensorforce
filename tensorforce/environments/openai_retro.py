@@ -33,7 +33,7 @@ class OpenAIRetro(OpenAIGym):
             (<span style="color:#00C000"><b>default</b></span>: false).
         monitor_directory (string): Monitor output directory
             (<span style="color:#00C000"><b>default</b></span>: none).
-        kwargs: Retro environment arguments.
+        kwargs: Additional Retro environment arguments.
     """
 
     @classmethod
@@ -66,4 +66,4 @@ class OpenAIRetro(OpenAIGym):
     def create_gym(self, **kwargs):
         import retro
 
-        self.environment = retro.make(game=self.env_id, **kwargs)
+        self.environment = retro.make(game=self.level, **kwargs)

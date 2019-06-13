@@ -23,7 +23,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
     exclude_bounded_action = True  # TODO: shouldn't be necessary!
 
-    directory = 'summaries-test'
+    directory = 'test-summaries'
 
     def test_summaries(self):
         self.start_tests()
@@ -40,10 +40,13 @@ class TestSummaries(UnittestBase, unittest.TestCase):
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
-        for filename in os.listdir(path=self.__class__.directory):
-            os.remove(path=os.path.join(self.__class__.directory, filename))
-            assert filename.startswith('events.out.tfevents.')
-            break
+        for directory in os.listdir(path=self.__class__.directory):
+            directory = os.path.join(self.__class__.directory, directory)
+            for filename in os.listdir(path=directory):
+                os.remove(path=os.path.join(directory, filename))
+                assert filename.startswith('events.out.tfevents.')
+                break
+            os.rmdir(path=directory)
         os.rmdir(path=self.__class__.directory)
 
         self.finished_test()

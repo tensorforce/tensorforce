@@ -84,6 +84,8 @@ class Synchronization(Optimizer):
         sync_frequency = self.sync_frequency.value()
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         skip_sync = tf.math.less(x=(timestep - self.last_sync), y=sync_frequency)
-        skip_sync = skip_sync and tf.math.greater_equal(x=self.last_sync, y=zero)
+        skip_sync = tf.math.logical_and(
+            x=skip_sync, y=tf.math.greater_equal(x=self.last_sync, y=zero)
+        )
 
         return self.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)

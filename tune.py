@@ -115,15 +115,15 @@ class TensorforceWorker(Worker):
         max_reward = list()
         rewards = list()
 
-        for n in range(int(budget)):
+        for n in range(round(budget)):
             runner = Runner(agent=agent, environment=self.environment)
 
             # performance_threshold = runner.environment.max_episode_timesteps() - agent['reward_estimation']['horizon']
 
-            def callback(r):
-                return float(np.mean(r.episode_rewards[-20:], axis=0)) < 500.0
+            # def callback(r):
+            #     return True
 
-            runner.run(num_episodes=500, callback=callback, use_tqdm=False)
+            runner.run(num_episodes=500, use_tqdm=False)
             runner.close()
 
             # num_episodes.append(len(runner.episode_rewards))
@@ -294,7 +294,7 @@ def main():
     result_logger = json_result_logger(directory=args.directory, overwrite=True)  # ???
 
     optimizer = BOHB(
-        configspace=worker.get_configspace(), min_budget=1.0, max_budget=float(args.max_repeats),
+        configspace=worker.get_configspace(), min_budget=0.5, max_budget=float(args.max_repeats),
         run_id=args.id, working_directory=args.directory,
         nameserver=nameserver, nameserver_port=nameserver_port, host=host,
         result_logger=result_logger, previous_result=previous_result

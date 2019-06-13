@@ -26,6 +26,7 @@ from tensorforce.environments.vizdoom import ViZDoom
 
 
 environments = dict(
+    default=OpenAIGym,
     ale=ArcadeLearningEnvironment, arcade_learning_environment=ArcadeLearningEnvironment,
     mazeexp=MazeExplorer, maze_explorer=MazeExplorer,
     gym=OpenAIGym, openai_gym=OpenAIGym,

@@ -65,14 +65,14 @@ class ProximalPolicyOptimization(PolicyAgent):
                 estimate_horizon=('late' if estimate_terminal else False),
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
-        # State value doesn't exist for Beta
         if critic_network is None:
             baseline_policy = None
             baseline_objective = None
         else:
+            # State value doesn't exist for Beta
             baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
-            baseline_objective = 'state_value'
             assert critic_optimizer is not None
+            baseline_objective = 'state_value'
 
         super().__init__(
             # Agent
@@ -87,6 +87,6 @@ class ProximalPolicyOptimization(PolicyAgent):
             policy=None, network=network, memory=memory, update=update, optimizer=optimizer,
             objective=objective, reward_estimation=reward_estimation,
             baseline_policy=baseline_policy, baseline_network=None,
-            baseline_objective=baseline_objective, baseline_optimizer=critic_optimizer,
+            baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )

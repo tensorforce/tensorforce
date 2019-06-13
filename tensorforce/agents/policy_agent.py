@@ -119,15 +119,15 @@ class PolicyAgent(Agent):
             of the baseline policy, "equal" refers to using the same configuration as the main
             network
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_objective ("same" | "equal" | specification): Baseline optimization objective
-            configuration, see [objectives](../modules/objectives.html), "same" refers to reusing
-            the main objective for the baseline, "equal" refers to using the same configuration as
-            the main objective
-            (<span style="color:#00C000"><b>default</b></span>: none).
         baseline_optimizer ("same" | "equal" | specification): Baseline optimizer configuration,
             see [optimizers](../modules/optimizers.html), "same"
             refers to reusing the main optimizer for the baseline, "equal" refers to using the same
             configuration as the main optimizer
+            (<span style="color:#00C000"><b>default</b></span>: none).
+        baseline_objective ("same" | "equal" | specification): Baseline optimization objective
+            configuration, see [objectives](../modules/objectives.html), "same" refers to reusing
+            the main objective for the baseline, "equal" refers to using the same configuration as
+            the main objective
             (<span style="color:#00C000"><b>default</b></span>: none).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
@@ -157,10 +157,11 @@ class PolicyAgent(Agent):
             for instance, to enable multiple parallel episodes, environments or (centrally
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        buffer_observe (int > 0): Maximum number of timesteps within an episode to buffer
+        buffer_observe (bool | int > 0): Maximum number of timesteps within an episode to buffer
             before executing internal observe operations, to reduce calls to TensorFlow for
             improved performance
-            (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000).
+            (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000,
+            unless summarizer specified).
         seed (int): Random seed to set for Python, NumPy and TensorFlow
             (<span style="color:#00C000"><b>default</b></span>: none).
         execution (specification): TensorFlow execution configuration with the following attributes
@@ -206,7 +207,8 @@ class PolicyAgent(Agent):
             "baseline-objective-loss", "baseline-regularization-loss": loss scalars</li>
             <li>"parameters": parameter scalars</li>
             <li>"relu": ReLU activation zero fraction</li>
-            <li>"rewards" or "raw-reward", "processed-reward", "estimated-reward": reward scalar
+            <li>"rewards" or "timestep-reward", "episode-reward", "raw-reward", "processed-reward",
+            "estimated-reward": reward scalar
             </li>
             <li>"updates": update mean and variance scalars</li>
             <li>"updates-full": update histograms</li>
@@ -228,8 +230,8 @@ class PolicyAgent(Agent):
         # Agent
         policy=None, network='auto', memory=None, optimizer='adam',
         # Baseline
-        baseline_policy=None, baseline_network=None, baseline_objective=None,
-        baseline_optimizer=None,
+        baseline_policy=None, baseline_network=None, baseline_optimizer=None,
+        baseline_objective=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -240,6 +242,9 @@ class PolicyAgent(Agent):
         name='agent', device=None, parallel_interactions=1, buffer_observe=True, seed=None,
         execution=None, saver=None, summarizer=None
     ):
+        if buffer_observe is True and summarizer is not None:
+            buffer_observe = False
+
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
             parallel_interactions=parallel_interactions, buffer_observe=buffer_observe, seed=seed
@@ -276,7 +281,7 @@ class PolicyAgent(Agent):
             policy=policy, network=network, memory=memory, update=update, optimizer=optimizer,
             objective=objective, reward_estimation=reward_estimation,
             baseline_policy=baseline_policy, baseline_network=baseline_network,
-            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )
 

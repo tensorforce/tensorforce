@@ -268,6 +268,17 @@ class Module(object):
         Module.global_scope.append(self.name)
 
         if self.parent is None:
+            # Global timestep
+            self.global_timestep = self.add_variable(
+                name='global-timestep', dtype='long', shape=(), is_trainable=False,
+                initializer='zeros', shared='global-timestep'
+            )
+            collection = tf.get_collection(key=tf.GraphKeys.GLOBAL_STEP)
+            if len(collection) == 0:
+                tf.add_to_collection(
+                    name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep
+                )
+
             if self.summarizer_spec is not None:
                 with tf.name_scope(name='summarizer'):
                     logdir = os.path.join(
@@ -288,14 +299,12 @@ class Module(object):
                         if isinstance(self.summarizer_spec['steps'], int):
                             record_summaries = \
                                 tf.contrib.summary.record_summaries_every_n_global_steps(
-                                    n=self.summarizer_spec['steps'],
-                                    global_step=self.global_timestep
+                                    n=self.summarizer_spec['steps']
                                 )
                         elif 'variables' in self.summarizer_spec['steps']:
                             record_summaries = \
                                 tf.contrib.summary.record_summaries_every_n_global_steps(
-                                    n=self.summarizer_spec['steps']['variables'],
-                                    global_step=self.global_timestep
+                                    n=self.summarizer_spec['steps']['variables']
                                 )
                         else:
                             record_summaries = tf.contrib.summary.never_record_summaries()
@@ -313,16 +322,8 @@ class Module(object):
             if self.parent is None:
                 # with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
 
-                # Global timestep
-                self.global_timestep = self.add_variable(
-                    name='global-timestep', dtype='long', shape=(), is_trainable=False,
-                    initializer='zeros', shared='global-timestep'
-                )
-                collection = tf.get_collection(key=tf.GraphKeys.GLOBAL_STEP)
-                if len(collection) == 0:
-                    tf.add_to_collection(
-                        name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep
-                    )
+                # Global timestep before summarizer, otherwise problems with
+                # record_summaries_every_n_global_steps
 
                 # Global episode
                 self.global_episode = self.add_variable(

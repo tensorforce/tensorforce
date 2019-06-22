@@ -35,7 +35,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         baseline_optimizer = 'equal'
 
         self.unittest(
-            summarizer=dict(directory=self.__class__.directory, labels='all'),
+            summarizer=dict(directory=self.__class__.directory, labels='all', steps=2),
             reward_estimation=reward_estimation, baseline_network=baseline_network,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )

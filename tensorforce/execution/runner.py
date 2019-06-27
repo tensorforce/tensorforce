@@ -253,10 +253,6 @@ class Runner(object):
                     self.evaluation_timesteps.append(self.episode_timestep)
                     self.evaluation_seconds.append(self.episode_second)
 
-                # Update global timestep/episode
-                self.global_timestep = self.agent.timestep
-                self.global_episode = self.agent.episode
-
                 # Evaluation callback
                 if self.save_best_agent:
                     evaluation_score = self.evaluation_callback(self)
@@ -303,7 +299,7 @@ class Runner(object):
             actions = self.agent.act(states=states, evaluation=evaluation)
             self.episode_timestep += 1
             # Execute actions in environment (optional repeated execution)
-            reward = 0
+            reward = 0.0
             for _ in range(self.num_repeat_actions):
                 states, terminal, step_reward = environment.execute(actions=actions)
                 reward += step_reward

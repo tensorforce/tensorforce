@@ -143,7 +143,6 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         def callback(r, parallel):
             self.assertEqual(r.episode_timestep[parallel] % callback_timestep_frequency, 0)
-            # pass
 
         runner.run(
             num_episodes=11, callback=callback,
@@ -166,3 +165,26 @@ class TestRunners(UnittestBase, unittest.TestCase):
         runner.close()
 
         self.finished_test(assertion=(self.is_callback1 and self.is_callback2))
+
+
+        # evaluation
+        agent, environment1 = self.prepare(parallel_interactions=2, saver=dict(directory='saved'))
+        environment2 = copy.deepcopy(environment1)
+        evaluation_environment = copy.deepcopy(environment1)
+
+        runner = ParallelRunner(
+            agent=agent, environments=[environment1, environment2],
+            evaluation_environment=evaluation_environment
+        )
+
+        self.num_evaluations = 0
+
+        def evaluation_callback(r):
+            self.num_evaluations += 1
+
+        runner.run(num_episodes=10, use_tqdm=False, evaluation_callback=evaluation_callback, save_best_agent=True)
+        runner.close()
+
+        self.assertGreaterEqual(self.num_evaluations, 1)
+
+        self.finished_test()

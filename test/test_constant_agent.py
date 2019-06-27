@@ -22,4 +22,5 @@ class TestConstantAgent(UnittestAgent, unittest.TestCase):
 
     config = dict(type='constant')
     action_masks = False
+    has_experience = False
     has_update = False

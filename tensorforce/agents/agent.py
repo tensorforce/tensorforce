@@ -276,7 +276,7 @@ class Agent(object):
             )
 
         else:
-            actions, self.timestep, query = self.model.act(
+            actions, self.timestep, queried = self.model.act(
                 states=states, auxiliaries=auxiliaries, parallel=parallel,
                 deterministic=deterministic, independent=independent, query=query, **kwargs
             )
@@ -294,7 +294,7 @@ class Agent(object):
         if query is None:
             return actions
         else:
-            return actions, query
+            return actions, queried
 
     def observe(self, reward, terminal=False, parallel=0, query=None, **kwargs):
         """
@@ -336,7 +336,7 @@ class Agent(object):
                 )
 
             else:
-                self.episode, query = self.model.observe(
+                self.episode, queried = self.model.observe(
                     terminal=self.terminal_buffers[parallel, :index],
                     reward=self.reward_buffers[parallel, :index], parallel=parallel, query=query,
                     **kwargs
@@ -350,7 +350,7 @@ class Agent(object):
             self.buffer_indices[parallel] = index
 
         if query is not None:
-            return query
+            return queried
 
     def save(self, directory=None, filename=None, append_timestep=True):
         """

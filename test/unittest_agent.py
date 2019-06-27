@@ -23,6 +23,7 @@ class UnittestAgent(UnittestBase):
 
     replacement_action = 'bool'
     action_masks = True
+    has_experience = True
     has_update = True
 
     def test_single_state_action(self):
@@ -60,25 +61,63 @@ class UnittestAgent(UnittestBase):
         self.start_tests(name='full')
         self.unittest(action_masks=self.__class__.action_masks)
 
+    def test_pretrain(self):
+        if not self.__class__.has_experience or not self.__class__.has_update:
+            return
+
+        self.start_tests(name='pretrain')
+
+        states = dict(type='float', shape=(1,))
+        actions = dict(type=self.__class__.replacement_action, shape=())
+
+        agent, environment = self.prepare(
+            states=states, actions=actions, action_masks=self.__class__.action_masks,
+            buffer_observe=False, update=1,
+            network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
+        )
+
+        agent.initialize()
+
+        states_batch = list()
+        actions_batch = list()
+        terminal_batch = list()
+        reward_batch = list()
+
+        states = environment.reset()
+        terminal = False
+        while not terminal:
+            states_batch.append(states)
+            actions = agent.act(states=states, independent=True)
+            actions_batch.append(actions)
+            states, terminal, reward = environment.execute(actions=actions)
+            terminal_batch.append(terminal)
+            reward_batch.append(reward)
+
+        agent.experience(
+            states=states_batch, actions=actions_batch, terminal=terminal_batch,
+            reward=reward_batch
+        )
+
+        agent.update()
+        agent.update()
+        agent.update()
+
+        agent.close()
+        environment.close()
+
+        self.finished_test()
+
     def test_query(self):
-        """
-        Unit-test for all types of states and actions.
-        """
         self.start_tests(name='query')
 
         states = dict(type='float', shape=(1,))
         actions = dict(type=self.__class__.replacement_action, shape=())
 
-        if self.__class__.has_update:
-            agent, environment = self.prepare(
-                name='query', states=states, actions=actions,
-                action_masks=self.__class__.action_masks, update=1
-            )
-        else:
-            agent, environment = self.prepare(
-                name='query', states=states, actions=actions,
-                action_masks=self.__class__.action_masks
-            )
+        agent, environment = self.prepare(
+            states=states, actions=actions, action_masks=self.__class__.action_masks,
+            buffer_observe=False, update=1,
+            network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
+        )
 
         agent.initialize()
         states = environment.reset()
@@ -92,6 +131,29 @@ class UnittestAgent(UnittestBase):
         query = agent.get_query_tensors(function='observe')
         queried = agent.observe(terminal=True, reward=reward, query=query)
         self.assertEqual(first=len(queried), second=len(query))
+
+        states_batch = list()
+        actions_batch = list()
+        terminal_batch = list()
+        reward_batch = list()
+
+        states = environment.reset()
+        terminal = False
+        while not terminal:
+            states_batch.append(states)
+            actions = agent.act(states=states, independent=True)
+            actions_batch.append(actions)
+            states, terminal, reward = environment.execute(actions=actions)
+            terminal_batch.append(terminal)
+            reward_batch.append(reward)
+
+        if self.__class__.has_experience:
+            query = agent.get_query_tensors(function='experience')
+            queried = agent.experience(
+                states=states_batch, actions=actions_batch, terminal=terminal_batch,
+                reward=reward_batch, query=query
+            )
+            self.assertEqual(first=len(queried), second=len(query))
 
         if self.__class__.has_update:
             query = agent.get_query_tensors(function='update')

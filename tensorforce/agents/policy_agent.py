@@ -13,7 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import TensorforceError
+from collections import OrderedDict
+
+import numpy as np
+
+from tensorforce import TensorforceError, util
 from tensorforce.agents import Agent
 from tensorforce.core.models.policy_model import PolicyModel
 
@@ -287,19 +291,106 @@ class PolicyAgent(Agent):
 
         assert max_episode_timesteps is None or self.model.memory.capacity > max_episode_timesteps
 
+    def experience(self, states, actions, terminal, reward, internals=None, query=None, **kwargs):
+        """
+        Feed experience episodes.
+
+        Args:
+            states (dict[state]): Dictionary containing arrays of states
+                (<span style="color:#C00000"><b>required</b></span>).
+            actions (dict[state]): Dictionary containing arrays of actions
+                (<span style="color:#C00000"><b>required</b></span>).
+            terminal (bool): Array of terminals
+                (<span style="color:#C00000"><b>required</b></span>).
+            reward (float): Array of rewards
+                (<span style="color:#C00000"><b>required</b></span>).
+            internals (dict[state]): Dictionary containing arrays of internal states
+                (<span style="color:#00C000"><b>default</b></span>: no internal states).
+            query (list[str]): Names of tensors to retrieve
+                (<span style="color:#00C000"><b>default</b></span>: none).
+            kwargs: Additional input values, for instance, for dynamic hyperparameters.
+        """
+        assert (self.buffer_indices == 0).all()
+        assert terminal[-1]
+
+        # Auxiliaries
+        auxiliaries = OrderedDict()
+        if isinstance(states, dict):
+            for name, spec in self.actions_spec.items():
+                if spec['type'] == 'int' and name + '_mask' in states:
+                    auxiliaries[name + '_mask'] = np.asarray(states.pop(name + '_mask'))
+        auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries)
+
+        # Normalize states dictionary
+        states = util.normalize_values(
+            value_type='state', values=states, values_spec=self.states_spec
+        )
+        for name in self.states_spec:
+            states[name] = np.asarray(states[name])
+
+        if internals is None:
+            internals = OrderedDict()
+
+        # Normalize actions dictionary
+        actions = util.normalize_values(
+            value_type='action', values=actions, values_spec=self.actions_spec
+        )
+        for name in self.actions_spec:
+            actions[name] = np.asarray(actions[name])
+
+        terminal = np.asarray(terminal)
+        reward = np.asarray(reward)
+
+        # Batch experiences split into episodes and at most size buffer_observe
+        last = 0
+        for index in range(len(terminal)):
+            if not terminal[index] and index - last + int(terminal[index]) < self.buffer_observe:
+                continue
+
+            # Include terminal in batch if possible
+            if terminal[index] and index - last < self.buffer_observe:
+                index += 1
+
+            function = (lambda x: x[last: index])
+            states_batch = util.fmap(function=function, xs=states)
+            internals_batch = util.fmap(function=function, xs=internals)
+            auxiliaries_batch = util.fmap(function=function, xs=auxiliaries)
+            actions_batch = util.fmap(function=function, xs=actions)
+            terminal_batch = terminal[last: index]
+            reward_batch = reward[last: index]
+            last = index
+
+            # Model.experience()
+            if query is None:
+                self.timestep, self.episode = self.model.experience(
+                    states=states_batch, internals=internals_batch,
+                    auxiliaries=auxiliaries_batch, actions=actions_batch, terminal=terminal_batch,
+                    reward=reward_batch, **kwargs
+                )
+
+            else:
+                self.timestep, self.episode, queried = self.model.experience(
+                    states=states_batch, internals=internals_batch,
+                    auxiliaries=auxiliaries_batch, actions=actions_batch, terminal=terminal_batch,
+                    reward=reward_batch, query=query, **kwargs
+                )
+
+        if query is not None:
+            return queried
+
     def update(self, query=None, **kwargs):
         """
         Perform an update.
 
         Args:
-            query (iter[string]): Names of tensors to retrieve.
-            kwargs: Additional placeholder inputs.
+            query (list[str]): Names of tensors to retrieve
+                (<span style="color:#00C000"><b>default</b></span>: none).
+            kwargs: Additional input values, for instance, for dynamic hyperparameters.
         """
+        # Model.update()
         if query is None:
-            self.episode = self.model.update(**kwargs)
+            self.timestep, self.episode = self.model.update(**kwargs)
 
         else:
-            self.episode, query = self.model.update(query=query, **kwargs)
-
-        if query is not None:
-            return query
+            self.timestep, self.episode, queried = self.model.update(query=query, **kwargs)
+            return queried

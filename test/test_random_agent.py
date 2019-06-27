@@ -21,4 +21,5 @@ from test.unittest_agent import UnittestAgent
 class TestRandomAgent(UnittestAgent, unittest.TestCase):
 
     config = dict(type='random')
+    has_experience = False
     has_update = False

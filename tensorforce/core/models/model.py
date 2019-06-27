@@ -1109,7 +1109,7 @@ class Model(Module):
                 reward = self.preprocessing['reward'].apply(x=reward)
             dependencies = (reward,)
 
-        # Core observe: retrieve observation operation
+        # Core observe: retrieve observe operation
         with tf.control_dependencies(control_inputs=dependencies):
             buffer_index = self.buffer_index[parallel]
             states = OrderedDict()

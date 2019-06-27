@@ -16,6 +16,9 @@ This file records all major updates and new features, starting from version 0.5.
 - Internal RNNs
 - Changed and improved network layers, see documentation
 - Keras layer support
+- Parallel execution
+- Pretraining from experience
+- And many more...
 
 ##### Environment:
 

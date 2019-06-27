@@ -40,7 +40,7 @@ class AutoNetwork(LayerbasedNetwork):
             (<span style="color:#00C000"><b>default</b></span>: 1).
         internal_rnn (false | parameter, long >= 0): Whether to add an internal state LSTM cell
             as last layer, and if so, horizon of the LSTM
-            (<span style="color:#00C000"><b>default</b></span>: 8).
+            (<span style="color:#00C000"><b>default</b></span>: false).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -51,7 +51,7 @@ class AutoNetwork(LayerbasedNetwork):
 
     def __init__(
         self, name, inputs_spec, size=64, depth=2, final_size=None, final_depth=1,
-        internal_rnn=8, device=None, summary_labels=None, l2_regularization=None
+        internal_rnn=False, device=None, summary_labels=None, l2_regularization=None
     ):
         super().__init__(
             name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,

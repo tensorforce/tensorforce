@@ -286,6 +286,149 @@ class PolicyModel(Model):
             name='dependency_lengths', spec=dict(type='long', shape=()), batched=True
         )
 
+    def tf_initialize(self):
+        super().tf_initialize()
+
+        # Internals
+        self.internals_input = OrderedDict()
+        for name, internal_spec in self.internals_spec.items():
+            self.internals_input[name] = self.add_placeholder(
+                name=name, dtype=internal_spec['type'], shape=internal_spec['shape'], batched=True
+            )
+
+        # Actions
+        self.actions_input = OrderedDict()
+        for name, action_spec in self.actions_spec.items():
+            self.actions_input[name] = self.add_placeholder(
+                name=name, dtype=action_spec['type'], shape=action_spec['shape'], batched=True
+            )
+
+    def api_experience(self):
+        # Inputs
+        states = self.states_input
+        internals = self.internals_input
+        auxiliaries = self.auxiliaries_input
+        actions = self.actions_input
+        terminal = self.terminal_input
+        reward = self.reward_input
+
+        # Assertions
+        assertions = [
+            # terminal: type and shape
+            tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='bool')),
+            tf.debugging.assert_rank(x=terminal, rank=1),
+            # reward: type and shape
+            tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float')),
+            tf.debugging.assert_rank(x=reward, rank=1),
+            # shape of terminal equals shape of reward
+            tf.debugging.assert_equal(x=tf.shape(input=terminal), y=tf.shape(input=reward)),
+            # buffer index is zero
+            tf.debugging.assert_equal(
+                x=tf.math.reduce_sum(input_tensor=self.buffer_index, axis=0),
+                y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+            ),
+            # at most one terminal
+            tf.debugging.assert_less_equal(
+                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='int')),
+                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
+            ),
+            # if terminal, last timestep in batch
+            tf.debugging.assert_equal(x=tf.math.reduce_any(input_tensor=terminal), y=terminal[-1])
+        ]
+        batch_size = tf.shape(input=terminal)[:1]
+        # states: type and shape
+        for name, spec in self.states_spec.items():
+            assertions.append(
+                tf.debugging.assert_type(
+                    tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
+                )
+            )
+            shape = self.unprocessed_state_shape.get(name, spec['shape'])
+            assertions.append(
+                tf.debugging.assert_equal(
+                    x=tf.shape(input=states[name], out_type=tf.int32),
+                    y=tf.concat(
+                        values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
+                    )
+                )
+            )
+        # internals: type and shape
+        for name, spec in self.internals_spec.items():
+            assertions.append(
+                tf.debugging.assert_type(
+                    tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type'])
+                )
+            )
+            shape = spec['shape']
+            assertions.append(
+                tf.debugging.assert_equal(
+                    x=tf.shape(input=internals[name], out_type=tf.int32),
+                    y=tf.concat(
+                        values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
+                    )
+                )
+            )
+        # action_masks: type and shape
+        for name, spec in self.actions_spec.items():
+            if spec['type'] == 'int':
+                name = name + '_mask'
+                assertions.append(
+                    tf.debugging.assert_type(
+                        tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
+                    )
+                )
+                shape = spec['shape'] + (spec['num_values'],)
+                assertions.append(
+                    tf.debugging.assert_equal(
+                        x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
+                        y=tf.concat(
+                            values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
+                        )
+                    )
+                )
+        # actions: type and shape
+        for name, spec in self.actions_spec.items():
+            assertions.append(
+                tf.debugging.assert_type(
+                    tensor=actions[name], tf_type=util.tf_dtype(dtype=spec['type'])
+                )
+            )
+            shape = spec['shape']
+            assertions.append(
+                tf.debugging.assert_equal(
+                    x=tf.shape(input=actions[name], out_type=tf.int32),
+                    y=tf.concat(
+                        values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
+                    )
+                )
+            )
+
+        # Set global tensors
+        Module.update_tensors(
+            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
+            independent=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
+            optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
+            timestep=self.global_timestep, episode=self.global_episode
+        )
+
+        with tf.control_dependencies(control_inputs=assertions):
+            # Core experience: retrieve experience operation
+            experienced = self.core_experience(
+                states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                terminal=terminal, reward=reward
+            )
+
+        with tf.control_dependencies(control_inputs=(experienced,)):
+            # Function-level identity operation for retrieval (plus enforce dependency)
+            timestep = util.identity_operation(
+                x=self.global_timestep, operation_name='timestep-output'
+            )
+            episode = util.identity_operation(
+                x=self.global_episode, operation_name='episode-output'
+            )
+
+        return timestep, episode
+
     def api_update(self):
         # Set global tensors
         Module.update_tensors(
@@ -295,17 +438,19 @@ class PolicyModel(Model):
             timestep=self.global_timestep, episode=self.global_episode
         )
 
-        # Update model
+        # Core update: retrieve update operation
         updated = self.core_update()
 
-        # Reset buffer index
         with tf.control_dependencies(control_inputs=(updated,)):
             # Function-level identity operation for retrieval (plus enforce dependency)
+            timestep = util.identity_operation(
+                x=self.global_timestep, operation_name='timestep-output'
+            )
             episode = util.identity_operation(
                 x=self.global_episode, operation_name='episode-output'
             )
 
-        return episode
+        return timestep, episode
 
     def tf_core_act(self, states, internals, auxiliaries):
         # Dependency horizon
@@ -357,6 +502,50 @@ class PolicyModel(Model):
         return actions, next_internals
 
     def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
+        # Experience
+        experienced = self.core_experience(
+            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+            terminal=terminal, reward=reward
+        )
+
+        # If no periodic update
+        if self.update_frequency == 'never':
+            return experienced
+
+        # Periodic update
+        with tf.control_dependencies(control_inputs=(experienced,)):
+            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+            batch_size = self.update_batch_size.value()
+            frequency = self.update_frequency.value()
+            start = self.update_start.value()
+            start = tf.math.maximum(x=start, y=batch_size)
+
+            if self.update_unit == 'timesteps':
+                # Timestep-based batch
+                timestep = Module.retrieve_tensor(name='timestep')
+                timestep = timestep - self.estimator.capacity
+                is_frequency = tf.math.equal(x=tf.mod(x=timestep, y=frequency), y=zero)
+                at_least_start = tf.math.greater_equal(x=timestep, y=start)
+
+            elif self.update_unit == 'episodes':
+                # Episode-based batch
+                episode = Module.retrieve_tensor(name='episode')
+                is_frequency = tf.math.equal(x=tf.mod(x=episode, y=frequency), y=zero)
+                # Only update once per episode increment
+                false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+                terminal = tf.concat(values=(false, terminal), axis=0)
+                is_terminal = terminal[-1]
+                is_frequency = tf.math.logical_and(x=is_frequency, y=is_terminal)
+                at_least_start = tf.math.greater_equal(x=episode, y=start)
+
+            updated = self.cond(
+                pred=tf.math.logical_and(x=is_frequency, y=at_least_start),
+                true_fn=self.core_update, false_fn=util.no_operation
+            )
+
+        return updated
+
+    def tf_core_experience(self, states, internals, auxiliaries, actions, terminal, reward):
         # Enqueue experience for early reward estimation
         any_overwritten, overwritten_values = self.estimator.enqueue(
             baseline=self.baseline_policy, states=states, internals=internals,
@@ -390,7 +579,6 @@ class PolicyModel(Model):
             return self.memory.enqueue(**values)
 
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-        false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
         terminal = values['terminal']
         if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
             num_values = tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0]
@@ -401,42 +589,7 @@ class PolicyModel(Model):
 
         stored = self.cond(pred=(num_values > zero), true_fn=store, false_fn=util.no_operation)
 
-        # If no periodic update
-        if self.update_frequency == 'never':
-            return stored
-
-        # Periodic update
-        with tf.control_dependencies(control_inputs=(stored,)):
-            batch_size = self.update_batch_size.value()
-            frequency = self.update_frequency.value()
-            start = self.update_start.value()
-            start = tf.math.maximum(x=start, y=batch_size)
-
-            if self.update_unit == 'timesteps':
-                # Timestep-based batch
-                timestep = Module.retrieve_tensor(name='timestep')
-                timestep = timestep - self.estimator.capacity
-                is_frequency = tf.math.equal(x=tf.mod(x=timestep, y=frequency), y=zero)
-                at_least_start = tf.math.greater_equal(x=timestep, y=start)
-
-            elif self.update_unit == 'episodes':
-                # Episode-based batch
-                episode = Module.retrieve_tensor(name='episode')
-                is_frequency = tf.math.equal(x=tf.mod(x=episode, y=frequency), y=zero)
-                # Only update once per episode increment
-                is_terminal = self.cond(
-                    pred=(num_values > zero), true_fn=(lambda: terminal[-1]),
-                    false_fn=(lambda: false)
-                )
-                is_frequency = tf.math.logical_and(x=is_frequency, y=is_terminal)
-                at_least_start = tf.math.greater_equal(x=episode, y=start)
-
-            updated = self.cond(
-                pred=tf.math.logical_and(x=is_frequency, y=at_least_start),
-                true_fn=self.core_update, false_fn=util.no_operation
-            )
-
-        return updated
+        return stored
 
     def tf_core_update(self):
         Module.update_tensor(name='update', tensor=self.global_update)

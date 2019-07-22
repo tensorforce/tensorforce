@@ -67,8 +67,7 @@ class DeepQNetwork(PolicyAgent):
         super().__init__(
             # Agent
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=parallel_interactions, buffer_observe=max_episode_timesteps,
-            seed=seed,
+            parallel_interactions=parallel_interactions, buffer_observe=True, seed=seed,
             # Model
             name=name, device=device, execution=execution, saver=saver, summarizer=summarizer,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,

@@ -246,7 +246,7 @@ class PolicyAgent(Agent):
         name='agent', device=None, parallel_interactions=1, buffer_observe=True, seed=None,
         execution=None, saver=None, summarizer=None
     ):
-        if buffer_observe is True and summarizer is not None:
+        if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
             buffer_observe = False
 
         super().__init__(

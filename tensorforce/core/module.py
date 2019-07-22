@@ -904,6 +904,18 @@ class Module(object):
                     name=name, module=modules[module], default_module=default_module, **kwargs
                 )
 
+            elif 'default' in modules or default_module is not None:
+                # Default module specification
+                if '_first_arg' in kwargs:
+                    raise TensorforceError.value(name='module kwargs', value='_first_arg')
+                if module is not None:
+                    kwargs['_first_arg'] = module
+                if default_module is None:
+                    default_module = modules['default']
+                return Module.get_module_class_and_kwargs(
+                    name=name, module=default_module, modules=modules, **kwargs
+                )
+
             else:
                 raise TensorforceError.value(name='module specification', value=module)
 

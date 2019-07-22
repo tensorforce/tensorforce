@@ -373,8 +373,8 @@ class Agent(object):
         for parallel in range(self.parallel_interactions):
             index = self.buffer_indices[parallel]
             if index > 0:
-                if self.parallel_interactions > 1:
-                    raise TensorforceError.unexpected()
+                # if self.parallel_interactions > 1:
+                #     raise TensorforceError.unexpected()
                 self.episode = self.model.observe(
                     terminal=self.terminal_buffers[parallel, :index],
                     reward=self.reward_buffers[parallel, :index], parallel=parallel

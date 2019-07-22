@@ -89,7 +89,7 @@ class ConstantAgent(Agent):
     ):
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=1, buffer_observe=1000, seed=seed
+            parallel_interactions=1, buffer_observe=True, seed=seed
         )
 
         self.model = ConstantModel(

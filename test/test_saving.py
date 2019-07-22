@@ -60,6 +60,39 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+        # parallel
+        agent, environment = self.prepare(parallel_interactions=2)
+
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.save(directory=self.__class__.directory, filename=None)
+
+        agent.close()
+
+        restored_agent, _ = self.prepare()
+
+        restored_agent.restore(directory=self.__class__.directory, filename=None)
+
+        actions = restored_agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        restored_agent.observe(terminal=terminal, reward=reward)
+
+        restored_agent.close()
+        environment.close()
+
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-1.meta'))
+        os.rmdir(path=self.__class__.directory)
+
+        self.finished_test()
+
         # filename
         agent, environment = self.prepare()
 
@@ -165,6 +198,49 @@ class TestSaving(UnittestBase, unittest.TestCase):
         os.remove(path=os.path.join(self.__class__.directory, 'model-2.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'model-2.meta'))
         for filename in os.listdir(path=self.__class__.directory):
+            os.remove(path=os.path.join(self.__class__.directory, filename))
+            assert filename.startswith('events.out.tfevents.')
+            break
+        os.rmdir(path=self.__class__.directory)
+
+        self.finished_test()
+
+        # parallel
+        saver = dict(directory=self.__class__.directory)
+        agent, environment = self.prepare(saver=saver, parallel_interactions=2)
+
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+
+        restored_agent, _ = self.prepare(saver=saver)
+
+        restored_agent.initialize()
+
+        actions = restored_agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        restored_agent.observe(terminal=terminal, reward=reward)
+
+        restored_agent.close()
+        environment.close()
+
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
+        os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-1.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-2.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-2.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'model-2.meta'))
+        for filename in os.listdir(path=self.__class__.direc9tory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
             assert filename.startswith('events.out.tfevents.')
             break

@@ -533,7 +533,7 @@ class PolicyModel(Model):
                 is_frequency = tf.math.equal(x=tf.mod(x=episode, y=frequency), y=zero)
                 # Only update once per episode increment
                 false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
-                terminal = tf.concat(values=(false, terminal), axis=0)
+                terminal = tf.concat(values=((false,), terminal), axis=0)
                 is_terminal = terminal[-1]
                 is_frequency = tf.math.logical_and(x=is_frequency, y=is_terminal)
                 at_least_start = tf.math.greater_equal(x=episode, y=start)

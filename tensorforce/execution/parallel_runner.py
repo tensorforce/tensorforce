@@ -233,7 +233,7 @@ class ParallelRunner(object):
             environments.append(self.evaluation_environment)
 
         if self.sync_episodes:
-            terminated = [False for _ in self.environments]
+            terminated = [False for _ in environments]
 
         # Runner loop
         while True:
@@ -392,4 +392,4 @@ class ParallelRunner(object):
 
             if self.sync_episodes and all(terminated):
                 # Reset if all episodes terminated
-                terminated = [False for _ in self.environments]
+                terminated = [False for _ in environments]

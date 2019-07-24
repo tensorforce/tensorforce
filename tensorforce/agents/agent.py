@@ -369,17 +369,19 @@ class Agent(object):
         Returns:
             str: Checkpoint path.
         """
-        # Empty buffers before saving
-        for parallel in range(self.parallel_interactions):
-            index = self.buffer_indices[parallel]
-            if index > 0:
-                # if self.parallel_interactions > 1:
-                #     raise TensorforceError.unexpected()
-                self.episode = self.model.observe(
-                    terminal=self.terminal_buffers[parallel, :index],
-                    reward=self.reward_buffers[parallel, :index], parallel=parallel
-                )
-                self.buffer_indices[parallel] = 0
+        # TODO: Messes with required parallel disentangling, better to remove unfinished episodes
+        # from memory, but currently entire episode buffered anyway...
+        # # Empty buffers before saving
+        # for parallel in range(self.parallel_interactions):
+        #     index = self.buffer_indices[parallel]
+        #     if index > 0:
+        #         # if self.parallel_interactions > 1:
+        #         #     raise TensorforceError.unexpected()
+        #         self.episode = self.model.observe(
+        #             terminal=self.terminal_buffers[parallel, :index],
+        #             reward=self.reward_buffers[parallel, :index], parallel=parallel
+        #         )
+        #         self.buffer_indices[parallel] = 0
 
         return self.model.save(
             directory=directory, filename=filename, append_timestep=append_timestep

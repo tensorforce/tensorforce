@@ -334,6 +334,9 @@ class ParallelRunner(object):
                 # Check whether episode terminated
                 if terminal:
 
+                    if self.sync_episodes:
+                        terminated[parallel] = True
+
                     if evaluation:
                         # Evaluation episode terminated
                         self.evaluation_time = time.time() - evaluation_start
@@ -356,9 +359,6 @@ class ParallelRunner(object):
                         self.evaluation_timestep = 0
                         evaluation_start = time.time()
 
-                        if self.sync_episodes:
-                            terminated[-1] = True
-
                     else:
                         # Increment episode counter (after calling callback)
                         self.episode += 1
@@ -368,9 +368,6 @@ class ParallelRunner(object):
                         self.episode_reward[parallel] = 0.0
                         self.episode_timestep[parallel] = 0
                         episode_start[parallel] = time.time()
-
-                        if self.sync_episodes:
-                            terminated[parallel] = True
 
                 else:
                     # Retrieve actions from agent

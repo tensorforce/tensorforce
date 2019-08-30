@@ -15,6 +15,7 @@
 
 import copy
 import os
+import time
 import unittest
 
 from test.unittest_base import UnittestBase
@@ -240,7 +241,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         os.remove(path=os.path.join(self.__class__.directory, 'model-2.data-00000-of-00001'))
         os.remove(path=os.path.join(self.__class__.directory, 'model-2.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'model-2.meta'))
-        for filename in os.listdir(path=self.__class__.direc9tory):
+        for filename in os.listdir(path=self.__class__.directory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
             assert filename.startswith('events.out.tfevents.')
             break
@@ -292,7 +293,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.finished_test()
 
         # steps
-        saver = dict(directory=self.__class__.directory, steps=2)
+        saver = dict(directory=self.__class__.directory, frequency=1)
         agent, environment = self.prepare(saver=saver)
 
         agent.initialize()
@@ -302,9 +303,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
+        time.sleep(1)
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -321,12 +320,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         os.remove(path=os.path.join(self.__class__.directory, 'model-2.data-00000-of-00001'))
         os.remove(path=os.path.join(self.__class__.directory, 'model-2.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'model-2.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-3.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-3.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-3.meta'))
         for filename in os.listdir(path=self.__class__.directory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
-            assert filename.startswith('events.out.tfevents.')
+            assert filename.startswith('events.out.tfevents.'), filename
             break
         os.rmdir(path=self.__class__.directory)
 

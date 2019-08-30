@@ -26,22 +26,22 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='DPG')
         self.unittest(
             actions=dict(type='float', shape=()), agent='dpg', exclude_bool_action=True,
-            exclude_int_action=True, network=dict(type='auto', internal_rnn=False),
+            exclude_int_action=True, network=dict(type='auto', internal_rnn=False), batch_size=4,
             critic_network=dict(type='auto', internal_rnn=False)
         )
 
     def test_dqn(self):
         self.start_tests(name='DQN')
-        self.unittest(agent='dqn')
+        self.unittest(agent='dqn', batch_size=4)
 
     def test_ppo(self):
         self.start_tests(name='PPO')
-        self.unittest(agent='ppo', network=dict(type='auto', internal_rnn=False))  # TODO: shouldn't be necessary!
+        self.unittest(agent='ppo', network=dict(type='auto', internal_rnn=False), batch_size=2)  # TODO: shouldn't be necessary!
 
     def test_trpo(self):
         self.start_tests(name='TRPO')
-        self.unittest(agent='trpo', network=dict(type='auto', internal_rnn=False))  # TODO: shouldn't be necessary!
+        self.unittest(agent='trpo', network=dict(type='auto', internal_rnn=False), batch_size=2)  # TODO: shouldn't be necessary!
 
     def test_vpg(self):
         self.start_tests(name='VPG')
-        self.unittest(agent='vpg')
+        self.unittest(agent='vpg', batch_size=2)

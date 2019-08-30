@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.core import Module
 
 
@@ -37,12 +37,12 @@ class Parameter(Module):
     def __init__(self, name, dtype, shape=(), summary_labels=None):
         super().__init__(name=name, summary_labels=summary_labels)
 
-        self.dtype = dtype
-        self.shape = shape
+        spec = dict(type=dtype, shape=shape)
+        spec = util.valid_value_spec(value_spec=spec, return_normalized=True)
+        self.dtype = spec['type']
+        self.shape = spec['shape']
 
-        Module.register_tensor(
-            name=self.name, spec=dict(type=self.dtype, shape=self.shape), batched=False
-        )
+        Module.register_tensor(name=self.name, spec=spec, batched=False)
 
     def get_parameter_value(self):
         raise NotImplementedError

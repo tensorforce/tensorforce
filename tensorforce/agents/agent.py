@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import random
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -55,7 +56,7 @@ class Agent(object):
 
         elif isinstance(agent, dict):
             # Dictionary specification
-            kwargs.update(agent)
+            util.deep_disjoint_update(target=kwargs, source=agent)
             agent = kwargs.pop('agent', kwargs.pop('type', 'default'))
 
             return Agent.create(agent=agent, environment=environment, **kwargs)
@@ -66,7 +67,7 @@ class Agent(object):
                 with open(agent, 'r') as fp:
                     agent = json.load(fp=fp)
 
-                kwargs.update(agent)
+                util.deep_disjoint_update(target=kwargs, source=agent)
                 agent = kwargs.pop('agent', kwargs.pop('type', 'default'))
 
                 return Agent.create(agent=agent, environment=environment, **kwargs)
@@ -77,13 +78,10 @@ class Agent(object):
                 library = importlib.import_module(name=library_name)
                 agent = getattr(library, module_name)
 
-                if 'states' not in kwargs:  # TODO: otherwise exception
-                    kwargs['states'] = environment.states()
-                if 'actions' not in kwargs:
-                    kwargs['actions'] = environment.actions()
-                if 'max_episode_timesteps' not in kwargs:
-                    if environment.max_episode_timesteps() is not None:
-                        kwargs['max_episode_timesteps'] = environment.max_episode_timesteps()
+                environment_spec = dict(states=environment.states(), actions=environment.actions())
+                if environment.max_episode_timesteps() is not None:
+                    environment_spec['max_episode_timesteps'] = environment.max_episode_timesteps()
+                util.deep_disjoint_update(target=kwargs, source=environment_spec)
 
                 agent = agent(**kwargs)
                 assert isinstance(agent, Agent)
@@ -92,13 +90,10 @@ class Agent(object):
 
             else:
                 # Keyword specification
-                if 'states' not in kwargs:  # TODO: otherwise exception
-                    kwargs['states'] = environment.states()
-                if 'actions' not in kwargs:
-                    kwargs['actions'] = environment.actions()
-                if 'max_episode_timesteps' not in kwargs:
-                    if environment.max_episode_timesteps() is not None:
-                        kwargs['max_episode_timesteps'] = environment.max_episode_timesteps()
+                environment_spec = dict(states=environment.states(), actions=environment.actions())
+                if environment.max_episode_timesteps() is not None:
+                    environment_spec['max_episode_timesteps'] = environment.max_episode_timesteps()
+                util.deep_disjoint_update(target=kwargs, source=environment_spec)
 
                 agent = tensorforce.agents.agents[agent](**kwargs)
                 assert isinstance(agent, Agent)
@@ -112,7 +107,7 @@ class Agent(object):
         # Environment
         self, states, actions, max_episode_timesteps=None,
         # TensorFlow etc
-        parallel_interactions=1, buffer_observe=True, seed=None
+        parallel_interactions=1, buffer_observe=True, seed=None, recorder=None
     ):
         if seed is not None:
             assert isinstance(seed, int)
@@ -188,6 +183,22 @@ class Agent(object):
         self.timestep = 0
         self.episode = 0
 
+        # Recorder
+        if recorder is None:
+            pass
+        elif not all(key in ('directory', 'frequency', 'max-traces') for key in recorder):
+            raise TensorforceError.value(name='recorder', value=list(recorder))
+        self.recorder_spec = recorder
+        if self.recorder_spec is not None:
+            self.record_states = OrderedDict(((name, list()) for name in self.states_spec))
+            for name, spec in self.actions_spec.items():
+                if spec['type'] == 'int':
+                    self.record_states[name + '_mask'] = list()
+            self.record_actions = OrderedDict(((name, list()) for name in self.actions_spec))
+            self.record_terminal = list()
+            self.record_reward = list()
+            self.num_episodes = 0
+
     def __str__(self):
         return self.__class__.__name__
 
@@ -198,7 +209,8 @@ class Agent(object):
         if not hasattr(self, 'model'):
             raise TensorforceError.missing(name='Agent', value='model')
 
-        # Setup Model (create and build graph (local and global if distributed), server, session, etc..).
+        # Setup Model
+        # (create and build graph (local and global if distributed), server, session, etc..).
         self.model.initialize()
         self.reset()
 
@@ -246,6 +258,8 @@ class Agent(object):
             (dict[action], plus optional list[str]): Dictionary containing action(s), plus queried
             tensor values if requested.
         """
+        assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
+
         # self.current_internals = self.next_internals
         if evaluation:
             if deterministic or independent:
@@ -255,6 +269,7 @@ class Agent(object):
         # Auxiliaries
         auxiliaries = OrderedDict()
         if isinstance(states, dict):
+            states = dict(states)
             for name, spec in self.actions_spec.items():
                 if spec['type'] == 'int' and name + '_mask' in states:
                     auxiliaries[name + '_mask'] = states.pop(name + '_mask')
@@ -265,8 +280,8 @@ class Agent(object):
         )
 
         # Batch states
-        states = util.fmap(function=(lambda x: [x]), xs=states)
-        auxiliaries = util.fmap(function=(lambda x: [x]), xs=auxiliaries)
+        states = util.fmap(function=(lambda x: np.asarray([x])), xs=states, depth=1)
+        auxiliaries = util.fmap(function=(lambda x: np.asarray([x])), xs=auxiliaries, depth=1)
 
         # Model.act()
         if query is None:
@@ -281,8 +296,22 @@ class Agent(object):
                 deterministic=deterministic, independent=independent, query=query, **kwargs
             )
 
+        if self.recorder_spec is not None and not independent:
+            for name in self.states_spec:
+                self.record_states[name].append(states[name])
+            for name, spec in self.actions_spec.items():
+                self.record_actions[name].append(actions[name])
+                if spec['type'] == 'int':
+                    if name + '_mask' in auxiliaries:
+                        self.record_states[name].append(auxiliaries[name + '_mask'])
+                    else:
+                        shape = (1,) + spec['shape'] + (spec['num_values'],)
+                        self.record_states[name].append(
+                            np.full(shape, True, dtype=util.np_dtype(dtype='bool'))
+                        )
+
         # Unbatch actions
-        actions = util.fmap(function=(lambda x: x[0]), xs=actions)
+        actions = util.fmap(function=(lambda x: x[0]), xs=actions, depth=1)
 
         # Reverse normalized actions dictionary
         actions = util.unpack_values(
@@ -313,10 +342,61 @@ class Agent(object):
             kwargs: Additional input values, for instance, for dynamic hyperparameters.
 
         Returns:
-            (optional list[str]): Queried tensor values if requested.
+            (bool, optional list[str]): Whether an update was performed, plus queried tensor values
+            if requested.
         """
+        assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
+
         if query is not None and self.parallel_interactions > 1:
             raise TensorforceError.unexpected()
+
+        if self.recorder_spec is not None:
+            self.record_terminal.append(terminal)
+            self.record_reward.append(reward)
+            if terminal:
+                self.num_episodes += 1
+
+                if self.num_episodes == self.recorder_spec.get('frequency', 1):
+                    directory = self.recorder_spec['directory']
+                    if os.path.isdir(directory):
+                        files = sorted(
+                            f for f in os.listdir(directory)
+                            if os.path.isfile(f) and f.startswith('trace-')
+                        )
+                    else:
+                        os.makedirs(directory)
+                        files = list()
+                    max_traces = self.recorder_spec.get('max-traces')
+                    if max_traces is not None and len(files) > max_traces - 1:
+                        for filename in files[:-max_traces + 1]:
+                            filename = os.path.join(directory, filename)
+                            os.remove(filename)
+
+                    filename = 'trace-{}-{}.npz'.format(
+                        self.episode, time.strftime('%Y%m%d-%H%M%S')
+                    )
+                    filename = os.path.join(directory, filename)
+                    self.record_states = util.fmap(
+                        function=np.concatenate, xs=self.record_states, depth=1
+                    )
+                    self.record_actions = util.fmap(
+                        function=np.concatenate, xs=self.record_actions, depth=1
+                    )
+                    self.record_terminal = np.asarray(self.record_terminal)
+                    self.record_reward = np.asarray(self.record_reward)
+                    np.savez_compressed(
+                        filename, **self.record_states, **self.record_actions,
+                        terminal=self.record_terminal, reward=self.record_reward
+                    )
+                    self.record_states = util.fmap(
+                        function=(lambda x: list()), xs=self.record_states, depth=1
+                    )
+                    self.record_actions = util.fmap(
+                        function=(lambda x: list()), xs=self.record_actions, depth=1
+                    )
+                    self.record_terminal = list()
+                    self.record_reward = list()
+                    self.num_episodes = 0
 
         # Update terminal/reward buffer
         index = self.buffer_indices[parallel]
@@ -330,13 +410,13 @@ class Agent(object):
         if terminal or index == self.buffer_observe or query is not None:
             # Model.observe()
             if query is None:
-                self.episode = self.model.observe(
+                updated, self.episode = self.model.observe(
                     terminal=self.terminal_buffers[parallel, :index],
                     reward=self.reward_buffers[parallel, :index], parallel=parallel, **kwargs
                 )
 
             else:
-                self.episode, queried = self.model.observe(
+                updated, self.episode, queried = self.model.observe(
                     terminal=self.terminal_buffers[parallel, :index],
                     reward=self.reward_buffers[parallel, :index], parallel=parallel, query=query,
                     **kwargs
@@ -348,9 +428,12 @@ class Agent(object):
         else:
             # Increment buffer index
             self.buffer_indices[parallel] = index
+            updated = False
 
-        if query is not None:
-            return queried
+        if query is None:
+            return updated
+        else:
+            return updated, queried
 
     def save(self, directory=None, filename=None, append_timestep=True):
         """

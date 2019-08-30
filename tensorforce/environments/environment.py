@@ -18,7 +18,7 @@ import json
 import os
 from threading import Thread
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 import tensorforce.environments
 
 
@@ -44,7 +44,7 @@ class Environment(object):
 
         elif isinstance(environment, dict):
             # Dictionary specification
-            kwargs.update(environment)
+            util.deep_disjoint_update(target=kwargs, source=environment)
             environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
             assert environment is not None
 
@@ -56,7 +56,7 @@ class Environment(object):
                 with open(environment, 'r') as fp:
                     environment = json.load(fp=fp)
 
-                kwargs.update(environment)
+                util.deep_disjoint_update(target=kwargs, source=environment)
                 environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
                 assert environment is not None
 

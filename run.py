@@ -97,11 +97,13 @@ def main():
         rewards = [list() for _ in range(args.episodes)]
         timesteps = [list() for _ in range(args.episodes)]
         seconds = [list() for _ in range(args.episodes)]
+        agent_seconds = [list() for _ in range(args.episodes)]
 
         def callback(r):
             rewards[r.episode - 1].append(r.episode_reward)
             timesteps[r.episode - 1].append(r.episode_timestep)
             seconds[r.episode - 1].append(r.episode_second)
+            agent_seconds[r.episode - 1].append(r.episode_agent_second)
             return True
 
     if args.visualize:
@@ -143,7 +145,10 @@ def main():
 
         with open(args.path + '.json', 'w') as filehandle:
             filehandle.write(
-                json.dumps(dict(rewards=rewards, timesteps=timesteps, seconds=seconds))
+                json.dumps(dict(
+                    rewards=rewards, timesteps=timesteps, seconds=seconds,
+                    agent_seconds=agent_seconds
+                ))
             )
 
         if args.seaborn:

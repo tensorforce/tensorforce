@@ -43,11 +43,8 @@ class Memory(Module):
     def tf_predecessors(self, indices, horizon, sequence_values=(), initial_values=()):
         raise NotImplementedError
 
-    def tf_retrieve_timesteps(self, n):
+    def tf_retrieve_timesteps(self, n, past_padding, future_padding):
         raise NotImplementedError
 
     def tf_retrieve_episodes(self, n):
-        raise NotImplementedError
-
-    def tf_retrieve_sequences(self, n, sequence_length):
         raise NotImplementedError

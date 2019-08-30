@@ -71,7 +71,7 @@ class UnittestBase(object):
             sys.stdout.flush()
 
     def prepare(
-        self, states=None, actions=None, environment=None, timestep_range=None, action_masks=True,
+        self, states=None, actions=None, environment=None, timestep_range=None,
         exclude_bool_action=False, exclude_int_action=False, exclude_float_action=False,
         exclude_bounded_action=False, **config
     ):
@@ -102,13 +102,11 @@ class UnittestBase(object):
 
             if timestep_range is None:
                 environment = UnittestEnvironment(
-                    states=states, actions=actions, timestep_range=(1, 5),
-                    action_masks=action_masks
+                    states=states, actions=actions, timestep_range=(1, 5)
                 )
             else:
                 environment = UnittestEnvironment(
                     states=states, actions=actions, timestep_range=timestep_range,
-                    action_masks=action_masks
                 )
 
         else:
@@ -116,20 +114,24 @@ class UnittestBase(object):
 
         environment = Environment.create(environment=environment)
 
-        agent = Agent.create(agent=config, environment=environment, **self.__class__.config)
+        for key, value in self.__class__.config.items():
+            if key not in config:
+                config[key] = value
+
+        agent = Agent.create(agent=config, environment=environment)  # , **self.__class__.config)
 
         return agent, environment
 
     def unittest(
-        self, states=None, actions=None, environment=None, timestep_range=None, action_masks=True,
-        num_episodes=None, **config
+        self, states=None, actions=None, environment=None, timestep_range=None, num_episodes=None,
+        **config
     ):
         """
         Generic unit-test.
         """
         agent, environment = self.prepare(
             states=states, actions=actions, environment=environment, timestep_range=timestep_range,
-            action_masks=action_masks, **config
+            **config
         )
 
         self.runner = Runner(agent=agent, environment=environment)

@@ -73,7 +73,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
 
         states, terminal, reward = environment.execute(actions=actions)
 
-        horizon_output1 = agent.observe(terminal=terminal, reward=reward, query='horizon')
+        _, horizon_output1 = agent.observe(terminal=terminal, reward=reward, query='horizon')
         self.assertIsInstance(horizon_output1, util.np_dtype(dtype='long'))
 
         if not isinstance(horizon, dict) or horizon['type'] == 'constant':
@@ -81,7 +81,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
 
             states, terminal, reward = environment.execute(actions=actions)
 
-            horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
+            _, horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
             self.assertEqual(horizon_output2, horizon_output1)
 
         else:
@@ -89,7 +89,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
 
             states, terminal, reward = environment.execute(actions=actions)
 
-            horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
+            _, horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
             self.assertNotEqual(horizon_output2, horizon_output1)
 
         actions = agent.act(states=states)
@@ -97,7 +97,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
         _, terminal, reward = environment.execute(actions=actions)
 
         horizon_input = 3
-        horizon_output = agent.observe(
+        _, horizon_output = agent.observe(
             terminal=terminal, reward=reward, query='horizon',
             **{'estimator/horizon': horizon_input}
         )

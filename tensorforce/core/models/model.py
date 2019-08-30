@@ -58,7 +58,8 @@ class Model(Module):
         if saver is None:
             self.saver_spec = None
         elif not all(
-            key in ('directory', 'filename', 'load', 'seconds', 'steps') for key in saver
+            key in ('directory', 'filename', 'frequency', 'load', 'max-checkpoints')
+            for key in saver
         ):
             raise TensorforceError.value(name='saver', value=list(saver))
         elif saver.get('directory') is None:
@@ -69,7 +70,10 @@ class Model(Module):
         # Summarizer
         if summarizer is None:
             self.summarizer_spec = None
-        elif not all(key in ('directory', 'flush', 'labels', 'steps') for key in summarizer):
+        elif not all(
+            key in ('directory', 'flush', 'frequency', 'labels', 'max-summaries')
+            for key in summarizer
+        ):
             raise TensorforceError.value(name='summarizer', value=list(summarizer))
         elif summarizer.get('directory') is None:
             self.summarizer_spec = None
@@ -255,11 +259,17 @@ class Model(Module):
 
         # TensorFlow saver object
         # TODO potentially make other options configurable via saver spec.
+
+        # possibility to turn off?
+        if self.saver_spec is None:
+            max_to_keep = 5
+        else:
+            max_to_keep = self.saver_spec.get('max-checkpoints', 5)
         self.saver = tf.train.Saver(
             var_list=saved_variables,  # should be given?
             reshape=False,
             sharded=False,
-            max_to_keep=5,
+            max_to_keep=max_to_keep,
             keep_checkpoint_every_n_hours=10000.0,
             name=None,
             restore_sequentially=False,
@@ -407,6 +417,7 @@ class Model(Module):
                         checkpoint_dir=directory, latest_filename=None
                     )
                 if save_path is not None:
+                    # global vs local model restored correctly?
                     scaffold.saver.restore(sess=session, save_path=save_path)
                     session.run(fetches=util.join_scopes(self.name + '.reset', 'timestep-output:0'))
 
@@ -436,13 +447,13 @@ class Model(Module):
         if self.saver_spec is not None:  # and (self.execution_type == 'single' or self.distributed_spec['task_index'] == 0):
             self.saver_directory = self.saver_spec['directory']
             self.saver_filename = self.saver_spec.get('filename', 'model')
-            hooks.append(tf.train.CheckpointSaverHook(
-                checkpoint_dir=self.saver_directory,
-                save_secs=self.saver_spec.get('seconds', None if 'steps' in self.saver_spec else 600),
-                save_steps=self.saver_spec.get('steps'),  # Either one or the other has to be set.
-                saver=None,  # None since given via 'scaffold' argument.
-                checkpoint_basename=self.saver_filename, scaffold=self.scaffold, listeners=None
-            ))
+            frequency = self.saver_spec.get('frequency', 600)
+            if frequency is not None:
+                hooks.append(tf.train.CheckpointSaverHook(
+                    checkpoint_dir=self.saver_directory, save_secs=frequency, save_steps=None,
+                    saver=None,  # None since given via 'scaffold' argument.
+                    checkpoint_basename=self.saver_filename, scaffold=self.scaffold, listeners=None
+                ))
         else:
             self.saver_directory = None
             self.saver_filename = 'model'
@@ -672,6 +683,8 @@ class Model(Module):
         deterministic = self.deterministic_input
         independent = self.independent_input
 
+        true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+
         # Assertions
         assertions = list()
         # states: type and shape
@@ -702,6 +715,15 @@ class Model(Module):
                     tf.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
                         y=tf.constant(value=shape, dtype=tf.int32)
+                    )
+                )
+                assertions.append(
+                    tf.debugging.assert_equal(
+                        x=tf.reduce_all(
+                            input_tensor=tf.reduce_any(
+                                input_tensor=auxiliaries[name], axis=tuple(range(1, len(shape)))
+                            ), axis=0
+                        ), y=true
                     )
                 )
         # parallel: type, shape and value
@@ -852,7 +874,6 @@ class Model(Module):
         # Check action masks
         # TODO: also check float bounds, move after exploration?
         assertions = list()
-        true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         for name, spec in self.actions_spec.items():
             if spec['type'] == 'int':
                 indices = tf.dtypes.cast(x=actions[name], dtype=tf.int64)
@@ -1129,13 +1150,13 @@ class Model(Module):
                 label=('raw-reward', 'rewards'), name='raw-reward', tensor=reward
             )
 
-            observed = self.core_observe(
+            is_updated = self.core_observe(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 terminal=terminal, reward=reward
             )
 
         # Reset buffer index
-        with tf.control_dependencies(control_inputs=(observed,)):
+        with tf.control_dependencies(control_inputs=(is_updated,)):
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='int'))
 
             reset_buffer_index = self.buffer_index.scatter_nd_update(
@@ -1160,11 +1181,12 @@ class Model(Module):
         # Return episode
         with tf.control_dependencies(control_inputs=dependencies):
             # Function-level identity operation for retrieval (plus enforce dependency)
+            updated = util.identity_operation(x=is_updated, operation_name='updated-output')
             episode = util.identity_operation(
                 x=self.global_episode, operation_name='episode-output'
             )
 
-        return episode
+        return updated, episode
 
     def tf_core_act(self, states, internals, auxiliaries):
         raise NotImplementedError

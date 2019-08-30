@@ -27,7 +27,7 @@ class UnittestEnvironment(Environment):
     Unit-test environment.
     """
 
-    def __init__(self, states, actions, timestep_range, action_masks):
+    def __init__(self, states, actions, timestep_range):
         """
         Initializes a mock environment which is used for the unit-tests.
 
@@ -35,23 +35,16 @@ class UnittestEnvironment(Environment):
             states: The state specification.
             actions: The action specification.
             timestep_range: The range of non-terminal timesteps.
-            action_masks: Whether to add action masks.
         """
         super().__init__()
 
         self.states_spec = OrderedDict((name, states[name]) for name in sorted(states))
         self.actions_spec = OrderedDict((name, actions[name]) for name in sorted(actions))
         self.timestep_range = timestep_range
-        self.action_masks = action_masks
 
-        if self.action_masks:
-            self.random_states = self.__class__.random_states_function(
-                states_spec=self.states_spec, actions_spec=self.actions_spec
-            )
-        else:
-            self.random_states = self.__class__.random_states_function(
-                states_spec=self.states_spec
-            )
+        self.random_states = self.__class__.random_states_function(
+            states_spec=self.states_spec, actions_spec=self.actions_spec
+        )
         self.is_valid_actions = self.__class__.is_valid_actions_function(
             actions_spec=self.actions_spec
         )
@@ -67,34 +60,66 @@ class UnittestEnvironment(Environment):
 
     @classmethod
     def random_states_function(cls, states_spec, actions_spec=None):
-        if util.is_atomic_values_spec(values_spec=states_spec):
-            return cls.random_state_function(state_spec=states_spec)
+        if actions_spec is None:
+            if util.is_atomic_values_spec(values_spec=states_spec):
+                return (lambda: cls.random_state_function(state_spec=states_spec)())
+            else:
+                return (lambda: {
+                    name: cls.random_state_function(state_spec=state_spec)()
+                    for name, state_spec in states_spec.items()
+                })
 
-        elif actions_spec is None:
-            return (lambda: {
-                name: cls.random_states_function(states_spec=state_spec)()
-                for name, state_spec in states_spec.items()
-            })
+        elif util.is_atomic_values_spec(values_spec=states_spec):
+            if util.is_atomic_values_spec(values_spec=actions_spec):
+
+                def fn():
+                    random_states = cls.random_state_function(state_spec=states_spec)()
+                    if actions_spec['type'] == 'int':
+                        if not isinstance(random_states, dict):
+                            random_states = dict(state=random_states)
+                        mask = cls.random_mask(action_spec=actions_spec)
+                        random_states['action_mask'] = mask
+                    return random_states
+
+            else:
+
+                def fn():
+                    random_states = cls.random_state_function(state_spec=states_spec)()
+                    for name, action_spec in actions_spec.items():
+                        if action_spec['type'] == 'int':
+                            if 'state' not in random_states:
+                                random_states = dict(state=random_states)
+                            mask = cls.random_mask(action_spec=action_spec)
+                            random_states[name + '_mask'] = mask
+                    return random_states
 
         else:
+            if util.is_atomic_values_spec(values_spec=actions_spec):
 
-            def fn():
-                random_states = {
-                    name: cls.random_states_function(states_spec=state_spec)()
-                    for name, state_spec in states_spec.items()
-                }
-                if util.is_atomic_values_spec(values_spec=actions_spec):
+                def fn():
+                    random_states = {
+                        name: cls.random_state_function(state_spec=state_spec)()
+                        for name, state_spec in states_spec.items()
+                    }
                     if actions_spec['type'] == 'int':
                         mask = cls.random_mask(action_spec=actions_spec)
                         random_states['action_mask'] = mask
-                else:
+                    return random_states
+
+            else:
+
+                def fn():
+                    random_states = {
+                        name: cls.random_state_function(state_spec=state_spec)()
+                        for name, state_spec in states_spec.items()
+                    }
                     for name, action_spec in actions_spec.items():
                         if action_spec['type'] == 'int':
                             mask = cls.random_mask(action_spec=action_spec)
                             random_states[name + '_mask'] = mask
-                return random_states
+                    return random_states
 
-            return fn
+        return fn
 
     @classmethod
     def random_state_function(cls, state_spec):
@@ -133,12 +158,15 @@ class UnittestEnvironment(Environment):
     @classmethod
     def is_valid_actions_function(cls, actions_spec):
         if util.is_atomic_values_spec(values_spec=actions_spec):
-            return cls.is_valid_action_function(action_spec=actions_spec)
+            return (lambda actions, states:
+                cls.is_valid_action_function(action_spec=actions_spec)(actions, 'action', states)
+            )
 
         else:
-            return (lambda actions: all(
-                cls.is_valid_actions_function(actions_spec=action_spec)(action=actions[name])
-                for name, action_spec in actions_spec.items()
+            return (lambda actions, states: all(
+                cls.is_valid_action_function(action_spec=action_spec)(
+                    action=actions[name], name=name, states=states
+                ) for name, action_spec in actions_spec.items()
             ))
 
     @classmethod
@@ -147,7 +175,7 @@ class UnittestEnvironment(Environment):
         shape = action_spec.get('shape', ())
 
         if dtype == 'bool':
-            return (lambda action: (
+            return (lambda action, name, states: (
                 (isinstance(action, util.np_dtype('bool')) and shape == ()) or
                 (
                     isinstance(action, np.ndarray) and
@@ -157,21 +185,24 @@ class UnittestEnvironment(Environment):
 
         elif dtype == 'int':
             num_values = action_spec['num_values']
-            return (lambda action: (
+            return (lambda action, name, states: (
                 (
                     (isinstance(action, util.np_dtype('int')) and shape == ()) or
                     (
                         isinstance(action, np.ndarray) and
                         action.dtype == util.np_dtype('int') and action.shape == shape
                     )
-                ) and (0 <= action).all() and (action < num_values).all()
+                ) and (0 <= action).all() and (action < num_values).all() and
+                np.take_along_axis(
+                    states[name + '_mask'], indices=np.expand_dims(action, axis=-1), axis=-1
+                ).all()
             ))
 
         elif dtype == 'float':
             if 'min_value' in action_spec:
                 min_value = action_spec['min_value']
                 max_value = action_spec['max_value']
-                return (lambda action: (
+                return (lambda action, name, states: (
                     (
                         (isinstance(action, util.np_dtype('float')) and shape == ()) or
                         (
@@ -182,7 +213,7 @@ class UnittestEnvironment(Environment):
                 ))
 
             else:
-                return (lambda action: (
+                return (lambda action, name, states: (
                     (isinstance(action, util.np_dtype('float')) and shape == ()) or
                     (
                         isinstance(action, np.ndarray) and
@@ -193,17 +224,16 @@ class UnittestEnvironment(Environment):
     def reset(self):
         self.num_timesteps = randint(*self.timestep_range)
         self.timestep = 0
-        states = self.random_states()
-
-        return states
+        self.states = self.random_states()
+        return self.states
 
     def execute(self, actions):
-        if not self.is_valid_actions(actions):
+        if not self.is_valid_actions(actions, self.states):
             raise TensorforceError.value(name='actions', value=actions)
 
         self.timestep += 1
-        states = self.random_states()
+        self.states = self.random_states()
         terminal = self.timestep >= self.num_timesteps
         reward = -1.0 + 2.0 * random()
 
-        return states, terminal, reward
+        return self.states, terminal, reward

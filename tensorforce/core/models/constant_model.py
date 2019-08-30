@@ -15,6 +15,7 @@
 
 from collections import OrderedDict
 
+import numpy as np
 import tensorflow as tf
 
 from tensorforce import util
@@ -60,15 +61,49 @@ class ConstantModel(Model):
             shape = tf.concat(values=(batch_size, shape), axis=0)
             dtype = util.tf_dtype(dtype=spec['type'])
 
-            if self.action_values is not None and name in self.action_values:
-                value = self.action_values[name]
-                actions[name] = tf.fill(dims=shape, value=tf.constant(value=value, dtype=dtype))
+            if spec['type'] == 'int':
+                # Action choices
+                int_dtype = util.tf_dtype(dtype='int')
+                choices = list(range(spec['num_values']))
+                choices_tile = ((1,) + spec['shape'] + (1,))
+                choices = np.tile(A=[choices], reps=choices_tile)
+                choices_shape = ((1,) + spec['shape'] + (spec['num_values'],))
+                choices = tf.constant(value=choices, dtype=int_dtype, shape=choices_shape)
+                ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=int_dtype)
+                batch_size = tf.dtypes.cast(x=shape[0:1], dtype=int_dtype)
+                multiples = tf.concat(values=(batch_size, ones), axis=0)
+                choices = tf.tile(input=choices, multiples=multiples)
+
+                # First unmasked action
+                mask = auxiliaries[name + '_mask']
+                num_values = tf.math.count_nonzero(
+                    input_tensor=mask, axis=-1, dtype=int_dtype
+                )
+                offset = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
+                if self.action_values is not None and name in self.action_values:
+                    action = self.action_values[name]
+                    num_values = tf.math.count_nonzero(
+                        input_tensor=mask[..., :action], axis=-1, dtype=int_dtype
+                    )
+                    action = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
+                else:
+                    action = tf.zeros_like(tensor=offset)
+                choices = tf.boolean_mask(tensor=choices, mask=mask)
+                actions[name] = tf.gather(params=choices, indices=(action + offset))
 
             elif spec['type'] == 'float' and 'min_value' in spec:
                 min_value = spec['min_value']
                 max_value = spec['max_value']
-                mean = min_value + 0.5 * (max_value - min_value)
-                actions[name] = tf.fill(dims=shape, value=tf.constant(value=mean, dtype=dtype))
+                if self.action_values is not None and name in self.action_values:
+                    assert min_value <= self.action_values[name] <= max_value
+                    action = self.action_values[name]
+                else:
+                    action = min_value + 0.5 * (max_value - min_value)
+                actions[name] = tf.fill(dims=shape, value=tf.constant(value=action, dtype=dtype))
+
+            elif self.action_values is not None and name in self.action_values:
+                value = self.action_values[name]
+                actions[name] = tf.fill(dims=shape, value=tf.constant(value=value, dtype=dtype))
 
             else:
                 actions[name] = tf.zeros(shape=shape, dtype=dtype)

@@ -53,6 +53,7 @@ class AutoNetwork(LayerbasedNetwork):
         self, name, inputs_spec, size=64, depth=2, final_size=None, final_depth=1,
         internal_rnn=False, device=None, summary_labels=None, l2_regularization=None
     ):
+        # Some defaults require change in internals_spec
         super().__init__(
             name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
             l2_regularization=l2_regularization
@@ -159,7 +160,7 @@ class AutoNetwork(LayerbasedNetwork):
             if size is None:
                 size = 64
             if internal_rnn is None:
-                internal_rnn = 8
+                internal_rnn = False
 
             if internal_rnn > 0:
                 final_size = size if final_size is None else final_size

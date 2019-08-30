@@ -24,10 +24,11 @@ class Keras(Layer):
     Keras layer (specification key: `keras`).
 
     Args:
-        layer (string): Keras layer class name, see, see
+        layer (string): Keras layer class name, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers>`__
             (<span style="color:#C00000"><b>required</b></span>).
-        kwargs: Arguments for the Keras layer.
+        kwargs: Arguments for the Keras layer, see
+            `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers>`__.
     """
 
     def __init__(

@@ -76,21 +76,29 @@ def tf_always_true(*args, **kwargs):
     return tf.constant(value=True, dtype=tf_dtype(dtype='bool'))
 
 
-def fmap(function, xs):
+def fmap(function, xs, depth=-1):
     if xs is None:
+        assert depth <= 0
         return None
-    elif isinstance(xs, tuple):
-        return tuple(fmap(function=function, xs=x) for x in xs)
-    elif isinstance(xs, list):
-        return [fmap(function=function, xs=x) for x in xs]
-    elif isinstance(xs, set):
-        return {fmap(function=function, xs=x) for x in xs}
-    elif isinstance(xs, OrderedDict):
-        return OrderedDict(((key, fmap(function=function, xs=x)) for key, x in xs.items()))
-    elif isinstance(xs, dict):
-        return {key: fmap(function=function, xs=x) for key, x in xs.items()}
+    elif isinstance(xs, tuple) and depth != 0:
+        return tuple(fmap(function=function, xs=x, depth=(depth - 1)) for x in xs)
+    elif isinstance(xs, list) and depth != 0:
+        return [fmap(function=function, xs=x, depth=(depth - 1)) for x in xs]
+    elif isinstance(xs, set) and depth != 0:
+        return {fmap(function=function, xs=x, depth=(depth - 1)) for x in xs}
+    elif isinstance(xs, OrderedDict) and depth != 0:
+        return OrderedDict(
+            ((key, fmap(function=function, xs=x, depth=(depth - 1))) for key, x in xs.items())
+        )
+    elif isinstance(xs, dict) and depth != 0:
+        return {key: fmap(function=function, xs=x, depth=(depth - 1)) for key, x in xs.items()}
     else:
+        assert depth <= 0
         return function(xs)
+
+
+def not_nan_inf(x):
+    return not np.isnan(x).any() and not np.isinf(x).any()
 
 
 def reduce_all(predicate, xs):
@@ -127,6 +135,20 @@ def zip_items(*args):
         yield key_values
 
 
+def deep_disjoint_update(target, source):
+    for key, value in source.items():
+        if key not in target:
+            target[key] = value
+        elif isinstance(target[key], dict):
+            if not isinstance(value, dict):
+                raise TensorforceError.unexpected()
+            deep_disjoint_update(target=target[key], source=value)
+        elif target[key] != value:
+            raise TensorforceError.mismatch(
+                name='spec', argument=key, value1=target[key], value2=value
+            )
+
+
 def dtype(x):
     for dtype, tf_dtype in tf_dtype_mapping.items():
         if x.dtype == tf_dtype:
@@ -148,6 +170,7 @@ def shape(x, unknown=-1):
 
 def no_operation():
     # Operation required, constant not enough.
+    # Returns false
     return identity_operation(x=tf.constant(value=False, dtype=tf_dtype(dtype='bool')))
 
 
@@ -193,6 +216,14 @@ def np_dtype(dtype):
 
 
 tf_dtype_mapping = dict(bool=tf.bool, int=tf.int32, long=tf.int64, float=tf.float32)
+
+
+reverse_dtype_mapping = {
+    bool: 'bool', np.bool_: 'bool', tf.bool: 'bool',
+    int: 'int', np.int32: 'int', tf.int32: 'int',
+    np.int64: 'long', tf.int64: 'long',
+    float: 'float', np.float32: 'float', tf.float32: 'float'
+}
 
 
 def tf_dtype(dtype):
@@ -261,7 +292,7 @@ def is_nested(name):
 
 
 def is_valid_type(dtype):
-    return dtype in ('bool', 'int', 'long', 'float')
+    return dtype in ('bool', 'int', 'long', 'float') or dtype in reverse_dtype_mapping
 
 
 def is_valid_value_type(value_type):
@@ -331,12 +362,12 @@ def valid_value_spec(
         if not all(is_valid_type(dtype=x) for x in dtype):
             raise TensorforceError.value(name=(value_type + ' spec'), argument='type', value=dtype)
         if return_normalized:
-            normalized_spec['type'] = tuple(dtype)
+            normalized_spec['type'] = tuple(reverse_dtype_mapping.get(x, x) for x in dtype)
     else:
         if not is_valid_type(dtype=dtype):
             raise TensorforceError.value(name=(value_type + ' spec'), argument='type', value=dtype)
         if return_normalized:
-            normalized_spec['type'] = dtype
+            normalized_spec['type'] = reverse_dtype_mapping.get(dtype, dtype)
 
     if value_type == 'action' and return_normalized:
         shape = value_spec.pop('shape', ())
@@ -427,10 +458,13 @@ def valid_value_spec(
                 min_value = min_value.item()
             if isinstance(max_value, np_dtype(dtype='float')):
                 max_value = max_value.item()
-            if not isinstance(min_value, float) or not isinstance(max_value, float):
+            if not isinstance(min_value, float):
                 raise TensorforceError.type(
-                    name=(value_type + ' spec'), argument='min/max_value',
-                    value=(min_value, max_value)
+                    name=(value_type + ' spec'), argument='min_value', value=min_value
+                )
+            if not isinstance(max_value, float):
+                raise TensorforceError.type(
+                    name=(value_type + ' spec'), argument='max_value', value=max_value
                 )
             if min_value >= max_value:
                 raise TensorforceError.value(
@@ -664,9 +698,12 @@ def normalize_values(value_type, values, values_spec):
     if len(values_spec) == 1 and next(iter(values_spec)) == value_type:
         # Spec defines only a single value
         if isinstance(values, dict):
-            TensorforceError.value(name=(value_type + ' spec'), value=values)
+            if len(values) != 1 or value_type not in values:
+                TensorforceError.value(name=(value_type + ' spec'), value=values)
+            return values
 
-        return OrderedDict([(value_type, values)])
+        else:
+            return OrderedDict([(value_type, values)])
 
     normalized_values = OrderedDict()
     for normalized_name in values_spec:

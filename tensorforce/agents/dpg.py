@@ -31,7 +31,7 @@ class DeterministicPolicyGradient(PolicyAgent):
         # Optimization
         memory=10000, batch_size=32, update_frequency=4, start_updating=1000, learning_rate=3e-4,
         # Reward estimation
-        n_step=0, discount=0.99,
+        n_step=0, discount=0.99, estimate_terminal=True,
         # Critic
         critic_network='auto', critic_optimizer='adam',
         # Preprocessing
@@ -53,7 +53,8 @@ class DeterministicPolicyGradient(PolicyAgent):
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = 'dpg'
         reward_estimation = dict(
-            horizon=n_step, discount=discount, estimate_horizon='late', estimate_actions=True
+            horizon=n_step, discount=discount, estimate_horizon='late',
+            estimate_terminal=estimate_terminal, estimate_actions=True
         )
         # Action value doesn't exist for Beta
         baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))

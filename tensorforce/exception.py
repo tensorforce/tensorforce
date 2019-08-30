@@ -92,7 +92,9 @@ class TensorforceError(Exception):
 
     @staticmethod
     def value(name, value, argument=None):
-        if is_iterable(x=value):
+        if isinstance(value, dict):
+            value = str(value)
+        elif is_iterable(x=value):
             value = ', '.join(str(x) for x in value)
         if argument is None:
             return TensorforceError(

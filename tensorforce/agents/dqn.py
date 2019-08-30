@@ -28,10 +28,10 @@ class DeepQNetwork(PolicyAgent):
         # Network
         network='auto',
         # Optimization
-        memory=10000, batch_size=32, update_frequency=4, start_updating=1000, learning_rate=3e-4,
+        memory=10000, batch_size=32, update_frequency=4, start_updating=None, learning_rate=3e-4,
         huber_loss=0.0,
         # Reward estimation
-        n_step=0, discount=0.99,  # double_q_model=False !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        n_step=0, discount=0.99, estimate_terminal=True,  # double_q_model=False !!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Target network
         target_sync_frequency=10000, target_update_weight=1.0,
         # Preprocessing
@@ -46,16 +46,16 @@ class DeepQNetwork(PolicyAgent):
     ):
         # Action value doesn't exist for Beta
         policy = dict(network=network, distributions=dict(float='gaussian'))
-        assert max_episode_timesteps is None or memory >= (batch_size + 1) * max_episode_timesteps
+        assert max_episode_timesteps is None or memory >= batch_size + max_episode_timesteps
         memory = dict(type='replay', capacity=memory)
-        update = dict(
-            unit='timesteps', batch_size=batch_size, frequency=update_frequency,
-            start=start_updating
-        )
+        update = dict(unit='timesteps', batch_size=batch_size, frequency=update_frequency)
+        if start_updating is not None:
+            update['start'] = start_updating
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = dict(type='action_value', huber_loss=huber_loss)
         reward_estimation = dict(
-            horizon=n_step, discount=discount, estimate_horizon='late', estimate_actions=True
+            horizon=n_step, discount=discount, estimate_horizon='late',
+            estimate_terminal=estimate_terminal, estimate_actions=True
         )
         baseline_policy = 'equal'
         baseline_optimizer = dict(

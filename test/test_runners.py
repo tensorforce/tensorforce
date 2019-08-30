@@ -166,9 +166,8 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         self.finished_test(assertion=(self.is_callback1 and self.is_callback2))
 
-
         # evaluation
-        agent, environment1 = self.prepare(parallel_interactions=2, saver=dict(directory='saved'))
+        agent, environment1 = self.prepare(parallel_interactions=2)
         environment2 = copy.deepcopy(environment1)
         evaluation_environment = copy.deepcopy(environment1)
 
@@ -182,7 +181,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
         def evaluation_callback(r):
             self.num_evaluations += 1
 
-        runner.run(num_episodes=10, use_tqdm=False, evaluation_callback=evaluation_callback, save_best_agent=True)
+        runner.run(num_episodes=10, use_tqdm=False, evaluation_callback=evaluation_callback)
         runner.close()
 
         self.assertGreaterEqual(self.num_evaluations, 1)

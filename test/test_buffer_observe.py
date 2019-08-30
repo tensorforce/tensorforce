@@ -18,11 +18,11 @@ import unittest
 from test.unittest_base import UnittestBase
 
 
-class TestRewardEstimation(UnittestBase, unittest.TestCase):
+class TestBufferObserve(UnittestBase, unittest.TestCase):
 
     exclude_bounded_action = True  # TODO: shouldn't be necessary!
 
-    def test_reward_estimation(self):
+    def test_buffer_observe(self):
         self.start_tests()
 
         self.unittest(buffer_observe=False, memory=20)

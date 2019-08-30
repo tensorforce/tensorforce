@@ -518,10 +518,18 @@ class PolicyModel(Model):
             batch_size = self.update_batch_size.value()
             frequency = self.update_frequency.value()
             start = self.update_start.value()
-            start = tf.math.maximum(x=start, y=batch_size)
 
             if self.update_unit == 'timesteps':
                 # Timestep-based batch
+                one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+                past_horizon = self.policy.dependency_horizon(is_optimization=True)
+                if self.baseline_policy is not None:
+                    past_horizon = tf.math.maximum(
+                        x=past_horizon,
+                        y=self.baseline_policy.dependency_horizon(is_optimization=True)
+                    )
+                future_horizon = self.estimator.horizon.value() + one
+                start = tf.math.maximum(x=start, y=(batch_size + past_horizon + future_horizon))
                 timestep = Module.retrieve_tensor(name='timestep')
                 timestep = timestep - self.estimator.capacity
                 is_frequency = tf.math.equal(x=tf.mod(x=timestep, y=frequency), y=zero)
@@ -529,6 +537,7 @@ class PolicyModel(Model):
 
             elif self.update_unit == 'episodes':
                 # Episode-based batch
+                start = tf.math.maximum(x=start, y=batch_size)
                 episode = Module.retrieve_tensor(name='episode')
                 is_frequency = tf.math.equal(x=tf.mod(x=episode, y=frequency), y=zero)
                 # Only update once per episode increment
@@ -538,12 +547,12 @@ class PolicyModel(Model):
                 is_frequency = tf.math.logical_and(x=is_frequency, y=is_terminal)
                 at_least_start = tf.math.greater_equal(x=episode, y=start)
 
-            updated = self.cond(
+            is_updated = self.cond(
                 pred=tf.math.logical_and(x=is_frequency, y=at_least_start),
                 true_fn=self.core_update, false_fn=util.no_operation
             )
 
-        return updated
+        return is_updated
 
     def tf_core_experience(self, states, internals, auxiliaries, actions, terminal, reward):
         # Enqueue experience for early reward estimation
@@ -603,7 +612,17 @@ class PolicyModel(Model):
             batch_size = self.update_batch_size.value()
             if self.update_unit == 'timesteps':
                 # Timestep-based batch
-                indices = self.memory.retrieve_timesteps(n=batch_size)
+                # Dependency horizon
+                past_horizon = self.policy.dependency_horizon(is_optimization=True)
+                if self.baseline_policy is not None:
+                    past_horizon = tf.math.maximum(
+                        x=past_horizon,
+                        y=self.baseline_policy.dependency_horizon(is_optimization=True)
+                    )
+                future_horizon = self.estimator.horizon.value() + one
+                indices = self.memory.retrieve_timesteps(
+                    n=batch_size, past_padding=past_horizon, future_padding=future_horizon
+                )
             elif self.update_unit == 'episodes':
                 # Episode-based batch
                 indices = self.memory.retrieve_episodes(n=batch_size)
@@ -619,11 +638,12 @@ class PolicyModel(Model):
         #     )
 
         # # Retrieve dependency horizon
+        # horizon change: see timestep-based batch sampling
         # starts, lengths, states, internals = self.memory.predecessors(
         #     indices=indices, horizon=dependency_horizon, sequence_values='states',
         #     initial_values='internals'
         # )
-        # actions, reward = self.memory.tf_retrieve(indices=indices, values=('actions', 'reward'))
+        # actions, reward = self.memory.retrieve(indices=indices, values=('actions', 'reward'))
         # Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
 
         # # Stop gradients of batch before optimization
@@ -637,7 +657,9 @@ class PolicyModel(Model):
         #     indices=indices, states=states, internals=internals, actions=actions, reward=reward
         # )
 
-        return optimized
+        with tf.control_dependencies(control_inputs=(optimized,)):
+            true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+            return util.identity_operation(x=true)
 
     def tf_optimize(self, indices):
         # distr_params_before = OrderedDict()
@@ -676,7 +698,7 @@ class PolicyModel(Model):
         # Late reward estimation
         with tf.control_dependencies(control_inputs=dependencies):
             # Retrieve reward
-            reward = self.memory.tf_retrieve(indices=indices, values='reward')
+            reward = self.memory.retrieve(indices=indices, values='reward')
             reward = self.estimator.estimate1(
                 baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
             )
@@ -698,12 +720,13 @@ class PolicyModel(Model):
 
         # Retrieve states, internals and actions
         dependency_horizon = self.policy.dependency_horizon(is_optimization=True)
+        # horizon change: see timestep-based batch sampling
         starts, lengths, states, internals = self.memory.predecessors(
             indices=indices, horizon=dependency_horizon, sequence_values='states',
             initial_values='internals'
         )
         Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
-        auxiliaries, actions = self.memory.tf_retrieve(
+        auxiliaries, actions = self.memory.retrieve(
             indices=indices, values=('auxiliaries', 'actions')
         )
 
@@ -824,12 +847,13 @@ class PolicyModel(Model):
     def tf_optimize_baseline(self, indices):
         # Retrieve states, internals, actions and reward
         dependency_horizon = self.baseline_policy.dependency_horizon(is_optimization=True)
+        # horizon change: see timestep-based batch sampling
         starts, lengths, states, internals = self.memory.predecessors(
             indices=indices, horizon=dependency_horizon, sequence_values='states',
             initial_values='internals'
         )
         Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
-        auxiliaries, actions, reward = self.memory.tf_retrieve(
+        auxiliaries, actions, reward = self.memory.retrieve(
             indices=indices, values=('auxiliaries', 'actions', 'reward')
         )
 

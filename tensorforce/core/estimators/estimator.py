@@ -391,7 +391,6 @@ class Estimator(CircularBuffer):
 
     def tf_estimate1(self, baseline, memory, indices, reward):
         if (self.estimate_horizon == 'late' and baseline is not None) or self.estimate_advantage:
-            assert baseline is not None
             # # TODO: dependency_horizon < horizon, get sequence of states of length dependency_horizon only
             dependency_horizon = baseline.dependency_horizon(is_optimization=False)
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
@@ -414,6 +413,7 @@ class Estimator(CircularBuffer):
             discount = self.discount.value()
 
             if self.estimate_actions:
+                # horizon change: see timestep-based batch sampling
                 horizons, (states, internals, auxiliaries) = memory.successors(
                     indices=indices, horizon=(horizon + one),
                     final_values=('states', 'internals', 'auxiliaries')
@@ -426,6 +426,7 @@ class Estimator(CircularBuffer):
                     states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
                 )
             else:
+                # horizon change: see timestep-based batch sampling
                 horizons, (states, internals, auxiliaries) = memory.successors(
                     indices=indices, horizon=(horizon + one),
                     final_values=('states', 'internals', 'auxiliaries')
@@ -450,22 +451,24 @@ class Estimator(CircularBuffer):
     def tf_estimate2(self, baseline, memory, indices, reward):
         if False:
             orig_indices = indices
+            # horizon change: see timestep-based batch sampling
             starts, lengths, rewards = memory.successors(
                 indices=indices, horizon=horizon, sequence_values='reward'
             )
             indices = starts + lengths
 
         if self.estimate_advantage:
+            assert baseline is not None
             # possible with optimizer 'same'
             if self.estimate_actions:
-                states, internals, auxiliaries, actions = memory.tf_retrieve(
+                states, internals, auxiliaries, actions = memory.retrieve(
                     indices=indices, values=('states', 'internals', 'auxiliaries', 'actions')
                 )
                 critic_estimate = baseline.actions_value(
                     states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
                 )
             else:
-                states, internals, auxiliaries = memory.tf_retrieve(
+                states, internals, auxiliaries = memory.retrieve(
                     indices=indices, values=('states', 'internals', 'auxiliaries')
                 )
                 critic_estimate = baseline.states_value(

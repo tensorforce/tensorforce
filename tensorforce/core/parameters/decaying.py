@@ -32,7 +32,8 @@ class Decaying(Parameter):
         unit ("timesteps" | "episodes" | "updates"): Unit of decay schedule
             (<span style="color:#C00000"><b>required</b></span>).
         decay ("cosine" | "cosine_restarts" | "exponential" | "inverse_time" | "linear_cosine" | "linear_cosine_noisy" | "natural_exponential" | "polynomial"):
-            Decay type
+            Decay type, see
+            `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__
             (<span style="color:#C00000"><b>required</b></span>).
         initial_value (float): Initial value
             (<span style="color:#C00000"><b>required</b></span>).

@@ -33,9 +33,8 @@ class TestReadme(unittest.TestCase):
 
         environment = UnittestEnvironment(
             states=dict(type='float', shape=(10,)),
-            actions=dict(type='int', num_values=5),
-            timestep_range=(1, 5),
-            action_masks=True
+            actions=dict(type='int', shape=(), num_values=5),
+            timestep_range=(1, 5)
         )
 
         def get_current_state():

@@ -281,8 +281,23 @@ class Module(object):
 
             if self.summarizer_spec is not None:
                 with tf.name_scope(name='summarizer'):
+
+                    if os.path.isdir(self.summarizer_spec['directory']):
+                        directories = sorted(
+                            d for d in os.listdir(self.summarizer_spec['directory'])
+                            if os.path.isdir(d) and d.startswith('summary-')
+                        )
+                    else:
+                        directories = list()
+                    max_summaries = self.summarizer_spec.get('max-summaries', 5)
+                    if len(directories) > max_summaries - 1:
+                        for subdir in directories[:-max_summaries + 1]:
+                            subdir = os.path.join(self.summarizer_spec['directory'], subdir)
+                            os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
+                            os.rmdir(subdir)
+
                     logdir = os.path.join(
-                        self.summarizer_spec['directory'], time.strftime('%Y%m%d-%H%M%S')
+                        self.summarizer_spec['directory'], time.strftime('summary-%Y%m%d-%H%M%S')
                     )
                     flush_millis = (self.summarizer_spec.get('flush', 10) * 1000)
                     self.summarizer = tf.contrib.summary.create_file_writer(
@@ -295,16 +310,16 @@ class Module(object):
                     default_summarizer = self.summarizer.as_default()
                     default_summarizer.__enter__()
 
-                    if 'steps' in self.summarizer_spec:
-                        if isinstance(self.summarizer_spec['steps'], int):
+                    if 'frequency' in self.summarizer_spec:
+                        if isinstance(self.summarizer_spec['frequency'], int):
                             record_summaries = \
                                 tf.contrib.summary.record_summaries_every_n_global_steps(
-                                    n=self.summarizer_spec['steps']
+                                    n=self.summarizer_spec['frequency']
                                 )
-                        elif 'variables' in self.summarizer_spec['steps']:
+                        elif 'variables' in self.summarizer_spec['frequency']:
                             record_summaries = \
                                 tf.contrib.summary.record_summaries_every_n_global_steps(
-                                    n=self.summarizer_spec['steps']['variables']
+                                    n=self.summarizer_spec['frequency']['variables']
                                 )
                         else:
                             record_summaries = tf.contrib.summary.never_record_summaries()
@@ -396,18 +411,18 @@ class Module(object):
 
                 # Todo: own every_n_step implementation, plus maybe per function steps argument
                 fct_record_summaries = None
-                if self.summarizer_spec is not None and 'steps' in self.summarizer_spec:
-                    if isinstance(self.summarizer_spec['steps'], int):
+                if self.summarizer_spec is not None and 'frequency' in self.summarizer_spec:
+                    if isinstance(self.summarizer_spec['frequency'], int):
                         if function_name in ('observe', 'update'):
                             fct_record_summaries = tf.contrib.summary.always_record_summaries()
-                    elif function_name in self.summarizer_spec['steps']:
+                    elif function_name in self.summarizer_spec['frequency']:
                         if function_name in ('observe', 'update'):
                             step = self.global_update
                         else:
                             step = self.global_timestep
                         fct_record_summaries = \
                             tf.contrib.summary.record_summaries_every_n_global_steps(
-                                n=self.summarizer_spec['steps'][function_name], global_step=step
+                                n=self.summarizer_spec['frequency'][function_name], global_step=step
                             )
                     else:
                         fct_record_summaries = tf.contrib.summary.never_record_summaries()
@@ -867,12 +882,7 @@ class Module(object):
         # ???
         if isinstance(module, dict):
             # Dictionary module specification (type either given via 'type' or 'default_module')
-            for key, value in module.items():
-                if key in kwargs and kwargs[key] != value:
-                    raise TensorforceError.mismatch(
-                        name='module', argument=key, value1=kwargs[key], value2=value
-                    )
-                kwargs[key] = value
+            util.deep_disjoint_update(target=kwargs, source=module)
             module = kwargs.pop('type', default_module)
             return Module.get_module_class_and_kwargs(
                 name=name, module=module, modules=modules, default_module=default_module, **kwargs

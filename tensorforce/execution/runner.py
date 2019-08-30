@@ -25,23 +25,33 @@ from tensorforce.environments import Environment
 
 class Runner(object):
 
-    def __init__(self, agent, environment, evaluation_environment=None):
+    def __init__(self, agent, environment, evaluation_environment=None, save_best_agent=False):
+        # save_best overwrites saver...
         self.is_environment_external = isinstance(environment, Environment)
         self.environment = Environment.create(environment=environment)
-        self.is_agent_external = isinstance(agent, Agent)
-        self.agent = Agent.create(agent=agent, environment=self.environment)
+
         self.is_eval_environment_external = isinstance(evaluation_environment, Environment)
         if evaluation_environment is None:
             self.evaluation_environment = None
         else:
             self.evaluation_environment = Environment.create(environment=evaluation_environment)
 
+        self.save_best_agent = save_best_agent
+        self.is_agent_external = isinstance(agent, Agent)
+        kwargs = dict()
+        # warning: save_best_agent
+        if not self.is_agent_external and self.save_best_agent:
+            # Disable periodic saving
+            kwargs = dict(saver=dict(seconds=None, steps=None))
+        self.agent = Agent.create(agent=agent, environment=self.environment, **kwargs)
         self.agent.initialize()
+
         self.global_episode = self.agent.episode
         self.global_timestep = self.agent.timestep
         self.episode_rewards = list()
         self.episode_timesteps = list()
         self.episode_seconds = list()
+        self.episode_agent_seconds = list()
 
     def close(self):
         if hasattr(self, 'tqdm'):
@@ -64,8 +74,7 @@ class Runner(object):
         use_tqdm=True, mean_horizon=10,
         # Evaluation
         evaluation=False, evaluation_callback=None, evaluation_frequency=None,
-        update_as_evaluation_frequency=False, max_evaluation_timesteps=None,
-        num_evaluation_iterations=1, save_best_agent=False
+        max_evaluation_timesteps=None, num_evaluation_iterations=1
     ):
         # General
         if num_episodes is None:
@@ -125,12 +134,15 @@ class Runner(object):
             if self.num_episodes != float('inf'):
                 # Episode-based tqdm (default option if both num_episodes and num_timesteps set)
                 assert self.num_episodes != float('inf')
+                bar_format = (
+                    '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}, reward={postfix[0]:.2f}, ts/ep='
+                    '{postfix[1]}, sec/ep={postfix[2]:.2f}, ms/ts={postfix[3]:.1f}, agent='
+                    '{postfix[4]:.1f}%]'
+                )
+                postfix = [0.0, 0, 0.0, 0.0, 0.0]
                 self.tqdm = tqdm(
-                    desc='Episodes', total=self.num_episodes, initial=self.global_episode,
-                    postfix={
-                        'reward': '{:.2f}'.format(0.0), 'ts/ep': str(0),
-                        'sec/ep': '{:.2f}'.format(0.0), 'ms/ts': '{:.1f}'.format(0.0)
-                    }
+                    desc='Episodes', total=self.num_episodes, bar_format=bar_format,
+                    initial=self.global_episode, postfix=postfix
                 )
                 self.tqdm_last_update = self.global_episode
 
@@ -138,12 +150,14 @@ class Runner(object):
                     mean_reward = float(np.mean(runner.episode_rewards[-mean_horizon:]))
                     mean_ts_per_ep = int(np.mean(runner.episode_timesteps[-mean_horizon:]))
                     mean_sec_per_ep = float(np.mean(runner.episode_seconds[-mean_horizon:]))
+                    mean_agent_sec = float(np.mean(runner.episode_agent_seconds[-mean_horizon:]))
                     mean_ms_per_ts = mean_sec_per_ep * 1000.0 / mean_ts_per_ep
-                    runner.tqdm.set_postfix({
-                        'reward': '{:.2f}'.format(mean_reward), 'ts/ep': str(mean_ts_per_ep),
-                        'sec/ep': '{:.2f}'.format(mean_sec_per_ep),
-                        'ms/ts': '{:.1f}'.format(mean_ms_per_ts)
-                    })
+                    mean_rel_agent = mean_agent_sec * 100.0 / mean_sec_per_ep
+                    runner.tqdm.postfix[0] = mean_reward
+                    runner.tqdm.postfix[1] = mean_ts_per_ep
+                    runner.tqdm.postfix[2] = mean_sec_per_ep
+                    runner.tqdm.postfix[3] = mean_ms_per_ts
+                    runner.tqdm.postfix[4] = mean_rel_agent
                     runner.tqdm.update(n=(runner.global_episode - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.global_episode
                     return inner_callback(runner)
@@ -175,28 +189,13 @@ class Runner(object):
         else:
             assert not self.evaluation
             self.evaluation_callback = evaluation_callback
-        if evaluation_frequency is None:
-            if update_as_evaluation_frequency:
-                assert evaluation_frequency is None
-                batch_size = self.agent.model.update_mode['batch_size']
-                frequency = self.agent.model.update_mode.get('frequency', batch_size)
-                if self.agent.model.update_unit == 'episodes':
-                    self.evaluation_frequency = frequency
-                else:
-                    # Approximates maximum number of episodes for an update to happen
-                    self.evaluation_frequency = frequency // self.max_episode_timesteps
-            else:
-                self.evaluation_frequency = float('inf')
-        else:
-            assert not self.evaluation and not update_as_evaluation_frequency
-            self.evaluation_frequency = evaluation_frequency
+        self.evaluation_frequency = evaluation_frequency
         if max_evaluation_timesteps is None:
             self.max_evaluation_timesteps = float('inf')
         else:
             assert not self.evaluation
             self.max_evaluation_timesteps = max_evaluation_timesteps
         self.num_evaluation_iterations = num_evaluation_iterations
-        self.save_best_agent = save_best_agent
         if self.save_best_agent:
             assert not self.evaluation
             inner_evaluation_callback = self.evaluation_callback
@@ -215,7 +214,7 @@ class Runner(object):
         self.agent.reset()
 
         # Episode counter
-        self.episode = 1
+        self.episode = 0
 
         # Episode loop
         while True:
@@ -226,13 +225,21 @@ class Runner(object):
             ):
                 return
 
+            # Increment episode counter (after calling callback)
+            self.episode += 1
+
             # Update experiment statistics
             self.episode_rewards.append(self.episode_reward)
             self.episode_timesteps.append(self.episode_timestep)
             self.episode_seconds.append(self.episode_second)
+            self.episode_agent_seconds.append(self.episode_agent_second)
 
             # Run evaluation
-            if self.episode % self.evaluation_frequency == 0:
+            if self.evaluation_frequency is None:
+                is_evaluation = self.episode_updated
+            else:
+                is_evaluation = (self.episode % self.evaluation_frequency == 0)
+            if is_evaluation:
                 if self.evaluation_environment is None:
                     environment = self.environment
                 else:
@@ -241,6 +248,7 @@ class Runner(object):
                 self.evaluation_rewards = list()
                 self.evaluation_timesteps = list()
                 self.evaluation_seconds = list()
+                self.evaluation_agent_seconds = list()
 
                 # Evaluation loop
                 for _ in range(self.num_evaluation_iterations):
@@ -252,6 +260,7 @@ class Runner(object):
                     self.evaluation_rewards.append(self.episode_reward)
                     self.evaluation_timesteps.append(self.episode_timestep)
                     self.evaluation_seconds.append(self.episode_second)
+                    self.evaluation_agent_seconds.append(self.episode_agent_second)
 
                 # Evaluation callback
                 if self.save_best_agent:
@@ -281,13 +290,12 @@ class Runner(object):
             elif self.agent.should_stop():
                 return
 
-            # Increment episode counter (after calling callback)
-            self.episode += 1
-
     def run_episode(self, environment, max_timesteps, evaluation):
         # Episode statistics
         self.episode_reward = 0
         self.episode_timestep = 0
+        self.episode_updated = False
+        self.episode_agent_second = 0.0
         episode_start = time.time()
 
         # Start environment episode
@@ -296,7 +304,9 @@ class Runner(object):
         # Timestep loop
         while True:
             # Retrieve actions from agent
+            agent_start = time.time()
             actions = self.agent.act(states=states, evaluation=evaluation)
+            self.episode_agent_second += time.time() - agent_start
             self.episode_timestep += 1
             # Execute actions in environment (optional repeated execution)
             reward = 0.0
@@ -313,7 +323,10 @@ class Runner(object):
 
             # Observe unless evaluation
             if not evaluation:
-                self.agent.observe(terminal=terminal, reward=reward)
+                agent_start = time.time()
+                updated = self.agent.observe(terminal=terminal, reward=reward)
+                self.episode_agent_second += time.time() - agent_start
+                self.episode_updated = self.episode_updated or updated
 
             # Callback
             if self.episode_timestep % self.callback_timestep_frequency == 0 and \

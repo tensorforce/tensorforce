@@ -14,6 +14,8 @@
 # ==============================================================================
 
 from collections import OrderedDict
+import os
+from random import shuffle
 
 import numpy as np
 
@@ -73,8 +75,9 @@ class PolicyAgent(Agent):
             [memories](../modules/memories.html)
             (<span style="color:#00C000"><b>default</b></span>: replay memory with given or
             inferred capacity).
-        update (specification): Model update configuration with the following attributes
-            (<span style="color:#C00000"><b>required</b></span>):
+        update (int | specification): Model update configuration with the following attributes
+            (<span style="color:#C00000"><b>required</b>,
+            <span style="color:#00C000"><b>default</b></span>: timesteps batch size</span>):
             <ul>
             <li><b>unit</b> (<i>"timesteps" | "episodes"</i>) &ndash; unit for update attributes
             (<span style="color:#C00000"><b>required</b></span>).</li>
@@ -82,8 +85,8 @@ class PolicyAgent(Agent):
             number of units (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>frequency</b> (<i>"never" | parameter, long > 0</i>) &ndash; frequency of
             updates (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
-            <li><b>start</b> (<i>parameter, long >= 0</i>) &ndash; number of units before first
-            update (<span style="color:#00C000"><b>default</b></span>: 0).</li>
+            <li><b>start</b> (<i>parameter, long >= 2 * batch_size</i>) &ndash; number of units
+            before first update (<span style="color:#00C000"><b>default</b></span>: 0).</li>
             </ul>
         optimizer (specification): Optimizer configuration, see
             [optimizers](../modules/optimizers.html)
@@ -176,27 +179,29 @@ class PolicyAgent(Agent):
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>string</i>) &ndash; model filename
-            (<span style="color:#00C000"><b>default</b></span>: "model").
-            </li>
-            <li><b>load</b> (<i>bool</i>) &ndash; whether to load the existing model
+            (<span style="color:#00C000"><b>default</b></span>: "model").</li>
+            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in seconds to save the
+            model (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
+            <li><b>load</b> (<i>bool | str</i>) &ndash; whether to load the existing model, or
+            which model filename to load
             (<span style="color:#00C000"><b>default</b></span>: true).</li>
-            <li><b>seconds/steps</b> (<i>int > 0</i>) &ndash; how frequently in seconds/timesteps
-            to save the model
-            (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
             </ul>
+            <li><b>max-checkpoints</b> (<i>int > 0</i>) &ndash; maximum number of checkpoints to
+            keep (<span style="color:#00C000"><b>default</b></span>: 5).</li>
         summarizer (specification): TensorBoard summarizer configuration with the following
-            attributes
-            (<span style="color:#00C000"><b>default</b></span>: no summarizer):
+            attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; summarizer directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>steps</b> (<i>int > 0, dict[int > 0]</i>) &ndash; how frequently to record
-            summaries, applies to "variables" and "act" if specified globally
+            <li><b>frequency</b> (<i>int > 0, dict[int > 0]</i>) &ndash; how frequently in
+            timestepsto record summaries, applies to "variables" and "act" if specified globally
             (<span style="color:#00C000"><b>default</b></span>:
             always), otherwise specified per "variables"/"act" in timesteps and "observe"/"update"
             in updates (<span style="color:#00C000"><b>default</b></span>: never).</li>
             <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
+            <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
+            (<span style="color:#00C000"><b>default</b></span>: 5).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all or list of summaries to
             record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
@@ -219,6 +224,15 @@ class PolicyAgent(Agent):
             <li>"variables": variable mean and variance scalars</li>
             <li>"variables-full": variable histograms</li>
             </ul>
+        recorder (specification): Experience traces recorder configuration with the following
+            attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):
+            <ul>
+            <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in episodes to record
+            traces (<span style="color:#00C000"><b>default</b></span>: every episode).</li>
+            <li><b>max-traces</b> (<i>int > 0</i>) &ndash; maximum number of traces to keep
+            (<span style="color:#00C000"><b>default</b></span>: all).</li>
     """
 
     def __init__(
@@ -244,14 +258,15 @@ class PolicyAgent(Agent):
         l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
         name='agent', device=None, parallel_interactions=1, buffer_observe=True, seed=None,
-        execution=None, saver=None, summarizer=None
+        execution=None, saver=None, summarizer=None, recorder=None
     ):
         if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
             buffer_observe = False
 
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe, seed=seed
+            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe, seed=seed,
+            recorder=recorder
         )
 
         if isinstance(update, int):
@@ -293,7 +308,7 @@ class PolicyAgent(Agent):
 
     def experience(self, states, actions, terminal, reward, internals=None, query=None, **kwargs):
         """
-        Feed experience episodes.
+        Feed experience traces.
 
         Args:
             states (dict[state]): Dictionary containing arrays of states
@@ -311,7 +326,10 @@ class PolicyAgent(Agent):
             kwargs: Additional input values, for instance, for dynamic hyperparameters.
         """
         assert (self.buffer_indices == 0).all()
-        assert terminal[-1]
+        assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
+        assert internals is None  # or util.reduce_all(predicate=util.not_nan_inf, xs=internals)
+        assert util.reduce_all(predicate=util.not_nan_inf, xs=actions)
+        assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
 
         # Auxiliaries
         auxiliaries = OrderedDict()
@@ -319,7 +337,7 @@ class PolicyAgent(Agent):
             for name, spec in self.actions_spec.items():
                 if spec['type'] == 'int' and name + '_mask' in states:
                     auxiliaries[name + '_mask'] = np.asarray(states.pop(name + '_mask'))
-        auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries)
+        auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries, depth=1)
 
         # Normalize states dictionary
         states = util.normalize_values(
@@ -352,10 +370,10 @@ class PolicyAgent(Agent):
                 index += 1
 
             function = (lambda x: x[last: index])
-            states_batch = util.fmap(function=function, xs=states)
-            internals_batch = util.fmap(function=function, xs=internals)
-            auxiliaries_batch = util.fmap(function=function, xs=auxiliaries)
-            actions_batch = util.fmap(function=function, xs=actions)
+            states_batch = util.fmap(function=function, xs=states, depth=1)
+            internals_batch = util.fmap(function=function, xs=internals, depth=1)
+            auxiliaries_batch = util.fmap(function=function, xs=auxiliaries, depth=1)
+            actions_batch = util.fmap(function=function, xs=actions, depth=1)
             terminal_batch = terminal[last: index]
             reward_batch = reward[last: index]
             last = index
@@ -394,3 +412,57 @@ class PolicyAgent(Agent):
         else:
             self.timestep, self.episode, queried = self.model.update(query=query, **kwargs)
             return queried
+
+    def pretrain(self, directory, num_updates, num_traces=None, num_iterations=1):
+        """
+        Pretrain from experience traces.
+
+        Args:
+            directory (path): Directory with experience traces, e.g. obtained via recorder
+                (<span style="color:#C00000"><b>required</b></span>).
+            num_updates (int > 0): Number of updates per iteration
+                (<span style="color:#C00000"><b>required</b></span>).
+            num_traces (int > 0): Number of traces to load per iteration
+                (<span style="color:#00C000"><b>default</b></span>: all).
+            num_iterations (int > 0): Number of iterations consisting of loading new traces and
+                performing multiple updates
+                (<span style="color:#00C000"><b>default</b></span>: 1).
+        """
+        if not os.path.isdir(directory):
+            raise TensorforceError.unexpected()
+        files = sorted(
+            os.path.join(directory, f) for f in os.listdir(directory)
+            if os.path.isfile(os.path.join(directory, f)) and f.startswith('trace-')
+        )
+        indices = list(range(len(files)))
+        states = OrderedDict(((name, list()) for name in self.states_spec))
+        for name, spec in self.actions_spec.items():
+            if spec['type'] == 'int':
+                states[name + '_mask'] = list()
+        actions = OrderedDict(((name, list()) for name in self.actions_spec))
+        terminal = list()
+        reward = list()
+
+        for _ in range(num_iterations):
+            shuffle(indices)
+            if num_traces is None:
+                selection = indices
+            else:
+                selection = indices[:num_traces]
+            for index in selection:
+                trace = np.load(files[index])
+                for name in states:
+                    states[name].append(trace[name])
+                for name in actions:
+                    actions[name].append(trace[name])
+                terminal.append(trace['terminal'])
+                reward.append(trace['reward'])
+            states = util.fmap(function=np.concatenate, xs=states, depth=1)
+            actions = util.fmap(function=np.concatenate, xs=actions, depth=1)
+            terminal = np.concatenate(terminal)
+            reward = np.concatenate(reward)
+
+            self.experience(states=states, actions=actions, terminal=terminal, reward=reward)
+            for _ in range(num_updates):
+                self.update()
+            # TODO: self.obliviate()

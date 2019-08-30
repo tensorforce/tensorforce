@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import os
+
 from test.unittest_base import UnittestBase
 
 
@@ -22,9 +24,10 @@ class UnittestAgent(UnittestBase):
     """
 
     replacement_action = 'bool'
-    action_masks = True
     has_experience = True
     has_update = True
+    directory = 'test-recording'
+
 
     def test_single_state_action(self):
         self.start_tests(name='single-state-action')
@@ -34,32 +37,32 @@ class UnittestAgent(UnittestBase):
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='bool', shape=())
-        self.unittest(states=states, actions=actions, action_masks=self.__class__.action_masks)
+        self.unittest(states=states, actions=actions)
 
         states = dict(type='int', shape=(), num_values=3)
         if self.__class__.exclude_int_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='int', shape=(), num_values=3)
-        self.unittest(states=states, actions=actions, action_masks=self.__class__.action_masks)
+        self.unittest(states=states, actions=actions)
 
         states = dict(type='float', shape=(1,))
         if self.__class__.exclude_float_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='float', shape=())
-        self.unittest(states=states, actions=actions, action_masks=self.__class__.action_masks)
+        self.unittest(states=states, actions=actions)
 
         states = dict(type='float', shape=(1,), min_value=-1.0, max_value=1.0)
         if self.__class__.exclude_bounded_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='float', shape=(), min_value=-1.0, max_value=1.0)
-        self.unittest(states=states, actions=actions, action_masks=self.__class__.action_masks)
+        self.unittest(states=states, actions=actions)
 
     def test_full(self):
         self.start_tests(name='full')
-        self.unittest(action_masks=self.__class__.action_masks)
+        self.unittest()
 
     def test_pretrain(self):
         if not self.__class__.has_experience or not self.__class__.has_update:
@@ -71,39 +74,49 @@ class UnittestAgent(UnittestBase):
         actions = dict(type=self.__class__.replacement_action, shape=())
 
         agent, environment = self.prepare(
-            states=states, actions=actions, action_masks=self.__class__.action_masks,
-            buffer_observe=False, update=1,
-            network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
+            states=states, actions=actions, buffer_observe=False, update=1,
+            network=dict(type='auto', size=8, internal_rnn=False),  # TODO: shouldn't be necessary!
+            recorder=dict(directory=self.__class__.directory)
         )
 
         agent.initialize()
 
-        states_batch = list()
-        actions_batch = list()
-        terminal_batch = list()
-        reward_batch = list()
+        # states_batch = list()
+        # actions_batch = list()
+        # terminal_batch = list()
+        # reward_batch = list()
 
-        states = environment.reset()
-        terminal = False
-        while not terminal:
-            states_batch.append(states)
-            actions = agent.act(states=states, independent=True)
-            actions_batch.append(actions)
-            states, terminal, reward = environment.execute(actions=actions)
-            terminal_batch.append(terminal)
-            reward_batch.append(reward)
+        for _ in range(3):
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                # states_batch.append(states)
+                actions = agent.act(states=states)
+                # actions_batch.append(actions)
+                states, terminal, reward = environment.execute(actions=actions)
+                agent.observe(terminal=terminal, reward=reward)
+                # terminal_batch.append(terminal)
+                # reward_batch.append(reward)
 
-        agent.experience(
-            states=states_batch, actions=actions_batch, terminal=terminal_batch,
-            reward=reward_batch
-        )
+        # agent.experience(
+        #     states=states_batch, actions=actions_batch, terminal=terminal_batch,
+        #     reward=reward_batch
+        # )
 
-        agent.update()
-        agent.update()
-        agent.update()
+
+        agent.pretrain(directory=self.__class__.directory, num_updates=3)
+
+        # agent.update()
+        # agent.update()
+        # agent.update()
 
         agent.close()
         environment.close()
+
+        for filename in os.listdir(path=self.__class__.directory):
+            os.remove(path=os.path.join(self.__class__.directory, filename))
+            assert filename.startswith('trace-')
+        os.rmdir(path=self.__class__.directory)
 
         self.finished_test()
 
@@ -113,11 +126,14 @@ class UnittestAgent(UnittestBase):
         states = dict(type='float', shape=(1,))
         actions = dict(type=self.__class__.replacement_action, shape=())
 
-        agent, environment = self.prepare(
-            states=states, actions=actions, action_masks=self.__class__.action_masks,
-            buffer_observe=False, update=1,
-            network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
-        )
+        if self.__class__.has_update:
+            agent, environment = self.prepare(
+                states=states, actions=actions, buffer_observe=False, update=1,
+                network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
+            )
+
+        else:
+            agent, environment = self.prepare(states=states, actions=actions)
 
         agent.initialize()
         states = environment.reset()
@@ -126,11 +142,16 @@ class UnittestAgent(UnittestBase):
         actions, queried = agent.act(states=states, query=query)
         self.assertEqual(first=len(queried), second=len(query))
 
-        states, _, reward = environment.execute(actions=actions)
+        states, terminal, reward = environment.execute(actions=actions)
 
         query = agent.get_query_tensors(function='observe')
-        queried = agent.observe(terminal=True, reward=reward, query=query)
+        _, queried = agent.observe(terminal=terminal, reward=reward, query=query)
         self.assertEqual(first=len(queried), second=len(query))
+
+        while not terminal:
+            actions = agent.act(states=states)
+            states, terminal, reward = environment.execute(actions=actions)
+            agent.observe(terminal=terminal, reward=reward, query=query)
 
         states_batch = list()
         actions_batch = list()

@@ -253,8 +253,13 @@ class Queue(CircularBuffer, Memory):
             is_single_initial_value = False
             initial_values = list(initial_values)
 
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+
+        assertion = tf.assert_greater_equal(
+            x=(tf.mod(x=(indices - self.buffer_index), y=capacity) - horizon), y=zero
+        )
 
         def body(lengths, predecessor_indices, mask):
             previous_index = tf.mod(x=(predecessor_indices[:, :1] - one), y=capacity)
@@ -270,16 +275,18 @@ class Queue(CircularBuffer, Memory):
             lengths += tf.where(condition=is_not_terminal, x=ones, y=zeros)
             return lengths, predecessor_indices, mask
 
-        lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
-        predecessor_indices = tf.expand_dims(input=indices, axis=1)
-        mask = tf.ones_like(tensor=predecessor_indices, dtype=util.tf_dtype(dtype='bool'))
-        shape = tf.TensorShape(dims=((None, None)))
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
+            predecessor_indices = tf.expand_dims(input=indices, axis=1)
+            mask = tf.ones_like(tensor=predecessor_indices, dtype=util.tf_dtype(dtype='bool'))
+            shape = tf.TensorShape(dims=((None, None)))
 
-        lengths, predecessor_indices, mask = self.while_loop(
-            cond=util.tf_always_true, body=body, loop_vars=(lengths, predecessor_indices, mask),
-            shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
-            maximum_iterations=horizon
-        )
+            lengths, predecessor_indices, mask = self.while_loop(
+                cond=util.tf_always_true, body=body,
+                loop_vars=(lengths, predecessor_indices, mask),
+                shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
+                maximum_iterations=horizon
+            )
 
         predecessor_indices = tf.reshape(tensor=predecessor_indices, shape=(-1,))
         mask = tf.reshape(tensor=mask, shape=(-1,))
@@ -426,8 +433,13 @@ class Queue(CircularBuffer, Memory):
             is_single_final_value = False
             final_values = list(final_values)
 
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+
+        assertion = tf.assert_greater_equal(
+            x=(tf.mod(x=(self.buffer_index - one - indices), y=capacity) - horizon), y=zero
+        )
 
         def body(lengths, successor_indices, mask):
             current_index = successor_indices[:, -1:]
@@ -444,16 +456,17 @@ class Queue(CircularBuffer, Memory):
             lengths += tf.where(condition=is_not_terminal, x=ones, y=zeros)
             return lengths, successor_indices, mask
 
-        lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
-        successor_indices = tf.expand_dims(input=indices, axis=1)
-        mask = tf.ones_like(tensor=successor_indices, dtype=util.tf_dtype(dtype='bool'))
-        shape = tf.TensorShape(dims=((None, None)))
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
+            successor_indices = tf.expand_dims(input=indices, axis=1)
+            mask = tf.ones_like(tensor=successor_indices, dtype=util.tf_dtype(dtype='bool'))
+            shape = tf.TensorShape(dims=((None, None)))
 
-        lengths, successor_indices, mask = self.while_loop(
-            cond=util.tf_always_true, body=body, loop_vars=(lengths, successor_indices, mask),
-            shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
-            maximum_iterations=horizon
-        )
+            lengths, successor_indices, mask = self.while_loop(
+                cond=util.tf_always_true, body=body, loop_vars=(lengths, successor_indices, mask),
+                shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
+                maximum_iterations=horizon
+            )
 
         successor_indices = tf.reshape(tensor=successor_indices, shape=(-1,))
         mask = tf.reshape(tensor=mask, shape=(-1,))

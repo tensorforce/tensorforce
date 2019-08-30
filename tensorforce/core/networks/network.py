@@ -123,7 +123,10 @@ class LayerbasedNetwork(Network):
             l2_regularization=l2_regularization
         )
 
-        self.output_spec = None
+        if len(inputs_spec) == 1:
+            self.output_spec = next(iter(inputs_spec.values()))
+        else:
+            self.output_spec = None
 
     def get_output_spec(self):
         return self.output_spec

@@ -64,62 +64,6 @@ class UnittestAgent(UnittestBase):
         self.start_tests(name='full')
         self.unittest()
 
-    def test_pretrain(self):
-        if not self.__class__.has_experience or not self.__class__.has_update:
-            return
-
-        self.start_tests(name='pretrain')
-
-        states = dict(type='float', shape=(1,))
-        actions = dict(type=self.__class__.replacement_action, shape=())
-
-        agent, environment = self.prepare(
-            states=states, actions=actions, buffer_observe=False, update=1,
-            network=dict(type='auto', size=8, internal_rnn=False),  # TODO: shouldn't be necessary!
-            recorder=dict(directory=self.__class__.directory)
-        )
-
-        agent.initialize()
-
-        # states_batch = list()
-        # actions_batch = list()
-        # terminal_batch = list()
-        # reward_batch = list()
-
-        for _ in range(3):
-            states = environment.reset()
-            terminal = False
-            while not terminal:
-                # states_batch.append(states)
-                actions = agent.act(states=states)
-                # actions_batch.append(actions)
-                states, terminal, reward = environment.execute(actions=actions)
-                agent.observe(terminal=terminal, reward=reward)
-                # terminal_batch.append(terminal)
-                # reward_batch.append(reward)
-
-        # agent.experience(
-        #     states=states_batch, actions=actions_batch, terminal=terminal_batch,
-        #     reward=reward_batch
-        # )
-
-
-        agent.pretrain(directory=self.__class__.directory, num_updates=3)
-
-        # agent.update()
-        # agent.update()
-        # agent.update()
-
-        agent.close()
-        environment.close()
-
-        for filename in os.listdir(path=self.__class__.directory):
-            os.remove(path=os.path.join(self.__class__.directory, filename))
-            assert filename.startswith('trace-')
-        os.rmdir(path=self.__class__.directory)
-
-        self.finished_test()
-
     def test_query(self):
         self.start_tests(name='query')
 
@@ -183,5 +127,42 @@ class UnittestAgent(UnittestBase):
 
         agent.close()
         environment.close()
+
+        self.finished_test()
+
+    def test_pretrain(self):
+        if not self.__class__.has_experience or not self.__class__.has_update:
+            return
+
+        self.start_tests(name='pretrain')
+
+        states = dict(type='float', shape=(1,))
+        actions = dict(type=self.__class__.replacement_action, shape=())
+
+        agent, environment = self.prepare(
+            states=states, actions=actions, buffer_observe=False, update=1,
+            network=dict(type='auto', size=8, internal_rnn=False),  # TODO: shouldn't be necessary!
+            recorder=dict(directory=self.__class__.directory)
+        )
+
+        agent.initialize()
+
+        for _ in range(3):
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                actions = agent.act(states=states)
+                states, terminal, reward = environment.execute(actions=actions)
+                agent.observe(terminal=terminal, reward=reward)
+
+        agent.pretrain(directory=self.__class__.directory, num_updates=3)
+
+        agent.close()
+        environment.close()
+
+        for filename in os.listdir(path=self.__class__.directory):
+            os.remove(path=os.path.join(self.__class__.directory, filename))
+            assert filename.startswith('trace-')
+        os.rmdir(path=self.__class__.directory)
 
         self.finished_test()

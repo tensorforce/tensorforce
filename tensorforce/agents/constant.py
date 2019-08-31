@@ -85,11 +85,11 @@ class ConstantAgent(Agent):
         # Agent
         action_values=None,
         # TensorFlow etc
-        name='agent', device=None, summarizer=None, seed=None
+        name='agent', device=None, summarizer=None, seed=None, recorder=None
     ):
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=1, buffer_observe=True, seed=seed
+            parallel_interactions=1, buffer_observe=True, seed=seed, recorder=recorder
         )
 
         self.model = ConstantModel(

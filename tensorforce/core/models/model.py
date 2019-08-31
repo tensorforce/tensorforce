@@ -123,7 +123,7 @@ class Model(Module):
         self.values_spec = OrderedDict(
             states=self.states_spec, internals=self.internals_spec,
             auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
-            terminal=dict(type='bool', shape=()), reward=dict(type='float', shape=())
+            terminal=dict(type='long', shape=()), reward=dict(type='float', shape=())
         )
 
         # Preprocessing
@@ -197,7 +197,7 @@ class Model(Module):
             Module.register_tensor(name=name, spec=spec, batched=True)
         for name, spec in self.actions_spec.items():
             Module.register_tensor(name=name, spec=spec, batched=True)
-        Module.register_tensor(name='terminal', spec=dict(type='bool', shape=()), batched=True)
+        Module.register_tensor(name='terminal', spec=dict(type='long', shape=()), batched=True)
         Module.register_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
         Module.register_tensor(
             name='deterministic', spec=dict(type='bool', shape=()), batched=False
@@ -569,7 +569,7 @@ class Model(Module):
 
         # Terminal  (default: False?)
         self.terminal_input = self.add_placeholder(
-            name='terminal', dtype='bool', shape=(), batched=True
+            name='terminal', dtype='long', shape=(), batched=True
         )
 
         # Reward  (default: 0.0?)
@@ -684,6 +684,7 @@ class Model(Module):
         independent = self.independent_input
 
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+        zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
         # Assertions
         assertions = list()
@@ -815,9 +816,8 @@ class Model(Module):
                     with tf.control_dependencies(control_inputs=assignments):
                         return util.fmap(function=util.identity_operation, xs=noise_tensors)
 
-                zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
                 skip_variable_noise = tf.math.logical_or(
-                    x=deterministic, y=tf.math.equal(x=variable_noise, y=zero)
+                    x=deterministic, y=tf.math.equal(x=variable_noise, y=zero_float)
                 )
                 variable_noise_tensors = self.cond(
                     pred=skip_variable_noise, true_fn=no_variable_noise,
@@ -964,9 +964,8 @@ class Model(Module):
                             noise = tf.random.normal(shape=shape, dtype=float_dtype) * exploration
                             return actions[name] + noise
 
-                zero = tf.constant(value=0.0, dtype=util.tf_dtype('float'))
                 skip_exploration = tf.math.logical_or(
-                    x=deterministic, y=tf.math.equal(x=exploration, y=zero)
+                    x=deterministic, y=tf.math.equal(x=exploration, y=zero_float)
                 )
                 actions[name] = self.cond(
                     pred=skip_exploration, true_fn=no_exploration, false_fn=apply_exploration
@@ -1053,10 +1052,12 @@ class Model(Module):
         reward = self.reward_input
         parallel = self.parallel_input
 
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+
         # Assertions
         assertions = [
             # terminal: type and shape
-            tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='bool')),
+            tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='long')),
             tf.debugging.assert_rank(x=terminal, rank=1),
             # reward: type and shape
             tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float')),
@@ -1078,11 +1079,13 @@ class Model(Module):
             ),
             # at most one terminal
             tf.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='int')),
-                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
+                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
+                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             ),
             # if terminal, last timestep in batch
-            tf.debugging.assert_equal(x=tf.math.reduce_any(input_tensor=terminal), y=terminal[-1])
+            tf.debugging.assert_equal(
+                x=tf.math.reduce_any(input_tensor=(terminal > zero)), y=(terminal[-1] > zero)
+            )
         ]
 
         # Set global tensors
@@ -1107,20 +1110,20 @@ class Model(Module):
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             assignments.append(self.episode.scatter_nd_add(indices=[(parallel,)], updates=[one]))
             assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
-            zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-            zero = self.add_summary(
+            zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+            zero_float = self.add_summary(
                 label=('episode-reward', 'rewards'), name='episode-reward',
-                tensor=self.episode_reward[parallel], pass_tensors=zero, step='episode'
+                tensor=self.episode_reward[parallel], pass_tensors=zero_float, step='episode'
             )
             assignments.append(
-                self.episode_reward.scatter_nd_update(indices=[(parallel,)], updates=[zero])
+                self.episode_reward.scatter_nd_update(indices=[(parallel,)], updates=[zero_float])
             )
             with tf.control_dependencies(control_inputs=assignments):
                 return util.no_operation()
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             incremented_episode = self.cond(
-                pred=terminal[-1], true_fn=increment_episode, false_fn=util.no_operation
+                pred=(terminal[-1] > zero), true_fn=increment_episode, false_fn=util.no_operation
             )
             dependencies = (incremented_episode,)
 
@@ -1157,8 +1160,6 @@ class Model(Module):
 
         # Reset buffer index
         with tf.control_dependencies(control_inputs=(is_updated,)):
-            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='int'))
-
             reset_buffer_index = self.buffer_index.scatter_nd_update(
                 indices=[(parallel,)], updates=[zero]
             )
@@ -1174,7 +1175,8 @@ class Model(Module):
                     return tf.group(*operations)
 
                 preprocessors_reset = self.cond(
-                    pred=terminal[-1], true_fn=reset_preprocessors, false_fn=util.no_operation
+                    pred=(terminal[-1] > zero), true_fn=reset_preprocessors,
+                    false_fn=util.no_operation
                 )
                 dependencies = (preprocessors_reset,)
 

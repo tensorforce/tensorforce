@@ -100,15 +100,14 @@ class Estimator(CircularBuffer):
         assertions.append(
             tf.debugging.assert_equal(
                 x=tf.count_nonzero(
-                    input_tensor=values['terminal'], dtype=util.tf_dtype(dtype='int')
-                ),
-                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
+                    input_tensor=values['terminal'], dtype=util.tf_dtype(dtype='long')
+                ), y=one
             )
         )
         # Check whether last value is terminal
         assertions.append(
             tf.debugging.assert_equal(
-                x=values['terminal'][-1],
+                x=(values['terminal'][-1] > zero),
                 y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
             )
         )
@@ -239,15 +238,15 @@ class Estimator(CircularBuffer):
         assertions.append(
             tf.debugging.assert_less_equal(
                 x=tf.count_nonzero(
-                    input_tensor=values['terminal'], dtype=util.tf_dtype(dtype='int')
-                ),
-                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
+                    input_tensor=values['terminal'], dtype=util.tf_dtype(dtype='long')
+                ), y=one
             )
         )
         # Check whether, if any, last value is terminal
         assertions.append(
             tf.debugging.assert_equal(
-                x=tf.reduce_any(input_tensor=values['terminal']), y=values['terminal'][-1]
+                x=tf.reduce_any(input_tensor=(values['terminal'] > zero)),
+                y=(values['terminal'][-1] > zero)
             )
         )
 
@@ -414,9 +413,9 @@ class Estimator(CircularBuffer):
 
             if self.estimate_actions:
                 # horizon change: see timestep-based batch sampling
-                horizons, (states, internals, auxiliaries) = memory.successors(
+                horizons, (states, internals, auxiliaries, terminal) = memory.successors(
                     indices=indices, horizon=(horizon + one),
-                    final_values=('states', 'internals', 'auxiliaries')
+                    final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
                 actions = baseline.sample_actions(
                     states=states, internals=internals, auxiliaries=auxiliaries,
@@ -427,9 +426,9 @@ class Estimator(CircularBuffer):
                 )
             else:
                 # horizon change: see timestep-based batch sampling
-                horizons, (states, internals, auxiliaries) = memory.successors(
+                horizons, (states, internals, auxiliaries, terminal) = memory.successors(
                     indices=indices, horizon=(horizon + one),
-                    final_values=('states', 'internals', 'auxiliaries')
+                    final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
                 horizon_estimate = baseline.states_value(
                     states=states, internals=internals, auxiliaries=auxiliaries
@@ -438,11 +437,17 @@ class Estimator(CircularBuffer):
             exponent = tf.dtypes.cast(x=horizons, dtype=util.tf_dtype(dtype='float'))
             discounts = tf.math.pow(x=discount, y=exponent)
             if not self.estimate_terminal:
-                discounts = tf.where(
-                    condition=(horizons <= (horizon + one)),  # horizons starts at 1
-                    x=tf.zeros_like(tensor=discounts, dtype=util.tf_dtype(dtype='float')),
-                    y=discounts
-                )
+                zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))  # temp!!!
+                assertion = tf.debugging.assert_equal(
+                    x=(horizons <= (horizon + one)), y=(terminal > zero)
+                )  # horizons starts at 1
+                with tf.control_dependencies(control_inputs=(assertion,)):
+                    one = tf.Print(one, (terminal, terminal == one, horizons <= horizon + one))
+                    discounts = tf.where(
+                        condition=(terminal == one),
+                        x=tf.zeros_like(tensor=discounts, dtype=util.tf_dtype(dtype='float')),
+                        y=discounts
+                    )
             reward = reward + discounts * horizon_estimate
             # TODO: stop gradients?
 

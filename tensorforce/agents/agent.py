@@ -168,7 +168,7 @@ class Agent(object):
         # Parallel terminal/reward buffers
         self.terminal_buffers = np.ndarray(
             shape=(self.parallel_interactions, self.buffer_observe),
-            dtype=util.np_dtype(dtype='bool')
+            dtype=util.np_dtype(dtype='long')
         )
         self.reward_buffers = np.ndarray(
             shape=(self.parallel_interactions, self.buffer_observe),
@@ -333,8 +333,8 @@ class Agent(object):
         Args:
             reward (float): Reward
                 (<span style="color:#C00000"><b>required</b></span>).
-            terminal (bool): Whether a terminal state is reached
-                (<span style="color:#00C000"><b>default</b></span>: false).
+            terminal (bool | 0 | 1 | 2): Whether a terminal state is reached or 2 if the
+                episode was aborted (<span style="color:#00C000"><b>default</b></span>: false).
             parallel (int): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
             query (list[str]): Names of tensors to retrieve
@@ -350,10 +350,13 @@ class Agent(object):
         if query is not None and self.parallel_interactions > 1:
             raise TensorforceError.unexpected()
 
+        if isinstance(terminal, bool):
+            terminal = int(terminal)
+
         if self.recorder_spec is not None:
             self.record_terminal.append(terminal)
             self.record_reward.append(reward)
-            if terminal:
+            if terminal > 0:
                 self.num_episodes += 1
 
                 if self.num_episodes == self.recorder_spec.get('frequency', 1):
@@ -407,7 +410,7 @@ class Agent(object):
         if self.max_episode_timesteps is not None and index > self.max_episode_timesteps:
             raise TensorforceError.unexpected()
 
-        if terminal or index == self.buffer_observe or query is not None:
+        if terminal > 0 or index == self.buffer_observe or query is not None:
             # Model.observe()
             if query is None:
                 updated, self.episode = self.model.observe(

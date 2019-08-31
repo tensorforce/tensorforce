@@ -42,8 +42,8 @@ class Queue(CircularBuffer, Memory):
 
     def __init__(self, name, capacity, values_spec, device=None, summary_labels=None):
         # Terminal initialization has to agree with terminal_indices
-        terminal_initializer = np.zeros(shape=(capacity,), dtype=util.np_dtype(dtype='bool'))
-        terminal_initializer[-1] = True
+        terminal_initializer = np.zeros(shape=(capacity,), dtype=util.np_dtype(dtype='long'))
+        terminal_initializer[-1] = 1
         initializers = OrderedDict(terminal=terminal_initializer)
 
         super().__init__(
@@ -69,6 +69,7 @@ class Queue(CircularBuffer, Memory):
         )
 
     def tf_enqueue(self, states, internals, auxiliaries, actions, terminal, reward):
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
         num_timesteps = tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0]
@@ -88,12 +89,14 @@ class Queue(CircularBuffer, Memory):
                 y=one
             ),
             # if terminal, last timestep in batch
-            tf.debugging.assert_equal(x=tf.math.reduce_any(input_tensor=terminal), y=terminal[-1]),
+            tf.debugging.assert_equal(
+                x=tf.math.reduce_any(input_tensor=(terminal > zero)), y=(terminal[-1] > zero)
+            ),
             # general check: all terminal indices true
             tf.debugging.assert_equal(
                 x=tf.reduce_all(
                     input_tensor=tf.gather(
-                        params=self.buffers['terminal'],
+                        params=(self.buffers['terminal'] > zero),
                         indices=self.terminal_indices[:self.episode_count + one]
                     )
                 ),
@@ -187,14 +190,14 @@ class Queue(CircularBuffer, Memory):
         # Count number of new episodes
         with tf.control_dependencies(control_inputs=(assignment,)):
             num_new_episodes = tf.count_nonzero(
-                input_tensor=terminal, axis=0, dtype=util.tf_dtype(dtype='long')
+                input_tensor=terminal, dtype=util.tf_dtype(dtype='long')
             )
 
             # Write new terminal indices
             limit_index = self.episode_count + one
             assignment = tf.assign(
                 ref=self.terminal_indices[limit_index: limit_index + num_new_episodes],
-                value=tf.boolean_mask(tensor=indices, mask=terminal)
+                value=tf.boolean_mask(tensor=indices, mask=(terminal > zero))
             )
 
         # Increment episode count accordingly
@@ -257,16 +260,12 @@ class Queue(CircularBuffer, Memory):
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
-        assertion = tf.assert_greater_equal(
-            x=(tf.mod(x=(indices - self.buffer_index), y=capacity) - horizon), y=zero
-        )
-
         def body(lengths, predecessor_indices, mask):
             previous_index = tf.mod(x=(predecessor_indices[:, :1] - one), y=capacity)
             predecessor_indices = tf.concat(values=(previous_index, predecessor_indices), axis=1)
             previous_terminal = self.retrieve(indices=previous_index, values='terminal')
             is_not_terminal = tf.math.logical_and(
-                x=tf.math.logical_not(x=previous_terminal), y=mask[:, :1]
+                x=tf.math.logical_not(x=(previous_terminal > zero)), y=mask[:, :1]
             )
             mask = tf.concat(values=(is_not_terminal, mask), axis=1)
             is_not_terminal = tf.squeeze(input=is_not_terminal, axis=1)
@@ -275,51 +274,55 @@ class Queue(CircularBuffer, Memory):
             lengths += tf.where(condition=is_not_terminal, x=ones, y=zeros)
             return lengths, predecessor_indices, mask
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
-            lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
-            predecessor_indices = tf.expand_dims(input=indices, axis=1)
-            mask = tf.ones_like(tensor=predecessor_indices, dtype=util.tf_dtype(dtype='bool'))
-            shape = tf.TensorShape(dims=((None, None)))
+        lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
+        predecessor_indices = tf.expand_dims(input=indices, axis=1)
+        mask = tf.ones_like(tensor=predecessor_indices, dtype=util.tf_dtype(dtype='bool'))
+        shape = tf.TensorShape(dims=((None, None)))
 
-            lengths, predecessor_indices, mask = self.while_loop(
-                cond=util.tf_always_true, body=body,
-                loop_vars=(lengths, predecessor_indices, mask),
-                shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
-                maximum_iterations=horizon
-            )
+        lengths, predecessor_indices, mask = self.while_loop(
+            cond=util.tf_always_true, body=body,
+            loop_vars=(lengths, predecessor_indices, mask),
+            shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
+            maximum_iterations=horizon
+        )
 
         predecessor_indices = tf.reshape(tensor=predecessor_indices, shape=(-1,))
         mask = tf.reshape(tensor=mask, shape=(-1,))
         predecessor_indices = tf.boolean_mask(tensor=predecessor_indices, mask=mask, axis=0)
 
-        starts = tf.math.cumsum(x=lengths, exclusive=True)
-        initial_indices = tf.gather(params=predecessor_indices, indices=starts)
+        assertion = tf.assert_greater_equal(
+            x=tf.mod(x=(predecessor_indices - self.buffer_index), y=capacity), y=zero
+        )
 
-        for n, name in enumerate(sequence_values):
-            if util.is_nested(name=name):
-                sequence_value = OrderedDict()
-                for inner_name, spec in self.values_spec[name].items():
-                    sequence_value[inner_name] = tf.gather(
-                        params=self.buffers[name][inner_name], indices=predecessor_indices
-                    )
-            else:
-                sequence_value = tf.gather(
-                    params=self.buffers[name], indices=predecessor_indices
-                )
-            sequence_values[n] = sequence_value
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            starts = tf.math.cumsum(x=lengths, exclusive=True)
+            initial_indices = tf.gather(params=predecessor_indices, indices=starts)
 
-        for n, name in enumerate(initial_values):
-            if util.is_nested(name=name):
-                initial_value = OrderedDict()
-                for inner_name, spec in self.values_spec[name].items():
-                    initial_value[inner_name] = tf.gather(
-                        params=self.buffers[name][inner_name], indices=initial_indices
+            for n, name in enumerate(sequence_values):
+                if util.is_nested(name=name):
+                    sequence_value = OrderedDict()
+                    for inner_name, spec in self.values_spec[name].items():
+                        sequence_value[inner_name] = tf.gather(
+                            params=self.buffers[name][inner_name], indices=predecessor_indices
+                        )
+                else:
+                    sequence_value = tf.gather(
+                        params=self.buffers[name], indices=predecessor_indices
                     )
-            else:
-                initial_value = tf.gather(
-                    params=self.buffers[name], indices=initial_indices
-                )
-            initial_values[n] = initial_value
+                sequence_values[n] = sequence_value
+
+            for n, name in enumerate(initial_values):
+                if util.is_nested(name=name):
+                    initial_value = OrderedDict()
+                    for inner_name, spec in self.values_spec[name].items():
+                        initial_value[inner_name] = tf.gather(
+                            params=self.buffers[name][inner_name], indices=initial_indices
+                        )
+                else:
+                    initial_value = tf.gather(
+                        params=self.buffers[name], indices=initial_indices
+                    )
+                initial_values[n] = initial_value
 
         # def body(lengths, sequence_values, initial_values):
         #     # Retrieve previous indices
@@ -437,15 +440,11 @@ class Queue(CircularBuffer, Memory):
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
-        assertion = tf.assert_greater_equal(
-            x=(tf.mod(x=(self.buffer_index - one - indices), y=capacity) - horizon), y=zero
-        )
-
         def body(lengths, successor_indices, mask):
             current_index = successor_indices[:, -1:]
             current_terminal = self.retrieve(indices=current_index, values='terminal')
             is_not_terminal = tf.math.logical_and(
-                x=tf.math.logical_not(x=current_terminal), y=mask[:, -1:]
+                x=tf.math.logical_not(x=(current_terminal > zero)), y=mask[:, -1:]
             )
             next_index = tf.mod(x=(current_index + one), y=capacity)
             successor_indices = tf.concat(values=(successor_indices, next_index), axis=1)
@@ -456,51 +455,55 @@ class Queue(CircularBuffer, Memory):
             lengths += tf.where(condition=is_not_terminal, x=ones, y=zeros)
             return lengths, successor_indices, mask
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
-            lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
-            successor_indices = tf.expand_dims(input=indices, axis=1)
-            mask = tf.ones_like(tensor=successor_indices, dtype=util.tf_dtype(dtype='bool'))
-            shape = tf.TensorShape(dims=((None, None)))
+        lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
+        successor_indices = tf.expand_dims(input=indices, axis=1)
+        mask = tf.ones_like(tensor=successor_indices, dtype=util.tf_dtype(dtype='bool'))
+        shape = tf.TensorShape(dims=((None, None)))
 
-            lengths, successor_indices, mask = self.while_loop(
-                cond=util.tf_always_true, body=body, loop_vars=(lengths, successor_indices, mask),
-                shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
-                maximum_iterations=horizon
-            )
+        lengths, successor_indices, mask = self.while_loop(
+            cond=util.tf_always_true, body=body, loop_vars=(lengths, successor_indices, mask),
+            shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
+            maximum_iterations=horizon
+        )
 
         successor_indices = tf.reshape(tensor=successor_indices, shape=(-1,))
         mask = tf.reshape(tensor=mask, shape=(-1,))
         successor_indices = tf.boolean_mask(tensor=successor_indices, mask=mask, axis=0)
 
-        starts = tf.math.cumsum(x=lengths, exclusive=True)
-        ends = tf.math.cumsum(x=lengths) - one
-        final_indices = tf.gather(params=successor_indices, indices=ends)
+        assertion = tf.assert_greater_equal(
+            x=tf.mod(x=(self.buffer_index - one - successor_indices), y=capacity), y=zero
+        )
 
-        for n, name in enumerate(sequence_values):
-            if util.is_nested(name=name):
-                sequence_value = OrderedDict()
-                for inner_name, spec in self.values_spec[name].items():
-                    sequence_value[inner_name] = tf.gather(
-                        params=self.buffers[name][inner_name], indices=successor_indices
-                    )
-            else:
-                sequence_value = tf.gather(
-                    params=self.buffers[name], indices=successor_indices
-                )
-            sequence_values[n] = sequence_value
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            starts = tf.math.cumsum(x=lengths, exclusive=True)
+            ends = tf.math.cumsum(x=lengths) - one
+            final_indices = tf.gather(params=successor_indices, indices=ends)
 
-        for n, name in enumerate(final_values):
-            if util.is_nested(name=name):
-                final_value = OrderedDict()
-                for inner_name, spec in self.values_spec[name].items():
-                    final_value[inner_name] = tf.gather(
-                        params=self.buffers[name][inner_name], indices=final_indices
+            for n, name in enumerate(sequence_values):
+                if util.is_nested(name=name):
+                    sequence_value = OrderedDict()
+                    for inner_name, spec in self.values_spec[name].items():
+                        sequence_value[inner_name] = tf.gather(
+                            params=self.buffers[name][inner_name], indices=successor_indices
+                        )
+                else:
+                    sequence_value = tf.gather(
+                        params=self.buffers[name], indices=successor_indices
                     )
-            else:
-                final_value = tf.gather(
-                    params=self.buffers[name], indices=final_indices
-                )
-            final_values[n] = final_value
+                sequence_values[n] = sequence_value
+
+            for n, name in enumerate(final_values):
+                if util.is_nested(name=name):
+                    final_value = OrderedDict()
+                    for inner_name, spec in self.values_spec[name].items():
+                        final_value[inner_name] = tf.gather(
+                            params=self.buffers[name][inner_name], indices=final_indices
+                        )
+                else:
+                    final_value = tf.gather(
+                        params=self.buffers[name], indices=final_indices
+                    )
+                final_values[n] = final_value
 
         # def body(lengths, sequence_values, final_values):
         #     # Retrieve next indices

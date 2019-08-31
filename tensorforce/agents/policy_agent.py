@@ -356,17 +356,24 @@ class PolicyAgent(Agent):
         for name in self.actions_spec:
             actions[name] = np.asarray(actions[name])
 
-        terminal = np.asarray(terminal)
+        if isinstance(terminal, np.ndarray):
+            if terminal.dtype is util.np_dtype(dtype='bool'):
+                zeros = np.zeros_like(terminal, dtype=util.np_dtype(dtype='long'))
+                ones = np.ones_like(terminal, dtype=util.np_dtype(dtype='long'))
+                terminal = np.where(terminal, ones, zeros)
+        else:
+            terminal = np.asarray([int(x) if isinstance(x, bool) else x for x in terminal])
         reward = np.asarray(reward)
 
         # Batch experiences split into episodes and at most size buffer_observe
         last = 0
         for index in range(len(terminal)):
-            if not terminal[index] and index - last + int(terminal[index]) < self.buffer_observe:
+            if terminal[index] == 0 and \
+                    index - last + int(terminal[index] > 0) < self.buffer_observe:
                 continue
 
             # Include terminal in batch if possible
-            if terminal[index] and index - last < self.buffer_observe:
+            if terminal[index] > 0 and index - last < self.buffer_observe:
                 index += 1
 
             function = (lambda x: x[last: index])

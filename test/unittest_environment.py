@@ -87,7 +87,7 @@ class UnittestEnvironment(Environment):
                     random_states = cls.random_state_function(state_spec=states_spec)()
                     for name, action_spec in actions_spec.items():
                         if action_spec['type'] == 'int':
-                            if 'state' not in random_states:
+                            if not isinstance(random_states, dict):
                                 random_states = dict(state=random_states)
                             mask = cls.random_mask(action_spec=action_spec)
                             random_states[name + '_mask'] = mask

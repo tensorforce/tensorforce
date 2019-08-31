@@ -303,13 +303,16 @@ class ParallelRunner(object):
 
                     continue
 
+                elif isinstance(terminal, bool):
+                    terminal = int(terminal)
+
                 # Terminate episode if too long
                 if evaluation:
                     if self.evaluation_timestep >= self.max_episode_timesteps:
-                        terminal = True
+                        terminal = 2
                 else:
                     if self.episode_timestep[parallel] >= self.max_episode_timesteps:
-                        terminal = True
+                        terminal = 2
 
                 # Observe unless episode just started or evaluation
                 # assert (terminal is None) == (self.episode_timestep[parallel] == 0)
@@ -332,7 +335,7 @@ class ParallelRunner(object):
                         not self.callback(self, parallel):
                     return
 
-                if terminal:
+                if terminal > 0:
                     if evaluation:
                         # Update experiment statistics
                         self.evaluation_rewards.append(self.evaluation_reward)
@@ -376,7 +379,7 @@ class ParallelRunner(object):
                     return
 
                 # Check whether episode terminated
-                if terminal:
+                if terminal > 0:
 
                     if self.sync_episodes:
                         terminated[parallel] = True

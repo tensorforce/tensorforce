@@ -312,10 +312,12 @@ class PolicyModel(Model):
         terminal = self.terminal_input
         reward = self.reward_input
 
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+
         # Assertions
         assertions = [
             # terminal: type and shape
-            tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='bool')),
+            tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='long')),
             tf.debugging.assert_rank(x=terminal, rank=1),
             # reward: type and shape
             tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float')),
@@ -329,11 +331,13 @@ class PolicyModel(Model):
             ),
             # at most one terminal
             tf.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='int')),
-                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='int'))
+                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
+                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             ),
             # if terminal, last timestep in batch
-            tf.debugging.assert_equal(x=tf.math.reduce_any(input_tensor=terminal), y=terminal[-1])
+            tf.debugging.assert_equal(
+                x=tf.math.reduce_any(input_tensor=(terminal > zero)), y=(terminal[-1] > zero)
+            )
         ]
         batch_size = tf.shape(input=terminal)[:1]
         # states: type and shape
@@ -453,6 +457,8 @@ class PolicyModel(Model):
         return timestep, episode
 
     def tf_core_act(self, states, internals, auxiliaries):
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+
         # Dependency horizon
         dependency_horizon = self.policy.dependency_horizon(is_optimization=False)
         if self.baseline_policy is not None:
@@ -462,7 +468,6 @@ class PolicyModel(Model):
             )
 
         # TODO: handle arbitrary non-optimization horizons!
-        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
         with tf.control_dependencies(control_inputs=(assertion,)):
             some_state = next(iter(states.values()))
@@ -502,6 +507,8 @@ class PolicyModel(Model):
         return actions, next_internals
 
     def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+
         # Experience
         experienced = self.core_experience(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
@@ -514,7 +521,6 @@ class PolicyModel(Model):
 
         # Periodic update
         with tf.control_dependencies(control_inputs=(experienced,)):
-            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
             batch_size = self.update_batch_size.value()
             frequency = self.update_frequency.value()
             start = self.update_start.value()
@@ -541,10 +547,8 @@ class PolicyModel(Model):
                 episode = Module.retrieve_tensor(name='episode')
                 is_frequency = tf.math.equal(x=tf.mod(x=episode, y=frequency), y=zero)
                 # Only update once per episode increment
-                false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
-                terminal = tf.concat(values=((false,), terminal), axis=0)
-                is_terminal = terminal[-1]
-                is_frequency = tf.math.logical_and(x=is_frequency, y=is_terminal)
+                terminal = tf.concat(values=((zero,), terminal), axis=0)
+                is_frequency = tf.math.logical_and(x=is_frequency, y=(terminal[-1] > zero))
                 at_least_start = tf.math.greater_equal(x=episode, y=start)
 
             is_updated = self.cond(
@@ -555,6 +559,8 @@ class PolicyModel(Model):
         return is_updated
 
     def tf_core_experience(self, states, internals, auxiliaries, actions, terminal, reward):
+        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+
         # Enqueue experience for early reward estimation
         any_overwritten, overwritten_values = self.estimator.enqueue(
             baseline=self.baseline_policy, states=states, internals=internals,
@@ -581,13 +587,12 @@ class PolicyModel(Model):
             def false_fn():
                 return overwritten_values
 
-            values = self.cond(pred=terminal[-1], true_fn=true_fn, false_fn=false_fn)
+            values = self.cond(pred=(terminal[-1] > zero), true_fn=true_fn, false_fn=false_fn)
 
         # If any, store overwritten values
         def store():
             return self.memory.enqueue(**values)
 
-        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         terminal = values['terminal']
         if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
             num_values = tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0]
@@ -604,7 +609,9 @@ class PolicyModel(Model):
         Module.update_tensor(name='update', tensor=self.global_update)
         Module.global_summary_step = 'update'
 
+        true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+
         assignment = self.global_update.assign_add(delta=one, read_value=False)
 
         # Retrieve batch
@@ -658,7 +665,6 @@ class PolicyModel(Model):
         # )
 
         with tf.control_dependencies(control_inputs=(optimized,)):
-            true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
             return util.identity_operation(x=true)
 
     def tf_optimize(self, indices):

@@ -140,7 +140,8 @@ class ExponentialNormalization(Layer):
 
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
         reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
-        x = (x - mean) * reciprocal_stddev
+
+        x = (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
 
         return x
 
@@ -184,6 +185,6 @@ class InstanceNormalization(Layer):
 
         reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
 
-        x = (x - mean) * reciprocal_stddev
+        x = (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
 
         return x

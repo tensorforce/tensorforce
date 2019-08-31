@@ -312,14 +312,16 @@ class Runner(object):
             reward = 0.0
             for _ in range(self.num_repeat_actions):
                 states, terminal, step_reward = environment.execute(actions=actions)
+                if isinstance(terminal, bool):
+                    terminal = int(terminal)
                 reward += step_reward
-                if terminal:
+                if terminal > 0:
                     break
             self.episode_reward += reward
 
             # Terminate episode if too long
             if self.episode_timestep >= max_timesteps:
-                terminal = True
+                terminal = 2
 
             # Observe unless evaluation
             if not evaluation:
@@ -334,7 +336,7 @@ class Runner(object):
                 return False
 
             # Episode termination check
-            if terminal:
+            if terminal > 0:
                 break
 
             # No callbacks for evaluation

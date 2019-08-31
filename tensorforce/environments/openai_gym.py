@@ -185,10 +185,14 @@ class OpenAIGym(Environment):
         self.timestep += 1
         if self.timestep == self._max_episode_timesteps:
             assert terminal
+            terminal = 2
         elif terminal:
             assert self._max_episode_timesteps is False or \
                 self.timestep < self._max_episode_timesteps
             reward += self.terminal_reward
+            terminal = 1
+        else:
+            terminal = 0
         return OpenAIGym.flatten_state(state=states), terminal, reward
 
     @staticmethod

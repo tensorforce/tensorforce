@@ -85,8 +85,10 @@ class OpenAIGym(Environment):
             if self._max_episode_timesteps is None:
                 self._max_episode_timesteps = False
         elif self._max_episode_timesteps != gym.envs.registry.env_specs[level].max_episode_steps:
-            if (self._max_episode_timesteps is False) != \
-                    (gym.envs.registry.env_specs[level].max_episode_steps is None):
+            if not (
+                (self._max_episode_timesteps is False) and
+                (gym.envs.registry.env_specs[level].max_episode_steps is None)
+            ):
                 requires_register = True
         if reward_threshold is None:
             reward_threshold = gym.envs.registry.env_specs[level].reward_threshold

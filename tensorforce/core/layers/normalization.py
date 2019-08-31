@@ -60,7 +60,7 @@ class ExponentialNormalization(Layer):
         shape = self.input_spec['shape']
         if self.axes is None:
             if len(shape) > 0:
-                self.axes = tuple(range(len(self.input_spec['shape']) - 1))
+                self.axes = tuple(range(len(shape) - 1))
                 shape = tuple(1 for _ in shape[:-1]) + (shape[-1],)
             else:
                 self.axes = ()

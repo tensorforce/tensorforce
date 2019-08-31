@@ -31,7 +31,7 @@ class DeepQNetwork(PolicyAgent):
         memory=10000, batch_size=32, update_frequency=4, start_updating=None, learning_rate=3e-4,
         huber_loss=0.0,
         # Reward estimation
-        n_step=0, discount=0.99, estimate_terminal=True,  # double_q_model=False !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        n_step=0, discount=0.99, estimate_terminal=False,  # double_q_model=False !!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Target network
         target_sync_frequency=10000, target_update_weight=1.0,
         # Preprocessing

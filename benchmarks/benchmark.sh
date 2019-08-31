@@ -6,7 +6,7 @@ if [ -z ${2+x} ]; then
     # echo "> Acrobot-v1"
     # python run.py benchmarks/configs/$1.json gym -l Acrobot-v1 -e 300 -r 10 -p benchmarks/gym-acrobot/$1
     echo "> CartPole-v1"
-    python run.py benchmarks/configs/$1.json gym -l CartPole-v1 -e 300 -r 10 -p benchmarks/gym-cartpole/$1
+    python run.py benchmarks/configs/$1.json gym -l CartPole-v1 -e 100 -r 10 -p benchmarks/gym-cartpole/$1
     # echo "> MountainCar-v0"
     # python run.py benchmarks/configs/$1.json gym -l MountainCar-v0 -e 300 -r 10 -p benchmarks/gym-mountaincar/$1
     # echo "> MountainCarContinuous-v0"

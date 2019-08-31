@@ -107,7 +107,7 @@ class Estimator(CircularBuffer):
         # Check whether last value is terminal
         assertions.append(
             tf.debugging.assert_equal(
-                x=(values['terminal'][-1] > zero),
+                x=tf.math.greater(x=values['terminal'][-1], y=zero),
                 y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
             )
         )
@@ -125,10 +125,7 @@ class Estimator(CircularBuffer):
         # Horizon baseline value
         if self.estimate_horizon == 'early' and baseline is not None:
             # Baseline estimate
-            if self.estimate_terminal:
-                horizon_start = num_values - tf.maximum(x=(num_values - horizon), y=one)
-            else:
-                horizon_start = horizon
+            horizon_start = num_values - tf.maximum(x=(num_values - horizon), y=one)
             states = OrderedDict()
             for name, state in values['states'].items():
                 states[name] = state[horizon_start:]
@@ -187,10 +184,23 @@ class Estimator(CircularBuffer):
                 rewards = tf.concat(
                     values=(values['reward'][:-1], horizon_estimate[-1:], terminal_zeros), axis=0
                 )
-                horizon_end = tf.where(condition=(num_values <= horizon), x=zero, y=(num_values - horizon))
-                horizon_estimate = horizon_estimate[:horizon_end]
+
             else:
-                rewards = tf.concat(values=(values['reward'], terminal_zeros), axis=0)
+                with tf.control_dependencies(control_inputs=(assertion,)):
+                    last_reward = tf.where(
+                        condition=tf.math.greater(x=values['terminal'][-1], y=one),
+                        x=horizon_estimate[-1], y=values['reward'][-1]
+                    )
+                    rewards = tf.concat(
+                        values=(values['reward'][:-1], (last_reward,), terminal_zeros), axis=0
+                    )
+
+            # Remove last if necessary
+            horizon_end = tf.where(
+                condition=tf.math.less_equal(x=num_values, y=horizon), x=zero,
+                y=(num_values - horizon)
+            )
+            horizon_estimate = horizon_estimate[:horizon_end]
 
             # Expand missing estimates with zeros
             terminal_size = tf.minimum(x=horizon, y=num_values)
@@ -245,8 +255,8 @@ class Estimator(CircularBuffer):
         # Check whether, if any, last value is terminal
         assertions.append(
             tf.debugging.assert_equal(
-                x=tf.reduce_any(input_tensor=(values['terminal'] > zero)),
-                y=(values['terminal'][-1] > zero)
+                x=tf.reduce_any(input_tensor=tf.math.greater(x=values['terminal'], y=zero)),
+                y=tf.math.greater(x=values['terminal'][-1], y=zero)
             )
         )
 
@@ -437,14 +447,9 @@ class Estimator(CircularBuffer):
             exponent = tf.dtypes.cast(x=horizons, dtype=util.tf_dtype(dtype='float'))
             discounts = tf.math.pow(x=discount, y=exponent)
             if not self.estimate_terminal:
-                zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))  # temp!!!
-                assertion = tf.debugging.assert_equal(
-                    x=(horizons <= (horizon + one)), y=(terminal > zero)
-                )  # horizons starts at 1
                 with tf.control_dependencies(control_inputs=(assertion,)):
-                    one = tf.Print(one, (terminal, terminal == one, horizons <= horizon + one))
                     discounts = tf.where(
-                        condition=(terminal == one),
+                        condition=tf.math.equal(x=terminal, y=one),
                         x=tf.zeros_like(tensor=discounts, dtype=util.tf_dtype(dtype='float')),
                         y=discounts
                     )

@@ -31,7 +31,7 @@ class ProximalPolicyOptimization(PolicyAgent):
         batch_size=10, update_frequency=None, learning_rate=3e-4, subsampling_fraction=0.33,
         optimization_steps=10,
         # Reward estimation
-        likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminal=True,
+        likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminal=False,
         # Critic
         critic_network=None, critic_optimizer=None,
         # Preprocessing
@@ -61,8 +61,7 @@ class ProximalPolicyOptimization(PolicyAgent):
             reward_estimation = dict(horizon='episode', discount=discount)
         else:
             reward_estimation = dict(
-                horizon='episode', discount=discount,
-                estimate_horizon=('late' if estimate_terminal else False),
+                horizon='episode', discount=discount, estimate_horizon='late',
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
         if critic_network is None:

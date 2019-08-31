@@ -364,7 +364,8 @@ class Agent(object):
                     if os.path.isdir(directory):
                         files = sorted(
                             f for f in os.listdir(directory)
-                            if os.path.isfile(f) and f.startswith('trace-')
+                            if os.path.isfile(os.path.join(directory, f))
+                            and f.startswith('trace-')
                         )
                     else:
                         os.makedirs(directory)

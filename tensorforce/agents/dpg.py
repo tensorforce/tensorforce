@@ -31,7 +31,7 @@ class DeterministicPolicyGradient(PolicyAgent):
         # Optimization
         memory=10000, batch_size=32, update_frequency=4, start_updating=1000, learning_rate=3e-4,
         # Reward estimation
-        n_step=0, discount=0.99, estimate_terminal=True,
+        n_step=0, discount=0.99, estimate_terminal=False,
         # Critic
         critic_network='auto', critic_optimizer='adam',
         # Preprocessing

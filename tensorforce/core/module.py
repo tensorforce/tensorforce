@@ -282,23 +282,24 @@ class Module(object):
             if self.summarizer_spec is not None:
                 with tf.name_scope(name='summarizer'):
 
-                    if os.path.isdir(self.summarizer_spec['directory']):
+                    directory = self.summarizer_spec['directory']
+                    if os.path.isdir(directory):
                         directories = sorted(
-                            d for d in os.listdir(self.summarizer_spec['directory'])
-                            if os.path.isdir(d) and d.startswith('summary-')
+                            d for d in os.listdir(directory)
+                            if os.path.isdir(os.path.join(directory, d))
+                            and d.startswith('summary-')
                         )
                     else:
+                        os.makedirs(directory)
                         directories = list()
                     max_summaries = self.summarizer_spec.get('max-summaries', 5)
                     if len(directories) > max_summaries - 1:
                         for subdir in directories[:-max_summaries + 1]:
-                            subdir = os.path.join(self.summarizer_spec['directory'], subdir)
+                            subdir = os.path.join(directory, subdir)
                             os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
                             os.rmdir(subdir)
 
-                    logdir = os.path.join(
-                        self.summarizer_spec['directory'], time.strftime('summary-%Y%m%d-%H%M%S')
-                    )
+                    logdir = os.path.join(directory, time.strftime('summary-%Y%m%d-%H%M%S'))
                     flush_millis = (self.summarizer_spec.get('flush', 10) * 1000)
                     self.summarizer = tf.contrib.summary.create_file_writer(
                         logdir=logdir, flush_millis=flush_millis, max_queue=None,

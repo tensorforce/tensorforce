@@ -111,7 +111,7 @@ class PolicyAgent(Agent):
             values instead of state values
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>estimate_terminal</b> (<i>bool</i>) &ndash; Whether to estimate the value of
-            terminal states (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            terminal states (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to estimate the advantage
             by subtracting the current estimate
             (<span style="color:#00C000"><b>default</b></span>: false).</li>

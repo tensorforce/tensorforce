@@ -90,13 +90,14 @@ class Queue(CircularBuffer, Memory):
             ),
             # if terminal, last timestep in batch
             tf.debugging.assert_equal(
-                x=tf.math.reduce_any(input_tensor=(terminal > zero)), y=(terminal[-1] > zero)
+                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+                y=tf.math.greater(x=terminal[-1], y=zero)
             ),
             # general check: all terminal indices true
             tf.debugging.assert_equal(
                 x=tf.reduce_all(
                     input_tensor=tf.gather(
-                        params=(self.buffers['terminal'] > zero),
+                        params=tf.math.greater(x=self.buffers['terminal'], y=zero),
                         indices=self.terminal_indices[:self.episode_count + one]
                     )
                 ),
@@ -197,7 +198,7 @@ class Queue(CircularBuffer, Memory):
             limit_index = self.episode_count + one
             assignment = tf.assign(
                 ref=self.terminal_indices[limit_index: limit_index + num_new_episodes],
-                value=tf.boolean_mask(tensor=indices, mask=(terminal > zero))
+                value=tf.boolean_mask(tensor=indices, mask=tf.math.greater(x=terminal, y=zero))
             )
 
         # Increment episode count accordingly
@@ -265,7 +266,8 @@ class Queue(CircularBuffer, Memory):
             predecessor_indices = tf.concat(values=(previous_index, predecessor_indices), axis=1)
             previous_terminal = self.retrieve(indices=previous_index, values='terminal')
             is_not_terminal = tf.math.logical_and(
-                x=tf.math.logical_not(x=(previous_terminal > zero)), y=mask[:, :1]
+                x=tf.math.logical_not(x=tf.math.greater(x=previous_terminal, y=zero)),
+                y=mask[:, :1]
             )
             mask = tf.concat(values=(is_not_terminal, mask), axis=1)
             is_not_terminal = tf.squeeze(input=is_not_terminal, axis=1)
@@ -444,7 +446,8 @@ class Queue(CircularBuffer, Memory):
             current_index = successor_indices[:, -1:]
             current_terminal = self.retrieve(indices=current_index, values='terminal')
             is_not_terminal = tf.math.logical_and(
-                x=tf.math.logical_not(x=(current_terminal > zero)), y=mask[:, -1:]
+                x=tf.math.logical_not(x=tf.math.greater(x=current_terminal, y=zero)),
+                y=mask[:, -1:]
             )
             next_index = tf.mod(x=(current_index + one), y=capacity)
             successor_indices = tf.concat(values=(successor_indices, next_index), axis=1)

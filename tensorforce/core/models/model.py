@@ -1084,7 +1084,8 @@ class Model(Module):
             ),
             # if terminal, last timestep in batch
             tf.debugging.assert_equal(
-                x=tf.math.reduce_any(input_tensor=(terminal > zero)), y=(terminal[-1] > zero)
+                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+                y=tf.math.greater(x=terminal[-1], y=zero)
             )
         ]
 

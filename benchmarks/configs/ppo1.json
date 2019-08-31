@@ -8,7 +8,6 @@
     "optimization_steps": 5,
     "likelihood_ratio_clipping": 0.09955676846552193,
     "discount": 0.9985351346308641,
-    "estimate_terminal": true,
     "critic_network": {"type": "auto", "internal_rnn": false},
     "critic_optimizer": {
         "type": "multi_step",

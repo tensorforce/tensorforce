@@ -183,7 +183,7 @@ class PolicyModel(Model):
             discount=reward_estimation.get('discount', 1.0),
             estimate_horizon=reward_estimation.get('estimate_horizon', 'late'),
             estimate_actions=reward_estimation.get('estimate_actions', False),
-            estimate_terminal=reward_estimation.get('estimate_terminal', True),
+            estimate_terminal=reward_estimation.get('estimate_terminal', False),
             estimate_advantage=reward_estimation.get('estimate_advantage', False),
             capacity=capacity
         )
@@ -336,7 +336,8 @@ class PolicyModel(Model):
             ),
             # if terminal, last timestep in batch
             tf.debugging.assert_equal(
-                x=tf.math.reduce_any(input_tensor=(terminal > zero)), y=(terminal[-1] > zero)
+                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+                y=tf.math.greater(x=terminal[-1], y=zero)
             )
         ]
         batch_size = tf.shape(input=terminal)[:1]

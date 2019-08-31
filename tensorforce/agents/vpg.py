@@ -30,7 +30,7 @@ class VanillaPolicyGradient(PolicyAgent):
         # Optimization
         batch_size=10, update_frequency=None, learning_rate=3e-4,
         # Reward estimation
-        discount=0.99, estimate_terminal=True,
+        discount=0.99, estimate_terminal=False,
         # Critic
         critic_network=None, critic_optimizer=None,
         # Preprocessing
@@ -54,8 +54,7 @@ class VanillaPolicyGradient(PolicyAgent):
             reward_estimation = dict(horizon='episode', discount=discount)
         else:
             reward_estimation = dict(
-                horizon='episode', discount=discount,
-                estimate_horizon=('late' if estimate_terminal else False),
+                horizon='episode', discount=discount, estimate_horizon='late',
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
         if critic_network is None:

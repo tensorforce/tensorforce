@@ -20,12 +20,11 @@ from test.unittest_base import UnittestBase
 
 class TestOptimizers(UnittestBase, unittest.TestCase):
 
-    def test_clipped_step(self):
-        self.start_tests(name='clipped-step')
+    def test_clipping_step(self):
+        self.start_tests(name='clipping-step')
 
         optimizer = dict(
-            type='clipped_step', optimizer=dict(type='adam', learning_rate=1e-3),
-            clipping_value=1e-2
+            type='clipping_step', optimizer=dict(type='adam', learning_rate=1e-3), threshold=1e-2
         )
         self.unittest(optimizer=optimizer)
 
@@ -40,13 +39,13 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         optimizer = dict(
             type='meta_optimizer_wrapper', optimizer='adam', learning_rate=1e-3, multi_step=5,
-            subsampling_fraction=0.5, clipping_value=1e-2, optimized_iterations=3
+            subsampling_fraction=0.5, clipping_threshold=1e-2, optimizing_iterations=3
         )
         self.unittest(optimizer=optimizer, network=dict(type='auto', size=8, internal_rnn=False))  # TODO: shouldn't be necessary!
 
         optimizer = dict(
             optimizer='adam', learning_rate=1e-3, multi_step=5, subsampling_fraction=0.5,
-            clipping_value=1e-2, optimized_iterations=3
+            clipping_threshold=1e-2, optimizing_iterations=3
         )
         self.unittest(optimizer=optimizer, network=dict(type='auto', size=8, internal_rnn=False))  # TODO: shouldn't be necessary!
 
@@ -64,10 +63,10 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         optimizer = dict(type='natural_gradient', learning_rate=1e-3)
         self.unittest(optimizer=optimizer, network=dict(type='auto', size=8, internal_rnn=False))  # TODO: shouldn't be necessary!
 
-    def test_optimized_step(self):
-        self.start_tests(name='optimized-step')
+    def test_optimizing_step(self):
+        self.start_tests(name='optimizing-step')
 
-        optimizer = dict(type='optimized_step', optimizer=dict(type='adam', learning_rate=1e-3))
+        optimizer = dict(type='optimizing_step', optimizer=dict(type='adam', learning_rate=1e-3))
         self.unittest(optimizer=optimizer)
 
     def test_plus(self):
@@ -77,9 +76,6 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             type='plus', optimizer1=dict(type='adam', learning_rate=1e-3),
             optimizer2=dict(type='adagrad', learning_rate=1e-3)
         )
-        self.unittest(optimizer=optimizer)
-
-        optimizer = dict(type='plus', optimizer1='adam', optimizer2='adagrad')
         self.unittest(optimizer=optimizer)
 
     def test_subsampling_step(self):

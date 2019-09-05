@@ -91,7 +91,7 @@ setup(
         tf=["tensorflow==1.13.1"],
         tf_gpu=["tensorflow-gpu==1.13.1"],
         docs=["m2r", "recommonmark", "sphinx", "sphinx-rtd-theme"],
-        envs=["mazeexp", "gym[all]", "gym-retro", "vizdoom"],
+        envs=["gym[all]", "gym-retro", "mazeexp", "vizdoom"],
         mazeexp=["mazeexp"],
         gym=["gym[all]"],
         retro=["gym-retro"],

@@ -47,7 +47,7 @@ class Decaying(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
         summary_labels ("all" | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        kwargs: Additional arguments dependent on decay mechanism.<br>
+        kwargs: Additional arguments depend on decay mechanism.<br>
             Cosine decay:
             <ul>
             <li><b>alpha</b> (<i>float</i>) &ndash; Minimum learning rate value as a fraction of

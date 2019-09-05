@@ -19,18 +19,19 @@ from tensorforce.core.optimizers import Optimizer
 
 class MetaOptimizer(Optimizer):
     """
-    A meta optimizer takes the optimization implemented by another optimizer and  
-    modifies/optimizes its proposed result. For example, line search might be applied to find a  
-    more optimal step size.
+    Meta optimizer, which takes the update mechanism implemented by another optimizer and modifies
+    it.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer (specification): Optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(self, name, optimizer, summary_labels=None):
-        """
-        Meta-optimizer constructor.
-
-        Args:
-            optimizer (specification): The underlying optimizer which is modified (**required**).
-        """
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.optimizer = self.add_module(

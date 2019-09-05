@@ -20,26 +20,34 @@ from tensorforce.core.optimizers import MetaOptimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
 
-class OptimizedStep(MetaOptimizer):
+class OptimizingStep(MetaOptimizer):
     """
-    The optimized-step optimizer applies line search to the proposed optimization step of  
-    another optimizer to find a more optimal step size.
+    Optimizing-step meta optimizer, which applies line search to the given optimizer to find a more
+    optimal step size (specification key: `optimizing_step`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer (specification): Optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        ls_max_iterations (parameter, int > 0): Maximum number of line search iterations
+            (<span style="color:#00C000"><b>default</b></span>: 10).
+        ls_accept_ratio (parameter, float > 0.0): Line search acceptance ratio
+            (<span style="color:#00C000"><b>default</b></span>: 0.9).
+        ls_mode ('exponential' | 'linear'): Line search mode, see line search solver
+            (<span style="color:#00C000"><b>default</b></span>: 'exponential').
+        ls_parameter (parameter, float > 0.0): Line search parameter, see line search solver
+            (<span style="color:#00C000"><b>default</b></span>: 0.5).
+        ls_unroll_loop (bool): Whether to unroll the line search loop
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(
         self, name, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
         ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None
     ):
-        """
-        Optimized-step optimizer constructor.
-
-        Args:
-            ls_max_iterations (int > 0): Maximum number of line search iterations.
-            ls_accept_ratio: Line search acceptance ratio.
-            ls_mode: Line search mode, see LineSearch solver.
-            ls_parameter: Line search parameter, see LineSearch solver.
-            ls_unroll_loop (bool): Whether to unroll the line search loop (default: false).
-        """
         super().__init__(name=name, optimizer=optimizer)
 
         self.solver = self.add_module(

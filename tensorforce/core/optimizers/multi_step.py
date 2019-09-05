@@ -22,18 +22,23 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class MultiStep(MetaOptimizer):
     """
-    The multi-step optimizer repeatedly applies the optimization step proposed by another  
-    optimizer a number of times.
+    Multi-step meta optimizer, which applies the given optimizer for a number of times
+    (specification key: `multi_step`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer (specification): Optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        num_steps (parameter, int > 0): Number of optimization steps
+            (<span style="color:#C00000"><b>required</b></span>).
+        unroll_loop (bool): Whether to unroll the repetition loop
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(self, name, optimizer, num_steps, unroll_loop=False, summary_labels=None):
-        """
-        Multi-step optimizer constructor.
-
-        Args:
-            num_steps (parameter, int > 0): Number of optimization steps (**required**).
-            unroll_loop (bool): Whether to unroll the loop (default: false).
-        """
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
         assert isinstance(unroll_loop, bool)

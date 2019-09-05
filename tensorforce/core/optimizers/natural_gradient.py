@@ -23,23 +23,27 @@ from tensorforce.core.optimizers.solvers import solver_modules
 
 class NaturalGradient(Optimizer):
     """
-    Natural-gradient optimizer.
+    Natural gradient optimizer (specification key: `natural_gradient`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        learning_rate (parameter, float > 0.0): Learning rate as KL-divergence of distributions
+            between optimization steps (<span style="color:#C00000"><b>required</b></span>).
+        cg_max_iterations (int > 0): Maximum number of conjugate gradient iterations.
+            (<span style="color:#00C000"><b>default</b></span>: 10).
+        cg_damping (float > 0.0): Conjugate gradient damping factor.
+            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
+        cg_unroll_loop (bool): Whether to unroll the conjugate gradient loop
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(
         self, name, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
         summary_labels=None
     ):
-        """
-        Natural-gradient optimizer constructor.
-
-        Args:
-            learning_rate (parameter, float > 0.0): Learning rate, i.e. KL-divergence of
-                distributions between optimization steps (**required**).
-            cg_max_iterations (int > 0): Maximum number of conjugate gradient iterations.
-            cg_damping: Conjugate gradient damping factor.
-            cg_unroll_loop (bool): Whether to unroll the conjugate gradient loop (default: false).
-        """
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.learning_rate = self.add_module(
@@ -55,22 +59,6 @@ class NaturalGradient(Optimizer):
         self, variables, arguments, fn_loss, fn_kl_divergence, return_estimated_improvement=False,
         **kwargs
     ):
-        """
-        Creates the TensorFlow operations for performing an optimization step.
-
-        Args:
-            variables: List of variables to optimize.
-            arguments: Dict of arguments for callables, like fn_loss.
-            fn_loss: A callable returning the loss of the current model.
-            fn_kl_divergence: A callable returning the KL-divergence relative to the current model.
-            return_estimated_improvement: Returns the estimated improvement resulting from the  
-                natural gradient calculation if true.
-            **kwargs: Additional arguments, not used.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
-
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
         # For more details, see our blogpost:
         # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/

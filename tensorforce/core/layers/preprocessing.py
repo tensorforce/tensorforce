@@ -77,7 +77,7 @@ class Clipping(Layer):
 
 class Deltafier(PreprocessingLayer):
     """
-    Deltafier layer computing the difference between the current and the previous input. Can only
+    Deltafier layer computing the difference between the current and the previous input; can only
     be used as preprocessing layer (specification key: `deltafier`).
 
     Args:
@@ -217,7 +217,7 @@ class Image(Layer):
 
 class Sequence(PreprocessingLayer):
     """
-    Sequence layer stacking the current and previous inputs. Can only be used as preprocessing
+    Sequence layer stacking the current and previous inputs; can only be used as preprocessing
     layer (specification key: `sequence`).
 
     Args:

@@ -22,7 +22,7 @@ from tensorforce.core.layers import Layer
 
 class ExponentialNormalization(Layer):
     """
-    Normalization layer using exponential moving average (specification key:
+    Normalization layer based on the exponential moving average (specification key:
     `exponential_normalization`).
 
     Args:

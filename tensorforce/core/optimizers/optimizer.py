@@ -22,27 +22,18 @@ from tensorforce.core import Module
 class Optimizer(Module):
     """
     Base class for optimizers.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(self, name, summary_labels=None):
-        """
-        Optimizer constructor.
-        """
         super().__init__(name=name, summary_labels=summary_labels)
 
     def tf_step(self, variables, **kwargs):
-        """
-        Creates the TensorFlow operations for performing an optimization step on the given  
-        variables, including actually changing the values of the variables.
-
-        Args:
-            variables: List of variables to optimize.
-            **kwargs: Additional arguments depending on the specific optimizer implementation.  
-                For instance, often includes `fn_loss` if a loss function is optimized.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
         raise NotImplementedError
 
     def tf_apply_step(self, variables, deltas):
@@ -57,32 +48,15 @@ class Optimizer(Module):
             return util.no_operation()
 
     def tf_minimize(self, variables, **kwargs):
-        """
-        Performs an optimization step.
-
-        Args:
-            variables: List of variables to optimize.
-            **kwargs: Additional optimizer-specific arguments. The following arguments are used
-                by some optimizers:
-                - arguments: Dict of arguments for callables, like fn_loss.
-                - fn_loss: A callable returning the loss of the current model.
-                - fn_reference: A callable returning the reference values, in case of a comparative
-                    loss.
-                - fn_kl_divergence: A callable returning the KL-divergence relative to the
-                    current model.
-                - return_estimated_improvement: Returns the estimated improvement resulting from
-                    the natural gradient calculation if true.
-                - source_variables: List of source variables to synchronize with.
-                - global_variables: List of global variables to apply the proposed optimization
-                    step to.
-
-        Returns:
-            The optimization operation.
-        """
         if any(variable.dtype != util.tf_dtype(dtype='float') for variable in variables):
             TensorforceError.unexpected()
 
         deltas = self.step(variables=variables, **kwargs)
+
+        update_norm = tf.linalg.global_norm(t_list=deltas)
+        deltas = self.add_summary(
+            label='update-norm', name='update-norm', tensor=update_norm, pass_tensors=deltas
+        )
 
         for n in range(len(variables)):
             name = variables[n].name

@@ -21,11 +21,18 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class GlobalOptimizer(MetaOptimizer):
     """
-    The global optimizer applies an optimizer to the local variables. In addition, it also  
-    applies the update to a corresponding set of global variables and subsequently updates the local
-    variables to the value of these global variables.
-    Note: This is used for the current distributed mode, and will likely change with the next  
-    major version update.
+    Global meta optimizer, which applies the given optimizer to the local variables, then applies
+    the update to a corresponding set of global variables, and subsequently updates the local
+    variables to the value of the global variables; will likely change in the future (specification
+    key: `global_optimizer`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer (specification): Optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def tf_step(self, variables, **kwargs):

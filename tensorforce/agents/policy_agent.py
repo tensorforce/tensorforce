@@ -209,7 +209,6 @@ class PolicyAgent(Agent):
             distribution-specific parameters</li>
             <li>"dropout": dropout zero fraction</li>
             <li>"entropy": entropy of policy distribution</li>
-            <li>"gradient-norm": update mean and variance scalars</li>
             <li>"graph": graph summary</li>
             <li>"kl-divergence": KL-divergence of previous and updated policy distribution</li>
             <li>"losses" or "loss", "objective-loss", "regularization-loss", "baseline-loss",
@@ -219,6 +218,7 @@ class PolicyAgent(Agent):
             <li>"rewards" or "timestep-reward", "episode-reward", "raw-reward", "processed-reward",
             "estimated-reward": reward scalar
             </li>
+            <li>"update-norm": update norm</li>
             <li>"updates": update mean and variance scalars</li>
             <li>"updates-full": update histograms</li>
             <li>"variables": variable mean and variance scalars</li>

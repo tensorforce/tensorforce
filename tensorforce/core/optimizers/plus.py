@@ -21,17 +21,20 @@ from tensorforce.core.optimizers import Optimizer
 
 class Plus(Optimizer):
     """
-    Additive combination of two optimizers.
+    Additive combination of two optimizers (specification key: `plus`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer1 (specification): First optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        optimizer2 (specification): Second optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(self, name, optimizer1, optimizer2, summary_labels=None):
-        """
-        Plus optimizer constructor.
-
-        Args:
-            optimizer1 (specification): First optimizer configuration (**required**).
-            optimizer2 (specification): Second optimizer configuration (**required**).
-        """
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.optimizer1 = self.add_module(

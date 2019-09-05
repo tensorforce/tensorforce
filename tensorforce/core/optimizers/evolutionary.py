@@ -22,19 +22,26 @@ from tensorforce.core.optimizers import Optimizer
 
 class Evolutionary(Optimizer):
     """
-    Evolutionary optimizer which samples random perturbations and applies them either positively  
-    or negatively, depending on their improvement of the loss.
+    Evolutionary optimizer, which samples random perturbations and applies them either as positive
+    or negative update depending on their improvement of the loss (specification key:
+    `evolutionary`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        learning_rate (parameter, float > 0.0): Learning rate
+            (<span style="color:#C00000"><b>required</b></span>).
+        num_samples (parameter, int > 0): Number of sampled perturbations
+            (<span style="color:#00C000"><b>default</b></span>: 1).
+        unroll_loop (bool): Whether to unroll the sampling loop
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, name, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None):
-        """
-        Evolutionary optimizer constructor.
-
-        Args:
-            learning_rate (parameter, float > 0.0): Learning rate (**required**).
-            num_samples (parameter, int > 0): Number of sampled perturbations (default: 1).
-            unroll_loop (bool): Whether to unroll the loop (default: false).
-        """
+    def __init__(
+        self, name, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None
+    ):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.learning_rate = self.add_module(

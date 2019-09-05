@@ -22,7 +22,24 @@ from tensorforce.core.optimizers import Optimizer
 
 class TFOptimizer(Optimizer):
     """
-    TensorFlow optimizer (specification key: `tf_optimizer`, `adam`).
+    TensorFlow optimizer (specification key: `tf_optimizer`, `adadelta`, `adagrad`, `adam`,
+    `gradient_descent`, `momentum`, `proximal_adagrad`, `proximal_gradient_descent`, `rmsprop`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer ('adadelta' | 'adagrad' | 'adam' | 'gradient_descent' | 'momentum' | 'proximal_adagrad' | 'proximal_gradient_descent' | 'rmsprop'):
+            TensorFlow optimizer name, see
+            `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__
+            (<span style="color:#C00000"><b>required</b> unless given by specification key</span>).
+        learning_rate (parameter, float > 0.0): Learning rate
+            (<span style="color:#C00000"><b>required</b></span>).
+        gradient_norm_clipping (parameter, float > 0.0): Clip gradients by the ratio of the sum
+            of their norms (<span style="color:#00C000"><b>default</b></span>: 1.0).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        kwargs: Arguments for the TensorFlow optimizer, see
+            `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__.
     """
 
     tensorflow_optimizers = dict(
@@ -48,23 +65,9 @@ class TFOptimizer(Optimizer):
     # "clipnorm", "clipvalue", "lr", "decay"}
 
     def __init__(
-        self, name, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
+        self, name, optimizer, learning_rate, gradient_norm_clipping=1.0, summary_labels=None,
         **kwargs
     ):
-        """
-        TensorFlow optimizer constructor.
-
-        Args:
-            optimizer ('adadelta' | 'adagrad' | 'adam' | 'gradient_descent' | 'momentum' |  'proximal_adagrad' | 'proximal_gradient_descent' | 'rmsprop'):
-                TensorFlow optimizer name, see
-                `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__
-                (<span style="color:#C00000"><b>required</b></span>).
-            learning_rate (parameter, float > 0.0): Learning rate (default: 3e-4).
-            gradient_norm_clipping (parameter, float > 0.0): Clip gradients by the ratio of the sum
-                of their norms (default: 1.0).
-            kwargs: Arguments for the TensorFlow optimizer, see
-                `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__.
-        """
         super().__init__(name=name, summary_labels=summary_labels)
 
         assert optimizer in TFOptimizer.tensorflow_optimizers
@@ -105,13 +108,17 @@ class TFOptimizer(Optimizer):
                 initial_gradients = util.fmap(function=tf.stop_gradient, xs=initial_gradients)
 
             gradients = tf.gradients(ys=loss, xs=variables, grad_ys=initial_gradients)
+            assertions = [
+                tf.debugging.assert_all_finite(t=gradient, msg='') for gradient in gradients
+            ]
 
+        with tf.control_dependencies(control_inputs=assertions):
             gradient_norm_clipping = self.gradient_norm_clipping.value()
             gradients, gradient_norm = tf.clip_by_global_norm(
                 t_list=gradients, clip_norm=gradient_norm_clipping
             )
             gradients = self.add_summary(
-                label='gradient-norm', name='gradient-norm', tensor=gradient_norm,
+                label='update-norm', name='gradient-norm-unclipped', tensor=gradient_norm,
                 pass_tensors=gradients
             )
 

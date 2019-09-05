@@ -22,18 +22,21 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class SubsamplingStep(MetaOptimizer):
     """
-    The subsampling-step meta optimizer randomly samples a subset of batch instances to calculate
-    the optimization step of another optimizer.
+    Subsampling-step meta optimizer, which randomly samples a subset of batch instances before
+    applying the given optimizer (specification key: `subsampling_step`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer (specification): Optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        fraction (parameter, 0.0 < float <= 1.0): Fraction of batch timesteps to subsample
+            (<span style="color:#C00000"><b>required</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(self, name, optimizer, fraction, summary_labels=None):
-        """
-        Subsampling-step optimizer constructor.
-
-        Args:
-            fraction (parameter, 0.0 < float <= 1.0): Fraction of instances of the batch to
-                subsample (**required**).
-        """
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
         self.fraction = self.add_module(

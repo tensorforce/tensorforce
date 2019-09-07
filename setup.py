@@ -25,7 +25,6 @@ install_requires = [
     'numpy',
     'six',
     'scipy',
-    'pillow',
     'pytest',
     'tqdm'
 ]
@@ -52,7 +51,7 @@ if on_rtd:
 
 
 setup(name='tensorforce',
-      version='0.4.4',  # please remember to edit tensorforce/__init__.py when updating the version
+      version='0.4.4.2',  # please remember to edit tensorforce/__init__.py when updating the version
       description='Reinforcement learning for TensorFlow',
       url='http://github.com/reinforceio/tensorforce',
       download_url='https://github.com/reinforceio/tensorforce/archive/0.4.3.tar.gz',

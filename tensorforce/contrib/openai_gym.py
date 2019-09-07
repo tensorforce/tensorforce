@@ -167,13 +167,16 @@ class OpenAIGym(Environment):
             if (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
                 return dict(type='float', shape=space.low.shape,
                             min_value=np.float32(space.low[0]),
-                            max_value=np.float32(space.high[0]))
+                            max_value=np.float32(space.high[0])
+                            )
             else:
                 actions = dict()
                 low = space.low.flatten()
                 high = space.high.flatten()
                 for n in range(low.shape[0]):
-                    actions['gymbox{}'.format(n)] = dict(type='float', min_value=low[n], max_value=high[n])
+                    actions['gymbox{}'.format(n)] = dict(type='float',
+                                                         min_value=low[n], max_value=high[n]
+                                                         )
                 return actions
         elif isinstance(space, gym.spaces.Tuple):
             actions = dict()

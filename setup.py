@@ -30,7 +30,6 @@ with open(os.path.join(tensorforce_directory, 'tensorforce', '__init__.py'), 'r'
         if line.startswith('__version__'):
             version = line[15:-2]
 
-
 # Extract long_description from README.md introduction
 long_description = list()
 with open(os.path.join(tensorforce_directory, 'README.md'), 'r') as filehandle:

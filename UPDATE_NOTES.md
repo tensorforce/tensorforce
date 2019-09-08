@@ -7,19 +7,6 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Version 0.5
 
-##### New features:
-
-- Automatically configured network type `'auto'` as new default network
-- Improved reward estimation which unifies Q-models and PG-models
-- TensorBoard summaries fully supported
-- Many hyperparameters support scheduling and explicit manual re-definition
-- Internal RNNs
-- Changed and improved network layers, see documentation
-- Keras layer support
-- Parallel execution
-- Pretraining from experience
-- And many more...
-
 ##### Environment:
 
 - Environment properties `states` and `actions` are now functions `states()` and `actions()`
@@ -28,7 +15,7 @@ This file records all major updates and new features, starting from version 0.5.
 
 ##### Agent:
 
-- DDPGAgent and DQFDAgent removed (temporarily)
+- DQFDAgent removed (temporarily)
 - DQNNstepAgent and NAFAgent part of DQNAgent
 - Agents need to be initialized via `agent.initialize()` before application
 - States/actions of type `int` require an entry `num_values` (instead of `num_actions`)
@@ -36,7 +23,6 @@ This file records all major updates and new features, starting from version 0.5.
 - `Agent.act()` argument `fetch_tensors` changed and renamed to `query`, `index` renamed to `parallel`, `buffered` removed
 - `Agent.observe()` argument `index` renamed to `parallel`
 - `Agent.atomic_observe()` removed
-act(self, states, deterministic=False, independent=False, fetch_tensors=None, buffered=True, index=0):
 - `Agent.save/restore_model()` renamed to `Agent.save/restore()`
 
 ##### Agent arguments:

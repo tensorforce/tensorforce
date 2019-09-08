@@ -86,6 +86,7 @@ setup(
     packages=['tensorforce'],
     download_url='https://github.com/tensorforce/tensorforce/archive/0.5.0.tar.gz',
     license='Apache 2.0',
+    python_requires='>=3.5',
     install_requires=install_requires,
     extras_require=dict(
         tf=["tensorflow==1.13.1"],

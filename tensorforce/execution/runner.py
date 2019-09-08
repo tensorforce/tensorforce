@@ -44,7 +44,7 @@ class Runner(object):
             # Disable periodic saving
             kwargs = dict(saver=dict(seconds=None, steps=None))
         self.agent = Agent.create(agent=agent, environment=self.environment, **kwargs)
-        if not agent.model.is_initialized:
+        if not self.agent.model.is_initialized:
             self.agent.initialize()
 
         self.global_episode = self.agent.episode

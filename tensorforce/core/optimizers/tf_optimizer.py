@@ -33,7 +33,7 @@ class TFOptimizer(Optimizer):
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__
             (<span style="color:#C00000"><b>required</b> unless given by specification key</span>).
         learning_rate (parameter, float > 0.0): Learning rate
-            (<span style="color:#C00000"><b>required</b></span>).
+            (<span style="color:#00C000"><b>default</b></span>: 3e-4).
         gradient_norm_clipping (parameter, float > 0.0): Clip gradients by the ratio of the sum
             of their norms (<span style="color:#00C000"><b>default</b></span>: 1.0).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -65,7 +65,7 @@ class TFOptimizer(Optimizer):
     # "clipnorm", "clipvalue", "lr", "decay"}
 
     def __init__(
-        self, name, optimizer, learning_rate, gradient_norm_clipping=1.0, summary_labels=None,
+        self, name, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
         **kwargs
     ):
         super().__init__(name=name, summary_labels=summary_labels)

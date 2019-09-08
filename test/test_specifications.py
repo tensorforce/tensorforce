@@ -15,7 +15,8 @@
 
 import unittest
 
-from tensorforce.core.networks import LayerbasedNetwork, LayeredNetwork
+from tensorforce.core.memories import Replay
+from tensorforce.core.networks import LayerbasedNetwork
 from test.unittest_base import UnittestBase
 
 
@@ -37,10 +38,10 @@ class TestNetwork(LayerbasedNetwork):
 
 class TestSpecifications(UnittestBase, unittest.TestCase):
 
-    def specification_unittest(self, network):
+    def specification_unittest(self, network, memory):
         states = dict(type='float', shape=(3,))
 
-        agent, environment = self.prepare(states=states, network=network)
+        agent, environment = self.prepare(states=states, network=network, memory=memory)
 
         agent.initialize()
         states = environment.reset()
@@ -57,43 +58,29 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
     def test_specifications(self):
         self.start_tests()
 
-        # spec default
-        spec_without_type = dict(
-            layers=[dict(type='dense', size=8), dict(type='dense', size=8)]
+        # default
+        self.specification_unittest(
+            network=dict(type='layered', layers=[dict(type='dense', size=8)]),
+            memory=dict(type='replay', capacity=100)
         )
-        self.specification_unittest(network=spec_without_type)
-
-        # spec callable
-        spec_with_callable = dict(
-            type=LayeredNetwork, layers=[dict(type='dense', size=8), dict(type='dense', size=8)]
-        )
-        self.specification_unittest(network=spec_with_callable)
-
-        # spec json
-        spec_with_json = dict(
-            type='test/network1.json',
-            layers=[dict(type='dense', size=8), dict(type='dense', size=8)]
-        )
-        self.specification_unittest(network=spec_with_json)
-
-        # spec module
-        spec_with_module = dict(
-            type='tensorforce.core.networks.layered.LayeredNetwork',
-            layers=[dict(type='dense', size=8), dict(type='dense', size=8)]
-        )
-        self.specification_unittest(network=spec_with_module)
-
-        # callable
-        self.specification_unittest(network=TestNetwork)
 
         # json
-        json_file = 'test/network2.json'
-        self.specification_unittest(network=json_file)
+        self.specification_unittest(
+            network='test/network.json', memory=dict(type='test/memory.json', capacity=100)
+        )
 
         # module
-        module = 'test.test_specifications.TestNetwork'
-        self.specification_unittest(network=module)
+        self.specification_unittest(
+            network='test.test_specifications.TestNetwork',
+            memory=dict(type='tensorforce.core.memories.Replay', capacity=100)
+        )
 
-        # firstarg
-        layers = [dict(type='dense', size=8), dict(type='dense', size=8)]
-        self.specification_unittest(network=layers)
+        # callable
+        self.specification_unittest(
+            network=TestNetwork, memory=dict(type=Replay, capacity=100)
+        )
+
+        # default (+firstarg)
+        self.specification_unittest(
+            network=[dict(type='dense', size=8)], memory=dict(capacity=100)
+        )

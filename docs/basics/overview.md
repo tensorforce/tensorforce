@@ -1,8 +1,0 @@
-Overview
-========
-
-specification
-
-parameters
-
-installation

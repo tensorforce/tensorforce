@@ -1,0 +1,5 @@
+{
+    "environment": "gym",
+    "level": "CartPole",
+    "max_episode_timesteps": 100
+}

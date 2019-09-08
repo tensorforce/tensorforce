@@ -78,10 +78,11 @@ class Agent(object):
                 library = importlib.import_module(name=library_name)
                 agent = getattr(library, module_name)
 
-                environment_spec = dict(states=environment.states(), actions=environment.actions())
-                if environment.max_episode_timesteps() is not None:
-                    environment_spec['max_episode_timesteps'] = environment.max_episode_timesteps()
-                util.deep_disjoint_update(target=kwargs, source=environment_spec)
+                if environment is not None:
+                    env_spec = dict(states=environment.states(), actions=environment.actions())
+                    if environment.max_episode_timesteps() is not None:
+                        env_spec['max_episode_timesteps'] = environment.max_episode_timesteps()
+                    util.deep_disjoint_update(target=kwargs, source=env_spec)
 
                 agent = agent(**kwargs)
                 assert isinstance(agent, Agent)
@@ -90,10 +91,11 @@ class Agent(object):
 
             else:
                 # Keyword specification
-                environment_spec = dict(states=environment.states(), actions=environment.actions())
-                if environment.max_episode_timesteps() is not None:
-                    environment_spec['max_episode_timesteps'] = environment.max_episode_timesteps()
-                util.deep_disjoint_update(target=kwargs, source=environment_spec)
+                if environment is not None:
+                    env_spec = dict(states=environment.states(), actions=environment.actions())
+                    if environment.max_episode_timesteps() is not None:
+                        env_spec['max_episode_timesteps'] = environment.max_episode_timesteps()
+                    util.deep_disjoint_update(target=kwargs, source=env_spec)
 
                 agent = tensorforce.agents.agents[agent](**kwargs)
                 assert isinstance(agent, Agent)

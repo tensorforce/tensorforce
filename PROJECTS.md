@@ -1,5 +1,8 @@
 # Projects using Tensorforce
 
+Please [get in touch](mailto:tensorforce.team@gmail.com) if you would like your project to be listed here.
+
+
 
 
 ### Active flow control

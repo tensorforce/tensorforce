@@ -6,7 +6,7 @@ Please always get in touch on [Gitter](https://gitter.im/tensorforce/community) 
 ### Code style
 
 - [Google Python style guide](https://google.github.io/styleguide/pyguide.html)
-- Maximum line length: 100 characters; tab size: 4
+- Maximum line length: 100 characters; tab size: 4 spaces
 - There should be no PEP8 warnings (apart from E501 regarding line length)
 - Arguments when initializing objects / calling functions / specifying lists/dicts / etc, if they do not fit into the same line, should be in one (or multiple) separate tab-indented line(s), like this:
 

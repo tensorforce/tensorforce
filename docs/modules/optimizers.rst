@@ -4,7 +4,7 @@ Optimizers
 Default optimizer: ``MetaOptimizerWrapper``
 
 
-.. autoclass:: tensorforce.core.optimizers.ClippedStep
+.. autoclass:: tensorforce.core.optimizers.ClippingStep
 
 .. autoclass:: tensorforce.core.optimizers.Evolutionary
 
@@ -16,7 +16,7 @@ Default optimizer: ``MetaOptimizerWrapper``
 
 .. autoclass:: tensorforce.core.optimizers.NaturalGradient
 
-.. autoclass:: tensorforce.core.optimizers.OptimizedStep
+.. autoclass:: tensorforce.core.optimizers.OptimizingStep
 
 .. autoclass:: tensorforce.core.optimizers.Plus
 

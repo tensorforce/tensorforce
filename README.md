@@ -7,14 +7,6 @@
 
 
 
-**Important**: Tensorforce was recently moved to another GitHub host organization. The following command will update your git directory (assuming no changes beyond standard cloning):
-
-```bash
-git remote set-url origin https://github.com/tensorforce/tensorforce.git
-```
-
-
-
 #### Introduction
 
 Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
@@ -33,7 +25,6 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 - [Benchmarks]((https://github.com/tensorforce/tensorforce/blob/master/benchmarks) and [projects using Tensorforce](https://github.com/tensorforce/tensorforce/blob/master/PROJECTS.md)
 - [Contact](mailto:tensorforce.team@gmail.com) and [Gitter channel](https://gitter.im/tensorforce/community)
 - [Roadmap](https://github.com/tensorforce/tensorforce/blob/master/ROADMAP.md) and [contribution guidelines](https://github.com/tensorforce/tensorforce/blob/master/CONTRIBUTING.md)
-- [Blog](https://reinforce.io/blog/)
 
 
 
@@ -67,7 +58,7 @@ cd tensorforce
 pip install -e .
 ```
 
-Tensorforce is built on [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed. Generally, Tensorforce assumes the latest version of TensorFlow and thus is only backwards-compatible to the degree TensorFlow is. To include the current version of TensorFlow with the installation of Tensorforce, add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
+Tensorforce is built on top of [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed, currently as version `1.13.1`. To include the correct version of TensorFlow with the installation of Tensorforce, simply add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
 
 ```bash
 # PyPI version plus TensorFlow CPU version
@@ -77,17 +68,18 @@ pip install tensorforce[tf]
 pip install -e .[tf_gpu]
 ```
 
-Some environments require additional packages, for which there are also options available (`ale`, `mazeexp`, `gym`, `retro`, `osim`, `ple`, `vizdoom`; or `envs` for all environments), however, some require other tools to be installed (see [environments documentation](http://tensorforce.readthedocs.io)).
+Some environments require additional packages, for which there are also options available (`mazeexp`, `gym`, `retro`, `vizdoom`; or `envs` for all environments), however, some require other tools to be installed (see [environments documentation](http://tensorforce.readthedocs.io)).
 
 
 
 ## Quickstart example code
 
 ```python
-from tensorforce.agents import PolicyAgent
+from tensorforce.agents import Agent
 
 # Instantiate a Tensorforce agent
-agent = PolicyAgent(
+agent = Agent.create(
+    agent='policy',
     states=dict(type='float', shape=(10,)),
     actions=dict(type='int', num_values=5),
     memory=10000,

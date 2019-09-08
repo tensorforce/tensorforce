@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,143 +13,415 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from tensorforce.execution.base_runner import BaseRunner
-
 import time
-from six.moves import xrange
-import warnings
-from inspect import getargspec
 from tqdm import tqdm
 
-class ParallelRunner(BaseRunner):
-    """
-    Simple runner for non-realtime single-process execution.
-    """
+import numpy as np
 
-    def __init__(self, agent, environment, repeat_actions=1, history=None, id_=0):
-        """
-        Initialize a single Runner object (one Agent/one Environment).
+from tensorforce import TensorforceError, util
+from tensorforce.agents import Agent
+from tensorforce.environments import Environment
 
-        Args:
-            id_ (int): The ID of this Runner (for distributed TF runs).
-        """
-        super(ParallelRunner, self).__init__(agent, environment, repeat_actions, history)
 
-        self.id = id_  # the worker's ID in a distributed run (default=0)
-        self.current_timestep = None  # the time step in the current episode
-        self.episode_actions = []
-        self.num_parallel = self.agent.execution['num_parallel']
-        print('ParallelRunner with {} parallel buffers.'.format(self.num_parallel))
+class ParallelRunner(object):
+
+    def __init__(self, agent, environments, evaluation_environment=None, save_best_agent=False):
+        # save_best overwrites saver...
+        if not util.is_iterable(x=environments):
+            raise TensorforceError.type(
+                name='parallel-runner', argument='environments', value=environments
+            )
+        elif len(environments) == 0:
+            raise TensorforceError.value(
+                name='parallel-runner', argument='environments', value=environments
+            )
+
+        self.is_environment_external = tuple(
+            isinstance(environment, Environment) for environment in environments
+        )
+        self.environments = tuple(
+            Environment.create(environment=environment) for environment in environments
+        )
+
+        self.is_eval_environment_external = isinstance(evaluation_environment, Environment)
+        if evaluation_environment is None:
+            self.evaluation_environment = None
+        else:
+            self.evaluation_environment = Environment.create(environment=evaluation_environment)
+
+        self.save_best_agent = save_best_agent
+        self.is_agent_external = isinstance(agent, Agent)
+        kwargs = dict(parallel_interactions=len(environments))
+        # warning: save_best_agent
+        if not self.is_agent_external and self.save_best_agent:
+            # Disable periodic saving
+            kwargs = dict(saver=dict(seconds=None, steps=None))
+        self.agent = Agent.create(agent=agent, environment=self.environments[0], **kwargs)
+        if not self.agent.model.is_initialized:
+            self.agent.initialize()
+
+        self.global_episode = self.agent.episode
+        self.global_timestep = self.agent.timestep
+        self.episode_rewards = list()
+        self.episode_timesteps = list()
+        self.episode_seconds = list()
+        self.episode_agent_seconds = list()
+        self.evaluation_rewards = list()
+        self.evaluation_timesteps = list()
+        self.evaluation_seconds = list()
+        self.evaluation_agent_seconds = list()
 
     def close(self):
+        if hasattr(self, 'tqdm'):
+            self.tqdm.close()
+        if not self.is_agent_external:
+            self.agent.close()
+        for is_external, environment in zip(self.is_environment_external, self.environments):
+            if not is_external:
+                environment.close()
+        if self.evaluation_environment is not None and not self.is_eval_environment_external:
+            self.evaluation_environment.close()
         self.agent.close()
-        self.environment.close()
 
     # TODO: make average reward another possible criteria for runner-termination
-    def run(self, num_timesteps=None, num_episodes=None, max_episode_timesteps=None, deterministic=False, episode_finished=None, summary_report=None, summary_interval=None, timesteps=None, episodes=None, testing=False, sleep=None
-            ):
-        """
-        Args:
-            timesteps (int): Deprecated; see num_timesteps.
-            episodes (int): Deprecated; see num_episodes.
-        """
+    def run(
+        self,
+        # General
+        num_episodes=None, num_timesteps=None, max_episode_timesteps=None, num_sleep_secs=0.01,
+        sync_timesteps=False, sync_episodes=False,
+        # Callback
+        callback=None, callback_episode_frequency=None, callback_timestep_frequency=None,
+        # Tqdm
+        use_tqdm=True, mean_horizon=10,
+        # Evaluation
+        evaluation_callback=None
+    ):
+        # General
+        if num_episodes is None:
+            self.num_episodes = float('inf')
+        else:
+            self.num_episodes = num_episodes
+        if num_timesteps is None:
+            self.num_timesteps = float('inf')
+        else:
+            self.num_timesteps = num_timesteps
+        if max_episode_timesteps is None:
+            self.max_episode_timesteps = float('inf')
+        else:
+            self.max_episode_timesteps = max_episode_timesteps
+        self.num_sleep_secs = num_sleep_secs
+        self.sync_timesteps = sync_timesteps
+        self.sync_episodes = sync_episodes
 
-        # deprecation warnings
-        if timesteps is not None:
-            num_timesteps = timesteps
-            warnings.warn("WARNING: `timesteps` parameter is deprecated, use `num_timesteps` instead.",
-                          category=DeprecationWarning)
-        if episodes is not None:
-            num_episodes = episodes
-            warnings.warn("WARNING: `episodes` parameter is deprecated, use `num_episodes` instead.",
-                          category=DeprecationWarning)
+        # Callback
+        assert callback_episode_frequency is None or callback_timestep_frequency is None
+        if callback_episode_frequency is None and callback_timestep_frequency is None:
+            callback_episode_frequency = 1
+        if callback_episode_frequency is None:
+            self.callback_episode_frequency = float('inf')
+        else:
+            self.callback_episode_frequency = callback_episode_frequency
+        if callback_timestep_frequency is None:
+            self.callback_timestep_frequency = float('inf')
+        else:
+            self.callback_timestep_frequency = callback_timestep_frequency
+        if callback is None:
+            self.callback = (lambda r, p: True)
+        elif util.is_iterable(x=callback):
+            def sequential_callback(runner, parallel):
+                result = True
+                for fn in callback:
+                    x = fn(runner, parallel)
+                    if isinstance(result, bool):
+                        result = result and x
+                return result
+            self.callback = sequential_callback
+        else:
+            def boolean_callback(runner, parallel):
+                result = callback(runner, parallel)
+                if isinstance(result, bool):
+                    return result
+                else:
+                    return True
+            self.callback = boolean_callback
 
-        # figure out whether we are using the deprecated way of "episode_finished" reporting
-        old_episode_finished = False
-        if episode_finished is not None and len(getargspec(episode_finished).args) == 1:
-            old_episode_finished = True
+        # Tqdm
+        if use_tqdm:
+            if hasattr(self, 'tqdm'):
+                self.tqdm.close()
 
-        # Keep track of episode reward and episode length for statistics.
-        self.start_time = time.time()
+            assert self.num_episodes != float('inf') or self.num_timesteps != float('inf')
+            inner_callback = self.callback
 
+            if self.num_episodes != float('inf'):
+                # Episode-based tqdm (default option if both num_episodes and num_timesteps set)
+                assert self.num_episodes != float('inf')
+                bar_format = (
+                    '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}, reward={postfix[0]:.2f}, ts/ep='
+                    '{postfix[1]}, sec/ep={postfix[2]:.2f}, ms/ts={postfix[3]:.1f}, agent='
+                    '{postfix[4]:.1f}%]'
+                )
+                postfix = [0.0, 0, 0.0, 0.0, 0.0]
+                self.tqdm = tqdm(
+                    desc='Episodes', total=self.num_episodes, bar_format=bar_format,
+                    initial=self.global_episode, postfix=postfix
+                )
+                self.tqdm_last_update = self.global_episode
+
+                def tqdm_callback(runner, parallel):
+                    mean_reward = float(np.mean(runner.episode_rewards[-mean_horizon:]))
+                    mean_ts_per_ep = int(np.mean(runner.episode_timesteps[-mean_horizon:]))
+                    mean_sec_per_ep = float(np.mean(runner.episode_seconds[-mean_horizon:]))
+                    mean_agent_sec = float(np.mean(runner.episode_agent_seconds[-mean_horizon:]))
+                    mean_ms_per_ts = mean_sec_per_ep * 1000.0 / mean_ts_per_ep
+                    mean_rel_agent = mean_agent_sec * 100.0 / mean_sec_per_ep
+                    runner.tqdm.postfix[0] = mean_reward
+                    runner.tqdm.postfix[1] = mean_ts_per_ep
+                    runner.tqdm.postfix[2] = mean_sec_per_ep
+                    runner.tqdm.postfix[3] = mean_ms_per_ts
+                    runner.tqdm.postfix[4] = mean_rel_agent
+                    runner.tqdm.update(n=(runner.global_episode - runner.tqdm_last_update))
+                    runner.tqdm_last_update = runner.global_episode
+                    return inner_callback(runner, parallel)
+
+            else:
+                # Timestep-based tqdm
+                self.tqdm = tqdm(
+                    desc='Timesteps', total=self.num_timesteps, initial=self.global_timestep,
+                    postfix=dict(mean_reward='n/a')
+                )
+                self.tqdm_last_update = self.global_timestep
+
+                def tqdm_callback(runner, parallel):
+                    # sum_timesteps_reward = sum(runner.timestep_rewards[num_mean_reward:])
+                    # num_timesteps = min(num_mean_reward, runner.episode_timestep)
+                    # mean_reward = sum_timesteps_reward / num_episodes
+                    runner.tqdm.set_postfix(mean_reward='n/a')
+                    runner.tqdm.update(n=(runner.global_timestep - runner.tqdm_last_update))
+                    runner.tqdm_last_update = runner.global_timestep
+                    return inner_callback(runner, parallel)
+
+            self.callback = tqdm_callback
+
+        # Evaluation
+        if self.evaluation_environment is None:
+            assert evaluation_callback is None
+            assert not self.save_best_agent
+        else:
+            if evaluation_callback is None:
+                self.evaluation_callback = (lambda r: None)
+            else:
+                self.evaluation_callback = evaluation_callback
+            if self.save_best_agent:
+                inner_evaluation_callback = self.evaluation_callback
+
+                def mean_reward_callback(runner):
+                    result = inner_evaluation_callback(runner)
+                    if result is None:
+                        return runner.evaluation_reward
+                    else:
+                        return result
+
+                self.evaluation_callback = mean_reward_callback
+                self.best_evaluation_score = None
+
+        # Reset agent
         self.agent.reset()
 
-        if num_episodes is not None:
-            num_episodes += self.agent.episode
+        # Episode counter
+        self.episode = 0
 
-        if num_timesteps is not None:
-            num_timesteps += self.agent.timestep
+        # Reset environments and episode statistics
+        for environment in self.environments:
+            environment.start_reset()
+        self.episode_reward = [0.0 for _ in self.environments]
+        self.episode_timestep = [0 for _ in self.environments]
+        self.episode_agent_second = [0.0 for _ in self.environments]
+        episode_start = [time.time() for _ in self.environments]
+        environments = list(self.environments)
 
-        # add progress bar
-        with tqdm(total=num_episodes) as pbar:
-            # episode loop
-            index = 0
-            while True:
-                episode_start_time = time.time()
-                state = self.environment.reset()
-                self.agent.reset()
+        if self.evaluation_environment is not None:
+            self.evaluation_environment.start_reset()
+            self.evaluation_reward = 0.0
+            self.evaluation_timestep = 0
+            self.evaluation_agent_second = 0.0
+            evaluation_start = time.time()
+            environments.append(self.evaluation_environment)
 
-                # Update global counters.
-                self.global_episode = self.agent.episode  # global value (across all agents)
-                self.global_timestep = self.agent.timestep  # global value (across all agents)
+        if self.sync_episodes:
+            terminated = [False for _ in environments]
 
-                episode_reward = 0
-                self.current_timestep = 0
+        # Runner loop
+        while True:
 
-                # time step (within episode) loop
-                while True:
-                    action = self.agent.act(states=state, deterministic=deterministic, index=index)
+            if not self.sync_timesteps:
+                no_environment_ready = True
 
-                    reward = 0
-                    for _ in xrange(self.repeat_actions):
-                        state, terminal, step_reward = self.environment.execute(action=action)
-                        reward += step_reward
-                        if terminal:
+            # Parallel environments loop
+            for parallel, environment in enumerate(environments):
+
+                # Is evaluation environment?
+                evaluation = (parallel == len(self.environments))
+
+                if self.sync_episodes and terminated[parallel]:
+                    # Continue if episode terminated
+                    continue
+
+                if self.sync_timesteps:
+                    # Wait until environment is ready
+                    while True:
+                        observation = environment.retrieve_execute()
+                        if observation is not None:
                             break
+                        time.sleep(num_sleep_secs)
 
-                    if max_episode_timesteps is not None and self.current_timestep >= max_episode_timesteps:
-                        terminal = True
+                else:
+                    # Check whether environment is ready
+                    observation = environment.retrieve_execute()
+                    if observation is None:
+                        continue
+                    no_environment_ready = False
 
-                    if not testing:
-                        self.agent.observe(terminal=terminal, reward=reward, index=index)
+                states, terminal, reward = observation
 
-                    self.global_timestep += 1
-                    self.current_timestep += 1
-                    episode_reward += reward
+                # Episode start or evaluation
+                if terminal is None:
+                    # Retrieve actions from agent
+                    agent_start = time.time()
+                    actions = self.agent.act(
+                        states=states, parallel=(parallel - int(evaluation)), evaluation=evaluation
+                    )
 
-                    if terminal or self.agent.should_stop():  # TODO: should_stop also terminate?
-                        break
+                    if evaluation:
+                        self.evaluation_agent_second += time.time() - agent_start
+                        self.evaluation_timestep += 1
+                    else:
+                        self.episode_agent_second[parallel] += time.time() - agent_start
+                        self.episode_timestep[parallel] += 1
 
-                    if sleep is not None:
-                        time.sleep(sleep)
+                    # Execute actions in environment
+                    environment.start_execute(actions=actions)
 
-                index = (index + 1) % self.num_parallel
+                    continue
 
-                # Update our episode stats.
-                time_passed = time.time() - episode_start_time
-                self.episode_rewards.append(episode_reward)
-                self.episode_timesteps.append(self.current_timestep)
-                self.episode_times.append(time_passed)
-                self.episode_actions.append(self.environment.conv_action)
+                elif isinstance(terminal, bool):
+                    terminal = int(terminal)
 
-                self.global_episode += 1
-                pbar.update(1)
+                # Terminate episode if too long
+                if evaluation:
+                    if self.evaluation_timestep >= self.max_episode_timesteps:
+                        terminal = 2
+                else:
+                    if self.episode_timestep[parallel] >= self.max_episode_timesteps:
+                        terminal = 2
 
-                # Check, whether we should stop this run.
-                if episode_finished is not None:
-                    # deprecated way (passing in only runner object):
-                    if old_episode_finished:
-                        if not episode_finished(self):
-                            break
-                    # new unified way (passing in BaseRunner AND some worker ID):
-                    elif not episode_finished(self, self.id):
-                        break
-                if (num_episodes is not None and self.global_episode >= num_episodes) or \
-                        (num_timesteps is not None and self.global_timestep >= num_timesteps) or \
-                        self.agent.should_stop():
-                    break
-            pbar.update(num_episodes - self.global_episode)
+                # Observe unless episode just started or evaluation
+                # assert (terminal is None) == (self.episode_timestep[parallel] == 0)
+                # if terminal is not None and not evaluation:
+                if evaluation:
+                    self.evaluation_reward += reward
+                else:
+                    agent_start = time.time()
+                    self.agent.observe(terminal=terminal, reward=reward, parallel=parallel)
+                    self.episode_agent_second[parallel] += time.time() - agent_start
+                    self.episode_reward[parallel] += reward
+
+                # Update global timestep/episode
+                self.global_timestep = self.agent.timestep
+                self.global_episode = self.agent.episode
+
+                # Callback plus experiment termination check
+                if not evaluation and \
+                        self.episode_timestep[parallel] % self.callback_timestep_frequency == 0 and \
+                        not self.callback(self, parallel):
+                    return
+
+                if terminal > 0:
+                    if evaluation:
+                        # Update experiment statistics
+                        self.evaluation_rewards.append(self.evaluation_reward)
+                        self.evaluation_timesteps.append(self.evaluation_timestep)
+                        self.evaluation_seconds.append(time.time() - evaluation_start)
+                        self.evaluation_agent_seconds.append(self.evaluation_agent_second)
+
+                        # Evaluation callback
+                        if self.save_best_agent:
+                            evaluation_score = self.evaluation_callback(self)
+                            assert isinstance(evaluation_score, float)
+                            if self.best_evaluation_score is None:
+                                self.best_evaluation_score = evaluation_score
+                            elif evaluation_score > self.best_evaluation_score:
+                                self.best_evaluation_score = evaluation_score
+                                self.agent.save(filename='best-model', append_timestep=False)
+                        else:
+                            self.evaluation_callback(self)
+
+                    else:
+                        # Increment episode counter (after calling callback)
+                        self.episode += 1
+
+                        # Update experiment statistics
+                        self.episode_rewards.append(self.episode_reward[parallel])
+                        self.episode_timesteps.append(self.episode_timestep[parallel])
+                        self.episode_seconds.append(time.time() - episode_start[parallel])
+                        self.episode_agent_seconds.append(self.episode_agent_second[parallel])
+
+                        # Callback
+                        if self.episode % self.callback_episode_frequency == 0 and \
+                                not self.callback(self, parallel):
+                            return
+
+                # Terminate experiment if too long
+                if self.global_timestep >= self.num_timesteps:
+                    return
+                elif self.global_episode >= self.num_episodes:
+                    return
+                elif self.agent.should_stop():
+                    return
+
+                # Check whether episode terminated
+                if terminal > 0:
+
+                    if self.sync_episodes:
+                        terminated[parallel] = True
+
+                    if evaluation:
+                        # Reset environment and episode statistics
+                        environment.start_reset()
+                        self.evaluation_reward = 0.0
+                        self.evaluation_timestep = 0
+                        self.evaluation_agent_second = 0.0
+                        evaluation_start = time.time()
+
+                    else:
+                        # Reset environment and episode statistics
+                        environment.start_reset()
+                        self.episode_reward[parallel] = 0.0
+                        self.episode_timestep[parallel] = 0
+                        self.episode_agent_second[parallel] = 0.0
+                        episode_start[parallel] = time.time()
+
+                else:
+                    # Retrieve actions from agent
+                    agent_start = time.time()
+                    actions = self.agent.act(
+                        states=states, parallel=(parallel - int(evaluation)), evaluation=evaluation
+                    )
+
+                    if evaluation:
+                        self.evaluation_agent_second += time.time() - agent_start
+                        self.evaluation_timestep += 1
+                    else:
+                        self.episode_agent_second[parallel] += time.time() - agent_start
+                        self.episode_timestep[parallel] += 1
+
+                    # Execute actions in environment
+                    environment.start_execute(actions=actions)
+
+            if not self.sync_timesteps and no_environment_ready:
+                # Sleep if no environment was ready
+                time.sleep(num_sleep_secs)
+
+            if self.sync_episodes and all(terminated):
+                # Reset if all episodes terminated
+                terminated = [False for _ in environments]

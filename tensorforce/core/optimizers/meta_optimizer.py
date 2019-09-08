@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,30 +13,27 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
+import tensorforce.core
 from tensorforce.core.optimizers import Optimizer
 
 
 class MetaOptimizer(Optimizer):
     """
-    A meta optimizer takes the optimization implemented by another optimizer and  
-    modifies/optimizes its proposed result. For example, line search might be applied to find a  
-    more optimal step size.
+    Meta optimizer, which takes the update mechanism implemented by another optimizer and modifies
+    it.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer (specification): Optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, optimizer, scope='meta-optimizer', summary_labels=(), **kwargs):
-        """
-        Creates a new meta optimizer instance.
+    def __init__(self, name, optimizer, summary_labels=None):
+        super().__init__(name=name, summary_labels=summary_labels)
 
-        Args:
-            optimizer: The optimizer which is modified by this meta optimizer.
-        """
-        self.optimizer = Optimizer.from_spec(spec=optimizer, kwargs=kwargs)
-
-        super(MetaOptimizer, self).__init__(scope=scope, summary_labels=summary_labels)
-
-    def get_variables(self):
-        return super(MetaOptimizer, self).get_variables() + self.optimizer.get_variables()
+        self.optimizer = self.add_module(
+            name='inner-optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules
+        )

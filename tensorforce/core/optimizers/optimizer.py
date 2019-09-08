@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,156 +13,85 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
-import tensorforce.core.optimizers
+from tensorforce import TensorforceError, util
+from tensorforce.core import Module
 
 
-class Optimizer(object):
+class Optimizer(Module):
     """
-    Base class for optimizers which minimize a not yet further specified expression, usually some
-    kind of loss function. More generally, an optimizer can be considered as some method of
-    updating a set of variables.
+    Base class for optimizers.
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, scope='optimizer', summary_labels=None):
-        """
-        Creates a new optimizer instance.
-        """
-        self.summary_labels = set(summary_labels or ())
+    def __init__(self, name, summary_labels=None):
+        super().__init__(name=name, summary_labels=summary_labels)
 
-        self.variables = dict()
-
-        def custom_getter(getter, name, registered=False, **kwargs):
-            variable = getter(name=name, registered=True, **kwargs)
-            if registered:
-                pass
-            elif name in self.variables:
-                assert variable is self.variables[name]
-            else:
-                assert not kwargs['trainable']
-                self.variables[name] = variable
-            return variable
-
-        # TensorFlow function
-        self.step = tf.make_template(
-            name_=(scope + '/step'),
-            func_=self.tf_step,
-            custom_getter=custom_getter
-        )
-
-    def tf_step(self, time, variables, **kwargs):
-        """
-        Creates the TensorFlow operations for performing an optimization step on the given variables, including
-        actually changing the values of the variables.
-
-        Args:
-            time: Time tensor.
-            variables: List of variables to optimize.
-            **kwargs: Additional arguments depending on the specific optimizer implementation.  
-                For instance, often includes `fn_loss` if a loss function is optimized.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
+    def tf_step(self, variables, **kwargs):
         raise NotImplementedError
 
-    def apply_step(self, variables, deltas):
-        """
-        Applies the given (and already calculated) step deltas to the variable values.
-
-        Args:
-            variables: List of variables.
-            deltas: List of deltas of same length.
-
-        Returns:
-            The step-applied operation. A tf.group of tf.assign_add ops.
-        """
+    def tf_apply_step(self, variables, deltas):
         if len(variables) != len(deltas):
-            raise TensorForceError("Invalid variables and deltas lists.")
-        return tf.group(
-            *(tf.assign_add(ref=variable, value=delta) for variable, delta in zip(variables, deltas))
+            raise TensorforceError("Invalid variables and deltas lists.")
+
+        assignments = list()
+        for variable, delta in zip(variables, deltas):
+            assignments.append(tf.assign_add(ref=variable, value=delta))
+
+        with tf.control_dependencies(control_inputs=assignments):
+            return util.no_operation()
+
+    def tf_minimize(self, variables, **kwargs):
+        if any(variable.dtype != util.tf_dtype(dtype='float') for variable in variables):
+            TensorforceError.unexpected()
+
+        deltas = self.step(variables=variables, **kwargs)
+
+        update_norm = tf.linalg.global_norm(t_list=deltas)
+        deltas = self.add_summary(
+            label='update-norm', name='update-norm', tensor=update_norm, pass_tensors=deltas
         )
 
-    def minimize(self, time, variables, **kwargs):
-        """
-        Performs an optimization step.
+        for n in range(len(variables)):
+            name = variables[n].name
+            if name[-2:] != ':0':
+                raise TensorforceError.unexpected()
+            deltas[n] = self.add_summary(
+                label=('updates', 'updates-full'), name=(name[:-2] + '-update'), tensor=deltas[n],
+                mean_variance=True
+            )
+            deltas[n] = self.add_summary(
+                label='updates-full', name=(name[:-2] + '-update'), tensor=deltas[n]
+            )
 
-        Args:
-            time: Time tensor.
-            variables: List of variables to optimize.
-            **kwargs: Additional optimizer-specific arguments. The following arguments are used
-                by some optimizers:
-            - arguments: Dict of arguments for callables, like fn_loss.
-            - fn_loss: A callable returning the loss of the current model.
-            - fn_reference: A callable returning the reference values, in case of a comparative  
-                loss.
-            - fn_kl_divergence: A callable returning the KL-divergence relative to the
-                current model.
-            - sampled_loss: A sampled loss (integer).
-            - return_estimated_improvement: Returns the estimated improvement resulting from
-                the natural gradient calculation if true.
-            - source_variables: List of source variables to synchronize with.
-            - global_variables: List of global variables to apply the proposed optimization
-                step to.
+        # with tf.control_dependencies(control_inputs=deltas):
+        #     zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        #     false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+        #     deltas = [self.cond(
+        #         pred=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)),
+        #         true_fn=(lambda: tf.Print(delta, (variable.name,))),
+        #         false_fn=(lambda: delta)) for delta, variable in zip(deltas, variables)
+        #     ]
+        #     # assertions = [
+        #     #     tf.debugging.assert_equal(
+        #     #         x=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)), y=false
+        #     #     ) for delta in deltas if util.product(xs=util.shape(x=delta)) > 4
+        #     # ]
 
-
-        Returns:
-            The optimization operation.
-        """
-        # # Add training variable gradient histograms/scalars to summary output
-        # # if 'gradients' in self.summary_labels:
-        # if any(k in self.summary_labels for k in ['gradients', 'gradients_histogram', 'gradients_scalar']):
-        #     valid = True
-        #     if isinstance(self, tensorforce.core.optimizers.TFOptimizer):
-        #         gradients = self.optimizer.compute_gradients(kwargs['fn_loss']())
-        #     elif isinstance(self.optimizer, tensorforce.core.optimizers.TFOptimizer):
-        #         # This section handles "Multi_step" and may handle others
-        #         # if failure is found, add another elif to handle that case
-        #         gradients = self.optimizer.optimizer.compute_gradients(kwargs['fn_loss']())
-        #     else:
-        #         # Didn't find proper gradient information
-        #         valid = False
-
-        #     # Valid gradient data found, create summary data items
-        #     if valid:
-        #         for grad, var in gradients:
-        #             if grad is not None:
-        #                 if any(k in self.summary_labels for k in ('gradients', 'gradients_scalar')):
-        #                     axes = list(range(len(grad.shape)))
-        #                     mean, var = tf.nn.moments(grad, axes)
-        #                     tf.contrib.summary.scalar(name='gradients/' + var.name + "/mean", tensor=mean)
-        #                     tf.contrib.summary.scalar(name='gradients/' + var.name + "/variance", tensor=var)
-        #                 if any(k in self.summary_labels for k in ('gradients', 'gradients_histogram')):
-        #                     tf.contrib.summary.histogram(name='gradients/' + var.name, tensor=grad)
-
-        deltas = self.step(time=time, variables=variables, **kwargs)
+        # with tf.control_dependencies(control_inputs=assertions):
         with tf.control_dependencies(control_inputs=deltas):
-            return tf.no_op()
+            return util.no_operation()
 
-    def get_variables(self):
-        """
-        Returns the TensorFlow variables used by the optimizer.
+    def add_variable(self, name, dtype, shape, is_trainable=False, initializer='zeros'):
+        if is_trainable:
+            raise TensorforceError("Invalid trainable variable.")
 
-        Returns:
-            List of variables.
-        """
-        return [self.variables[key] for key in sorted(self.variables)]
-
-    @staticmethod
-    def from_spec(spec, kwargs=None):
-        """
-        Creates an optimizer from a specification dict.
-        """
-        optimizer = util.get_object(
-            obj=spec,
-            predefined_objects=tensorforce.core.optimizers.optimizers,
-            kwargs=kwargs
+        return super().add_variable(
+            name=name, dtype=dtype, shape=shape, is_trainable=is_trainable, initializer=initializer
         )
-        assert isinstance(optimizer, Optimizer)
-        return optimizer

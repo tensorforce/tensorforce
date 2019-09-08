@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,23 +13,17 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-from tensorforce import util
-import tensorforce.core.optimizers.solvers
+from tensorforce.core import Module
 
 
-class Solver(object):
+class Solver(Module):
     """
     Generic TensorFlow-based solver which solves a not yet further specified  
     equation/optimization problem.
     """
 
-    def __init__(self):
-        """
-        Creates a new solver instance.
-        """
-        # TensorFlow function
-        self.solve = tf.make_template(name_='solver', func_=self.tf_solve)
+    def __init__(self, name):
+        super().__init__(name=name, l2_regularization=0.0)
 
     def tf_solve(self, fn_x, *args):
         """
@@ -43,14 +37,3 @@ class Solver(object):
             A solution $x$ to the problem as given by the solver.
         """
         raise NotImplementedError
-
-    @staticmethod
-    def from_config(config, kwargs=None):
-        """
-        Creates a solver from a specification dict.
-        """
-        return util.get_object(
-            obj=config,
-            predefined=tensorforce.core.optimizers.solvers.solvers,
-            kwargs=kwargs
-        )

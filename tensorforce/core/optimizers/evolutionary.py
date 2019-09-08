@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,83 +13,69 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-from six.moves import xrange
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import Optimizer
 
 
 class Evolutionary(Optimizer):
     """
-    Evolutionary optimizer which samples random perturbations and applies them either positively  
-    or negatively, depending on their improvement of the loss.
+    Evolutionary optimizer, which samples random perturbations and applies them either as positive
+    or negative update depending on their improvement of the loss (specification key:
+    `evolutionary`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        learning_rate (parameter, float > 0.0): Learning rate
+            (<span style="color:#C00000"><b>required</b></span>).
+        num_samples (parameter, int > 0): Number of sampled perturbations
+            (<span style="color:#00C000"><b>default</b></span>: 1).
+        unroll_loop (bool): Whether to unroll the sampling loop
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, learning_rate, num_samples=1, unroll_loop=False, scope='evolutionary', summary_labels=()):
-        """
-        Creates a new evolutionary optimizer instance.
+    def __init__(
+        self, name, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None
+    ):
+        super().__init__(name=name, summary_labels=summary_labels)
 
-        Args:
-            learning_rate: Learning rate.
-            num_samples: Number of sampled perturbations.
-        """
-        assert isinstance(learning_rate, float) and learning_rate > 0.0
-        self.learning_rate = learning_rate
-
-        assert isinstance(num_samples, int) and num_samples > 0
-        self.num_samples = num_samples
+        self.learning_rate = self.add_module(
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+        )
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
 
-        super(Evolutionary, self).__init__(scope=scope, summary_labels=summary_labels)
+        if self.unroll_loop:
+            self.num_samples = num_samples
+        else:
+            self.num_samples = self.add_module(
+                name='num-samples', module=num_samples, modules=parameter_modules, dtype='int'
+            )
 
-    def tf_step(
-        self,
-        time,
-        variables,
-        arguments,
-        fn_loss,
-        **kwargs
-    ):
-        """
-        Creates the TensorFlow operations for performing an optimization step.
-
-        Args:
-            time: Time tensor.
-            variables: List of variables to optimize.
-            arguments: Dict of arguments for callables, like fn_loss.
-            fn_loss: A callable returning the loss of the current model.
-            **kwargs: Additional arguments, not used.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
+    def tf_step(self, variables, arguments, fn_loss, **kwargs):
+        learning_rate = self.learning_rate.value()
         unperturbed_loss = fn_loss(**arguments)
 
-        # First sample
-        perturbations = [tf.random_normal(shape=util.shape(variable)) * self.learning_rate for variable in variables]
-        applied = self.apply_step(variables=variables, deltas=perturbations)
-
-        with tf.control_dependencies(control_inputs=(applied,)):
-            perturbed_loss = fn_loss(**arguments)
-            direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
-            deltas_sum = [direction * perturbation for perturbation in perturbations]
+        deltas = [tf.zeros_like(tensor=variable) for variable in variables]
+        previous_perturbations = [tf.zeros_like(tensor=variable) for variable in variables]
 
         if self.unroll_loop:
             # Unrolled for loop
-            previous_perturbations = perturbations
-            for sample in xrange(self.num_samples):
-
-                with tf.control_dependencies(control_inputs=deltas_sum):
-                    perturbations = [tf.random_normal(shape=util.shape(variable)) * self.learning_rate for variable in variables]
+            for sample in range(self.num_samples):
+                with tf.control_dependencies(control_inputs=deltas):
+                    perturbations = [
+                        tf.random_normal(shape=util.shape(variable)) * learning_rate
+                        for variable in variables
+                    ]
                     perturbation_deltas = [
-                        pert - prev_pert for pert, prev_pert in zip(perturbations, previous_perturbations)
+                        pert - prev_pert
+                        for pert, prev_pert in zip(perturbations, previous_perturbations)
                     ]
                     applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
                     previous_perturbations = perturbations
@@ -97,36 +83,48 @@ class Evolutionary(Optimizer):
                 with tf.control_dependencies(control_inputs=(applied,)):
                     perturbed_loss = fn_loss(**arguments)
                     direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
-                    deltas_sum = [delta + direction * perturbation for delta, perturbation in zip(deltas_sum, perturbations)]
+                    deltas = [
+                        delta + direction * perturbation
+                        for delta, perturbation in zip(deltas, perturbations)
+                    ]
 
         else:
             # TensorFlow while loop
-            def body(iteration, deltas_sum, previous_perturbations):
-
-                with tf.control_dependencies(control_inputs=deltas_sum):
-                    perturbations = [tf.random_normal(shape=util.shape(variable)) * self.learning_rate for variable in variables]
+            def body(deltas, previous_perturbations):
+                with tf.control_dependencies(control_inputs=deltas):
+                    perturbations = [
+                        learning_rate * tf.random_normal(
+                            shape=util.shape(x=variable), dtype=util.tf_dtype(dtype='float')
+                        ) for variable in variables
+                    ]
                     perturbation_deltas = [
-                        pert - prev_pert for pert, prev_pert in zip(perturbations, previous_perturbations)
+                        pert - prev_pert
+                        for pert, prev_pert in zip(perturbations, previous_perturbations)
                     ]
                     applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
 
                 with tf.control_dependencies(control_inputs=(applied,)):
                     perturbed_loss = fn_loss(**arguments)
                     direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
-                    deltas_sum = [delta + direction * perturbation for delta, perturbation in zip(deltas_sum, perturbations)]
+                    deltas = [
+                        delta + direction * perturbation
+                        for delta, perturbation in zip(deltas, perturbations)
+                    ]
 
-                return iteration + 1, deltas_sum, perturbations
+                return deltas, perturbations
 
-            def cond(iteration, deltas_sum, previous_perturbation):
-                return iteration < self.num_samples - 1
+            num_samples = self.num_samples.value()
+            deltas, perturbations = self.while_loop(
+                cond=util.tf_always_true, body=body, loop_vars=(deltas, previous_perturbations),
+                back_prop=False, maximum_iterations=num_samples, use_while_v2=True
+            )
 
-            _, deltas_sum, perturbations = tf.while_loop(cond=cond, body=body, loop_vars=(0, deltas_sum, perturbations))
-
-        with tf.control_dependencies(control_inputs=deltas_sum):
-            deltas = [delta / self.num_samples for delta in deltas_sum]
+        with tf.control_dependencies(control_inputs=deltas):
+            num_samples = tf.dtypes.cast(x=num_samples, dtype=util.tf_dtype(dtype='float'))
+            deltas = [delta / num_samples for delta in deltas]
             perturbation_deltas = [delta - pert for delta, pert in zip(deltas, perturbations)]
             applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
 
         with tf.control_dependencies(control_inputs=(applied,)):
             # Trivial operation to enforce control dependency
-            return [delta + 0.0 for delta in deltas]
+            return util.fmap(function=util.identity_operation, xs=deltas)

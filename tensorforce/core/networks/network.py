@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,252 +13,189 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from collections import Counter
+from collections import OrderedDict
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core.networks import Layer
+from tensorforce import TensorforceError, util
+from tensorforce.core import Module
+from tensorforce.core.layers import Layer, layer_modules, StatefulLayer, TemporalLayer
+from tensorforce.core.parameters import Parameter
 
 
-class Network(object):
+class Network(Module):
     """
     Base class for neural networks.
+
+    Args:
+        name (string): Network name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        inputs_spec (specification): Input tensors specification
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        device (string): Device name
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, scope='network', summary_labels=None):
-        """
-        Neural network.
-        """
-        self.summary_labels = set(summary_labels or ())
-
-        self.variables = dict()
-        self.all_variables = dict()
-        self.named_tensors = dict()
-
-        def custom_getter(getter, name, registered=False, **kwargs):
-            variable = getter(name=name, registered=True, **kwargs)
-            if registered:
-                pass
-            elif name in self.all_variables:
-                assert variable is self.all_variables[name]
-                if kwargs.get('trainable', True):
-                    assert variable is self.variables[name]
-                    if 'variables' in self.summary_labels:
-                        tf.contrib.summary.histogram(name=name, tensor=variable)
-            else:
-                self.all_variables[name] = variable
-                if kwargs.get('trainable', True):
-                    self.variables[name] = variable
-                    if 'variables' in self.summary_labels:
-                        tf.contrib.summary.histogram(name=name, tensor=variable)
-            return variable
-
-        self.apply = tf.make_template(
-            name_=(scope + '/apply'),
-            func_=self.tf_apply,
-            custom_getter_=custom_getter
-        )
-        self.regularization_loss = tf.make_template(
-            name_=(scope + '/regularization-loss'),
-            func_=self.tf_regularization_loss,
-            custom_getter_=custom_getter
+    def __init__(
+        self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None
+    ):
+        super().__init__(
+            name=name, device=device, summary_labels=summary_labels,
+            l2_regularization=l2_regularization
         )
 
-    def tf_apply(self, x, internals, update, return_internals=False):
-        """
-        Creates the TensorFlow operations for applying the network to the given input.
+        self.inputs_spec = inputs_spec
 
-        Args:
-            x: Network input tensor or dict of input tensors.
-            internals: List of prior internal state tensors
-            update: Boolean tensor indicating whether this call happens during an update.
-            return_internals: If true, also returns posterior internal state tensors
-
-        Returns:
-            Network output tensor, plus optionally list of posterior internal state tensors
-        """
+    def get_output_spec(self):
         raise NotImplementedError
 
-    def tf_regularization_loss(self):
-        """
-        Creates the TensorFlow operations for the network regularization loss.
+    @classmethod
+    def internals_spec(cls, network=None, **kwargs):
+        return OrderedDict()
 
-        Returns:
-            Regularization loss tensor
-        """
-        return None
+    def internals_init(self):
+        return OrderedDict()
 
-    def internals_spec(self):
-        """
-        Returns the internal states specification.
+    def tf_dependency_horizon(self, is_optimization=False):
+        return tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
-        Returns:
-            Internal states specification
-        """
-        return dict()
+    def tf_apply(self, x, internals, return_internals=False):
+        Module.update_tensors(**x)
 
-    def get_variables(self, include_nontrainable=False):
-        """
-        Returns the TensorFlow variables used by the network.
+    def create_tf_function(self, name, tf_function):
+        if tf_function.__name__ != 'tf_apply':
+            return super().create_tf_function(name=name, tf_function=tf_function)
 
-        Returns:
-            List of variables
-        """
-        if include_nontrainable:
-            return [self.all_variables[key] for key in sorted(self.all_variables)]
-        else:
-            return [self.variables[key] for key in sorted(self.variables)]
+        def validated_tf_function(x, internals, return_internals=False):
+            if util.is_atomic_values_spec(values_spec=self.inputs_spec):
+                if not util.is_consistent_with_value_spec(value_spec=self.inputs_spec, x=x):
+                    raise TensorforceError("Invalid input arguments for tf_apply.")
+            else:
+                if not all(
+                    util.is_consistent_with_value_spec(value_spec=spec, x=x[name])
+                    for name, spec in self.inputs_spec.items()
+                ):
+                    raise TensorforceError("Invalid input arguments for tf_apply.")
+            if not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
+                for name, spec in self.__class__.internals_spec(network=self).items()
+            ):
+                raise TensorforceError("Invalid input arguments for tf_apply.")
 
-    def get_named_tensor(self, name):
-        """
-        Returns a named tensor if available.
+            if return_internals:
+                x, internals = tf_function(x=x, internals=internals, return_internals=True)
+            else:
+                x = tf_function(x=x, internals=internals, return_internals=False)
 
-        Returns:
-            valid: True if named tensor found, False otherwise
-            tensor: If valid, will be a tensor, otherwise None
-        """
-        if name in self.named_tensors:
-            return True, self.named_tensors[name]
-        else:
-            return False, None
+            if not util.is_consistent_with_value_spec(value_spec=self.get_output_spec(), x=x):
+                raise TensorforceError("Invalid output arguments for tf_apply.")
+            if return_internals and not all(
+                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
+                for name, spec in self.__class__.internals_spec(network=self).items()
+            ):
+                raise TensorforceError("Invalid output arguments for tf_apply.")
 
-    def get_list_of_named_tensor(self):
-        """
-        Returns a list of the names of tensors available.
+            if return_internals:
+                return x, internals
+            else:
+                return x
 
-        Returns:
-            List of the names of tensors available.
-        """
-        return list(self.named_tensors)
+        return super().create_tf_function(name=name, tf_function=validated_tf_function)
 
-    def set_named_tensor(self, name, tensor):
-        self.named_tensors[name] = tensor
 
-    @staticmethod
-    def from_spec(spec, kwargs=None):
+class LayerbasedNetwork(Network):
+    """
+    Base class for networks using Tensorforce layers.
+    """
+
+    def __init__(
+        self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None
+    ):
         """
-        Creates a network from a specification dict.
+        Layer-based network constructor.
         """
-        network = util.get_object(
-            obj=spec,
-            default_object=LayeredNetwork,
-            kwargs=kwargs
+        super().__init__(
+            name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
+            l2_regularization=l2_regularization
         )
-        assert isinstance(network, Network)
-        return network
 
-
-class LayerBasedNetwork(Network):
-    """
-    Base class for networks using TensorForce layers.
-    """
-
-    def __init__(self, scope='layerbased-network', summary_labels=()):
-        """
-        Layer-based network.
-        """
-        super(LayerBasedNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
-        self.layers = list()
-
-    def add_layer(self, layer):
-        self.layers.append(layer)
-
-    def tf_regularization_loss(self):
-        regularization_loss = super(LayerBasedNetwork, self).tf_regularization_loss()
-        if regularization_loss is None:
-            losses = list()
+        if len(inputs_spec) == 1:
+            self.output_spec = next(iter(inputs_spec.values()))
         else:
-            losses = [regularization_loss]
+            self.output_spec = None
 
-        for layer in self.layers:
-            regularization_loss = layer.regularization_loss()
-            if regularization_loss is not None:
-                losses.append(regularization_loss)
+    def get_output_spec(self):
+        return self.output_spec
 
-        if len(losses) > 0:
-            return tf.add_n(inputs=losses)
-        else:
-            return None
+    @classmethod
+    def internals_spec(cls, network=None, **kwargs):
+        internals_spec = OrderedDict()
 
-    def internals_spec(self):
-        internals_spec = dict()
-        for layer in self.layers:
-            spec = layer.internals_spec()
-            for name in sorted(spec):
-                internals_spec['{}_{}'.format(layer.scope, name)] = spec[name]
+        if network is not None:
+            for layer in network.modules.values():
+                if not isinstance(layer, StatefulLayer):
+                    continue
+                for name, spec in layer.__class__.internals_spec(layer=layer).items():
+                    name = '{}-{}-{}'.format(network.name, layer.name, name)
+                    if name in internals_spec:
+                        raise TensorforceError.unexpected()
+                    internals_spec[name] = spec
+
         return internals_spec
 
-    def get_variables(self, include_nontrainable=False):
-        network_variables = super(LayerBasedNetwork, self).get_variables(
-            include_nontrainable=include_nontrainable
-        )
-        layer_variables = [
-            variable for layer in self.layers
-            for variable in layer.get_variables(include_nontrainable=include_nontrainable)
-        ]
+    def internals_init(self):
+        internals_init = OrderedDict()
 
-        return network_variables + layer_variables
+        for layer in self.modules.values():
+            if not isinstance(layer, StatefulLayer):
+                continue
+            for name, internal_init in layer.internals_init().items():
+                internals_init['{}-{}-{}'.format(self.name, layer.name, name)] = internal_init
 
+        return internals_init
 
-class LayeredNetwork(LayerBasedNetwork):
-    """
-    Network consisting of a sequence of layers, which can be created from a specification dict.
-    """
+    def add_module(self, *args, **kwargs):
+        if 'input_spec' in kwargs:
+            layer = super().add_module(*args, modules=layer_modules, **kwargs)
+            self.output_spec = layer.output_spec
 
-    def __init__(self, layers, scope='layered-network', summary_labels=()):
-        """
-        Single-stack layered network.
-
-        Args:
-            layers: List of layer specification dicts.
-        """
-        self.layers_spec = layers
-        super(LayeredNetwork, self).__init__(scope=scope, summary_labels=summary_labels)
-
-        self.parse_layer_spec(layer_spec=self.layers_spec, layer_counter=Counter())
-
-    def parse_layer_spec(self, layer_spec, layer_counter):
-        if isinstance(layer_spec, list):
-            for layer_spec in layer_spec:
-                self.parse_layer_spec(layer_spec=layer_spec, layer_counter=layer_counter)
         else:
-            if isinstance(layer_spec['type'], str):
-                name = layer_spec['type']
-            else:
-                name = 'layer'
-            scope = name + str(layer_counter[name])
-            layer_counter[name] += 1
+            if self.output_spec is None:
+                if util.is_atomic_values_spec(values_spec=self.inputs_spec):
+                    self.output_spec = self.inputs_spec
+                elif len(self.inputs_spec) == 1:
+                    self.output_spec = next(iter(self.inputs_spec.values()))
+                else:
+                    self.output_spec = None
 
-            layer = Layer.from_spec(
-                spec=layer_spec,
-                kwargs=dict(named_tensors=self.named_tensors, scope=scope, summary_labels=self.summary_labels)
+            if self.output_spec is not None:
+                if 'input_spec' in kwargs:
+                    kwargs['input_spec'] = util.unify_value_specs(
+                        value_spec1=kwargs['input_spec'], value_spec2=self.output_spec
+                    )
+                else:
+                    kwargs['input_spec'] = self.output_spec
+
+            layer = super().add_module(*args, modules=layer_modules, **kwargs)
+
+            self.output_spec = layer.output_spec
+
+        if not isinstance(layer, (Layer, Parameter)):
+            raise TensorforceError.type(
+                name='layer-based network', argument='sub-module', value=layer
             )
-            self.add_layer(layer=layer)
 
-    def tf_apply(self, x, internals, update, return_internals=False):
-        if isinstance(x, dict):
-            self.named_tensors.update(x)
-            if len(x) == 1:
-                x = x[next(iter(sorted(x)))]
+        return layer
 
-        next_internals = dict()
-        for layer in self.layers:
-            layer_internals = {name: internals['{}_{}'.format(layer.scope, name)] for name in layer.internals_spec()}
+    def tf_dependency_horizon(self, is_optimization=False):
+        dependencies = [super().tf_dependency_horizon()]
+        for layer in self.modules.values():
+            if isinstance(layer, TemporalLayer):
+                if not isinstance(layer, StatefulLayer) or is_optimization:
+                    dependencies.append(layer.dependency_horizon.value())
 
-            if len(layer_internals) > 0:
-                x, layer_internals = layer.apply(x=x, update=update, **layer_internals)
-                for name in sorted(layer_internals):
-                    next_internals['{}_{}'.format(layer.scope, name)] = layer_internals[name]
-
-            else:
-                x = layer.apply(x=x, update=update)
-
-        if return_internals:
-            return x, next_internals
-        else:
-            return x
+        return tf.math.reduce_max(input_tensor=tf.stack(values=dependencies, axis=0), axis=0)

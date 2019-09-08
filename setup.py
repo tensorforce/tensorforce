@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,53 +13,89 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import os
-
-from setuptools import setup, find_packages
-
-install_requires = [
-    'numpy',
-    'six',
-    'scipy',
-    'pytest',
-    'tqdm'
-]
-
-setup_requires = [
-    'numpy',
-    'recommonmark'
-]
-
-extras_require = {
-    'tf': ['tensorflow>=1.6.0'],
-    'tf_gpu': ['tensorflow-gpu>=1.6.0'],
-    'gym': ['gym==0.9.5'],
-    'universe': ['universe>=0.21.3'],
-    'mazeexp': ['mazeexp>=0.0.1'],
-    'ue4': ['msgpack-python', 'msgpack-numpy']
-}
-
-# Readthedocs requires Sphinx extensions to be specified as part of
-# install_requires in order to build properly.
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-if on_rtd:
-    install_requires.extend(setup_requires)
+from setuptools import setup
+import sys
 
 
-setup(name='tensorforce',
-      version='0.4.4',  # please remember to edit tensorforce/__init__.py when updating the version
-      description='Reinforcement learning for TensorFlow',
-      url='http://github.com/reinforceio/tensorforce',
-      download_url='https://github.com/reinforceio/tensorforce/archive/0.4.3.tar.gz',
-      author='reinforce.io',
-      author_email='contact@reinforce.io',
-      license='Apache 2.0',
-      packages=[package for package in find_packages() if package.startswith('tensorforce')],
-      install_requires=install_requires,
-      setup_requires=setup_requires,
-      extras_require=extras_require,
-      zip_safe=False)
+if sys.version_info.major != 3:
+    raise NotImplementedError("Tensorforce is only compatible with Python 3.")
+
+
+tensorforce_directory = os.path.abspath(os.path.dirname(__file__))
+
+# Extract version from tensorforce/__init__.py
+with open(os.path.join(tensorforce_directory, 'tensorforce', '__init__.py'), 'r') as filehandle:
+    for line in filehandle:
+        if line.startswith('__version__'):
+            version = line[15:-2]
+
+# Extract long_description from README.md introduction
+long_description = list()
+with open(os.path.join(tensorforce_directory, 'README.md'), 'r') as filehandle:
+    lines = iter(filehandle)
+    line = next(lines)
+    if not line.startswith('# Tensorforce:'):
+        raise NotImplementedError
+    long_description.append(line)
+    for line in lines:
+        if line == '#### Introduction\n':
+            break
+    if next(lines) != '\n':
+        raise NotImplementedError
+    while True:
+        line = next(lines)
+        if line == '\n':
+            line = next(lines)
+            if line == '\n':
+                break
+            else:
+                long_description.append('\n')
+                long_description.append(line)
+        else:
+            long_description.append(line)
+    while line == '\n':
+        line = next(lines)
+    if not line.startswith('#### '):
+        raise NotImplementedError
+long_description = ''.join(long_description)
+
+
+# Extract install_requires from requirements.txt
+install_requires = list()
+with open(os.path.join(tensorforce_directory, 'requirements.txt'), 'r') as filehandle:
+    for line in filehandle:
+        line = line.strip()
+        if line:
+            install_requires.append(line)
+
+# Readthedocs requires Sphinx extensions to be specified as part of install_requires.
+if os.environ.get('READTHEDOCS', None) == 'True':
+    install_requires.append('recommonmark')
+
+setup(
+    name='Tensorforce',
+    version=version,
+    description='Tensorforce: a TensorFlow library for applied reinforcement learning',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    author='Alexander Kuhnle',
+    author_email='tensorforce.team@gmail.com',
+    url='http://github.com/tensorforce/tensorforce',
+    packages=['tensorforce'],
+    download_url='https://github.com/tensorforce/tensorforce/archive/0.5.0.tar.gz',
+    license='Apache 2.0',
+    python_requires='>=3.5',
+    install_requires=install_requires,
+    extras_require=dict(
+        tf=["tensorflow==1.13.1"],
+        tf_gpu=["tensorflow-gpu==1.13.1"],
+        docs=["m2r", "recommonmark", "sphinx", "sphinx-rtd-theme"],
+        envs=["gym[all]", "gym-retro", "mazeexp", "vizdoom"],
+        mazeexp=["mazeexp"],
+        gym=["gym[all]"],
+        retro=["gym-retro"],
+        vizdoom=["vizdoom"]
+    ),
+    zip_safe=False
+)

@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,182 +13,47 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
-import tensorflow as tf
-
-from tensorforce import util
-import tensorforce.core.distributions
+from tensorforce.core import Module
 
 
-class Distribution(object):
+class Distribution(Module):
     """
     Base class for policy distributions.
+
+    Args:
+        name (string): Distribution name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        action_spec (specification): Action specification
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        embedding_size (int > 0): Embedding size
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, shape, scope='distribution', summary_labels=None):
-        """
-        Distribution.
+    def __init__(self, name, action_spec, embedding_size, summary_labels=None):
+        super().__init__(name=name, summary_labels=summary_labels, l2_regularization=0.0)
 
-        Args:
-            shape: Action shape.
-        """
-        self.shape = shape
+        self.action_spec = action_spec
+        self.embedding_size = embedding_size
 
-        self.scope = scope
-        self.summary_labels = set(summary_labels or ())
-
-        self.variables = dict()
-        self.all_variables = dict()
-
-        def custom_getter(getter, name, registered=False, **kwargs):
-            variable = getter(name=name, registered=True, **kwargs)
-            if registered:
-                pass
-            elif name in self.all_variables:
-                assert variable is self.all_variables[name]
-                if kwargs.get('trainable', True):
-                    assert variable is self.variables[name]
-                    if 'variables' in self.summary_labels:
-                        tf.contrib.summary.histogram(name=name, tensor=variable)
-            else:
-                self.all_variables[name] = variable
-                if kwargs.get('trainable', True):
-                    self.variables[name] = variable
-                    if 'variables' in self.summary_labels:
-                        tf.contrib.summary.histogram(name=name, tensor=variable)
-            return variable
-
-        self.parameterize = tf.make_template(
-            name_=(scope + '/parameterize'),
-            func_=self.tf_parameterize,
-            custom_getter_=custom_getter
-        )
-        self.sample = tf.make_template(
-            name_=(scope + '/sample'),
-            func_=self.tf_sample,
-            custom_getter_=custom_getter
-        )
-        self.log_probability = tf.make_template(
-            name_=(scope + '/log-probability'),
-            func_=self.tf_log_probability,
-            custom_getter_=custom_getter
-        )
-        self.entropy = tf.make_template(
-            name_=(scope + '/entropy'),
-            func_=self.tf_entropy,
-            custom_getter_=custom_getter
-        )
-        self.kl_divergence = tf.make_template(
-            name_=(scope + '/kl-divergence'),
-            func_=self.tf_kl_divergence,
-            custom_getter_=custom_getter
-        )
-        self.regularization_loss = tf.make_template(
-            name_=(scope + '/regularization-loss'),
-            func_=self.tf_regularization_loss,
-            custom_getter_=custom_getter
-        )
-
-    def tf_parameterize(self, x):
-        """
-        Creates the tensorFlow operations for parameterizing a distribution conditioned on the
-        given input.
-
-        Args:
-            x: Input tensor which the distribution is conditioned on.
-
-        Returns:
-            tuple of distribution parameter tensors.
-        """
+    def tf_parametrize(self, x):
         raise NotImplementedError
 
-    def tf_sample(self, distr_params, deterministic):
-        """
-        Creates the tensorFlow operations for sampling an action based on a distribution.
-
-        Args:
-            distr_params: tuple of distribution parameter tensors.
-            deterministic: Boolean input tensor indicating whether the maximum likelihood action
-                should be returned.
-
-        Returns:
-            Sampled action tensor.
-        """
+    def tf_sample(self, parameters, deterministic):
         raise NotImplementedError
 
-    def tf_log_probability(self, distr_params, action):
-        """
-        Creates the tensorFlow operations for calculating the log probability of an action for a  
-        distribution.
-
-        Args:
-            distr_params: tuple of distribution parameter tensors.
-            action: Action tensor.
-
-        Returns:
-            KL divergence tensor.
-        """
+    def tf_log_probability(self, parameters, action):
         raise NotImplementedError
 
-    def tf_entropy(self, distr_params):
-        """
-        Creates the tensorFlow operations for calculating the entropy of a distribution.
-
-        Args:
-            distr_params: tuple of distribution parameter tensors.
-
-        Returns:
-            Entropy tensor.
-        """
+    def tf_entropy(self, parameters):
         raise NotImplementedError
 
-    def tf_kl_divergence(self, distr_params1, distr_params2):
-        """
-        Creates the tensorFlow operations for calculating the KL divergence between two  
-        distributions.
-
-        Args:
-            distr_params1: tuple of parameter tensors for first distribution.
-            distr_params2: tuple of parameter tensors for second distribution.
-
-        Returns:
-            KL divergence tensor.
-        """
+    def tf_kl_divergence(self, parameters1, parameters2):
         raise NotImplementedError
 
-    def tf_regularization_loss(self):
-        """
-        Creates the tensorFlow operations for the distribution regularization loss.
+    def tf_action_value(self, parameters, action=None):
+        raise NotImplementedError
 
-        Returns:
-            Regularization loss tensor.
-        """
-        return None
-
-    def get_variables(self, include_nontrainable=False):
-        """
-        Returns the tensorFlow variables used by the distribution.
-
-        Returns:
-            List of variables.
-        """
-        if include_nontrainable:
-            return [self.all_variables[key] for key in sorted(self.all_variables)]
-        else:
-            return [self.variables[key] for key in sorted(self.variables)]
-
-    @staticmethod
-    def from_spec(spec, kwargs=None):
-        """
-        Creates a distribution from a specification dict.
-        """
-        distribution = util.get_object(
-            obj=spec,
-            predefined_objects=tensorforce.core.distributions.distributions,
-            kwargs=kwargs
-        )
-        assert isinstance(distribution, Distribution)
-        return distribution
+    def tf_states_value(self, parameters):
+        raise NotImplementedError

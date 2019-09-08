@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,49 +13,19 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.networks.layer import Layer, Input, Output, TFLayer, Nonlinearity, Dropout, Flatten, Pool2d, Embedding, Linear, Dense, \
-    Dueling, Conv1d, Conv2d, InternalLstm, Lstm
-from tensorforce.core.networks.network import Network, LayerBasedNetwork, LayeredNetwork
+from tensorforce.core.networks.network import Network, LayerbasedNetwork
+
+from tensorforce.core.networks.auto import AutoNetwork
+from tensorforce.core.networks.layered import LayeredNetwork
+from tensorforce.core.networks.preprocessor import Preprocessor
 
 
-layers = dict(
-    input=Input,
-    output=Output,
-    tf_layer=TFLayer,
-    nonlinearity=Nonlinearity,
-    dropout=Dropout,
-    flatten=Flatten,
-    pool2d=Pool2d,
-    embedding=Embedding,
-    linear=Linear,
-    dense=Dense,
-    dueling=Dueling,
-    conv1d=Conv1d,
-    conv2d=Conv2d,
-    internal_lstm=InternalLstm,
-    lstm=Lstm
+network_modules = dict(
+    auto=AutoNetwork, custom=LayeredNetwork, default=LayeredNetwork, layered=LayeredNetwork
 )
 
 
 __all__ = [
-    'layers',
-    'Layer',
-    'Input',
-    'Output',
-    'TFLayer',
-    'Nonlinearity',
-    'Dropout',
-    'Flatten',
-    'Pool2d',
-    'Embedding',
-    'Linear',
-    'Dense',
-    'Dueling',
-    'Conv1d',
-    'Conv2d',
-    'InternalLstm',
-    'Lstm',
-    'Network',
-    'LayerBasedNetwork',
-    'LayeredNetwork'
+    'AutoNetwork', 'LayerbasedNetwork', 'LayeredNetwork', 'Network', 'network_modules',
+    'Preprocessor'
 ]

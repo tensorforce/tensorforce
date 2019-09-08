@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.execution.base_runner import BaseRunner
-from tensorforce.execution.runner import Runner, SingleRunner, DistributedTFRunner
-from tensorforce.execution.threaded_runner import ThreadedRunner, WorkerAgentGenerator
 from tensorforce.execution.parallel_runner import ParallelRunner
+from tensorforce.execution.runner import Runner
 
-__all__ = ['BaseRunner', 'SingleRunner', 'DistributedTFRunner', 'Runner', 'ThreadedRunner', 'WorkerAgentGenerator', 'ParallelRunner']
+
+__all__ = ['ParallelRunner', 'Runner']

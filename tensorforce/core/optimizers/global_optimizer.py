@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import division
-
 import tensorflow as tf
 
 from tensorforce import util
@@ -25,31 +21,21 @@ from tensorforce.core.optimizers import MetaOptimizer
 
 class GlobalOptimizer(MetaOptimizer):
     """
-    The global optimizer applies an optimizer to the local variables. In addition, it also  
-    applies the update to a corresponding set of global variables and subsequently updates the local
-    variables to the value of these global variables.
-    Note: This is used for the current distributed mode, and will likely change with the next  
-    major version update.
+    Global meta optimizer, which applies the given optimizer to the local variables, then applies
+    the update to a corresponding set of global variables, and subsequently updates the local
+    variables to the value of the global variables; will likely change in the future (specification
+    key: `global_optimizer`).
+
+    Args:
+        name (string): Module name
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        optimizer (specification): Optimizer configuration
+            (<span style="color:#C00000"><b>required</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, optimizer, scope='global-optimizer', summary_labels=()):
-        """
-        Creates a new global optimizer instance.
-
-        Args:
-            optimizer: The optimizer which is modified by this meta optimizer.
-        """
-        super(GlobalOptimizer, self).__init__(optimizer=optimizer, scope=scope, summary_labels=summary_labels)
-
-    def tf_step(self, time, variables, **kwargs):
-        """
-        Keyword Args:
-            global_variables: List of global variables to apply the proposed optimization step to.
-
-        Returns:
-            List of delta tensors corresponding to the updates for each optimized variable.
-        """
-
+    def tf_step(self, variables, **kwargs):
         global_variables = kwargs["global_variables"]
 
         assert all(
@@ -57,7 +43,7 @@ class GlobalOptimizer(MetaOptimizer):
             for global_variable, local_variable in zip(global_variables, variables)
         )
 
-        local_deltas = self.optimizer.step(time=time, variables=variables, **kwargs)
+        local_deltas = self.optimizer.step(variables=variables, **kwargs)
 
         with tf.control_dependencies(control_inputs=local_deltas):
             applied = self.optimizer.apply_step(variables=global_variables, deltas=local_deltas)
@@ -73,4 +59,7 @@ class GlobalOptimizer(MetaOptimizer):
             # TODO: Update time, episode, etc (like in Synchronization)?
 
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [local_delta + update_delta for local_delta, update_delta in zip(local_deltas, update_deltas)]
+            return [
+                local_delta + update_delta
+                for local_delta, update_delta in zip(local_deltas, update_deltas)
+            ]

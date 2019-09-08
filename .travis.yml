@@ -10,10 +10,8 @@ branches:
     - major-revision
 
 install:
-  - pip install -r requirements.txt
-  - pip install tensorflow
+  - pip install .[tf]
   - pip install gym
-  - pip install .
 
 script:
   - pytest

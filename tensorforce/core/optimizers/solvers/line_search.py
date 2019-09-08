@@ -1,4 +1,4 @@
-# Copyright 2017 reinforce.io. All Rights Reserved.
+# Copyright 2018 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
 
 import tensorflow as tf
 
-from tensorforce import util, TensorForceError
+from tensorforce import TensorforceError, util
+from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -26,7 +27,9 @@ class LineSearch(Iterative):
     moving towards $x'$.
     """
 
-    def __init__(self, max_iterations, accept_ratio, mode, parameter, unroll_loop=False):
+    def __init__(
+        self, name, max_iterations, accept_ratio, mode, parameter, unroll_loop=False
+    ):
         """
         Creates a new line search solver instance.
 
@@ -39,16 +42,23 @@ class LineSearch(Iterative):
             parameter: Movement mode parameter, additive or multiplicative, respectively.
             unroll_loop: Unrolls the TensorFlow while loop if true.
         """
+        super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
+
         assert accept_ratio >= 0.0
-        self.accept_ratio = accept_ratio
+        self.accept_ratio = self.add_module(
+            name='accept-ratio', module=accept_ratio, modules=parameter_modules, dtype='float'
+        )
 
         # TODO: Implement such sequences more generally, also useful for learning rate decay or so.
         if mode not in ('linear', 'exponential'):
-            raise TensorForceError("Invalid line search mode: {}, please choose one of'linear' or 'exponential'".format(mode))
+            raise TensorforceError(
+                "Invalid line search mode: {}, please choose one of 'linear' or 'exponential'".format(mode)
+            )
         self.mode = mode
-        self.parameter = parameter
 
-        super(LineSearch, self).__init__(max_iterations=max_iterations, unroll_loop=unroll_loop)
+        self.parameter = self.add_module(
+            name='parameter', module=parameter, modules=parameter_modules, dtype='float'
+        )
 
     def tf_solve(self, fn_x, x_init, base_value, target_value, estimated_improvement=None):
         """
@@ -64,9 +74,9 @@ class LineSearch(Iterative):
         Returns:
             A solution $x$ to the problem as given by the solver.
         """
-        return super(LineSearch, self).tf_solve(fn_x, x_init, base_value, target_value, estimated_improvement)
+        return super().tf_solve(fn_x, x_init, base_value, target_value, estimated_improvement)
 
-    def tf_initialize(self, x_init, base_value, target_value, estimated_improvement):
+    def tf_start(self, x_init, base_value, target_value, estimated_improvement):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
@@ -84,31 +94,28 @@ class LineSearch(Iterative):
         if estimated_improvement is None:  # TODO: Is this a good alternative?
             estimated_improvement = tf.abs(x=base_value)
 
-        first_step = super(LineSearch, self).tf_initialize(x_init)
-
-        improvement = tf.divide(
-            x=(target_value - self.base_value),
-            y=tf.maximum(x=estimated_improvement, y=util.epsilon)
-        )
+        difference = target_value - self.base_value
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        improvement = difference / tf.maximum(x=estimated_improvement, y=epsilon)
 
         last_improvement = improvement - 1.0
+        parameter = self.parameter.value()
 
         if self.mode == 'linear':
-            deltas = [-t * self.parameter for t in x_init]
-            self.estimated_incr = -estimated_improvement * self.parameter
+            deltas = [-t * parameter for t in x_init]
+            self.estimated_incr = -estimated_improvement * parameter
 
         elif self.mode == 'exponential':
-            deltas = [-t * self.parameter for t in x_init]
+            deltas = [-t * parameter for t in x_init]
 
-        return first_step + (deltas, improvement, last_improvement, estimated_improvement)
+        return x_init, deltas, improvement, last_improvement, estimated_improvement
 
-    def tf_step(self, x, iteration, deltas, improvement, last_improvement, estimated_improvement):
+    def tf_step(self, x, deltas, improvement, last_improvement, estimated_improvement):
         """
         Iteration loop body of the line search algorithm.
 
         Args:
             x: Current solution estimate $x_t$.
-            iteration: Current iteration counter $t$.
             deltas: Current difference $x_t - x'$.
             improvement: Current improvement $(f(x_t) - f(x')) / v'$.
             last_improvement: Last improvement $(f(x_{t-1}) - f(x')) / v'$.
@@ -117,37 +124,32 @@ class LineSearch(Iterative):
         Returns:
             Updated arguments for next iteration.
         """
-        x, next_iteration, deltas, improvement, last_improvement, estimated_improvement = super(LineSearch, self).tf_step(
-            x, iteration, deltas, improvement, last_improvement, estimated_improvement
-        )
-
         next_x = [t + delta for t, delta in zip(x, deltas)]
+        parameter = self.parameter.value()
 
         if self.mode == 'linear':
             next_deltas = deltas
             next_estimated_improvement = estimated_improvement + self.estimated_incr
 
         elif self.mode == 'exponential':
-            next_deltas = [delta * self.parameter for delta in deltas]
-            next_estimated_improvement = estimated_improvement * self.parameter
+            next_deltas = [delta * parameter for delta in deltas]
+            next_estimated_improvement = estimated_improvement * parameter
 
         target_value = self.fn_x(next_deltas)
 
-        next_improvement = tf.divide(
-            x=(target_value - self.base_value),
-            y=tf.maximum(x=next_estimated_improvement, y=util.epsilon)
-        )
+        difference = target_value - self.base_value
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        next_improvement = difference / tf.maximum(x=next_estimated_improvement, y=epsilon)
 
-        return next_x, next_iteration, next_deltas, next_improvement, improvement, next_estimated_improvement
+        return next_x, next_deltas, next_improvement, improvement, next_estimated_improvement
 
-    def tf_next_step(self, x, iteration, deltas, improvement, last_improvement, estimated_improvement):
+    def tf_next_step(self, x, deltas, improvement, last_improvement, estimated_improvement):
         """
         Termination condition: max number of iterations, or no improvement for last step, or  
         improvement less than acceptable ratio, or estimated value not positive.
 
         Args:
             x: Current solution estimate $x_t$.
-            iteration: Current iteration counter $t$.
             deltas: Current difference $x_t - x'$.
             improvement: Current improvement $(f(x_t) - f(x')) / v'$.
             last_improvement: Last improvement $(f(x_{t-1}) - f(x')) / v'$.
@@ -156,22 +158,34 @@ class LineSearch(Iterative):
         Returns:
             True if another iteration should be performed.
         """
-        next_step = super(LineSearch, self).tf_next_step(
-            x, iteration, deltas, improvement, last_improvement, estimated_improvement
-        )
+        improved = improvement > last_improvement
+        accept_ratio = self.accept_ratio.value()
+        next_step = tf.math.logical_and(x=improved, y=(improvement < accept_ratio))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        return tf.math.logical_and(x=next_step, y=(estimated_improvement > epsilon))
+
+    def tf_end(self, x_final, deltas, improvement, last_improvement, estimated_improvement):
+        """
+        Termination step preparing the return value.
+
+        Args:
+            x_init: Final solution estimate $x_n$.
+            deltas: Current difference $x_n - x'$.
+            improvement: Current improvement $(f(x_n) - f(x')) / v'$.
+            last_improvement: Last improvement $(f(x_{n-1}) - f(x')) / v'$.
+            estimated_improvement: Current estimated value $v'$.
+
+        Returns:
+            Final solution.
+        """
+        def accept_deltas():
+            return [t + delta for t, delta in zip(x_final, deltas)]
 
         def undo_deltas():
             value = self.fn_x([-delta for delta in deltas])
             with tf.control_dependencies(control_inputs=(value,)):
-                # Trivial operation to enforce control dependency
-                return tf.less(x=value, y=value)  # == False
+                return util.fmap(function=util.identity_operation, xs=x_final)
 
-        improved = tf.cond(
-            pred=(improvement > last_improvement),
-            true_fn=(lambda: True),
-            false_fn=undo_deltas
-        )
-
-        next_step = tf.logical_and(x=next_step, y=improved)
-        next_step = tf.logical_and(x=next_step, y=(improvement < self.accept_ratio))
-        return tf.logical_and(x=next_step, y=(estimated_improvement > util.epsilon))
+        skip_undo_deltas = improvement > last_improvement
+        x_final = self.cond(pred=skip_undo_deltas, true_fn=accept_deltas, false_fn=undo_deltas)
+        return x_final

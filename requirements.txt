@@ -1,6 +1,4 @@
 numpy
 matplotlib
-seaborn
 pytest
 tqdm
-gym

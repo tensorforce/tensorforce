@@ -6,6 +6,7 @@
 /.eggs/
 /.pytest_cache/
 /dist/
+/build/
 /docs/_*
 /tensorforce.egg-info/
 

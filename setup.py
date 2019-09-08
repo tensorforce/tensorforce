@@ -14,7 +14,7 @@
 # ==============================================================================
 
 import os
-from setuptools import setup
+from setuptools import find_packages, setup
 import sys
 
 
@@ -82,7 +82,10 @@ setup(
     author='Alexander Kuhnle',
     author_email='tensorforce.team@gmail.com',
     url='http://github.com/tensorforce/tensorforce',
-    packages=['tensorforce'],
+    packages=[
+        package for package in find_packages(exclude=('test',))
+        if package.startswith('tensorforce')
+    ],
     download_url='https://github.com/tensorforce/tensorforce/archive/0.5.0.tar.gz',
     license='Apache 2.0',
     python_requires='>=3.5',

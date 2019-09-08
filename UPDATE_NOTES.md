@@ -4,8 +4,13 @@ This file records all major updates and new features, starting from version 0.5.
 
 
 
+### Version 0.5.1
 
-### Version 0.5
+- Fixed setup.py packages value
+
+
+
+### Version 0.5.0
 
 ##### Environment:
 

@@ -19,4 +19,4 @@
 ### TensorFlow features
 
 - Extract act-only TensorFlow graph
-- SavedModel integration, improve saver functionality, support different formats
+- SavedModel integration, improve saver functionality, support different formats, save/load per layer

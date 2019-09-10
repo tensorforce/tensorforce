@@ -20,7 +20,15 @@ from tensorforce import util
 __all__ = ['TensorforceError', 'util']
 
 
-__version__ = '0.5.0'
+__version__ = '0.5.1'
+
+"""
+pip install --upgrade setuptools wheel twine
+python setup.py sdist bdist_wheel
+twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.1*
+pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
+twine upload dist/Tensorforce-0.5.1*
+"""
 
 
 # Libraries should add NullHandler() by default, as its the application code's

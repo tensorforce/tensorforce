@@ -30,7 +30,7 @@ class ConstantModel(Model):
     def __init__(
         self,
         # Model
-        name, device, parallel_interactions, buffer_observe, summarizer, states, actions,
+        name, device, parallel_interactions, buffer_observe, summarizer, config, states, actions,
         # ConstantModel
         action_values
     ):
@@ -38,8 +38,8 @@ class ConstantModel(Model):
             # Model
             name=name, device=None, parallel_interactions=parallel_interactions,
             buffer_observe=buffer_observe, execution=None, saver=None, summarizer=summarizer,
-            states=states, internals=OrderedDict(), actions=actions, preprocessing=None,
-            exploration=0.0, variable_noise=0.0, l2_regularization=0.0
+            config=config, states=states, internals=OrderedDict(), actions=actions,
+            preprocessing=None, exploration=0.0, variable_noise=0.0, l2_regularization=0.0
         )
 
         # check values

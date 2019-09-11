@@ -20,14 +20,15 @@ from test.unittest_base import UnittestBase
 
 class TestAgents(UnittestBase, unittest.TestCase):
 
-    config = dict()
+    agent = dict()
+    require_observe = True
 
     def test_dpg(self):
         self.start_tests(name='DPG')
         self.unittest(
-            actions=dict(type='float', shape=()), agent='dpg', exclude_bool_action=True,
-            exclude_int_action=True, network=dict(type='auto', internal_rnn=False), batch_size=4,
-            critic_network=dict(type='auto', internal_rnn=False)
+            actions=dict(type='float', shape=()), exclude_bool_action=True,
+            exclude_int_action=True, agent='dpg', network=dict(type='auto', internal_rnn=False),
+            batch_size=4, critic_network=dict(type='auto', internal_rnn=False)
         )
 
     def test_dqn(self):

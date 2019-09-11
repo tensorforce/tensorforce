@@ -231,8 +231,8 @@ class Queue(CircularBuffer, Memory):
                 value = tf.gather(params=self.buffers[name], indices=indices)
             values[n] = value
 
-        # Stop gradients
-        values = util.fmap(function=tf.stop_gradient, xs=values)
+        # # Stop gradients
+        # values = util.fmap(function=tf.stop_gradient, xs=values)
 
         # Return values or single value
         if is_single_value:
@@ -400,9 +400,9 @@ class Queue(CircularBuffer, Memory):
         #     back_prop=False, maximum_iterations=horizon
         # )
 
-        # Stop gradients
-        sequence_values = util.fmap(function=tf.stop_gradient, xs=sequence_values)
-        initial_values = util.fmap(function=tf.stop_gradient, xs=initial_values)
+        # # Stop gradients
+        # sequence_values = util.fmap(function=tf.stop_gradient, xs=sequence_values)
+        # initial_values = util.fmap(function=tf.stop_gradient, xs=initial_values)
 
         if len(sequence_values) == 0:
             if is_single_initial_value:
@@ -582,9 +582,9 @@ class Queue(CircularBuffer, Memory):
         #     back_prop=False, maximum_iterations=horizon
         # )
 
-        # Stop gradients
-        sequence_values = util.fmap(function=tf.stop_gradient, xs=sequence_values)
-        final_values = util.fmap(function=tf.stop_gradient, xs=final_values)
+        # # Stop gradients
+        # sequence_values = util.fmap(function=tf.stop_gradient, xs=sequence_values)
+        # final_values = util.fmap(function=tf.stop_gradient, xs=final_values)
 
         if len(sequence_values) == 0:
             if is_single_final_value:

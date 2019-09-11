@@ -23,6 +23,8 @@ from test.unittest_base import UnittestBase
 
 class TestRunners(UnittestBase, unittest.TestCase):
 
+    require_observe = True
+
     def test_runner(self):
         self.start_tests(name='runner')
 
@@ -44,7 +46,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         def callback(r):
             self.num_callbacks += 1
-            self.assertEqual(r.episode, self.num_callbacks * callback_episode_frequency)
+            self.assertEqual(r.episodes, self.num_callbacks * callback_episode_frequency)
 
         runner.run(
             num_episodes=10, callback=callback,
@@ -92,7 +94,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         def evaluation_callback(r):
             self.num_evaluations += 1
-            self.assertEqual(r.episode, self.num_evaluations * evaluation_frequency)
+            self.assertEqual(r.episodes, self.num_evaluations * evaluation_frequency)
             self.assertEqual(len(r.evaluation_timesteps), num_evaluation_iterations)
             for num_timesteps in r.evaluation_timesteps:
                 self.assertLessEqual(num_timesteps, max_evaluation_timesteps)
@@ -130,7 +132,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         def callback(r, parallel):
             self.num_callbacks += 1
-            self.assertEqual(r.episode, self.num_callbacks * callback_episode_frequency)
+            self.assertEqual(r.episodes, self.num_callbacks * callback_episode_frequency)
 
         runner.run(
             num_episodes=10, callback=callback,

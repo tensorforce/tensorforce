@@ -20,6 +20,8 @@ from test.unittest_base import UnittestBase
 
 class TestOptimizers(UnittestBase, unittest.TestCase):
 
+    require_observe = True
+
     def test_clipping_step(self):
         self.start_tests(name='clipping-step')
 

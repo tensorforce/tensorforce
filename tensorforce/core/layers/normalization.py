@@ -106,8 +106,7 @@ class ExponentialNormalization(Layer):
             )
 
             variance = tf.reduce_mean(
-                input_tensor=tf.math.squared_difference(x=x, y=tf.stop_gradient(input=mean)),
-                axis=axes, keepdims=True
+                input_tensor=tf.math.squared_difference(x=x, y=mean), axis=axes, keepdims=True
             )
             variance = tf.where(
                 condition=self.after_first_call,

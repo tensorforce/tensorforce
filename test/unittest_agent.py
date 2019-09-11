@@ -23,6 +23,8 @@ class UnittestAgent(UnittestBase):
     Collection of unit-tests for agent functionality.
     """
 
+    require_observe = True
+
     replacement_action = 'bool'
     has_experience = True
     has_update = True
@@ -72,7 +74,7 @@ class UnittestAgent(UnittestBase):
 
         if self.__class__.has_update:
             agent, environment = self.prepare(
-                states=states, actions=actions, buffer_observe=False, update=1,
+                states=states, actions=actions, require_all=True, buffer_observe=False, update=1,
                 network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
             )
 
@@ -103,14 +105,15 @@ class UnittestAgent(UnittestBase):
         reward_batch = list()
 
         states = environment.reset()
-        terminal = False
-        while not terminal:
-            states_batch.append(states)
-            actions = agent.act(states=states, independent=True)
-            actions_batch.append(actions)
-            states, terminal, reward = environment.execute(actions=actions)
-            terminal_batch.append(terminal)
-            reward_batch.append(reward)
+        for _ in range(2):
+            terminal = False
+            while not terminal:
+                states_batch.append(states)
+                actions = agent.act(states=states, independent=True)
+                actions_batch.append(actions)
+                states, terminal, reward = environment.execute(actions=actions)
+                terminal_batch.append(terminal)
+                reward_batch.append(reward)
 
         if self.__class__.has_experience:
             query = agent.get_query_tensors(function='experience')
@@ -140,7 +143,7 @@ class UnittestAgent(UnittestBase):
         actions = dict(type=self.__class__.replacement_action, shape=())
 
         agent, environment = self.prepare(
-            states=states, actions=actions, buffer_observe=False, update=1,
+            states=states, actions=actions, require_all=True, buffer_observe=False, update=1,
             network=dict(type='auto', size=8, internal_rnn=False),  # TODO: shouldn't be necessary!
             recorder=dict(directory=self.__class__.directory)
         )

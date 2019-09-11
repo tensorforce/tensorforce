@@ -20,6 +20,8 @@ from test.unittest_base import UnittestBase
 
 class TestMemories(UnittestBase, unittest.TestCase):
 
+    num_episodes = 2
+
     def test_recent(self):
         self.start_tests(name='recent')
 

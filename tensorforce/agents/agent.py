@@ -182,8 +182,9 @@ class Agent(object):
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
         )
 
-        self.timestep = 0
-        self.episode = 0
+        self.timesteps = 0
+        self.episodes = 0
+        self.updates = 0
 
         # Recorder
         if recorder is None:
@@ -229,7 +230,7 @@ class Agent(object):
         self.buffer_indices = np.zeros(
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
         )
-        self.timestep, self.episode = self.model.reset()
+        self.timesteps, self.episodes, self.updates = self.model.reset()
 
     def act(
         self, states, parallel=0, deterministic=False, independent=False, evaluation=False,
@@ -287,13 +288,13 @@ class Agent(object):
 
         # Model.act()
         if query is None:
-            actions, self.timestep = self.model.act(
+            actions, self.timesteps = self.model.act(
                 states=states, auxiliaries=auxiliaries, parallel=parallel,
                 deterministic=deterministic, independent=independent, **kwargs
             )
 
         else:
-            actions, self.timestep, queried = self.model.act(
+            actions, self.timesteps, queried = self.model.act(
                 states=states, auxiliaries=auxiliaries, parallel=parallel,
                 deterministic=deterministic, independent=independent, query=query, **kwargs
             )
@@ -379,7 +380,7 @@ class Agent(object):
                             os.remove(filename)
 
                     filename = 'trace-{}-{}.npz'.format(
-                        self.episode, time.strftime('%Y%m%d-%H%M%S')
+                        self.episodes, time.strftime('%Y%m%d-%H%M%S')
                     )
                     filename = os.path.join(directory, filename)
                     self.record_states = util.fmap(
@@ -416,13 +417,13 @@ class Agent(object):
         if terminal > 0 or index == self.buffer_observe or query is not None:
             # Model.observe()
             if query is None:
-                updated, self.episode = self.model.observe(
+                updated, self.episodes, self.updates = self.model.observe(
                     terminal=self.terminal_buffers[parallel, :index],
                     reward=self.reward_buffers[parallel, :index], parallel=parallel, **kwargs
                 )
 
             else:
-                updated, self.episode, queried = self.model.observe(
+                updated, self.episodes, self.updates, queried = self.model.observe(
                     terminal=self.terminal_buffers[parallel, :index],
                     reward=self.reward_buffers[parallel, :index], parallel=parallel, query=query,
                     **kwargs
@@ -494,7 +495,9 @@ class Agent(object):
         if not self.model.is_initialized:
             self.model.initialize()
 
-        self.timestep, self.episode = self.model.restore(directory=directory, filename=filename)
+        self.timesteps, self.episodes, self.updates = self.model.restore(
+            directory=directory, filename=filename
+        )
 
     def get_output_tensors(self, function):
         """

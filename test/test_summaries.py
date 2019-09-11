@@ -22,6 +22,7 @@ from test.unittest_base import UnittestBase
 class TestSummaries(UnittestBase, unittest.TestCase):
 
     exclude_bounded_action = True  # TODO: shouldn't be necessary!
+    require_observe = True
 
     directory = 'test-summaries'
 

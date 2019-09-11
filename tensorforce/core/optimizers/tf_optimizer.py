@@ -89,6 +89,7 @@ class TFOptimizer(Optimizer):
         )
 
     def tf_step(self, variables, arguments, fn_loss, fn_initial_gradients=None, **kwargs):
+        arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
         loss = fn_loss(**arguments)
 
         # Force loss value and attached control flow to be computed.

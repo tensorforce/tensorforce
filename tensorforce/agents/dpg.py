@@ -42,7 +42,7 @@ class DeterministicPolicyGradient(PolicyAgent):
         l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
         name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
-        summarizer=None, recorder=None
+        summarizer=None, recorder=None, config=None
     ):
         assert max_episode_timesteps is None or memory >= (batch_size + 1) * max_episode_timesteps
         memory = dict(type='replay', capacity=memory)
@@ -64,7 +64,7 @@ class DeterministicPolicyGradient(PolicyAgent):
             # Agent
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
             parallel_interactions=parallel_interactions, buffer_observe=True, seed=seed,
-            recorder=recorder,
+            recorder=recorder, config=config,
             # Model
             name=name, device=device, execution=execution, saver=saver, summarizer=summarizer,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,

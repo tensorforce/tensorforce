@@ -21,6 +21,7 @@ from test.unittest_base import UnittestBase
 class TestObjectives(UnittestBase, unittest.TestCase):
 
     exclude_bounded_action = True  # TODO: shouldn't be necessary!
+    require_observe = True
 
     def test_action_value(self):
         self.start_tests(name='action-value')

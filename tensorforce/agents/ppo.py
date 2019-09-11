@@ -42,7 +42,7 @@ class ProximalPolicyOptimization(PolicyAgent):
         l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
         name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
-        summarizer=None, recorder=None
+        summarizer=None, recorder=None, config=None
     ):
         memory = dict(type='recent', capacity=((batch_size + 1) * max_episode_timesteps))
         if update_frequency is None:
@@ -77,7 +77,7 @@ class ProximalPolicyOptimization(PolicyAgent):
             # Agent
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
             parallel_interactions=parallel_interactions, buffer_observe=True, seed=seed,
-            recorder=recorder,
+            recorder=recorder, config=config,
             # Model
             name=name, device=device, execution=execution, saver=saver, summarizer=summarizer,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,

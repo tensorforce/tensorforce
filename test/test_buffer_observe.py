@@ -20,9 +20,11 @@ from test.unittest_base import UnittestBase
 
 class TestBufferObserve(UnittestBase, unittest.TestCase):
 
+    num_timesteps = 2
     exclude_bounded_action = True  # TODO: shouldn't be necessary!
+    require_observe = True
 
     def test_buffer_observe(self):
         self.start_tests()
 
-        self.unittest(buffer_observe=False, memory=20)
+        self.unittest(buffer_observe=False)

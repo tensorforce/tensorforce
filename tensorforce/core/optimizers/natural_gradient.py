@@ -90,6 +90,7 @@ class NaturalGradient(Optimizer):
             ]
 
         # loss
+        arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
         loss = fn_loss(**arguments)
 
         # grad(loss)

@@ -30,8 +30,8 @@ class PolicyModel(Model):
     def __init__(
         self,
         # Model
-        name, device, parallel_interactions, buffer_observe, execution, saver, summarizer, states,
-        actions, preprocessing, exploration, variable_noise, l2_regularization,
+        name, device, parallel_interactions, buffer_observe, execution, saver, summarizer, config,
+        states, actions, preprocessing, exploration, variable_noise, l2_regularization,
         # PolicyModel
         policy, network, memory, update, optimizer, objective, reward_estimation, baseline_policy,
         baseline_network, baseline_optimizer, baseline_objective, entropy_regularization
@@ -105,8 +105,8 @@ class PolicyModel(Model):
             # Model
             name=name, device=device, parallel_interactions=parallel_interactions,
             buffer_observe=buffer_observe, execution=execution, saver=saver, summarizer=summarizer,
-            states=states, internals=internals, actions=actions, preprocessing=preprocessing,
-            exploration=exploration, variable_noise=variable_noise,
+            config=config, states=states, internals=internals, actions=actions,
+            preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization
         )
 
@@ -413,7 +413,7 @@ class PolicyModel(Model):
             deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             independent=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode
+            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
         )
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -431,8 +431,11 @@ class PolicyModel(Model):
             episode = util.identity_operation(
                 x=self.global_episode, operation_name='episode-output'
             )
+            update = util.identity_operation(
+                x=self.global_update, operation_name='update-output'
+            )
 
-        return timestep, episode
+        return timestep, episode, update
 
     def api_update(self):
         # Set global tensors
@@ -440,7 +443,7 @@ class PolicyModel(Model):
             deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
             optimization=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode
+            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
         )
 
         # Core update: retrieve update operation
@@ -454,8 +457,11 @@ class PolicyModel(Model):
             episode = util.identity_operation(
                 x=self.global_episode, operation_name='episode-output'
             )
+            update = util.identity_operation(
+                x=self.global_update, operation_name='update-output'
+            )
 
-        return timestep, episode
+        return timestep, episode, update
 
     def tf_core_act(self, states, internals, auxiliaries):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))

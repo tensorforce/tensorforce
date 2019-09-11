@@ -30,8 +30,8 @@ class Model(Module):
     def __init__(
         self,
         # Model
-        name, device, parallel_interactions, buffer_observe, execution, saver, summarizer, states,
-        internals, actions, preprocessing, exploration, variable_noise, l2_regularization
+        name, device, parallel_interactions, buffer_observe, execution, saver, summarizer, config,
+        states, internals, actions, preprocessing, exploration, variable_noise, l2_regularization
     ):
         if summarizer is None or summarizer.get('directory') is None:
             summary_labels = None
@@ -79,6 +79,8 @@ class Model(Module):
             self.summarizer_spec = None
         else:
             self.summarizer_spec = summarizer
+
+        self.config = config
 
         # States/internals/actions specifications
         self.states_spec = states
@@ -208,6 +210,7 @@ class Model(Module):
         )
         Module.register_tensor(name='timestep', spec=dict(type='long', shape=()), batched=False)
         Module.register_tensor(name='episode', spec=dict(type='long', shape=()), batched=False)
+        Module.register_tensor(name='update', spec=dict(type='long', shape=()), batched=False)
 
     def initialize(self):
         """
@@ -672,8 +675,11 @@ class Model(Module):
             episode = util.identity_operation(
                 x=self.global_episode, operation_name='episode-output'
             )
+            update = util.identity_operation(
+                x=self.global_update, operation_name='update-output'
+            )
 
-        return timestep, episode
+        return timestep, episode, update
 
     def api_act(self):
         # Inputs
@@ -754,7 +760,7 @@ class Model(Module):
         Module.update_tensors(
             deterministic=deterministic, independent=independent,
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode
+            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
         )
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -1094,7 +1100,7 @@ class Model(Module):
             deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode
+            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
         )
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -1188,8 +1194,11 @@ class Model(Module):
             episode = util.identity_operation(
                 x=self.global_episode, operation_name='episode-output'
             )
+            update = util.identity_operation(
+                x=self.global_update, operation_name='update-output'
+            )
 
-        return updated, episode
+        return updated, episode, update
 
     def tf_core_act(self, states, internals, auxiliaries):
         raise NotImplementedError

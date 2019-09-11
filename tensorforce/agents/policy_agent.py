@@ -85,7 +85,7 @@ class PolicyAgent(Agent):
             number of units (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>frequency</b> (<i>"never" | parameter, long > 0</i>) &ndash; frequency of
             updates (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
-            <li><b>start</b> (<i>parameter, long >= 2 * batch_size</i>) &ndash; number of units
+            <li><b>start</b> (<i>parameter, long >= batch_size</i>) &ndash; number of units
             before first update (<span style="color:#00C000"><b>default</b></span>: 0).</li>
             </ul>
         optimizer (specification): Optimizer configuration, see
@@ -258,7 +258,7 @@ class PolicyAgent(Agent):
         l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
         name='agent', device=None, parallel_interactions=1, buffer_observe=True, seed=None,
-        execution=None, saver=None, summarizer=None, recorder=None
+        execution=None, saver=None, summarizer=None, recorder=None, config=None
     ):
         if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
             buffer_observe = False
@@ -272,30 +272,32 @@ class PolicyAgent(Agent):
         if isinstance(update, int):
             update = dict(unit='timesteps', batch_size=update)
 
-        if memory is None:
-            # predecessor/successor?
-            if max_episode_timesteps is None:
-                raise TensorforceError.unexpected()
-            if update['unit'] == 'timesteps':
-                memory = update['batch_size'] + max_episode_timesteps
-                # memory = ceil(update['batch_size'] / max_episode_timesteps) * max_episode_timesteps
-                # memory += int(update['batch_size'] / max_episode_timesteps >= 1.0)
-            elif update['unit'] == 'episodes':
-                memory = (update['batch_size'] + 1) * max_episode_timesteps
-            memory = max(memory, min(self.buffer_observe, max_episode_timesteps))
-
         if reward_estimation['horizon'] == 'episode':
             if max_episode_timesteps is None:
                 raise TensorforceError.unexpected()
             reward_estimation['horizon'] = max_episode_timesteps
 
+        if memory is None:
+            # predecessor/successor?
+            if max_episode_timesteps is None:
+                raise TensorforceError.unexpected()
+            if update['unit'] == 'timesteps':
+                memory = update['batch_size'] + max_episode_timesteps + \
+                    reward_estimation['horizon']
+                # memory = ceil(update['batch_size'] / max_episode_timesteps) * max_episode_timesteps
+                # memory += int(update['batch_size'] / max_episode_timesteps >= 1.0)
+            elif update['unit'] == 'episodes':
+                memory = update['batch_size'] * max_episode_timesteps + \
+                    max(reward_estimation['horizon'], max_episode_timesteps)
+            memory = max(memory, min(self.buffer_observe, max_episode_timesteps))
+
         self.model = PolicyModel(
             # Model
             name=name, device=device, parallel_interactions=self.parallel_interactions,
             buffer_observe=self.buffer_observe, execution=execution, saver=saver,
-            summarizer=summarizer, states=self.states_spec, actions=self.actions_spec,
-            preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization,
+            summarizer=summarizer, config=config, states=self.states_spec,
+            actions=self.actions_spec, preprocessing=preprocessing, exploration=exploration,
+            variable_noise=variable_noise, l2_regularization=l2_regularization,
             # PolicyModel
             policy=policy, network=network, memory=memory, update=update, optimizer=optimizer,
             objective=objective, reward_estimation=reward_estimation,
@@ -387,14 +389,14 @@ class PolicyAgent(Agent):
 
             # Model.experience()
             if query is None:
-                self.timestep, self.episode = self.model.experience(
+                self.timesteps, self.episodes, self.updates = self.model.experience(
                     states=states_batch, internals=internals_batch,
                     auxiliaries=auxiliaries_batch, actions=actions_batch, terminal=terminal_batch,
                     reward=reward_batch, **kwargs
                 )
 
             else:
-                self.timestep, self.episode, queried = self.model.experience(
+                self.timesteps, self.episodes, self.updates, queried = self.model.experience(
                     states=states_batch, internals=internals_batch,
                     auxiliaries=auxiliaries_batch, actions=actions_batch, terminal=terminal_batch,
                     reward=reward_batch, query=query, **kwargs
@@ -414,10 +416,12 @@ class PolicyAgent(Agent):
         """
         # Model.update()
         if query is None:
-            self.timestep, self.episode = self.model.update(**kwargs)
+            self.timesteps, self.episodes, self.updates = self.model.update(**kwargs)
 
         else:
-            self.timestep, self.episode, queried = self.model.update(query=query, **kwargs)
+            self.timesteps, self.episodes, self.updates, queried = self.model.update(
+                query=query, **kwargs
+            )
             return queried
 
     def pretrain(self, directory, num_updates, num_traces=None, num_iterations=1):

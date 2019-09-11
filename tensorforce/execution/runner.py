@@ -8,7 +8,7 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY K , either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
@@ -47,8 +47,9 @@ class Runner(object):
         if not self.agent.model.is_initialized:
             self.agent.initialize()
 
-        self.global_episode = self.agent.episode
-        self.global_timestep = self.agent.timestep
+        self.global_episodes = self.agent.episodes
+        self.global_timesteps = self.agent.timesteps
+        self.global_updates = self.agent.updates
         self.episode_rewards = list()
         self.episode_timesteps = list()
         self.episode_seconds = list()
@@ -68,7 +69,8 @@ class Runner(object):
     def run(
         self,
         # General
-        num_episodes=None, num_timesteps=None, max_episode_timesteps=None, num_repeat_actions=1,
+        num_episodes=None, num_timesteps=None, num_updates=None, max_episode_timesteps=None,
+        num_repeat_actions=1,
         # Callback
         callback=None, callback_episode_frequency=None, callback_timestep_frequency=None,
         # Tqdm
@@ -86,6 +88,10 @@ class Runner(object):
             self.num_timesteps = float('inf')
         else:
             self.num_timesteps = num_timesteps
+        if num_updates is None:
+            self.num_updates = float('inf')
+        else:
+            self.num_updates = num_updates
         if max_episode_timesteps is None:
             self.max_episode_timesteps = float('inf')
         else:
@@ -143,9 +149,9 @@ class Runner(object):
                 postfix = [0.0, 0, 0.0, 0.0, 0.0]
                 self.tqdm = tqdm(
                     desc='Episodes', total=self.num_episodes, bar_format=bar_format,
-                    initial=self.global_episode, postfix=postfix
+                    initial=self.global_episodes, postfix=postfix
                 )
-                self.tqdm_last_update = self.global_episode
+                self.tqdm_last_update = self.global_episodes
 
                 def tqdm_callback(runner):
                     mean_reward = float(np.mean(runner.episode_rewards[-mean_horizon:]))
@@ -159,26 +165,26 @@ class Runner(object):
                     runner.tqdm.postfix[2] = mean_sec_per_ep
                     runner.tqdm.postfix[3] = mean_ms_per_ts
                     runner.tqdm.postfix[4] = mean_rel_agent
-                    runner.tqdm.update(n=(runner.global_episode - runner.tqdm_last_update))
-                    runner.tqdm_last_update = runner.global_episode
+                    runner.tqdm.update(n=(runner.global_episodes - runner.tqdm_last_update))
+                    runner.tqdm_last_update = runner.global_episodes
                     return inner_callback(runner)
 
             else:
                 # Timestep-based tqdm
                 assert self.num_timesteps != float('inf')
                 self.tqdm = tqdm(
-                    desc='Timesteps', total=self.num_timesteps, initial=self.global_timestep,
+                    desc='Timesteps', total=self.num_timesteps, initial=self.global_timesteps,
                     postfix=dict(mean_reward='n/a')
                 )
-                self.tqdm_last_update = self.global_timestep
+                self.tqdm_last_update = self.global_timesteps
 
                 def tqdm_callback(runner):
                     # sum_timesteps_reward = sum(runner.timestep_rewards[num_mean_reward:])
                     # num_timesteps = min(num_mean_reward, runner.episode_timestep)
                     # mean_reward = sum_timesteps_reward / num_episodes
                     runner.tqdm.set_postfix(mean_reward='n/a')
-                    runner.tqdm.update(n=(runner.global_timestep - runner.tqdm_last_update))
-                    runner.tqdm_last_update = runner.global_timestep
+                    runner.tqdm.update(n=(runner.global_timesteps - runner.tqdm_last_update))
+                    runner.tqdm_last_update = runner.global_timesteps
                     return inner_callback(runner)
 
             self.callback = tqdm_callback
@@ -214,8 +220,10 @@ class Runner(object):
         # Reset agent
         self.agent.reset()
 
-        # Episode counter
-        self.episode = 0
+        # Timestep/episode/update counter
+        self.timesteps = 0
+        self.episodes = 0
+        self.updates = 0
 
         # Episode loop
         while True:
@@ -227,7 +235,7 @@ class Runner(object):
                 return
 
             # Increment episode counter (after calling callback)
-            self.episode += 1
+            self.episodes += 1
 
             # Update experiment statistics
             self.episode_rewards.append(self.episode_reward)
@@ -239,7 +247,7 @@ class Runner(object):
             if self.evaluation_frequency is None:
                 is_evaluation = self.episode_updated
             else:
-                is_evaluation = (self.episode % self.evaluation_frequency == 0)
+                is_evaluation = (self.episodes % self.evaluation_frequency == 0)
             if is_evaluation:
                 if self.evaluation_environment is None:
                     environment = self.environment
@@ -275,18 +283,27 @@ class Runner(object):
                 else:
                     self.evaluation_callback(self)
 
-            # Update global timestep/episode
-            self.global_timestep = self.agent.timestep
-            self.global_episode = self.agent.episode
+            # Update global timestep/episode/update
+            self.global_timesteps = self.agent.timesteps
+            self.global_episodes = self.agent.episodes
+            self.global_updates = self.agent.updates
 
             # Callback
-            if self.episode % self.callback_episode_frequency == 0 and not self.callback(self):
+            if self.episodes % self.callback_episode_frequency == 0 and not self.callback(self):
                 return
 
             # Terminate experiment if too long
-            if self.global_timestep >= self.num_timesteps:
+            if self.global_timesteps >= self.num_timesteps:
                 return
-            elif self.global_episode >= self.num_episodes:
+            elif self.evaluation and self.timesteps >= self.num_timesteps:
+                return
+            elif self.global_episodes >= self.num_episodes:
+                return
+            elif self.evaluation and self.episodes >= self.num_episodes:
+                return
+            elif self.global_updates >= self.num_updates:
+                return
+            elif self.evaluation and self.updates >= self.num_updates:
                 return
             elif self.agent.should_stop():
                 return
@@ -307,6 +324,7 @@ class Runner(object):
             # Retrieve actions from agent
             agent_start = time.time()
             actions = self.agent.act(states=states, evaluation=evaluation)
+            self.timesteps += 1
             self.episode_agent_second += time.time() - agent_start
             self.episode_timestep += 1
             # Execute actions in environment (optional repeated execution)
@@ -328,6 +346,7 @@ class Runner(object):
             if not evaluation:
                 agent_start = time.time()
                 updated = self.agent.observe(terminal=terminal, reward=reward)
+                self.updates += int(updated)
                 self.episode_agent_second += time.time() - agent_start
                 self.episode_updated = self.episode_updated or updated
 
@@ -344,14 +363,17 @@ class Runner(object):
             if evaluation:
                 continue
 
-            # Update global timestep/episode
-            self.global_timestep = self.agent.timestep
-            self.global_episode = self.agent.episode
+            # Update global timestep/episode/update
+            self.global_timesteps = self.agent.timesteps
+            self.global_episodes = self.agent.episodes
+            self.global_updates = self.agent.updates
 
             # Terminate experiment if too long
-            if self.global_timestep >= self.num_timesteps:
+            if self.global_timesteps >= self.num_timesteps:
                 return
-            elif self.global_episode >= self.num_episodes:
+            elif self.global_episodes >= self.num_episodes:
+                return
+            elif self.global_updates >= self.num_updates:
                 return
             elif self.agent.should_stop():
                 return False

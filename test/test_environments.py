@@ -20,6 +20,8 @@ from test.unittest_base import UnittestBase
 
 class TestEnvironments(UnittestBase, unittest.TestCase):
 
+    num_episodes = 2
+
     def test_ale(self):
         self.start_tests(name='ale')
 

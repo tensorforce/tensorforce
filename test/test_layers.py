@@ -20,6 +20,8 @@ from test.unittest_base import UnittestBase
 
 class TestLayers(UnittestBase, unittest.TestCase):
 
+    num_timesteps = 2
+
     def test_convolution(self):
         self.start_tests(name='convolution')
 

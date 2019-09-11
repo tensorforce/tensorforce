@@ -409,6 +409,10 @@ class Module(object):
         for attribute in sorted(dir(self)):
             if attribute.startswith('api_'):
                 function_name = attribute[4:]
+                assert hasattr(self, 'config')
+                if self.config is not None and 'api_functions' in self.config and \
+                        function_name not in self.config['api_functions']:
+                    continue
 
                 # Todo: own every_n_step implementation, plus maybe per function steps argument
                 fct_record_summaries = None

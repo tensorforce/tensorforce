@@ -428,7 +428,7 @@ def valid_value_spec(
             if 'num_values' not in value_spec:
                 raise TensorforceError.required(name=(value_type + ' spec'), value='num_values')
             num_values = value_spec.pop('num_values')
-            if isinstance(num_values, np_dtype(dtype='int')):
+            if isinstance(num_values, (np.int32, np.int64)):
                 num_values = num_values.item()
             if not isinstance(num_values, int):
                 raise TensorforceError.type(

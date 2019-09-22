@@ -104,7 +104,7 @@ class OpenAIGym(Environment):
 
         # Modified specification
         if requires_register:
-            entry_point = gym.envs.registry.env_specs[level]._entry_point
+            entry_point = gym.envs.registry.env_specs[level].entry_point
             _kwargs = dict(gym.envs.registry.env_specs[level]._kwargs)
             nondeterministic = gym.envs.registry.env_specs[level].nondeterministic
             if self._max_episode_timesteps is False:

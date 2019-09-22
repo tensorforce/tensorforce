@@ -18,7 +18,7 @@ from math import e, log, pi
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import layer_modules
+from tensorforce.core import layer_modules, Module
 from tensorforce.core.distributions import Distribution
 
 
@@ -54,6 +54,15 @@ class Gaussian(Distribution):
             input_spec=input_spec
         )
 
+        Module.register_tensor(
+            name=(self.name + '-mean'), spec=dict(type='float', shape=self.action_spec['shape']),
+            batched=True
+        )
+        Module.register_tensor(
+            name=(self.name + '-stddev'), spec=dict(type='float', shape=self.action_spec['shape']),
+            batched=True
+        )
+
     def tf_parametrize(self, x):
         log_epsilon = tf.constant(value=log(util.epsilon), dtype=util.tf_dtype(dtype='float'))
         shape = (-1,) + self.action_spec['shape']
@@ -75,6 +84,8 @@ class Gaussian(Distribution):
         # Standard deviation
         stddev = tf.exp(x=log_stddev)
 
+        Module.update_tensor(name=(self.name + '-mean'), tensor=mean)
+        Module.update_tensor(name=(self.name + '-stddev'), tensor=stddev)
         mean, log_stddev = self.add_summary(
             label=('distributions', 'gaussian'), name='mean', tensor=mean,
             pass_tensors=(mean, log_stddev)

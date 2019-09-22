@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from collections import OrderedDict
+import os
 
 import numpy as np
 
@@ -28,10 +29,10 @@ class PyGameLearningEnvironment(Environment):
 
     May require:
     ```bash
-    sudo apt-get install git python3-dev python3-setuptools python3-numpy python3-opengl \\
-    libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev  libsdl1.2-dev \\
-    libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev libtiff5-dev libx11-6 \\
-    libx11-dev fluid-soundfont-gm timgm6mb-soundfont xfonts-base xfonts-100dpi xfonts-75dpi \\
+    sudo apt-get install git python3-dev python3-setuptools python3-numpy python3-opengl \
+    libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev  libsdl1.2-dev \
+    libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev libtiff5-dev libx11-6 \
+    libx11-dev fluid-soundfont-gm timgm6mb-soundfont xfonts-base xfonts-100dpi xfonts-75dpi \
     xfonts-cyrillic fontconfig fonts-freefont-ttf libfreetype6-dev
 
     pip install git+https://github.com/pygame/pygame.git
@@ -70,6 +71,10 @@ class PyGameLearningEnvironment(Environment):
             assert level in PyGameLearningEnvironment.levels()
             level = getattr(ple.games, level)()
 
+        if not visualize:
+            os.putenv('SDL_VIDEODRIVER', 'fbcon')
+            os.environ['SDL_VIDEODRIVER'] = 'dummy'
+
         self.environment = ple.PLE(
             game=level, fps=fps, frame_skip=frame_skip, display_screen=visualize
             # num_steps=1, reward_values={}, force_fps=True, add_noop_action=True, NOOP=K_F15,
@@ -77,7 +82,7 @@ class PyGameLearningEnvironment(Environment):
         )
         self.environment.init()
 
-        self.has_game_state = self.getGameStateDims() is not None
+        self.has_game_state = self.environment.getGameStateDims() is not None
         self.available_actions = tuple(self.environment.getActionSet())
 
     def __str__(self):
@@ -93,7 +98,7 @@ class PyGameLearningEnvironment(Environment):
             return dict(type='float', shape=(tuple(self.environment.getScreenDims()) + (3,)))
 
     def actions(self):
-        return dict(type='int', shape=(), num_actions=len(self.available_actions))
+        return dict(type='int', shape=(), num_values=len(self.available_actions))
 
     def close(self):
         self.environment = None

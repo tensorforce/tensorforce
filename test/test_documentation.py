@@ -34,10 +34,10 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         # Setup environment
         # (Tensorforce or custom implementation, ideally using the Environment interface)
-        environment = Environment.create(environment='test/environment.json')
+        environment = Environment.create(environment='test/data/environment.json')
 
         # Create and initialize agent
-        agent = Agent.create(agent='test/agent.json', environment=environment)
+        agent = Agent.create(agent='test/data/agent.json', environment=environment)
         agent.initialize()
 
         # Reset agent and environment at the beginning of a new episode
@@ -69,7 +69,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         from tensorforce.execution import Runner
 
         # Tensorforce runner utility
-        runner = Runner(agent='test/agent.json', environment='test/environment.json')
+        runner = Runner(agent='test/data/agent.json', environment='test/data/environment.json')
 
         # Run training
         runner.run(num_episodes=50, use_tqdm=False)

@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import layer_modules
+from tensorforce.core import layer_modules, Module
 from tensorforce.core.distributions import Distribution
 
 
@@ -48,6 +48,11 @@ class Bernoulli(Distribution):
             input_spec=input_spec
         )
 
+        Module.register_tensor(
+            name=(self.name + '-probability'),
+            spec=dict(type='float', shape=self.action_spec['shape']), batched=True
+        )
+
     def tf_parametrize(self, x):
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
@@ -72,6 +77,7 @@ class Bernoulli(Distribution):
         true_logit = tf.log(x=probability)
         false_logit = tf.log(x=(one - probability))
 
+        Module.update_tensor(name=(self.name + '-probability'), tensor=probability)
         true_logit, false_logit, probability, states_value = self.add_summary(
             label=('distributions', 'bernoulli'), name='probability', tensor=probability,
             pass_tensors=(true_logit, false_logit, probability, states_value)

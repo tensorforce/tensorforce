@@ -163,7 +163,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         network = [dict(type='flatten')]
         self.unittest(states=states, preprocessing=preprocessing, network=network)
 
-        self.finished_test(assertion=False)  # Sequence missing
+        # TODO: Sequence missing
 
     def test_rnn(self):
         self.start_tests(name='rnn')

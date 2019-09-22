@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import layer_modules
+from tensorforce.core import layer_modules, Module
 from tensorforce.core.distributions import Distribution
 
 
@@ -40,12 +40,18 @@ class Categorical(Distribution):
             name=name, action_spec=action_spec, embedding_size=embedding_size,
             summary_labels=summary_labels
         )
-
-        action_size = util.product(xs=self.action_spec['shape']) * self.action_spec['num_values']
+        shape = self.action_spec['shape']
+        num_values = self.action_spec['num_values']
+        action_size = util.product(xs=shape) * num_values
         input_spec = dict(type='float', shape=(self.embedding_size,))
         self.logits = self.add_module(
             name='logits', module='linear', modules=layer_modules, size=action_size,
             input_spec=input_spec
+        )
+
+        Module.register_tensor(
+            name=(self.name + '-probabilities'),
+            spec=dict(type='float', shape=(shape + (num_values,))), batched=True
         )
 
     def tf_parametrize(self, x, mask):
@@ -68,8 +74,9 @@ class Categorical(Distribution):
         logits = tf.log(x=tf.maximum(x=probabilities, y=epsilon))
 
         # Logits as pass_tensor since used for sampling
+        Module.update_tensor(name=(self.name + '-probabilities'), tensor=probabilities)
         logits, probabilities, states_value = self.add_summary(
-            label=('distributions', 'categorical'), name='probability', tensor=probabilities,
+            label=('distributions', 'categorical'), name='probabilities', tensor=probabilities,
             pass_tensors=(logits, probabilities, states_value), enumerate_last_rank=True
         )
 

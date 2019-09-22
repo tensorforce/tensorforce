@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import pytest
 import unittest
 
 from test.unittest_base import UnittestBase
@@ -22,9 +23,11 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
 
     num_episodes = 2
 
+    @pytest.mark.skip(reason='not installed as part of travis')
     def test_ale(self):
         self.start_tests(name='ale')
 
+    @pytest.mark.skip(reason='not installed as part of travis')
     def test_maze_explorer(self):
         self.start_tests(name='maze-explorer')
         self.unittest(
@@ -32,6 +35,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
             max_episode_timesteps=100
         )
 
+    @pytest.mark.skip(reason='not installed as part of travis')
     def test_open_sim(self):
         self.start_tests(name='open-sim')
         self.unittest(environment=dict(environment='osim', level='Arm2D'), num_episodes=2)
@@ -47,12 +51,17 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
             max_episode_timesteps=100
         )
 
+    @pytest.mark.skip(reason='not installed as part of travis')
     def test_ple(self):
         self.start_tests(name='pygame-learning-environment')
-        # self.unittest(
-        #     environment=dict(environment='ple', level='Pong'), num_episodes=2,
-        #     max_episode_timesteps=100
-        # )
+        self.unittest(
+            environment=dict(environment='ple', level='Pong'), num_episodes=2,
+            max_episode_timesteps=100
+        )
 
+    @pytest.mark.skip(reason='not installed as part of travis')
     def test_vizdoom(self):
         self.start_tests(name='vizdoom')
+        self.unittest(
+            environment=dict(environment='vizdoom', level='test/data/basic.cfg'), memory=1000
+        )

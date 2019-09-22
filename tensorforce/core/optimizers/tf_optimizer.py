@@ -106,7 +106,7 @@ class TFOptimizer(Optimizer):
                 initial_gradients = None
             else:
                 initial_gradients = fn_initial_gradients(**arguments)
-                initial_gradients = util.fmap(function=tf.stop_gradient, xs=initial_gradients)
+                initial_gradients = tf.stop_gradient(input=initial_gradients)
 
             gradients = tf.gradients(ys=loss, xs=variables, grad_ys=initial_gradients)
             assertions = [

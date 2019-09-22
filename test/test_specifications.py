@@ -66,7 +66,8 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
 
         # json
         self.specification_unittest(
-            network='test/network.json', memory=dict(type='test/memory.json', capacity=100)
+            network='test/data/network.json',
+            memory=dict(type='test/data/memory.json', capacity=100)
         )
 
         # module

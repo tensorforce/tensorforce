@@ -7,11 +7,9 @@ python:
 branches:
   only:
     - master
-    - major-revision
 
 install:
-  - pip install .[tf]
-  - pip install gym
+  - pip install .[tf,gym,retro]
 
 script:
   - pytest

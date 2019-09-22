@@ -26,6 +26,16 @@ class ViZDoom(Environment):
     [ViZDoom](https://github.com/mwydmuch/ViZDoom) environment adapter (specification key:
     `vizdoom`).
 
+    May require:
+    ```bash
+    sudo apt-get install g++ build-essential libsdl2-dev zlib1g-dev libmpg123-dev libjpeg-dev \
+    libsndfile1-dev nasm tar libbz2-dev libgtk2.0-dev make cmake git chrpath timidity \
+    libfluidsynth-dev libgme-dev libopenal-dev timidity libwildmidi-dev unzip libboost-all-dev \
+    liblua5.1-dev
+
+    pip install vizdoom
+    ```
+
     Args:
         level (string): ViZDoom configuration file
             (<span style="color:#C00000"><b>required</b></span>).
@@ -72,10 +82,12 @@ class ViZDoom(Environment):
             self.environment.setSeed(seed)
         self.environment.init()
 
-        self.state_shape = (640, 480, 3)
+        self.state_shape = (480, 640, 3)
         self.num_variables = self.environment.get_available_game_variables_size()
         self.num_buttons = self.environment.get_available_buttons_size()
-        self.actions = [tuple(a) for a in itertools.product([0, 1], repeat=self.num_buttons)]
+        self.available_actions = [
+            tuple(a) for a in itertools.product([0, 1], repeat=self.num_buttons)
+        ]
 
     def __str__(self):
         return super().__str__() + '({})'.format(self.config_file)
@@ -93,7 +105,7 @@ class ViZDoom(Environment):
         if self.factored_action:
             return dict(type='bool', shape=self.num_buttons)
         else:
-            return dict(type='int', shape=(), num_values=len(self.actions))
+            return dict(type='int', shape=(), num_values=len(self.available_actions))
 
     def close(self):
         self.environment.close()
@@ -109,13 +121,14 @@ class ViZDoom(Environment):
 
     def reset(self):
         self.environment.new_episode()
-        return self.get_states()
+        self.current_states = self.get_states()
+        return self.current_states
 
     def execute(self, actions):
         if self.factored_action:
             action = np.where(actions, 1.0, 0.0)
         else:
-            action = self.actions[actions]
+            action = self.available_actions[actions]
         if self.visualize:
             self.environment.set_action(action)
             reward = 0.0
@@ -123,7 +136,8 @@ class ViZDoom(Environment):
                 self.environment.advance_action()
                 reward += self.environment.get_last_reward()
         else:
-            reward = self.environment.make_action(action, self.frame_skip)
+            reward = self.environment.make_action(list(action), self.frame_skip)
         terminal = self.environment.is_episode_finished()
-        states = self.get_states()
-        return states, terminal, reward
+        if not terminal:
+            self.current_states = self.get_states()
+        return self.current_states, terminal, reward

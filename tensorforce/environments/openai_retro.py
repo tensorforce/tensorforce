@@ -45,25 +45,21 @@ class OpenAIRetro(OpenAIGym):
     def __init__(self, level, visualize=False, monitor_directory=None, **kwargs):
         import retro
 
-        super().__init__(
-            level=level, visualize=visualize, monitor_directory=monitor_directory, **kwargs
-        )
+        self._max_episode_timesteps = False
 
-    #     assert level in OpenAIRetro.levels()
-
-    #     self.env_id = level
-    #     self.visualize = visualize
-
-    #     self.environment = retro.make(game=self.env_id, **kwargs)
-
-    #     self.states_spec = OpenAIGym.specs_from_gym_space(
-    #         space=self.environment.observation_space, ignore_value_bounds=True
-    #     )
-    #     self.actions_spec = OpenAIGym.specs_from_gym_space(
-    #         space=self.environment.action_space, ignore_value_bounds=False
-    #     )
-
-    def create_gym(self, **kwargs):
-        import retro
+        self.level = level
+        self.visualize = visualize
 
         self.environment = retro.make(game=self.level, **kwargs)
+
+        if monitor_directory is not None:
+            self.environment = gym.wrappers.Monitor(
+                env=self.environment, directory=monitor_directory
+            )
+
+        self.states_spec = OpenAIGym.specs_from_gym_space(
+            space=self.environment.observation_space, ignore_value_bounds=True  # TODO: not ignore?
+        )
+        self.actions_spec = OpenAIGym.specs_from_gym_space(
+            space=self.environment.action_space, ignore_value_bounds=False
+        )

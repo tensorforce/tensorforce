@@ -133,7 +133,8 @@ class OpenAIGym(Environment):
         self.level = level
         self.visualize = visualize
 
-        self.create_gym(**kwargs)
+        self.environment = gym.make(id=self.level, **kwargs)
+
         if monitor_directory is not None:
             self.environment = gym.wrappers.Monitor(
                 env=self.environment, directory=monitor_directory
@@ -145,11 +146,6 @@ class OpenAIGym(Environment):
         self.actions_spec = OpenAIGym.specs_from_gym_space(
             space=self.environment.action_space, ignore_value_bounds=False
         )
-
-    def create_gym(self, **kwargs):
-        import gym
-
-        self.environment = gym.make(id=self.level, **kwargs)
 
     def __str__(self):
         return super().__str__() + '({})'.format(self.level)

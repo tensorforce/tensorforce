@@ -18,7 +18,7 @@ from math import log
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import layer_modules
+from tensorforce.core import layer_modules, Module
 from tensorforce.core.distributions import Distribution
 
 
@@ -54,6 +54,15 @@ class Beta(Distribution):
             input_spec=input_spec
         )
 
+        Module.register_tensor(
+            name=(self.name + '-alpha'), spec=dict(type='float', shape=self.action_spec['shape']),
+            batched=True
+        )
+        Module.register_tensor(
+            name=(self.name + '-beta'), spec=dict(type='float', shape=self.action_spec['shape']),
+            batched=True
+        )
+
     def tf_parametrize(self, x):
         # Softplus to ensure alpha and beta >= 1
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
@@ -81,6 +90,8 @@ class Beta(Distribution):
         # Log norm
         log_norm = tf.lgamma(x=alpha) + tf.lgamma(x=beta) - tf.lgamma(x=alpha_beta)
 
+        Module.update_tensor(name=(self.name + '-alpha'), tensor=alpha)
+        Module.update_tensor(name=(self.name + '-beta'), tensor=beta)
         alpha, alpha_beta, log_norm = self.add_summary(
             label=('distributions', 'beta'), name='alpha', tensor=alpha,
             pass_tensors=(alpha, alpha_beta, log_norm)

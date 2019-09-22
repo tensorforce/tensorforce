@@ -66,7 +66,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.finished_test()
 
     def long_unittest(self, horizon):
-        agent, environment = self.prepare(reward_estimation=dict(horizon=horizon))
+        agent, environment = self.prepare(reward_estimation=dict(horizon=horizon), memory=20)
 
         agent.initialize()
         states = environment.reset()

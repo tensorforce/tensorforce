@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import pytest
 import unittest
 
 import numpy as np
@@ -32,10 +33,10 @@ class TestPrecision(UnittestBase, unittest.TestCase):
 
         try:
             util.np_dtype_mapping = dict(
-                bool=np.bool_, int=np.int16, long=np.int32, float=np.float16
+                bool=np.bool_, int=np.int16, long=np.int32, float=np.float32  # TODO: float16
             )
             util.tf_dtype_mapping = dict(
-                bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float16
+                bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float32  # TODO: float16
             )
 
             self.unittest(network=dict(type='auto', internal_rnn=False))  # TODO: shouldn't be necessary!

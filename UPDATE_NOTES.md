@@ -4,6 +4,13 @@ This file records all major updates and new features, starting from version 0.5.
 
 
 
+### Latest
+
+- Improved unittest performance
+- Added `updates` and renamed `timesteps`/`episodes` counter for agents and runners
+
+
+
 ### Version 0.5.1
 
 - Fixed setup.py packages value
@@ -11,12 +18,6 @@ This file records all major updates and new features, starting from version 0.5.
 
 
 ### Version 0.5.0
-
-##### Environment:
-
-- Environment properties `states` and `actions` are now functions `states()` and `actions()`
-- States/actions of type `int` require an entry `num_values` (instead of `num_actions`)
-- New function `Environment.max_episode_timesteps()`
 
 ##### Agent:
 
@@ -57,13 +58,34 @@ This file records all major updates and new features, starting from version 0.5.
 - `gae_lambda` removed (temporarily)
 
 ##### PPOAgent arguments:
+
 - `step_optimizer` removed, implicitly defined as `'adam'`, `learning_rate` added
 
 ##### TRPOAgent arguments:
+
 - `cg_*` and `ls_*` arguments removed
 
 ##### VPGAgent arguments:
+
 - `optimizer` removed, implicitly defined as `'adam'`, `learning_rate` added
 
+##### Environment:
+
+- Environment properties `states` and `actions` are now functions `states()` and `actions()`
+- States/actions of type `int` require an entry `num_values` (instead of `num_actions`)
+- New function `Environment.max_episode_timesteps()`
+
+##### Contrib environments:
+
+- ALE, MazeExp, OpenSim, Gym, Retro, PyGame and ViZDoom moved to `tensorforce.environments`
+- Other environment implementations removed (may be upgraded in the future)
+
 ##### Runners:
+
 - Improved `run()` API for `Runner` and `ParallelRunner`
+- `ThreadedRunner` removed
+
+##### Other:
+
+- `examples` folder (including `configs`) removed, apart from `quickstart.py`
+- New `benchmarks` folder to replace parts of old `examples` folder

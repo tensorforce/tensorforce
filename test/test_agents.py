@@ -43,6 +43,10 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='DQN')
         self.unittest(agent='dqn', batch_size=4)
 
+    def test_dueling_dqn(self):
+        self.start_tests(name='DuelingDQN')
+        self.unittest(agent='dueling_dqn', batch_size=4)
+
     def test_ppo(self):
         self.start_tests(name='PPO')
         self.unittest(agent='ppo', network=dict(type='auto', internal_rnn=False), batch_size=2)  # TODO: shouldn't be necessary!

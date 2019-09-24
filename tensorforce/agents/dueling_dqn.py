@@ -16,23 +16,23 @@
 from tensorforce.agents import PolicyAgent
 
 
-class VanillaPolicyGradient(PolicyAgent):
+class DuelingDQN(PolicyAgent):
     """
-    [Vanilla Policy Gradient](https://link.springer.com/article/10.1007/BF00992696) aka REINFORCE
-    agent (specification key: `vpg`).
+    [Dueling DQN](https://arxiv.org/abs/1511.06581) agent (specification key: `dueling_dqn`).
     """
 
     def __init__(
         # Environment
-        self, states, actions, max_episode_timesteps,
+        self, states, actions, max_episode_timesteps=None,
         # Network
         network='auto',
         # Optimization
-        batch_size=10, update_frequency=None, learning_rate=3e-4,
+        memory=10000, batch_size=32, update_frequency=4, start_updating=None, learning_rate=3e-4,
+        huber_loss=0.0,
         # Reward estimation
-        discount=0.99, estimate_terminal=False,
-        # Baseline
-        baseline_network=None, baseline_optimizer=1.0,
+        horizon=0, discount=0.99, estimate_terminal=False,  # double_q_model=False !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # Target network
+        target_sync_frequency=10000, target_update_weight=1.0,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -43,28 +43,29 @@ class VanillaPolicyGradient(PolicyAgent):
         name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
         summarizer=None, recorder=None, config=None
     ):
-        memory = dict(type='recent', capacity=((batch_size + 1) * max_episode_timesteps))
-        if update_frequency is None:
-            update = dict(unit='episodes', batch_size=batch_size)
-        else:
-            update = dict(unit='episodes', batch_size=batch_size, frequency=update_frequency)
+        # Action value doesn't exist for Beta
+        distributions = dict(
+            float='gaussian', int=dict(type='categorical', infer_states_value=False)
+        )
+        policy = dict(network=network, distributions=distributions)
+        assert max_episode_timesteps is None or \
+            memory >= batch_size + max_episode_timesteps + horizon
+        memory = dict(type='replay', capacity=memory)
+        update = dict(unit='timesteps', batch_size=batch_size, frequency=update_frequency)
+        if start_updating is not None:
+            update['start'] = start_updating
         optimizer = dict(type='adam', learning_rate=learning_rate)
-        objective = 'policy_gradient'
-        if baseline_network is None:
-            reward_estimation = dict(horizon='episode', discount=discount)
-            baseline_policy = None
-            assert baseline_optimizer == 1.0
-            baseline_optimizer = None
-            baseline_objective = None
-        else:
-            reward_estimation = dict(
-                horizon='episode', discount=discount,
-                estimate_horizon=('late' if estimate_terminal else False),
-                estimate_terminal=estimate_terminal, estimate_advantage=True
-            )
-            # State value doesn't exist for Beta
-            baseline_policy = dict(network=baseline_network, distributions=dict(float='gaussian'))
-            baseline_objective = 'state_value'
+        objective = dict(type='action_value', huber_loss=huber_loss)
+        reward_estimation = dict(
+            horizon=horizon, discount=discount, estimate_horizon='late',
+            estimate_terminal=estimate_terminal, estimate_actions=True
+        )
+        baseline_policy = 'equal'
+        baseline_optimizer = dict(
+            type='synchronization', sync_frequency=target_sync_frequency,
+            update_weight=target_update_weight
+        )
+        baseline_objective = None
 
         super().__init__(
             # Agent
@@ -76,7 +77,7 @@ class VanillaPolicyGradient(PolicyAgent):
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization,
             # PolicyModel
-            policy=None, network=network, memory=memory, update=update, optimizer=optimizer,
+            policy=policy, network=None, memory=memory, update=update, optimizer=optimizer,
             objective=objective, reward_estimation=reward_estimation,
             baseline_policy=baseline_policy, baseline_network=None,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,

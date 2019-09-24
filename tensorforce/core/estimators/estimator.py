@@ -427,6 +427,7 @@ class Estimator(CircularBuffer):
                     indices=indices, horizon=(horizon + one),
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
+                # TODO: Double DQN would require main policy here
                 actions = baseline.sample_actions(
                     states=states, internals=internals, auxiliaries=auxiliaries,
                     deterministic=true, return_internals=False

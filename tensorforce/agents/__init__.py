@@ -23,6 +23,7 @@ from tensorforce.agents.a2c import AdvantageActorCritic
 from tensorforce.agents.ac import ActorCritic
 from tensorforce.agents.dpg import DeterministicPolicyGradient
 from tensorforce.agents.dqn import DeepQNetwork
+from tensorforce.agents.dueling_dqn import DuelingDQN
 from tensorforce.agents.ppo import ProximalPolicyOptimization
 from tensorforce.agents.trpo import TrustRegionPolicyOptimization
 from tensorforce.agents.vpg import VanillaPolicyGradient
@@ -32,6 +33,7 @@ A2C = A2CAgent = AdvantageActorCritic
 AC = ACAgent = ActorCritic
 DPG = DPGAgent = DeterministicPolicyGradient
 DQN = DQNAgent = DeepQNetwork
+DuelingDQNAgent = DuelingDQN
 PPO = PPOAgent = ProximalPolicyOptimization
 TRPO = TRPOAgent = TrustRegionPolicyOptimization
 VPG = VPGAgent = REINFORCE = VanillaPolicyGradient
@@ -39,7 +41,7 @@ VPG = VPGAgent = REINFORCE = VanillaPolicyGradient
 
 agents = dict(
     a2c=AdvantageActorCritic, ac=ActorCritic, constant=ConstantAgent, default=PolicyAgent,
-    dpg=DeterministicPolicyGradient, dqn=DeepQNetwork, policy=PolicyAgent,
+    dpg=DeterministicPolicyGradient, dqn=DeepQNetwork, dueling_dqn=DuelingDQN, policy=PolicyAgent,
     ppo=ProximalPolicyOptimization, random=RandomAgent, reinforce=VanillaPolicyGradient,
     trpo=TrustRegionPolicyOptimization, vpg=VanillaPolicyGradient
 )
@@ -48,7 +50,7 @@ agents = dict(
 __all__ = [
     'A2C', 'A2CAgent', 'AC', 'ACAgent', 'ActorCritic', 'AdvantageActorCritic', 'Agent', 'agents',
     'ConstantAgent', 'DeepQNetwork', 'DeterministicPolicyGradient', 'DPG', 'DPGAgent', 'DQN',
-    'DQNAgent', 'PolicyAgent', 'PPO', 'PPOAgent', 'ProximalPolicyOptimization', 'RandomAgent',
-    'REINFORCE', 'TRPO', 'TRPOAgent', 'TrustRegionPolicyOptimization', 'VanillaPolicyGradient',
-    'VPG', 'VPGAgent'
+    'DQNAgent', 'DuelingDQN', 'DuelingDQNAgent', 'PolicyAgent', 'PPO', 'PPOAgent',
+    'ProximalPolicyOptimization', 'RandomAgent', 'REINFORCE', 'TRPO', 'TRPOAgent',
+    'TrustRegionPolicyOptimization', 'VanillaPolicyGradient', 'VPG', 'VPGAgent'
 ]

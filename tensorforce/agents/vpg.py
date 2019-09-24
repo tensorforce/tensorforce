@@ -31,8 +31,8 @@ class VanillaPolicyGradient(PolicyAgent):
         batch_size=10, update_frequency=None, learning_rate=3e-4,
         # Reward estimation
         discount=0.99, estimate_terminal=False,
-        # Critic
-        critic_network=None, critic_optimizer=None,
+        # Baseline
+        baseline_network=None, baseline_optimizer=1.0,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -50,20 +50,20 @@ class VanillaPolicyGradient(PolicyAgent):
             update = dict(unit='episodes', batch_size=batch_size, frequency=update_frequency)
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = 'policy_gradient'
-        if critic_network is None:
+        if baseline_network is None:
             reward_estimation = dict(horizon='episode', discount=discount)
-        else:
-            reward_estimation = dict(
-                horizon='episode', discount=discount, estimate_horizon='late',
-                estimate_terminal=estimate_terminal, estimate_advantage=True
-            )
-        if critic_network is None:
             baseline_policy = None
+            assert baseline_optimizer == 1.0
+            baseline_optimizer = None
             baseline_objective = None
         else:
+            reward_estimation = dict(
+                horizon='episode', discount=discount,
+                estimate_horizon=('late' if estimate_terminal else False),
+                estimate_terminal=estimate_terminal, estimate_advantage=True
+            )
             # State value doesn't exist for Beta
-            baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
-            assert critic_optimizer is not None
+            baseline_policy = dict(network=baseline_network, distributions=dict(float='gaussian'))
             baseline_objective = 'state_value'
 
         super().__init__(
@@ -79,6 +79,6 @@ class VanillaPolicyGradient(PolicyAgent):
             policy=None, network=network, memory=memory, update=update, optimizer=optimizer,
             objective=objective, reward_estimation=reward_estimation,
             baseline_policy=baseline_policy, baseline_network=None,
-            baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )

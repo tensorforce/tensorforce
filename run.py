@@ -57,6 +57,10 @@ def main():
         help='Visualize agent--environment interaction, if supported'
     )
     parser.add_argument(
+        '--visualize-directory', type=str, default=None,
+        help='Directory to store videos of agent--environment interaction, if supported'
+    )
+    parser.add_argument(
         '-i', '--import-modules', type=str, default=None,
         help='Import comma-separated modules required for environment'
     )
@@ -112,6 +116,17 @@ def main():
         else:
             environment = Environment.create(
                 environment=args.environment, level=args.level, visualize=True
+            )
+
+    elif args.visualize_directory:
+        if args.level is None:
+            environment = Environment.create(
+                environment=args.environment, visualize_directory=args.visualize_directory
+            )
+        else:
+            environment = Environment.create(
+                environment=args.environment, level=args.level,
+                visualize_directory=args.visualize_directory
             )
 
     else:

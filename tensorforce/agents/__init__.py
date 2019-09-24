@@ -19,6 +19,8 @@ from tensorforce.agents.constant import ConstantAgent
 from tensorforce.agents.policy_agent import PolicyAgent
 from tensorforce.agents.random import RandomAgent
 
+from tensorforce.agents.a2c import AdvantageActorCritic
+from tensorforce.agents.ac import ActorCritic
 from tensorforce.agents.dpg import DeterministicPolicyGradient
 from tensorforce.agents.dqn import DeepQNetwork
 from tensorforce.agents.ppo import ProximalPolicyOptimization
@@ -26,23 +28,27 @@ from tensorforce.agents.trpo import TrustRegionPolicyOptimization
 from tensorforce.agents.vpg import VanillaPolicyGradient
 
 
+A2C = A2CAgent = AdvantageActorCritic
+AC = ACAgent = ActorCritic
 DPG = DPGAgent = DeterministicPolicyGradient
 DQN = DQNAgent = DeepQNetwork
 PPO = PPOAgent = ProximalPolicyOptimization
 TRPO = TRPOAgent = TrustRegionPolicyOptimization
-VPG = VPGAgent = VanillaPolicyGradient
+VPG = VPGAgent = REINFORCE = VanillaPolicyGradient
 
 
 agents = dict(
-    constant=ConstantAgent, default=PolicyAgent, dpg=DeterministicPolicyGradient,
-    dqn=DeepQNetwork, policy=PolicyAgent, ppo=ProximalPolicyOptimization, random=RandomAgent,
+    a2c=AdvantageActorCritic, ac=ActorCritic, constant=ConstantAgent, default=PolicyAgent,
+    dpg=DeterministicPolicyGradient, dqn=DeepQNetwork, policy=PolicyAgent,
+    ppo=ProximalPolicyOptimization, random=RandomAgent, reinforce=VanillaPolicyGradient,
     trpo=TrustRegionPolicyOptimization, vpg=VanillaPolicyGradient
 )
 
 
 __all__ = [
-    'Agent', 'agents', 'ConstantAgent', 'DeepQNetwork', 'DeterministicPolicyGradient', 'DPG',
-    'DPGAgent', 'DQN', 'DQNAgent', 'PolicyAgent', 'PPO', 'PPOAgent', 'ProximalPolicyOptimization',
-    'RandomAgent', 'TRPO', 'TRPOAgent', 'TrustRegionPolicyOptimization', 'VanillaPolicyGradient',
+    'A2C', 'A2CAgent', 'AC', 'ACAgent', 'ActorCritic', 'AdvantageActorCritic', 'Agent', 'agents',
+    'ConstantAgent', 'DeepQNetwork', 'DeterministicPolicyGradient', 'DPG', 'DPGAgent', 'DQN',
+    'DQNAgent', 'PolicyAgent', 'PPO', 'PPOAgent', 'ProximalPolicyOptimization', 'RandomAgent',
+    'REINFORCE', 'TRPO', 'TRPOAgent', 'TrustRegionPolicyOptimization', 'VanillaPolicyGradient',
     'VPG', 'VPGAgent'
 ]

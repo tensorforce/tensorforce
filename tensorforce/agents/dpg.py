@@ -19,8 +19,8 @@ from tensorforce.agents import PolicyAgent
 
 class DeterministicPolicyGradient(PolicyAgent):
     """
-    [???](???) agent
-    (specification key: `dpg`).
+    [Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971) agent (specification key:
+    `dpg`).
     """
 
     def __init__(
@@ -31,9 +31,9 @@ class DeterministicPolicyGradient(PolicyAgent):
         # Optimization
         memory=10000, batch_size=32, update_frequency=4, start_updating=1000, learning_rate=3e-4,
         # Reward estimation
-        n_step=0, discount=0.99, estimate_terminal=False,
+        horizon=0, discount=0.99, estimate_terminal=False,
         # Critic
-        critic_network='auto', critic_optimizer='adam',
+        critic_network='auto', critic_optimizer=1.0,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -44,7 +44,8 @@ class DeterministicPolicyGradient(PolicyAgent):
         name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
         summarizer=None, recorder=None, config=None
     ):
-        assert max_episode_timesteps is None or memory >= (batch_size + 1) * max_episode_timesteps
+        assert max_episode_timesteps is None or \
+            memory >= batch_size + max_episode_timesteps + horizon
         memory = dict(type='replay', capacity=memory)
         update = dict(
             unit='timesteps', batch_size=batch_size, frequency=update_frequency,
@@ -53,7 +54,7 @@ class DeterministicPolicyGradient(PolicyAgent):
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = 'dpg'
         reward_estimation = dict(
-            horizon=n_step, discount=discount, estimate_horizon='late',
+            horizon=horizon, discount=discount, estimate_horizon='late',
             estimate_terminal=estimate_terminal, estimate_actions=True
         )
         # Action value doesn't exist for Beta

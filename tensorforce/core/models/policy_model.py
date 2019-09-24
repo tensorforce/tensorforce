@@ -189,9 +189,9 @@ class PolicyModel(Model):
         )
 
         # Baseline
-        if baseline_optimizer == 'same' or baseline_objective == 'same':
-            assert baseline_optimizer == 'same' and baseline_objective == 'same'
-            assert self.estimator.estimate_advantage  # since otherwise not part of training
+        if baseline_optimizer == 'same' or isinstance(baseline_optimizer, float):
+            # since otherwise not part of training
+            assert self.estimator.estimate_advantage or baseline_objective is not None
             is_trainable = True
         else:
             is_trainable = False
@@ -230,8 +230,11 @@ class PolicyModel(Model):
             assert baseline_objective is None
             self.baseline_optimizer = None
         elif baseline_optimizer == 'same':
-            assert baseline_objective == 'same'
             self.baseline_optimizer = 'same'
+            self.baseline_loss_weight = 1.0
+        elif isinstance(baseline_optimizer, float):
+            self.baseline_optimizer = 'same'
+            self.baseline_loss_weight = baseline_optimizer
         elif baseline_optimizer == 'equal':
             self.baseline_optimizer = self.add_module(
                 name='baseline-optimizer', module=optimizer, modules=optimizer_modules,
@@ -247,7 +250,6 @@ class PolicyModel(Model):
         if baseline_objective is None:
             self.baseline_objective = None
         elif baseline_objective == 'same':
-            assert baseline_optimizer == 'same'
             self.baseline_objective = 'same'
         elif baseline_objective == 'equal':
             self.baseline_objective = self.add_module(
@@ -728,7 +730,8 @@ class PolicyModel(Model):
             )
 
         # Stop gradients of estimated rewards if separate baseline optimization
-        if self.baseline_policy is not None and self.baseline_objective != 'same':
+        if self.baseline_policy is not None and \
+                (self.baseline_optimizer is not None or self.baseline_objective is not None):
             reward = tf.stop_gradient(input=reward)
 
         # Retrieve states, internals and actions
@@ -766,6 +769,13 @@ class PolicyModel(Model):
         kwargs = self.objective.optimizer_arguments(
             policy=self.policy, baseline=self.baseline_policy
         )
+
+        if self.baseline_policy is not None and self.baseline_optimizer == 'same' and \
+                self.baseline_objective != 'same':
+            util.disjoint_update(
+                target=kwargs,
+                source=self.baseline_objective.optimizer_arguments(policy=self.baseline_policy)
+            )
 
         # Optimization
         optimized = self.optimizer.minimize(
@@ -823,9 +833,17 @@ class PolicyModel(Model):
             label=('regularization-loss', 'losses'), name='regularization-loss',
             tensor=regularization_loss
         )
+        loss = loss + regularization_loss
+
+        # Baseline loss
+        if self.baseline_policy is not None and self.baseline_optimizer == 'same':
+            baseline_loss = self.baseline_loss_weight * self.baseline_loss(
+                states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                reward=reward
+            )
+            loss = loss + baseline_loss
 
         # Total loss
-        loss = loss + regularization_loss
         loss = self.add_summary(label=('loss', 'losses'), name='loss', tensor=loss)
 
         return loss
@@ -915,10 +933,16 @@ class PolicyModel(Model):
 
     def tf_baseline_loss(self, states, internals, auxiliaries, actions, reward, **kwargs):
         # Loss per instance
-        loss_per_instance = self.baseline_objective.loss_per_instance(
-            policy=self.baseline_policy, states=states, internals=internals,
-            auxiliaries=auxiliaries, actions=actions, reward=reward, **kwargs
-        )
+        if self.baseline_objective == 'same':
+            loss_per_instance = self.objective.loss_per_instance(
+                policy=self.baseline_policy, states=states, internals=internals,
+                auxiliaries=auxiliaries, actions=actions, reward=reward, **kwargs
+            )
+        else:
+            loss_per_instance = self.baseline_objective.loss_per_instance(
+                policy=self.baseline_policy, states=states, internals=internals,
+                auxiliaries=auxiliaries, actions=actions, reward=reward, **kwargs
+            )
 
         # Objective loss
         loss = tf.math.reduce_mean(input_tensor=loss_per_instance, axis=0)

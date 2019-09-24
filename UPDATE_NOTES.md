@@ -8,6 +8,9 @@ This file records all major updates and new features, starting from version 0.5.
 
 - Improved unittest performance
 - Added `updates` and renamed `timesteps`/`episodes` counter for agents and runners
+- Renamed `critic_{network,optimizer}` argument to `baseline_{network,optimizer}`
+- Added Actor-Critic (`ac`) and Advantage Actor-Critic (`a2c`) agents
+- Improved "same" baseline optimizer mode and added optional weight specification
 
 
 

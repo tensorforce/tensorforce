@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import os 
+
 import numpy as np
 
 from tensorforce import TensorforceError
@@ -46,7 +48,7 @@ class OpenAIGym(Environment):
         tags (dict): Gym environment argument, a set of arbitrary key-value tags on this
             environment, including simple property=True tags
             (<span style="color:#00C000"><b>default</b></span>: Gym default).
-        monitor_directory (string): Monitor output directory
+        visualize_directory (string): Visualization output directory
             (<span style="color:#00C000"><b>default</b></span>: none).
         kwargs: Additional Gym environment arguments.
     """
@@ -59,7 +61,7 @@ class OpenAIGym(Environment):
 
     def __init__(
         self, level, visualize=False, max_episode_timesteps=None, terminal_reward=0.0,
-        reward_threshold=None, tags=None, monitor_directory=None, **kwargs
+        reward_threshold=None, tags=None, visualize_directory=None, **kwargs
     ):
         import gym
         import gym.wrappers
@@ -135,9 +137,9 @@ class OpenAIGym(Environment):
 
         self.environment = gym.make(id=self.level, **kwargs)
 
-        if monitor_directory is not None:
+        if visualize_directory is not None:
             self.environment = gym.wrappers.Monitor(
-                env=self.environment, directory=monitor_directory
+                env=self.environment, directory=visualize_directory
             )
 
         self.states_spec = OpenAIGym.specs_from_gym_space(

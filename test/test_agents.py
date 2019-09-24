@@ -23,6 +23,14 @@ class TestAgents(UnittestBase, unittest.TestCase):
     agent = dict()
     require_observe = True
 
+    def test_ac(self):
+        self.start_tests(name='AC')
+        self.unittest(agent='ac', batch_size=2)
+
+    def test_a2c(self):
+        self.start_tests(name='A2C')
+        self.unittest(agent='a2c', batch_size=2)
+
     def test_dpg(self):
         self.start_tests(name='DPG')
         self.unittest(

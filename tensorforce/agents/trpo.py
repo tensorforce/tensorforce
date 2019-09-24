@@ -64,7 +64,8 @@ class TrustRegionPolicyOptimization(PolicyAgent):
             reward_estimation = dict(horizon='episode', discount=discount)
         else:
             reward_estimation = dict(
-                horizon='episode', discount=discount, estimate_horizon='late',
+                horizon='episode', discount=discount,
+                estimate_horizon=('late' if estimate_terminal else False),
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
         if critic_network is None:

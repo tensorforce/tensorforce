@@ -126,10 +126,11 @@ class PolicyAgent(Agent):
             of the baseline policy, "equal" refers to using the same configuration as the main
             network
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_optimizer ("same" | "equal" | specification): Baseline optimizer configuration,
-            see [optimizers](../modules/optimizers.html), "same"
-            refers to reusing the main optimizer for the baseline, "equal" refers to using the same
-            configuration as the main optimizer
+        baseline_optimizer ("same" | float > 0.0 | "equal" | specification): Baseline optimizer
+            configuration, see [optimizers](../modules/optimizers.html), "same"
+            refers to reusing the main optimizer for the baseline, a float implies "same" and
+            specifies the weight for the baseline loss (otherwise 1.0), "equal" refers to using the
+            same configuration as the main optimizer
             (<span style="color:#00C000"><b>default</b></span>: none).
         baseline_objective ("same" | "equal" | specification): Baseline optimization objective
             configuration, see [objectives](../modules/objectives.html), "same" refers to reusing
@@ -447,13 +448,6 @@ class PolicyAgent(Agent):
             if os.path.isfile(os.path.join(directory, f)) and f.startswith('trace-')
         )
         indices = list(range(len(files)))
-        states = OrderedDict(((name, list()) for name in self.states_spec))
-        for name, spec in self.actions_spec.items():
-            if spec['type'] == 'int':
-                states[name + '_mask'] = list()
-        actions = OrderedDict(((name, list()) for name in self.actions_spec))
-        terminal = list()
-        reward = list()
 
         for _ in range(num_iterations):
             shuffle(indices)
@@ -461,6 +455,14 @@ class PolicyAgent(Agent):
                 selection = indices
             else:
                 selection = indices[:num_traces]
+
+            states = OrderedDict(((name, list()) for name in self.states_spec))
+            for name, spec in self.actions_spec.items():
+                if spec['type'] == 'int':
+                    states[name + '_mask'] = list()
+            actions = OrderedDict(((name, list()) for name in self.actions_spec))
+            terminal = list()
+            reward = list()
             for index in selection:
                 trace = np.load(files[index])
                 for name in states:
@@ -469,6 +471,7 @@ class PolicyAgent(Agent):
                     actions[name].append(trace[name])
                 terminal.append(trace['terminal'])
                 reward.append(trace['reward'])
+
             states = util.fmap(function=np.concatenate, xs=states, depth=1)
             actions = util.fmap(function=np.concatenate, xs=actions, depth=1)
             terminal = np.concatenate(terminal)

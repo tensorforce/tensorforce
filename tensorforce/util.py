@@ -135,6 +135,16 @@ def zip_items(*args):
         yield key_values
 
 
+def disjoint_update(target, source):
+    for key, value in source.items():
+        if key not in target:
+            target[key] = value
+        elif target[key] != value:
+            raise TensorforceError.mismatch(
+                name='spec', argument=key, value1=target[key], value2=value
+            )
+
+
 def deep_disjoint_update(target, source):
     for key, value in source.items():
         if key not in target:

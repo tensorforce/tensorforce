@@ -137,12 +137,12 @@ class Decaying(Parameter):
             "linear_cosine_noisy", "natural_exponential", "polynomial"
         )
         assert isinstance(initial_value, float)
-        assert isinstance(decay_steps, int)
+        assert isinstance(decay_steps, int) or decay_steps % 10.0 == 0.0
 
         self.unit = unit
         self.decay = decay
         self.initial_value = initial_value
-        self.decay_steps = decay_steps
+        self.decay_steps = int(decay_steps)
         self.increasing = increasing
         self.inverse = inverse
         self.scale = scale

@@ -9,6 +9,7 @@
 /build/
 /docs/_*
 /tensorforce.egg-info/
+/_vizdoom/
 
 /logs/
 /saving-test/

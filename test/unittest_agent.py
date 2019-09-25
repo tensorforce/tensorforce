@@ -158,7 +158,9 @@ class UnittestAgent(UnittestBase):
                 states, terminal, reward = environment.execute(actions=actions)
                 agent.observe(terminal=terminal, reward=reward)
 
-        agent.pretrain(directory=self.__class__.directory, num_updates=3)
+        agent.pretrain(
+            directory=self.__class__.directory, num_updates=3, num_traces=2, num_iterations=2
+        )
 
         agent.close()
         environment.close()

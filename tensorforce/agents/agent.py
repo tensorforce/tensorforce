@@ -306,10 +306,10 @@ class Agent(object):
                 self.record_actions[name].append(actions[name])
                 if spec['type'] == 'int':
                     if name + '_mask' in auxiliaries:
-                        self.record_states[name].append(auxiliaries[name + '_mask'])
+                        self.record_states[name + '_mask'].append(auxiliaries[name + '_mask'])
                     else:
                         shape = (1,) + spec['shape'] + (spec['num_values'],)
-                        self.record_states[name].append(
+                        self.record_states[name + '_mask'].append(
                             np.full(shape, True, dtype=util.np_dtype(dtype='bool'))
                         )
 

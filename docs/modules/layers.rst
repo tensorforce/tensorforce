@@ -85,6 +85,8 @@ Layers with internal states
 Special layers
 --------------
 
+.. autoclass:: tensorforce.core.layers.Block
+
 .. autoclass:: tensorforce.core.layers.Function
 
 .. autoclass:: tensorforce.core.layers.Keras

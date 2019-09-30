@@ -13,9 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import Counter
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+import tensorforce.core
 from tensorforce.core import Module, parameter_modules
 from tensorforce.core.layers import Layer
 
@@ -95,6 +98,65 @@ class Activation(Layer):
         elif self.nonlinearity == 'tanh':
             x = tf.nn.tanh(x=x)
 
+        return x
+
+
+class Block(Layer):
+    """
+    Block of layers (specification key: `block`).
+
+    Args:
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        layers (iter[specification]): Layers configuration, see [layers](../modules/layers.html)
+            (<span style="color:#C00000"><b>required</b></span>).
+        input_spec (specification): Input tensor specification
+            (<span style="color:#00C000"><b>internal use</b></span>).
+    """
+
+    def __init__(self, name, layers, input_spec=None):
+        # TODO: handle internal states and combine with layered network
+        if len(layers) == 0:
+            raise TensorforceError.unexpected()
+
+        self._input_spec = input_spec
+        self.layers = layers
+
+        super().__init__(
+            name=name, input_spec=input_spec, summary_labels=None, l2_regularization=0.0
+        )
+
+    def default_input_spec(self):
+        layer_counter = Counter()
+        for n, layer_spec in enumerate(self.layers):
+            if 'name' in layer_spec:
+                layer_spec = dict(layer_spec)
+                layer_name = layer_spec.pop('name')
+            else:
+                if isinstance(layer_spec.get('type'), str):
+                    layer_type = layer_spec['type']
+                else:
+                    layer_type = 'layer'
+                layer_name = layer_type + str(layer_counter[layer_type])
+                layer_counter[layer_type] += 1
+
+            # layer_name = self.name + '-' + layer_name
+            self.layers[n] = self.add_module(
+                name=layer_name, module=layer_spec, modules=tensorforce.core.layer_modules,
+                input_spec=self._input_spec
+            )
+            self._input_spec = self.layers[n].output_spec
+
+        return self.layers[0].default_input_spec()
+
+    def get_output_spec(self, input_spec):
+        for layer in self.layers:
+            input_spec = layer.get_output_spec(input_spec=input_spec)
+        return input_spec
+
+    def tf_apply(self, x):
+        for layer in self.layers:
+            x = layer.apply(x=x)
         return x
 
 
@@ -407,15 +469,20 @@ class Reuse(Layer):
         )
 
     def default_input_spec(self):
-        from tensorforce.core.networks import Network
+        # from tensorforce.core.networks import Network
 
-        if not isinstance(self.parent, Network):
+        # if not isinstance(self.parent, Network):
+        #     raise TensorforceError.unexpected()
+
+        # if self.layer not in self.parent.modules:
+        #     raise TensorforceError.unexpected()
+
+        # self.layer = self.parent.modules[self.layer]
+
+        if self.layer not in Layer.layers:
             raise TensorforceError.unexpected()
 
-        if self.layer not in self.parent.modules:
-            raise TensorforceError.unexpected()
-
-        self.layer = self.parent.modules[self.layer]
+        self.layer = Layer.layers[self.layer]
 
         return dict(self.layer.input_spec)
 

@@ -20,7 +20,8 @@ from tensorforce.core.layers.dense import Dense, Linear
 from tensorforce.core.layers.embedding import Embedding
 from tensorforce.core.layers.internal_rnn import InternalGru, InternalLstm, InternalRnn
 from tensorforce.core.layers.keras import Keras
-from tensorforce.core.layers.misc import Activation, Dropout, Function, Register, Retrieve, Reuse
+from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Register, \
+    Retrieve, Reuse
 from tensorforce.core.layers.normalization import ExponentialNormalization, InstanceNormalization
 from tensorforce.core.layers.pooling import Flatten, Pooling, Pool1d, Pool2d
 from tensorforce.core.layers.preprocessing import Clipping, Deltafier, Image, PreprocessingLayer, \
@@ -29,8 +30,8 @@ from tensorforce.core.layers.rnn import Gru, Lstm, Rnn
 
 
 layer_modules = dict(
-    activation=Activation, clipping=Clipping, conv1d=Conv1d, conv2d=Conv2d, default=Function,
-    deltafier=Deltafier, dense=Dense, dropout=Dropout, embedding=Embedding,
+    activation=Activation, block=Block, clipping=Clipping, conv1d=Conv1d, conv2d=Conv2d,
+    default=Function, deltafier=Deltafier, dense=Dense, dropout=Dropout, embedding=Embedding,
     exponential_normalization=ExponentialNormalization, flatten=Flatten, function=Function,
     gru=Gru, image=Image, instance_normalization=InstanceNormalization, internal_gru=InternalGru,
     internal_lstm=InternalLstm, internal_rnn=InternalRnn, keras=Keras, linear=Linear, lstm=Lstm,
@@ -40,10 +41,10 @@ layer_modules = dict(
 
 
 __all__ = [
-    'Activation', 'Clipping', 'Conv1d', 'Conv2d', 'Deltafier', 'Dense', 'Dropout', 'Embedding',
-    'ExponentialNormalization', 'Flatten', 'Function', 'GRU', 'Image', 'InstanceNormalization',
-    'InternalGru', 'InternalLayer', 'InternalLstm', 'InternalRnn', 'Keras', 'Layer',
-    'layer_modules', 'Linear', 'Lstm', 'Nonlinearity', 'Pooling', 'Pool1d', 'Pool2d',
-    'PreprocessingLayer', 'Register', 'Retrieve', 'Rnn', 'Sequence', 'StatefulLayer',
+    'Activation', 'Block', 'Clipping', 'Conv1d', 'Conv2d', 'Deltafier', 'Dense', 'Dropout',
+    'Embedding', 'ExponentialNormalization', 'Flatten', 'Function', 'GRU', 'Image',
+    'InstanceNormalization', 'InternalGru', 'InternalLayer', 'InternalLstm', 'InternalRnn',
+    'Keras', 'Layer', 'layer_modules', 'Linear', 'Lstm', 'Nonlinearity', 'Pooling', 'Pool1d',
+    'Pool2d', 'PreprocessingLayer', 'Register', 'Retrieve', 'Rnn', 'Sequence', 'StatefulLayer',
     'TemporalLayer', 'TransformationBase'
 ]

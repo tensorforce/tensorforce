@@ -84,6 +84,12 @@ class TestLayers(UnittestBase, unittest.TestCase):
         self.unittest(states=states, network=network)
 
         states = dict(type='float', shape=(3,))
+        network = [
+            dict(type='block', layers=[dict(type='dense', size=3), dict(type='dense', size=3)])
+        ]
+        self.unittest(states=states, network=network)
+
+        states = dict(type='float', shape=(3,))
         network = [dict(type='dropout', rate=0.5)]
         self.unittest(states=states, network=network)
 

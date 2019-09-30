@@ -11,6 +11,8 @@ This file records all major updates and new features, starting from version 0.5.
 - Renamed `critic_{network,optimizer}` argument to `baseline_{network,optimizer}`
 - Added Actor-Critic (`ac`), Advantage Actor-Critic (`a2c`) and Dueling DQN (`dueling_dqn`) agents
 - Improved "same" baseline optimizer mode and added optional weight specification
+- Reuse layer now global for parameter sharing across modules
+- New block layer type (`block`) for easier sharing of layer blocks
 
 
 

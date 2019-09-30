@@ -160,7 +160,7 @@ class LayerbasedNetwork(Network):
 
     def add_module(self, *args, **kwargs):
         if 'input_spec' in kwargs:
-            layer = super().add_module(*args, modules=layer_modules, **kwargs)
+            layer = super().add_module(*args, **kwargs)
             self.output_spec = layer.output_spec
 
         else:
@@ -180,7 +180,7 @@ class LayerbasedNetwork(Network):
                 else:
                     kwargs['input_spec'] = self.output_spec
 
-            layer = super().add_module(*args, modules=layer_modules, **kwargs)
+            layer = super().add_module(*args, **kwargs)
 
             self.output_spec = layer.output_spec
 

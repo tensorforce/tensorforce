@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
@@ -35,6 +37,8 @@ class Layer(Module):
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
+
+    layers = None
 
     def __init__(self, name, input_spec=None, summary_labels=None, l2_regularization=None):
         super().__init__(
@@ -60,6 +64,13 @@ class Layer(Module):
         self.output_spec = util.valid_value_spec(
             value_spec=self.output_spec, accept_underspecified=True, return_normalized=True
         )
+
+        # Register layer globally
+        if Layer.layers is None:
+            Layer.layers = OrderedDict()
+        # if self.name in Layer.layers:
+        #     raise TensorforceError.unexpected()
+        Layer.layers[self.name] = self
 
     def default_input_spec(self):
         """
@@ -161,15 +172,16 @@ class TransformationBase(Layer):
             self.activation = None
         else:
             self.activation = self.add_module(
-                name='activation', module='activation', modules=tensorforce.core.layer_modules,
-                nonlinearity=activation, input_spec=self.output_spec
+                name=(self.name + '-activation'), module='activation',
+                modules=tensorforce.core.layer_modules, nonlinearity=activation,
+                input_spec=self.output_spec
             )
         if dropout is None or dropout == 0.0:
             self.dropout = None
         else:
             self.dropout = self.add_module(
-                name='dropout', module='dropout', modules=tensorforce.core.layer_modules,
-                rate=dropout, input_spec=self.output_spec
+                name=(self.name + '-dropout'), module='dropout',
+                modules=tensorforce.core.layer_modules, rate=dropout, input_spec=self.output_spec
             )
         self.is_trainable = is_trainable
 

@@ -16,7 +16,7 @@
 from collections import OrderedDict
 
 from tensorforce import TensorforceError
-from tensorforce.core.layers import InternalLstm
+from tensorforce.core.layers import InternalLstm, layer_modules
 from tensorforce.core.networks import LayerbasedNetwork
 
 
@@ -67,19 +67,23 @@ class AutoNetwork(LayerbasedNetwork):
 
         # State-specific layers
         self.state_specific_layers = OrderedDict()
+        # prefix = self.name + '-'
+        prefix = ''
         for name, spec in inputs_spec.items():
             layers = list()
 
             # Retrieve state
-            layers.append(
-                self.add_module(name=(name + '-retrieve'), module='retrieve', tensors=name)
-            )
+            layers.append(self.add_module(
+                name=(prefix + name + '-retrieve'), module='retrieve', modules=layer_modules,
+                tensors=name
+            ))
 
             # Embed bool and int states
             if spec['type'] in ('bool', 'int'):
-                layers.append(
-                    self.add_module(name=(name + '-embedding'), module='embedding', size=self.size)
-                )
+                layers.append(self.add_module(
+                    name=(prefix + name + '-embedding'), module='embedding', modules=layer_modules,
+                    size=self.size
+                ))
                 embedding = 1
             else:
                 embedding = 0
@@ -92,32 +96,32 @@ class AutoNetwork(LayerbasedNetwork):
             elif len(spec['shape']) == 3 - embedding:
                 layer = 'conv2d'
             elif len(spec['shape']) == 0:
-                layers.append(self.add_module(name=(name + '-flatten'), module='flatten'))
+                layers.append(self.add_module(
+                    name=(prefix + name + '-flatten'), module='flatten', modules=layer_modules
+                ))
                 layer = 'dense'
             else:
                 raise TensorforceError.unexpected()
 
             # Repeat layer according to depth (one less if embedded)
             for n in range(self.depth - embedding):
-                layers.append(
-                    self.add_module(
-                        name=(name + '-' + layer + str(n)), module=layer, size=self.size
-                    )
-                )
+                layers.append(self.add_module(
+                    name=(prefix + name + '-' + layer + str(n)), module=layer,
+                    modules=layer_modules, size=self.size
+                ))
 
             # Max pool if rank greater than one
             if len(spec['shape']) > 1 - embedding:
-                layers.append(
-                    self.add_module(name=(name + '-pooling'), module='pooling', reduction='max')
-                )
+                layers.append(self.add_module(
+                    name=(prefix + name + '-pooling'), module='pooling', modules=layer_modules,
+                    reduction='max'
+                ))
 
             # Register state-specific embedding
-            layers.append(
-                self.add_module(
-                    name=(name + '-register'), module='register',
-                    tensor='{}-{}-embedding'.format(self.name, name)
-                )
-            )
+            layers.append(self.add_module(
+                name=(prefix + name + '-register'), module='register', modules=layer_modules,
+                tensor='{}-{}-embedding'.format(self.name, name)
+            ))
 
             self.state_specific_layers[name] = layers
 
@@ -125,28 +129,27 @@ class AutoNetwork(LayerbasedNetwork):
         self.final_layers = list()
 
         # Retrieve state-specific embeddings
-        self.final_layers.append(
-            self.add_module(
-                name='retrieve', module='retrieve',
-                tensors=tuple('{}-{}-embedding'.format(self.name, name) for name in inputs_spec),
-                aggregation='concat'
-            )
-        )
+        self.final_layers.append(self.add_module(
+            name=(prefix + 'retrieve'), module='retrieve', modules=layer_modules,
+            tensors=tuple('{}-{}-embedding'.format(self.name, name) for name in inputs_spec),
+            aggregation='concat'
+        ))
 
         # Repeat layer according to depth
         if len(inputs_spec) > 1:
             for n in range(self.final_depth):
-                self.final_layers.append(
-                    self.add_module(name=('dense' + str(n)), module='dense', size=self.final_size)
-                )
+                self.final_layers.append(self.add_module(
+                    name=(prefix + 'dense' + str(n)), module='dense', modules=layer_modules,
+                    size=self.final_size
+                ))
 
         # Internal Rnn
         if self.internal_rnn is False:
             self.internal_rnn = None
         else:
             self.internal_rnn = self.add_module(
-                name='internal_lstm', module='internal_lstm', size=self.final_size,
-                length=self.internal_rnn
+                name=(prefix + 'internal_lstm'), module='internal_lstm', modules=layer_modules,
+                size=self.final_size, length=self.internal_rnn
             )
 
     @classmethod

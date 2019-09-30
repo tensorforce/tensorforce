@@ -16,10 +16,10 @@
 from copy import deepcopy
 from datetime import datetime
 import logging
-from random import randint
 import sys
 
 from tensorforce.agents import Agent
+from tensorforce.core.layers import Layer
 from tensorforce.environments import Environment
 from tensorforce.execution import Runner
 from test.unittest_environment import UnittestEnvironment
@@ -103,6 +103,8 @@ class UnittestBase(object):
         """
         Generic unit-test preparation.
         """
+        Layer.layers = None
+
         if environment is None:
             if states is None:
                 states = deepcopy(self.__class__.states)

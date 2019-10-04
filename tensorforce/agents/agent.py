@@ -113,7 +113,7 @@ class Agent(object):
     ):
         if seed is not None:
             assert isinstance(seed, int)
-            random.seed(n=seed)
+            random.seed(a=seed)
             np.random.seed(seed=seed)
             tf.random.set_random_seed(seed=seed)
 

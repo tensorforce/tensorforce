@@ -28,6 +28,7 @@ class OpenAIGym(Environment):
 
     May require:
     ```bash
+    pip install gym
     pip install gym[all]
     ```
 

@@ -159,6 +159,10 @@ class LayerbasedNetwork(Network):
         return internals_init
 
     def add_module(self, *args, **kwargs):
+        # Default modules set: layer_modules
+        if len(args) < 3 and 'modules' not in kwargs:
+            kwargs['modules'] = layer_modules
+
         if 'input_spec' in kwargs:
             layer = super().add_module(*args, **kwargs)
             self.output_spec = layer.output_spec

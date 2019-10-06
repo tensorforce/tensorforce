@@ -27,11 +27,15 @@ class ArcadeLearningEnvironment(Environment):
     ```bash
     sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libsdl-image1.2-dev cmake
 
+    git clone https://github.com/mgbellemare/Arcade-Learning-Environment.git
+    cd Arcade-Learning-Environment
+
     mkdir build && cd build
     cmake -DUSE_SDL=ON -DUSE_RLGLUE=OFF -DBUILD_EXAMPLES=ON ..
     make -j 4
+    cd ..
 
-    pip install git+https://github.com/mgbellemare/Arcade-Learning-Environment.git
+    pip install .
     ```
 
     Args:
@@ -83,10 +87,10 @@ class ArcadeLearningEnvironment(Environment):
 
     def states(self):
         width, height = self.environment.getScreenDims()
-        return dict(type='float', shape=(width, height, 3))
+        return dict(type='float', shape=(height, width, 3))
 
     def actions(self):
-        return dict(type='int', num_actions=len(self.available_actions))
+        return dict(type='int', num_values=len(self.available_actions))
 
     def close(self):
         self.environment.__del__()

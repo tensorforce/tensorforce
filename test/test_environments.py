@@ -26,6 +26,10 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
     @pytest.mark.skip(reason='not installed as part of travis')
     def test_ale(self):
         self.start_tests(name='ale')
+        self.unittest(
+            environment=dict(environment='ale', level='test/data/Breakout.bin'), num_episodes=2,
+            max_episode_timesteps=100
+        )
 
     @pytest.mark.skip(reason='not installed as part of travis')
     def test_maze_explorer(self):

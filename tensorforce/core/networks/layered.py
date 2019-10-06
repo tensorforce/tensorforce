@@ -75,7 +75,7 @@ class LayeredNetwork(LayerbasedNetwork):
                 layer_counter[layer_type] += 1
 
             # layer_name = self.name + '-' + layer_name
-            self.add_module(name=layer_name, module=layers_spec, modules=layer_modules)
+            self.add_module(name=layer_name, module=layers_spec)
 
     # (requires layers as first argument)
     @classmethod

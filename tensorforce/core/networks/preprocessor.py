@@ -18,7 +18,7 @@ from collections import Counter, OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core.layers import layer_modules, PreprocessingLayer, StatefulLayer, TemporalLayer
+from tensorforce.core.layers import PreprocessingLayer, StatefulLayer, TemporalLayer
 from tensorforce.core.networks import LayerbasedNetwork
 
 
@@ -67,7 +67,7 @@ class Preprocessor(LayerbasedNetwork):
                 layer_counter[layer_type] += 1
 
             # layer_name = self.name + '-' + layer_name
-            self.add_module(name=layer_name, module=layer_spec, modules=layer_modules)
+            self.add_module(name=layer_name, module=layer_spec)
 
     @classmethod
     def internals_spec(cls, network=None, **kwargs):

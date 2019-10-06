@@ -13,11 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.models.model import Model
+import unittest
 
-from tensorforce.core.models.constant import ConstantModel
-from tensorforce.core.models.tensorforce import TensorforceModel
-from tensorforce.core.models.random import RandomModel
+from test.unittest_base import UnittestBase
+from tensorforce.agents import Agent
+from tensorforce.environments import Environment
 
 
-__all__ = ['ConstantModel', 'Model', 'RandomModel', 'TensorforceModel']
+class TestSeed(UnittestBase, unittest.TestCase):
+
+    def test_seed(self):
+        self.start_tests()
+        agent, environment = self.prepare(seed=0)

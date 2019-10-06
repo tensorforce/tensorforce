@@ -13,10 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.agents import PolicyAgent
+from collections import OrderedDict
+
+from tensorforce.agents import TensorforceAgent
 
 
-class DuelingDQN(PolicyAgent):
+class DuelingDQN(TensorforceAgent):
     """
     [Dueling DQN](https://arxiv.org/abs/1511.06581) agent (specification key: `dueling_dqn`).
 
@@ -126,7 +128,7 @@ class DuelingDQN(PolicyAgent):
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>string</i>) &ndash; model filename
-            (<span style="color:#00C000"><b>default</b></span>: "model").</li>
+            (<span style="color:#00C000"><b>default</b></span>: "agent").</li>
             <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in seconds to save the
             model (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
             <li><b>load</b> (<i>bool | str</i>) &ndash; whether to load the existing model, or
@@ -204,6 +206,22 @@ class DuelingDQN(PolicyAgent):
         name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
         summarizer=None, recorder=None, config=None
     ):
+        self.spec = OrderedDict(
+            agent='dqn',
+            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+            network=network,
+            memory=memory, batch_size=batch_size, update_frequency=update_frequency,
+            start_updating=start_updating, learning_rate=learning_rate, huber_loss=huber_loss,
+            horizon=horizon, discount=discount, estimate_terminal=estimate_terminal,
+            target_sync_frequency=target_sync_frequency, target_update_weight=target_update_weight,
+            preprocessing=preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
+            name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
+            execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
+            config=config
+        )
+
         # Action value doesn't exist for Beta
         distributions = dict(
             float='gaussian', int=dict(type='categorical', infer_states_value=False)
@@ -237,7 +255,7 @@ class DuelingDQN(PolicyAgent):
             name=name, device=device, execution=execution, saver=saver, summarizer=summarizer,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization,
-            # PolicyModel
+            # TensorforceModel
             policy=policy, network=None, memory=memory, update=update, optimizer=optimizer,
             objective=objective, reward_estimation=reward_estimation,
             baseline_policy=baseline_policy, baseline_network=None,

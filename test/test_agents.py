@@ -25,10 +25,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
     agent = dict()
     require_observe = True
 
-    def test_create_agent_with_seed(self):
-        environment = Environment.create(environment='gym', level='CartPole-v1')
-        Agent.create(agent='ppo', environment=environment, seed=0)
-
     def test_ac(self):
         self.start_tests(name='AC')
         self.unittest(agent='ac', batch_size=2)

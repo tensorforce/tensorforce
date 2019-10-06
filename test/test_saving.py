@@ -18,6 +18,7 @@ import os
 import time
 import unittest
 
+from tensorforce.agents import Agent
 from test.unittest_base import UnittestBase
 
 
@@ -28,179 +29,35 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
     directory = 'test-saving'
 
-    def test_explicit(self):
-        self.start_tests(name='explicit')
-
-        # default
-        agent, environment = self.prepare()
-
-        restored_agent = copy.deepcopy(agent)
-
-        agent.initialize()
-        states = environment.reset()
-
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.save(directory=self.__class__.directory, filename=None)
-
-        agent.close()
-
-        restored_agent.restore(directory=self.__class__.directory, filename=None)
-
-        actions = restored_agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
-
-        restored_agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.meta'))
-        os.rmdir(path=self.__class__.directory)
-
-        self.finished_test()
-
-        # parallel
-        agent, environment = self.prepare(parallel_interactions=2)
-
-        agent.initialize()
-        states = environment.reset()
-
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.save(directory=self.__class__.directory, filename=None)
-
-        agent.close()
-
-        restored_agent, _ = self.prepare()
-
-        restored_agent.restore(directory=self.__class__.directory, filename=None)
-
-        actions = restored_agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
-
-        restored_agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.meta'))
-        os.rmdir(path=self.__class__.directory)
-
-        self.finished_test()
-
-        # filename
-        agent, environment = self.prepare()
-
-        restored_agent = copy.deepcopy(agent)
-
-        agent.initialize()
-        states = environment.reset()
-
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.save(directory=self.__class__.directory, filename='test')
-
-        agent.close()
-
-        restored_agent.restore(directory=self.__class__.directory, filename='test-1')
-
-        actions = restored_agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
-
-        restored_agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'test-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'test-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'test-1.meta'))
-        os.rmdir(path=self.__class__.directory)
-
-        self.finished_test()
-
-        # no timestep
-        agent, environment = self.prepare()
-
-        restored_agent = copy.deepcopy(agent)
-
-        agent.initialize()
-        states = environment.reset()
-
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.save(directory=self.__class__.directory, append_timestep=False)
-
-        agent.close()
-
-        restored_agent.restore(directory=self.__class__.directory)
-
-        actions = restored_agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
-
-        restored_agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model.meta'))
-        os.rmdir(path=self.__class__.directory)
-
-        self.finished_test()
-
     def test_config(self):
         self.start_tests(name='config')
 
         # default
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver)
-
-        restored_agent = copy.deepcopy(agent)
-
         agent.initialize()
         states = environment.reset()
+
+        agent.close()
+
+        agent = Agent.load(directory=self.__class__.directory)
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
         agent.close()
-
-        restored_agent.initialize()
-
-        actions = restored_agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
-
-        restored_agent.close()
         environment.close()
 
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
         os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
         os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
         for filename in os.listdir(path=self.__class__.directory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
             assert filename.startswith('events.out.tfevents.')
@@ -209,7 +66,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-        # parallel
+        # parallel then single
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver, parallel_interactions=2)
 
@@ -222,28 +79,28 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         agent.close()
 
-        restored_agent, _ = self.prepare(saver=saver)
+        agent, _ = self.prepare(saver=saver)
+        agent.initialize()
 
-        restored_agent.initialize()
-
-        actions = restored_agent.act(states=states)
+        actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
+        agent.observe(terminal=terminal, reward=reward)
 
-        restored_agent.close()
+        agent.close()
         environment.close()
 
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
         os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
         os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.meta'))
         for filename in os.listdir(path=self.__class__.directory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
             assert filename.startswith('events.out.tfevents.')
@@ -255,9 +112,6 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # filename
         saver = dict(directory=self.__class__.directory, filename='test')
         agent, environment = self.prepare(saver=saver)
-
-        restored_agent = copy.deepcopy(agent)
-
         agent.initialize()
         states = environment.reset()
 
@@ -267,15 +121,16 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         agent.close()
 
-        restored_agent.initialize()
+        agent = Agent.load(directory=self.__class__.directory, filename='test')
 
-        actions = restored_agent.act(states=states)
+        actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
+        agent.observe(terminal=terminal, reward=reward)
 
-        restored_agent.close()
+        agent.close()
         environment.close()
 
+        os.remove(path=os.path.join(self.__class__.directory, 'test.json'))
         os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
         os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
         os.remove(path=os.path.join(self.__class__.directory, 'test-0.data-00000-of-00001'))
@@ -295,10 +150,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-        # steps
+        # frequency
         saver = dict(directory=self.__class__.directory, frequency=1)
         agent, environment = self.prepare(saver=saver)
-
         agent.initialize()
         states = environment.reset()
 
@@ -315,14 +169,15 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.close()
         environment.close()
 
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
         os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
         os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-2.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.meta'))
         for filename in os.listdir(path=self.__class__.directory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
             assert filename.startswith('events.out.tfevents.'), filename
@@ -334,9 +189,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # no load
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver)
-
         restored_agent = copy.deepcopy(agent)
-
         agent.initialize()
         states = environment.reset()
 
@@ -347,7 +200,6 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.close()
 
         restored_agent.model.saver_spec['load'] = False
-
         restored_agent.initialize()
 
         actions = restored_agent.act(states=states)
@@ -357,14 +209,15 @@ class TestSaving(UnittestBase, unittest.TestCase):
         restored_agent.close()
         environment.close()
 
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
         os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
         os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
         for filename in os.listdir(path=self.__class__.directory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
             assert filename.startswith('events.out.tfevents.')
@@ -376,9 +229,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # load filename
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver)
-
         restored_agent = copy.deepcopy(agent)
-
         agent.initialize()
         states = environment.reset()
 
@@ -388,8 +239,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         agent.close()
 
-        restored_agent.model.saver_spec['load'] = 'model-0'
-
+        restored_agent.model.saver_spec['load'] = 'agent-0'
         restored_agent.initialize()
 
         actions = restored_agent.act(states=states)
@@ -399,18 +249,140 @@ class TestSaving(UnittestBase, unittest.TestCase):
         restored_agent.close()
         environment.close()
 
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
         os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
         os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-0.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'model-1.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
         for filename in os.listdir(path=self.__class__.directory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
             assert filename.startswith('events.out.tfevents.')
             break
+        os.rmdir(path=self.__class__.directory)
+
+        self.finished_test()
+
+    def test_explicit(self):
+        self.start_tests(name='explicit')
+
+        # default
+        agent, environment = self.prepare()
+        agent.initialize()
+        states = environment.reset()
+
+        agent.save(directory=self.__class__.directory)
+        agent.close()
+
+        agent = Agent.load(directory=self.__class__.directory)
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+        environment.close()
+
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
+        os.rmdir(path=self.__class__.directory)
+
+        self.finished_test()
+
+        # parallel then single
+        agent, environment = self.prepare(parallel_interactions=2)
+
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.save(directory=self.__class__.directory)
+        agent.close()
+
+        agent, _ = self.prepare()
+        agent.restore(directory=self.__class__.directory)
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+        environment.close()
+
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
+        os.rmdir(path=self.__class__.directory)
+
+        self.finished_test()
+
+        # filename
+        agent, environment = self.prepare()
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.save(directory=self.__class__.directory, filename='test')
+        agent.close()
+
+        agent = Agent.load(directory=self.__class__.directory, filename='test')
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+        environment.close()
+
+        os.remove(path=os.path.join(self.__class__.directory, 'test.json'))
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
+        os.remove(path=os.path.join(self.__class__.directory, 'test-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'test-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'test-1.meta'))
+        os.rmdir(path=self.__class__.directory)
+
+        self.finished_test()
+
+        # no timestep
+        agent, environment = self.prepare()
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.save(directory=self.__class__.directory, append_timestep=False)
+        agent.close()
+
+        agent = Agent.load(directory=self.__class__.directory)
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+        environment.close()
+
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.meta'))
         os.rmdir(path=self.__class__.directory)
 
         self.finished_test()

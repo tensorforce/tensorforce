@@ -13,10 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.agents import PolicyAgent
+from collections import OrderedDict
+
+from tensorforce.agents import TensorforceAgent
 
 
-class AdvantageActorCritic(PolicyAgent):
+class AdvantageActorCritic(TensorforceAgent):
     """
     [Advantage Actor-Critic](https://arxiv.org/abs/1602.01783) agent
     (specification key: `a2c`).
@@ -130,7 +132,7 @@ class AdvantageActorCritic(PolicyAgent):
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>string</i>) &ndash; model filename
-            (<span style="color:#00C000"><b>default</b></span>: "model").</li>
+            (<span style="color:#00C000"><b>default</b></span>: "agent").</li>
             <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in seconds to save the
             model (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
             <li><b>load</b> (<i>bool | str</i>) &ndash; whether to load the existing model, or
@@ -207,6 +209,22 @@ class AdvantageActorCritic(PolicyAgent):
         name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
         summarizer=None, recorder=None, config=None
     ):
+        self.spec = OrderedDict(
+            agent='a2c',
+            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+            network=network,
+            batch_size=batch_size, update_frequency=update_frequency, learning_rate=learning_rate,
+            horizon=horizon, discount=discount, state_action_value=state_action_value,
+            estimate_terminal=estimate_terminal,
+            critic_network=critic_network, critic_optimizer=critic_optimizer,
+            preprocessing=preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
+            name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
+            execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
+            config=config
+        )
+
         memory = dict(type='recent', capacity=(batch_size + max_episode_timesteps + horizon))
         if update_frequency is None:
             update = dict(unit='timesteps', batch_size=batch_size)
@@ -235,7 +253,7 @@ class AdvantageActorCritic(PolicyAgent):
             name=name, device=device, execution=execution, saver=saver, summarizer=summarizer,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization,
-            # PolicyModel
+            # TensorforceModel
             policy=None, network=network, memory=memory, update=update, optimizer=optimizer,
             objective=objective, reward_estimation=reward_estimation,
             baseline_policy=baseline_policy, baseline_network=None,

@@ -28,7 +28,7 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
   agents/agent
   agents/constant
   agents/random
-  agents/policy
+  agents/tforce
   agents/dqn
   agents/dueling_dqn
   agents/vpg

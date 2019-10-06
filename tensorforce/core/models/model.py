@@ -294,6 +294,9 @@ class Model(Module):
         # We are done constructing: Finalize our graph, create and enter the session.
         self.setup_session(self.server, hooks, graph_default_context)
 
+        if self.saver_directory is not None:
+            self.save()
+
     def setup_graph(self):
         """
         Creates our Graph and figures out, which shared/global model to hook up to.
@@ -449,7 +452,7 @@ class Model(Module):
         # Checkpoint saver hook
         if self.saver_spec is not None:  # and (self.execution_type == 'single' or self.distributed_spec['task_index'] == 0):
             self.saver_directory = self.saver_spec['directory']
-            self.saver_filename = self.saver_spec.get('filename', 'model')
+            self.saver_filename = self.saver_spec.get('filename', 'agent')
             frequency = self.saver_spec.get('frequency', 600)
             if frequency is not None:
                 hooks.append(tf.train.CheckpointSaverHook(
@@ -459,7 +462,7 @@ class Model(Module):
                 ))
         else:
             self.saver_directory = None
-            self.saver_filename = 'model'
+            self.saver_filename = 'agent'
 
         # Stop at step hook
         # hooks.append(tf.train.StopAtStepHook(
@@ -1231,7 +1234,7 @@ class Model(Module):
         if directory is None:
             assert self.saver_directory
             directory = self.saver_directory
-        if filename is None:
+        if filename is None or not os.path.isfile(os.path.join(directory, filename + '.meta')):
             save_path = tf.train.latest_checkpoint(checkpoint_dir=directory, latest_filename=None)
         else:
             save_path = os.path.join(directory, filename)

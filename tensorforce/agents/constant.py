@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 from tensorforce.agents import Agent
 from tensorforce.core.models import ConstantModel
 
@@ -85,8 +87,16 @@ class ConstantAgent(Agent):
         # Agent
         action_values=None,
         # TensorFlow etc
-        name='agent', device=None, summarizer=None, seed=None, recorder=None, config=None
+        name='agent', device=None, seed=None, summarizer=None, recorder=None, config=None
     ):
+        self.spec = OrderedDict(
+            agent='constant',
+            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+            action_values=action_values,
+            name=name, device=device, seed=seed, summarizer=summarizer, recorder=recorder,
+            config=config
+        )
+
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
             parallel_interactions=1, buffer_observe=True, seed=seed, recorder=recorder

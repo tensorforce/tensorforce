@@ -25,14 +25,14 @@ from tensorforce.core.objectives import objective_modules
 from tensorforce.core.policies import policy_modules
 
 
-class PolicyModel(Model):
+class TensorforceModel(Model):
 
     def __init__(
         self,
         # Model
         name, device, parallel_interactions, buffer_observe, execution, saver, summarizer, config,
         states, actions, preprocessing, exploration, variable_noise, l2_regularization,
-        # PolicyModel
+        # TensorforceModel
         policy, network, memory, update, optimizer, objective, reward_estimation, baseline_policy,
         baseline_network, baseline_optimizer, baseline_objective, entropy_regularization
     ):

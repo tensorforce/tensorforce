@@ -21,12 +21,12 @@ import numpy as np
 
 from tensorforce import TensorforceError, util
 from tensorforce.agents import Agent
-from tensorforce.core.models.policy_model import PolicyModel
+from tensorforce.core.models import TensorforceModel
 
 
-class PolicyAgent(Agent):
+class TensorforceAgent(Agent):
     """
-    Policy Agent (specification key: `policy`).
+    Tensorforce Agent (specification key: `tensorforce`).
 
     Base class for a broad class of deep reinforcement learning agents, which act according to a
     policy parametrized by a neural network, leverage a memory module for periodic updates based on
@@ -180,7 +180,7 @@ class PolicyAgent(Agent):
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>string</i>) &ndash; model filename
-            (<span style="color:#00C000"><b>default</b></span>: "model").</li>
+            (<span style="color:#00C000"><b>default</b></span>: "agent").</li>
             <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in seconds to save the
             model (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
             <li><b>load</b> (<i>bool | str</i>) &ndash; whether to load the existing model, or
@@ -261,6 +261,22 @@ class PolicyAgent(Agent):
         name='agent', device=None, parallel_interactions=1, buffer_observe=True, seed=None,
         execution=None, saver=None, summarizer=None, recorder=None, config=None
     ):
+        if not hasattr(self, 'spec'):
+            self.spec = OrderedDict(
+                agent='tensorforce',
+                states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+                policy=policy, network=network, memory=memory, update=update, optimizer=optimizer,
+                objective=objective, reward_estimation=reward_estimation,
+                baseline_policy=baseline_policy, baseline_network=baseline_network,
+                baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
+                preprocessing=preprocessing,
+                exploration=exploration, variable_noise=variable_noise,
+                l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
+                name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
+                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
+                config=config
+            )
+
         if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
             buffer_observe = False
 
@@ -293,14 +309,14 @@ class PolicyAgent(Agent):
                     max(reward_estimation['horizon'], max_episode_timesteps)
             memory = max(memory, min(self.buffer_observe, max_episode_timesteps))
 
-        self.model = PolicyModel(
+        self.model = TensorforceModel(
             # Model
             name=name, device=device, parallel_interactions=self.parallel_interactions,
             buffer_observe=self.buffer_observe, execution=execution, saver=saver,
             summarizer=summarizer, config=config, states=self.states_spec,
             actions=self.actions_spec, preprocessing=preprocessing, exploration=exploration,
             variable_noise=variable_noise, l2_regularization=l2_regularization,
-            # PolicyModel
+            # TensorforceModel
             policy=policy, network=network, memory=memory, update=update, optimizer=optimizer,
             objective=objective, reward_estimation=reward_estimation,
             baseline_policy=baseline_policy, baseline_network=baseline_network,

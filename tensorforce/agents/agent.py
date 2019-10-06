@@ -105,15 +105,36 @@ class Agent(object):
         else:
             assert False
 
+    @staticmethod
+    def load(directory, filename=None):
+        """
+        Restores an agent from a specification directory/file.
+
+        Args:
+            directory (str): Agent directory
+                (<span style="color:#C00000"><b>required</b></span>).
+            filename (str): Agent filename
+                (<span style="color:#00C000"><b>default</b></span>: "agent").
+        """
+        if filename is None:
+            agent = os.path.join(directory, 'agent.json')
+        else:
+            agent = os.path.join(directory, filename + '.json')
+        agent = Agent.create(agent=agent)
+        agent.restore(directory=directory, filename=filename)
+        return agent
+
     def __init__(
         # Environment
         self, states, actions, max_episode_timesteps=None,
         # TensorFlow etc
         parallel_interactions=1, buffer_observe=True, seed=None, recorder=None
     ):
+        assert hasattr(self, 'spec')
+
         if seed is not None:
             assert isinstance(seed, int)
-            random.seed(n=seed)
+            random.seed(a=seed)
             np.random.seed(seed=seed)
             tf.random.set_random_seed(seed=seed)
 
@@ -213,8 +234,12 @@ class Agent(object):
             raise TensorforceError.missing(name='Agent', value='model')
 
         # Setup Model
-        # (create and build graph (local and global if distributed), server, session, etc..).
         self.model.initialize()
+        if self.model.saver_directory is not None:
+            file = os.path.join(self.model.saver_directory, self.model.saver_filename + '.json')
+            with open(file, 'w') as fp:
+                json.dump(obj=self.spec, fp=fp)
+
         self.reset()
 
     def close(self):
@@ -447,12 +472,12 @@ class Agent(object):
         Saves the current state of the agent.
 
         Args:
-            directory (str): Checkpoint directory
+            directory (str): Agent directory
                 (<span style="color:#00C000"><b>default</b></span>: directory specified for
                 TensorFlow saver).
-            filename (str): Checkpoint filename
+            filename (str): Agent filename
                 (<span style="color:#00C000"><b>default</b></span>: filename specified for
-                TensorFlow saver).
+                TensorFlow saver, or "agent").
             append_timestep: Whether to append the current timestep to the checkpoint file
                 (<span style="color:#00C000"><b>default</b></span>: true).
 
@@ -473,19 +498,29 @@ class Agent(object):
         #         )
         #         self.buffer_indices[parallel] = 0
 
-        return self.model.save(
+        result = self.model.save(
             directory=directory, filename=filename, append_timestep=append_timestep
         )
+
+        if directory is None:
+            directory = self.model.saver_directory
+        if filename is None:
+            filename = 'agent'
+        file = os.path.join(directory, filename + '.json')
+        with open(file, 'w') as fp:
+            json.dump(obj=self.spec, fp=fp)
+
+        return result
 
     def restore(self, directory=None, filename=None):
         """
         Restores the agent.
 
         Args:
-            directory (str): Checkpoint directory
+            directory (str): Agent directory
                 (<span style="color:#00C000"><b>default</b></span>: directory specified for
                 TensorFlow saver).
-            filename (str): Checkpoint filename
+            filename (str): Agent filename
                 (<span style="color:#00C000"><b>default</b></span>: latest checkpoint in
                 directory).
         """

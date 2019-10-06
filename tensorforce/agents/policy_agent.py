@@ -281,7 +281,7 @@ class PolicyAgent(Agent):
         if memory is None:
             # predecessor/successor?
             if max_episode_timesteps is None or not isinstance(update['batch_size'], int) \
-                     or not isinstance(reward_estimation['horizon'], int):
+                    or not isinstance(reward_estimation['horizon'], int):
                 raise TensorforceError.unexpected()
             if update['unit'] == 'timesteps':
                 memory = update['batch_size'] + max_episode_timesteps + \

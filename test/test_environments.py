@@ -44,6 +44,13 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.start_tests(name='openai-gym')
         self.unittest(environment=dict(environment='gym', level='CartPole-v1'), num_episodes=2)
 
+        from gym.envs.classic_control import CartPoleEnv
+
+        self.unittest(
+            environment=dict(environment='gym', level=CartPoleEnv(), max_episode_timesteps=100),
+            num_episodes=2
+        )
+
     def test_openai_retro(self):
         self.start_tests(name='openai-retro')
         self.unittest(

@@ -42,24 +42,18 @@ class OpenAIRetro(OpenAIGym):
 
         return list(retro.data.list_games())
 
-    def __init__(self, level, visualize=False, monitor_directory=None, **kwargs):
+    @classmethod
+    def create_level(cls, level, max_episode_timesteps, reward_threshold, tags, **kwargs):
         import retro
 
-        self._max_episode_timesteps = False
+        assert max_episode_timesteps is False and reward_threshold is None and tags is None
 
-        self.level = level
-        self.visualize = visualize
+        return retro.make(game=level, **kwargs), max_episode_timesteps
 
-        self.environment = retro.make(game=self.level, **kwargs)
+    def __init__(self, level, visualize=False, visualize_directory=None, **kwargs):
+        import retro
 
-        if monitor_directory is not None:
-            self.environment = gym.wrappers.Monitor(
-                env=self.environment, directory=monitor_directory
-            )
-
-        self.states_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.observation_space, ignore_value_bounds=True  # TODO: not ignore?
-        )
-        self.actions_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.action_space, ignore_value_bounds=False
+        super().__init__(
+            level=level, visualize=visualize, max_episode_timesteps=False, terminal_reward=0.0,
+            reward_threshold=None, tags=None, visualize_directory=visualize_directory, **kwargs
         )

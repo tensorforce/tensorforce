@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-import os 
+import os
 
 import numpy as np
 
@@ -59,12 +59,9 @@ class OpenAIGym(Environment):
 
         return list(gym.envs.registry.env_specs)
 
-    def __init__(
-        self, level, visualize=False, max_episode_timesteps=None, terminal_reward=0.0,
-        reward_threshold=None, tags=None, visualize_directory=None, **kwargs
-    ):
+    @classmethod
+    def create_level(cls, level, max_episode_timesteps, reward_threshold, tags, **kwargs):
         import gym
-        import gym.wrappers
 
         # Find level
         if level not in gym.envs.registry.env_specs:
@@ -75,20 +72,17 @@ class OpenAIGym(Environment):
                     if level == name[:name.rindex('-v')]:
                         level = name
                         break
-        assert level in self.__class__.levels()
-
-        self._max_episode_timesteps = max_episode_timesteps
-        self.terminal_reward = terminal_reward
+        assert level in cls.levels()
 
         # Check/update attributes
         requires_register = False
-        if self._max_episode_timesteps is None:
-            self._max_episode_timesteps = gym.envs.registry.env_specs[level].max_episode_steps
-            if self._max_episode_timesteps is None:
-                self._max_episode_timesteps = False
-        elif self._max_episode_timesteps != gym.envs.registry.env_specs[level].max_episode_steps:
+        if max_episode_timesteps is None:
+            max_episode_timesteps = gym.envs.registry.env_specs[level].max_episode_steps
+            if max_episode_timesteps is None:
+                max_episode_timesteps = False
+        elif max_episode_timesteps != gym.envs.registry.env_specs[level].max_episode_steps:
             if not (
-                (self._max_episode_timesteps is False) and
+                (max_episode_timesteps is False) and
                 (gym.envs.registry.env_specs[level].max_episode_steps is None)
             ):
                 requires_register = True
@@ -109,10 +103,10 @@ class OpenAIGym(Environment):
             entry_point = gym.envs.registry.env_specs[level].entry_point
             _kwargs = dict(gym.envs.registry.env_specs[level]._kwargs)
             nondeterministic = gym.envs.registry.env_specs[level].nondeterministic
-            if self._max_episode_timesteps is False:
+            if max_episode_timesteps is False:
                 max_episode_steps = None
             else:
-                max_episode_steps = self._max_episode_timesteps
+                max_episode_steps = max_episode_timesteps
 
             if '-v' in level and level[level.rindex('-v') + 2:].isdigit():
                 version = int(level[level.rindex('-v') + 2:])
@@ -130,12 +124,30 @@ class OpenAIGym(Environment):
                 kwargs=_kwargs, nondeterministic=nondeterministic, tags=tags,
                 max_episode_steps=max_episode_steps
             )
-            assert level in self.__class__.levels()
+            assert level in cls.levels()
+
+        return gym.make(id=level, **kwargs), max_episode_timesteps
+
+    def __init__(
+        self, level, visualize=False, max_episode_timesteps=None, terminal_reward=0.0,
+        reward_threshold=None, tags=None, visualize_directory=None, **kwargs
+    ):
+        import gym
+        import gym.wrappers
 
         self.level = level
         self.visualize = visualize
+        self.terminal_reward = terminal_reward
 
-        self.environment = gym.make(id=self.level, **kwargs)
+        if isinstance(level, gym.Env):
+            self.environment = self.level
+            self.level = self.level.__class__.__name__
+            self._max_episode_timesteps = max_episode_timesteps
+        else:
+            self.environment, self._max_episode_timesteps = self.__class__.create_level(
+                level=self.level, max_episode_timesteps=max_episode_timesteps,
+                reward_threshold=reward_threshold, tags=tags, **kwargs
+            )
 
         if visualize_directory is not None:
             self.environment = gym.wrappers.Monitor(

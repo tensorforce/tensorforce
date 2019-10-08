@@ -104,8 +104,8 @@ class UnittestAgent(UnittestBase):
         terminal_batch = list()
         reward_batch = list()
 
-        states = environment.reset()
         for _ in range(2):
+            states = environment.reset()
             terminal = False
             while not terminal:
                 states_batch.append(states)

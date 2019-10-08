@@ -13,6 +13,8 @@ This file records all major updates and new features, starting from version 0.5.
 - Improved "same" baseline optimizer mode and added optional weight specification
 - Reuse layer now global for parameter sharing across modules
 - New block layer type (`block`) for easier sharing of layer blocks
+- Renamed `PolicyAgent/-Model` to `TensorforceAgent/-Model`
+- New `Agent.load(...)` function, saving includes agent specification
 
 
 

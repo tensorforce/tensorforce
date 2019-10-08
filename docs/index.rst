@@ -10,6 +10,7 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 - **Full-on TensorFlow models**: The entire reinforcement learning logic, including control flow, is implemented in TensorFlow, to enable portable computation graphs independent of application programming language, and to facilitate the deployment of models.
 
 
+
 .. toctree::
   :maxdepth: 0
   :caption: Basics

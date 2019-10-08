@@ -6,8 +6,6 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/tensorforce/tensorforce/blob/master/LICENSE)
 
 
-**Important**: Currently working on a major revision of the framework, which fixes a lot of internal problems and introduces a range of new features. You can check it out under the [major-revision branch](https://github.com/tensorforce/tensorforce/tree/major-revision). As it's still work in progress, please post an issue or get in touch via [Gitter](https://gitter.im/tensorforce/community) or [mail](mailto:tensorforce.team@gmail.com) if you encounter problems.
-
 
 #### Introduction
 
@@ -168,8 +166,8 @@ janislavjankov, andrewekhalel,
 HassamSheikh, skervim,
 beflix, coord-e,
 benelot, tms1337, vwxyzjn, erniejunior,
-vermashresth, Deathn0t, petrbel, nrhodes, batu, yellowbee686, tgianko,
-AdamStelmaszczyk, mannsi, perara, neitzal, gitter-badger, sohakes, ekerazha, nagachika, Davidnet, Kismuz, ngoodger, BorisSchaeling, tomhennigan.
+Deathn0t, petrbel, nrhodes, batu, yellowbee686, tgianko,
+AdamStelmaszczyk, BorisSchaeling, christianhidber, Davidnet, ekerazha, gitter-badger, kborozdin, Kismuz, mannsi, milesmcc, nagachika, neitzal, ngoodger, perara, sohakes, tomhennigan.
 
 
 

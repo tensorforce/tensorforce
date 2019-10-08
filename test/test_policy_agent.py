@@ -15,9 +15,33 @@
 
 import unittest
 
+from tensorforce import util
 from test.unittest_agent import UnittestAgent
 
 
 class TestPolicyAgent(UnittestAgent, unittest.TestCase):
 
-    pass
+    def test_act_experience_update(self):
+        self.start_tests(name='act-experience-update')
+
+        agent, environment = self.prepare(
+            require_all=True, update=dict(unit='episodes', batch_size=1),
+            network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
+        )
+        agent.initialize()
+
+        for n in range(2):
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                actions = agent.act(states=states, independent=True)
+                next_states, terminal, reward = environment.execute(actions=actions)
+                states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)
+                actions = util.fmap(function=(lambda x: [x]), xs=actions, depth=1)
+                agent.experience(
+                    states=states, actions=actions, terminal=[terminal], reward=[reward]
+                )
+                states = next_states
+            agent.update()
+
+        self.finished_test()

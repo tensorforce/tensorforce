@@ -331,13 +331,13 @@ class TensorforceAgent(Agent):
         Feed experience traces.
 
         Args:
-            states (dict[state]): Dictionary containing arrays of states
+            states (dict[array[state]): Dictionary containing arrays of states
                 (<span style="color:#C00000"><b>required</b></span>).
-            actions (dict[state]): Dictionary containing arrays of actions
+            actions (dict[array[action]]): Dictionary containing arrays of actions
                 (<span style="color:#C00000"><b>required</b></span>).
-            terminal (bool): Array of terminals
+            terminal (array[bool]): Array of terminals
                 (<span style="color:#C00000"><b>required</b></span>).
-            reward (float): Array of rewards
+            reward (array[float]): Array of rewards
                 (<span style="color:#C00000"><b>required</b></span>).
             internals (dict[state]): Dictionary containing arrays of internal states
                 (<span style="color:#00C000"><b>default</b></span>: no internal states).
@@ -359,22 +359,24 @@ class TensorforceAgent(Agent):
                     auxiliaries[name + '_mask'] = np.asarray(states.pop(name + '_mask'))
         auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries, depth=1)
 
-        # Normalize states dictionary
+        # Normalize states/actions dictionaries
         states = util.normalize_values(
             value_type='state', values=states, values_spec=self.states_spec
         )
-        for name in self.states_spec:
-            states[name] = np.asarray(states[name])
-
         if internals is None:
             internals = OrderedDict()
-
-        # Normalize actions dictionary
         actions = util.normalize_values(
             value_type='action', values=actions, values_spec=self.actions_spec
         )
-        for name in self.actions_spec:
-            actions[name] = np.asarray(actions[name])
+
+        if isinstance(terminal, bool):
+            states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)
+            actions = util.fmap(function=(lambda x: [x]), xs=actions, depth=1)
+            terminal = [terminal]
+            reward = [reward]
+
+        states = util.fmap(function=np.asarray, xs=states, depth=1)
+        actions = util.fmap(function=np.asarray, xs=actions, depth=1)
 
         if isinstance(terminal, np.ndarray):
             if terminal.dtype is util.np_dtype(dtype='bool'):

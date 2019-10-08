@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import os
 import unittest
 
 from tensorforce import util
@@ -24,8 +25,12 @@ class TestPolicyAgent(UnittestAgent, unittest.TestCase):
     def test_act_experience_update(self):
         self.start_tests(name='act-experience-update')
 
+        states = dict(type='float', shape=(1,))
+        actions = dict(type=self.__class__.replacement_action, shape=())
+
         agent, environment = self.prepare(
-            require_all=True, update=dict(unit='episodes', batch_size=1),
+            states=states, actions=actions, require_all=True,
+            update=dict(unit='episodes', batch_size=1),
             network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
         )
         agent.initialize()
@@ -36,12 +41,44 @@ class TestPolicyAgent(UnittestAgent, unittest.TestCase):
             while not terminal:
                 actions = agent.act(states=states, independent=True)
                 next_states, terminal, reward = environment.execute(actions=actions)
-                states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)
-                actions = util.fmap(function=(lambda x: [x]), xs=actions, depth=1)
-                agent.experience(
-                    states=states, actions=actions, terminal=[terminal], reward=[reward]
-                )
+                agent.experience(states=states, actions=actions, terminal=terminal, reward=reward)
                 states = next_states
             agent.update()
+
+        self.finished_test()
+
+    def test_pretrain(self):
+        self.start_tests(name='pretrain')
+
+        states = dict(type='float', shape=(1,))
+        actions = dict(type=self.__class__.replacement_action, shape=())
+
+        agent, environment = self.prepare(
+            states=states, actions=actions, require_all=True, buffer_observe=False, update=1,
+            network=dict(type='auto', size=8, internal_rnn=False),  # TODO: shouldn't be necessary!
+            recorder=dict(directory=self.__class__.directory)
+        )
+
+        agent.initialize()
+
+        for _ in range(3):
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                actions = agent.act(states=states)
+                states, terminal, reward = environment.execute(actions=actions)
+                agent.observe(terminal=terminal, reward=reward)
+
+        agent.pretrain(
+            directory=self.__class__.directory, num_updates=3, num_traces=2, num_iterations=2
+        )
+
+        agent.close()
+        environment.close()
+
+        for filename in os.listdir(path=self.__class__.directory):
+            os.remove(path=os.path.join(self.__class__.directory, filename))
+            assert filename.startswith('trace-')
+        os.rmdir(path=self.__class__.directory)
 
         self.finished_test()

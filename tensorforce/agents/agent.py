@@ -136,7 +136,6 @@ class Agent(object):
             assert isinstance(seed, int)
             random.seed(a=seed)
             np.random.seed(seed=seed)
-            tf.random.set_random_seed(seed=seed)
 
         # States/actions specification
         self.states_spec = util.valid_values_spec(

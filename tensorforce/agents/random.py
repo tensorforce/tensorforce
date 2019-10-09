@@ -99,6 +99,6 @@ class RandomAgent(Agent):
         self.model = RandomModel(
             # Model
             name=name, device=device, parallel_interactions=self.parallel_interactions,
-            buffer_observe=self.buffer_observe, summarizer=summarizer, config=config,
+            buffer_observe=self.buffer_observe, seed=seed, summarizer=summarizer, config=config,
             states=self.states_spec, actions=self.actions_spec,
         )

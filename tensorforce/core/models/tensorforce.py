@@ -30,8 +30,8 @@ class TensorforceModel(Model):
     def __init__(
         self,
         # Model
-        name, device, parallel_interactions, buffer_observe, execution, saver, summarizer, config,
-        states, actions, preprocessing, exploration, variable_noise, l2_regularization,
+        name, device, parallel_interactions, buffer_observe, seed, execution, saver, summarizer,
+        config, states, actions, preprocessing, exploration, variable_noise, l2_regularization,
         # TensorforceModel
         policy, network, memory, update, optimizer, objective, reward_estimation, baseline_policy,
         baseline_network, baseline_optimizer, baseline_objective, entropy_regularization
@@ -104,10 +104,10 @@ class TensorforceModel(Model):
         super().__init__(
             # Model
             name=name, device=device, parallel_interactions=parallel_interactions,
-            buffer_observe=buffer_observe, execution=execution, saver=saver, summarizer=summarizer,
-            config=config, states=states, internals=internals, actions=actions,
-            preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization
+            buffer_observe=buffer_observe, seed=seed, execution=execution, saver=saver,
+            summarizer=summarizer, config=config, states=states, internals=internals,
+            actions=actions, preprocessing=preprocessing, exploration=exploration,
+            variable_noise=variable_noise, l2_regularization=l2_regularization
         )
 
         # Policy

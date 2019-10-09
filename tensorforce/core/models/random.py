@@ -30,14 +30,16 @@ class RandomModel(Model):
     def __init__(
         self,
         # Model
-        name, device, parallel_interactions, buffer_observe, summarizer, config, states, actions
+        name, device, parallel_interactions, buffer_observe, seed, summarizer, config, states,
+        actions
     ):
         super().__init__(
             # Model
             name=name, device=None, parallel_interactions=parallel_interactions,
-            buffer_observe=buffer_observe, execution=None, saver=None, summarizer=summarizer,
-            config=config, states=states, internals=OrderedDict(), actions=actions,
-            preprocessing=None, exploration=0.0, variable_noise=0.0, l2_regularization=0.0
+            buffer_observe=buffer_observe, seed=seed, execution=None, saver=None,
+            summarizer=summarizer, config=config, states=states, internals=OrderedDict(),
+            actions=actions, preprocessing=None, exploration=0.0, variable_noise=0.0,
+            l2_regularization=0.0
         )
 
     def tf_core_act(self, states, internals, auxiliaries):

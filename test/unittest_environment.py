@@ -230,10 +230,12 @@ class UnittestEnvironment(Environment):
     def execute(self, actions):
         if not self.is_valid_actions(actions, self.states):
             raise TensorforceError.value(name='actions', value=actions)
+        if self.timestep > self.num_timesteps:
+            raise TensorforceError.unexpected()
 
         self.timestep += 1
         self.states = self.random_states()
-        terminal = self.timestep >= self.num_timesteps
+        terminal = self.timestep == self.num_timesteps
         reward = -1.0 + 2.0 * random()
 
         return self.states, terminal, reward

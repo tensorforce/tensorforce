@@ -272,9 +272,9 @@ class TensorforceAgent(Agent):
                 preprocessing=preprocessing,
                 exploration=exploration, variable_noise=variable_noise,
                 l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-                name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-                config=config
+                name=name, device=device, parallel_interactions=parallel_interactions,
+                buffer_observe=buffer_observe, seed=seed, execution=execution, saver=saver,
+                summarizer=summarizer, recorder=recorder, config=config
             )
 
         if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
@@ -312,7 +312,7 @@ class TensorforceAgent(Agent):
         self.model = TensorforceModel(
             # Model
             name=name, device=device, parallel_interactions=self.parallel_interactions,
-            buffer_observe=self.buffer_observe, execution=execution, saver=saver,
+            buffer_observe=self.buffer_observe, seed=seed, execution=execution, saver=saver,
             summarizer=summarizer, config=config, states=self.states_spec,
             actions=self.actions_spec, preprocessing=preprocessing, exploration=exploration,
             variable_noise=variable_noise, l2_regularization=l2_regularization,

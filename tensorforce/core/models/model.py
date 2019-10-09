@@ -30,8 +30,9 @@ class Model(Module):
     def __init__(
         self,
         # Model
-        name, device, parallel_interactions, buffer_observe, execution, saver, summarizer, config,
-        states, internals, actions, preprocessing, exploration, variable_noise, l2_regularization
+        name, device, parallel_interactions, buffer_observe, seed, execution, saver, summarizer,
+        config, states, internals, actions, preprocessing, exploration, variable_noise,
+        l2_regularization
     ):
         if summarizer is None or summarizer.get('directory') is None:
             summary_labels = None
@@ -50,6 +51,9 @@ class Model(Module):
         # Buffer observe
         assert isinstance(buffer_observe, int) and buffer_observe >= 1
         self.buffer_observe = buffer_observe
+
+        # Seed
+        self.seed = seed
 
         # Execution
         assert execution is None
@@ -359,6 +363,9 @@ class Model(Module):
                 raise TensorforceError("Unsupported job type: {}!".format(self.distributed_spec["job"]))
         else:
             raise TensorforceError("Unsupported distributed type: {}!".format(self.distributed_spec["type"]))
+
+        if self.seed is not None:
+            tf.random.set_random_seed(seed=self.seed)
 
         return graph_default_context
 

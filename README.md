@@ -79,7 +79,7 @@ from tensorforce.agents import Agent
 
 # Instantiate a Tensorforce agent
 agent = Agent.create(
-    agent='policy',
+    agent='tensorforce',
     states=dict(type='float', shape=(10,)),
     actions=dict(type='int', num_values=5),
     memory=10000,

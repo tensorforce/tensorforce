@@ -149,7 +149,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             memory=10000,
             update=dict(unit='timesteps', batch_size=64),
             optimizer=dict(type='adam', learning_rate=3e-4),
-            network='auto',
+            policy=dict(network='auto'),
             objective='policy_gradient',
             reward_estimation=dict(horizon=20)
         )

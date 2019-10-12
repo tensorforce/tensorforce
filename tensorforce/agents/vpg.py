@@ -73,16 +73,12 @@ class VanillaPolicyGradient(TensorforceAgent):
         estimate_terminal (bool): Whether to estimate the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        baseline_network ("same" | "equal" | specification): Baseline network configuration, see
-            [networks](../modules/networks.html), "same" refers to reusing the main network as part
-            of the baseline policy, "equal" refers to using the same configuration as the main
-            network
+        baseline_network (specification): Baseline network configuration, see
+            [networks](../modules/networks.html), main policy will be used as baseline if none
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_optimizer ("same" | float > 0.0 | "equal" | specification): Baseline optimizer
-            configuration, see [optimizers](../modules/optimizers.html), "same"
-            refers to reusing the main optimizer for the baseline, a float implies "same" and
-            specifies the weight for the baseline loss (otherwise 1.0), "equal" refers to using the
-            same configuration as the main optimizer
+        baseline_optimizer (float > 0.0 | specification): Baseline optimizer configuration, see
+            [optimizers](../modules/optimizers.html), main optimizer will be used for baseline if
+            none, a float implies none and specifies a custom weight for the baseline loss
             (<span style="color:#00C000"><b>default</b></span>: none).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
@@ -194,7 +190,7 @@ class VanillaPolicyGradient(TensorforceAgent):
         # Reward estimation
         discount=0.99, estimate_terminal=False,
         # Baseline
-        baseline_network=None, baseline_optimizer=1.0,
+        baseline_network=None, baseline_optimizer=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -231,17 +227,20 @@ class VanillaPolicyGradient(TensorforceAgent):
         if baseline_network is None:
             reward_estimation = dict(horizon='episode', discount=discount)
             baseline_policy = None
-            assert baseline_optimizer == 1.0
-            baseline_optimizer = None
+            assert baseline_optimizer is None
             baseline_objective = None
         else:
+            if estimate_terminal and critic_network is not None:
+                estimate_horizon = 'late'
+            else:
+                estimate_horizon = False
             reward_estimation = dict(
-                horizon='episode', discount=discount,
-                estimate_horizon=('late' if estimate_terminal else False),
+                horizon='episode', discount=discount, estimate_horizon=estimate_horizon,
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
             # State value doesn't exist for Beta
             baseline_policy = dict(network=baseline_network, distributions=dict(float='gaussian'))
+            assert baseline_optimizer is not None
             baseline_objective = 'state_value'
 
         super().__init__(

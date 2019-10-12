@@ -43,13 +43,21 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             type='meta_optimizer_wrapper', optimizer='adam', learning_rate=1e-3, multi_step=5,
             subsampling_fraction=0.5, clipping_threshold=1e-2, optimizing_iterations=3
         )
-        self.unittest(optimizer=optimizer, network=dict(type='auto', size=8, internal_rnn=False))  # TODO: shouldn't be necessary!
+        self.unittest(
+            optimizer=optimizer,
+            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
+            # TODO: shouldn't be necessary!
+        )
 
         optimizer = dict(
             optimizer='adam', learning_rate=1e-3, multi_step=5, subsampling_fraction=0.5,
             clipping_threshold=1e-2, optimizing_iterations=3
         )
-        self.unittest(optimizer=optimizer, network=dict(type='auto', size=8, internal_rnn=False))  # TODO: shouldn't be necessary!
+        self.unittest(
+            optimizer=optimizer,
+            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
+            # TODO: shouldn't be necessary!
+        )
 
     def test_multi_step(self):
         self.start_tests(name='multi-step')
@@ -57,13 +65,21 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         optimizer = dict(
             type='multi_step', optimizer=dict(type='adam', learning_rate=1e-3), num_steps=10
         )
-        self.unittest(optimizer=optimizer, network=dict(type='auto', size=8, internal_rnn=False))  # TODO: shouldn't be necessary!
+        self.unittest(
+            optimizer=optimizer,
+            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
+            # TODO: shouldn't be necessary!
+        )
 
     def test_natural_gradient(self):
         self.start_tests(name='natural-gradient')
 
         optimizer = dict(type='natural_gradient', learning_rate=1e-3)
-        self.unittest(optimizer=optimizer, network=dict(type='auto', size=8, internal_rnn=False))  # TODO: shouldn't be necessary!
+        self.unittest(
+            optimizer=optimizer,
+            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
+            # TODO: shouldn't be necessary!
+        )
 
     def test_optimizing_step(self):
         self.start_tests(name='optimizing-step')
@@ -86,7 +102,11 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         optimizer = dict(
             type='subsampling_step', optimizer=dict(type='adam', learning_rate=1e-3), fraction=0.5
         )
-        self.unittest(optimizer=optimizer, network=dict(type='auto', size=8, internal_rnn=False))  # TODO: shouldn't be necessary!
+        self.unittest(
+            optimizer=optimizer,
+            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
+            # TODO: shouldn't be necessary!
+        )
 
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')

@@ -65,12 +65,9 @@ class TensorforceAgent(Agent):
         max_episode_timesteps (int > 0): Maximum number of timesteps per episode
             (<span style="color:#00C000"><b>default</b></span>: not given).
 
-        policy (specification): Policy configuration, currently best to ignore and use the
-            *network* argument instead.
-        network ("auto" | specification): Policy network configuration, see
-            [networks](../modules/networks.html)
-            (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
-            network).
+        policy (specification): Policy configuration, see [policies](../modules/policies.html)
+            (<span style="color:#00C000"><b>default</b></span>: "default", action distributions
+            parametrized by an automatically configured network).
         memory (int | specification): Memory configuration, see
             [memories](../modules/memories.html)
             (<span style="color:#00C000"><b>default</b></span>: replay memory with given or
@@ -117,26 +114,16 @@ class TensorforceAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
 
-        baseline_policy ("same" | "equal" | specification): Baseline policy configuration, "same"
-            refers to reusing the main policy as baseline, "equal" refers to using the same
-            configuration as the main policy
+        baseline_policy (specification): Baseline policy configuration, main policy will be used as
+            baseline if none
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_network ("same" | "equal" | specification): Baseline network configuration, see
-            [networks](../modules/networks.html), "same" refers to reusing the main network as part
-            of the baseline policy, "equal" refers to using the same configuration as the main
-            network
+        baseline_optimizer (float > 0.0 | specification): Baseline optimizer configuration, see
+            [optimizers](../modules/optimizers.html), main optimizer will be used for baseline if
+            none, a float implies none and specifies a custom weight for the baseline loss
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_optimizer ("same" | float > 0.0 | "equal" | specification): Baseline optimizer
-            configuration, see [optimizers](../modules/optimizers.html), "same"
-            refers to reusing the main optimizer for the baseline, a float implies "same" and
-            specifies the weight for the baseline loss (otherwise 1.0), "equal" refers to using the
-            same configuration as the main optimizer
-            (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_objective ("same" | "equal" | specification): Baseline optimization objective
-            configuration, see [objectives](../modules/objectives.html), "same" refers to reusing
-            the main objective for the baseline, "equal" refers to using the same configuration as
-            the main objective
-            (<span style="color:#00C000"><b>default</b></span>: none).
+        baseline_objective (specification): Baseline optimization objective configuration, see
+            [objectives](../modules/objectives.html), main objective will be used for baseline if
+            none (<span style="color:#00C000"><b>default</b></span>: none).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
             [preprocessing](../modules/preprocessing.html), specified per state-type or -name and
@@ -248,10 +235,9 @@ class TensorforceAgent(Agent):
         # Environment
         max_episode_timesteps=None,
         # Agent
-        policy='default', network=None, memory=None, optimizer='adam',
+        policy='default', memory=None, optimizer='adam',
         # Baseline
-        baseline_policy=None, baseline_network=None, baseline_optimizer=None,
-        baseline_objective=None,
+        baseline_policy=None, baseline_optimizer=None, baseline_objective=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -266,10 +252,10 @@ class TensorforceAgent(Agent):
             self.spec = OrderedDict(
                 agent='tensorforce',
                 states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-                policy=policy, network=network, memory=memory, update=update, optimizer=optimizer,
+                policy=policy, memory=memory, update=update, optimizer=optimizer,
                 objective=objective, reward_estimation=reward_estimation,
-                baseline_policy=baseline_policy, baseline_network=baseline_network,
-                baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
+                baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
+                baseline_objective=baseline_objective,
                 preprocessing=preprocessing,
                 exploration=exploration, variable_noise=variable_noise,
                 l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -318,9 +304,8 @@ class TensorforceAgent(Agent):
             actions=self.actions_spec, preprocessing=preprocessing, exploration=exploration,
             variable_noise=variable_noise, l2_regularization=l2_regularization,
             # TensorforceModel
-            policy=policy, network=network, memory=memory, update=update, optimizer=optimizer,
-            objective=objective, reward_estimation=reward_estimation,
-            baseline_policy=baseline_policy, baseline_network=baseline_network,
+            policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )

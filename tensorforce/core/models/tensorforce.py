@@ -33,22 +33,14 @@ class TensorforceModel(Model):
         name, device, parallel_interactions, buffer_observe, seed, execution, saver, summarizer,
         config, states, actions, preprocessing, exploration, variable_noise, l2_regularization,
         # TensorforceModel
-        policy, network, memory, update, optimizer, objective, reward_estimation, baseline_policy,
-        baseline_network, baseline_optimizer, baseline_objective, entropy_regularization
+        policy, memory, update, optimizer, objective, reward_estimation, baseline_policy,
+        baseline_optimizer, baseline_objective, entropy_regularization
     ):
         # Policy internals specification
-        # if (policy is None) == (network is None):
-        #     raise TensorforceError.unexpected()
-        if network is None:
-            policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                name='policy', module=policy, modules=policy_modules, states_spec=states,
-                actions_spec=actions
-            )
-        else:
-            policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                name='policy', module=policy, modules=policy_modules, states_spec=states,
-                actions_spec=actions, network=network
-            )
+        policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+            name='policy', module=policy, modules=policy_modules, states_spec=states,
+            actions_spec=actions
+        )
         if first_arg is None:
             internals = policy_cls.internals_spec(name='policy', **kwargs)
         else:
@@ -57,37 +49,13 @@ class TensorforceModel(Model):
             raise TensorforceError.unexpected()
 
         # Baseline internals specification
-        if baseline_policy == 'same':
-            if baseline_network is not None and baseline_network != 'same':
-                raise TensorforceError.unexpected()
-        elif baseline_network == 'same':
-            if baseline_policy is not None:
-                raise TensorforceError.unexpected()
-        elif baseline_policy == 'equal':
-            if baseline_network is not None and baseline_network != 'equal':
-                raise TensorforceError.unexpected()
-            baseline_policy = policy
-            baseline_network = network
-        elif baseline_network == 'equal':
-            if baseline_policy is not None:
-                raise TensorforceError.unexpected()
-            baseline_network = network
-
-        if baseline_policy is None and baseline_network is None:
-            pass
-        elif baseline_policy == 'same' or baseline_network == 'same':
+        if baseline_policy is None:
             pass
         else:
-            if baseline_network is None:
-                baseline_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                    name='baseline', module=baseline_policy, modules=policy_modules,
-                    states_spec=states, actions_spec=actions
-                )
-            else:
-                baseline_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                    name='baseline', module=baseline_policy, modules=policy_modules,
-                    states_spec=states, actions_spec=actions, network=baseline_network
-                )
+            baseline_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+                name='baseline', module=baseline_policy, modules=policy_modules,
+                states_spec=states, actions_spec=actions
+            )
             if first_arg is None:
                 baseline_internals = baseline_cls.internals_spec(name='baseline', **kwargs)
             else:
@@ -111,16 +79,10 @@ class TensorforceModel(Model):
         )
 
         # Policy
-        if network is None:
-            self.policy = self.add_module(
-                name='policy', module=policy, modules=policy_modules, states_spec=self.states_spec,
-                actions_spec=self.actions_spec
-            )
-        else:
-            self.policy = self.add_module(
-                name='policy', module=policy, modules=policy_modules, states_spec=self.states_spec,
-                actions_spec=self.actions_spec, network=network
-            )
+        self.policy = self.add_module(
+            name='policy', module=policy, modules=policy_modules, states_spec=self.states_spec,
+            actions_spec=self.actions_spec
+        )
 
         # Memory
         self.memory = self.add_module(
@@ -181,7 +143,7 @@ class TensorforceModel(Model):
             name='estimator', module=Estimator, is_trainable=False, is_saved=False,
             values_spec=self.values_spec, horizon=horizon,
             discount=reward_estimation.get('discount', 1.0),
-            estimate_horizon=reward_estimation.get('estimate_horizon', 'late'),
+            estimate_horizon=reward_estimation.get('estimate_horizon', False),
             estimate_actions=reward_estimation.get('estimate_actions', False),
             estimate_terminal=reward_estimation.get('estimate_terminal', False),
             estimate_advantage=reward_estimation.get('estimate_advantage', False),
@@ -189,57 +151,29 @@ class TensorforceModel(Model):
         )
 
         # Baseline
-        if baseline_optimizer == 'same' or isinstance(baseline_optimizer, float):
+        if (baseline_policy is not None or baseline_objective is not None) and \
+                (baseline_optimizer is None or isinstance(baseline_optimizer, float)):
             # since otherwise not part of training
             assert self.estimator.estimate_advantage or baseline_objective is not None
             is_trainable = True
         else:
             is_trainable = False
-        self.separate_baseline_internals = True
-        self.shared_baseline_network = False
-        if baseline_policy is None and baseline_network is None:
-            assert baseline_optimizer is None and baseline_objective is None
-            self.baseline_policy = None
-            self.separate_baseline_internals = False
-        elif baseline_policy == 'same':
+        if baseline_policy is None:
             self.baseline_policy = self.policy
-            self.separate_baseline_internals = False
-        elif baseline_network == 'same':
-            self.baseline_policy = self.add_module(
-                name='baseline', module=baseline_policy, modules=policy_modules,
-                is_trainable=is_trainable, states_spec=self.states_spec,
-                actions_spec=self.actions_spec, network=self.policy.network
-            )
-            self.separate_baseline_internals = False
-            self.shared_baseline_network = True
-        elif baseline_network is None:
+        else:
             self.baseline_policy = self.add_module(
                 name='baseline', module=baseline_policy, modules=policy_modules,
                 is_trainable=is_trainable, states_spec=self.states_spec,
                 actions_spec=self.actions_spec
             )
-        else:
-            self.baseline_policy = self.add_module(
-                name='baseline', module=baseline_policy, modules=policy_modules,
-                is_trainable=is_trainable, states_spec=self.states_spec,
-                actions_spec=self.actions_spec, network=baseline_network
-            )
 
         # Baseline optimizer
         if baseline_optimizer is None:
-            assert baseline_objective is None
             self.baseline_optimizer = None
-        elif baseline_optimizer == 'same':
-            self.baseline_optimizer = 'same'
             self.baseline_loss_weight = 1.0
         elif isinstance(baseline_optimizer, float):
-            self.baseline_optimizer = 'same'
+            self.baseline_optimizer = None
             self.baseline_loss_weight = baseline_optimizer
-        elif baseline_optimizer == 'equal':
-            self.baseline_optimizer = self.add_module(
-                name='baseline-optimizer', module=optimizer, modules=optimizer_modules,
-                is_trainable=False
-            )
         else:
             self.baseline_optimizer = self.add_module(
                 name='baseline-optimizer', module=baseline_optimizer, modules=optimizer_modules,
@@ -249,13 +183,6 @@ class TensorforceModel(Model):
         # Baseline objective
         if baseline_objective is None:
             self.baseline_objective = None
-        elif baseline_objective == 'same':
-            self.baseline_objective = 'same'
-        elif baseline_objective == 'equal':
-            self.baseline_objective = self.add_module(
-                name='baseline-objective', module=objective, modules=objective_modules,
-                is_trainable=False
-            )
         else:
             self.baseline_objective = self.add_module(
                 name='baseline-objective', module=baseline_objective, modules=objective_modules,
@@ -271,8 +198,7 @@ class TensorforceModel(Model):
 
         # Internals initialization
         self.internals_init.update(self.policy.internals_init())
-        if self.separate_baseline_internals:
-            self.internals_init.update(self.baseline_policy.internals_init())
+        self.internals_init.update(self.baseline_policy.internals_init())
         if any(internal_init is None for internal_init in self.internals_init.values()):
             raise TensorforceError.unexpected()
 
@@ -470,11 +396,9 @@ class TensorforceModel(Model):
 
         # Dependency horizon
         dependency_horizon = self.policy.dependency_horizon(is_optimization=False)
-        if self.baseline_policy is not None:
-            dependency_horizon = tf.math.maximum(
-                x=dependency_horizon,
-                y=self.baseline_policy.dependency_horizon(is_optimization=False)
-            )
+        dependency_horizon = tf.math.maximum(
+            x=dependency_horizon, y=self.baseline_policy.dependency_horizon(is_optimization=False)
+        )
 
         # TODO: handle arbitrary non-optimization horizons!
         assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
@@ -504,13 +428,12 @@ class TensorforceModel(Model):
 
         # TODO: entropy etc summaries!
 
-        if self.separate_baseline_internals and \
-                any(name.startswith('baseline-') for name in internals):
+        if any(name not in next_internals for name in internals):
             # Baseline policy act to retrieve next internals
             _, baseline_internals = self.baseline_policy.act(
                 states=states, internals=internals, auxiliaries=auxiliaries, return_internals=True
             )
-            assert any(name not in next_internals for name in baseline_internals)
+            assert all(name not in next_internals for name in baseline_internals)
             next_internals.update(baseline_internals)
 
         return actions, next_internals
@@ -538,11 +461,9 @@ class TensorforceModel(Model):
                 # Timestep-based batch
                 one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
                 past_horizon = self.policy.dependency_horizon(is_optimization=True)
-                if self.baseline_policy is not None:
-                    past_horizon = tf.math.maximum(
-                        x=past_horizon,
-                        y=self.baseline_policy.dependency_horizon(is_optimization=True)
-                    )
+                past_horizon = tf.math.maximum(
+                    x=past_horizon, y=self.baseline_policy.dependency_horizon(is_optimization=True)
+                )
                 future_horizon = self.estimator.horizon.value() + one
                 start = tf.math.maximum(x=start, y=(batch_size + past_horizon + future_horizon))
                 timestep = Module.retrieve_tensor(name='timestep')
@@ -630,11 +551,9 @@ class TensorforceModel(Model):
                 # Timestep-based batch
                 # Dependency horizon
                 past_horizon = self.policy.dependency_horizon(is_optimization=True)
-                if self.baseline_policy is not None:
-                    past_horizon = tf.math.maximum(
-                        x=past_horizon,
-                        y=self.baseline_policy.dependency_horizon(is_optimization=True)
-                    )
+                past_horizon = tf.math.maximum(
+                    x=past_horizon, y=self.baseline_policy.dependency_horizon(is_optimization=True)
+                )
                 future_horizon = self.estimator.horizon.value() + one
                 indices = self.memory.retrieve_timesteps(
                     n=batch_size, past_padding=past_horizon, future_padding=future_horizon
@@ -700,8 +619,7 @@ class TensorforceModel(Model):
         #     baseline_internals = internals
 
         # Baseline optimization using early reward estimates
-        if self.baseline_policy is not None and self.baseline_optimizer is not None and \
-                self.baseline_optimizer != 'same':
+        if self.baseline_optimizer is not None:
             # optimized = self.optimize_baseline(
             #     indices=indices, states=states, internals=internals, actions=actions, reward=reward
             # )
@@ -730,21 +648,29 @@ class TensorforceModel(Model):
             )
 
         # Stop gradients of estimated rewards if separate baseline optimization
-        if self.baseline_policy is not None and \
-                (self.baseline_optimizer is not None or self.baseline_objective is not None):
+        if self.baseline_optimizer is not None or self.baseline_objective is not None:
             reward = tf.stop_gradient(input=reward)
 
         # Retrieve states, internals and actions
         dependency_horizon = self.policy.dependency_horizon(is_optimization=True)
-        # horizon change: see timestep-based batch sampling
-        starts, lengths, states, internals = self.memory.predecessors(
-            indices=indices, horizon=dependency_horizon, sequence_values='states',
-            initial_values='internals'
-        )
-        Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
-        auxiliaries, actions = self.memory.retrieve(
-            indices=indices, values=('auxiliaries', 'actions')
-        )
+        if self.baseline_optimizer is None:
+            assertion = tf.debugging.assert_equal(
+                x=dependency_horizon,
+                y=self.baseline_policy.dependency_horizon(is_optimization=True)
+            )
+        else:
+            assertion = dependency_horizon
+
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            # horizon change: see timestep-based batch sampling
+            starts, lengths, states, internals = self.memory.predecessors(
+                indices=indices, horizon=dependency_horizon, sequence_values='states',
+                initial_values='internals'
+            )
+            Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+            auxiliaries, actions = self.memory.retrieve(
+                indices=indices, values=('auxiliaries', 'actions')
+            )
 
         # Optimizer arguments
         variables = self.get_variables(only_trainable=True)
@@ -757,9 +683,14 @@ class TensorforceModel(Model):
         fn_loss = self.total_loss
 
         def fn_kl_divergence(states, internals, auxiliaries, actions, reward, other=None):
-            return self.policy.kl_divergence(
+            kl_divergence = self.policy.kl_divergence(
                 states=states, internals=internals, auxiliaries=auxiliaries, other=other
             )
+            if self.baseline_optimizer is None and self.baseline_objective is not None:
+                kl_divergence += self.baseline_policy.kl_divergence(
+                states=states, internals=internals, auxiliaries=auxiliaries, other=other
+            )
+            return kl_divergence
 
         if self.global_model is None:
             global_variables = None
@@ -770,8 +701,7 @@ class TensorforceModel(Model):
             policy=self.policy, baseline=self.baseline_policy
         )
 
-        if self.baseline_policy is not None and self.baseline_optimizer == 'same' and \
-                self.baseline_objective != 'same':
+        if self.baseline_optimizer is None and self.baseline_objective is not None:
             util.disjoint_update(
                 target=kwargs,
                 source=self.baseline_objective.optimizer_arguments(policy=self.baseline_policy)
@@ -836,7 +766,7 @@ class TensorforceModel(Model):
         loss = loss + regularization_loss
 
         # Baseline loss
-        if self.baseline_policy is not None and self.baseline_optimizer == 'same':
+        if self.baseline_optimizer is None and self.baseline_objective is not None:
             baseline_loss = self.baseline_loss_weight * self.baseline_loss(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 reward=reward
@@ -895,8 +825,6 @@ class TensorforceModel(Model):
 
         # Optimizer arguments
         variables = self.baseline_policy.get_variables(only_trainable=True)
-        if self.shared_baseline_network:
-            variables += self.policy.network.get_variables(only_trainable=True)
 
         arguments = dict(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
@@ -918,7 +846,7 @@ class TensorforceModel(Model):
             global_variables = self.global_model.baseline_policy.get_variables(only_trainable=True)
 
         if self.baseline_objective is None:
-            kwargs = dict()
+            kwargs = self.objective.optimizer_arguments(policy=self.baseline_policy)
         else:
             kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline_policy)
 
@@ -933,7 +861,7 @@ class TensorforceModel(Model):
 
     def tf_baseline_loss(self, states, internals, auxiliaries, actions, reward, **kwargs):
         # Loss per instance
-        if self.baseline_objective == 'same':
+        if self.baseline_objective is None:
             loss_per_instance = self.objective.loss_per_instance(
                 policy=self.baseline_policy, states=states, internals=internals,
                 auxiliaries=auxiliaries, actions=actions, reward=reward, **kwargs

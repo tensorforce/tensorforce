@@ -61,17 +61,13 @@ class DeterministicPolicyGradient(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        critic_network ("same" | "equal" | specification): Critic network configuration, see
-            [networks](../modules/networks.html), "same" refers to reusing the main network as part
-            of the critic policy, "equal" refers to using the same configuration as the main
-            network
+        critic_network (specification): Critic network configuration, see
+            [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: none).
-        critic_optimizer ("same" | float > 0.0 | "equal" | specification): Critic optimizer
-            configuration, see [optimizers](../modules/optimizers.html), "same"
-            refers to reusing the main optimizer for the critic, a float implies "same" and
-            specifies the weight for the baseline loss (otherwise 1.0), "equal" refers to using the
-            same configuration as the main optimizer
-            (<span style="color:#00C000"><b>default</b></span>: none).
+        critic_optimizer (float > 0.0 | specification): Critic optimizer configuration, see
+            [optimizers](../modules/optimizers.html), a float instead specifies a custom weight for
+            the critic loss
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
             [preprocessing](../modules/preprocessing.html), specified per state-type or -name and

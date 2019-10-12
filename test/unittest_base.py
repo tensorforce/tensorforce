@@ -61,8 +61,8 @@ class UnittestBase(object):
 
     # Agent
     agent = dict(
-        update=4, network=dict(type='auto', size=8, internal_rnn=2), objective='policy_gradient',
-        reward_estimation=dict(horizon=2)
+        update=4, policy=dict(network=dict(type='auto', size=8, internal_rnn=2)),
+        objective='policy_gradient', reward_estimation=dict(horizon=2)
     )
 
     # Tensorforce config

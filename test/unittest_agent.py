@@ -75,7 +75,8 @@ class UnittestAgent(UnittestBase):
         if self.__class__.has_update:
             agent, environment = self.prepare(
                 states=states, actions=actions, require_all=True, buffer_observe=False, update=1,
-                network=dict(type='auto', size=8, internal_rnn=False)  # TODO: shouldn't be necessary!
+                policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
+                # TODO: shouldn't be necessary!
             )
 
         else:

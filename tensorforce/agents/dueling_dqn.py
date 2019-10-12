@@ -240,7 +240,7 @@ class DuelingDQN(TensorforceAgent):
             horizon=horizon, discount=discount, estimate_horizon='late',
             estimate_terminal=estimate_terminal, estimate_actions=True
         )
-        baseline_policy = 'equal'
+        baseline_policy = policy
         baseline_optimizer = dict(
             type='synchronization', sync_frequency=target_sync_frequency,
             update_weight=target_update_weight

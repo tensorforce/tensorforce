@@ -75,16 +75,12 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         estimate_terminal (bool): Whether to estimate the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        critic_network ("same" | "equal" | specification): Critic network configuration, see
-            [networks](../modules/networks.html), "same" refers to reusing the main network as part
-            of the critic policy, "equal" refers to using the same configuration as the main
-            network
+        critic_network (specification): Critic network configuration, see
+            [networks](../modules/networks.html), main policy will be used as critic if none
             (<span style="color:#00C000"><b>default</b></span>: none).
-        critic_optimizer ("same" | float > 0.0 | "equal" | specification): Critic optimizer
-            configuration, see [optimizers](../modules/optimizers.html), "same"
-            refers to reusing the main optimizer for the critic, a float implies "same" and
-            specifies the weight for the baseline loss (otherwise 1.0), "equal" refers to using the
-            same configuration as the main optimizer
+        critic_optimizer (float > 0.0 | specification): Critic optimizer configuration, see
+            [optimizers](../modules/optimizers.html), main optimizer will be used for critic if
+            none, a float implies none and specifies a custom weight for the critic loss
             (<span style="color:#00C000"><b>default</b></span>: none).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
@@ -243,16 +239,18 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         )
         if critic_network is None:
             reward_estimation = dict(horizon='episode', discount=discount)
-        else:
-            reward_estimation = dict(
-                horizon='episode', discount=discount,
-                estimate_horizon=('late' if estimate_terminal else False),
-                estimate_terminal=estimate_terminal, estimate_advantage=True
-            )
-        if critic_network is None:
             baseline_policy = None
+            assert critic_optimizer is None
             baseline_objective = None
         else:
+            if estimate_terminal and critic_network is not None:
+                estimate_horizon = 'late'
+            else:
+                estimate_horizon = False
+            reward_estimation = dict(
+                horizon='episode', discount=discount, estimate_horizon=estimate_horizon,
+                estimate_terminal=estimate_terminal, estimate_advantage=True
+            )
             # State value doesn't exist for Beta
             baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
             assert critic_optimizer is not None

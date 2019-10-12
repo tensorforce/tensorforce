@@ -31,13 +31,13 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         # 'dropout', 'kl-divergence'
         reward_estimation = dict(horizon=2, estimate_horizon='late')
-        baseline_network = 'equal'
-        baseline_objective = 'equal'
-        baseline_optimizer = 'equal'
+        baseline_policy = dict(network=dict(type='auto', size=8, internal_rnn=1))
+        baseline_objective = 'policy_gradient'
+        baseline_optimizer = 'adam'
 
         self.unittest(
             summarizer=dict(directory=self.__class__.directory, labels='all', frequency=2),
-            reward_estimation=reward_estimation, baseline_network=baseline_network,
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 

@@ -72,13 +72,10 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         )
 
         # Network
-        if isinstance(network, Network):
-            self.network = network
-        else:
-            self.network = self.add_module(
-                name=(self.name + '-network'), module=network, modules=network_modules,
-                inputs_spec=self.states_spec
-            )
+        self.network = self.add_module(
+            name=(self.name + '-network'), module=network, modules=network_modules,
+            inputs_spec=self.states_spec
+        )
         output_spec = self.network.get_output_spec()
         if output_spec['type'] != 'float':
             raise TensorforceError(

@@ -26,69 +26,74 @@ class TestBaseline(UnittestBase, unittest.TestCase):
     def test_baseline(self):
         self.start_tests()
 
-        baseline_policy = 'same'
-        baseline_network = None
-        baseline_objective = 'policy_gradient'
-        baseline_optimizer = 'adam'
-        self.unittest(
-            baseline_policy=baseline_policy, baseline_network=baseline_network,
-            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
-        )
-
-        baseline_policy = 'same'
-        baseline_network = None
+        reward_estimation = dict(horizon=2, estimate_horizon='early')
+        baseline_policy = None
         baseline_objective = None
         baseline_optimizer = None
         self.unittest(
-            baseline_policy=baseline_policy, baseline_network=baseline_network,
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
-        reward_estimation = dict(horizon=2, estimate_advantage=True)
-        baseline_policy = 'equal'
-        baseline_network = None
-        baseline_objective = 'same'
-        baseline_optimizer = 'same'
+        reward_estimation = dict(horizon=2, estimate_horizon='early')
+        baseline_policy = None
+        baseline_objective = 'policy_gradient'
+        baseline_optimizer = None
         self.unittest(
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_network=baseline_network, baseline_objective=baseline_objective,
-            baseline_optimizer=baseline_optimizer
-        )
-
-        baseline_policy = 'parametrized_distributions'
-        baseline_network = None
-        baseline_objective = 'equal'
-        baseline_optimizer = 'equal'
-        self.unittest(
-            baseline_policy=baseline_policy, baseline_network=baseline_network,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
+        reward_estimation = dict(horizon=2, estimate_horizon='early')
         baseline_policy = None
-        baseline_network = 'same'
+        baseline_objective = None
+        baseline_optimizer = 'adam'
+        self.unittest(
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
+        )
+
+        reward_estimation = dict(horizon=2, estimate_horizon='early')
+        baseline_policy = None
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
         self.unittest(
-            baseline_policy=baseline_policy, baseline_network=baseline_network,
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
         reward_estimation = dict(horizon=2, estimate_advantage=True)
-        baseline_policy = None
-        baseline_network = 'equal'
-        baseline_objective = 'same'
-        baseline_optimizer = 'same'
+        baseline_policy = dict(network=dict(type='auto', size=8, internal_rnn=2))
+        baseline_objective = None
+        baseline_optimizer = None
         self.unittest(
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_network=baseline_network, baseline_objective=baseline_objective,
-            baseline_optimizer=baseline_optimizer
+            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
-        baseline_policy = None
-        baseline_network = 'auto'
-        baseline_objective = 'equal'
-        baseline_optimizer = 'equal'
+        reward_estimation = dict(horizon=2, estimate_horizon='early')
+        baseline_policy = dict(network=dict(type='auto', size=8, internal_rnn=2))
+        baseline_objective = 'policy_gradient'
+        baseline_optimizer = None
         self.unittest(
-            baseline_policy=baseline_policy, baseline_network=baseline_network,
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
+        )
+
+        reward_estimation = dict(horizon=2, estimate_horizon='early')
+        baseline_policy = dict(network=dict(type='auto', size=8, internal_rnn=1))
+        baseline_objective = None
+        baseline_optimizer = 'adam'
+        self.unittest(
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
+        )
+
+        reward_estimation = dict(horizon=2, estimate_horizon='early')
+        baseline_policy = dict(network=dict(type='auto', size=8, internal_rnn=1))
+        baseline_objective = 'policy_gradient'
+        baseline_optimizer = 'adam'
+        self.unittest(
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )

@@ -41,7 +41,9 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
     def specification_unittest(self, network, memory):
         states = dict(type='float', shape=(3,))
 
-        agent, environment = self.prepare(states=states, network=network, memory=memory)
+        agent, environment = self.prepare(
+            states=states, policy=dict(network=network), memory=memory
+        )
 
         agent.initialize()
         states = environment.reset()

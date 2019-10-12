@@ -97,19 +97,13 @@ class Gaussian(Distribution):
 
         return mean, stddev, log_stddev
 
-    def tf_sample(self, parameters, deterministic):
+    def tf_sample(self, parameters, temperature):
         mean, stddev, _ = parameters
 
-        # Deterministic: mean as action
-        definite = mean
-
-        # Non-deterministic: sample action using default normal distribution
         normal_distribution = tf.random.normal(
             shape=tf.shape(input=mean), dtype=util.tf_dtype(dtype='float')
         )
-        sampled = mean + stddev * normal_distribution
-
-        action = tf.where(condition=deterministic, x=definite, y=sampled)
+        action = mean + stddev * temperature * normal_distribution
 
         # Clip if bounded action
         if 'min_value' in self.action_spec:

@@ -33,7 +33,7 @@ class OpenAIGym(Environment):
     ```
 
     Args:
-        level (string): Gym id
+        level (string | gym.Env): Gym id or instance
             (<span style="color:#C00000"><b>required</b></span>).
         visualize (bool): Whether to visualize interaction
             (<span style="color:#00C000"><b>default</b></span>: false).

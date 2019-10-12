@@ -26,7 +26,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
     require_observe = True
 
     def float_unittest(self, exploration):
-        agent, environment = self.prepare(exploration=exploration)
+        agent, environment = self.prepare(timestep_range=(5, 5), exploration=exploration)
 
         agent.initialize()
         states = environment.reset()
@@ -66,7 +66,9 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.finished_test()
 
     def long_unittest(self, horizon):
-        agent, environment = self.prepare(reward_estimation=dict(horizon=horizon), memory=20)
+        agent, environment = self.prepare(
+            timestep_range=(5, 5), reward_estimation=dict(horizon=horizon), memory=20
+        )
 
         agent.initialize()
         states = environment.reset()

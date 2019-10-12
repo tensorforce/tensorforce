@@ -31,10 +31,8 @@ class DeterministicPolicyGradient(Objective):
     """
 
     def tf_loss_per_instance(self, policy, states, internals, auxiliaries, actions, reward):
-        true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
-        policy_actions = policy.sample_actions(
-            states=states, internals=internals, auxiliaries=auxiliaries, deterministic=true,
-            return_internals=False
+        policy_actions = policy.act(
+            states=states, internals=internals, auxiliaries=auxiliaries, return_internals=False
         )
 
         summed_actions = list()
@@ -51,10 +49,8 @@ class DeterministicPolicyGradient(Objective):
         return summed_actions
 
     def tf_initial_gradients(self, policy, baseline, states, internals, auxiliaries):
-        true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
-        actions = policy.sample_actions(
-            states=states, internals=internals, auxiliaries=auxiliaries, deterministic=true,
-            return_internals=False
+        actions = policy.act(
+            states=states, internals=internals, auxiliaries=auxiliaries, return_internals=False
         )
         actions_value = baseline.actions_value(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions

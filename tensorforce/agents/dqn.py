@@ -118,7 +118,8 @@ class DeepQNetwork(TensorforceAgent):
             improved performance
             (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000,
             unless summarizer specified).
-        seed (int): Random seed to set for Python, NumPy and TensorFlow
+        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
+            environment seed has to be set separately for a fully deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).
         execution (specification): TensorFlow execution configuration with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: standard): ...
@@ -225,7 +226,7 @@ class DeepQNetwork(TensorforceAgent):
         )
 
         # Action value doesn't exist for Beta
-        policy = dict(network=network, distributions=dict(float='gaussian'))
+        policy = dict(network=network, distributions=dict(float='gaussian'), temperature=0.0)
         assert max_episode_timesteps is None or \
             memory >= batch_size + max_episode_timesteps + horizon
         memory = dict(type='replay', capacity=memory)
@@ -255,9 +256,8 @@ class DeepQNetwork(TensorforceAgent):
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization,
             # TensorforceModel
-            policy=policy, network=None, memory=memory, update=update, optimizer=optimizer,
-            objective=objective, reward_estimation=reward_estimation,
-            baseline_policy=baseline_policy, baseline_network=None,
+            policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )

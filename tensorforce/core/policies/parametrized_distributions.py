@@ -47,6 +47,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             distribution for binary boolean actions, categorical distribution for discrete integer
             actions, Gaussian distribution for unbounded continuous actions, Beta distribution for
             bounded continuous actions).
+        temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
+            per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -56,8 +58,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     """
 
     def __init__(
-        self, name, states_spec, actions_spec, network='auto', distributions=None, device=None,
-        summary_labels=None, l2_regularization=None
+        self, name, states_spec, actions_spec, network='auto', distributions=None, temperature=0.0,
+        device=None, summary_labels=None, l2_regularization=None
     ):
         if isinstance(network, Network):
             assert device is None
@@ -65,8 +67,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             network.device = None
 
         super().__init__(
-            name=name, states_spec=states_spec, actions_spec=actions_spec, device=device,
-            summary_labels=summary_labels, l2_regularization=l2_regularization
+            name=name, states_spec=states_spec, actions_spec=actions_spec, temperature=temperature,
+            device=device, summary_labels=summary_labels, l2_regularization=l2_regularization
         )
 
         # Network
@@ -146,12 +148,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     def tf_dependency_horizon(self, is_optimization=False):
         return self.network.dependency_horizon(is_optimization=is_optimization)
 
-    def tf_act(self, states, internals, auxiliaries):
+    def tf_act(self, states, internals, auxiliaries, return_internals):
         return Stochastic.tf_act(
-            self=self, states=states, internals=internals, auxiliaries=auxiliaries
+            self=self, states=states, internals=internals, auxiliaries=auxiliaries,
+            return_internals=return_internals
         )
 
-    def tf_sample_actions(self, states, internals, auxiliaries, deterministic, return_internals):
+    def tf_sample_actions(self, states, internals, auxiliaries, temperature, return_internals):
         if return_internals:
             embedding, internals = self.network.apply(
                 x=states, internals=internals, return_internals=return_internals
@@ -164,13 +167,15 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         Module.update_tensor(name=self.name, tensor=embedding)
 
         actions = OrderedDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
+        for name, spec, distribution, temp in util.zip_items(
+            self.actions_spec, self.distributions, temperature
+        ):
             if spec['type'] == 'int':
                 mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
                 parameters = distribution.parametrize(x=embedding)
-            action = distribution.sample(parameters=parameters, deterministic=deterministic)
+            action = distribution.sample(parameters=parameters, temperature=temp)
 
             entropy = distribution.entropy(parameters=parameters)
             entropy = tf.reshape(tensor=entropy, shape=(-1, util.product(xs=spec['shape'])))

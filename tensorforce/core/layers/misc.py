@@ -457,12 +457,15 @@ class Reuse(Layer):
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         layer (string): Name of a previously defined layer
             (<span style="color:#C00000"><b>required</b></span>).
+        is_trainable (bool): Whether reused layer variables are kept trainable
+            (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
     """
 
-    def __init__(self, name, layer, input_spec=None):
+    def __init__(self, name, layer, is_trainable=True, input_spec=None):
         self.layer = layer
+        self.is_trainable = is_trainable
 
         super().__init__(
             name=name, input_spec=input_spec, summary_labels=None, l2_regularization=0.0
@@ -491,3 +494,24 @@ class Reuse(Layer):
 
     def tf_apply(self, x):
         return self.layer.apply(x=x)
+
+    def get_variables(self, only_trainable=False, only_saved=False):
+        variables = super().get_variables(only_trainable=only_trainable, only_saved=only_saved)
+
+        if only_trainable and self.is_trainable:
+            variables.extend(self.layer.get_variables(
+                only_trainable=only_trainable, only_saved=only_saved
+            ))
+        elif only_saved:
+            pass
+        else:
+            variables.extend(self.layer.get_variables(
+                only_trainable=only_trainable, only_saved=only_saved
+            ))
+
+        return variables
+
+    def get_available_summaries(self):
+        summaries = super().get_available_summaries()
+        summaries.update(self.layer.get_available_summaries())
+        return sorted(summaries)

@@ -54,7 +54,8 @@ class ConstantAgent(Agent):
         action_values (dict[value]): Constant value per action
             (<span style="color:#00C000"><b>default</b></span>: false for binary boolean actions,
             0 for discrete integer actions, 0.0 for continuous actions).
-        seed (int): Random seed to set for Python, NumPy and TensorFlow
+        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
+            environment seed has to be set separately for a fully deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).
         name (string): Agent name, used e.g. for TensorFlow scopes
             (<span style="color:#00C000"><b>default</b></span>: "agent").

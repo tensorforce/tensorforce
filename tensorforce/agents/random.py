@@ -51,7 +51,8 @@ class RandomAgent(Agent):
             (<span style="color:#00C000"><b>optional</b></span> for type 'float').</li>
             </ul>
         max_episode_timesteps (int > 0): ?
-        seed (int): Random seed to set for Python, NumPy and TensorFlow
+        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
+            environment seed has to be set separately for a fully deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).
         name (string): Agent name, used e.g. for TensorFlow scopes
             (<span style="color:#00C000"><b>default</b></span>: "agent").

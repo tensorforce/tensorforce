@@ -13,10 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import Module
+from tensorforce.core import Module, parameter_modules
 from tensorforce.core.policies import Policy
 
 
@@ -31,6 +33,8 @@ class Stochastic(Policy):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         actions_spec (specification): Actions specification
             (<span style="color:#0000C0"><b>internal use</b></span>).
+        temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
+            per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -39,12 +43,54 @@ class Stochastic(Policy):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def tf_act(self, states, internals, auxiliaries):
+    def __init__(
+        self, name, states_spec, actions_spec, temperature=0.0, device=None, summary_labels=None,
+        l2_regularization=None
+    ):
+        super().__init__(
+            name=name, states_spec=states_spec, actions_spec=actions_spec, device=device,
+            summary_labels=summary_labels, l2_regularization=l2_regularization
+        )
+
+        # Sampling temperature
+        if isinstance(temperature, dict) and \
+                all(name in self.actions_spec for name in temperature):
+            # Different temperature per action
+            self.temperature = OrderedDict()
+            for name in self.actions_spec:
+                if name in temperature:
+                    self.temperature[name] = self.add_module(
+                        name=(name + '-temperature'), module=temperature[name],
+                        modules=parameter_modules, is_trainable=False, dtype='float'
+                    )
+        else:
+            # Same temperature for all actions
+            self.temperature = self.add_module(
+                name='temperature', module=temperature, modules=parameter_modules,
+                is_trainable=False, dtype='float'
+            )
+
+    def tf_act(self, states, internals, auxiliaries, return_internals):
         deterministic = Module.retrieve_tensor(name='deterministic')
+
+        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        temperature = OrderedDict()
+        if isinstance(self.temperature, dict):
+            for name in self.actions_spec:
+                if name in self.temperature:
+                    temperature[name] = tf.where(
+                        condition=deterministic, x=zero, y=self.temperature[name].value()
+                    )
+                else:
+                    temperature[name] = zero
+        else:
+            value = tf.where(condition=deterministic, x=zero, y=self.temperature.value())
+            for name in self.actions_spec:
+                temperature[name] = value
 
         return self.sample_actions(
             states=states, internals=internals, auxiliaries=auxiliaries,
-            deterministic=deterministic, return_internals=True
+            temperature=temperature, return_internals=return_internals
         )
 
     def tf_log_probability(self, states, internals, auxiliaries, actions, mean=True):
@@ -93,7 +139,7 @@ class Stochastic(Policy):
 
         return kl_divergence
 
-    def tf_sample_actions(self, states, internals, auxiliaries, deterministic, return_internals):
+    def tf_sample_actions(self, states, internals, auxiliaries, temperature, return_internals):
         raise NotImplementedError
 
     def tf_log_probabilities(self, states, internals, auxiliaries, actions):

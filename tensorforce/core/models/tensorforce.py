@@ -499,7 +499,7 @@ class TensorforceModel(Model):
 
         # Policy act
         actions, next_internals = self.policy.act(
-            states=states, internals=internals, auxiliaries=auxiliaries
+            states=states, internals=internals, auxiliaries=auxiliaries, return_internals=True
         )
 
         # TODO: entropy etc summaries!
@@ -508,7 +508,7 @@ class TensorforceModel(Model):
                 any(name.startswith('baseline-') for name in internals):
             # Baseline policy act to retrieve next internals
             _, baseline_internals = self.baseline_policy.act(
-                states=states, internals=internals, auxiliaries=auxiliaries
+                states=states, internals=internals, auxiliaries=auxiliaries, return_internals=True
             )
             assert any(name not in next_internals for name in baseline_internals)
             next_internals.update(baseline_internals)

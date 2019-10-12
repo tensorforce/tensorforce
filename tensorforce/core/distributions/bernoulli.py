@@ -85,21 +85,25 @@ class Bernoulli(Distribution):
 
         return true_logit, false_logit, probability, states_value
 
-    def tf_sample(self, parameters, deterministic):
-        _, _, probability, _ = parameters
+    def tf_sample(self, parameters, temperature):
+        true_logit, false_logit, probability, _ = parameters
 
         half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
 
         # Deterministic: true if >= 0.5
         definite = tf.greater_equal(x=probability, y=half)
 
         # Non-deterministic: sample true if >= uniform distribution
+        e_true_logit = tf.math.exp(x=(true_logit / temperature))
+        e_false_logit = tf.math.exp(x=(false_logit / temperature))
+        probability = e_true_logit / (e_true_logit + e_false_logit)
         uniform = tf.random.uniform(
             shape=tf.shape(input=probability), dtype=util.tf_dtype(dtype='float')
         )
         sampled = tf.greater_equal(x=probability, y=uniform)
 
-        return tf.where(condition=deterministic, x=definite, y=sampled)
+        return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
     def tf_log_probability(self, parameters, action):
         true_logit, false_logit, _, _ = parameters

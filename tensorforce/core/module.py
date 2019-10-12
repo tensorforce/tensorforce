@@ -1027,6 +1027,9 @@ class Module(object):
         # only_saved
         if not isinstance(only_saved, bool):
             raise TensorforceError.type(name='get_variables', argument='only_saved', value=only_saved)
+        # not both
+        if only_trainable and only_saved:
+            raise TensorforceError.unexpected()
 
         if only_trainable:
             # Only trainable variables

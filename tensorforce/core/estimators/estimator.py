@@ -417,7 +417,6 @@ class Estimator(CircularBuffer):
 
         if self.estimate_horizon == 'late' and baseline is not None:
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
             horizon = self.horizon.value()
             discount = self.discount.value()
 
@@ -428,9 +427,9 @@ class Estimator(CircularBuffer):
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
                 # TODO: Double DQN would require main policy here
-                actions = baseline.sample_actions(
+                actions = baseline.act(
                     states=states, internals=internals, auxiliaries=auxiliaries,
-                    deterministic=true, return_internals=False
+                    return_internals=False
                 )
                 horizon_estimate = baseline.actions_value(
                     states=states, internals=internals, auxiliaries=auxiliaries, actions=actions

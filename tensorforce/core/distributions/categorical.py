@@ -106,18 +106,19 @@ class Categorical(Distribution):
 
         return logits, probabilities, states_value, action_values
 
-    def tf_sample(self, parameters, deterministic):
+    def tf_sample(self, parameters, temperature):
         logits, probabilities, _, _ = parameters
+
+        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
 
         # Deterministic: maximum likelihood action
         definite = tf.argmax(input=logits, axis=-1)
         definite = tf.dtypes.cast(x=definite, dtype=util.tf_dtype('int'))
 
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
-
         # Set logits to minimal value
         min_float = tf.fill(dims=tf.shape(input=logits), value=util.tf_dtype(dtype='float').min)
+        logits = logits / temperature
         logits = tf.where(condition=(probabilities < epsilon), x=min_float, y=logits)
 
         # Non-deterministic: sample action using Gumbel distribution
@@ -129,7 +130,7 @@ class Categorical(Distribution):
         sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
         sampled = tf.dtypes.cast(x=sampled, dtype=util.tf_dtype('int'))
 
-        return tf.where(condition=deterministic, x=definite, y=sampled)
+        return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
     def tf_log_probability(self, parameters, action):
         logits, _, _, _ = parameters

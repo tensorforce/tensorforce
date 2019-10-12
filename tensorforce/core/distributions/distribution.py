@@ -40,7 +40,7 @@ class Distribution(Module):
     def tf_parametrize(self, x):
         raise NotImplementedError
 
-    def tf_sample(self, parameters, deterministic):
+    def tf_sample(self, parameters, temperature):
         raise NotImplementedError
 
     def tf_log_probability(self, parameters, action):

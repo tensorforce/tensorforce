@@ -105,7 +105,8 @@ class DeterministicPolicyGradient(TensorforceAgent):
             improved performance
             (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000,
             unless summarizer specified).
-        seed (int): Random seed to set for Python, NumPy and TensorFlow
+        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
+            environment seed has to be set separately for a fully deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).
         execution (specification): TensorFlow execution configuration with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: standard): ...
@@ -210,6 +211,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
 
         assert max_episode_timesteps is None or \
             memory >= batch_size + max_episode_timesteps + horizon
+        policy = dict(network=network, temperature=0.0)
         memory = dict(type='replay', capacity=memory)
         update = dict(
             unit='timesteps', batch_size=batch_size, frequency=update_frequency,
@@ -235,9 +237,8 @@ class DeterministicPolicyGradient(TensorforceAgent):
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization,
             # TensorforceModel
-            policy=None, network=network, memory=memory, update=update, optimizer=optimizer,
-            objective=objective, reward_estimation=reward_estimation,
-            baseline_policy=baseline_policy, baseline_network=None,
+            policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )

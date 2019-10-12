@@ -60,5 +60,5 @@ class Policy(Module):
     def tf_dependency_horizon(self, is_optimization=False):
         return tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
-    def tf_act(self, states, internals, auxiliaries):
+    def tf_act(self, states, internals, auxiliaries, return_internals):
         raise NotImplementedError

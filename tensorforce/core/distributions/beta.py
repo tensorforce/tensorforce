@@ -103,8 +103,10 @@ class Beta(Distribution):
 
         return alpha, beta, alpha_beta, log_norm
 
-    def tf_sample(self, parameters, deterministic):
+    def tf_sample(self, parameters, temperature):
         alpha, beta, alpha_beta, _ = parameters
+
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
 
         # Deterministic: mean as action
         definite = beta / alpha_beta
@@ -113,11 +115,9 @@ class Beta(Distribution):
         alpha_sample = tf.random_gamma(shape=(), alpha=alpha, dtype=util.tf_dtype(dtype='float'))
         beta_sample = tf.random_gamma(shape=(), alpha=beta, dtype=util.tf_dtype(dtype='float'))
 
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
-
         sampled = beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=epsilon)
 
-        sampled = tf.where(condition=deterministic, x=definite, y=sampled)
+        sampled = tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
         min_value = tf.constant(
             value=self.action_spec['min_value'], dtype=util.tf_dtype(dtype='float')

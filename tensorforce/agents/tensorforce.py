@@ -170,7 +170,8 @@ class TensorforceAgent(Agent):
             improved performance
             (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000,
             unless summarizer specified).
-        seed (int): Random seed to set for Python, NumPy and TensorFlow
+        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
+            environment seed has to be set separately for a fully deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).
         execution (specification): TensorFlow execution configuration with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: standard): ...
@@ -247,7 +248,7 @@ class TensorforceAgent(Agent):
         # Environment
         max_episode_timesteps=None,
         # Agent
-        policy=None, network='auto', memory=None, optimizer='adam',
+        policy='default', network=None, memory=None, optimizer='adam',
         # Baseline
         baseline_policy=None, baseline_network=None, baseline_optimizer=None,
         baseline_objective=None,

@@ -40,19 +40,12 @@ class ActionValue(Policy):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(
-        self, name, states_spec, actions_spec, device=None, summary_labels=None,
-        l2_regularization=None
-    ):
-        # if any(spec['type'] not in ('bool', 'int') for spec in actions_spec.values()):
-        #     raise TensorforceError.unexpected()
+    # if any(spec['type'] not in ('bool', 'int') for spec in actions_spec.values()):
+    #     raise TensorforceError.unexpected()
 
-        super().__init__(
-            name=name, states_spec=states_spec, actions_spec=actions_spec, device=device,
-            summary_labels=summary_labels, l2_regularization=l2_regularization
-        )
+    def tf_act(self, states, internals, auxiliaries, return_internals):
+        assert return_internals
 
-    def tf_act(self, states, internals, auxiliaries):
         actions_values = self.actions_values(
             states=states, internals=internals, auxiliaries=auxiliaries
         )

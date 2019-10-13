@@ -231,7 +231,7 @@ class AdvantageActorCritic(TensorforceAgent):
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = 'policy_gradient'
         reward_estimation = dict(
-            horizon=horizon, discount=discount, estimate_horizon='late',
+            horizon=horizon, discount=discount, estimate_horizon='early',
             estimate_actions=state_action_value, estimate_terminal=estimate_terminal,
             estimate_advantage=True
         )

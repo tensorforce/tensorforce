@@ -155,8 +155,9 @@ def main():
         runner.close()
 
     if args.path is not None:
-        if not os.path.isdir(os.path.split(args.path)[0]):
-            os.makedirs(os.path.split(args.path)[0], exist_ok=True)
+        directory = os.path.split(args.path)[0]
+        if directory != '' and not os.path.isdir(directory):
+            os.makedirs(directory, exist_ok=True)
 
         with open(args.path + '.json', 'w') as filehandle:
             filehandle.write(

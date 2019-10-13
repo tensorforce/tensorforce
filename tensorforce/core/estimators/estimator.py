@@ -453,7 +453,7 @@ class Estimator(CircularBuffer):
                         x=tf.zeros_like(tensor=discounts, dtype=util.tf_dtype(dtype='float')),
                         y=discounts
                     )
-            reward = reward + discounts * horizon_estimate
+            reward = reward + discounts * tf.stop_gradient(input=horizon_estimate)
             # TODO: stop gradients?
 
         return reward

@@ -230,12 +230,9 @@ class VanillaPolicyGradient(TensorforceAgent):
             assert baseline_optimizer is None
             baseline_objective = None
         else:
-            if estimate_terminal and critic_network is not None:
-                estimate_horizon = 'late'
-            else:
-                estimate_horizon = False
             reward_estimation = dict(
-                horizon='episode', discount=discount, estimate_horizon=estimate_horizon,
+                horizon='episode', discount=discount,
+                estimate_horizon=(False if baseline_network is None else 'early'),
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
             # State value doesn't exist for Beta

@@ -30,6 +30,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
     directory = 'test-saving'
 
     def test_config(self):
+        # FEATURES.MD
         self.start_tests(name='config')
 
         # default

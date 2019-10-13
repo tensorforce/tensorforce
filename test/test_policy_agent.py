@@ -22,6 +22,8 @@ from test.unittest_agent import UnittestAgent
 
 class TestPolicyAgent(UnittestAgent, unittest.TestCase):
 
+    directory = 'test-recording'
+
     def test_act_experience_update(self):
         self.start_tests(name='act-experience-update')
 
@@ -49,6 +51,7 @@ class TestPolicyAgent(UnittestAgent, unittest.TestCase):
         self.finished_test()
 
     def test_pretrain(self):
+        # FEATURES.MD
         self.start_tests(name='pretrain')
 
         states = dict(type='float', shape=(1,))

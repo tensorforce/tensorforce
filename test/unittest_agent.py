@@ -28,7 +28,6 @@ class UnittestAgent(UnittestBase):
     replacement_action = 'bool'
     has_experience = True
     has_update = True
-    directory = 'test-recording'
 
 
     def test_single_state_action(self):

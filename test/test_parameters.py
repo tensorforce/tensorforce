@@ -130,6 +130,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.long_unittest(horizon=horizon)
 
     def test_decaying(self):
+        # SPECIFICATION.MD
         self.start_tests(name='decaying')
 
         exploration = dict(
@@ -139,8 +140,8 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.float_unittest(exploration=exploration)
 
         horizon = dict(
-            type='decaying', dtype='long', unit='timesteps', decay='exponential',
-            initial_value=0.5, decay_steps=2, decay_rate=0.5, inverse=True
+            type='decaying', dtype='long', unit='timesteps', decay='polynomial',
+            initial_value=2.0, decay_steps=2, final_value=4.0, power=1.0
         )
         self.long_unittest(horizon=horizon)
 

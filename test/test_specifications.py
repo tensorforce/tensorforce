@@ -58,6 +58,7 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
         self.finished_test()
 
     def test_specifications(self):
+        # SPECIFICATION.MD
         self.start_tests()
 
         # default

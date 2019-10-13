@@ -174,3 +174,22 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         agent.close()
         environment.close()
         self.finished_test()
+
+    def test_masking(self):
+        self.start_tests(name='masking')
+
+        agent, environment = self.prepare(
+            states=dict(type='float', shape=(10,)),
+            actions=dict(type='int', shape=(), num_values=3)
+        )
+        agent.initialize()
+        states = environment.reset()
+        assert 'state' in states and 'action_mask' in states
+        states['action_mask'] = [True, False, True]
+
+        action = agent.act(states=states)
+        assert action != 1
+
+        agent.close()
+        environment.close()
+        self.finished_test()

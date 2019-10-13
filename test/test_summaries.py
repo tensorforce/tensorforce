@@ -27,6 +27,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
     directory = 'test-summaries'
 
     def test_summaries(self):
+        # FEATURES.MD
         self.start_tests()
 
         # 'dropout', 'kl-divergence'

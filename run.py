@@ -104,10 +104,10 @@ def main():
         agent_seconds = [list() for _ in range(args.episodes)]
 
         def callback(r):
-            rewards[r.episode - 1].append(r.episode_reward)
-            timesteps[r.episode - 1].append(r.episode_timestep)
-            seconds[r.episode - 1].append(r.episode_second)
-            agent_seconds[r.episode - 1].append(r.episode_agent_second)
+            rewards[r.episodes - 1].append(r.episode_reward)
+            timesteps[r.episodes - 1].append(r.episode_timestep)
+            seconds[r.episodes - 1].append(r.episode_second)
+            agent_seconds[r.episodes - 1].append(r.episode_agent_second)
             return True
 
     if args.visualize:

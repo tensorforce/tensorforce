@@ -17,7 +17,7 @@ This file records all major updates and new features, starting from version 0.5.
 - New `Agent.load(...)` function, saving includes agent specification
 - Removed `PolicyAgent` argument `baseline-/network`
 - Added policy argument `temperature`
-- Removed `"same"` and `"equal"` options and changed `baseline` handling
+- Removed `"same"` and `"equal"` options for `baseline_*` arguments and changed internal baseline handling
 
 
 

@@ -31,7 +31,7 @@ class TFOptimizer(Optimizer):
         optimizer ('adadelta' | 'adagrad' | 'adam' | 'gradient_descent' | 'momentum' | 'proximal_adagrad' | 'proximal_gradient_descent' | 'rmsprop'):
             TensorFlow optimizer name, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__
-            (<span style="color:#C00000"><b>required</b> unless given by specification key</span>).
+            (<span style="color:#C00000"><b>required</b></span> unless given by specification key).
         learning_rate (parameter, float > 0.0): Learning rate
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
         gradient_norm_clipping (parameter, float > 0.0): Clip gradients by the ratio of the sum

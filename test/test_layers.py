@@ -144,7 +144,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         states = dict(type='float', shape=(4, 4, 3))
         preprocessing = dict(
             state=[
-                dict(state=dict(type='image', height=2, width=2, grayscale=True)),
+                dict(type='image', height=2, width=2, grayscale=True),
                 dict(type='deltafier', concatenate=0)
             ],
             reward=dict(type='deltafier')

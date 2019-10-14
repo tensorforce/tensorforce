@@ -61,6 +61,26 @@ class DeterministicPolicyGradient(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
+        memory (int): Replay memory capacity
+            (<span style="color:#00C000"><b>default</b></span>: 10000).
+        batch_size (parameter, long > 0): Number of timesteps per update batch
+            (<span style="color:#00C000"><b>default</b></span>: 32 timesteps).
+        update_frequency ("never" | parameter, long > 0): Frequency of updates
+            (<span style="color:#00C000"><b>default</b></span>: every 4 timesteps).
+        start_updating (parameter, long >= batch_size): Number of timesteps before first update
+            (<span style="color:#00C000"><b>default</b></span>: none).
+        learning_rate (parameter, float > 0.0): Optimizer learning rate
+            (<span style="color:#00C000"><b>default</b></span>: 3e-4).
+
+        horizon ("episode" | parameter, long >= 0): Horizon of discounted-sum reward estimation
+            before critic estimate
+            (<span style="color:#00C000"><b>default</b></span>: 0).
+        discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
+            discounted-sum reward estimation
+            (<span style="color:#00C000"><b>default</b></span>: 0.99).
+        estimate_terminal (bool): Whether to estimate the value of (real) terminal states
+            (<span style="color:#00C000"><b>default</b></span>: false).
+
         critic_network (specification): Critic network configuration, see
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: none).
@@ -174,7 +194,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Network
         network='auto',
         # Optimization
-        memory=10000, batch_size=32, update_frequency=4, start_updating=1000, learning_rate=3e-4,
+        memory=10000, batch_size=32, update_frequency=4, start_updating=None, learning_rate=3e-4,
         # Reward estimation
         horizon=0, discount=0.99, estimate_terminal=False,
         # Critic
@@ -205,23 +225,24 @@ class DeterministicPolicyGradient(TensorforceAgent):
             config=config
         )
 
+        # TODO: action type and shape
+
         assert max_episode_timesteps is None or \
             memory >= batch_size + max_episode_timesteps + horizon
         policy = dict(network=network, temperature=0.0)
         memory = dict(type='replay', capacity=memory)
-        update = dict(
-            unit='timesteps', batch_size=batch_size, frequency=update_frequency,
-            start=start_updating
-        )
+        update = dict(unit='timesteps', batch_size=batch_size, frequency=update_frequency)
+        if start_updating is not None:
+            update['start'] = start_updating
         optimizer = dict(type='adam', learning_rate=learning_rate)
-        objective = 'dpg'
+        objective = 'det_policy_gradient'
         reward_estimation = dict(
             horizon=horizon, discount=discount, estimate_horizon='late',
             estimate_terminal=estimate_terminal, estimate_actions=True
         )
         # Action value doesn't exist for Beta
         baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
-        baseline_objective = 'action_value'
+        baseline_objective = dict(type='value', value='action')
 
         super().__init__(
             # Agent

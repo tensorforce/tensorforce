@@ -28,15 +28,15 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.start_tests(name='no horizon estimate')
 
         # zero horizon
-        reward_estimation = dict(horizon=0)
+        reward_estimation = dict(horizon=0, estimate_horizon=False)
         self.unittest(reward_estimation=reward_estimation)
 
         # horizon longer than episode
-        reward_estimation = dict(horizon=10)
+        reward_estimation = dict(horizon=10, estimate_horizon=False)
         self.unittest(timestep_range=(1, 5), reward_estimation=reward_estimation)
 
         # discount
-        reward_estimation = dict(horizon=2, discount=0.99)
+        reward_estimation = dict(horizon=2, discount=0.99, estimate_horizon=False)
         self.unittest(reward_estimation=reward_estimation)
 
     def test_early_horizon_estimate(self):

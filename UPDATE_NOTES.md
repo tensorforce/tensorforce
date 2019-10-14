@@ -22,6 +22,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Removed `PolicyAgent` argument `(baseline-)network`
 - Added policy argument `temperature`
 - Removed `"same"` and `"equal"` options for `baseline_*` arguments and changed internal baseline handling
+- Combined `state/action_value` to `value` objective with argument `value` either `"state"` or `"action"`
 
 
 

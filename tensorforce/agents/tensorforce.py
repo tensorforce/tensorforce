@@ -103,12 +103,13 @@ class TensorforceAgent(Agent):
             <li><b>estimate_horizon</b> (<i>false | "early" | "late"</i>) &ndash; Whether to
             estimate the value of horizon states, and if so, whether to estimate early when
             experience is stored, or late when it is retrieved
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            (<span style="color:#00C000"><b>default</b></span>: "late" if any of the baseline_*
+            arguments is specified, else false).</li>
             <li><b>estimate_actions</b> (<i>bool</i>) &ndash; Whether to estimate state-action
             values instead of state values
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>estimate_terminal</b> (<i>bool</i>) &ndash; Whether to estimate the value of
-            terminal states (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            (real) terminal states (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to estimate the advantage
             by subtracting the current estimate
             (<span style="color:#00C000"><b>default</b></span>: false).</li>

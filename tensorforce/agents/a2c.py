@@ -75,7 +75,7 @@ class AdvantageActorCritic(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
         state_action_value (bool): Whether to estimate state-action values instead of state values
             (<span style="color:#00C000"><b>default</b></span>: false).
-        estimate_terminal (bool): Whether to estimate the value of terminal states
+        estimate_terminal (bool): Whether to estimate the value of (real) terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         critic_network (specification): Critic network configuration, see
@@ -238,9 +238,9 @@ class AdvantageActorCritic(TensorforceAgent):
         # State value doesn't exist for Beta
         baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
         if state_action_value:
-            baseline_objective = 'action_value'
+            baseline_objective = dict(type='value', value='action')
         else:
-            baseline_objective = 'state_value'
+            baseline_objective = dict(type='value', value='state')
 
         super().__init__(
             # Agent

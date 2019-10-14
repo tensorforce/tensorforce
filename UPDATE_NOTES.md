@@ -6,6 +6,10 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest
 
+
+
+### Version 0.5.2
+
 - Improved unittest performance
 - Added `updates` and renamed `timesteps`/`episodes` counter for agents and runners
 - Renamed `critic_{network,optimizer}` argument to `baseline_{network,optimizer}`
@@ -15,7 +19,7 @@ This file records all major updates and new features, starting from version 0.5.
 - New block layer type (`block`) for easier sharing of layer blocks
 - Renamed `PolicyAgent/-Model` to `TensorforceAgent/-Model`
 - New `Agent.load(...)` function, saving includes agent specification
-- Removed `PolicyAgent` argument `baseline-/network`
+- Removed `PolicyAgent` argument `(baseline-)network`
 - Added policy argument `temperature`
 - Removed `"same"` and `"equal"` options for `baseline_*` arguments and changed internal baseline handling
 

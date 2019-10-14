@@ -22,6 +22,7 @@ from tensorforce.environments import Environment
 
 class TestAgents(UnittestBase, unittest.TestCase):
 
+    num_updates = 1
     agent = dict()
     require_observe = True
 

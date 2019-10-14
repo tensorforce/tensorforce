@@ -22,14 +22,6 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
     require_observe = True
 
-    def test_clipping_step(self):
-        self.start_tests(name='clipping-step')
-
-        optimizer = dict(
-            type='clipping_step', optimizer=dict(type='adam', learning_rate=1e-3), threshold=1e-2
-        )
-        self.unittest(optimizer=optimizer)
-
     def test_evolutionary(self):
         self.start_tests(name='evolutionary')
 
@@ -59,18 +51,6 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             # TODO: shouldn't be necessary!
         )
 
-    def test_multi_step(self):
-        self.start_tests(name='multi-step')
-
-        optimizer = dict(
-            type='multi_step', optimizer=dict(type='adam', learning_rate=1e-3), num_steps=10
-        )
-        self.unittest(
-            optimizer=optimizer,
-            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
-            # TODO: shouldn't be necessary!
-        )
-
     def test_natural_gradient(self):
         self.start_tests(name='natural-gradient')
 
@@ -81,12 +61,6 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             # TODO: shouldn't be necessary!
         )
 
-    def test_optimizing_step(self):
-        self.start_tests(name='optimizing-step')
-
-        optimizer = dict(type='optimizing_step', optimizer=dict(type='adam', learning_rate=1e-3))
-        self.unittest(optimizer=optimizer)
-
     def test_plus(self):
         self.start_tests(name='plus')
 
@@ -95,18 +69,6 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             optimizer2=dict(type='adagrad', learning_rate=1e-3)
         )
         self.unittest(optimizer=optimizer)
-
-    def test_subsampling_step(self):
-        self.start_tests(name='subsampling-step')
-
-        optimizer = dict(
-            type='subsampling_step', optimizer=dict(type='adam', learning_rate=1e-3), fraction=0.5
-        )
-        self.unittest(
-            optimizer=optimizer,
-            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
-            # TODO: shouldn't be necessary!
-        )
 
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')

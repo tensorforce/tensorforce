@@ -26,22 +26,27 @@ class TestLayers(UnittestBase, unittest.TestCase):
         self.start_tests(name='convolution')
 
         states = dict(type='float', shape=(2, 3))
-        network = [dict(type='conv1d', size=8), dict(type='flatten')]
+        network = [
+            dict(type='conv1d', size=8),
+            dict(type='flatten')
+        ]
         self.unittest(states=states, policy=dict(network=network))
 
         states = dict(type='float', shape=(2, 2, 3))
-        network = [dict(type='conv2d', size=8), dict(type='flatten')]
+        network = [
+            dict(type='conv2d', size=8),
+            dict(type='flatten')
+        ]
         self.unittest(states=states, policy=dict(network=network))
 
     def test_dense(self):
         self.start_tests(name='dense')
 
         states = dict(type='float', shape=(3,))
-        network = [dict(type='dense', size=8)]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(3,))
-        network = [dict(type='linear', size=8)]
+        network = [
+            dict(type='dense', size=8),
+            dict(type='linear', size=8)
+        ]
         self.unittest(states=states, policy=dict(network=network))
 
     def test_embedding(self):
@@ -56,17 +61,9 @@ class TestLayers(UnittestBase, unittest.TestCase):
 
         states = dict(type='float', shape=(3,))
         network = [
-            dict(type='internal_rnn', cell='gru', size=8, length=2)
-            # dict(type='internal_rnn', cell='lstm', size=8, length=2)
+            dict(type='internal_rnn', cell='gru', size=8, length=2),
+            dict(type='internal_lstm', size=8, length=2)
         ]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(3,))
-        network = [dict(type='internal_gru', size=8, length=2)]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(3,))
-        network = [dict(type='internal_lstm', size=8, length=2)]
         self.unittest(states=states, policy=dict(network=network))
 
     def test_keras(self):
@@ -80,70 +77,57 @@ class TestLayers(UnittestBase, unittest.TestCase):
         self.start_tests(name='misc')
 
         states = dict(type='float', shape=(3,))
-        network = [dict(type='activation', nonlinearity='tanh')]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(3,))
         network = [
-            dict(type='block', layers=[dict(type='dense', size=3), dict(type='dense', size=3)])
-        ]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(3,))
-        network = [dict(type='dropout', rate=0.5)]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(3,))
-        network = [dict(type='function', function=(lambda x: x + 1.0))]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(3,))
-        network = [
-            dict(function=(lambda x: x + 1.0)),
+            dict(type='activation', nonlinearity='tanh'),
+            dict(type='dropout', rate=0.5),
+            dict(type='function', function=(lambda x: x + 1.0)),
             dict(function=(lambda x: x[:, :2]), output_spec=dict(shape=(2,)))
         ]
         self.unittest(states=states, policy=dict(network=network))
 
         states = dict(type='float', shape=(3,))
         network = [
-            dict(type='register', tensor='test'), dict(type='retrieve', tensors='test'),
-            dict(type='retrieve', tensors=('*', 'test'), aggregation='product')
+            dict(type='block', name='test', layers=[
+                dict(type='dense', size=3), dict(type='dense', size=3)
+            ]),
+            dict(type='reuse', layer='test')
         ]
         self.unittest(states=states, policy=dict(network=network))
 
         states = dict(type='float', shape=(3,))
-        network = [dict(type='dense', name='test', size=3), dict(type='reuse', layer='test')]
+        network = [
+            dict(type='register', tensor='test'),
+            dict(type='retrieve', tensors='test'),
+            dict(type='retrieve', tensors=('*', 'test'), aggregation='product')
+        ]
         self.unittest(states=states, policy=dict(network=network))
 
     def test_normalization(self):
         self.start_tests(name='normalization')
 
         states = dict(type='float', shape=(3,))
-        network = [dict(type='exponential_normalization')]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(3,))
-        network = [dict(type='instance_normalization')]
+        network = [
+            dict(type='exponential_normalization'),
+            dict(type='instance_normalization')
+        ]
         self.unittest(states=states, policy=dict(network=network))
 
     def test_pooling(self):
         self.start_tests(name='pooling')
 
-        states = dict(type='float', shape=(2, 2, 3))
-        network = [dict(type='flatten')]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(2, 2, 3))
-        network = [dict(type='pooling', reduction='max')]
-        self.unittest(states=states, policy=dict(network=network))
-
         states = dict(type='float', shape=(2, 3))
-        network = [dict(type='pool1d', reduction='average'), dict(type='flatten')]
+        network = [
+            dict(type='pool1d', reduction='average'),
+            dict(type='flatten')
+        ]
         self.unittest(states=states, policy=dict(network=network))
         self.start_tests(name='normalization')
 
         states = dict(type='float', shape=(2, 2, 3))
-        network = [dict(type='pool2d', reduction='max'), dict(type='flatten')]
+        network = [
+            dict(type='pool2d', reduction='max'),
+            dict(type='pooling', reduction='max')
+        ]
         self.unittest(states=states, policy=dict(network=network))
 
     def test_preprocessing(self):
@@ -157,15 +141,14 @@ class TestLayers(UnittestBase, unittest.TestCase):
         network = [dict(type='dense', name='test', size=8)]
         self.unittest(states=states, preprocessing=preprocessing, policy=dict(network=network))
 
-        states = dict(type='float', shape=(3,))
-        preprocessing = dict(
-            state=[dict(type='deltafier', concatenate=0)], reward=dict(type='deltafier')
-        )
-        network = [dict(type='dense', name='test', size=8)]
-        self.unittest(states=states, preprocessing=preprocessing, policy=dict(network=network))
-
         states = dict(type='float', shape=(4, 4, 3))
-        preprocessing = dict(state=dict(type='image', height=2, width=2, grayscale=True))
+        preprocessing = dict(
+            state=[
+                dict(state=dict(type='image', height=2, width=2, grayscale=True)),
+                dict(type='deltafier', concatenate=0)
+            ],
+            reward=dict(type='deltafier')
+        )
         network = [dict(type='flatten')]
         self.unittest(states=states, preprocessing=preprocessing, policy=dict(network=network))
 
@@ -177,14 +160,6 @@ class TestLayers(UnittestBase, unittest.TestCase):
         states = dict(type='float', shape=(2, 3))
         network = [
             dict(type='rnn', cell='gru', size=8, return_final_state=False),
-            dict(type='rnn', cell='lstm', size=8)
+            dict(type='lstm', size=8)
         ]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(2, 3))
-        network = [dict(type='gru', size=8)]
-        self.unittest(states=states, policy=dict(network=network))
-
-        states = dict(type='float', shape=(2, 3))
-        network = [dict(type='lstm', size=8)]
         self.unittest(states=states, policy=dict(network=network))

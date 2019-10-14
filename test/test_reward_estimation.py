@@ -20,11 +20,12 @@ from test.unittest_base import UnittestBase
 
 class TestRewardEstimation(UnittestBase, unittest.TestCase):
 
+    num_episodes = 2
     exclude_bounded_action = True  # TODO: shouldn't be necessary!
     require_observe = True
 
-    def test_reward_estimation(self):
-        self.start_tests()
+    def test_no_horizon_estimate(self):
+        self.start_tests(name='no horizon estimate')
 
         # zero horizon
         reward_estimation = dict(horizon=0)
@@ -38,7 +39,9 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(horizon=2, discount=0.99)
         self.unittest(reward_estimation=reward_estimation)
 
-        # estimate horizon early
+    def test_early_horizon_estimate(self):
+        self.start_tests(name='early horizon estimate')
+
         reward_estimation = dict(horizon=2, estimate_horizon='early')
         self.unittest(reward_estimation=reward_estimation)
 
@@ -69,7 +72,9 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
-        # estimate horizon late
+    def test_late_horizon_estimate(self):
+        self.start_tests(name='late horizon estimate')
+
         reward_estimation = dict(horizon=2, estimate_horizon='late')
         self.unittest(reward_estimation=reward_estimation)
 
@@ -100,7 +105,9 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
-        # estimate advantage
+    def test_advantage_estimate(self):
+        self.start_tests(name='advantage estimate')
+
         reward_estimation = dict(horizon=2, estimate_horizon=False, estimate_advantage=True)
         self.unittest(reward_estimation=reward_estimation)
 

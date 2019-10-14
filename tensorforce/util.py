@@ -719,7 +719,7 @@ def normalize_values(value_type, values, values_spec):
     for normalized_name in values_spec:
         value = values
         for name in normalized_name.split('/'):
-            value = value[name]
+            value = values_spec[name]
         normalized_values[normalized_name] = value
 
         # Check whether only expected values present!

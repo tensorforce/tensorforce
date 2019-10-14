@@ -66,8 +66,8 @@ class OpenAIGym(Environment):
 
         # Find level
         if level not in gym.envs.registry.env_specs:
-            if level + '-v0' in gym.envs.registry.env_specs:
-                level = level + '-v0'
+            if level.__class__.__name__ + '-v0' in gym.envs.registry.env_specs:
+                level = level.__class__.__name__ + '-v0'
             else:
                 for name in gym.envs.registry.env_specs:
                     if level == name[:name.rindex('-v')]:

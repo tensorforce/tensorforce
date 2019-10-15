@@ -23,8 +23,8 @@ class TestBaseline(UnittestBase, unittest.TestCase):
     exclude_bounded_action = True  # TODO: shouldn't be necessary!
     require_observe = True
 
-    def test_baseline(self):
-        self.start_tests()
+    def test_policy_as_baseline(self):
+        self.start_tests(name='policy as baseline')
 
         reward_estimation = dict(horizon=2, estimate_horizon='early')
         baseline_policy = None
@@ -61,6 +61,9 @@ class TestBaseline(UnittestBase, unittest.TestCase):
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
+
+    def test_separate_baseline(self):
+        self.start_tests(name='separate baseline')
 
         reward_estimation = dict(horizon=2, estimate_advantage=True)
         baseline_policy = dict(network=dict(type='auto', size=8, internal_rnn=2))

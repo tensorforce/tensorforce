@@ -15,17 +15,19 @@
 
 from tensorforce.core.objectives.objective import Objective
 
-from tensorforce.core.objectives.action_value import ActionValue
 from tensorforce.core.objectives.deterministic_policy_gradient import DeterministicPolicyGradient
 from tensorforce.core.objectives.plus import Plus
 from tensorforce.core.objectives.policy_gradient import PolicyGradient
-from tensorforce.core.objectives.state_value import StateValue
+from tensorforce.core.objectives.value import Value
 
 
 objective_modules = dict(
-    action_value=ActionValue, dpg=DeterministicPolicyGradient, plus=Plus,
-    policy_gradient=PolicyGradient, state_value=StateValue
+    det_policy_gradient=DeterministicPolicyGradient, plus=Plus, policy_gradient=PolicyGradient,
+    value=Value
 )
 
 
-__all__ = ['ActionValue', 'Objective', 'objective_modules', 'Plus', 'PolicyGradient', 'StateValue']
+__all__ = [
+    'DeterministicPolicyGradient', 'Objective', 'objective_modules', 'Plus', 'PolicyGradient',
+    'Value'
+]

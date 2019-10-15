@@ -78,7 +78,7 @@ class DuelingDQN(TensorforceAgent):
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        estimate_terminal (bool): Whether to estimate the value of terminal states
+        estimate_terminal (bool): Whether to estimate the value of (real) terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         target_sync_frequency (parameter, int > 0): Timestep interval between target network
@@ -235,7 +235,7 @@ class DuelingDQN(TensorforceAgent):
         if start_updating is not None:
             update['start'] = start_updating
         optimizer = dict(type='adam', learning_rate=learning_rate)
-        objective = dict(type='action_value', huber_loss=huber_loss)
+        objective = dict(type='value', value='action', huber_loss=huber_loss)
         reward_estimation = dict(
             horizon=horizon, discount=discount, estimate_horizon='late',
             estimate_terminal=estimate_terminal, estimate_actions=True

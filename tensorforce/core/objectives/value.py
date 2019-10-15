@@ -20,25 +20,31 @@ from tensorforce.core import parameter_modules
 from tensorforce.core.objectives import Objective
 
 
-class StateValue(Objective):
+class Value(Objective):
     """
-    State-value objective, which minimizes the L2-distance between the state-value estimate and
-    target reward value (specification key: `state_value`).
+    Value approximation objective, which minimizes the L2-distance between the state-(action-)value
+    estimate and the target reward value (specification key: `value`).
 
     Args:
         name (string): Module name
             (<span style="color:#0000C0"><b>internal use</b></span>).
+        value ("state" | "action"): Whether to approximate the state- or state-action-value
+            (<span style="color:#00C000"><b>default</b></span>: "state").
         huber_loss (parameter, float > 0.0): Huber loss threshold
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
-        mean_over_actions (bool): Whether to compute objective for mean of state-values
-            instead of per state-value
-            (<span style="color:#00C000"><b>default</b></span>: false).
+        mean_over_actions (bool): Whether to compute objective for mean of values instead of value
+            per action (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, name, huber_loss=0.0, mean_over_actions=False, summary_labels=None):
+    def __init__(
+        self, name, value='state', huber_loss=0.0, mean_over_actions=False, summary_labels=None
+    ):
         super().__init__(name=name, summary_labels=summary_labels)
+
+        assert value in ('state', 'action')
+        self.value = value
 
         huber_loss = 0.0 if huber_loss is None else huber_loss
         self.huber_loss = self.add_module(
@@ -51,11 +57,18 @@ class StateValue(Objective):
         if not self.mean_over_actions:
             reward = tf.expand_dims(input=reward, axis=1)
 
-        states_value = policy.states_value(
-            states=states, internals=internals, auxiliaries=auxiliaries,
-            mean=self.mean_over_actions
-        )
-        difference = states_value - reward
+        if self.value == 'state':
+            value = policy.states_value(
+                states=states, internals=internals, auxiliaries=auxiliaries,
+                mean=self.mean_over_actions
+            )
+        elif self.value == 'action':
+            value = policy.actions_value(
+                states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                mean=self.mean_over_actions
+            )
+
+        difference = value - reward
 
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
         half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))

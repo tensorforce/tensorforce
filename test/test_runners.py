@@ -42,11 +42,11 @@ class TestRunners(UnittestBase, unittest.TestCase):
         runner = Runner(agent=agent, environment=environment)
 
         callback_episode_frequency = 2
-        self.num_callbacks = 0
+        self.num_callbacks1 = 0
 
         def callback(r):
-            self.num_callbacks += 1
-            self.assertEqual(r.episodes, self.num_callbacks * callback_episode_frequency)
+            self.num_callbacks1 += 1
+            self.assertEqual(r.episodes, self.num_callbacks1 * callback_episode_frequency)
 
         runner.run(
             num_episodes=10, callback=callback,
@@ -54,11 +54,11 @@ class TestRunners(UnittestBase, unittest.TestCase):
         )
 
         callback_timestep_frequency = 3
-        self.num_callbacks = 0
+        self.num_callbacks2 = 0
 
         def callback(r):
-            self.num_callbacks += 1
-            self.assertEqual(r.episode_timestep, self.num_callbacks * callback_timestep_frequency)
+            self.num_callbacks2 += 1
+            self.assertEqual(r.episode_timestep, self.num_callbacks2 * callback_timestep_frequency)
 
         runner.run(
             num_episodes=11, callback=callback,
@@ -128,11 +128,11 @@ class TestRunners(UnittestBase, unittest.TestCase):
         runner = ParallelRunner(agent=agent, environments=[environment1, environment2])
 
         callback_episode_frequency = 2
-        self.num_callbacks = 0
+        self.num_callbacks3 = 0
 
         def callback(r, parallel):
-            self.num_callbacks += 1
-            self.assertEqual(r.episodes, self.num_callbacks * callback_episode_frequency)
+            self.num_callbacks3 += 1
+            self.assertEqual(r.episodes, self.num_callbacks3 * callback_episode_frequency)
 
         runner.run(
             num_episodes=10, callback=callback,

@@ -70,6 +70,7 @@ class Optimizer(Module):
                 label='updates-full', name=(name[:-2] + '-update'), tensor=deltas[n]
             )
 
+        # TODO: experimental
         # with tf.control_dependencies(control_inputs=deltas):
         #     zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
         #     false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
@@ -78,11 +79,12 @@ class Optimizer(Module):
         #         true_fn=(lambda: tf.Print(delta, (variable.name,))),
         #         false_fn=(lambda: delta)) for delta, variable in zip(deltas, variables)
         #     ]
-        #     # assertions = [
-        #     #     tf.debugging.assert_equal(
-        #     #         x=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)), y=false
-        #     #     ) for delta in deltas if util.product(xs=util.shape(x=delta)) > 4
-        #     # ]
+        #     assertions = [
+        #         tf.debugging.assert_equal(
+        #             x=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)), y=false
+        #         ) for delta, variable in zip(deltas, variables)
+        #         if util.product(xs=util.shape(x=delta)) > 4 and 'distribution' not in variable.name
+        #     ]
 
         # with tf.control_dependencies(control_inputs=assertions):
         with tf.control_dependencies(control_inputs=deltas):

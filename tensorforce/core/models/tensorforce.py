@@ -139,11 +139,15 @@ class TensorforceModel(Model):
             raise TensorforceError.value(name='reward_estimation', value=list(reward_estimation))
         horizon = reward_estimation['horizon']
         capacity = max(buffer_observe, horizon) if isinstance(horizon, int) else buffer_observe
+        if baseline_policy is None and baseline_optimizer is None and baseline_objective is None:
+            estimate_horizon = False
+        else:
+            estimate_horizon = 'late'
         self.estimator = self.add_module(
             name='estimator', module=Estimator, is_trainable=False, is_saved=False,
             values_spec=self.values_spec, horizon=horizon,
             discount=reward_estimation.get('discount', 1.0),
-            estimate_horizon=reward_estimation.get('estimate_horizon', False),
+            estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
             estimate_actions=reward_estimation.get('estimate_actions', False),
             estimate_terminal=reward_estimation.get('estimate_terminal', False),
             estimate_advantage=reward_estimation.get('estimate_advantage', False),

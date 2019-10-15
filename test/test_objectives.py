@@ -23,28 +23,16 @@ class TestObjectives(UnittestBase, unittest.TestCase):
     exclude_bounded_action = True  # TODO: shouldn't be necessary!
     require_observe = True
 
-    def test_action_value(self):
-        self.start_tests(name='action-value')
+    def test_deterministic_policy_gradient(self):
+        self.start_tests(name='deterministic-policy-gradient')
 
-        objective = dict(type='action_value')
-        self.unittest(objective=objective)
-
-        objective = dict(type='action_value', huber_loss=1.0)
-        self.unittest(objective=objective)
-
-        objective = dict(type='action_value', mean_over_actions=True)
-        self.unittest(objective=objective)
+        objective = dict(type='det_policy_gradient')
+        self.unittest(actions=dict(type='float', shape=()), objective=objective)
 
     def test_plus(self):
         self.start_tests(name='plus')
 
-        objective = dict(
-            type='plus', objective1=dict(type='action_value'),
-            objective2=dict(type='policy_gradient')
-        )
-        self.unittest(objective=objective)
-
-        objective = dict(type='plus', objective1='state_value', objective2='policy_gradient')
+        objective = dict(type='plus', objective1='value', objective2='policy_gradient')
         self.unittest(objective=objective)
 
     def test_policy_gradient(self):
@@ -65,14 +53,17 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         objective = dict(type='policy_gradient', mean_over_actions=True)
         self.unittest(objective=objective)
 
-    def test_state_value(self):
-        self.start_tests(name='state-value')
+    def test_value(self):
+        self.start_tests(name='value')
 
-        objective = dict(type='state_value')
+        objective = dict(type='value', value='state')
         self.unittest(objective=objective)
 
-        objective = dict(type='state_value', huber_loss=1.0)
+        objective = dict(type='value', value='action')
         self.unittest(objective=objective)
 
-        objective = dict(type='state_value', mean_over_actions=True)
+        objective = dict(type='value', huber_loss=1.0)
+        self.unittest(objective=objective)
+
+        objective = dict(type='value', mean_over_actions=True)
         self.unittest(objective=objective)

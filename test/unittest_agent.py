@@ -33,32 +33,11 @@ class UnittestAgent(UnittestBase):
     def test_single_state_action(self):
         self.start_tests(name='single-state-action')
 
-        states = dict(type='bool', shape=())
-        if self.__class__.exclude_bool_action:
-            actions = dict(type=self.__class__.replacement_action, shape=())
-        else:
-            actions = dict(type='bool', shape=())
-        self.unittest(states=states, actions=actions)
-
-        states = dict(type='int', shape=(), num_values=3)
-        if self.__class__.exclude_int_action:
-            actions = dict(type=self.__class__.replacement_action, shape=())
-        else:
-            actions = dict(type='int', shape=(), num_values=3)
-        self.unittest(states=states, actions=actions)
-
         states = dict(type='float', shape=(1,))
         if self.__class__.exclude_float_action:
             actions = dict(type=self.__class__.replacement_action, shape=())
         else:
             actions = dict(type='float', shape=())
-        self.unittest(states=states, actions=actions)
-
-        states = dict(type='float', shape=(1,), min_value=-1.0, max_value=1.0)
-        if self.__class__.exclude_bounded_action:
-            actions = dict(type=self.__class__.replacement_action, shape=())
-        else:
-            actions = dict(type='float', shape=(), min_value=-1.0, max_value=1.0)
         self.unittest(states=states, actions=actions)
 
     def test_full(self):

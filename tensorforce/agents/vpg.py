@@ -70,7 +70,7 @@ class VanillaPolicyGradient(TensorforceAgent):
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        estimate_terminal (bool): Whether to estimate the value of terminal states
+        estimate_terminal (bool): Whether to estimate the value of (real) terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         baseline_network (specification): Baseline network configuration, see
@@ -238,7 +238,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             # State value doesn't exist for Beta
             baseline_policy = dict(network=baseline_network, distributions=dict(float='gaussian'))
             assert baseline_optimizer is not None
-            baseline_objective = 'state_value'
+            baseline_objective = dict(type='value', value='state')
 
         super().__init__(
             # Agent

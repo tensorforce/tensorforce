@@ -21,7 +21,7 @@ from tensorforce.core.objectives import Objective
 
 class DeterministicPolicyGradient(Objective):
     """
-    Deterministic policy gradient objective.
+    Deterministic policy gradient objective (specification key: `det_policy_gradient`).
 
     Args:
         name (string): Module name
@@ -55,7 +55,7 @@ class DeterministicPolicyGradient(Objective):
         actions_value = baseline.actions_value(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
         )
-        # TODO: assert only one action
+        assert len(actions) == 1 and len(util.shape(x=list(actions.values())[0])) == 1
         gradients = tf.gradients(ys=actions_value, xs=list(actions.values()))[0][0]
 
         return gradients

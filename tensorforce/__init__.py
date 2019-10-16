@@ -23,10 +23,11 @@ __all__ = ['TensorforceError', 'util']
 __version__ = '0.5.2'
 
 """
-pip install --upgrade setuptools wheel twine
+pip install --upgrade pip setuptools wheel twine
 python setup.py sdist bdist_wheel
 twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.2*
-pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
+test: pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
+test: python; import tensorforce;
 twine upload dist/Tensorforce-0.5.2*
 """
 

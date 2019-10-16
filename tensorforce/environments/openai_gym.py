@@ -188,7 +188,7 @@ class OpenAIGym(Environment):
             self.environment.stats_recorder.done = True
         states = self.environment.reset()
         self.timestep = 0
-        return OpenAIGym.flatten_state(state=states)
+        return OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
 
     def execute(self, actions):
         if self.visualize:
@@ -206,11 +206,13 @@ class OpenAIGym(Environment):
             terminal = 1
         else:
             terminal = 0
-        return OpenAIGym.flatten_state(state=states), terminal, reward
+        states = OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
+        return states, terminal, reward
 
     @staticmethod
     def specs_from_gym_space(space, ignore_value_bounds):
         import gym
+
         if isinstance(space, gym.spaces.Discrete):
             return dict(type='int', shape=(), num_values=space.n)
 
@@ -278,11 +280,17 @@ class OpenAIGym(Environment):
             raise TensorforceError('Unknown Gym space.')
 
     @staticmethod
-    def flatten_state(state):
+    def flatten_state(state, states_spec):
         if isinstance(state, tuple):
             states = dict()
             for n, state in enumerate(state):
-                state = OpenAIGym.flatten_state(state=state)
+                if 'gymtpl{}-{}'.format(n, name) in states_spec:
+                    spec = states_spec['gymtpl{}-{}'.format(n, name)]
+                elif 'gymtpl{}'.format(n) in states_spec:
+                    spec = states_spec['gymtpl{}'.format(n)]
+                else:
+                    raise TensorforceError.unexpected()
+                state = OpenAIGym.flatten_state(state=state, states_spec=spec)
                 if isinstance(state, dict):
                     for name, state in state.items():
                         states['gymtpl{}-{}'.format(n, name)] = state
@@ -293,7 +301,13 @@ class OpenAIGym(Environment):
         elif isinstance(state, dict):
             states = dict()
             for state_name, state in state.items():
-                state = OpenAIGym.flatten_state(state=state)
+                if '{}-{}'.format(state_name, name) in states_spec:
+                    spec = states_spec['{}-{}'.format(state_name, name)]
+                elif state_name in states_spec:
+                    spec = states_spec[state_name]
+                else:
+                    raise TensorforceError.unexpected()
+                state = OpenAIGym.flatten_state(state=state, states_spec=spec)
                 if isinstance(state, dict):
                     for name, state in state.items():
                         states['{}-{}'.format(state_name, name)] = state
@@ -303,6 +317,16 @@ class OpenAIGym(Environment):
 
         elif np.isinf(state).any() or np.isnan(state).any():
             raise TensorforceError("State contains inf or nan.")
+
+        elif 'gymbox0' in states_spec:
+            for n in range(state.shape[0]):
+                states['gymbox{}'.format(n)] = state[n]
+            return states
+
+        elif 'gymmdc0' in states_spec:
+            for n in range(state.shape[0]):
+                states['gymmdc{}'.format(n)] = state[n]
+            return states
 
         else:
             return state

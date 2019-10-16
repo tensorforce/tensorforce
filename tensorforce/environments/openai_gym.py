@@ -319,11 +319,13 @@ class OpenAIGym(Environment):
             raise TensorforceError("State contains inf or nan.")
 
         elif 'gymbox0' in states_spec:
+            states = dict()
             for n in range(state.shape[0]):
                 states['gymbox{}'.format(n)] = state[n]
             return states
 
         elif 'gymmdc0' in states_spec:
+            states = dict()
             for n in range(state.shape[0]):
                 states['gymmdc{}'.format(n)] = state[n]
             return states

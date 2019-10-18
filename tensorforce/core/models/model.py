@@ -686,7 +686,7 @@ class Model(Module):
                 x=self.global_episodes, operation_name='episode-output'
             )
             update = util.identity_operation(
-                x=self.global_update, operation_name='update-output'
+                x=self.global_updates, operation_name='update-output'
             )
 
         return timestep, episode, update
@@ -770,7 +770,7 @@ class Model(Module):
         Module.update_tensors(
             deterministic=deterministic, independent=independent,
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timesteps, episode=self.global_episodes, update=self.global_update
+            timestep=self.global_timesteps, episode=self.global_episodes, update=self.global_updates
         )
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -1110,7 +1110,7 @@ class Model(Module):
             deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timesteps, episode=self.global_episodes, update=self.global_update
+            timestep=self.global_timesteps, episode=self.global_episodes, update=self.global_updates
         )
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -1205,7 +1205,7 @@ class Model(Module):
                 x=self.global_episodes, operation_name='episode-output'
             )
             update = util.identity_operation(
-                x=self.global_update, operation_name='update-output'
+                x=self.global_updates, operation_name='update-output'
             )
 
         return updated, episode, update

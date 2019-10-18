@@ -680,10 +680,10 @@ class Model(Module):
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             timestep = util.identity_operation(
-                x=self.global_timestep, operation_name='timestep-output'
+                x=self.global_timesteps, operation_name='timestep-output'
             )
             episode = util.identity_operation(
-                x=self.global_episode, operation_name='episode-output'
+                x=self.global_episodes, operation_name='episode-output'
             )
             update = util.identity_operation(
                 x=self.global_update, operation_name='update-output'
@@ -770,7 +770,7 @@ class Model(Module):
         Module.update_tensors(
             deterministic=deterministic, independent=independent,
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+            timestep=self.global_timesteps, episode=self.global_episodes, update=self.global_update
         )
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -783,7 +783,7 @@ class Model(Module):
                 assignments.append(
                     self.timestep.scatter_nd_add(indices=[(parallel,)], updates=[one])
                 )
-                assignments.append(self.global_timestep.assign_add(delta=one, read_value=False))
+                assignments.append(self.global_timesteps.assign_add(delta=one, read_value=False))
                 with tf.control_dependencies(control_inputs=assignments):
                     return util.no_operation()
 
@@ -1057,7 +1057,7 @@ class Model(Module):
                     x=actions[name], operation_name=(name + '-output')
                 )
             timestep = util.identity_operation(
-                x=self.global_timestep, operation_name='timestep-output'
+                x=self.global_timesteps, operation_name='timestep-output'
             )
 
         return actions, timestep
@@ -1110,7 +1110,7 @@ class Model(Module):
             deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
             optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+            timestep=self.global_timesteps, episode=self.global_episodes, update=self.global_update
         )
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -1126,7 +1126,7 @@ class Model(Module):
             assignments = list()
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             assignments.append(self.episode.scatter_nd_add(indices=[(parallel,)], updates=[one]))
-            assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
+            assignments.append(self.global_episodes.assign_add(delta=one, read_value=False))
             zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
             zero_float = self.add_summary(
                 label=('episode-reward', 'rewards'), name='episode-reward',
@@ -1202,7 +1202,7 @@ class Model(Module):
             # Function-level identity operation for retrieval (plus enforce dependency)
             updated = util.identity_operation(x=is_updated, operation_name='updated-output')
             episode = util.identity_operation(
-                x=self.global_episode, operation_name='episode-output'
+                x=self.global_episodes, operation_name='episode-output'
             )
             update = util.identity_operation(
                 x=self.global_update, operation_name='update-output'
@@ -1232,7 +1232,7 @@ class Model(Module):
 
         return self.saver.save(
             sess=self.session, save_path=save_path,
-            global_step=(self.global_timestep if append_timestep else None),
+            global_step=(self.global_timesteps if append_timestep else None),
             # latest_filename=None,  # Defaults to 'checkpoint'.
             meta_graph_suffix='meta', write_meta_graph=True, write_state=True
         )

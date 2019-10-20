@@ -93,7 +93,9 @@ class Stochastic(Policy):
             temperature=temperature, return_internals=return_internals
         )
 
-    def tf_log_probability(self, states, internals, auxiliaries, actions, mean=True):
+    def tf_log_probability(
+        self, states, internals, auxiliaries, actions, mean=True, include_per_action=False
+    ):
         log_probabilities = self.log_probabilities(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
         )
@@ -107,9 +109,13 @@ class Stochastic(Policy):
         if mean:
             log_probability = tf.math.reduce_mean(input_tensor=log_probability, axis=1)
 
-        return log_probability
+        if include_per_action:
+            log_probabilities['*'] = log_probability
+            return log_probabilities
+        else:
+            return log_probability
 
-    def tf_entropy(self, states, internals, auxiliaries, mean=True):
+    def tf_entropy(self, states, internals, auxiliaries, mean=True, include_per_action=False):
         entropies = self.entropies(states=states, internals=internals, auxiliaries=auxiliaries)
 
         for name, spec, entropy in util.zip_items(self.actions_spec, entropies):
@@ -121,9 +127,15 @@ class Stochastic(Policy):
         if mean:
             entropy = tf.math.reduce_mean(input_tensor=entropy, axis=1)
 
-        return entropy
+        if include_per_action:
+            entropies['*'] = entropy
+            return entropies
+        else:
+            return entropy
 
-    def tf_kl_divergence(self, states, internals, auxiliaries, other=None, mean=True):
+    def tf_kl_divergence(
+        self, states, internals, auxiliaries, other=None, mean=True, include_per_action=False
+    ):
         kl_divergences = self.kl_divergences(
             states=states, internals=internals, auxiliaries=auxiliaries, other=other
         )
@@ -137,7 +149,11 @@ class Stochastic(Policy):
         if mean:
             kl_divergence = tf.math.reduce_mean(input_tensor=kl_divergence, axis=1)
 
-        return kl_divergence
+        if include_per_action:
+            kl_divergences['*'] = kl_divergence
+            return kl_divergences
+        else:
+            return kl_divergence
 
     def tf_sample_actions(self, states, internals, auxiliaries, temperature, return_internals):
         raise NotImplementedError
@@ -149,4 +165,7 @@ class Stochastic(Policy):
         raise NotImplementedError
 
     def tf_kl_divergences(self, states, internals, auxiliaries, other=None):
+        raise NotImplementedError
+
+    def tf_kldiv_reference(self, states, internals, auxiliaries):
         raise NotImplementedError

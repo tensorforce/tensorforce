@@ -198,9 +198,11 @@ class TensorforceAgent(Agent):
             <li>"distributions" or "bernoulli", "categorical", "gaussian", "beta":
             distribution-specific parameters</li>
             <li>"dropout": dropout zero fraction</li>
-            <li>"entropy": entropy of policy distribution</li>
+            <li>"entropies" or "entropy", "action-entropies": entropy of policy
+            distribution(s)</li>
             <li>"graph": graph summary</li>
-            <li>"kl-divergence": KL-divergence of previous and updated policy distribution</li>
+            <li>"kl-divergences" or "kl-divergence", "action-kl-divergences": KL-divergence of
+            previous and updated polidcy distribution(s)</li>
             <li>"losses" or "loss", "objective-loss", "regularization-loss", "baseline-loss",
             "baseline-objective-loss", "baseline-regularization-loss": loss scalars</li>
             <li>"parameters": parameter scalars</li>
@@ -436,11 +438,13 @@ class TensorforceAgent(Agent):
         Pretrain from experience traces.
 
         Args:
-            directory (path): Directory with experience traces, e.g. obtained via recorder
+            directory (path): Directory with experience traces, e.g. obtained via recorder; episode
+                length has to be consistent with agent configuration
                 (<span style="color:#C00000"><b>required</b></span>).
             num_updates (int > 0): Number of updates per iteration
                 (<span style="color:#C00000"><b>required</b></span>).
-            num_traces (int > 0): Number of traces to load per iteration
+            num_traces (int > 0): Number of traces to load per iteration; has to at least satisfy
+                the update batch size
                 (<span style="color:#00C000"><b>default</b></span>: all).
             num_iterations (int > 0): Number of iterations consisting of loading new traces and
                 performing multiple updates

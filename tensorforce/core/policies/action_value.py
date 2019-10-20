@@ -58,7 +58,9 @@ class ActionValue(Policy):
 
         return actions
 
-    def tf_actions_value(self, states, internals, auxiliaries, actions, mean=True):
+    def tf_actions_value(
+        self, states, internals, auxiliaries, actions, mean=True, include_per_action=False
+    ):
         actions_values = self.actions_values(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
         )
@@ -72,9 +74,13 @@ class ActionValue(Policy):
         if mean:
             actions_value = tf.math.reduce_mean(input_tensor=actions_value, axis=1)
 
-        return actions_value
+        if include_per_action:
+            actions_values['*'] = actions_value
+            return actions_values
+        else:
+            return actions_value
 
-    def tf_states_value(self, states, internals, auxiliaries, mean=True):
+    def tf_states_value(self, states, internals, auxiliaries, mean=True, include_per_action=False):
         states_values = self.states_values(
             states=states, internals=internals, auxiliaries=auxiliaries
         )
@@ -88,7 +94,11 @@ class ActionValue(Policy):
         if mean:
             states_value = tf.math.reduce_mean(input_tensor=states_value, axis=1)
 
-        return states_value
+        if include_per_action:
+            states_values['*'] = states_value
+            return states_values
+        else:
+            return states_value
 
     def tf_states_values(self, states, internals, auxiliaries):
         if not all(spec['type'] in ('bool', 'int') for spec in self.states_spec.values()):

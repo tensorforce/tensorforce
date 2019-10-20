@@ -59,7 +59,8 @@ agent = Agent.load(directory='data/checkpoints')
 Agent.create(...
     summarizer=dict(
         directory='data/summaries',
-        labels=['graph', 'losses', 'rewards'],  # list of labels, or 'all'
+        # list of labels, or 'all'
+        labels=['graph', 'entropy', 'kl-divergence', 'losses', 'rewards'],
         frequency=100  # store values every 100 timesteps
         # (infrequent update summaries every update; other configurations possible)
     ), ...

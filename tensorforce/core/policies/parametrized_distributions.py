@@ -172,14 +172,14 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
                 parameters = distribution.parametrize(x=embedding)
-            action = distribution.sample(parameters=parameters, temperature=temp)
+            actions[name] = distribution.sample(parameters=parameters, temperature=temp)
 
-            entropy = distribution.entropy(parameters=parameters)
-            entropy = tf.reshape(tensor=entropy, shape=(-1, util.product(xs=spec['shape'])))
-            mean_entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
-            actions[name] = self.add_summary(
-                label='entropy', name=(name + '-entropy'), tensor=mean_entropy, pass_tensors=action
-            )
+            # entropy = distribution.entropy(parameters=parameters)
+            # entropy = tf.reshape(tensor=entropy, shape=(-1, util.product(xs=spec['shape'])))
+            # mean_entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
+            # actions[name] = self.add_summary(
+            #     label='entropy', name=(name + '-entropy'), tensor=mean_entropy, pass_tensors=action
+            # )
 
         if return_internals:
             return actions, internals
@@ -221,32 +221,43 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         return entropies
 
     def tf_kl_divergences(self, states, internals, auxiliaries, other=None):
-        assert other is None or isinstance(other, ParametrizedDistributions)
+        parameters = self.kldiv_reference(
+            states=states, internals=internals, auxiliaries=auxiliaries
+        )
 
-        embedding = self.network.apply(x=states, internals=internals)
-        if other is not None:
-            other_embedding = other.network.apply(x=states, internals=internals)
+        if other is None:
+            pass
+        elif isinstance(other, ParametrizedDistributions):
+            other = other.kldiv_reference(
+                states=states, internals=internals, auxiliaries=auxiliaries
+            )
+            other = util.fmap(function=tf.stop_gradient, xs=other)
+        elif isinstance(other, dict):
+            if any(name not in other for name in self.actions_spec):
+                raise TensorforceError.unexpected()
+        else:
+            raise TensorforceError.unexpected()
 
         kl_divergences = OrderedDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            if other is None:
-                other_parameters = tuple(tf.stop_gradient(input=value) for value in parameters)
-            elif spec['type'] == 'int':
-                other_parameters = other.distributions[name].parametrize(
-                    x=other_embedding, mask=mask
-                )
-            else:
-                other_parameters = other.distributions[name].parametrize(x=other_embedding)
+        for name, distribution in self.distributions.items():
             kl_divergences[name] = distribution.kl_divergence(
-                parameters1=other_parameters, parameters2=parameters  # order????
+                parameters1=other[name], parameters2=parameters[name]  # order????
             )
 
         return kl_divergences
+
+    def tf_kldiv_reference(self, states, internals, auxiliaries):
+        embedding = self.network.apply(x=states, internals=internals)
+
+        kldiv_reference = OrderedDict()
+        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
+            if spec['type'] == 'int':
+                mask = auxiliaries[name + '_mask']
+                kldiv_reference[name] = distribution.parametrize(x=embedding, mask=mask)
+            else:
+                kldiv_reference[name] = distribution.parametrize(x=embedding)
+
+        return kldiv_reference
 
     def tf_states_values(self, states, internals, auxiliaries):
         embedding = self.network.apply(x=states, internals=internals)

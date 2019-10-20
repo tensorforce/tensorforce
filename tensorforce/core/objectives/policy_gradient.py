@@ -32,15 +32,14 @@ class PolicyGradient(Objective):
             (<span style="color:#00C000"><b>default</b></span>: false).
         clipping_value (parameter, float > 0.0): Clipping threshold for the maximized value
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
-        mean_over_actions (bool): Whether to compute objective for mean of likelihoods instead
-            of per likelihood
-            (<span style="color:#00C000"><b>default</b></span>: false).
+        early_reduce (bool): Whether to compute objective for reduced likelihoods instead of per
+            likelihood (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(
-        self, name, ratio_based=False, clipping_value=0.0, mean_over_actions=False,
+        self, name, ratio_based=False, clipping_value=0.0, early_reduce=False,
         summary_labels=None
     ):
         super().__init__(name=name, summary_labels=summary_labels)
@@ -52,7 +51,7 @@ class PolicyGradient(Objective):
             name='clipping-value', module=clipping_value, modules=parameter_modules, dtype='float'
         )
 
-        self.mean_over_actions = mean_over_actions
+        self.early_reduce = early_reduce
 
     def tf_loss_per_instance(
         self, policy, states, internals, auxiliaries, actions, reward, reference=None
@@ -61,7 +60,7 @@ class PolicyGradient(Objective):
 
         log_probability = policy.log_probability(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            mean=self.mean_over_actions
+            reduced=self.early_reduce
         )
 
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
@@ -81,7 +80,7 @@ class PolicyGradient(Objective):
             min_value = -clipping_value
             max_value = log_probability + one
 
-        if not self.mean_over_actions:
+        if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 
         def no_clipping():
@@ -98,15 +97,15 @@ class PolicyGradient(Objective):
 
         loss = -scaled
 
-        if not self.mean_over_actions:
-            loss = tf.math.reduce_mean(input_tensor=loss, axis=1)
+        if not self.early_reduce:
+            loss = tf.math.reduce_sum(input_tensor=loss, axis=1)
 
         return loss
 
     def tf_reference(self, policy, states, internals, auxiliaries, actions):
         reference = policy.log_probability(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            mean=self.mean_over_actions
+            reduced=self.early_reduce
         )
 
         return reference

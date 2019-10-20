@@ -32,14 +32,14 @@ class Value(Objective):
             (<span style="color:#00C000"><b>default</b></span>: "state").
         huber_loss (parameter, float > 0.0): Huber loss threshold
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
-        mean_over_actions (bool): Whether to compute objective for mean of values instead of value
-            per action (<span style="color:#00C000"><b>default</b></span>: false).
+        early_reduce (bool): Whether to compute objective for reduced values instead of value per
+            action (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(
-        self, name, value='state', huber_loss=0.0, mean_over_actions=False, summary_labels=None
+        self, name, value='state', huber_loss=0.0, early_reduce=False, summary_labels=None
     ):
         super().__init__(name=name, summary_labels=summary_labels)
 
@@ -51,21 +51,21 @@ class Value(Objective):
             name='huber-loss', module=huber_loss, modules=parameter_modules, dtype='float'
         )
 
-        self.mean_over_actions = mean_over_actions
+        self.early_reduce = early_reduce
 
     def tf_loss_per_instance(self, policy, states, internals, auxiliaries, actions, reward):
-        if not self.mean_over_actions:
+        if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 
         if self.value == 'state':
             value = policy.states_value(
                 states=states, internals=internals, auxiliaries=auxiliaries,
-                mean=self.mean_over_actions
+                reduced=self.early_reduce
             )
         elif self.value == 'action':
             value = policy.actions_value(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-                mean=self.mean_over_actions
+                reduced=self.early_reduce
             )
 
         difference = value - reward
@@ -87,7 +87,7 @@ class Value(Objective):
 
         loss = self.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)
 
-        if not self.mean_over_actions:
-            loss = tf.math.reduce_mean(input_tensor=loss, axis=1)
+        if not self.early_reduce:
+            loss = tf.math.reduce_sum(input_tensor=loss, axis=1)
 
         return loss

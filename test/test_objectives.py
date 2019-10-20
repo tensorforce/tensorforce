@@ -50,7 +50,7 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         objective = dict(type='policy_gradient', ratio_based=True, clipping_value=0.2)
         self.unittest(objective=objective)
 
-        objective = dict(type='policy_gradient', mean_over_actions=True)
+        objective = dict(type='policy_gradient', early_reduce=True)
         self.unittest(objective=objective)
 
     def test_value(self):
@@ -65,5 +65,5 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         objective = dict(type='value', huber_loss=1.0)
         self.unittest(objective=objective)
 
-        objective = dict(type='value', mean_over_actions=True)
+        objective = dict(type='value', early_reduce=True)
         self.unittest(objective=objective)

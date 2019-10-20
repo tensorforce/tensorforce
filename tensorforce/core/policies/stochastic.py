@@ -94,7 +94,7 @@ class Stochastic(Policy):
         )
 
     def tf_log_probability(
-        self, states, internals, auxiliaries, actions, mean=True, include_per_action=False
+        self, states, internals, auxiliaries, actions, reduced=True, include_per_action=False
     ):
         log_probabilities = self.log_probabilities(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
@@ -106,8 +106,8 @@ class Stochastic(Policy):
             )
 
         log_probability = tf.concat(values=tuple(log_probabilities.values()), axis=1)
-        if mean:
-            log_probability = tf.math.reduce_mean(input_tensor=log_probability, axis=1)
+        if reduced:
+            log_probability = tf.math.reduce_sum(input_tensor=log_probability, axis=1)
 
         if include_per_action:
             log_probabilities['*'] = log_probability
@@ -115,7 +115,7 @@ class Stochastic(Policy):
         else:
             return log_probability
 
-    def tf_entropy(self, states, internals, auxiliaries, mean=True, include_per_action=False):
+    def tf_entropy(self, states, internals, auxiliaries, reduced=True, include_per_action=False):
         entropies = self.entropies(states=states, internals=internals, auxiliaries=auxiliaries)
 
         for name, spec, entropy in util.zip_items(self.actions_spec, entropies):
@@ -124,8 +124,8 @@ class Stochastic(Policy):
             )
 
         entropy = tf.concat(values=tuple(entropies.values()), axis=1)
-        if mean:
-            entropy = tf.math.reduce_mean(input_tensor=entropy, axis=1)
+        if reduced:
+            entropy = tf.math.reduce_sum(input_tensor=entropy, axis=1)
 
         if include_per_action:
             entropies['*'] = entropy
@@ -134,7 +134,7 @@ class Stochastic(Policy):
             return entropy
 
     def tf_kl_divergence(
-        self, states, internals, auxiliaries, other=None, mean=True, include_per_action=False
+        self, states, internals, auxiliaries, other=None, reduced=True, include_per_action=False
     ):
         kl_divergences = self.kl_divergences(
             states=states, internals=internals, auxiliaries=auxiliaries, other=other
@@ -146,8 +146,8 @@ class Stochastic(Policy):
             )
 
         kl_divergence = tf.concat(values=tuple(kl_divergences.values()), axis=1)
-        if mean:
-            kl_divergence = tf.math.reduce_mean(input_tensor=kl_divergence, axis=1)
+        if reduced:
+            kl_divergence = tf.math.reduce_sum(input_tensor=kl_divergence, axis=1)
 
         if include_per_action:
             kl_divergences['*'] = kl_divergence

@@ -59,7 +59,7 @@ class ActionValue(Policy):
         return actions
 
     def tf_actions_value(
-        self, states, internals, auxiliaries, actions, mean=True, include_per_action=False
+        self, states, internals, auxiliaries, actions, reduced=True, include_per_action=False
     ):
         actions_values = self.actions_values(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
@@ -71,8 +71,8 @@ class ActionValue(Policy):
             )
 
         actions_value = tf.concat(values=tuple(actions_values.values()), axis=1)
-        if mean:
-            actions_value = tf.math.reduce_mean(input_tensor=actions_value, axis=1)
+        if reduced:
+            actions_value = tf.math.reduce_sum(input_tensor=actions_value, axis=1)
 
         if include_per_action:
             actions_values['*'] = actions_value
@@ -80,7 +80,9 @@ class ActionValue(Policy):
         else:
             return actions_value
 
-    def tf_states_value(self, states, internals, auxiliaries, mean=True, include_per_action=False):
+    def tf_states_value(
+        self, states, internals, auxiliaries, reduced=True, include_per_action=False
+    ):
         states_values = self.states_values(
             states=states, internals=internals, auxiliaries=auxiliaries
         )
@@ -91,8 +93,8 @@ class ActionValue(Policy):
             )
 
         states_value = tf.concat(values=tuple(states_values.values()), axis=1)
-        if mean:
-            states_value = tf.math.reduce_mean(input_tensor=states_value, axis=1)
+        if reduced:
+            states_value = tf.math.reduce_sum(input_tensor=states_value, axis=1)
 
         if include_per_action:
             states_values['*'] = states_value

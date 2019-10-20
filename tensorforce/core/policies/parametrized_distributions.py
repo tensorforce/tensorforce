@@ -174,13 +174,6 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 parameters = distribution.parametrize(x=embedding)
             actions[name] = distribution.sample(parameters=parameters, temperature=temp)
 
-            # entropy = distribution.entropy(parameters=parameters)
-            # entropy = tf.reshape(tensor=entropy, shape=(-1, util.product(xs=spec['shape'])))
-            # mean_entropy = tf.reduce_mean(input_tensor=entropy, axis=1)
-            # actions[name] = self.add_summary(
-            #     label='entropy', name=(name + '-entropy'), tensor=mean_entropy, pass_tensors=action
-            # )
-
         if return_internals:
             return actions, internals
         else:
@@ -241,7 +234,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         kl_divergences = OrderedDict()
         for name, distribution in self.distributions.items():
             kl_divergences[name] = distribution.kl_divergence(
-                parameters1=other[name], parameters2=parameters[name]  # order????
+                parameters1=parameters[name], parameters2=other[name]
             )
 
         return kl_divergences

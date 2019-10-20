@@ -286,6 +286,15 @@ class TensorforceAgent(Agent):
             if max_episode_timesteps is None:
                 raise TensorforceError.unexpected()
             reward_estimation['horizon'] = max_episode_timesteps
+        if 'capacity' not in reward_estimation:
+            if isinstance(reward_estimation['horizon'], int):
+                reward_estimation['capacity'] = max(
+                    self.buffer_observe, reward_estimation['horizon'] + 2
+                )
+            elif max_episode_timesteps is not None:
+                reward_estimation['capacity'] = max_episode_timesteps
+            else:
+                raise TensorforceError.unexpected()
 
         if memory is None:
             # predecessor/successor?

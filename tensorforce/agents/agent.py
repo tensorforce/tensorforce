@@ -165,7 +165,7 @@ class Agent(object):
 
         # Buffer observe
         if isinstance(buffer_observe, bool):
-            if not buffer_observe and self.parallel_interactions > 1:
+            if buffer_observe and self.parallel_interactions > 1:
                 raise TensorforceError.unexpected()
             if self.max_episode_timesteps is None and self.parallel_interactions > 1:
                 raise TensorforceError.unexpected()

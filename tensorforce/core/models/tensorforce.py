@@ -133,25 +133,23 @@ class TensorforceModel(Model):
 
         # Estimator
         if not all(key in (
-            'discount', 'estimate_actions', 'estimate_advantage', 'estimate_horizon',
+            'capacity', 'discount', 'estimate_actions', 'estimate_advantage', 'estimate_horizon',
             'estimate_terminal', 'horizon'
         ) for key in reward_estimation):
             raise TensorforceError.value(name='reward_estimation', value=list(reward_estimation))
-        horizon = reward_estimation['horizon']
-        capacity = max(buffer_observe, horizon) if isinstance(horizon, int) else buffer_observe
         if baseline_policy is None and baseline_optimizer is None and baseline_objective is None:
             estimate_horizon = False
         else:
             estimate_horizon = 'late'
         self.estimator = self.add_module(
             name='estimator', module=Estimator, is_trainable=False, is_saved=False,
-            values_spec=self.values_spec, horizon=horizon,
+            values_spec=self.values_spec, horizon=reward_estimation['horizon'],
             discount=reward_estimation.get('discount', 1.0),
             estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
             estimate_actions=reward_estimation.get('estimate_actions', False),
             estimate_terminal=reward_estimation.get('estimate_terminal', False),
             estimate_advantage=reward_estimation.get('estimate_advantage', False),
-            capacity=capacity
+            capacity=reward_estimation['capacity']
         )
 
         # Baseline
@@ -569,7 +567,7 @@ class TensorforceModel(Model):
             optimized = self.optimize_baseline(indices=indices)
             dependencies = (optimized,)
         else:
-            dependencies = (reward,)
+            dependencies = (indices,)
 
         # Reward estimation
         with tf.control_dependencies(control_inputs=dependencies):
@@ -804,7 +802,7 @@ class TensorforceModel(Model):
             indices=indices, values=('auxiliaries', 'actions', 'reward')
         )
 
-        # Reward estimation
+        # Reward estimation (separate from main policy, so updated baseline is used there)
         reward = self.memory.retrieve(indices=indices, values='reward')
         reward = self.estimator.complete(
             baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward

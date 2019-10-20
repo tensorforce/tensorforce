@@ -219,7 +219,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         )
 
         if other is None:
-            pass
+            other = util.fmap(function=tf.stop_gradient, xs=parameters)
         elif isinstance(other, ParametrizedDistributions):
             other = other.kldiv_reference(
                 states=states, internals=internals, auxiliaries=auxiliaries

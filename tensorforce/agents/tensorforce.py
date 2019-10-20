@@ -207,7 +207,7 @@ class TensorforceAgent(Agent):
             "baseline-objective-loss", "baseline-regularization-loss": loss scalars</li>
             <li>"parameters": parameter scalars</li>
             <li>"relu": ReLU activation zero fraction</li>
-            <li>"rewards" or "timestep-reward", "episode-reward", "raw-reward", "processed-reward",
+            <li>"rewards" or "timestep-reward", "episode-reward", "raw-reward", "empirical-reward",
             "estimated-reward": reward scalar
             </li>
             <li>"update-norm": update norm</li>
@@ -268,6 +268,9 @@ class TensorforceAgent(Agent):
             )
 
         if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
+            buffer_observe = False
+
+        if isinstance(update, int) or update['unit'] == 'timesteps':
             buffer_observe = False
 
         super().__init__(

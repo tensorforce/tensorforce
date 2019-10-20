@@ -287,7 +287,7 @@ class Estimator(CircularBuffer):
             rewards = tf.concat(values=(rewards, values['reward'][:values_limit]), axis=0)
 
             # Horizon baseline value
-            if self.estimate_horizon == 'early' and baseline is not None:
+            if self.estimate_horizon == 'early':
                 assert baseline is not None
                 # Baseline estimate
                 buffer_indices = buffer_indices[horizon + one:]
@@ -398,11 +398,14 @@ class Estimator(CircularBuffer):
         with tf.control_dependencies(control_inputs=(updated_rewards,)):
             return super().tf_enqueue(**values)
 
-    def tf_estimate1(self, baseline, memory, indices, reward):
-        if (self.estimate_horizon == 'late' and baseline is not None) or self.estimate_advantage:
-            # # TODO: dependency_horizon < horizon, get sequence of states of length dependency_horizon only
-            dependency_horizon = baseline.dependency_horizon(is_optimization=False)
+    def tf_complete(self, baseline, memory, indices, reward):
+        if self.estimate_horizon == 'late':
+            assert baseline is not None
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+
+            # Baseline dependencies
+            dependency_horizon = baseline.dependency_horizon(is_optimization=False)
             assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
             with tf.control_dependencies(control_inputs=(assertion,)):
                 if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
@@ -415,8 +418,6 @@ class Estimator(CircularBuffer):
                 lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
                 Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
 
-        if self.estimate_horizon == 'late' and baseline is not None:
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             horizon = self.horizon.value()
             discount = self.discount.value()
 
@@ -458,18 +459,25 @@ class Estimator(CircularBuffer):
 
         return reward
 
-    def tf_estimate2(self, baseline, memory, indices, reward):
-        if False:
-            orig_indices = indices
-            # horizon change: see timestep-based batch sampling
-            starts, lengths, rewards = memory.successors(
-                indices=indices, horizon=horizon, sequence_values='reward'
-            )
-            indices = starts + lengths
-
+    def tf_estimate(self, baseline, memory, indices, reward):
         if self.estimate_advantage:
             assert baseline is not None
-            # possible with optimizer 'same'
+            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+
+            # Baseline dependencies
+            dependency_horizon = baseline.dependency_horizon(is_optimization=False)
+            assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
+            with tf.control_dependencies(control_inputs=(assertion,)):
+                if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+                    batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
+                else:
+                    batch_size = tf.dtypes.cast(
+                        x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='long')
+                    )
+                starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
+                lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
+                Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+
             if self.estimate_actions:
                 states, internals, auxiliaries, actions = memory.retrieve(
                     indices=indices, values=('states', 'internals', 'auxiliaries', 'actions')
@@ -486,22 +494,5 @@ class Estimator(CircularBuffer):
                 )
 
             reward = reward - critic_estimate
-
-        # above is td residual
-        if False:
-            gae_discount = self.discount.value() * self.gae_lambda.value()
-
-            # Calculate discounted sum
-            def cond(discounted_sum, horizon):
-                return tf.math.greater_equal(x=horizon, y=zero)
-
-            def body(discounted_sum, horizon):
-                discounted_sum = gae_discount * discounted_sum
-                discounted_sum = discounted_sum + rewards[horizon: horizon + num_overwritten]
-                return discounted_sum, horizon - one
-
-            reward = self.while_loop(
-                cond=cond, body=body, loop_vars=(horizon_estimate, horizon), back_prop=False
-            )[0]
 
         return reward

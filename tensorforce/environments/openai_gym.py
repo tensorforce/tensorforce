@@ -17,7 +17,7 @@ import os
 
 import numpy as np
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.environments import Environment
 
 
@@ -49,6 +49,8 @@ class OpenAIGym(Environment):
         tags (dict): Gym environment argument, a set of arbitrary key-value tags on this
             environment, including simple property=True tags
             (<span style="color:#00C000"><b>default</b></span>: Gym default).
+        drop_states_indices (list[int]): Drop states indices
+            (<span style="color:#00C000"><b>default</b></span>: none).
         visualize_directory (string): Visualization output directory
             (<span style="color:#00C000"><b>default</b></span>: none).
         kwargs: Additional Gym environment arguments.
@@ -131,7 +133,8 @@ class OpenAIGym(Environment):
 
     def __init__(
         self, level, visualize=False, max_episode_timesteps=None, terminal_reward=0.0,
-        reward_threshold=None, tags=None, visualize_directory=None, **kwargs
+        reward_threshold=None, tags=None, drop_states_indices=None, visualize_directory=None,
+        **kwargs
     ):
         import gym
         import gym.wrappers
@@ -158,6 +161,15 @@ class OpenAIGym(Environment):
         self.states_spec = OpenAIGym.specs_from_gym_space(
             space=self.environment.observation_space, ignore_value_bounds=True  # TODO: not ignore?
         )
+        if drop_states_indices is None:
+            self.drop_states_indices = None
+        else:
+            assert util.is_atomic_values_spec(values_spec=self.states_spec)
+            self.drop_states_indices = sorted(drop_states_indices)
+            assert len(self.states_spec['shape']) == 1
+            num_dropped = len(self.drop_states_indices)
+            self.states_spec['shape'] = (self.states_spec['shape'][0] - num_dropped,)
+
         self.actions_spec = OpenAIGym.specs_from_gym_space(
             space=self.environment.action_space, ignore_value_bounds=False
         )
@@ -188,7 +200,11 @@ class OpenAIGym(Environment):
             self.environment.stats_recorder.done = True
         states = self.environment.reset()
         self.timestep = 0
-        return OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
+        states = OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
+        if self.drop_states_indices is not None:
+            for index in reversed(self.drop_states_indices):
+                states = np.concatenate([states[:index], states[index + 1:]])
+        return states
 
     def execute(self, actions):
         if self.visualize:
@@ -207,6 +223,9 @@ class OpenAIGym(Environment):
         else:
             terminal = 0
         states = OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
+        if self.drop_states_indices is not None:
+            for index in reversed(self.drop_states_indices):
+                states = np.concatenate([states[:index], states[index + 1:]])
         return states, terminal, reward
 
     @staticmethod

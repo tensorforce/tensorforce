@@ -564,24 +564,22 @@ class TensorforceModel(Model):
             return util.identity_operation(x=true)
 
     def tf_optimize(self, indices):
-        # Late reward estimation
-        reward = self.memory.retrieve(indices=indices, values='reward')
-        reward = self.estimator.complete(
-            baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
-        )
-        reward = self.add_summary(
-            label=('empirical-reward', 'rewards'), name='empirical-reward', tensor=reward
-        )
-
         # Baseline optimization
         if self.baseline_optimizer is not None:
-            optimized = self.optimize_baseline(indices=indices, reward=reward)
+            optimized = self.optimize_baseline(indices=indices)
             dependencies = (optimized,)
         else:
             dependencies = (reward,)
 
-        # Advantage reward estimation
+        # Reward estimation
         with tf.control_dependencies(control_inputs=dependencies):
+            reward = self.memory.retrieve(indices=indices, values='reward')
+            reward = self.estimator.complete(
+                baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
+            )
+            reward = self.add_summary(
+                label=('empirical-reward', 'rewards'), name='empirical-reward', tensor=reward
+            )
             reward = self.estimator.estimate(
                 baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
             )
@@ -793,7 +791,7 @@ class TensorforceModel(Model):
 
         return regularization_loss
 
-    def tf_optimize_baseline(self, indices, reward):
+    def tf_optimize_baseline(self, indices):
         # Retrieve states, internals, actions and reward
         dependency_horizon = self.baseline_policy.dependency_horizon(is_optimization=True)
         # horizon change: see timestep-based batch sampling
@@ -802,8 +800,14 @@ class TensorforceModel(Model):
             initial_values='internals'
         )
         Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
-        auxiliaries, actions = self.memory.retrieve(
-            indices=indices, values=('auxiliaries', 'actions')
+        auxiliaries, actions, reward = self.memory.retrieve(
+            indices=indices, values=('auxiliaries', 'actions', 'reward')
+        )
+
+        # Reward estimation
+        reward = self.memory.retrieve(indices=indices, values='reward')
+        reward = self.estimator.complete(
+            baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
         )
 
         # Optimizer arguments

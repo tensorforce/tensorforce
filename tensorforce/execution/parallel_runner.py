@@ -190,8 +190,8 @@ class ParallelRunner(object):
                     runner.tqdm.postfix[2] = mean_sec_per_ep
                     runner.tqdm.postfix[3] = mean_ms_per_ts
                     runner.tqdm.postfix[4] = mean_rel_agent
-                    runner.tqdm.update(n=(runner.global_episodes - runner.tqdm_last_update))
-                    runner.tqdm_last_update = runner.global_episodes
+                    runner.tqdm.update(n=(runner.episodes - runner.tqdm_last_update))
+                    runner.tqdm_last_update = runner.episodes
                     return inner_callback(runner, parallel)
 
             else:
@@ -207,8 +207,8 @@ class ParallelRunner(object):
                     # num_timesteps = min(num_mean_reward, runner.episode_timestep)
                     # mean_reward = sum_timesteps_reward / num_episodes
                     runner.tqdm.set_postfix(mean_reward='n/a')
-                    runner.tqdm.update(n=(runner.global_timesteps - runner.tqdm_last_update))
-                    runner.tqdm_last_update = runner.global_timesteps
+                    runner.tqdm.update(n=(runner.timesteps - runner.tqdm_last_update))
+                    runner.tqdm_last_update = runner.timesteps
                     return inner_callback(runner, parallel)
 
             self.callback = tqdm_callback

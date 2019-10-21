@@ -271,6 +271,8 @@ class TensorforceAgent(Agent):
             buffer_observe = False
 
         if isinstance(update, int) or update['unit'] == 'timesteps':
+            if parallel_interactions > 1:
+                TensorforceError.unexpected()
             buffer_observe = False
 
         super().__init__(
@@ -282,19 +284,25 @@ class TensorforceAgent(Agent):
         if isinstance(update, int):
             update = dict(unit='timesteps', batch_size=update)
 
+        reward_estimation = dict(reward_estimation)
         if reward_estimation['horizon'] == 'episode':
             if max_episode_timesteps is None:
                 raise TensorforceError.unexpected()
             reward_estimation['horizon'] = max_episode_timesteps
         if 'capacity' not in reward_estimation:
+            # TODO: Doesn't take network horizon into account, needs to be set internally to max
+            # if isinstance(reward_estimation['horizon'], int):
+            #     reward_estimation['capacity'] = max(
+            #         self.buffer_observe, reward_estimation['horizon'] + 2
+            #     )
+            if max_episode_timesteps is None:
+                raise TensorforceError.unexpected()
             if isinstance(reward_estimation['horizon'], int):
                 reward_estimation['capacity'] = max(
-                    self.buffer_observe, reward_estimation['horizon'] + 2
+                    max_episode_timesteps, reward_estimation['horizon']
                 )
-            elif max_episode_timesteps is not None:
-                reward_estimation['capacity'] = max_episode_timesteps
             else:
-                raise TensorforceError.unexpected()
+                reward_estimation['capacity'] = max_episode_timesteps
 
         if memory is None:
             # predecessor/successor?

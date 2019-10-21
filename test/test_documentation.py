@@ -146,6 +146,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             agent='tensorforce',
             states=dict(type='float', shape=(10,)),
             actions=dict(type='int', num_values=5),
+            max_episode_timesteps=100,
             memory=10000,
             update=dict(unit='timesteps', batch_size=64),
             optimizer=dict(type='adam', learning_rate=3e-4),

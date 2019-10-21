@@ -165,7 +165,7 @@ class Agent(object):
 
         # Buffer observe
         if isinstance(buffer_observe, bool):
-            if buffer_observe and self.parallel_interactions > 1:
+            if not buffer_observe and self.parallel_interactions > 1:
                 raise TensorforceError.unexpected()
             if self.max_episode_timesteps is None and self.parallel_interactions > 1:
                 raise TensorforceError.unexpected()
@@ -211,7 +211,7 @@ class Agent(object):
             pass
         elif not all(key in ('directory', 'frequency', 'max-traces') for key in recorder):
             raise TensorforceError.value(name='recorder', value=list(recorder))
-        self.recorder_spec = recorder
+        self.recorder_spec = recorder if recorder is None else dict(recorder)
         if self.recorder_spec is not None:
             self.record_states = OrderedDict(((name, list()) for name in self.states_spec))
             for name, spec in self.actions_spec.items():

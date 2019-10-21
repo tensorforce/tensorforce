@@ -227,9 +227,9 @@ class Estimator(CircularBuffer):
             discounted_sum = discounted_sum + rewards[horizon: horizon + num_values]
             return discounted_sum, horizon - one
 
-        values['reward'] = self.while_loop(
+        values['reward'], _ = self.while_loop(
             cond=cond, body=body, loop_vars=(horizon_estimate, horizon), back_prop=False
-        )[0]
+        )
 
         return values
 
@@ -358,9 +358,9 @@ class Estimator(CircularBuffer):
                 discounted_sum = discounted_sum + rewards[horizon: horizon + num_overwritten]
                 return discounted_sum, horizon - one
 
-            discounted_sum = self.while_loop(
+            discounted_sum, _ = self.while_loop(
                 cond=cond, body=body, loop_vars=(horizon_estimate, horizon), back_prop=False
-            )[0]
+            )
 
             assertions = list()
             assertions.append(

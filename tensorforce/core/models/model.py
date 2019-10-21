@@ -69,7 +69,7 @@ class Model(Module):
         elif saver.get('directory') is None:
             self.saver_spec = None
         else:
-            self.saver_spec = saver
+            self.saver_spec = dict(saver)
 
         # Summarizer
         if summarizer is None:
@@ -82,9 +82,9 @@ class Model(Module):
         elif summarizer.get('directory') is None:
             self.summarizer_spec = None
         else:
-            self.summarizer_spec = summarizer
+            self.summarizer_spec = dict(summarizer)
 
-        self.config = config
+        self.config = None if config is None else dict(config)
 
         # States/internals/actions specifications
         self.states_spec = states

@@ -491,25 +491,26 @@ class TensorforceModel(Model):
         )
 
         # If terminal, store remaining values in memory
+
+        def true_fn():
+            reset_values = self.estimator.reset(baseline=self.baseline_policy)
+
+            new_overwritten_values = OrderedDict()
+            for name, value1, value2 in util.zip_items(overwritten_values, reset_values):
+                if util.is_nested(name=name):
+                    new_overwritten_values[name] = OrderedDict()
+                    for inner_name, value1, value2 in util.zip_items(value1, value2):
+                        new_overwritten_values[name][inner_name] = tf.concat(
+                            values=(value1, value2), axis=0
+                        )
+                else:
+                    new_overwritten_values[name] = tf.concat(values=(value1, value2), axis=0)
+            return new_overwritten_values
+
+        def false_fn():
+            return overwritten_values
+
         with tf.control_dependencies(control_inputs=util.flatten(xs=overwritten_values)):
-            def true_fn():
-                reset_values = self.estimator.reset(baseline=self.baseline_policy)
-
-                new_overwritten_values = OrderedDict()
-                for name, value1, value2 in util.zip_items(overwritten_values, reset_values):
-                    if util.is_nested(name=name):
-                        new_overwritten_values[name] = OrderedDict()
-                        for inner_name, value1, value2 in util.zip_items(value1, value2):
-                            new_overwritten_values[name][inner_name] = tf.concat(
-                                values=(value1, value2), axis=0
-                            )
-                    else:
-                        new_overwritten_values[name] = tf.concat(values=(value1, value2), axis=0)
-                return new_overwritten_values
-
-            def false_fn():
-                return overwritten_values
-
             values = self.cond(pred=(terminal[-1] > zero), true_fn=true_fn, false_fn=false_fn)
 
         # If any, store overwritten values

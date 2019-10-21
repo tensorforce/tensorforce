@@ -47,9 +47,9 @@ class Runner(object):
         if not self.agent.model.is_initialized:
             self.agent.initialize()
 
-        self.global_episodes = self.agent.episodes
-        self.global_timesteps = self.agent.timesteps
-        self.global_updates = self.agent.updates
+        # self.global_episodes = self.agent.episodes
+        # self.global_timesteps = self.agent.timesteps
+        # self.global_updates = self.agent.updates
         self.episode_rewards = list()
         self.episode_timesteps = list()
         self.episode_seconds = list()
@@ -149,9 +149,9 @@ class Runner(object):
                 postfix = [0.0, 0, 0.0, 0.0, 0.0]
                 self.tqdm = tqdm(
                     desc='Episodes', total=self.num_episodes, bar_format=bar_format,
-                    initial=self.global_episodes, postfix=postfix
+                    initial=self.episodes, postfix=postfix
                 )
-                self.tqdm_last_update = self.global_episodes
+                self.tqdm_last_update = self.episodes
 
                 def tqdm_callback(runner):
                     mean_reward = float(np.mean(runner.episode_rewards[-mean_horizon:]))
@@ -173,10 +173,10 @@ class Runner(object):
                 # Timestep-based tqdm
                 assert self.num_timesteps != float('inf')
                 self.tqdm = tqdm(
-                    desc='Timesteps', total=self.num_timesteps, initial=self.global_timesteps,
+                    desc='Timesteps', total=self.num_timesteps, initial=self.timesteps,
                     postfix=dict(mean_reward='n/a')
                 )
-                self.tqdm_last_update = self.global_timesteps
+                self.tqdm_last_update = self.timesteps
 
                 def tqdm_callback(runner):
                     # sum_timesteps_reward = sum(runner.timestep_rewards[num_mean_reward:])
@@ -245,6 +245,8 @@ class Runner(object):
 
             # Run evaluation
             if self.evaluation_frequency is None:
+                is_evaluation = False
+            elif self.evaluation_frequency == 'update':
                 is_evaluation = self.episode_updated
             else:
                 is_evaluation = (self.episodes % self.evaluation_frequency == 0)
@@ -283,28 +285,28 @@ class Runner(object):
                 else:
                     self.evaluation_callback(self)
 
-            # Update global timestep/episode/update
-            self.global_timesteps = self.agent.timesteps
-            self.global_episodes = self.agent.episodes
-            self.global_updates = self.agent.updates
+            # # Update global timestep/episode/update
+            # self.global_timesteps = self.agent.timesteps
+            # self.global_episodes = self.agent.episodes
+            # self.global_updates = self.agent.updates
 
             # Callback
             if self.episodes % self.callback_episode_frequency == 0 and not self.callback(self):
                 return
 
             # Terminate experiment if too long
-            if self.global_timesteps >= self.num_timesteps:
+            if self.timesteps >= self.num_timesteps:
                 return
-            elif self.evaluation and self.timesteps >= self.num_timesteps:
+            # elif self.evaluation and self.timesteps >= self.num_timesteps:
+            #     return
+            elif self.episodes >= self.num_episodes:
                 return
-            elif self.global_episodes >= self.num_episodes:
+            # elif self.evaluation and self.episodes >= self.num_episodes:
+            #     return
+            elif self.updates >= self.num_updates:
                 return
-            elif self.evaluation and self.episodes >= self.num_episodes:
-                return
-            elif self.global_updates >= self.num_updates:
-                return
-            elif self.evaluation and self.updates >= self.num_updates:
-                return
+            # elif self.evaluation and self.updates >= self.num_updates:
+            #     return
             elif self.agent.should_stop():
                 return
 
@@ -350,11 +352,6 @@ class Runner(object):
                 self.episode_agent_second += time.time() - agent_start
                 self.episode_updated = self.episode_updated or updated
 
-            # Callback
-            if self.episode_timestep % self.callback_timestep_frequency == 0 and \
-                    not self.callback(self):
-                return False
-
             # Episode termination check
             if terminal > 0:
                 break
@@ -363,18 +360,23 @@ class Runner(object):
             if evaluation:
                 continue
 
-            # Update global timestep/episode/update
-            self.global_timesteps = self.agent.timesteps
-            self.global_episodes = self.agent.episodes
-            self.global_updates = self.agent.updates
+            # Callback
+            if self.episode_timestep % self.callback_timestep_frequency == 0 and \
+                    not self.callback(self):
+                return False
+
+            # # Update global timestep/episode/update
+            # self.global_timesteps = self.agent.timesteps
+            # self.global_episodes = self.agent.episodes
+            # self.global_updates = self.agent.updates
 
             # Terminate experiment if too long
-            if self.global_timesteps >= self.num_timesteps:
-                return
-            elif self.global_episodes >= self.num_episodes:
-                return
-            elif self.global_updates >= self.num_updates:
-                return
+            if self.timesteps >= self.num_timesteps:
+                return False
+            elif self.episodes >= self.num_episodes:
+                return False
+            elif self.updates >= self.num_updates:
+                return False
             elif self.agent.should_stop():
                 return False
 

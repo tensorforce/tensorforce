@@ -24,8 +24,8 @@ from test.unittest_base import UnittestBase
 
 class TestSaving(UnittestBase, unittest.TestCase):
 
-    # require_observe = True
     timestep_range = (3, 5)
+    require_observe = True
 
     directory = 'test-saving'
 
@@ -69,7 +69,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         # parallel then single
         saver = dict(directory=self.__class__.directory)
-        agent, environment = self.prepare(saver=saver, parallel_interactions=2)
+        agent, environment = self.prepare(
+            update=dict(unit='episodes', batch_size=1), saver=saver, parallel_interactions=2
+        )
 
         agent.initialize()
         states = environment.reset()
@@ -157,6 +159,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.initialize()
         states = environment.reset()
 
+        time.sleep(1)
+
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -176,6 +180,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-2.data-00000-of-00001'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-2.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-2.meta'))
@@ -297,7 +304,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.finished_test()
 
         # parallel then single
-        agent, environment = self.prepare(parallel_interactions=2)
+        agent, environment = self.prepare(
+            update=dict(unit='episodes', batch_size=1), parallel_interactions=2
+        )
 
         agent.initialize()
         states = environment.reset()

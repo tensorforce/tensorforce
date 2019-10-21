@@ -150,6 +150,11 @@ class ParallelRunner(object):
                     return True
             self.callback = boolean_callback
 
+        # Timestep/episode/update counter
+        self.timesteps = 0
+        self.episodes = 0
+        self.updates = 0
+
         # Tqdm
         if use_tqdm:
             if hasattr(self, 'tqdm'):
@@ -232,11 +237,6 @@ class ParallelRunner(object):
 
         # Reset agent
         self.agent.reset()
-
-        # Timestep/episode/update counter
-        self.timesteps = 0
-        self.episodes = 0
-        self.updates = 0
 
         # Reset environments and episode statistics
         for environment in self.environments:

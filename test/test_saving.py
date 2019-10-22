@@ -212,7 +212,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         actions = restored_agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
+        # restored_agent.observe(terminal=terminal, reward=reward)
 
         restored_agent.close()
         environment.close()
@@ -252,7 +252,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         actions = restored_agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
-        restored_agent.observe(terminal=terminal, reward=reward)
+        # restored_agent.observe(terminal=terminal, reward=reward)
 
         restored_agent.close()
         environment.close()

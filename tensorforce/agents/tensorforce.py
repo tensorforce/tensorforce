@@ -271,7 +271,7 @@ class TensorforceAgent(Agent):
             buffer_observe = False
 
         if isinstance(update, int) or update['unit'] == 'timesteps':
-            if parallel_interactions > 1:
+            if buffer_observe is not True or parallel_interactions > 1:
                 TensorforceError.unexpected()
             buffer_observe = False
 

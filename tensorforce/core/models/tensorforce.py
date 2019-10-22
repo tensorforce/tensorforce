@@ -647,12 +647,18 @@ class TensorforceModel(Model):
             )
 
         # KL divergence before
-        kldiv_reference = self.policy.kldiv_reference(
-            states=states, internals=internals, auxiliaries=auxiliaries
-        )
+        if self.is_summary_logged(
+            label=('kl-divergence', 'action-kl-divergences', 'kl-divergences')
+        ):
+            kldiv_reference = self.policy.kldiv_reference(
+                states=states, internals=internals, auxiliaries=auxiliaries
+            )
+            dependencies = util.flatten(xs=kldiv_reference)
+        else:
+            dependencies = util.flatten(xs=arguments)
 
         # Optimization
-        with tf.control_dependencies(control_inputs=util.flatten(xs=kldiv_reference)):
+        with tf.control_dependencies(control_inputs=dependencies):
             optimized = self.optimizer.minimize(
                 variables=variables, arguments=arguments, fn_loss=fn_loss,
                 fn_kl_divergence=fn_kl_divergence, global_variables=global_variables, **kwargs
@@ -660,82 +666,106 @@ class TensorforceModel(Model):
 
         with tf.control_dependencies(control_inputs=(optimized,)):
             # Loss summaries
-            objective_loss = self.objective.loss_per_instance(policy=self.policy, **arguments)
-            objective_loss = tf.math.reduce_mean(input_tensor=objective_loss, axis=0)
-            optimized = self.add_summary(
-                label=('objective-loss', 'losses'), name='objective-loss', tensor=objective_loss,
-                pass_tensors=optimized
-            )
-            regularization_loss = self.regularize(
-                states=states, internals=internals, auxiliaries=auxiliaries
-            )
-            optimized = self.add_summary(
-                label=('regularization-loss', 'losses'), name='regularization-loss',
-                tensor=regularization_loss, pass_tensors=optimized
-            )
-            loss = objective_loss + regularization_loss
+            if self.is_summary_logged(label=('loss', 'objective-loss', 'losses')):
+                objective_loss = self.objective.loss_per_instance(policy=self.policy, **arguments)
+                objective_loss = tf.math.reduce_mean(input_tensor=objective_loss, axis=0)
+            if self.is_summary_logged(label=('objective-loss', 'losses')):
+                optimized = self.add_summary(
+                    label=('objective-loss', 'losses'), name='objective-loss',
+                    tensor=objective_loss, pass_tensors=optimized
+                )
+            if self.is_summary_logged(label=('loss', 'regularization-loss', 'losses')):
+                regularization_loss = self.regularize(
+                    states=states, internals=internals, auxiliaries=auxiliaries
+                )
+            if self.is_summary_logged(label=('regularization-loss', 'losses')):
+                optimized = self.add_summary(
+                    label=('regularization-loss', 'losses'), name='regularization-loss',
+                    tensor=regularization_loss, pass_tensors=optimized
+                )
+            if self.is_summary_logged(label=('loss', 'losses')):
+                loss = objective_loss + regularization_loss
             if self.baseline_optimizer is None and self.baseline_objective is not None:
-                if self.baseline_objective is None:
-                    baseline_objective_loss = self.objective.loss_per_instance(
-                        policy=self.baseline_policy, **arguments
+                if self.is_summary_logged(label=('loss', 'baseline-objective-loss', 'losses')):
+                    if self.baseline_objective is None:
+                        baseline_objective_loss = self.objective.loss_per_instance(
+                            policy=self.baseline_policy, **arguments
+                        )
+                    else:
+                        baseline_objective_loss = self.baseline_objective.loss_per_instance(
+                            policy=self.baseline_policy, **arguments
+                        )
+                    baseline_objective_loss = tf.math.reduce_mean(
+                        input_tensor=baseline_objective_loss, axis=0
                     )
-                else:
-                    baseline_objective_loss = self.baseline_objective.loss_per_instance(
-                        policy=self.baseline_policy, **arguments
+                if self.is_summary_logged(label=('baseline-objective-loss', 'losses')):
+                    optimized = self.add_summary(
+                        label=('baseline-objective-loss', 'losses'),
+                        name='baseline-objective-loss', tensor=baseline_objective_loss,
+                        pass_tensors=optimized
                     )
-                baseline_objective_loss = tf.math.reduce_mean(
-                    input_tensor=baseline_objective_loss, axis=0
-                )
+                if self.is_summary_logged(
+                    label=('loss', 'baseline-regularization-loss', 'losses')
+                ):
+                    baseline_regularization_loss = self.baseline_policy.regularize()
+                if self.is_summary_logged(label=('baseline-regularization-loss', 'losses')):
+                    optimized = self.add_summary(
+                        label=('baseline-regularization-loss', 'losses'),
+                        name='baseline-regularization-loss', tensor=baseline_regularization_loss,
+                        pass_tensors=optimized
+                    )
+                if self.is_summary_logged(label=('loss', 'baseline-loss', 'losses')):
+                    baseline_loss = baseline_objective_loss + baseline_regularization_loss
+                if self.is_summary_logged(label=('baseline-loss', 'losses')):
+                    optimized = self.add_summary(
+                        label=('baseline-loss', 'losses'), name='loss', tensor=baseline_loss,
+                        pass_tensors=optimized
+                    )
+                if self.is_summary_logged(label=('loss', 'losses')):
+                    loss += self.baseline_loss_weight * baseline_loss
+            if self.is_summary_logged(label=('loss', 'losses')):
                 optimized = self.add_summary(
-                    label=('baseline-objective-loss', 'losses'), name='baseline-objective-loss',
-                    tensor=baseline_objective_loss, pass_tensors=optimized
+                    label=('loss', 'losses'), name='loss', tensor=loss, pass_tensors=optimized
                 )
-                baseline_regularization_loss = self.baseline_policy.regularize()
-                optimized = self.add_summary(
-                    label=('baseline-regularization-loss', 'losses'),
-                    name='baseline-regularization-loss', tensor=baseline_regularization_loss,
-                    pass_tensors=optimized
-                )
-                baseline_loss = baseline_objective_loss + baseline_regularization_loss
-                optimized = self.add_summary(
-                    label=('baseline-loss', 'losses'), name='loss', tensor=baseline_loss,
-                    pass_tensors=optimized
-                )
-                loss += self.baseline_loss_weight * baseline_loss
-            optimized = self.add_summary(
-                label=('loss', 'losses'), name='loss', tensor=loss, pass_tensors=optimized
-            )
 
             # Entropy summaries
-            entropies = self.policy.entropy(
-                states=states, internals=internals, auxiliaries=auxiliaries,
-                include_per_action=True
-            )
-            optimized = self.add_summary(
-                label=('entropy', 'entropies'), name='entropy', tensor=entropies['*'],
-                pass_tensors=optimized
-            )
-            for name in self.actions_spec:
-                optimized = self.add_summary(
-                    label=('action-entropies', 'entropies'), name=(name + '-entropy'),
-                    tensor=entropies[name], pass_tensors=optimized
+            if self.is_summary_logged(label=('entropy', 'action-entropies', 'entropies')):
+                entropies = self.policy.entropy(
+                    states=states, internals=internals, auxiliaries=auxiliaries,
+                    include_per_action=True
                 )
-
-            # KL divergence summaries
-            kl_divergences = self.policy.kl_divergence(
-                states=states, internals=internals, auxiliaries=auxiliaries, other=kldiv_reference,
-                include_per_action=True
-            )
-            optimized = self.add_summary(
-                label=('kl-divergence', 'kl-divergences'), name='kl-divergence',
-                tensor=kl_divergences['*'], pass_tensors=optimized
-            )
-            for name in self.actions_spec:
+            if self.is_summary_logged(label=('entropy', 'entropies')):
                 optimized = self.add_summary(
-                    label=('action-kl-divergences', 'kl-divergences'),
-                    name=(name + '-kl-divergence'), tensor=kl_divergences[name],
+                    label=('entropy', 'entropies'), name='entropy', tensor=entropies['*'],
                     pass_tensors=optimized
                 )
+            if self.is_summary_logged(label=('action-entropies', 'entropies')):
+                for name in self.actions_spec:
+                    optimized = self.add_summary(
+                        label=('action-entropies', 'entropies'), name=(name + '-entropy'),
+                        tensor=entropies[name], pass_tensors=optimized
+                    )
+
+            # KL divergence summaries
+            if self.is_summary_logged(
+                label=('kl-divergence', 'action-kl-divergences', 'kl-divergences')
+            ):
+                kl_divergences = self.policy.kl_divergence(
+                    states=states, internals=internals, auxiliaries=auxiliaries,
+                    other=kldiv_reference, include_per_action=True
+                )
+            if self.is_summary_logged(label=('kl-divergence', 'kl-divergences')):
+                optimized = self.add_summary(
+                    label=('kl-divergence', 'kl-divergences'), name='kl-divergence',
+                    tensor=kl_divergences['*'], pass_tensors=optimized
+                )
+            if self.is_summary_logged(label=('action-kl-divergences', 'kl-divergences')):
+                for name in self.actions_spec:
+                    optimized = self.add_summary(
+                        label=('action-kl-divergences', 'kl-divergences'),
+                        name=(name + '-kl-divergence'), tensor=kl_divergences[name],
+                        pass_tensors=optimized
+                    )
 
         return optimized
 
@@ -845,29 +875,39 @@ class TensorforceModel(Model):
 
         with tf.control_dependencies(control_inputs=(optimized,)):
             # Loss summaries
-            if self.baseline_objective is None:
-                objective_loss = self.objective.loss_per_instance(
-                    policy=self.baseline_policy, **arguments
+            if self.is_summary_logged(
+                label=('baseline-loss', 'baseline-objective-loss', 'losses')
+            ):
+                if self.baseline_objective is None:
+                    objective_loss = self.objective.loss_per_instance(
+                        policy=self.baseline_policy, **arguments
+                    )
+                else:
+                    objective_loss = self.baseline_objective.loss_per_instance(
+                        policy=self.baseline_policy, **arguments
+                    )
+                objective_loss = tf.math.reduce_mean(input_tensor=objective_loss, axis=0)
+            if self.is_summary_logged(label=('baseline-objective-loss', 'losses')):
+                optimized = self.add_summary(
+                    label=('baseline-objective-loss', 'losses'), name='baseline-objective-loss',
+                    tensor=objective_loss, pass_tensors=optimized
                 )
-            else:
-                objective_loss = self.baseline_objective.loss_per_instance(
-                    policy=self.baseline_policy, **arguments
+            if self.is_summary_logged(
+                label=('baseline-loss', 'baseline-regularization-loss', 'losses')
+            ):
+                regularization_loss = self.baseline_policy.regularize()
+            if self.is_summary_logged(label=('baseline-regularization-loss', 'losses')):
+                optimized = self.add_summary(
+                    label=('baseline-regularization-loss', 'losses'),
+                    name='baseline-regularization-loss', tensor=regularization_loss,
+                    pass_tensors=optimized
                 )
-            objective_loss = tf.math.reduce_mean(input_tensor=objective_loss, axis=0)
-            optimized = self.add_summary(
-                label=('baseline-objective-loss', 'losses'), name='baseline-objective-loss',
-                tensor=objective_loss, pass_tensors=optimized
-            )
-            regularization_loss = self.baseline_policy.regularize()
-            optimized = self.add_summary(
-                label=('baseline-regularization-loss', 'losses'),
-                name='baseline-regularization-loss', tensor=regularization_loss,
-                pass_tensors=optimized
-            )
-            loss = objective_loss + regularization_loss
-            optimized = self.add_summary(
-                label=('baseline-loss', 'losses'), name='loss', tensor=loss, pass_tensors=optimized
-            )
+            if self.is_summary_logged(label=('baseline-loss', 'losses')):
+                loss = objective_loss + regularization_loss
+                optimized = self.add_summary(
+                    label=('baseline-loss', 'losses'), name='loss', tensor=loss,
+                    pass_tensors=optimized
+                )
 
         return optimized
 

@@ -777,6 +777,25 @@ class Module(object):
 
         return placeholder
 
+    def is_summary_logged(self, label):
+        # Check whether any summaries are logged
+        if self.summary_labels is None:
+            return False
+
+        # Check whether not in while loop
+        if 'while' in Module.global_scope:  # 'cond' in Module.global_scope
+            return False
+
+        # Check whether given label is logged
+        if util.is_iterable(x=label):
+            if self.summary_labels != 'all' and all(x not in self.summary_labels for x in label):
+                return False
+        else:
+            if self.summary_labels != 'all' and label not in self.summary_labels:
+                return False
+
+        return True
+
     def add_summary(
         self, label, name, tensor, pass_tensors=None, step=None, return_summaries=False,
         mean_variance=False, enumerate_last_rank=False
@@ -816,22 +835,14 @@ class Module(object):
         if pass_tensors is None:
             pass_tensors = tensor
 
-        # Check whether summaries are logged
-        if self.summary_labels is None:
+        # Check whether summary is logged
+        if not self.is_summary_logged(label=label):
             return pass_tensors
 
-        # Check whether not in while loop
-        if 'while' in Module.global_scope:  # 'cond' in Module.global_scope
-            return pass_tensors
-
-        # Check whether given label is logged
+        # Add to available summaries
         if util.is_iterable(x=label):
-            if self.summary_labels != 'all' and all(x not in self.summary_labels for x in label):
-                return pass_tensors
             self.available_summaries.update(label)
         else:
-            if self.summary_labels != 'all' and label not in self.summary_labels:
-                return pass_tensors
             self.available_summaries.add(label)
 
         # Handle enumerate_last_rank

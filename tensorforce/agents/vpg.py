@@ -81,6 +81,9 @@ class VanillaPolicyGradient(TensorforceAgent):
             none, a float implies none and specifies a custom weight for the baseline loss
             (<span style="color:#00C000"><b>default</b></span>: none).
 
+        memory (int > 0): Memory capacity, has to be at least fit around batch_size + 1 episodes
+            (<span style="color:#00C000"><b>default</b></span>: minimum required size).
+
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
             [preprocessing](../modules/preprocessing.html), specified per state-type or -name and
             for reward
@@ -191,6 +194,8 @@ class VanillaPolicyGradient(TensorforceAgent):
         discount=0.99, estimate_terminal=False,
         # Baseline
         baseline_network=None, baseline_optimizer=None,
+        # Memory
+        memory=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -217,7 +222,10 @@ class VanillaPolicyGradient(TensorforceAgent):
         )
 
         policy = dict(network=network, temperature=1.0)
-        memory = dict(type='recent', capacity=((batch_size + 1) * max_episode_timesteps))
+        if memory is None:
+            memory = dict(type='recent', capacity=((batch_size + 1) * max_episode_timesteps))
+        else:
+            memory = dict(type='recent', capacity=memory)
         if update_frequency is None:
             update = dict(unit='episodes', batch_size=batch_size)
         else:

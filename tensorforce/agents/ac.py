@@ -86,6 +86,9 @@ class ActorCritic(TensorforceAgent):
             the critic loss
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
 
+        memory (int > 0): Memory capacity, has to be at least fit around batch_size + one episode
+            (<span style="color:#00C000"><b>default</b></span>: minimum required size).
+
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
             [preprocessing](../modules/preprocessing.html), specified per state-type or -name and
             for reward
@@ -196,6 +199,8 @@ class ActorCritic(TensorforceAgent):
         horizon=0, discount=0.99, state_action_value=False, estimate_terminal=False,
         # Critic
         critic_network='auto', critic_optimizer=1.0,
+        # Memory
+        memory=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -223,7 +228,10 @@ class ActorCritic(TensorforceAgent):
         )
 
         policy = dict(network=network, temperature=1.0)
-        memory = dict(type='recent', capacity=(batch_size + max_episode_timesteps + horizon))
+        if memory is None:
+            memory = dict(type='recent', capacity=(batch_size + max_episode_timesteps + horizon))
+        else:
+            memory = dict(type='recent', capacity=memory)
         if update_frequency is None:
             update = dict(unit='timesteps', batch_size=batch_size)
         else:

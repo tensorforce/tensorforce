@@ -187,6 +187,24 @@ class Agent(object):
         else:
             raise TensorforceError.type(name='buffer_observe', value=buffer_observe)
 
+        # Recorder
+        if recorder is None:
+            pass
+        elif not all(key in ('directory', 'frequency', 'max-traces') for key in recorder):
+            raise TensorforceError.value(name='recorder', value=list(recorder))
+        self.recorder_spec = recorder if recorder is None else dict(recorder)
+
+        self.is_initialized = False
+
+    def __str__(self):
+        return self.__class__.__name__
+
+    def initialize(self):
+        """
+        Initializes the agent.
+        """
+        self.is_initialized = True
+
         # Parallel terminal/reward buffers
         self.terminal_buffers = np.ndarray(
             shape=(self.parallel_interactions, self.buffer_observe),
@@ -206,12 +224,6 @@ class Agent(object):
         self.episodes = 0
         self.updates = 0
 
-        # Recorder
-        if recorder is None:
-            pass
-        elif not all(key in ('directory', 'frequency', 'max-traces') for key in recorder):
-            raise TensorforceError.value(name='recorder', value=list(recorder))
-        self.recorder_spec = recorder if recorder is None else dict(recorder)
         if self.recorder_spec is not None:
             self.record_states = OrderedDict(((name, list()) for name in self.states_spec))
             for name, spec in self.actions_spec.items():
@@ -222,17 +234,10 @@ class Agent(object):
             self.record_reward = list()
             self.num_episodes = 0
 
-    def __str__(self):
-        return self.__class__.__name__
-
-    def initialize(self):
-        """
-        Initializes the agent.
-        """
+        # Setup Model
         if not hasattr(self, 'model'):
             raise TensorforceError.missing(name='Agent', value='model')
 
-        # Setup Model
         self.model.initialize()
         if self.model.saver_directory is not None:
             file = os.path.join(self.model.saver_directory, self.model.saver_filename + '.json')
@@ -526,8 +531,8 @@ class Agent(object):
         if not hasattr(self, 'model'):
             raise TensorforceError.missing(name='Agent', value='model')
 
-        if not self.model.is_initialized:
-            self.model.initialize()
+        if not self.is_initialized:
+            self.initialize()
 
         self.timesteps, self.episodes, self.updates = self.model.restore(
             directory=directory, filename=filename

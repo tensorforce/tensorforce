@@ -15,6 +15,7 @@
 
 import copy
 import os
+import pytest
 import time
 import unittest
 
@@ -36,6 +37,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # default
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver)
+
         agent.initialize()
         states = environment.reset()
 
@@ -67,10 +69,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-        # parallel then single
+        # single then parallel
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(
-            update=dict(unit='episodes', batch_size=1), saver=saver, parallel_interactions=2
+            memory=50, update=dict(unit='episodes', batch_size=1), saver=saver
         )
 
         agent.initialize()
@@ -81,9 +83,15 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.observe(terminal=terminal, reward=reward)
 
         agent.close()
+        environment.close()
 
-        agent, _ = self.prepare(saver=saver)
+        agent, environment = self.prepare(
+            timestep_range=(6, 10), update=dict(unit='episodes', batch_size=1), saver=saver,
+            parallel_interactions=2
+        )
+    
         agent.initialize()
+        states = environment.reset()
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -112,9 +120,58 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+        # no load
+        saver = dict(directory=self.__class__.directory)
+        agent, environment = self.prepare(saver=saver)
+
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+        environment.close()
+
+        saver = dict(directory=self.__class__.directory, load=False)
+        agent, environment = self.prepare(saver=saver)
+
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+        environment.close()
+
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
+        os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
+        for filename in os.listdir(path=self.__class__.directory):
+            os.remove(path=os.path.join(self.__class__.directory, filename))
+            assert filename.startswith('events.out.tfevents.')
+            break
+        os.rmdir(path=self.__class__.directory)
+
+        self.finished_test()
+
+    @pytest.mark.skip(reason='currently takes too long')
+    def test_config_extended(self):
+        self.start_tests(name='config extended')
+
         # filename
         saver = dict(directory=self.__class__.directory, filename='test')
         agent, environment = self.prepare(saver=saver)
+
         agent.initialize()
         states = environment.reset()
 
@@ -156,6 +213,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # frequency
         saver = dict(directory=self.__class__.directory, frequency=1)
         agent, environment = self.prepare(saver=saver)
+
         agent.initialize()
         states = environment.reset()
 
@@ -194,50 +252,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-        # no load
-        saver = dict(directory=self.__class__.directory)
-        agent, environment = self.prepare(saver=saver)
-        restored_agent = copy.deepcopy(agent)
-        agent.initialize()
-        states = environment.reset()
-
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.close()
-
-        restored_agent.model.saver_spec['load'] = False
-        restored_agent.initialize()
-
-        actions = restored_agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        # restored_agent.observe(terminal=terminal, reward=reward)
-
-        restored_agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
-        for filename in os.listdir(path=self.__class__.directory):
-            os.remove(path=os.path.join(self.__class__.directory, filename))
-            assert filename.startswith('events.out.tfevents.')
-            break
-        os.rmdir(path=self.__class__.directory)
-
-        self.finished_test()
-
         # load filename
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver)
-        restored_agent = copy.deepcopy(agent)
+
         agent.initialize()
         states = environment.reset()
 
@@ -246,15 +264,19 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.observe(terminal=terminal, reward=reward)
 
         agent.close()
+        environment.close()
 
-        restored_agent.model.saver_spec['load'] = 'agent-0'
-        restored_agent.initialize()
+        saver = dict(directory=self.__class__.directory, load='agent-0')
+        agent, environment = self.prepare(saver=saver)
 
-        actions = restored_agent.act(states=states)
+        agent.initialize()
+        states = environment.reset()
+
+        actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
-        # restored_agent.observe(terminal=terminal, reward=reward)
+        agent.observe(terminal=terminal, reward=reward)
 
-        restored_agent.close()
+        agent.close()
         environment.close()
 
         os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
@@ -279,6 +301,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         # default
         agent, environment = self.prepare()
+
         agent.initialize()
         states = environment.reset()
 
@@ -303,10 +326,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-        # parallel then single
-        agent, environment = self.prepare(
-            update=dict(unit='episodes', batch_size=1), parallel_interactions=2
-        )
+        # single then parallel
+        agent, environment = self.prepare(memory=50, update=dict(unit='episodes', batch_size=1))
 
         agent.initialize()
         states = environment.reset()
@@ -317,9 +338,15 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         agent.save(directory=self.__class__.directory)
         agent.close()
+        environment.close()
 
-        agent, _ = self.prepare()
+        agent, environment = self.prepare(
+            timestep_range=(6, 10), update=dict(unit='episodes', batch_size=1),
+            parallel_interactions=2
+        )
+
         agent.restore(directory=self.__class__.directory)
+        states = environment.reset()
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -337,8 +364,13 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+    @pytest.mark.skip(reason='currently takes too long')
+    def test_explicit_extended(self):
+        self.start_tests(name='explicit extended')
+
         # filename
         agent, environment = self.prepare()
+
         agent.initialize()
         states = environment.reset()
 
@@ -369,6 +401,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         # no timestep
         agent, environment = self.prepare()
+
         agent.initialize()
         states = environment.reset()
 

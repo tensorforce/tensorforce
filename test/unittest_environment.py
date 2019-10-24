@@ -224,18 +224,18 @@ class UnittestEnvironment(Environment):
     def reset(self):
         self.num_timesteps = randint(*self.timestep_range)
         self.timestep = 0
-        self.states = self.random_states()
-        return self.states
+        self._states = self.random_states()
+        return self._states
 
     def execute(self, actions):
-        if not self.is_valid_actions(actions, self.states):
+        if not self.is_valid_actions(actions, self._states):
             raise TensorforceError.value(name='actions', value=actions)
         if self.timestep > self.num_timesteps:
             raise TensorforceError.unexpected()
 
         self.timestep += 1
-        self.states = self.random_states()
+        self._states = self.random_states()
         terminal = self.timestep == self.num_timesteps
         reward = -1.0 + 2.0 * random()
 
-        return self.states, terminal, reward
+        return self._states, terminal, reward

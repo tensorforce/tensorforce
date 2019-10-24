@@ -6,6 +6,9 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest
 
+- Added optional `memory` argument to various agents
+- Improved summary labels, particularly `"entropy"` and `"kl-divergence"`
+
 
 
 ### Version 0.5.2

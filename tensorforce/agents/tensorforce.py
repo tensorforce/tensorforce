@@ -303,6 +303,7 @@ class TensorforceAgent(Agent):
                 )
             else:
                 reward_estimation['capacity'] = max_episode_timesteps
+        self.experience_size = reward_estimation['capacity']
 
         if memory is None:
             # predecessor/successor?
@@ -398,13 +399,13 @@ class TensorforceAgent(Agent):
 
         # Batch experiences split into episodes and at most size buffer_observe
         last = 0
-        for index in range(len(terminal)):
-            if terminal[index] == 0 and \
-                    index - last + int(terminal[index] > 0) < self.buffer_observe:
+        for index in range(1, len(terminal) + 1):
+            if terminal[index - 1] == 0 and index - last < self.experience_size:
                 continue
 
             # Include terminal in batch if possible
-            if terminal[index] > 0 and index - last < self.buffer_observe:
+            if index < len(terminal) and terminal[index] > 0 and \
+                    index - last < self.experience_size:
                 index += 1
 
             function = (lambda x: x[last: index])

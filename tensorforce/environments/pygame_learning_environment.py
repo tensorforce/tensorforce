@@ -30,20 +30,19 @@ class PyGameLearningEnvironment(Environment):
     May require:
     ```bash
     sudo apt-get install git python3-dev python3-setuptools python3-numpy python3-opengl \
-    libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev  libsdl1.2-dev \
+    libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libsdl1.2-dev \
     libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev libtiff5-dev libx11-6 \
     libx11-dev fluid-soundfont-gm timgm6mb-soundfont xfonts-base xfonts-100dpi xfonts-75dpi \
     xfonts-cyrillic fontconfig fonts-freefont-ttf libfreetype6-dev
 
-    pip install git+https://github.com/pygame/pygame.git
+    pip3 install git+https://github.com/pygame/pygame.git
 
-    pip install git+https://github.com/ntasfi/PyGame-Learning-Environment.git
+    pip3 install git+https://github.com/ntasfi/PyGame-Learning-Environment.git
     ```
 
     Args:
         level (string | subclass of `ple.games.base`): Game instance or name of class in
-            `ple.games`, like 'doom', 'flappybird', 'monsterkong', 'catcher', 'pixelcopter',
-            'pong', 'puckworld', 'raycastmaze', 'snake', 'waterworld'
+            `ple.games`, like "Catcher", "Doom", "FlappyBird", "MonsterKong", "Pixelcopter", "Pong", "PuckWorld", "RaycastMaze", "Snake", "WaterWorld".
             (<span style="color:#C00000"><b>required</b></span>).
         visualize (bool): Whether to visualize interaction
             (<span style="color:#00C000"><b>default</b></span>: false).

@@ -16,7 +16,6 @@
 import os
 import unittest
 
-from tensorforce import util
 from test.unittest_agent import UnittestAgent
 
 

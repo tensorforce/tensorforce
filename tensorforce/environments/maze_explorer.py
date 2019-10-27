@@ -25,7 +25,7 @@ class MazeExplorer(Environment):
     ```bash
     sudo apt-get install freeglut3-dev
 
-    pip install mazeexp
+    pip3 install mazeexp
     ```
 
     Args:

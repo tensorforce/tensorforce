@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import os
-
 import numpy as np
 
 from tensorforce import TensorforceError, util
@@ -28,8 +26,8 @@ class OpenAIGym(Environment):
 
     May require:
     ```bash
-    pip install gym
-    pip install gym[all]
+    pip3 install gym
+    pip3 install gym[all]
     ```
 
     Args:

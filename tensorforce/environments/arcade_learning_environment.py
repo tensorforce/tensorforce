@@ -35,7 +35,7 @@ class ArcadeLearningEnvironment(Environment):
     make -j 4
     cd ..
 
-    pip install .
+    pip3 install .
     ```
 
     Args:

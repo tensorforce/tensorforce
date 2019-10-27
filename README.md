@@ -9,7 +9,7 @@
 
 #### Introduction
 
-Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
+Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) (version 1.13.2) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
 
 Tensorforce follows a set of high-level design choices which differentiate it from other similar libraries:
 
@@ -47,7 +47,7 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 A stable version of Tensorforce is periodically updated on PyPI and installed as follows:
 
 ```bash
-pip install tensorforce
+pip3 install tensorforce
 ```
 
 To always use the latest version of Tensorforce, install the GitHub version instead:
@@ -55,17 +55,17 @@ To always use the latest version of Tensorforce, install the GitHub version inst
 ```bash
 git clone https://github.com/tensorforce/tensorforce.git
 cd tensorforce
-pip install -e .
+pip3 install -e .
 ```
 
 Tensorforce is built on top of [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed, currently as version `1.13.1`. To include the correct version of TensorFlow with the installation of Tensorforce, simply add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
 
 ```bash
 # PyPI version plus TensorFlow CPU version
-pip install tensorforce[tf]
+pip3 install tensorforce[tf]
 
 # GitHub version plus TensorFlow GPU version
-pip install -e .[tf_gpu]
+pip3 install -e .[tf_gpu]
 ```
 
 Some environments require additional packages, for which there are also options available (`mazeexp`, `gym`, `retro`, `vizdoom`; or `envs` for all environments), however, some require other tools to be installed (see [environments documentation](http://tensorforce.readthedocs.io)).
@@ -114,7 +114,7 @@ agent.observe(reward=reward, terminal=False)
 Tensorforce comes with a range of [example configurations](https://github.com/tensorforce/tensorforce/tree/master/benchmarks/configs) for different popular reinforcement learning environments. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
 
 ```bash
-python run.py benchmarks/configs/ppo.json gym --level CartPole-v1 -e 300
+python3 run.py benchmarks/configs/ppo.json gym --level CartPole-v1 -e 300
 ```
 
 For more information check out the [documentation](http://tensorforce.readthedocs.io).

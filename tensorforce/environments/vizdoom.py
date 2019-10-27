@@ -33,7 +33,7 @@ class ViZDoom(Environment):
     libfluidsynth-dev libgme-dev libopenal-dev timidity libwildmidi-dev unzip libboost-all-dev \
     liblua5.1-dev
 
-    pip install vizdoom
+    pip3 install vizdoom
     ```
 
     Args:

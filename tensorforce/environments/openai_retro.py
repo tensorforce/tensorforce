@@ -23,7 +23,7 @@ class OpenAIRetro(OpenAIGym):
 
     May require:
     ```bash
-    pip install gym-retro
+    pip3 install gym-retro
     ```
 
     Args:

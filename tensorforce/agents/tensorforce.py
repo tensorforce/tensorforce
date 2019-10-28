@@ -404,7 +404,7 @@ class TensorforceAgent(Agent):
                 continue
 
             # Include terminal in batch if possible
-            if index < len(terminal) and terminal[index] > 0 and \
+            if index < len(terminal) and terminal[index - 1] == 0 and terminal[index] > 0 and \
                     index - last < self.experience_size:
                 index += 1
 

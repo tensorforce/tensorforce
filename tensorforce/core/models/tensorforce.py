@@ -247,25 +247,31 @@ class TensorforceModel(Model):
         # Assertions
         assertions = [
             # terminal: type and shape
-            tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='long')),
-            tf.debugging.assert_rank(x=terminal, rank=1),
+            tf.compat.v1.debugging.assert_type(
+                tensor=terminal, tf_type=util.tf_dtype(dtype='long')
+            ),
+            tf.compat.v1.debugging.assert_rank(x=terminal, rank=1),
             # reward: type and shape
-            tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float')),
-            tf.debugging.assert_rank(x=reward, rank=1),
+            tf.compat.v1.debugging.assert_type(
+                tensor=reward, tf_type=util.tf_dtype(dtype='float')
+            ),
+            tf.compat.v1.debugging.assert_rank(x=reward, rank=1),
             # shape of terminal equals shape of reward
-            tf.debugging.assert_equal(x=tf.shape(input=terminal), y=tf.shape(input=reward)),
+            tf.compat.v1.debugging.assert_equal(
+                x=tf.shape(input=terminal), y=tf.shape(input=reward)
+            ),
             # buffer index is zero
-            tf.debugging.assert_equal(
+            tf.compat.v1.debugging.assert_equal(
                 x=tf.math.reduce_sum(input_tensor=self.buffer_index, axis=0),
                 y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
             ),
             # at most one terminal
-            tf.debugging.assert_less_equal(
+            tf.compat.v1.debugging.assert_less_equal(
                 x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
                 y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             ),
             # if terminal, last timestep in batch
-            tf.debugging.assert_equal(
+            tf.compat.v1.debugging.assert_equal(
                 x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
                 y=tf.math.greater(x=terminal[-1], y=zero)
             )
@@ -274,13 +280,13 @@ class TensorforceModel(Model):
         # states: type and shape
         for name, spec in self.states_spec.items():
             assertions.append(
-                tf.debugging.assert_type(
+                tf.compat.v1.debugging.assert_type(
                     tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
                 )
             )
             shape = self.unprocessed_state_shape.get(name, spec['shape'])
             assertions.append(
-                tf.debugging.assert_equal(
+                tf.compat.v1.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=tf.int32),
                     y=tf.concat(
                         values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
@@ -290,13 +296,13 @@ class TensorforceModel(Model):
         # internals: type and shape
         for name, spec in self.internals_spec.items():
             assertions.append(
-                tf.debugging.assert_type(
+                tf.compat.v1.debugging.assert_type(
                     tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type'])
                 )
             )
             shape = spec['shape']
             assertions.append(
-                tf.debugging.assert_equal(
+                tf.compat.v1.debugging.assert_equal(
                     x=tf.shape(input=internals[name], out_type=tf.int32),
                     y=tf.concat(
                         values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
@@ -308,13 +314,13 @@ class TensorforceModel(Model):
             if spec['type'] == 'int':
                 name = name + '_mask'
                 assertions.append(
-                    tf.debugging.assert_type(
+                    tf.compat.v1.debugging.assert_type(
                         tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
                     )
                 )
                 shape = spec['shape'] + (spec['num_values'],)
                 assertions.append(
-                    tf.debugging.assert_equal(
+                    tf.compat.v1.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
                         y=tf.concat(
                             values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
@@ -324,13 +330,13 @@ class TensorforceModel(Model):
         # actions: type and shape
         for name, spec in self.actions_spec.items():
             assertions.append(
-                tf.debugging.assert_type(
+                tf.compat.v1.debugging.assert_type(
                     tensor=actions[name], tf_type=util.tf_dtype(dtype=spec['type'])
                 )
             )
             shape = spec['shape']
             assertions.append(
-                tf.debugging.assert_equal(
+                tf.compat.v1.debugging.assert_equal(
                     x=tf.shape(input=actions[name], out_type=tf.int32),
                     y=tf.concat(
                         values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
@@ -403,7 +409,7 @@ class TensorforceModel(Model):
         )
 
         # TODO: handle arbitrary non-optimization horizons!
-        assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
+        assertion = tf.compat.v1.debugging.assert_equal(x=dependency_horizon, y=zero)
         with tf.control_dependencies(control_inputs=(assertion,)):
             some_state = next(iter(states.values()))
             if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
@@ -461,14 +467,14 @@ class TensorforceModel(Model):
                 start = tf.math.maximum(x=start, y=(batch_size + past_horizon + future_horizon))
                 timestep = Module.retrieve_tensor(name='timestep')
                 timestep = timestep - self.estimator.capacity
-                is_frequency = tf.math.equal(x=tf.mod(x=timestep, y=frequency), y=zero)
+                is_frequency = tf.math.equal(x=tf.math.mod(x=timestep, y=frequency), y=zero)
                 at_least_start = tf.math.greater_equal(x=timestep, y=start)
 
             elif self.update_unit == 'episodes':
                 # Episode-based batch
                 start = tf.math.maximum(x=start, y=batch_size)
                 episode = Module.retrieve_tensor(name='episode')
-                is_frequency = tf.math.equal(x=tf.mod(x=episode, y=frequency), y=zero)
+                is_frequency = tf.math.equal(x=tf.math.mod(x=episode, y=frequency), y=zero)
                 # Only update once per episode increment
                 terminal = tf.concat(values=((zero,), terminal), axis=0)
                 is_frequency = tf.math.logical_and(x=is_frequency, y=(terminal[-1] > zero))
@@ -593,7 +599,7 @@ class TensorforceModel(Model):
         # Retrieve states, internals and actions
         dependency_horizon = self.policy.dependency_horizon(is_optimization=True)
         if self.baseline_optimizer is None:
-            assertion = tf.debugging.assert_equal(
+            assertion = tf.compat.v1.debugging.assert_equal(
                 x=dependency_horizon,
                 y=self.baseline_policy.dependency_horizon(is_optimization=True)
             )

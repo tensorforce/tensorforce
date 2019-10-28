@@ -88,7 +88,7 @@ class Beta(Distribution):
         alpha_beta = tf.maximum(x=(alpha + beta), y=epsilon)
 
         # Log norm
-        log_norm = tf.lgamma(x=alpha) + tf.lgamma(x=beta) - tf.lgamma(x=alpha_beta)
+        log_norm = tf.math.lgamma(x=alpha) + tf.math.lgamma(x=beta) - tf.math.lgamma(x=alpha_beta)
 
         Module.update_tensor(name=(self.name + '-alpha'), tensor=alpha)
         Module.update_tensor(name=(self.name + '-beta'), tensor=beta)
@@ -112,8 +112,12 @@ class Beta(Distribution):
         definite = beta / alpha_beta
 
         # Non-deterministic: sample action using gamma distribution
-        alpha_sample = tf.random_gamma(shape=(), alpha=alpha, dtype=util.tf_dtype(dtype='float'))
-        beta_sample = tf.random_gamma(shape=(), alpha=beta, dtype=util.tf_dtype(dtype='float'))
+        alpha_sample = tf.random.gamma(
+            shape=(), alpha=alpha, dtype=util.tf_dtype(dtype='float')
+        )
+        beta_sample = tf.random.gamma(
+            shape=(), alpha=beta, dtype=util.tf_dtype(dtype='float')
+        )
 
         sampled = beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=epsilon)
 
@@ -146,7 +150,7 @@ class Beta(Distribution):
         action = tf.minimum(x=action, y=(one - epsilon))
 
         return tf.math.xlogy(x=(beta - one), y=tf.maximum(x=action, y=epsilon)) + \
-            (alpha - one) * tf.log1p(x=(-action)) - log_norm
+            (alpha - one) * tf.math.log1p(x=(-action)) - log_norm
 
     def tf_entropy(self, parameters):
         alpha, beta, alpha_beta, log_norm = parameters
@@ -154,20 +158,20 @@ class Beta(Distribution):
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
 
         if util.tf_dtype(dtype='float') in (tf.float32, tf.float64):
-            digamma_alpha = tf.digamma(x=alpha)
-            digamma_beta = tf.digamma(x=beta)
-            digamma_alpha_beta = tf.digamma(x=alpha_beta)
+            digamma_alpha = tf.math.digamma(x=alpha)
+            digamma_beta = tf.math.digamma(x=beta)
+            digamma_alpha_beta = tf.math.digamma(x=alpha_beta)
         else:
             digamma_alpha = tf.dtypes.cast(
-                x=tf.digamma(x=tf.dtypes.cast(x=alpha, dtype=tf.float32)),
+                x=tf.math.digamma(x=tf.dtypes.cast(x=alpha, dtype=tf.float32)),
                 dtype=util.tf_dtype(dtype='float')
             )
             digamma_beta = tf.dtypes.cast(
-                x=tf.digamma(x=tf.dtypes.cast(x=beta, dtype=tf.float32)),
+                x=tf.math.digamma(x=tf.dtypes.cast(x=beta, dtype=tf.float32)),
                 dtype=util.tf_dtype(dtype='float')
             )
             digamma_alpha_beta = tf.dtypes.cast(
-                x=tf.digamma(x=tf.dtypes.cast(x=alpha_beta, dtype=tf.float32)),
+                x=tf.math.digamma(x=tf.dtypes.cast(x=alpha_beta, dtype=tf.float32)),
                 dtype=util.tf_dtype(dtype='float')
             )
 
@@ -179,20 +183,20 @@ class Beta(Distribution):
         alpha2, beta2, alpha_beta2, log_norm2 = parameters2
 
         if util.tf_dtype(dtype='float') in (tf.float32, tf.float64):
-            digamma_alpha1 = tf.digamma(x=alpha1)
-            digamma_beta1 = tf.digamma(x=beta1)
-            digamma_alpha_beta1 = tf.digamma(x=alpha_beta1)
+            digamma_alpha1 = tf.math.digamma(x=alpha1)
+            digamma_beta1 = tf.math.digamma(x=beta1)
+            digamma_alpha_beta1 = tf.math.digamma(x=alpha_beta1)
         else:
             digamma_alpha1 = tf.dtypes.cast(
-                x=tf.digamma(x=tf.dtypes.cast(x=alpha1, dtype=tf.float32)),
+                x=tf.math.digamma(x=tf.dtypes.cast(x=alpha1, dtype=tf.float32)),
                 dtype=util.tf_dtype(dtype='float')
             )
             digamma_beta1 = tf.dtypes.cast(
-                x=tf.digamma(x=tf.dtypes.cast(x=beta1, dtype=tf.float32)),
+                x=tf.math.digamma(x=tf.dtypes.cast(x=beta1, dtype=tf.float32)),
                 dtype=util.tf_dtype(dtype='float')
             )
             digamma_alpha_beta1 = tf.dtypes.cast(
-                x=tf.digamma(x=tf.dtypes.cast(x=alpha_beta1, dtype=tf.float32)),
+                x=tf.math.digamma(x=tf.dtypes.cast(x=alpha_beta1, dtype=tf.float32)),
                 dtype=util.tf_dtype(dtype='float')
             )
 

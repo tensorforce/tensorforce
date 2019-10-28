@@ -94,7 +94,7 @@ class Categorical(Distribution):
         probabilities = tf.nn.softmax(logits=action_values, axis=-1)
 
         # "Normalized" logits
-        logits = tf.log(x=tf.maximum(x=probabilities, y=epsilon))
+        logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
 
         # Logits as pass_tensor since used for sampling
         Module.update_tensor(name=(self.name + '-probabilities'), tensor=probabilities)
@@ -126,7 +126,7 @@ class Categorical(Distribution):
             shape=tf.shape(input=logits), minval=epsilon, maxval=(one - epsilon),
             dtype=util.tf_dtype(dtype='float')
         )
-        gumbel_distribution = -tf.log(x=-tf.log(x=uniform_distribution))
+        gumbel_distribution = -tf.math.log(x=-tf.math.log(x=uniform_distribution))
         sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
         sampled = tf.dtypes.cast(x=sampled, dtype=util.tf_dtype('int'))
 
@@ -138,7 +138,9 @@ class Categorical(Distribution):
         if util.tf_dtype(dtype='int') not in (tf.int32, tf.int64):
             action = tf.dtypes.cast(x=action, dtype=tf.int32)
 
-        logits = tf.batch_gather(params=logits, indices=tf.expand_dims(input=action, axis=-1))
+        logits = tf.gather(
+            params=logits, indices=tf.expand_dims(input=action, axis=-1), batch_dims=-1
+        )
 
         return tf.squeeze(input=logits, axis=-1)
 
@@ -163,7 +165,7 @@ class Categorical(Distribution):
                 action = tf.dtypes.cast(x=action, dtype=tf.int32)
 
             action = tf.expand_dims(input=action, axis=-1)
-            action_values = tf.batch_gather(params=action_values, indices=action)
+            action_values = tf.gather(params=action_values, indices=action, batch_dims=-1)
             action_values = tf.squeeze(input=action_values, axis=-1)
 
         return action_values  # states_value + tf.squeeze(input=logits, axis=-1)

@@ -15,17 +15,14 @@
 
 from copy import deepcopy
 from datetime import datetime
-import logging
 import sys
+import warnings
 
 from tensorforce.agents import Agent
 from tensorforce.core.layers import Layer
 from tensorforce.environments import Environment
 from tensorforce.execution import Runner
 from test.unittest_environment import UnittestEnvironment
-
-
-logging.getLogger('tensorflow').disabled = True
 
 
 class UnittestBase(object):
@@ -68,6 +65,12 @@ class UnittestBase(object):
     # Tensorforce config
     require_observe = False
     require_all = False
+
+    def setUp(self):
+        warnings.filterwarnings(
+            action='ignore',
+            message='Converting sparse IndexedSlices to a dense Tensor of unknown shape'
+        )
 
     def start_tests(self, name=None):
         """

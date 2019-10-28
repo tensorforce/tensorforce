@@ -97,7 +97,7 @@ class CircularBuffer(Module):
         # Overwritten buffer indices
         num_values = tf.minimum(x=self.buffer_index, y=capacity)
         indices = tf.range(start=(self.buffer_index - num_values), limit=self.buffer_index)
-        indices = tf.mod(x=indices, y=capacity)
+        indices = tf.math.mod(x=indices, y=capacity)
 
         # Get overwritten values
         values = OrderedDict()
@@ -137,7 +137,7 @@ class CircularBuffer(Module):
             )
 
         # Check whether instances fit into buffer
-        assertion = tf.debugging.assert_less_equal(x=num_values, y=capacity)
+        assertion = tf.compat.v1.debugging.assert_less_equal(x=num_values, y=capacity)
 
         if self.return_overwritten:
             # Overwritten buffer indices
@@ -146,7 +146,7 @@ class CircularBuffer(Module):
                 limit = tf.maximum(x=(self.buffer_index + num_values), y=capacity)
                 num_overwritten = limit - start
                 indices = tf.range(start=start, limit=limit)
-                indices = tf.mod(x=indices, y=capacity)
+                indices = tf.math.mod(x=indices, y=capacity)
 
             # Get overwritten values
             with tf.control_dependencies(control_inputs=(indices,)):
@@ -167,7 +167,7 @@ class CircularBuffer(Module):
         # Buffer indices to (over)write
         with tf.control_dependencies(control_inputs=util.flatten(xs=overwritten_values)):
             indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_values))
-            indices = tf.mod(x=indices, y=capacity)
+            indices = tf.math.mod(x=indices, y=capacity)
             indices = tf.expand_dims(input=indices, axis=1)
 
         # Write new values

@@ -77,24 +77,24 @@ class Queue(CircularBuffer, Memory):
         # Max capacity
         latest_terminal_index = self.terminal_indices[self.episode_count]
         max_capacity = self.buffer_index - latest_terminal_index - one
-        max_capacity = capacity - (tf.mod(x=max_capacity, y=capacity) + one)
+        max_capacity = capacity - (tf.math.mod(x=max_capacity, y=capacity) + one)
 
         # Assertions
         assertions = [
             # check: number of timesteps fit into effectively available buffer
-            tf.debugging.assert_less_equal(x=num_timesteps, y=max_capacity),
+            tf.compat.v1.debugging.assert_less_equal(x=num_timesteps, y=max_capacity),
             # at most one terminal
-            tf.debugging.assert_less_equal(
+            tf.compat.v1.debugging.assert_less_equal(
                 x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
                 y=one
             ),
             # if terminal, last timestep in batch
-            tf.debugging.assert_equal(
+            tf.compat.v1.debugging.assert_equal(
                 x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
                 y=tf.math.greater(x=terminal[-1], y=zero)
             ),
             # general check: all terminal indices true
-            tf.debugging.assert_equal(
+            tf.compat.v1.debugging.assert_equal(
                 x=tf.reduce_all(
                     input_tensor=tf.gather(
                         params=tf.math.greater(x=self.buffers['terminal'], y=zero),
@@ -104,19 +104,19 @@ class Queue(CircularBuffer, Memory):
                 y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
             ),
             # general check: only terminal indices true
-            tf.debugging.assert_equal(
+            tf.compat.v1.debugging.assert_equal(
                 x=tf.math.count_nonzero(
                     input_tensor=self.buffers['terminal'], dtype=util.tf_dtype(dtype='long')
                 ),
                 y=(self.episode_count + one)
             ),
             # # general check: no terminal after last
-            # tf.debugging.assert_equal(
+            # tf.compat.v1.debugging.assert_equal(
             #     x=tf.reduce_any(
             #         input_tensor=tf.gather(
-            #             params=self.buffers['terminal'], indices=tf.mod(
+            #             params=self.buffers['terminal'], indices=tf.mathmod(
             #                 x=(self.terminal_indices[self.episode_count] + one + tf.range(
-            #                     start=tf.mod(
+            #                     start=tf.math.mod(
             #                         x=(self.buffer_index - self.terminal_indices[self.episode_count] - one),
             #                         y=capacity
             #                     )
@@ -132,20 +132,20 @@ class Queue(CircularBuffer, Memory):
         # Buffer indices to overwrite
         with tf.control_dependencies(control_inputs=assertions):
             indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_timesteps))
-            indices = tf.mod(x=indices, y=capacity)
+            indices = tf.math.mod(x=indices, y=capacity)
 
             # Count number of overwritten episodes
-            num_episodes = tf.count_nonzero(
+            num_episodes = tf.math.count_nonzero(
                 input_tensor=tf.gather(params=self.buffers['terminal'], indices=indices), axis=0,
                 dtype=util.tf_dtype(dtype='long')
             )
 
         # Shift remaining terminal indices accordingly
         limit_index = self.episode_count + one
-        assertion = tf.debugging.assert_greater_equal(x=limit_index, y=num_episodes)
+        assertion = tf.compat.v1.debugging.assert_greater_equal(x=limit_index, y=num_episodes)
 
         with tf.control_dependencies(control_inputs=(assertion,)):
-            assignment = tf.assign(
+            assignment = tf.compat.v1.assign(
                 ref=self.terminal_indices[:limit_index - num_episodes],
                 value=self.terminal_indices[num_episodes: limit_index]
             )
@@ -185,18 +185,18 @@ class Queue(CircularBuffer, Memory):
 
         # # Increment memory index
         # with tf.control_dependencies(control_inputs=assignments):
-        #     new_memory_index = tf.mod(x=(self.memory_index + num_timesteps), y=capacity)
+        #     new_memory_index = tf.math.mod(x=(self.memory_index + num_timesteps), y=capacity)
         #     assignment = self.memory_index.assign(value=new_memory_index)
 
         # Count number of new episodes
         with tf.control_dependencies(control_inputs=(assignment,)):
-            num_new_episodes = tf.count_nonzero(
+            num_new_episodes = tf.math.count_nonzero(
                 input_tensor=terminal, dtype=util.tf_dtype(dtype='long')
             )
 
             # Write new terminal indices
             limit_index = self.episode_count + one
-            assignment = tf.assign(
+            assignment = tf.compat.v1.assign(
                 ref=self.terminal_indices[limit_index: limit_index + num_new_episodes],
                 value=tf.boolean_mask(tensor=indices, mask=tf.math.greater(x=terminal, y=zero))
             )
@@ -262,7 +262,7 @@ class Queue(CircularBuffer, Memory):
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
         def body(lengths, predecessor_indices, mask):
-            previous_index = tf.mod(x=(predecessor_indices[:, :1] - one), y=capacity)
+            previous_index = tf.math.mod(x=(predecessor_indices[:, :1] - one), y=capacity)
             predecessor_indices = tf.concat(values=(previous_index, predecessor_indices), axis=1)
             previous_terminal = self.retrieve(indices=previous_index, values='terminal')
             is_not_terminal = tf.math.logical_and(
@@ -292,8 +292,8 @@ class Queue(CircularBuffer, Memory):
         mask = tf.reshape(tensor=mask, shape=(-1,))
         predecessor_indices = tf.boolean_mask(tensor=predecessor_indices, mask=mask, axis=0)
 
-        assertion = tf.assert_greater_equal(
-            x=tf.mod(x=(predecessor_indices - self.buffer_index), y=capacity), y=zero
+        assertion = tf.compat.v1.debugging.assert_greater_equal(
+            x=tf.math.mod(x=(predecessor_indices - self.buffer_index), y=capacity), y=zero
         )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
@@ -328,7 +328,7 @@ class Queue(CircularBuffer, Memory):
 
         # def body(lengths, sequence_values, initial_values):
         #     # Retrieve previous indices
-        #     previous_indices = tf.mod(x=(indices - lengths), y=capacity)
+        #     previous_indices = tf.math.mod(x=(indices - lengths), y=capacity)
         #     previous_values = self.retrieve(
         #         indices=previous_indices, values=(tuple(sequence_values) + tuple(initial_values))
         #     )
@@ -351,7 +351,7 @@ class Queue(CircularBuffer, Memory):
 
         #     # Increment lengths unless start of episode
         #     with tf.control_dependencies(control_inputs=util.flatten(xs=previous_values)):
-        #         previous_indices = tf.mod(x=(previous_indices - one), y=capacity)
+        #         previous_indices = tf.math.mod(x=(previous_indices - one), y=capacity)
         #         terminal = self.retrieve(indices=previous_indices, values='terminal')
         #         x = tf.zeros_like(tensor=terminal, dtype=util.tf_dtype(dtype='long'))
         #         y = tf.ones_like(tensor=terminal, dtype=util.tf_dtype(dtype='long'))
@@ -449,7 +449,7 @@ class Queue(CircularBuffer, Memory):
                 x=tf.math.logical_not(x=tf.math.greater(x=current_terminal, y=zero)),
                 y=mask[:, -1:]
             )
-            next_index = tf.mod(x=(current_index + one), y=capacity)
+            next_index = tf.math.mod(x=(current_index + one), y=capacity)
             successor_indices = tf.concat(values=(successor_indices, next_index), axis=1)
             mask = tf.concat(values=(mask, is_not_terminal), axis=1)
             is_not_terminal = tf.squeeze(input=is_not_terminal, axis=1)
@@ -473,8 +473,8 @@ class Queue(CircularBuffer, Memory):
         mask = tf.reshape(tensor=mask, shape=(-1,))
         successor_indices = tf.boolean_mask(tensor=successor_indices, mask=mask, axis=0)
 
-        assertion = tf.assert_greater_equal(
-            x=tf.mod(x=(self.buffer_index - one - successor_indices), y=capacity), y=zero
+        assertion = tf.compat.v1.debugging.assert_greater_equal(
+            x=tf.math.mod(x=(self.buffer_index - one - successor_indices), y=capacity), y=zero
         )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
@@ -510,7 +510,7 @@ class Queue(CircularBuffer, Memory):
 
         # def body(lengths, sequence_values, final_values):
         #     # Retrieve next indices
-        #     next_indices = tf.mod(x=(indices - lengths), y=capacity)
+        #     next_indices = tf.math.mod(x=(indices - lengths), y=capacity)
         #     next_values = self.retrieve(
         #         indices=next_indices, values=(tuple(sequence_values) + tuple(final_values))
         #     )
@@ -533,7 +533,7 @@ class Queue(CircularBuffer, Memory):
 
         #     # Increment lengths unless start of episode
         #     with tf.control_dependencies(control_inputs=util.flatten(xs=next_values)):
-        #         next_indices = tf.mod(x=(next_indices - one), y=capacity)
+        #         next_indices = tf.math.mod(x=(next_indices - one), y=capacity)
         #         terminal = self.retrieve(indices=next_indices, values='terminal')
         #         x = tf.zeros_like(tensor=terminal, dtype=util.tf_dtype(dtype='long'))
         #         y = tf.ones_like(tensor=terminal, dtype=util.tf_dtype(dtype='long'))

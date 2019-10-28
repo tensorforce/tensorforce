@@ -272,7 +272,7 @@ class Model(Module):
             max_to_keep = 5
         else:
             max_to_keep = self.saver_spec.get('max-checkpoints', 5)
-        self.saver = tf.train.Saver(
+        self.saver = tf.compat.v1.train.Saver(
             var_list=saved_variables,  # should be given?
             reshape=False,
             sharded=False,
@@ -284,7 +284,7 @@ class Model(Module):
             builder=None,
             defer_build=False,
             allow_empty=False,
-            write_version=tf.train.SaverDef.V2,
+            write_version=tf.compat.v1.train.SaverDef.V2,
             pad_step_number=False,
             save_relative_paths=False,
             filename=None
@@ -377,16 +377,18 @@ class Model(Module):
         if self.execution_spec is None or self.execution_type == "single":
             global_variables = self.get_variables()
             # global_variables += [self.global_episode, self.global_timestep]
-            init_op = tf.variables_initializer(var_list=global_variables)
+            init_op = tf.compat.v1.variables_initializer(var_list=global_variables)
             if self.summarizer_spec is not None:
                 init_op = tf.group(init_op, self.summarizer_init)
             if self.graph_summary is None:
-                ready_op = tf.report_uninitialized_variables(var_list=global_variables)
+                ready_op = tf.compat.v1.report_uninitialized_variables(var_list=global_variables)
                 ready_for_local_init_op = None
                 local_init_op = None
             else:
                 ready_op = None
-                ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
+                ready_for_local_init_op = tf.compat.v1.report_uninitialized_variables(
+                    var_list=global_variables
+                )
                 local_init_op = self.graph_summary
 
         else:
@@ -394,14 +396,18 @@ class Model(Module):
             global_variables = self.global_model.get_variables()
             # global_variables += [self.global_episode, self.global_timestep]
             local_variables = self.get_variables()
-            init_op = tf.variables_initializer(var_list=global_variables)
+            init_op = tf.compat.v1.variables_initializer(var_list=global_variables)
             if self.summarizer_spec is not None:
                 init_op = tf.group(init_op, self.summarizer_init)
-            ready_op = tf.report_uninitialized_variables(var_list=(global_variables + local_variables))
-            ready_for_local_init_op = tf.report_uninitialized_variables(var_list=global_variables)
+            ready_op = tf.compat.v1.report_uninitialized_variables(
+                var_list=(global_variables + local_variables)
+            )
+            ready_for_local_init_op = tf.compat.v1.report_uninitialized_variables(
+                var_list=global_variables
+            )
             if self.graph_summary is None:
                 local_init_op = tf.group(
-                    tf.variables_initializer(var_list=local_variables),
+                    tf.compat.v1.variables_initializer(var_list=local_variables),
                     # Synchronize values of trainable variables.
                     *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
                         self.get_variables(only_trainable=True),
@@ -410,7 +416,7 @@ class Model(Module):
                 )
             else:
                 local_init_op = tf.group(
-                    tf.variables_initializer(var_list=local_variables),
+                    tf.compat.v1.variables_initializer(var_list=local_variables),
                     self.graph_summary,
                     # Synchronize values of trainable variables.
                     *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
@@ -436,7 +442,7 @@ class Model(Module):
 
         # TensorFlow scaffold object
         # TODO explain what it does.
-        self.scaffold = tf.train.Scaffold(
+        self.scaffold = tf.compat.v1.train.Scaffold(
             init_op=init_op,
             init_feed_dict=None,
             init_fn=init_fn,
@@ -522,7 +528,7 @@ class Model(Module):
             #     )
 
             # TensorFlow monitored session object
-            self.monitored_session = tf.train.MonitoredSession(
+            self.monitored_session = tf.compat.v1.train.MonitoredSession(
                 session_creator=session_creator,
                 hooks=hooks,
                 stop_grace_period_secs=120  # Default value.
@@ -532,7 +538,7 @@ class Model(Module):
 
         else:
             # TensorFlow non-distributed monitored session object
-            self.monitored_session = tf.train.SingularMonitoredSession(
+            self.monitored_session = tf.compat.v1.train.SingularMonitoredSession(
                 hooks=hooks,
                 scaffold=self.scaffold,
                 master='',  # Default value.
@@ -707,13 +713,13 @@ class Model(Module):
         # states: type and shape
         for name, spec in self.states_spec.items():
             assertions.append(
-                tf.debugging.assert_type(
+                tf.compat.v1.debugging.assert_type(
                     tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
                 )
             )
             shape = (1,) + self.unprocessed_state_shape.get(name, spec['shape'])
             assertions.append(
-                tf.debugging.assert_equal(
+                tf.compat.v1.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=tf.int32),
                     y=tf.constant(value=shape, dtype=tf.int32)
                 )
@@ -723,19 +729,19 @@ class Model(Module):
             if spec['type'] == 'int':
                 name = name + '_mask'
                 assertions.append(
-                    tf.debugging.assert_type(
+                    tf.compat.v1.debugging.assert_type(
                         tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
                     )
                 )
                 shape = (1,) + spec['shape'] + (spec['num_values'],)
                 assertions.append(
-                    tf.debugging.assert_equal(
+                    tf.compat.v1.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
                         y=tf.constant(value=shape, dtype=tf.int32)
                     )
                 )
                 assertions.append(
-                    tf.debugging.assert_equal(
+                    tf.compat.v1.debugging.assert_equal(
                         x=tf.reduce_all(
                             input_tensor=tf.reduce_any(
                                 input_tensor=auxiliaries[name], axis=tuple(range(1, len(shape)))
@@ -744,27 +750,27 @@ class Model(Module):
                     )
                 )
         # parallel: type, shape and value
+        assertions.append(tf.compat.v1.debugging.assert_type(
+            tensor=parallel, tf_type=util.tf_dtype(dtype='long')
+        ))
+        assertions.append(tf.compat.v1.debugging.assert_scalar(tensor=parallel))
+        assertions.append(tf.compat.v1.debugging.assert_non_negative(x=parallel))
         assertions.append(
-            tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='long'))
-        )
-        assertions.append(tf.debugging.assert_scalar(tensor=parallel))
-        assertions.append(tf.debugging.assert_non_negative(x=parallel))
-        assertions.append(
-            tf.debugging.assert_less(
+            tf.compat.v1.debugging.assert_less(
                 x=parallel,
                 y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
             )
         )
         # deterministic: type and shape
-        assertions.append(
-            tf.debugging.assert_type(tensor=deterministic, tf_type=util.tf_dtype(dtype='bool'))
-        )
-        assertions.append(tf.debugging.assert_scalar(tensor=deterministic))
+        assertions.append(tf.compat.v1.debugging.assert_type(
+            tensor=deterministic, tf_type=util.tf_dtype(dtype='bool')
+        ))
+        assertions.append(tf.compat.v1.debugging.assert_scalar(tensor=deterministic))
         # independent: type and shape
-        assertions.append(
-            tf.debugging.assert_type(tensor=independent, tf_type=util.tf_dtype(dtype='bool'))
-        )
-        assertions.append(tf.debugging.assert_scalar(tensor=independent))
+        assertions.append(tf.compat.v1.debugging.assert_type(
+            tensor=independent, tf_type=util.tf_dtype(dtype='bool')
+        ))
+        assertions.append(tf.compat.v1.debugging.assert_scalar(tensor=independent))
 
         # Set global tensors
         Module.update_tensors(
@@ -894,8 +900,10 @@ class Model(Module):
             if spec['type'] == 'int':
                 indices = tf.dtypes.cast(x=actions[name], dtype=tf.int64)
                 indices = tf.expand_dims(input=indices, axis=-1)
-                is_unmasked = tf.batch_gather(params=auxiliaries[name + '_mask'], indices=indices)
-                assertions.append(tf.debugging.assert_equal(
+                is_unmasked = tf.gather(
+                    params=auxiliaries[name + '_mask'], indices=indices, batch_dims=-1
+                )
+                assertions.append(tf.compat.v1.debugging.assert_equal(
                     x=tf.math.reduce_all(input_tensor=is_unmasked), y=true
                 ))
         dependencies += assertions
@@ -1073,33 +1081,41 @@ class Model(Module):
         # Assertions
         assertions = [
             # terminal: type and shape
-            tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='long')),
-            tf.debugging.assert_rank(x=terminal, rank=1),
+            tf.compat.v1.debugging.assert_type(
+                tensor=terminal, tf_type=util.tf_dtype(dtype='long')
+            ),
+            tf.compat.v1.debugging.assert_rank(x=terminal, rank=1),
             # reward: type and shape
-            tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float')),
-            tf.debugging.assert_rank(x=reward, rank=1),
+            tf.compat.v1.debugging.assert_type(
+                tensor=reward, tf_type=util.tf_dtype(dtype='float')
+            ),
+            tf.compat.v1.debugging.assert_rank(x=reward, rank=1),
             # parallel: type, shape and value
-            tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='long')),
-            tf.debugging.assert_scalar(tensor=parallel),
-            tf.debugging.assert_non_negative(x=parallel),
-            tf.debugging.assert_less(
+            tf.compat.v1.debugging.assert_type(
+                tensor=parallel, tf_type=util.tf_dtype(dtype='long')
+            ),
+            tf.compat.v1.debugging.assert_scalar(tensor=parallel),
+            tf.compat.v1.debugging.assert_non_negative(x=parallel),
+            tf.compat.v1.debugging.assert_less(
                 x=parallel,
                 y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
             ),
             # shape of terminal equals shape of reward
-            tf.debugging.assert_equal(x=tf.shape(input=terminal), y=tf.shape(input=reward)),
+            tf.compat.v1.debugging.assert_equal(
+                x=tf.shape(input=terminal), y=tf.shape(input=reward)
+            ),
             # size of terminal equals buffer index
-            tf.debugging.assert_equal(
+            tf.compat.v1.debugging.assert_equal(
                 x=tf.shape(input=terminal, out_type=tf.int64)[0],
                 y=tf.dtypes.cast(x=self.buffer_index[parallel], dtype=tf.int64)
             ),
             # at most one terminal
-            tf.debugging.assert_less_equal(
+            tf.compat.v1.debugging.assert_less_equal(
                 x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
                 y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             ),
             # if terminal, last timestep in batch
-            tf.debugging.assert_equal(
+            tf.compat.v1.debugging.assert_equal(
                 x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
                 y=tf.math.greater(x=terminal[-1], y=zero)
             )

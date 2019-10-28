@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import copy
 import os
 import pytest
 import time

@@ -43,14 +43,14 @@ class TFOptimizer(Optimizer):
     """
 
     tensorflow_optimizers = dict(
-        adadelta=tf.train.AdadeltaOptimizer,
-        adagrad=tf.train.AdagradOptimizer,
-        adam=tf.train.AdamOptimizer,
-        gradient_descent=tf.train.GradientDescentOptimizer,
-        momentum=tf.train.MomentumOptimizer,
-        proximal_adagrad=tf.train.ProximalAdagradOptimizer,
-        proximal_gradient_descent=tf.train.ProximalGradientDescentOptimizer,
-        rmsprop=tf.train.RMSPropOptimizer
+        adadelta=tf.compat.v1.train.AdadeltaOptimizer,
+        adagrad=tf.compat.v1.train.AdagradOptimizer,
+        adam=tf.compat.v1.train.AdamOptimizer,
+        gradient_descent=tf.compat.v1.train.GradientDescentOptimizer,
+        momentum=tf.compat.v1.train.MomentumOptimizer,
+        proximal_adagrad=tf.compat.v1.train.ProximalAdagradOptimizer,
+        proximal_gradient_descent=tf.compat.v1.train.ProximalGradientDescentOptimizer,
+        rmsprop=tf.compat.v1.train.RMSPropOptimizer
     )
     # tensorflow_optimizers = dict(
     #     adadelta=tf.optimizers.Adadelta,

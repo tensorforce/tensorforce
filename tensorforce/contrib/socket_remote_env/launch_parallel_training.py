@@ -76,7 +76,7 @@ runner = ParallelRunner(
 )
 
 runner.run(
-    num_episodes=10, max_episode_timesteps=200, sync_episodes=False
+    num_episodes=300, max_episode_timesteps=1000, sync_episodes=False
 )
 
 runner.close()

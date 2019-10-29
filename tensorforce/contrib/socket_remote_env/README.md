@@ -18,7 +18,7 @@ https://github.com/jerabaul29/Cylinder2DFlowControlDRLParallel
 
 NOTE: this is tested only on Ubuntu 18.04
 
-To test, either:
+To test / run the example, either:
 
 - use our script: ```bash script_launch_parallel.sh  training_example 3000 4```
 

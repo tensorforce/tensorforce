@@ -20,7 +20,7 @@ ports_start = args["ports_start"]
 host = args["host"]
 
 if host == 'None':
-    host = socket.gethostname()
+    host = 'localhost'
 
 list_ports = [ind_server + ports_start for ind_server in range(number_servers)]
 

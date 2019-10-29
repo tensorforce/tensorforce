@@ -13,7 +13,6 @@ from tensorforce.agents import Agent
 from tensorforce.execution import ParallelRunner
 
 from dummy_env import resume_env
-from simulation_base.parameters import num_actuations
 from RemoteEnvironmentClient import RemoteEnvironmentClient
 
 ap = argparse.ArgumentParser()
@@ -49,7 +48,7 @@ network = [dict(type='dense', size=512), dict(type='dense', size=512)]
 
 agent = Agent.create(
     # Agent + Environment
-    agent='ppo', environment=example_environment, max_episode_timesteps=example_environment.max_episode_timestep(),
+    agent='ppo', environment=example_environment,
     # Network
     network=network,
     # Optimization
@@ -77,7 +76,7 @@ runner = ParallelRunner(
 )
 
 runner.run(
-    num_episodes=800, max_episode_timesteps=num_actuations, sync_episodes=False
+    num_episodes=10, max_episode_timesteps=200, sync_episodes=False
 )
 
 runner.close()

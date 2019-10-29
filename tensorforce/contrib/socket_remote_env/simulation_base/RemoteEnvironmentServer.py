@@ -91,7 +91,6 @@ class RemoteEnvironmentServer(EchoServer):
         return(1)
         
     def CLOSE(self, data):
-        print("call close")
         if self.active_socket:
             self.socket_instance.close()
             self.active_socket = False

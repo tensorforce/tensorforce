@@ -4,9 +4,9 @@ a simple example, may need some adaptation.
 """
 
 from tensorforce.environments import Environment
-from simulation_base.parameters import S_DIM, A_DIM, amin, amax
+environment_example = Environment.create(environment='gym', level='CartPole-v1')
 
-class LBMENV(Environment):
+class dummy_env(Environment):
     def __init__(self, rank=1):
         pass
     
@@ -18,17 +18,17 @@ class LBMENV(Environment):
     
 
     def states(self):
-        return dict(type='float',shape=(S_DIM,))
+        return environment_example.states()
 
     def actions(self):
-        return dict(type='float',shape=(A_DIM,), min_value = amin, max_value = amax)
+        return environment_example.actions()
 
     def close(self):
         pass
 
     def max_episode_timesteps(self):
-        return None
+        return environment_example.max_episode_timesteps()
 
 
 def resume_env(rank=1):
-    return(LBMENV(rank))
+    return(dummy_env(rank))

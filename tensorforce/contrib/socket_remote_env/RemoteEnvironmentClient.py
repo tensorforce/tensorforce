@@ -54,6 +54,10 @@ class RemoteEnvironmentClient(Environment):
         self.episode = 0
         self.step = 0
 
+    def __del__(self):
+        if self.valid_socket:
+            self.close()
+
     def states(self):
         return self.example_environment.states()
 
@@ -64,10 +68,8 @@ class RemoteEnvironmentClient(Environment):
         return self.example_environment.max_episode_timesteps()
 
     def close(self):
-        self.communicate_socket("CLOSE", 1)
-        
-        if self.valid_socket:
-            self.socket.close()
+        to_send = EchoServer.encode_message("CLOSE", 1, verbose=self.verbose)
+        self.socket.send(to_send)
 
     def reset(self):
         # perform the reset

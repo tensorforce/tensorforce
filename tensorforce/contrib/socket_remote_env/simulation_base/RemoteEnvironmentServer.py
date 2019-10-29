@@ -36,14 +36,14 @@ class RemoteEnvironmentServer(EchoServer):
         EchoServer.__init__(self, verbose)
 
         # set up the socket
-        socket_instance = socket.socket()
+        self.socket_instance = socket.socket()
 
         if host is None:
             host = socket.gethostname()
 
-        socket_instance.bind((host, port))
+        self.socket_instance.bind((host, port))
 
-        socket_instance.listen(1)  # Buffer only one request
+        self.socket_instance.listen(1)  # Buffer only one request
         self.active_socket = True
 
         connection = None
@@ -52,7 +52,7 @@ class RemoteEnvironmentServer(EchoServer):
             if connection is None:
                 if verbose > 1:
                     print('[Waiting for connection...]')
-                connection, address = socket_instance.accept()
+                connection, address = self.socket_instance.accept()
                 if verbose > 1:
                     print('Got connection from {}'.format(address))
             else:
@@ -65,7 +65,7 @@ class RemoteEnvironmentServer(EchoServer):
                 connection.send(response)
 
         if self.active_socket:
-            socket_instance.close()
+            self.socket_instance.close()
             self.active_socket = False
 
     def RESET(self, data):
@@ -91,8 +91,11 @@ class RemoteEnvironmentServer(EchoServer):
         return(1)
         
     def CLOSE(self, data):
+        print("call close")
         if self.active_socket:
-            socket_instance.close()
+            self.socket_instance.close()
             self.active_socket = False
+            
+        exit()
             
         return(1)

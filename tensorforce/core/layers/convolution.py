@@ -196,8 +196,8 @@ class Conv2d(TransformationBase):
             )
         elif self.padding == 'valid':
             shape = (
-                ceil((input_spec['shape'][0] - (self.window[1] - 1)) / self.stride[1]),
-                ceil((input_spec['shape'][1] - (self.window[2] - 1)) / self.stride[2])
+                ceil((input_spec['shape'][0] - (self.window[0] - 1)) / self.stride[1]),
+                ceil((input_spec['shape'][1] - (self.window[1] - 1)) / self.stride[2])
             )
 
         if self.squeeze:
@@ -400,9 +400,9 @@ class Conv2dTranspose(TransformationBase):
         return dict(type='float', shape=(0, 0, 0))
 
     def get_output_spec(self, input_spec):
-        height = deconv_output_length(input_spec['shape'][0], self.window[1], self.padding,
+        height = deconv_output_length(input_spec['shape'][0], self.window[0], self.padding,
                                       stride=self.stride[1])
-        width = deconv_output_length(input_spec['shape'][1], self.window[2], self.padding,
+        width = deconv_output_length(input_spec['shape'][1], self.window[1], self.padding,
                                       stride=self.stride[2])
         shape = (height, width)
 

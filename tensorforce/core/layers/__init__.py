@@ -16,10 +16,11 @@
 from tensorforce.core.layers.layer import Layer, StatefulLayer, TemporalLayer, TransformationBase
 
 from tensorforce.core.layers.convolution import Conv1d, Conv2d
-from tensorforce.core.layers.dense import Dense, Linear
+from tensorforce.core.layers.dense import Dense
 from tensorforce.core.layers.embedding import Embedding
 from tensorforce.core.layers.internal_rnn import InternalGru, InternalLstm, InternalRnn
 from tensorforce.core.layers.keras import Keras
+from tensorforce.core.layers.linear import Linear
 from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Register, \
     Retrieve, Reuse
 from tensorforce.core.layers.normalization import ExponentialNormalization, InstanceNormalization

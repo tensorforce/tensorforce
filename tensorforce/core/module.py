@@ -958,11 +958,11 @@ class Module(object):
             )
 
         elif callable(module):
-            for key, arg in kwargs.items():
-                assert arg is not None, (key, arg)
-                if arg is None:
-                    assert False
-                    kwargs.pop(key)
+            # for key, arg in kwargs.items():
+            #     assert arg is not None, (key, arg)
+            #     if arg is None:
+            #         assert False
+            #         kwargs.pop(key)
             first_arg = kwargs.pop('_first_arg', None)
             return module, first_arg, kwargs
 

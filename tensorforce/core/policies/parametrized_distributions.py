@@ -81,12 +81,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             raise TensorforceError(
                 "Invalid output type for network: {}.".format(output_spec['type'])
             )
-        elif len(output_spec['shape']) != 1:
-            raise TensorforceError(
-                "Invalid output rank for network: {}.".format(len(output_spec['shape']))
-            )
         Module.register_tensor(name=self.name, spec=output_spec, batched=True)
-        embedding_size = output_spec['shape'][0]
+        embedding_shape = output_spec['shape']
 
         # Distributions
         self.distributions = OrderedDict()
@@ -115,7 +111,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
             self.distributions[name] = self.add_module(
                 name=(name + '-distribution'), module=module, modules=distribution_modules,
-                default_module=default_module, action_spec=spec, embedding_size=embedding_size
+                default_module=default_module, action_spec=spec, embedding_shape=embedding_shape
             )
 
     @classmethod

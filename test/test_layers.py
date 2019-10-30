@@ -26,18 +26,30 @@ class TestLayers(UnittestBase, unittest.TestCase):
         self.start_tests(name='convolution')
 
         states = dict(type='float', shape=(2, 3))
+        actions = dict(
+            bool_action=dict(type='bool', shape=(2,)),
+            int_action=dict(type='int', shape=(2, 2), num_values=4),
+            float_action=dict(type='float', shape=(2,)),
+            bounded_action=dict(type='float', shape=(2, 2), min_value=-0.5, max_value=0.5)
+        )
         network = [
             dict(type='conv1d', size=8),
-            dict(type='flatten')
+            dict(type='linear', size=8)
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, actions=actions, policy=dict(network=network))
 
         states = dict(type='float', shape=(2, 2, 3))
+        actions = dict(
+            bool_action=dict(type='bool', shape=(2, 2,)),
+            int_action=dict(type='int', shape=(2, 2, 2), num_values=4),
+            float_action=dict(type='float', shape=(2, 2,)),
+            bounded_action=dict(type='float', shape=(2, 2, 2), min_value=-0.5, max_value=0.5)
+        )
         network = [
             dict(type='conv2d', size=8),
-            dict(type='flatten')
+            dict(type='linear', size=8)
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, actions=actions, policy=dict(network=network))
 
     def test_dense(self):
         self.start_tests(name='dense')

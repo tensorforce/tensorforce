@@ -85,35 +85,3 @@ class Dense(TransformationBase):
         x = tf.matmul(a=x, b=self.weights)
 
         return super().tf_apply(x=x)
-
-
-class Linear(Dense):
-    """
-    Linear layer (specification key: `linear`).
-
-    Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
-        size (int >= 0): Layer output size, 0 implies additionally removing the axis
-            (<span style="color:#C00000"><b>required</b></span>).
-        bias (bool): Whether to add a trainable bias variable
-            (<span style="color:#00C000"><b>default</b></span>: true).
-        is_trainable (bool): Whether layer variables are trainable
-            (<span style="color:#00C000"><b>default</b></span>: true).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-    """
-
-    def __init__(
-        self, name, size, bias=True, is_trainable=True, input_spec=None, summary_labels=None,
-        l2_regularization=None
-    ):
-        super().__init__(
-            name=name, size=size, bias=bias, activation=None, dropout=0.0,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
-        )

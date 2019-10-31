@@ -16,7 +16,7 @@
 from math import ceil
 
 import tensorflow as tf
-from tensorflow.python.keras.utils.conv_utils import deconv_output_length
+from tensorflow.python.keras.utils.conv_utils import conv_output_length, deconv_output_length
 
 from tensorforce import TensorforceError
 from tensorforce.core.layers import TransformationBase
@@ -78,10 +78,10 @@ class Conv1d(TransformationBase):
         return dict(type='float', shape=(0, 0))
 
     def get_output_spec(self, input_spec):
-        if self.padding == 'same':
-            shape = (ceil(input_spec['shape'][0] / self.stride),)
-        elif self.padding == 'valid':
-            shape = (ceil((input_spec['shape'][0] - (self.window - 1)) / self.stride),)
+        length = conv_output_length(input_spec['shape'][0], self.window, self.padding,
+                                      self.stride)
+
+        shape = (length,)
 
         if self.squeeze:
             input_spec['shape'] = shape
@@ -189,16 +189,11 @@ class Conv2d(TransformationBase):
         return dict(type='float', shape=(0, 0, 0))
 
     def get_output_spec(self, input_spec):
-        if self.padding == 'same':
-            shape = (
-                ceil(input_spec['shape'][0] / self.stride[1]),
-                ceil(input_spec['shape'][1] / self.stride[2])
-            )
-        elif self.padding == 'valid':
-            shape = (
-                ceil((input_spec['shape'][0] - (self.window[0] - 1)) / self.stride[1]),
-                ceil((input_spec['shape'][1] - (self.window[1] - 1)) / self.stride[2])
-            )
+        height = conv_output_length(input_spec['shape'][0], self.window[0], self.padding,
+                                      self.stride[1], dilation=self.dilation[1])
+        width = conv_output_length(input_spec['shape'][1], self.window[1], self.padding,
+                                      self.stride[2], dilation=self.dilation[2])
+        shape = (height, width)
 
         if self.squeeze:
             input_spec['shape'] = shape
@@ -365,7 +360,7 @@ class Conv2dTranspose(TransformationBase):
     """
 
     def __init__(
-        self, name, size, window=3, stride=1, padding='same', dilation=1, bias=True,
+        self, name, size, window=3, stride=1, padding='same', bias=True,
         activation='relu', dropout=0.0, is_trainable=True, use_cudnn_on_gpu=True, input_spec=None,
         summary_labels=None, l2_regularization=None
     ):
@@ -382,12 +377,6 @@ class Conv2dTranspose(TransformationBase):
         else:
             raise TensorforceError("Invalid stride argument for conv2d_transpose layer: {}.".format(stride))
         self.padding = padding
-        if isinstance(dilation, int):
-            self.dilation = (1, dilation, dilation, 1)
-        elif len(dilation) == 2:
-            self.dilation = (1, dilation[0], dilation[1], 1)
-        else:
-            raise TensorforceError("Invalid dilation argument for conv2d_transpose layer: {}.".format(dilation))
         self.use_cudnn_on_gpu = use_cudnn_on_gpu
 
         super().__init__(

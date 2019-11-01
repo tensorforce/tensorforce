@@ -360,8 +360,8 @@ class Conv2dTranspose(TransformationBase):
     """
 
     def __init__(
-        self, name, size, window=3, stride=1, padding='same', bias=True,
-        activation='relu', dropout=0.0, is_trainable=True, use_cudnn_on_gpu=True, input_spec=None,
+        self, name, size, window=3, stride=1, padding='same', dilation=1, bias=True,
+        activation='relu', dropout=0.0, is_trainable=True, input_spec=None,
         summary_labels=None, l2_regularization=None
     ):
         if isinstance(window, int):
@@ -376,8 +376,13 @@ class Conv2dTranspose(TransformationBase):
             self.stride = (1, stride[0], stride[1], 1)
         else:
             raise TensorforceError("Invalid stride argument for conv2d_transpose layer: {}.".format(stride))
+        if isinstance(dilation, int):
+            self.dilation = (1, dilation, dilation, 1)
+        elif len(dilation) == 2:
+            self.dilation = (1, dilation[0], dilation[1], 1)
+        else:
+            raise TensorforceError("Invalid dilation argument for conv2d_transpose layer: {}.".format(dilation))
         self.padding = padding
-        self.use_cudnn_on_gpu = use_cudnn_on_gpu
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
@@ -390,9 +395,9 @@ class Conv2dTranspose(TransformationBase):
 
     def get_output_spec(self, input_spec):
         height = deconv_output_length(input_spec['shape'][0], self.window[0], self.padding,
-                                      stride=self.stride[1])
+                                      stride=self.stride[1], dilation=self.dilation[1])
         width = deconv_output_length(input_spec['shape'][1], self.window[1], self.padding,
-                                      stride=self.stride[2])
+                                      stride=self.stride[2], dilation=self.dilation[2])
         shape = (height, width)
 
         if self.squeeze:
@@ -422,7 +427,7 @@ class Conv2dTranspose(TransformationBase):
     def tf_apply(self, x):
         x = tf.nn.conv2d_transpose(
             input=x, filter=self.weights, strides=self.stride, padding=self.padding.upper(),
-            use_cudnn_on_gpu=self.use_cudnn_on_gpu, dilations=self.dilation
+            dilations=self.dilation
         )
 
         return super().tf_apply(x=x)

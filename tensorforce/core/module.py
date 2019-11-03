@@ -775,7 +775,11 @@ class Module(object):
             return False
 
         # Check whether not in while loop
-        if 'while' in Module.global_scope:  # 'cond' in Module.global_scope
+        if 'while' in Module.global_scope:
+            return False
+
+        # TODO: nested conditions?
+        if Module.global_scope.count('cond') > 1:
             return False
 
         # Check whether given label is logged

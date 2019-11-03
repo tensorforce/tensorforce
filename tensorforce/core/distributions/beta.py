@@ -92,13 +92,13 @@ class Beta(Distribution):
 
         Module.update_tensor(name=(self.name + '-alpha'), tensor=alpha)
         Module.update_tensor(name=(self.name + '-beta'), tensor=beta)
-        alpha, alpha_beta, log_norm = self.add_summary(
+        alpha, beta, alpha_beta, log_norm = self.add_summary(
             label=('distributions', 'beta'), name='alpha', tensor=alpha,
-            pass_tensors=(alpha, alpha_beta, log_norm)
+            pass_tensors=(alpha, beta, alpha_beta, log_norm)
         )
-        beta, alpha_beta, log_norm = self.add_summary(
+        alpha, beta, alpha_beta, log_norm = self.add_summary(
             label=('distributions', 'beta'), name='beta', tensor=beta,
-            pass_tensors=(beta, alpha_beta, log_norm)
+            pass_tensors=(alpha, beta, alpha_beta, log_norm)
         )
 
         return alpha, beta, alpha_beta, log_norm

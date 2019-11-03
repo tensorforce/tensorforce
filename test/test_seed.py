@@ -55,7 +55,7 @@ class TestSeed(UnittestBase, unittest.TestCase):
         # print(actions['float_action'])
         self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([2, 3])))
         self.assertTrue(
-            expr=np.allclose(a=actions['float_action'], b=np.asarray([-0.12984827, 0.46496633]))
+            expr=np.allclose(a=actions['float_action'], b=np.asarray([-0.01262423, 0.46866935]))
         )
 
         states, terminal, reward = environment.execute(actions=actions)
@@ -74,9 +74,9 @@ class TestSeed(UnittestBase, unittest.TestCase):
         actions = agent.act(states=states)
         # print(actions['int_action'])
         # print(actions['float_action'])
-        self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([0, 1])))
+        self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([1, 1])))
         self.assertTrue(
-            expr=np.allclose(a=actions['float_action'], b=np.asarray([-0.28552642, 0.10683993]))
+            expr=np.allclose(a=actions['float_action'], b=np.asarray([1.094202, -0.3172649]))
         )
 
         states, terminal, reward = environment.execute(actions=actions)
@@ -97,7 +97,7 @@ class TestSeed(UnittestBase, unittest.TestCase):
         # print(actions['float_action'])
         self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([0, 3])))
         self.assertTrue(
-            expr=np.allclose(a=actions['float_action'], b=np.asarray([-0.6319358, 0.767941]))
+            expr=np.allclose(a=actions['float_action'], b=np.asarray([0.6400444, 0.09874445]))
         )
 
         states, terminal, reward = environment.execute(actions=actions)
@@ -116,9 +116,9 @@ class TestSeed(UnittestBase, unittest.TestCase):
         actions = agent.act(states=states)
         # print(actions['int_action'])
         # print(actions['float_action'])
-        self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([2, 2])))
+        self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([1, 2])))
         self.assertTrue(
-            expr=np.allclose(a=actions['float_action'], b=np.asarray([0.17954004, 1.453299]))
+            expr=np.allclose(a=actions['float_action'], b=np.asarray([0.5243498, 0.27555782]))
         )
 
 

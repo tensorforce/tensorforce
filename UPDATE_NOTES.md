@@ -8,6 +8,8 @@ This file records all major updates and new features, starting from version 0.5.
 
 - Added optional `memory` argument to various agents
 - Improved summary labels, particularly `"entropy"` and `"kl-divergence"`
+- `linear` layer now accepts tensors of rank 1 to 3
+- Network output / distribution input does not need to be a vector anymore
 
 
 

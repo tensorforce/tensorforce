@@ -17,7 +17,7 @@ from math import e, log, pi
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import TensorforceError, util
 from tensorforce.core import layer_modules, Module
 from tensorforce.core.distributions import Distribution
 
@@ -31,28 +31,48 @@ class Gaussian(Distribution):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         action_spec (specification): Action specification
             (<span style="color:#0000C0"><b>internal use</b></span>).
-        embedding_size (int > 0): Embedding size
+        embedding_shape (iter[int > 0]): Embedding shape
             (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, name, action_spec, embedding_size, summary_labels=None):
+    def __init__(self, name, action_spec, embedding_shape, summary_labels=None):
         super().__init__(
-            name=name, action_spec=action_spec, embedding_size=embedding_size,
+            name=name, action_spec=action_spec, embedding_shape=embedding_shape,
             summary_labels=summary_labels
         )
 
-        action_size = util.product(xs=self.action_spec['shape'], empty=0)
-        input_spec = dict(type='float', shape=(self.embedding_size,))
-        self.mean = self.add_module(
-            name='mean', module='linear', modules=layer_modules, size=action_size,
-            input_spec=input_spec
-        )
-        self.log_stddev = self.add_module(
-            name='log-stddev', module='linear', modules=layer_modules, size=action_size,
-            input_spec=input_spec
-        )
+        input_spec = dict(type='float', shape=self.embedding_shape)
+
+        if len(self.embedding_shape) == 1:
+            action_size = util.product(xs=self.action_spec['shape'], empty=0)
+            self.mean = self.add_module(
+                name='mean', module='linear', modules=layer_modules, size=action_size,
+                input_spec=input_spec
+            )
+            self.log_stddev = self.add_module(
+                name='log-stddev', module='linear', modules=layer_modules, size=action_size,
+                input_spec=input_spec
+            )
+
+        else:
+            if len(self.embedding_shape) < 1 or len(self.embedding_shape) > 3:
+                raise TensorforceError.unexpected()
+            if self.embedding_shape[:-1] == self.action_spec['shape'][:-1]:
+                size = self.action_spec['shape'][-1]
+            elif self.embedding_shape[:-1] == self.action_spec['shape']:
+                size = 0
+            else:
+                raise TensorforceError.unexpected()
+            self.mean = self.add_module(
+                name='mean', module='linear', modules=layer_modules, size=size,
+                input_spec=input_spec
+            )
+            self.log_stddev = self.add_module(
+                name='log-stddev', module='linear', modules=layer_modules, size=size,
+                input_spec=input_spec
+            )
 
         Module.register_tensor(
             name=(self.name + '-mean'), spec=dict(type='float', shape=self.action_spec['shape']),
@@ -69,11 +89,13 @@ class Gaussian(Distribution):
 
         # Mean
         mean = self.mean.apply(x=x)
-        mean = tf.reshape(tensor=mean, shape=shape)
+        if len(self.embedding_shape) == 1:
+            mean = tf.reshape(tensor=mean, shape=shape)
 
         # Log standard deviation
         log_stddev = self.log_stddev.apply(x=x)
-        log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
+        if len(self.embedding_shape) == 1:
+            log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
 
         # Clip log_stddev for numerical stability
         # epsilon < 1.0, hence negative

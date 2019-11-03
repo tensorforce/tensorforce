@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import TensorforceError, util
 from tensorforce.core import layer_modules, Module
 from tensorforce.core.distributions import Distribution
 
@@ -29,7 +29,7 @@ class Categorical(Distribution):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         action_spec (specification): Action specification
             (<span style="color:#0000C0"><b>internal use</b></span>).
-        embedding_size (int > 0): Embedding size
+        embedding_shape (iter[int > 0]): Embedding shape
             (<span style="color:#0000C0"><b>internal use</b></span>).
         infer_states_value (bool): Whether to infer the state value from state-action values as
             softmax denominator (<span style="color:#00C000"><b>default</b></span>: true).
@@ -38,39 +38,64 @@ class Categorical(Distribution):
     """
 
     def __init__(
-        self, name, action_spec, embedding_size, infer_states_value=True, summary_labels=None
+        self, name, action_spec, embedding_shape, infer_states_value=True, summary_labels=None
     ):
         super().__init__(
-            name=name, action_spec=action_spec, embedding_size=embedding_size,
+            name=name, action_spec=action_spec, embedding_shape=embedding_shape,
             summary_labels=summary_labels
         )
-        shape = self.action_spec['shape']
+
+        input_spec = dict(type='float', shape=self.embedding_shape)
         num_values = self.action_spec['num_values']
-        action_size = util.product(xs=shape)
-        input_spec = dict(type='float', shape=(self.embedding_size,))
-        self.deviations = self.add_module(
-            name='deviations', module='linear', modules=layer_modules,
-            size=(action_size * num_values), input_spec=input_spec
-        )
-        if infer_states_value:
-            self.value = None
-        else:
-            self.value = self.add_module(
-                name='value', module='linear', modules=layer_modules, size=action_size,
-                input_spec=input_spec
+
+        if len(self.embedding_shape) == 1:
+            action_size = util.product(xs=self.action_spec['shape'])
+            self.deviations = self.add_module(
+                name='deviations', module='linear', modules=layer_modules,
+                size=(action_size * num_values), input_spec=input_spec
             )
+            if infer_states_value:
+                self.value = None
+            else:
+                self.value = self.add_module(
+                    name='value', module='linear', modules=layer_modules, size=action_size,
+                    input_spec=input_spec
+                )
+
+        else:
+            if len(self.embedding_shape) < 1 or len(self.embedding_shape) > 3:
+                raise TensorforceError.unexpected()
+            if self.embedding_shape[:-1] == self.action_spec['shape'][:-1]:
+                size = self.action_spec['shape'][-1]
+            elif self.embedding_shape[:-1] == self.action_spec['shape']:
+                size = 1
+            else:
+                raise TensorforceError.unexpected()
+            self.deviations = self.add_module(
+                name='deviations', module='linear', modules=layer_modules,
+                size=(size * num_values), input_spec=input_spec
+            )
+            if infer_states_value:
+                self.value = None
+            else:
+                self.value = self.add_module(
+                    name='value', module='linear', modules=layer_modules, size=size,
+                    input_spec=input_spec
+                )
 
         Module.register_tensor(
             name=(self.name + '-probabilities'),
-            spec=dict(type='float', shape=(shape + (num_values,))), batched=True
+            spec=dict(type='float', shape=(self.action_spec['shape'] + (num_values,))),
+            batched=True
         )
 
     def tf_parametrize(self, x, mask):
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        shape = (-1,) + self.action_spec['shape'] + (self.action_spec['num_values'],)
+        value_shape = (-1,) + self.action_spec['shape'] + (1,)
 
         # Deviations
         action_values = self.deviations.apply(x=x)
-        shape = (-1,) + self.action_spec['shape'] + (self.action_spec['num_values'],)
         action_values = tf.reshape(tensor=action_values, shape=shape)
         min_float = tf.fill(
             dims=tf.shape(input=action_values), value=util.tf_dtype(dtype='float').min
@@ -82,8 +107,8 @@ class Categorical(Distribution):
             states_value = tf.reduce_logsumexp(input_tensor=action_values, axis=-1)
         else:
             states_value = self.value.apply(x=x)
-            shape = (-1,) + self.action_spec['shape'] + (1,)
-            states_value = tf.reshape(tensor=states_value, shape=shape)
+            if len(self.embedding_shape) == 1:
+                states_value = tf.reshape(tensor=states_value, shape=value_shape)
             action_values = states_value + action_values - tf.math.reduce_mean(
                 input_tensor=action_values, axis=-1, keepdims=True
             )

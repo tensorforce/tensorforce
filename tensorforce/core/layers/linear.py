@@ -13,14 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
+from tensorforce import TensorforceError
+import tensorforce.core
+from tensorforce.core.layers import Layer
 
-from tensorforce.core.layers import TransformationBase
 
-
-class Dense(TransformationBase):
+class Linear(Layer):
     """
-    Dense fully-connected layer (specification key: `dense`).
+    Linear layer (specification key: `linear`).
 
     Args:
         name (string): Layer name
@@ -29,11 +29,6 @@ class Dense(TransformationBase):
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
-            'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
-            (<span style="color:#00C000"><b>default</b></span>: "relu").
-        dropout (parameter, 0.0 <= float < 1.0): Dropout rate
-            (<span style="color:#00C000"><b>default</b></span>: 0.0).
         is_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
@@ -45,43 +40,47 @@ class Dense(TransformationBase):
     """
 
     def __init__(
-        self, name, size, bias=True, activation='relu', dropout=0.0, is_trainable=True,
-        input_spec=None, summary_labels=None, l2_regularization=None
+        self, name, size, bias=True, is_trainable=True, input_spec=None, summary_labels=None,
+        l2_regularization=None
     ):
+        self.size = size
+        self.bias = bias
+        self.is_trainable = is_trainable
+
         super().__init__(
-            name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            name=name, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
     def default_input_spec(self):
-        return dict(type='float', shape=(0,))
+        return dict(type='float', shape=None)
 
     def get_output_spec(self, input_spec):
-        if self.squeeze:
-            input_spec['shape'] = input_spec['shape'][:-1]
+        if len(input_spec['shape']) == 1:
+            self.linear = self.add_module(
+                name=(self.name + '-linear'), module='dense',
+                modules=tensorforce.core.layer_modules, size=self.size, bias=self.bias,
+                activation=None, dropout=0.0, is_trainable=self.is_trainable, input_spec=input_spec
+            )
+
+        elif len(input_spec['shape']) == 2:
+            self.linear = self.add_module(
+                name=(self.name + '-linear'), module='conv1d',
+                modules=tensorforce.core.layer_modules, size=self.size, window=1, bias=self.bias,
+                activation=None, dropout=0.0, is_trainable=self.is_trainable, input_spec=input_spec
+            )
+
+        elif len(input_spec['shape']) == 3:
+            self.linear = self.add_module(
+                name=(self.name + '-linear'), module='conv2d',
+                modules=tensorforce.core.layer_modules, size=self.size, window=1, bias=self.bias,
+                activation=None, dropout=0.0, is_trainable=self.is_trainable, input_spec=input_spec
+            )
+
         else:
-            input_spec['shape'] = input_spec['shape'][:-1] + (self.size,)
-        input_spec.pop('min_value', None)
-        input_spec.pop('max_value', None)
+            raise TensorforceError.unexpected()
 
-        return input_spec
-
-    def tf_initialize(self):
-        super().tf_initialize()
-
-        initializer = 'orthogonal'
-        if self.activation is not None and self.activation.nonlinearity == 'relu':
-            initializer += '-relu'
-
-        in_size = self.input_spec['shape'][0]
-        self.weights = self.add_variable(
-            name='weights', dtype='float', shape=(in_size, self.size),
-            is_trainable=self.is_trainable, initializer=initializer
-        )
+        return self.linear.get_output_spec(input_spec=input_spec)
 
     def tf_apply(self, x):
-        # tf.assert_rank_in(x=x, ranks=(2, 3, 4))
-        x = tf.matmul(a=x, b=self.weights)
-
-        return super().tf_apply(x=x)
+        return self.linear.apply(x=x)

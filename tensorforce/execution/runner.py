@@ -39,9 +39,9 @@ class Runner(object):
         self.save_best_agent = save_best_agent
         self.is_agent_external = isinstance(agent, Agent)
         kwargs = dict()
-        # warning: save_best_agent
-        if not self.is_agent_external and self.save_best_agent:
+        if self.save_best_agent is True:
             # Disable periodic saving
+            assert not self.is_agent_external
             kwargs = dict(saver=dict(seconds=None, steps=None))
         self.agent = Agent.create(agent=agent, environment=self.environment, **kwargs)
         if not self.agent.model.is_initialized:
@@ -208,7 +208,7 @@ class Runner(object):
             assert not self.evaluation
             self.max_evaluation_timesteps = max_evaluation_timesteps
         self.num_evaluation_iterations = num_evaluation_iterations
-        if self.save_best_agent:
+        if self.save_best_agent is not False:
             assert not self.evaluation
             inner_evaluation_callback = self.evaluation_callback
 
@@ -274,14 +274,20 @@ class Runner(object):
                     self.evaluation_agent_seconds.append(self.episode_agent_second)
 
                 # Evaluation callback
-                if self.save_best_agent:
+                if self.save_best_agent is not False:
                     evaluation_score = self.evaluation_callback(self)
                     assert isinstance(evaluation_score, float)
                     if self.best_evaluation_score is None:
                         self.best_evaluation_score = evaluation_score
                     elif evaluation_score > self.best_evaluation_score:
                         self.best_evaluation_score = evaluation_score
-                        self.agent.save(filename='best-model', append_timestep=False)
+                        if self.save_best_agent is True:
+                            self.agent.save(filename='best-model', append_timestep=False)
+                        else:
+                            self.agent.save(
+                                directory=self.save_best_agent, filename='best-model',
+                                append_timestep=False
+                            )
                 else:
                     self.evaluation_callback(self)
 

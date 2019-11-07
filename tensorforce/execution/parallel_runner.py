@@ -52,9 +52,9 @@ class ParallelRunner(object):
         self.save_best_agent = save_best_agent
         self.is_agent_external = isinstance(agent, Agent)
         kwargs = dict(parallel_interactions=len(environments))
-        # warning: save_best_agent
-        if not self.is_agent_external and self.save_best_agent:
+        if self.save_best_agent is True:
             # Disable periodic saving
+            assert not self.is_agent_external
             kwargs = dict(saver=dict(seconds=None, steps=None))
         self.agent = Agent.create(agent=agent, environment=self.environments[0], **kwargs)
         if not self.agent.model.is_initialized:
@@ -216,13 +216,13 @@ class ParallelRunner(object):
         # Evaluation
         if self.evaluation_environment is None:
             assert evaluation_callback is None
-            assert not self.save_best_agent
+            assert self.save_best_agent is False
         else:
             if evaluation_callback is None:
                 self.evaluation_callback = (lambda r: None)
             else:
                 self.evaluation_callback = evaluation_callback
-            if self.save_best_agent:
+            if self.save_best_agent is not False:
                 inner_evaluation_callback = self.evaluation_callback
 
                 def mean_reward_callback(runner):
@@ -357,14 +357,20 @@ class ParallelRunner(object):
                         self.evaluation_agent_seconds.append(self.evaluation_agent_second)
 
                         # Evaluation callback
-                        if self.save_best_agent:
+                        if self.save_best_agent is not False:
                             evaluation_score = self.evaluation_callback(self)
                             assert isinstance(evaluation_score, float)
                             if self.best_evaluation_score is None:
                                 self.best_evaluation_score = evaluation_score
                             elif evaluation_score > self.best_evaluation_score:
                                 self.best_evaluation_score = evaluation_score
-                                self.agent.save(filename='best-model', append_timestep=False)
+                                if self.save_best_agent is True:
+                                    self.agent.save(filename='best-model', append_timestep=False)
+                                else:
+                                    self.agent.save(
+                                        directory=self.save_best_agent, filename='best-model',
+                                        append_timestep=False
+                                    )
                         else:
                             self.evaluation_callback(self)
 

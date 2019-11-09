@@ -22,13 +22,12 @@ import time
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.ops import cond_v2
-from tensorflow.python.ops import while_v2
 
 from tensorforce import TensorforceError, util
 
 
-tf.enable_resource_variables()
+tf.compat.v1.enable_v2_behavior()
+tf.compat.v1.disable_eager_execution()
 
 
 class Module(object):
@@ -239,7 +238,7 @@ class Module(object):
             skip_l2_regularization = tf.math.equal(x=l2_regularization, y=zero)
             regularization_loss = self.cond(
                 pred=skip_l2_regularization, true_fn=no_l2_regularization,
-                false_fn=apply_l2_regularization  # , use_cond_v2=True
+                false_fn=apply_l2_regularization
             )
 
         for module in self.trainable_modules.values():
@@ -273,10 +272,10 @@ class Module(object):
                 name='global-timestep', dtype='long', shape=(), is_trainable=False,
                 initializer='zeros', shared='global-timestep'
             )
-            collection = tf.get_collection(key=tf.GraphKeys.GLOBAL_STEP)
+            collection = tf.compat.v1.get_collection(key=tf.compat.v1.GraphKeys.GLOBAL_STEP)
             if len(collection) == 0:
-                tf.add_to_collection(
-                    name=tf.GraphKeys.GLOBAL_STEP, value=self.global_timestep
+                tf.compat.v1.add_to_collection(
+                    name=tf.compat.v1.GraphKeys.GLOBAL_STEP, value=self.global_timestep
                 )
 
             if self.summarizer_spec is not None:
@@ -332,7 +331,7 @@ class Module(object):
         if self.device is not None:
             self.device = tf.device(device_name_or_function=self.device)
             self.device.__enter__()
-        self.scope = tf.variable_scope(name_or_scope=self.name, use_resource=True)
+        self.scope = tf.compat.v1.variable_scope(name_or_scope=self.name)
 
         with self.scope:
             if self.parent is None:
@@ -383,7 +382,7 @@ class Module(object):
             Module.global_scope = None
             Module.global_summary_step = None
 
-        num_variables = len(tf.trainable_variables())
+        num_variables = len(tf.compat.v1.trainable_variables())
 
         # Internal TensorFlow functions, prefixed by 'tf_'
         for attribute in sorted(dir(self)):
@@ -452,7 +451,7 @@ class Module(object):
                 if fct_record_summaries is not None:
                     fct_record_summaries.__exit__(None, None, None)
 
-        assert num_variables == len(tf.trainable_variables())
+        assert num_variables == len(tf.compat.v1.trainable_variables())
 
         if self.parent is None:
             # if self.summarizer_spec is not None:
@@ -563,35 +562,26 @@ class Module(object):
 
         return fn
 
-    def cond(self, pred, true_fn, false_fn, use_cond_v2=False):
+    def cond(self, pred, true_fn, false_fn, use_cond_v2=True):
         Module.global_scope.append('cond')
-        if use_cond_v2:
-            x = cond_v2.cond_v2(pred=pred, true_fn=true_fn, false_fn=false_fn)
-        else:
-            x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)
+        x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)
         Module.global_scope.pop()
         return x
 
     def while_loop(
         self, cond, body, loop_vars, shape_invariants=None, parallel_iterations=10,
         back_prop=False, swap_memory=False, maximum_iterations=None, return_same_structure=False,
-        use_while_v2=False
+        use_while_v2=True
     ):
         Module.global_scope.append('while')
         if maximum_iterations is not None and maximum_iterations.dtype is not tf.int32:
             maximum_iterations = tf.dtypes.cast(x=maximum_iterations, dtype=tf.int32)
-        if use_while_v2:
-            x = while_v2.while_loop(
-                cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
-                maximum_iterations=maximum_iterations, return_same_structure=return_same_structure
-            )
-        else:
-            x = tf.while_loop(
-                cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
-                parallel_iterations=parallel_iterations, back_prop=back_prop,
-                swap_memory=swap_memory, maximum_iterations=maximum_iterations,
-                return_same_structure=return_same_structure
-            )
+        x = tf.while_loop(
+            cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
+            parallel_iterations=parallel_iterations, back_prop=back_prop,
+            swap_memory=swap_memory, maximum_iterations=maximum_iterations,
+            return_same_structure=return_same_structure
+        )
 
         Module.global_scope.pop()
         return x
@@ -650,9 +640,9 @@ class Module(object):
 
         variable = None
 
-        if shared is not None and len(tf.get_collection(key=shared)) > 0:
+        if shared is not None and len(tf.compat.v1.get_collection(key=shared)) > 0:
             # Retrieve shared variable from TensorFlow
-            collection = tf.get_collection(key=shared)
+            collection = tf.compat.v1.get_collection(key=shared)
             if len(collection) > 1:
                 raise TensorforceError.unexpected()
             variable = collection[0]
@@ -716,12 +706,12 @@ class Module(object):
             # Variable
             variable = tf.Variable(
                 initial_value=initializer, trainable=is_trainable, validate_shape=True, name=name,
-                dtype=tf_dtype, expected_shape=shape, use_resource=True
-            )  # collections=
+                dtype=tf_dtype, shape=shape
+            )
 
             # Register shared variable with TensorFlow
             if shared is not None:
-                tf.add_to_collection(name=shared, value=variable)
+                tf.compat.v1.add_to_collection(name=shared, value=variable)
 
         # Register variable
         self.variables[name] = variable
@@ -770,10 +760,12 @@ class Module(object):
             shape = (None,) + shape
         if default is None:
             dtype = util.tf_dtype(dtype=dtype)
-            placeholder = tf.placeholder(dtype=dtype, shape=shape, name=name)
+            placeholder = tf.compat.v1.placeholder(dtype=dtype, shape=shape, name=name)
         else:
             # check dtype and shape !!!
-            placeholder = tf.placeholder_with_default(input=default, shape=shape, name=name)
+            placeholder = tf.compat.v1.placeholder_with_default(
+                input=default, shape=shape, name=name
+            )
 
         return placeholder
 
@@ -783,7 +775,11 @@ class Module(object):
             return False
 
         # Check whether not in while loop
-        if 'while' in Module.global_scope:  # 'cond' in Module.global_scope
+        if 'while' in Module.global_scope:
+            return False
+
+        # TODO: nested conditions?
+        if Module.global_scope.count('cond') > 1:
             return False
 
         # Check whether given label is logged

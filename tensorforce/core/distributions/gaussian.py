@@ -108,13 +108,13 @@ class Gaussian(Distribution):
 
         Module.update_tensor(name=(self.name + '-mean'), tensor=mean)
         Module.update_tensor(name=(self.name + '-stddev'), tensor=stddev)
-        mean, log_stddev = self.add_summary(
+        mean, stddev, log_stddev = self.add_summary(
             label=('distributions', 'gaussian'), name='mean', tensor=mean,
-            pass_tensors=(mean, log_stddev)
+            pass_tensors=(mean, stddev, log_stddev)
         )
-        stddev, log_stddev = self.add_summary(
+        mean, stddev, log_stddev = self.add_summary(
             label=('distributions', 'gaussian'), name='stddev', tensor=stddev,
-            pass_tensors=(stddev, log_stddev)
+            pass_tensors=(mean, stddev, log_stddev)
         )
 
         return mean, stddev, log_stddev

@@ -34,6 +34,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         )
         network = [
             dict(type='conv1d', size=8),
+            dict(type='conv1d_transpose', size=8),
             dict(type='linear', size=8)
         ]
         self.unittest(states=states, actions=actions, policy=dict(network=network))
@@ -47,6 +48,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         )
         network = [
             dict(type='conv2d', size=8),
+            dict(type='conv2d_transpose', size=8),
             dict(type='linear', size=8)
         ]
         self.unittest(states=states, actions=actions, policy=dict(network=network))

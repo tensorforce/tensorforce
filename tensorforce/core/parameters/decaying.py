@@ -159,39 +159,39 @@ class Decaying(Parameter):
         initial_value = tf.constant(value=self.initial_value, dtype=util.tf_dtype(dtype="float"))
 
         if self.decay == "cosine":
-            parameter = tf.train.cosine_decay(
+            parameter = tf.compat.v1.train.cosine_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
                 alpha=self.kwargs.get("alpha", 0.0)
             )
 
         elif self.decay == "cosine_restarts":
-            parameter = tf.train.cosine_decay_restarts(
+            parameter = tf.compat.v1.train.cosine_decay_restarts(
                 learning_rate=initial_value, global_step=step,
                 first_decay_steps=self.decay_steps, t_mul=self.kwargs.get("t_mul", 2.0),
                 m_mul=self.kwargs.get("m_mul", 1.0), alpha=self.kwargs.get("alpha", 0.0)
             )
 
         elif self.decay == "exponential":
-            parameter = tf.train.exponential_decay(
+            parameter = tf.compat.v1.train.exponential_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
                 decay_rate=self.kwargs["decay_rate"], staircase=self.kwargs.get("staircase", False)
             )
 
         elif self.decay == "inverse_time":
-            parameter = tf.train.inverse_time_decay(
+            parameter = tf.compat.v1.train.inverse_time_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
                 decay_rate=self.kwargs["decay_rate"], staircase=self.kwargs.get("staircase", False)
             )
 
         elif self.decay == "linear_cosine":
-            parameter = tf.train.linear_cosine_decay(
+            parameter = tf.compat.v1.train.linear_cosine_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
                 num_periods=self.kwargs.get("num_periods", 0.5),
                 alpha=self.kwargs.get("alpha", 0.0), beta=self.kwargs.get("beta", 0.001)
             )
 
         elif self.decay == "linear_cosine_noisy":
-            parameter = tf.train.noisy_linear_cosine_decay(
+            parameter = tf.compat.v1.train.noisy_linear_cosine_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
                 initial_variance=self.kwargs.get("initial_variance", 1.0),
                 variance_decay=self.kwargs.get("variance_decay", 0.55),
@@ -200,13 +200,13 @@ class Decaying(Parameter):
             )
 
         elif self.decay == "natural_exponential":
-            parameter = tf.train.natural_exp_decay(
+            parameter = tf.compat.v1.train.natural_exp_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
                 decay_rate=self.kwargs["decay_rate"], staircase=self.kwargs.get("staircase", False)
             )
 
         elif self.decay == "polynomial":
-            parameter = tf.train.polynomial_decay(
+            parameter = tf.compat.v1.train.polynomial_decay(
                 learning_rate=initial_value, global_step=step, decay_steps=self.decay_steps,
                 end_learning_rate=self.kwargs["final_value"], power=self.kwargs.get("power", 1.0),
                 cycle=self.kwargs.get("cycle", False)

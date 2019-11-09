@@ -42,7 +42,8 @@ class PyGameLearningEnvironment(Environment):
 
     Args:
         level (string | subclass of `ple.games.base`): Game instance or name of class in
-            `ple.games`, like "Catcher", "Doom", "FlappyBird", "MonsterKong", "Pixelcopter", "Pong", "PuckWorld", "RaycastMaze", "Snake", "WaterWorld".
+            `ple.games`, like "Catcher", "Doom", "FlappyBird", "MonsterKong", "Pixelcopter", 
+            "Pong", "PuckWorld", "RaycastMaze", "Snake", "WaterWorld"
             (<span style="color:#C00000"><b>required</b></span>).
         visualize (bool): Whether to visualize interaction
             (<span style="color:#00C000"><b>default</b></span>: false).

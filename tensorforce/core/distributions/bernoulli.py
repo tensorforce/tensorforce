@@ -91,8 +91,8 @@ class Bernoulli(Distribution):
         )
 
         # "Normalized" logits
-        true_logit = tf.log(x=probability)
-        false_logit = tf.log(x=(one - probability))
+        true_logit = tf.math.log(x=probability)
+        false_logit = tf.math.log(x=(one - probability))
 
         Module.update_tensor(name=(self.name + '-probability'), tensor=probability)
         true_logit, false_logit, probability, states_value = self.add_summary(

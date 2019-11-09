@@ -37,7 +37,6 @@ class Recent(Queue):
     """
 
     def tf_retrieve_timesteps(self, n, past_padding, future_padding):
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
         # # Start index of oldest episode
@@ -45,16 +44,16 @@ class Recent(Queue):
 
         # # Number of timesteps (minus/plus one to prevent zero but allow capacity)
         # num_timesteps = self.buffer_index - oldest_episode_start - future_padding - one
-        # num_timesteps = tf.mod(x=num_timesteps, y=capacity) + one
+        # num_timesteps = tf.math.mod(x=num_timesteps, y=capacity) + one
 
         # Check whether memory contains enough timesteps
         num_timesteps = tf.minimum(x=self.buffer_index, y=capacity) - past_padding - future_padding
-        assertion = tf.debugging.assert_less_equal(x=n, y=num_timesteps)
+        assertion = tf.compat.v1.debugging.assert_less_equal(x=n, y=num_timesteps)
 
         # Most recent timestep indices range
         with tf.control_dependencies(control_inputs=(assertion,)):  # Assertions in memory as warning!!!
             indices = tf.range(start=(self.buffer_index - n), limit=self.buffer_index)
-            indices = tf.mod(x=(indices - future_padding), y=capacity)
+            indices = tf.math.mod(x=(indices - future_padding), y=capacity)
 
         return indices
 
@@ -64,7 +63,7 @@ class Recent(Queue):
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
         # Check whether memory contains enough episodes
-        assertion = tf.debugging.assert_less_equal(x=n, y=self.episode_count)
+        assertion = tf.compat.v1.debugging.assert_less_equal(x=n, y=self.episode_count)
 
         # Get start and limit index for most recent n episodes
         with tf.control_dependencies(control_inputs=(assertion,)):
@@ -79,7 +78,7 @@ class Recent(Queue):
 
         # Most recent episode indices range
         indices = tf.range(start=start, limit=limit)
-        indices = tf.mod(x=indices, y=capacity)
+        indices = tf.math.mod(x=indices, y=capacity)
 
         return indices
 
@@ -92,17 +91,17 @@ class Recent(Queue):
 
     #     # Number of sequences (minus/plus one to prevent zero but allow capacity-sequence_length)
     #     num_sequences = self.buffer_index - oldest_episode_start - sequence_length
-    #     num_sequences = tf.mod(x=num_sequences, y=capacity) + one
+    #     num_sequences = tf.math.mod(x=num_sequences, y=capacity) + one
 
     #     # Check whether memory contains enough sequences
-    #     assertion = tf.debugging.assert_less_equal(x=n, y=num_sequences)
+    #     assertion = tf.compat.v1.debugging.assert_less_equal(x=n, y=num_sequences)
 
     #     # Most recent timestep indices range
     #     with tf.control_dependencies(control_inputs=(assertion,)):
     #         indices = tf.range(
     #             start=(self.buffer_index - n - sequence_length), limit=self.buffer_index
     #         )
-    #         indices = tf.mod(x=indices, y=capacity)
+    #         indices = tf.math.mod(x=indices, y=capacity)
 
     #     # ???????
     #     # sequence_indices = [tf.range(start=indices[n], limit=(indices[n] + sequence_length)) for k in range(n)]

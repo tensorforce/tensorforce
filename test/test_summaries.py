@@ -30,7 +30,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         # FEATURES.MD
         self.start_tests()
 
-        # 'dropout', 'kl-divergence'
+        # TODO: 'dropout'
         reward_estimation = dict(horizon=2, estimate_horizon='late')
         baseline_policy = dict(network=dict(type='auto', size=8, internal_rnn=1))
         baseline_objective = 'policy_gradient'

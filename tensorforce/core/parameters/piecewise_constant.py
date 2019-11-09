@@ -70,7 +70,7 @@ class PiecewiseConstant(Parameter):
         elif self.unit == 'updates':
             step = Module.retrieve_tensor(name='update')
 
-        parameter = tf.train.piecewise_constant(
+        parameter = tf.compat.v1.train.piecewise_constant(
             x=step, boundaries=self.boundaries, values=self.values
         )
 

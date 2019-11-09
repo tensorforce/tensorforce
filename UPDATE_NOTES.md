@@ -10,8 +10,10 @@ This file records all major updates and new features, starting from version 0.5.
 - Improved summary labels, particularly `"entropy"` and `"kl-divergence"`
 - `linear` layer now accepts tensors of rank 1 to 3
 - Network output / distribution input does not need to be a vector anymore
+- Transposed convolution layers (`conv1d/2d_transpose`)
 - Parallel execution functionality contributed by @jerabaul29, currently under `tensorforce/contrib/`
 - Accept string for runner `save_best_agent` argument to specify best model directory different from `saver` configuration
+- TensorFlow 1.15 support
 
 
 

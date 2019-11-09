@@ -36,9 +36,8 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         # (Tensorforce or custom implementation, ideally using the Environment interface)
         environment = Environment.create(environment='test/data/environment.json')
 
-        # Create and initialize agent
+        # Create agent
         agent = Agent.create(agent='test/data/agent.json', environment=environment)
-        agent.initialize()
 
         # Reset agent and environment at the beginning of a new episode
         agent.reset()
@@ -155,9 +154,6 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             reward_estimation=dict(horizon=20)
         )
 
-        # Initialize the agent
-        agent.initialize()
-
         # Retrieve the latest (observable) environment state
         state = get_current_state()  # (float array of shape [10])
 
@@ -183,7 +179,6 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             states=dict(type='float', shape=(10,)),
             actions=dict(type='int', shape=(), num_values=3)
         )
-        agent.initialize()
         states = environment.reset()
         assert 'state' in states and 'action_mask' in states
         states['action_mask'] = [True, False, True]

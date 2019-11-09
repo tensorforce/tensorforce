@@ -74,7 +74,7 @@ class TestPolicyAgent(UnittestAgent, unittest.TestCase):
                 agent.observe(terminal=terminal, reward=reward)
 
         agent.pretrain(
-            directory=self.__class__.directory, num_updates=3, num_traces=2, num_iterations=2
+            directory=self.__class__.directory, num_iterations=2, num_traces=2, num_updates=3
         )
 
         agent.close()

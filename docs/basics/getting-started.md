@@ -12,9 +12,8 @@ from tensorforce.environments import Environment
 # (Tensorforce or custom implementation, ideally using the Environment interface)
 environment = Environment.create(environment='environment.json')
 
-# Create and initialize agent
+# Create agent
 agent = Agent.create(agent='agent.json', environment=environment)
-agent.initialize()
 
 # Reset agent and environment at the beginning of a new episode
 agent.reset()

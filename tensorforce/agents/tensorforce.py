@@ -223,6 +223,10 @@ class TensorforceAgent(Agent):
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in episodes to record
             traces (<span style="color:#00C000"><b>default</b></span>: every episode).</li>
+            <li><b>start</b> (<i>int >= 0</i>) &ndash; how many episodes to skip before starting to
+            record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
+            <li><b>start</b> (<i>int >= 0</i>) &ndash; how many episodes to skip before starting to
+            record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
             <li><b>max-traces</b> (<i>int > 0</i>) &ndash; maximum number of traces to keep
             (<span style="color:#00C000"><b>default</b></span>: all).</li>
     """
@@ -454,7 +458,7 @@ class TensorforceAgent(Agent):
             )
             return queried
 
-    def pretrain(self, directory, num_updates, num_traces=None, num_iterations=1):
+    def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1):
         """
         Pretrain from experience traces.
 
@@ -462,13 +466,13 @@ class TensorforceAgent(Agent):
             directory (path): Directory with experience traces, e.g. obtained via recorder; episode
                 length has to be consistent with agent configuration
                 (<span style="color:#C00000"><b>required</b></span>).
-            num_updates (int > 0): Number of updates per iteration
+            num_iterations (int > 0): Number of iterations consisting of loading new traces and
+                performing multiple updates
                 (<span style="color:#C00000"><b>required</b></span>).
             num_traces (int > 0): Number of traces to load per iteration; has to at least satisfy
                 the update batch size
-                (<span style="color:#00C000"><b>default</b></span>: all).
-            num_iterations (int > 0): Number of iterations consisting of loading new traces and
-                performing multiple updates
+                (<span style="color:#00C000"><b>default</b></span>: 1).
+            num_updates (int > 0): Number of updates per iteration
                 (<span style="color:#00C000"><b>default</b></span>: 1).
         """
         if not os.path.isdir(directory):

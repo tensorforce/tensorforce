@@ -44,8 +44,6 @@ class Runner(object):
             assert not self.is_agent_external
             kwargs = dict(saver=dict(seconds=None, steps=None))
         self.agent = Agent.create(agent=agent, environment=self.environment, **kwargs)
-        if not self.agent.model.is_initialized:
-            self.agent.initialize()
 
         # self.global_episodes = self.agent.episodes
         # self.global_timesteps = self.agent.timesteps
@@ -201,6 +199,8 @@ class Runner(object):
         else:
             assert not self.evaluation
             self.evaluation_callback = evaluation_callback
+        if self.evaluation:
+            assert evaluation_frequency is None
         self.evaluation_frequency = evaluation_frequency
         if max_evaluation_timesteps is None:
             self.max_evaluation_timesteps = float('inf')

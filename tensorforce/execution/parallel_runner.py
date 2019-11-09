@@ -57,8 +57,6 @@ class ParallelRunner(object):
             assert not self.is_agent_external
             kwargs = dict(saver=dict(seconds=None, steps=None))
         self.agent = Agent.create(agent=agent, environment=self.environments[0], **kwargs)
-        if not self.agent.model.is_initialized:
-            self.agent.initialize()
 
         # self.global_episodes = self.agent.episodes
         # self.global_timesteps = self.agent.timesteps

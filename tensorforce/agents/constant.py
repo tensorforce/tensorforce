@@ -80,6 +80,17 @@ class ConstantAgent(Agent):
             <li>"graph": graph summary</li>
             <li>"parameters": parameter scalars</li>
             </ul>
+        recorder (specification): Experience traces recorder configuration with the following
+            attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):
+            <ul>
+            <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in episodes to record
+            traces (<span style="color:#00C000"><b>default</b></span>: every episode).</li>
+            <li><b>start</b> (<i>int >= 0</i>) &ndash; how many episodes to skip before starting to
+            record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
+            <li><b>max-traces</b> (<i>int > 0</i>) &ndash; maximum number of traces to keep
+            (<span style="color:#00C000"><b>default</b></span>: all).</li>
     """
 
     def __init__(

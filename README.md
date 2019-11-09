@@ -91,9 +91,6 @@ agent = Agent.create(
     reward_estimation=dict(horizon=20)
 )
 
-# Initialize the agent
-agent.initialize()
-
 # Retrieve the latest (observable) environment state
 state = get_current_state()  # (float array of shape [10])
 

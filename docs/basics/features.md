@@ -33,7 +33,7 @@ agent.close()
 agent = Agent.create(...)
 agent.pretrain(
     directory='data/traces',
-    num_updates=100  # perform 100 updates on traces (other configurations possible)
+    num_iterations=100  # perform 100 update iterations on traces (more configurations possible)
 )
 ```
 

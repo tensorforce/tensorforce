@@ -92,7 +92,8 @@ setup(
     install_requires=install_requires,
     extras_require=dict(
         tf=["tensorflow==1.15"],
-        tf_gpu=["tensorflow-gpu==1.15"],
+        tf_gpu=["tensorflow==1.15"],
+        # tf_gpu=["tensorflow-gpu==1.15"],
         docs=["m2r", "recommonmark", "sphinx", "sphinx-rtd-theme"],
         envs=["gym[all]", "gym-retro", "mazeexp", "vizdoom"],
         mazeexp=["mazeexp"],

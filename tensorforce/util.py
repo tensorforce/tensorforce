@@ -850,7 +850,7 @@ class SavableComponent(object):
         base_scope = self._get_base_variable_scope()
         variables_map = {strip_name_scope(v.name, base_scope): v for v in variables}
 
-        self._saver = tf.train.Saver(
+        self._saver = tf.compat.v1.train.Saver(
             var_list=variables_map,
             reshape=False,
             sharded=False,
@@ -862,7 +862,7 @@ class SavableComponent(object):
             builder=None,
             defer_build=False,
             allow_empty=True,
-            write_version=tf.train.SaverDef.V2,
+            write_version=tf.compat.v1.train.SaverDef.V2,
             pad_step_number=False,
             save_relative_paths=True
         )

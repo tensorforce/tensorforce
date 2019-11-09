@@ -232,7 +232,7 @@ class Model(Module):
         else:
             # Creates and stores a tf server (and optionally joins it if we are a parameter-server).
             # Only relevant, if we are running in distributed mode.
-            self.server = tf.train.Server(
+            self.server = tf.compat.v1.train.Server(
                 server_or_cluster_def=self.distributed_spec["cluster_spec"],
                 job_name=self.distributed_spec["job"],
                 task_index=self.distributed_spec["task_index"],
@@ -253,7 +253,7 @@ class Model(Module):
             return
 
         # Saver/Summary -> Scaffold.
-        # Creates the tf.train.Saver object and stores it in self.saver.
+        # Creates the tf.compat.v1.train.Saver object and stores it in self.saver.
         if self.execution_spec is None or self.execution_type == "single":
             saved_variables = self.get_variables(only_saved=True)
         else:
@@ -352,7 +352,7 @@ class Model(Module):
                 else:
                     self.graph = tf.get_default_graph()  # lives in the same graph as local model
                     self.global_model = None
-                    self.device = tf.train.replica_device_setter(
+                    self.device = tf.compat.v1.train.replica_device_setter(
                         # Place its Variables on the parameter server(s) (round robin).
                         #ps_device="/job:ps",  # default
                         # Train-ops for the global_model are hosted locally (on this worker's node).
@@ -371,7 +371,7 @@ class Model(Module):
 
     def setup_scaffold(self):
         """
-        Creates the tf.train.Scaffold object and assigns it to self.scaffold.
+        Creates the tf.compat.v1.train.Scaffold object and assigns it to self.scaffold.
         Other fields of the Scaffold are generated automatically.
         """
         if self.execution_spec is None or self.execution_type == "single":
@@ -432,7 +432,7 @@ class Model(Module):
                 if isinstance(load, str):
                     save_path = os.path.join(directory, load)
                 else:
-                    save_path = tf.train.latest_checkpoint(
+                    save_path = tf.compat.v1.train.latest_checkpoint(
                         checkpoint_dir=directory, latest_filename=None
                     )
                 if save_path is not None:
@@ -468,7 +468,7 @@ class Model(Module):
             self.saver_filename = self.saver_spec.get('filename', 'agent')
             frequency = self.saver_spec.get('frequency', 600)
             if frequency is not None:
-                hooks.append(tf.train.CheckpointSaverHook(
+                hooks.append(tf.compat.v1.train.CheckpointSaverHook(
                     checkpoint_dir=self.saver_directory, save_secs=frequency, save_steps=None,
                     saver=None,  # None since given via 'scaffold' argument.
                     checkpoint_basename=self.saver_filename, scaffold=self.scaffold, listeners=None
@@ -478,13 +478,13 @@ class Model(Module):
             self.saver_filename = 'agent'
 
         # Stop at step hook
-        # hooks.append(tf.train.StopAtStepHook(
+        # hooks.append(tf.compat.v1.train.StopAtStepHook(
         #     num_steps=???,  # This makes more sense, if load and continue training.
         #     last_step=None  # Either one or the other has to be set.
         # ))
 
         # # Step counter hook
-        # hooks.append(tf.train.StepCounterHook(
+        # hooks.append(tf.compat.v1.train.StepCounterHook(
         #     every_n_steps=counter_config.get('steps', 100),  # Either one or the other has to be set.
         #     every_n_secs=counter_config.get('secs'),  # Either one or the other has to be set.
         #     output_dir=None,  # None since given via 'summary_writer' argument.
@@ -492,11 +492,11 @@ class Model(Module):
         # ))
 
         # Other available hooks:
-        # tf.train.FinalOpsHook(final_ops, final_ops_feed_dict=None)
-        # tf.train.GlobalStepWaiterHook(wait_until_step)
-        # tf.train.LoggingTensorHook(tensors, every_n_iter=None, every_n_secs=None)
-        # tf.train.NanTensorHook(loss_tensor, fail_on_nan_loss=True)
-        # tf.train.ProfilerHook(save_steps=None, save_secs=None, output_dir='', show_dataflow=True, show_memory=False)
+        # tf.compat.v1.train.FinalOpsHook(final_ops, final_ops_feed_dict=None)
+        # tf.compat.v1.train.GlobalStepWaiterHook(wait_until_step)
+        # tf.compat.v1.train.LoggingTensorHook(tensors, every_n_iter=None, every_n_secs=None)
+        # tf.compat.v1.train.NanTensorHook(loss_tensor, fail_on_nan_loss=True)
+        # tf.compat.v1.train.ProfilerHook(save_steps=None, save_secs=None, output_dir='', show_dataflow=True, show_memory=False)
 
         return hooks
 
@@ -505,14 +505,14 @@ class Model(Module):
         Creates and then enters the session for this model (finalizes the graph).
 
         Args:
-            server (tf.train.Server): The tf.train.Server object to connect to (None for single execution).
+            server (tf.compat.v1.train.Server): The tf.compat.v1.train.Server object to connect to (None for single execution).
             hooks (list): A list of (saver, summary, etc..) hooks to be passed to the session.
             graph_default_context: The graph as_default() context that we are currently in.
         """
         if self.execution_spec is not None and self.execution_type == "distributed":
             # if self.distributed_spec['task_index'] == 0:
             # TensorFlow chief session creator object
-            session_creator = tf.train.ChiefSessionCreator(
+            session_creator = tf.compat.v1.train.ChiefSessionCreator(
                 scaffold=self.scaffold,
                 master=server.target,
                 config=self.session_config,
@@ -521,7 +521,7 @@ class Model(Module):
             )
             # else:
             #     # TensorFlow worker session creator object
-            #     session_creator = tf.train.WorkerSessionCreator(
+            #     session_creator = tf.compat.v1.train.WorkerSessionCreator(
             #         scaffold=self.scaffold,
             #         master=server.target,
             #         config=self.execution_spec.get('session_config'),
@@ -1258,7 +1258,7 @@ class Model(Module):
             assert self.saver_directory
             directory = self.saver_directory
         if filename is None or not os.path.isfile(os.path.join(directory, filename + '.meta')):
-            save_path = tf.train.latest_checkpoint(checkpoint_dir=directory, latest_filename=None)
+            save_path = tf.compat.v1.train.latest_checkpoint(checkpoint_dir=directory, latest_filename=None)
         else:
             save_path = os.path.join(directory, filename)
 

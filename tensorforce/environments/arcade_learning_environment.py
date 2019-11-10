@@ -59,6 +59,8 @@ class ArcadeLearningEnvironment(Environment):
         self, level, life_loss_terminal=False, life_loss_punishment=0.0,
         repeat_action_probability=0.0, visualize=False, frame_skip=1, seed=None
     ):
+        super().__init__()
+
         from ale_python_interface import ALEInterface
 
         self.environment = ALEInterface()

@@ -134,6 +134,8 @@ class OpenAIGym(Environment):
         reward_threshold=None, tags=None, drop_states_indices=None, visualize_directory=None,
         **kwargs
     ):
+        super().__init__()
+
         import gym
         import gym.wrappers
 

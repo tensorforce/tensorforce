@@ -35,6 +35,8 @@ class OpenSim(Environment):
         return ['Arm2D', 'L2Run', 'Prosthetics']
 
     def __init__(self, level, visualize=False, integrator_accuracy=5e-5):
+        super().__init__()
+
         from osim.env import L2RunEnv, Arm2DEnv, ProstheticsEnv
 
         environments = dict(Arm2D=Arm2DEnv, L2Run=L2RunEnv, Prosthetics=ProstheticsEnv)

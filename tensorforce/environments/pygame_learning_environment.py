@@ -65,6 +65,8 @@ class PyGameLearningEnvironment(Environment):
         return levels
 
     def __init__(self, level, visualize=False, frame_skip=1, fps=30):
+        super().__init__()
+
         import ple
 
         if isinstance(level, str):

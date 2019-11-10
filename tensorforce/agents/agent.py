@@ -226,6 +226,36 @@ class Agent(object):
             dtype=util.np_dtype(dtype='float')
         )
 
+        # Recorder buffers if required
+        if self.recorder_spec is not None:
+            self.states_buffers = OrderedDict()
+            self.actions_buffers = OrderedDict()
+            for name, spec in self.states_spec.items():
+                shape = (self.parallel_interactions, self.buffer_observe) + spec['shape']
+                self.states_buffers[name] = np.ndarray(
+                    shape=shape, dtype=util.np_dtype(dtype=spec['type'])
+                )
+            for name, spec in self.actions_spec.items():
+                shape = (self.parallel_interactions, self.buffer_observe) + spec['shape']
+                self.actions_buffers[name] = np.ndarray(
+                    shape=shape, dtype=util.np_dtype(dtype=spec['type'])
+                )
+                if spec['type'] == 'int':
+                    shape = (self.parallel_interactions, self.buffer_observe) + spec['shape'] + \
+                        (spec['num_values'],)
+                    self.states_buffers[name + '_mask'] = np.ndarray(
+                        shape=shape, dtype=util.np_dtype(dtype='bool')
+                    )
+
+            self.num_episodes = 0
+            self.record_states = OrderedDict(((name, list()) for name in self.states_spec))
+            self.record_actions = OrderedDict(((name, list()) for name in self.actions_spec))
+            for name, spec in self.actions_spec.items():
+                if spec['type'] == 'int':
+                    self.record_states[name + '_mask'] = list()
+            self.record_terminal = list()
+            self.record_reward = list()
+
         # Parallel buffer indices
         self.buffer_indices = np.zeros(
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
@@ -234,16 +264,6 @@ class Agent(object):
         self.timesteps = 0
         self.episodes = 0
         self.updates = 0
-
-        if self.recorder_spec is not None:
-            self.record_states = OrderedDict(((name, list()) for name in self.states_spec))
-            for name, spec in self.actions_spec.items():
-                if spec['type'] == 'int':
-                    self.record_states[name + '_mask'] = list()
-            self.record_actions = OrderedDict(((name, list()) for name in self.actions_spec))
-            self.record_terminal = list()
-            self.record_reward = list()
-            self.num_episodes = 0
 
         # Setup Model
         if not hasattr(self, 'model'):
@@ -341,17 +361,19 @@ class Agent(object):
 
         if self.recorder_spec is not None and not independent and \
                 self.episodes >= self.recorder_spec.get('start', 0):
+            index = self.buffer_indices[parallel]
             for name in self.states_spec:
-                self.record_states[name].append(states[name])
+                self.states_buffers[name][parallel, index] = states[name][0]
             for name, spec in self.actions_spec.items():
-                self.record_actions[name].append(actions[name])
+                self.actions_buffers[name][parallel, index] = actions[name][0]
                 if spec['type'] == 'int':
-                    if name + '_mask' in auxiliaries:
-                        self.record_states[name + '_mask'].append(auxiliaries[name + '_mask'])
+                    name = name + '_mask'
+                    if name in auxiliaries:
+                        self.states_buffers[name][parallel, index] = auxiliaries[name][0]
                     else:
                         shape = (1,) + spec['shape'] + (spec['num_values'],)
-                        self.record_states[name + '_mask'].append(
-                            np.full(shape, True, dtype=util.np_dtype(dtype='bool'))
+                        self.states_buffers[name][parallel, index] = np.full(
+                            shape=shape, fill_value=True, dtype=util.np_dtype(dtype='bool')
                         )
 
         # Unbatch actions
@@ -412,6 +434,18 @@ class Agent(object):
 
             if self.recorder_spec is not None and \
                     self.episodes >= self.recorder_spec.get('start', 0):
+                for name in self.states_spec:
+                    self.record_states[name].append(
+                        np.array(self.states_buffers[name][parallel, :index])
+                    )
+                for name, spec in self.actions_spec.items():
+                    self.record_actions[name].append(
+                        np.array(self.actions_buffers[name][parallel, :index])
+                    )
+                    if spec['type'] == 'int':
+                        self.record_states[name + '_mask'].append(
+                            np.array(self.states_buffers[name + '_mask'][parallel, :index])
+                        )
                 self.record_terminal.append(np.array(terminal))
                 self.record_reward.append(np.array(reward))
 

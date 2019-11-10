@@ -42,6 +42,8 @@ class MazeExplorer(Environment):
         return list(range(len(mazeexp.engine.config.modes)))
 
     def __init__(self, level, visualize=False):
+        super().__init__()
+
         import mazeexp
 
         assert level in MazeExplorer.levels()

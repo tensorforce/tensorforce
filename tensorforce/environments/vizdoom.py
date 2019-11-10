@@ -55,6 +55,8 @@ class ViZDoom(Environment):
         self, level, visualize=False, include_variables=False, factored_action=False,
         frame_skip=12, seed=None
     ):
+        super().__init__()
+
         from vizdoom import DoomGame, Mode, ScreenFormat, ScreenResolution
 
         self.config_file = level

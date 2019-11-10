@@ -62,15 +62,15 @@ class Evolutionary(Optimizer):
         learning_rate = self.learning_rate.value()
         unperturbed_loss = fn_loss(**arguments)
 
-        deltas = [tf.zeros_like(tensor=variable) for variable in variables]
-        previous_perturbations = [tf.zeros_like(tensor=variable) for variable in variables]
+        deltas = [tf.zeros_like(input=variable) for variable in variables]
+        previous_perturbations = [tf.zeros_like(input=variable) for variable in variables]
 
         if self.unroll_loop:
             # Unrolled for loop
             for sample in range(self.num_samples):
                 with tf.control_dependencies(control_inputs=deltas):
                     perturbations = [
-                        tf.random_normal(shape=util.shape(variable)) * learning_rate
+                        tf.random.normal(shape=util.shape(variable)) * learning_rate
                         for variable in variables
                     ]
                     perturbation_deltas = [
@@ -93,7 +93,7 @@ class Evolutionary(Optimizer):
             def body(deltas, previous_perturbations):
                 with tf.control_dependencies(control_inputs=deltas):
                     perturbations = [
-                        learning_rate * tf.random_normal(
+                        learning_rate * tf.random.normal(
                             shape=util.shape(x=variable), dtype=util.tf_dtype(dtype='float')
                         ) for variable in variables
                     ]
@@ -116,7 +116,7 @@ class Evolutionary(Optimizer):
             num_samples = self.num_samples.value()
             deltas, perturbations = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas, previous_perturbations),
-                back_prop=False, maximum_iterations=num_samples, use_while_v2=True
+                back_prop=False, maximum_iterations=num_samples
             )
 
         with tf.control_dependencies(control_inputs=deltas):

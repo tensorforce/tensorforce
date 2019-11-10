@@ -173,7 +173,7 @@ class ConjugateGradient(Iterative):
         """
         if x_init is None:
             # Initial guess is zero vector if not given.
-            x_init = [tf.zeros_like(tensor=t, dtype=util.tf_dtype(dtype='float')) for t in b]
+            x_init = [tf.zeros_like(input=t, dtype=util.tf_dtype(dtype='float')) for t in b]
 
         # r_0 := b - A * x_0
         # c_0 := r_0

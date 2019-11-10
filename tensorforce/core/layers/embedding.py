@@ -30,9 +30,6 @@ class Embedding(TransformationBase):
             (<span style="color:#C00000"><b>required</b></span>).
         num_embeddings (int > 0): If set, specifies the number of embeddings
             (<span style="color:#00C000"><b>default</b></span>: none).
-        partition_strategy ('mod' | 'div'): Partitioning strategy, see
-            `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/nn/embedding_lookup>`__
-            (<span style="color:#00C000"><b>default</b></span>: 'mod').
         max_norm (float): If set, embeddings are clipped if their L2-norm is larger
             (<span style="color:#00C000"><b>default</b></span>: none).
         bias (bool): Whether to add a trainable bias variable
@@ -54,9 +51,9 @@ class Embedding(TransformationBase):
     """
 
     def __init__(
-        self, name, size, num_embeddings=None, partition_strategy='mod', max_norm=None,
-        bias=False, activation='tanh', dropout=0.0, is_trainable=True,
-        input_spec=None, summary_labels=None, l2_regularization=None
+        self, name, size, num_embeddings=None, max_norm=None, bias=False, activation='tanh',
+        dropout=0.0, is_trainable=True, input_spec=None, summary_labels=None,
+        l2_regularization=None
     ):
         """
         Embedding constructor.
@@ -76,7 +73,6 @@ class Embedding(TransformationBase):
         )
 
         self.num_embeddings = num_embeddings
-        self.partition_strategy = partition_strategy
         self.max_norm = max_norm
 
     def default_input_spec(self):
@@ -121,9 +117,6 @@ class Embedding(TransformationBase):
         elif util.dtype(x=x) == 'bool':
             x = tf.dtypes.cast(x=x, dtype=util.tf_dtype('int'))
 
-        x = tf.nn.embedding_lookup(
-            params=self.weights, ids=x, partition_strategy=self.partition_strategy,
-            max_norm=self.max_norm
-        )
+        x = tf.nn.embedding_lookup(params=self.weights, ids=x, max_norm=self.max_norm)
 
         return super().tf_apply(x=x)

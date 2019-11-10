@@ -77,9 +77,7 @@ class RandomModel(Model):
 
                 # Random unmasked action
                 mask = auxiliaries[name + '_mask']
-                num_values = tf.math.count_nonzero(
-                    input_tensor=mask, axis=-1, dtype=int_dtype
-                )
+                num_values = tf.math.count_nonzero(input=mask, axis=-1, dtype=int_dtype)
                 action = tf.random.uniform(shape=shape, dtype=float_dtype)
                 action = tf.dtypes.cast(
                     x=(action * tf.dtypes.cast(x=num_values, dtype=float_dtype)), dtype=int_dtype

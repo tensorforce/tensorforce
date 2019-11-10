@@ -324,12 +324,18 @@ class TemporalLayer(Layer):
                         for name, current_aggregate, next_aggregate in util.zip_items(
                             current_aggregates, next_aggregates
                         ):
+                            condition = is_finished
+                            for _ in range(util.rank(x=current_aggregate) - 1):
+                                condition = tf.expand_dims(input=condition, axis=1)
                             next_aggregates[name] = tf.where(
-                                condition=is_finished, x=current_aggregate, y=next_aggregate
+                                condition=condition, x=current_aggregate, y=next_aggregate
                             )
                     else:
+                        condition = is_finished
+                        for _ in range(util.rank(x=current_aggregates) - 1):
+                            condition = tf.expand_dims(input=condition, axis=1)
                         next_aggregates = tf.where(
-                            condition=is_finished, x=current_aggregates, y=next_aggregates
+                            condition=condition, x=current_aggregates, y=next_aggregates
                         )
                     remaining -= tf.where(condition=is_finished, x=zeros, y=ones)
                     indices += tf.where(
@@ -341,6 +347,7 @@ class TemporalLayer(Layer):
                 shape=((batch_size,) + self.output_spec['shape']),
                 dtype=util.tf_dtype(dtype=self.output_spec['type'])
             )
+
             if initial is None:
                 initial_aggregates = self.initial_values()
             else:

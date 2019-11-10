@@ -135,7 +135,6 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='flatten')
         ]
         self.unittest(states=states, policy=dict(network=network))
-        self.start_tests(name='normalization')
 
         states = dict(type='float', shape=(2, 2, 3))
         network = [

@@ -562,7 +562,7 @@ class Module(object):
 
         return fn
 
-    def cond(self, pred, true_fn, false_fn, use_cond_v2=True):
+    def cond(self, pred, true_fn, false_fn):
         Module.global_scope.append('cond')
         x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)
         Module.global_scope.pop()
@@ -570,8 +570,7 @@ class Module(object):
 
     def while_loop(
         self, cond, body, loop_vars, shape_invariants=None, parallel_iterations=10,
-        back_prop=False, swap_memory=False, maximum_iterations=None, return_same_structure=False,
-        use_while_v2=True
+        back_prop=False, swap_memory=False, maximum_iterations=None
     ):
         Module.global_scope.append('while')
         if maximum_iterations is not None and maximum_iterations.dtype is not tf.int32:
@@ -579,10 +578,8 @@ class Module(object):
         x = tf.while_loop(
             cond=cond, body=body, loop_vars=loop_vars, shape_invariants=shape_invariants,
             parallel_iterations=parallel_iterations, back_prop=back_prop,
-            swap_memory=swap_memory, maximum_iterations=maximum_iterations,
-            return_same_structure=return_same_structure
+            swap_memory=swap_memory, maximum_iterations=maximum_iterations
         )
-
         Module.global_scope.pop()
         return x
 

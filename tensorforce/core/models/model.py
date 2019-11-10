@@ -365,7 +365,7 @@ class Model(Module):
             raise TensorforceError("Unsupported distributed type: {}!".format(self.distributed_spec["type"]))
 
         if self.seed is not None:
-            tf.random.set_random_seed(seed=self.seed)
+            tf.random.set_seed(seed=self.seed)
 
         return graph_default_context
 
@@ -610,8 +610,8 @@ class Model(Module):
 
         # Parallel index
         self.parallel_input = self.add_placeholder(
-            name='parallel', dtype='long', shape=(), batched=False,
-            default=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+            name='parallel', dtype='long', shape=(), batched=True,
+            default=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'), shape=(1,))
         )
 
         # Local timestep
@@ -753,11 +753,11 @@ class Model(Module):
         assertions.append(tf.compat.v1.debugging.assert_type(
             tensor=parallel, tf_type=util.tf_dtype(dtype='long')
         ))
-        assertions.append(tf.compat.v1.debugging.assert_scalar(tensor=parallel))
+        assertions.append(tf.compat.v1.debugging.assert_scalar(tensor=parallel[0]))
         assertions.append(tf.compat.v1.debugging.assert_non_negative(x=parallel))
         assertions.append(
             tf.compat.v1.debugging.assert_less(
-                x=parallel,
+                x=parallel[0],
                 y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
             )
         )
@@ -787,7 +787,7 @@ class Model(Module):
             def increment_timestep():
                 assignments = list()
                 assignments.append(
-                    self.timestep.scatter_nd_add(indices=[(parallel,)], updates=[one])
+                    self.timestep.scatter_nd_add(indices=[parallel], updates=[one])
                 )
                 assignments.append(self.global_timestep.assign_add(delta=one, read_value=False))
                 with tf.control_dependencies(control_inputs=assignments):
@@ -815,7 +815,7 @@ class Model(Module):
                 def no_variable_noise():
                     noise_tensors = list()
                     for variable in variables:
-                        noise_tensors.append(tf.zeros_like(tensor=variable, dtype=variable.dtype))
+                        noise_tensors.append(tf.zeros_like(input=variable, dtype=variable.dtype))
                     return noise_tensors
 
                 def apply_variable_noise():
@@ -875,12 +875,12 @@ class Model(Module):
                 # retrieved_internals = util.flatten(xs=internals)
                 # dependencies = retrieved_internals
 
-                buffer_index = self.buffer_index[parallel]
+                buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+                indices = tf.stack(values=(parallel, buffer_index), axis=1)
                 internals = OrderedDict()
                 for name in self.internals_spec:
                     internals[name] = tf.gather_nd(
-                        params=self.internals_buffer[name],
-                        indices=[(parallel, buffer_index)]
+                        params=self.internals_buffer[name], indices=indices
                     )
                 dependencies = util.flatten(xs=internals)
         else:
@@ -954,9 +954,7 @@ class Model(Module):
 
                         # Random unmasked action
                         mask = auxiliaries[name + '_mask']
-                        num_values = tf.math.count_nonzero(
-                            input_tensor=mask, axis=-1, dtype=tf.int64
-                        )
+                        num_values = tf.math.count_nonzero(input=mask, axis=-1, dtype=tf.int64)
                         random_action = tf.random.uniform(shape=shape, dtype=float_dtype)
                         random_action = tf.dtypes.cast(
                             x=(random_action * tf.dtypes.cast(x=num_values, dtype=float_dtype)),
@@ -1018,36 +1016,38 @@ class Model(Module):
 
             def update_buffers():
                 operations = list()
-                buffer_index = self.buffer_index[parallel]
+                buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+                indices = tf.stack(values=(parallel, buffer_index), axis=1)
                 for name in self.states_spec:
                     operations.append(
                         self.states_buffer[name].scatter_nd_update(
-                            indices=[(parallel, buffer_index)], updates=states[name]
-                        )
-                    )
-                for name in self.internals_spec:
-                    operations.append(
-                        self.internals_buffer[name].scatter_nd_update(
-                            indices=[(parallel, buffer_index + one)], updates=internals[name]
+                            indices=indices, updates=states[name]
                         )
                     )
                 for name in self.auxiliaries_spec:
                     operations.append(
                         self.auxiliaries_buffer[name].scatter_nd_update(
-                            indices=[(parallel, buffer_index)], updates=auxiliaries[name]
+                            indices=indices, updates=auxiliaries[name]
                         )
                     )
                 for name in self.actions_spec:
                     operations.append(
                         self.actions_buffer[name].scatter_nd_update(
-                            indices=[(parallel, buffer_index)], updates=actions[name]
+                            indices=indices, updates=actions[name]
+                        )
+                    )
+                indices = tf.stack(values=(parallel, buffer_index + one), axis=1)
+                for name in self.internals_spec:
+                    operations.append(
+                        self.internals_buffer[name].scatter_nd_update(
+                            indices=indices, updates=internals[name]
                         )
                     )
 
                 # Increment buffer index
                 with tf.control_dependencies(control_inputs=operations):
                     incremented_buffer_index = self.buffer_index.scatter_nd_add(
-                        indices=[(parallel,)], updates=[one]
+                        indices=[parallel], updates=[one]
                     )
 
                 with tf.control_dependencies(control_inputs=(incremented_buffer_index,)):
@@ -1078,6 +1078,8 @@ class Model(Module):
 
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
+        buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+
         # Assertions
         assertions = [
             # terminal: type and shape
@@ -1094,10 +1096,10 @@ class Model(Module):
             tf.compat.v1.debugging.assert_type(
                 tensor=parallel, tf_type=util.tf_dtype(dtype='long')
             ),
-            tf.compat.v1.debugging.assert_scalar(tensor=parallel),
+            tf.compat.v1.debugging.assert_scalar(tensor=parallel[0]),
             tf.compat.v1.debugging.assert_non_negative(x=parallel),
             tf.compat.v1.debugging.assert_less(
-                x=parallel,
+                x=parallel[0],
                 y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
             ),
             # shape of terminal equals shape of reward
@@ -1107,11 +1109,11 @@ class Model(Module):
             # size of terminal equals buffer index
             tf.compat.v1.debugging.assert_equal(
                 x=tf.shape(input=terminal, out_type=tf.int64)[0],
-                y=tf.dtypes.cast(x=self.buffer_index[parallel], dtype=tf.int64)
+                y=tf.dtypes.cast(x=buffer_index, dtype=tf.int64)
             ),
             # at most one terminal
             tf.compat.v1.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
+                x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
                 y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             ),
             # if terminal, last timestep in batch
@@ -1134,22 +1136,23 @@ class Model(Module):
                 label=('timestep-reward', 'rewards'), name='timestep-reward', tensor=reward
             )
             assignment = self.episode_reward.scatter_nd_add(
-                indices=[(parallel,)], updates=[tf.math.reduce_sum(input_tensor=reward, axis=0)]
+                indices=[parallel], updates=[tf.math.reduce_sum(input_tensor=reward, axis=0)]
             )
 
         # Increment episode
         def increment_episode():
             assignments = list()
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            assignments.append(self.episode.scatter_nd_add(indices=[(parallel,)], updates=[one]))
+            assignments.append(self.episode.scatter_nd_add(indices=[parallel], updates=[one]))
             assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
             zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
             zero_float = self.add_summary(
                 label=('episode-reward', 'rewards'), name='episode-reward',
-                tensor=self.episode_reward[parallel], pass_tensors=zero_float, step='episode'
+                tensor=tf.gather(params=self.episode_reward, indices=parallel),
+                pass_tensors=zero_float, step='episode'
             )
             assignments.append(
-                self.episode_reward.scatter_nd_update(indices=[(parallel,)], updates=[zero_float])
+                self.episode_reward.scatter_nd_update(indices=[parallel], updates=[zero_float])
             )
             with tf.control_dependencies(control_inputs=assignments):
                 return util.no_operation()
@@ -1168,19 +1171,18 @@ class Model(Module):
 
         # Core observe: retrieve observe operation
         with tf.control_dependencies(control_inputs=dependencies):
-            buffer_index = self.buffer_index[parallel]
             states = OrderedDict()
             for name in self.states_spec:
-                states[name] = self.states_buffer[name][parallel, :buffer_index]
+                states[name] = self.states_buffer[name][parallel[0], :buffer_index[0]]
             internals = OrderedDict()
             for name in self.internals_spec:
-                internals[name] = self.internals_buffer[name][parallel, :buffer_index]
+                internals[name] = self.internals_buffer[name][parallel[0], :buffer_index[0]]
             auxiliaries = OrderedDict()
             for name in self.auxiliaries_spec:
-                auxiliaries[name] = self.auxiliaries_buffer[name][parallel, :buffer_index]
+                auxiliaries[name] = self.auxiliaries_buffer[name][parallel[0], :buffer_index[0]]
             actions = OrderedDict()
             for name in self.actions_spec:
-                actions[name] = self.actions_buffer[name][parallel, :buffer_index]
+                actions[name] = self.actions_buffer[name][parallel[0], :buffer_index[0]]
 
             reward = self.add_summary(
                 label=('raw-reward', 'rewards'), name='raw-reward', tensor=reward
@@ -1194,7 +1196,7 @@ class Model(Module):
         # Reset buffer index
         with tf.control_dependencies(control_inputs=(is_updated,)):
             reset_buffer_index = self.buffer_index.scatter_nd_update(
-                indices=[(parallel,)], updates=[zero]
+                indices=[parallel], updates=[zero]
             )
             dependencies = (reset_buffer_index,)
 

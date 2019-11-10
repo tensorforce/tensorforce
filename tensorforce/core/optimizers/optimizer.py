@@ -42,7 +42,7 @@ class Optimizer(Module):
 
         assignments = list()
         for variable, delta in zip(variables, deltas):
-            assignments.append(tf.assign_add(ref=variable, value=delta))
+            assignments.append(variable.assign_add(delta=delta, read_value=False))
 
         with tf.control_dependencies(control_inputs=assignments):
             return util.no_operation()

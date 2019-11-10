@@ -100,7 +100,7 @@ class Estimator(CircularBuffer):
         assertions.append(
             tf.compat.v1.debugging.assert_equal(
                 x=tf.math.count_nonzero(
-                    input_tensor=values['terminal'], dtype=util.tf_dtype(dtype='long')
+                    input=values['terminal'], dtype=util.tf_dtype(dtype='long')
                 ), y=one
             )
         )
@@ -248,7 +248,7 @@ class Estimator(CircularBuffer):
         assertions.append(
             tf.compat.v1.debugging.assert_less_equal(
                 x=tf.math.count_nonzero(
-                    input_tensor=values['terminal'], dtype=util.tf_dtype(dtype='long')
+                    input=values['terminal'], dtype=util.tf_dtype(dtype='long')
                 ), y=one
             )
         )
@@ -451,7 +451,7 @@ class Estimator(CircularBuffer):
                 with tf.control_dependencies(control_inputs=(assertion,)):
                     discounts = tf.where(
                         condition=tf.math.equal(x=terminal, y=one),
-                        x=tf.zeros_like(tensor=discounts, dtype=util.tf_dtype(dtype='float')),
+                        x=tf.zeros_like(input=discounts, dtype=util.tf_dtype(dtype='float')),
                         y=discounts
                     )
             reward = reward + discounts * tf.stop_gradient(input=horizon_estimate)

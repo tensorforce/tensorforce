@@ -267,7 +267,7 @@ class TensorforceModel(Model):
             ),
             # at most one terminal
             tf.compat.v1.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
+                x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
                 y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
             ),
             # if terminal, last timestep in batch
@@ -821,7 +821,7 @@ class TensorforceModel(Model):
         skip_entropy_regularization = tf.math.equal(x=entropy_regularization, y=zero)
         regularization_loss += self.cond(
             pred=skip_entropy_regularization, true_fn=no_entropy_regularization,
-            false_fn=apply_entropy_regularization  # , use_cond_v2=True
+            false_fn=apply_entropy_regularization
         )
 
         return regularization_loss

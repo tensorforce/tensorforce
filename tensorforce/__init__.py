@@ -19,14 +19,14 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-import tensorflow as tf
+# import tensorflow as tf
 
 from tensorforce.exception import TensorforceError
 from tensorforce import util
 
 
-tf.get_logger().setLevel('WARNING')
-tf.autograph.set_verbosity(3)
+# tf.get_logger().setLevel('WARNING')
+# tf.autograph.set_verbosity(3)
 
 
 __all__ = ['TensorforceError', 'util']

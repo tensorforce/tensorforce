@@ -110,7 +110,7 @@ class Conv1d(TransformationBase):
 
     def tf_apply(self, x):
         x = tf.nn.conv1d(
-            value=x, filters=self.weights, stride=self.stride, padding=self.padding.upper(),
+            input=x, filters=self.weights, stride=self.stride, padding=self.padding.upper(),
             dilations=self.dilation
         )
 

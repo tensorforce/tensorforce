@@ -110,7 +110,7 @@ class TFOptimizer(Optimizer):
 
             gradients = tf.gradients(ys=loss, xs=variables, grad_ys=initial_gradients)
             assertions = [
-                tf.debugging.assert_all_finite(t=gradient, msg='') for gradient in gradients
+                tf.debugging.assert_all_finite(x=gradient, message='') for gradient in gradients
             ]
 
         with tf.control_dependencies(control_inputs=assertions):

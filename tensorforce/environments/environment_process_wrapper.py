@@ -1,13 +1,7 @@
 from tensorforce.environments import Environment
-from tensorforce import TensorforceError, util
 
 from multiprocessing import Process
 from multiprocessing import Pipe
-
-import importlib
-import json
-import os
-from threading import Thread
 
 def worker(environment, conn2):
     while True:

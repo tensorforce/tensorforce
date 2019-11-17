@@ -89,20 +89,16 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         self.num_evaluations = 0
         evaluation_frequency = 3
-        max_evaluation_timesteps = 2
         num_evaluation_iterations = 2
 
         def evaluation_callback(r):
             self.num_evaluations += 1
             self.assertEqual(r.episodes, self.num_evaluations * evaluation_frequency)
             self.assertEqual(len(r.evaluation_timesteps), num_evaluation_iterations)
-            for num_timesteps in r.evaluation_timesteps:
-                self.assertLessEqual(num_timesteps, max_evaluation_timesteps)
 
         runner.run(
             num_episodes=6, use_tqdm=False, evaluation_callback=evaluation_callback,
             evaluation_frequency=evaluation_frequency,
-            max_evaluation_timesteps=max_evaluation_timesteps,
             num_evaluation_iterations=num_evaluation_iterations
         )
         runner.close()

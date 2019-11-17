@@ -347,6 +347,7 @@ class Model(Module):
                     #     type='global_optimizer',
                     #     optimizer=self.optimizer_spec
                     # )
+
                     self.scope += '-worker' + str(self.distributed_spec["task_index"])
                 # The global_model (whose Variables are hosted by the ps).
                 else:
@@ -682,7 +683,7 @@ class Model(Module):
             read_value=False
         )
 
-        # Synchronization initial sync?
+        # TODO: Synchronization initial sync?
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             timestep = util.identity_operation(
@@ -781,22 +782,7 @@ class Model(Module):
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
 
-        # Increment timestep
-        with tf.control_dependencies(control_inputs=assertions):
-
-            def increment_timestep():
-                assignments = list()
-                assignments.append(
-                    self.timestep.scatter_nd_add(indices=[parallel], updates=[one])
-                )
-                assignments.append(self.global_timestep.assign_add(delta=one, read_value=False))
-                with tf.control_dependencies(control_inputs=assignments):
-                    return util.no_operation()
-
-            incremented_timestep = self.cond(
-                pred=independent, true_fn=util.no_operation, false_fn=increment_timestep
-            )
-            dependencies = (incremented_timestep,)
+        dependencies = assertions
 
         # Preprocessing states
         if any(name in self.preprocessing for name in self.states_spec):
@@ -1057,8 +1043,23 @@ class Model(Module):
                 pred=independent, true_fn=util.no_operation, false_fn=update_buffers
             )
 
-        # Return timestep
+        # Increment timestep
+        def increment_timestep():
+            assignments = list()
+            assignments.append(
+                self.timestep.scatter_nd_add(indices=[parallel], updates=[one])
+            )
+            assignments.append(self.global_timestep.assign_add(delta=one, read_value=False))
+            with tf.control_dependencies(control_inputs=assignments):
+                return util.no_operation()
+
         with tf.control_dependencies(control_inputs=(updated_buffers,)):
+            incremented_timestep = self.cond(
+                pred=independent, true_fn=util.no_operation, false_fn=increment_timestep
+            )
+
+        # Return timestep
+        with tf.control_dependencies(control_inputs=(incremented_timestep,)):
             # Function-level identity operation for retrieval (plus enforce dependency)
             for name, spec in self.actions_spec.items():
                 actions[name] = util.identity_operation(
@@ -1139,29 +1140,25 @@ class Model(Module):
                 indices=[parallel], updates=[tf.math.reduce_sum(input_tensor=reward, axis=0)]
             )
 
-        # Increment episode
-        def increment_episode():
-            assignments = list()
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            assignments.append(self.episode.scatter_nd_add(indices=[parallel], updates=[one]))
-            assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
+        # Reset episode reward
+        def reset_episode_reward():
             zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
             zero_float = self.add_summary(
                 label=('episode-reward', 'rewards'), name='episode-reward',
                 tensor=tf.gather(params=self.episode_reward, indices=parallel),
-                pass_tensors=zero_float, step='episode'
+                pass_tensors=zero_float  # , step='episode'
             )
-            assignments.append(
-                self.episode_reward.scatter_nd_update(indices=[parallel], updates=[zero_float])
+            assignment = self.episode_reward.scatter_nd_update(
+                indices=[parallel], updates=[zero_float]
             )
-            with tf.control_dependencies(control_inputs=assignments):
+            with tf.control_dependencies(control_inputs=(assignment,)):
                 return util.no_operation()
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            incremented_episode = self.cond(
-                pred=(terminal[-1] > zero), true_fn=increment_episode, false_fn=util.no_operation
+            reset_episode_rew = self.cond(
+                pred=(terminal[-1] > zero), true_fn=reset_episode_reward, false_fn=util.no_operation
             )
-            dependencies = (incremented_episode,)
+            dependencies = (reset_episode_rew,)
 
         # Preprocessing reward
         if 'reward' in self.preprocessing:
@@ -1215,8 +1212,22 @@ class Model(Module):
                 )
                 dependencies = (preprocessors_reset,)
 
-        # Return episode
+        # Increment episode
+        def increment_episode():
+            assignments = list()
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+            assignments.append(self.episode.scatter_nd_add(indices=[parallel], updates=[one]))
+            assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
+            with tf.control_dependencies(control_inputs=assignments):
+                return util.no_operation()
+
         with tf.control_dependencies(control_inputs=dependencies):
+            incremented_episode = self.cond(
+                pred=(terminal[-1] > zero), true_fn=increment_episode, false_fn=util.no_operation
+            )
+
+        # Return episode
+        with tf.control_dependencies(control_inputs=(incremented_episode,)):
             # Function-level identity operation for retrieval (plus enforce dependency)
             updated = util.identity_operation(x=is_updated, operation_name='updated-output')
             episode = util.identity_operation(

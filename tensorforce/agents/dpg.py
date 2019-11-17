@@ -22,25 +22,26 @@ from tensorforce.agents import TensorforceAgent
 class DeterministicPolicyGradient(TensorforceAgent):
     """
     [Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971) agent (specification key:
-    `dpg`).
+    `dpg`). Action space is required to consist of only a single float action.
 
     Args:
         states (specification): States specification
-            (<span style="color:#C00000"><b>required</b></span>), arbitrarily nested dictionary of
-            state descriptions (usually taken from `Environment.states()`) with the following
-            attributes:
+            (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
+            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of state
+            descriptions (usually taken from `Environment.states()`) with the following attributes:
             <ul>
             <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; state data type
             (<span style="color:#00C000"><b>default</b></span>: "float").</li>
             <li><b>shape</b> (<i>int | iter[int]</i>) &ndash; state shape
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>num_states</b> (<i>int > 0</i>) &ndash; number of discrete state values
+            <li><b>num_values</b> (<i>int > 0</i>) &ndash; number of discrete state values
             (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
             <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum state value
             (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
             </ul>
         actions (specification): Actions specification
-            (<span style="color:#C00000"><b>required</b></span>), arbitrarily nested dictionary of
+            (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
+            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of
             action descriptions (usually taken from `Environment.actions()`) with the following
             attributes:
             <ul>
@@ -48,13 +49,14 @@ class DeterministicPolicyGradient(TensorforceAgent):
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>shape</b> (<i>int > 0 | iter[int > 0]</i>) &ndash; action shape
             (<span style="color:#00C000"><b>default</b></span>: scalar).</li>
-            <li><b>num_actions</b> (<i>int > 0</i>) &ndash; number of discrete action values
+            <li><b>num_values</b> (<i>int > 0</i>) &ndash; number of discrete action values
             (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
             <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum action value
             (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
             </ul>
         max_episode_timesteps (int > 0): Maximum number of timesteps per episode
-            (<span style="color:#00C000"><b>default</b></span>: not given).
+            (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
+            specified via `environment` argument for `Agent.create(...)`).
 
         network ("auto" | specification): Policy network configuration, see
             [networks](../modules/networks.html)
@@ -116,11 +118,6 @@ class DeterministicPolicyGradient(TensorforceAgent):
             for instance, to enable multiple parallel episodes, environments or (centrally
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        buffer_observe (bool | int > 0): Maximum number of timesteps within an episode to buffer
-            before executing internal observe operations, to reduce calls to TensorFlow for
-            improved performance
-            (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000,
-            unless summarizer specified).
         seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
             environment seed has to be set separately for a fully deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).
@@ -147,35 +144,39 @@ class DeterministicPolicyGradient(TensorforceAgent):
             <li><b>directory</b> (<i>path</i>) &ndash; summarizer directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>frequency</b> (<i>int > 0, dict[int > 0]</i>) &ndash; how frequently in
-            timestepsto record summaries, applies to "variables" and "act" if specified globally
-            (<span style="color:#00C000"><b>default</b></span>:
-            always), otherwise specified per "variables"/"act" in timesteps and "observe"/"update"
-            in updates (<span style="color:#00C000"><b>default</b></span>: never).</li>
+            timesteps to record summaries for act-summaries if specified globally
+            (<span style="color:#00C000"><b>default</b></span>: always),
+            otherwise specified for act-summaries via "act" in timesteps, for
+            observe/experience-summaries via "observe"/"experience" in episodes, and for
+            update/variables-summaries via "update"/"variables" in updates
+            (<span style="color:#00C000"><b>default</b></span>: never).</li>
             <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
-            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all or list of summaries to
-            record, from the following labels
+            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
+            labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
             <li>"distributions" or "bernoulli", "categorical", "gaussian", "beta":
             distribution-specific parameters</li>
             <li>"dropout": dropout zero fraction</li>
-            <li>"entropy": entropy of policy distribution</li>
+            <li>"entropies" or "entropy", "action-entropies": entropy of policy
+            distribution(s)</li>
             <li>"graph": graph summary</li>
-            <li>"kl-divergence": KL-divergence of previous and updated policy distribution</li>
+            <li>"kl-divergences" or "kl-divergence", "action-kl-divergences": KL-divergence of
+            previous and updated polidcy distribution(s)</li>
             <li>"losses" or "loss", "objective-loss", "regularization-loss", "baseline-loss",
             "baseline-objective-loss", "baseline-regularization-loss": loss scalars</li>
             <li>"parameters": parameter scalars</li>
             <li>"relu": ReLU activation zero fraction</li>
-            <li>"rewards" or "timestep-reward", "episode-reward", "raw-reward", "processed-reward",
+            <li>"rewards" or "timestep-reward", "episode-reward", "raw-reward", "empirical-reward",
             "estimated-reward": reward scalar
             </li>
             <li>"update-norm": update norm</li>
             <li>"updates": update mean and variance scalars</li>
-            <li>"updates-full": update histograms</li>
+            <li>"updates-histogram": update histograms</li>
             <li>"variables": variable mean and variance scalars</li>
-            <li>"variables-full": variable histograms</li>
+            <li>"variables-histogram": variable histograms</li>
             </ul>
         recorder (specification): Experience traces recorder configuration with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):

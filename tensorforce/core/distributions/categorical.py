@@ -121,18 +121,21 @@ class Categorical(Distribution):
         # "Normalized" logits
         logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
 
-        # Logits as pass_tensor since used for sampling
         Module.update_tensor(name=(self.name + '-probabilities'), tensor=probabilities)
-        logits, probabilities, states_value, action_values = self.add_summary(
-            label=('distributions', 'categorical'), name='probabilities', tensor=probabilities,
-            pass_tensors=(logits, probabilities, states_value, action_values),
-            enumerate_last_rank=True
-        )
 
         return logits, probabilities, states_value, action_values
 
     def tf_sample(self, parameters, temperature):
         logits, probabilities, _, _ = parameters
+
+        summary_probs = probabilities
+        for _ in range(len(self.action_spec['shape'])):
+            summary_probs = tf.math.reduce_mean(input_tensor=summary_probs, axis=1)
+
+        logits, probabilities = self.add_summary(
+            label=('distributions', 'categorical'), name='probabilities', tensor=summary_probs,
+            pass_tensors=(logits, probabilities), enumerate_last_rank=True
+        )
 
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))

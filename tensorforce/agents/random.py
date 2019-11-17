@@ -24,33 +24,39 @@ class RandomAgent(Agent):
     Agent returning random action values (specification key: `random`).
 
     Args:
-        states (specification): States specification (**required**), arbitrarily nested
-            dictionary of state descriptions (usually taken from `Environment.states()`) with
-            the following attributes:
+        states (specification): States specification
+            (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
+            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of state
+            descriptions (usually taken from `Environment.states()`) with the following attributes:
             <ul>
-            <li><b>type</b> (<i>'bool' | 'int' | 'float'</i>) &ndash; state data type
-            (<span style="color:#00C000"><b>default</b></span>: 'float').</li>
+            <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; state data type
+            (<span style="color:#00C000"><b>default</b></span>: "float").</li>
             <li><b>shape</b> (<i>int | iter[int]</i>) &ndash; state shape
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>num_states</b> (<i>int > 0</i>) &ndash; number of discrete state values
-            (<span style="color:#C00000"><b>required</b></span> for type 'int').</li>
+            <li><b>num_values</b> (<i>int > 0</i>) &ndash; number of discrete state values
+            (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
             <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum state value
-            (<span style="color:#00C000"><b>optional</b></span> for type 'float').</li>
+            (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
             </ul>
-        actions (specification): Actions specification (**required**), arbitrarily nested
-            dictionary of action descriptions (usually taken from `Environment.actions()`) with
-            the following attributes:
+        actions (specification): Actions specification
+            (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
+            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of
+            action descriptions (usually taken from `Environment.actions()`) with the following
+            attributes:
             <ul>
-            <li><b>type</b> (<i>'bool' | 'int' | 'float'</i>) &ndash; action data type
+            <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; action data type
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>shape</b> (<i>int > 0 | iter[int > 0]</i>) &ndash; action shape
-            (<span style="color:#00C000"><b>default</b></span>: ()).</li>
-            <li><b>num_actions</b> (<i>int > 0</i>) &ndash; number of discrete action values
-            (<span style="color:#C00000"><b>required</b></span> for type 'int').</li>
+            (<span style="color:#00C000"><b>default</b></span>: scalar).</li>
+            <li><b>num_values</b> (<i>int > 0</i>) &ndash; number of discrete action values
+            (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
             <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum action value
-            (<span style="color:#00C000"><b>optional</b></span> for type 'float').</li>
+            (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
             </ul>
-        max_episode_timesteps (int > 0): ?
+        max_episode_timesteps (int > 0): Maximum number of timesteps per episode
+            (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
+            specified via `environment` argument for `Agent.create(...)`).
+
         seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
             environment seed has to be set separately for a fully deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).
@@ -59,18 +65,16 @@ class RandomAgent(Agent):
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
         summarizer (specification): TensorBoard summarizer configuration with the following
-            attributes
-            (<span style="color:#00C000"><b>default</b></span>: no summarizer):
+            attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; summarizer directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>steps</b> (<i>int > 0, dict[int > 0]</i>) &ndash; how frequently to record
-            summaries, applies to "variables" and "act" if specified globally
-            (<span style="color:#00C000"><b>default</b></span>:
-            always), otherwise specified per "variables"/"act" in timesteps and "observe"/"update"
-            in updates (<span style="color:#00C000"><b>default</b></span>: never).</li>
+            <li><b>frequency</b> (<i>int > 0) &ndash; how frequently in timesteps to record
+            summaries (<span style="color:#00C000"><b>default</b></span>: always).</li>
             <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
+            <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
+            (<span style="color:#00C000"><b>default</b></span>: 5).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all or list of summaries to
             record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>

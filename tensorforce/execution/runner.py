@@ -67,15 +67,14 @@ class Runner(object):
     def run(
         self,
         # General
-        num_episodes=None, num_timesteps=None, num_updates=None, max_episode_timesteps=None,
-        num_repeat_actions=1,
+        num_episodes=None, num_timesteps=None, num_updates=None, num_repeat_actions=1,
         # Callback
         callback=None, callback_episode_frequency=None, callback_timestep_frequency=None,
         # Tqdm
-        use_tqdm=True, mean_horizon=10,
+        use_tqdm=True, mean_horizon=1,
         # Evaluation
         evaluation=False, evaluation_callback=None, evaluation_frequency=None,
-        max_evaluation_timesteps=None, num_evaluation_iterations=1
+        num_evaluation_iterations=1
     ):
         # General
         if num_episodes is None:
@@ -90,10 +89,6 @@ class Runner(object):
             self.num_updates = float('inf')
         else:
             self.num_updates = num_updates
-        if max_episode_timesteps is None:
-            self.max_episode_timesteps = float('inf')
-        else:
-            self.max_episode_timesteps = max_episode_timesteps
         self.num_repeat_actions = num_repeat_actions
 
         # Callback
@@ -202,11 +197,6 @@ class Runner(object):
         if self.evaluation:
             assert evaluation_frequency is None
         self.evaluation_frequency = evaluation_frequency
-        if max_evaluation_timesteps is None:
-            self.max_evaluation_timesteps = float('inf')
-        else:
-            assert not self.evaluation
-            self.max_evaluation_timesteps = max_evaluation_timesteps
         self.num_evaluation_iterations = num_evaluation_iterations
         if self.save_best_agent is not False:
             assert not self.evaluation
@@ -228,10 +218,7 @@ class Runner(object):
         # Episode loop
         while True:
             # Run episode
-            if not self.run_episode(
-                environment=self.environment, max_timesteps=self.max_episode_timesteps,
-                evaluation=self.evaluation
-            ):
+            if not self.run_episode(environment=self.environment, evaluation=self.evaluation):
                 return
 
             # Increment episode counter (after calling callback)
@@ -263,10 +250,7 @@ class Runner(object):
 
                 # Evaluation loop
                 for _ in range(self.num_evaluation_iterations):
-                    self.run_episode(
-                        environment=environment, max_timesteps=self.max_evaluation_timesteps,
-                        evaluation=True
-                    )
+                    self.run_episode(environment=environment, evaluation=True)
 
                     self.evaluation_rewards.append(self.episode_reward)
                     self.evaluation_timesteps.append(self.episode_timestep)
@@ -316,7 +300,7 @@ class Runner(object):
             elif self.agent.should_stop():
                 return
 
-    def run_episode(self, environment, max_timesteps, evaluation):
+    def run_episode(self, environment, evaluation):
         # Episode statistics
         self.episode_reward = 0
         self.episode_timestep = 0
@@ -345,10 +329,6 @@ class Runner(object):
                 if terminal > 0:
                     break
             self.episode_reward += reward
-
-            # Terminate episode if too long
-            if self.episode_timestep >= max_timesteps:
-                terminal = 2
 
             # Observe unless evaluation
             if not evaluation:

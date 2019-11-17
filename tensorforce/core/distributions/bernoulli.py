@@ -95,15 +95,20 @@ class Bernoulli(Distribution):
         false_logit = tf.math.log(x=(one - probability))
 
         Module.update_tensor(name=(self.name + '-probability'), tensor=probability)
-        true_logit, false_logit, probability, states_value = self.add_summary(
-            label=('distributions', 'bernoulli'), name='probability', tensor=probability,
-            pass_tensors=(true_logit, false_logit, probability, states_value)
-        )
 
         return true_logit, false_logit, probability, states_value
 
     def tf_sample(self, parameters, temperature):
         true_logit, false_logit, probability, _ = parameters
+
+        summary_probability = probability
+        for _ in range(len(self.action_spec['shape'])):
+            summary_probability = tf.math.reduce_mean(input_tensor=summary_probability, axis=1)
+
+        true_logit, false_logit, probability = self.add_summary(
+            label=('distributions', 'bernoulli'), name='probability', tensor=summary_probability,
+            pass_tensors=(true_logit, false_logit, probability)
+        )
 
         half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))

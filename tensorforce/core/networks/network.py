@@ -161,7 +161,9 @@ class LayerbasedNetwork(Network):
     def add_module(self, *args, **kwargs):
         # Default modules set: layer_modules
         if len(args) < 3 and 'modules' not in kwargs:
+            assert 'is_subscope' not in kwargs
             kwargs['modules'] = layer_modules
+            kwargs['is_subscope'] = True
 
         if 'input_spec' in kwargs:
             layer = super().add_module(*args, **kwargs)

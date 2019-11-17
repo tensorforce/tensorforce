@@ -46,8 +46,14 @@ class Module(object):
     """
 
     global_scope = None
+    scope_stack = None
+    while_counter = None
+    cond_counter = None
+
     global_tensors_spec = None
     global_tensors = None  # per agent, main module, or so
+    queryable_tensors = None
+
     global_summary_step = None
 
     @staticmethod
@@ -93,13 +99,6 @@ class Module(object):
 
     @staticmethod
     def update_tensor(name, tensor):
-        # for n in range(len(Module.global_scope) + 1):
-            # partial_scope = Module.global_scope[:len(Module.global_scope) - n]
-            # scoped_name = util.join_scopes(*partial_scope, name)
-        #     if scoped_name in Module.global_tensors_spec:
-        #         break
-        # else:
-        #     raise TensorforceError("Global tensor is not registered: {}.".format(name))
         if name not in Module.global_tensors_spec:
             raise TensorforceError("Global tensor is not registered: {}.".format(name))
 
@@ -113,6 +112,8 @@ class Module(object):
 
         previous = Module.global_tensors.get(scoped_name)
         Module.global_tensors[scoped_name] = tensor
+        if Module.cond_counter == 0 and Module.while_counter == 0:
+            Module.queryable_tensors[scoped_name] = tensor
 
         return previous
 
@@ -123,13 +124,6 @@ class Module(object):
 
     @staticmethod
     def retrieve_tensor(name):
-        # for n in range(len(Module.global_scope) + 1):
-            # partial_scope = Module.global_scope[:len(Module.global_scope) - n]
-            # scoped_name = util.join_scopes(*partial_scope, name)
-        #     if scoped_name in Module.global_tensors_spec:
-        #         break
-        # else:
-        #     raise TensorforceError("Global tensor is not registered: {}.".format(name))
         if name not in Module.global_tensors_spec:
             raise TensorforceError("Global tensor is not registered: {}.".format(name))
 
@@ -140,11 +134,6 @@ class Module(object):
                 break
         else:
             raise TensorforceError("Global tensor is not set: {}.".format(name))
-
-        # scoped_name = util.join_scopes(*Module.global_scope, name)
-
-        # if scoped_name not in Module.global_tensors:
-        #     raise TensorforceError("Global tensor is not set: {}.".format(scoped_name))
 
         return Module.global_tensors[scoped_name]
 
@@ -160,7 +149,7 @@ class Module(object):
     def __init__(self, name, device=None, summary_labels=None, l2_regularization=None):
         # Internal attributes
         self.parent = Module.set_parent
-        self.scope = None
+        # self.scope = None
         self.is_subscope = None
         self.modules = OrderedDict()
         self.trainable_modules = OrderedDict()
@@ -262,11 +251,9 @@ class Module(object):
 
         if self.parent is None:
             Module.global_scope = list()
-            Module.global_summary_step = 'timestep'
+            Module.while_counter = 0
+            Module.cond_counter = 0
 
-        Module.global_scope.append(self.name)
-
-        if self.parent is None:
             # Global timestep
             self.global_timestep = self.add_variable(
                 name='global-timestep', dtype='long', shape=(), is_trainable=False,
@@ -300,45 +287,36 @@ class Module(object):
 
                     logdir = os.path.join(directory, time.strftime('summary-%Y%m%d-%H%M%S'))
                     flush_millis = (self.summarizer_spec.get('flush', 10) * 1000)
-                    self.summarizer = tf.contrib.summary.create_file_writer(
-                        logdir=logdir, flush_millis=flush_millis, max_queue=None,
+                    self.summarizer = tf.summary.create_file_writer(
+                        logdir=logdir, max_queue=None, flush_millis=flush_millis,
                         filename_suffix=None
                     )
                     self.summarizer_init = self.summarizer.init()
                     self.summarizer_flush = self.summarizer.flush()
                     self.summarizer_close = self.summarizer.close()
+
                     default_summarizer = self.summarizer.as_default()
                     default_summarizer.__enter__()
 
-                    if 'frequency' in self.summarizer_spec:
-                        if isinstance(self.summarizer_spec['frequency'], int):
-                            record_summaries = \
-                                tf.contrib.summary.record_summaries_every_n_global_steps(
-                                    n=self.summarizer_spec['frequency']
-                                )
-                        elif 'variables' in self.summarizer_spec['frequency']:
-                            record_summaries = \
-                                tf.contrib.summary.record_summaries_every_n_global_steps(
-                                    n=self.summarizer_spec['frequency']['variables']
-                                )
-                        else:
-                            record_summaries = tf.contrib.summary.never_record_summaries()
-                    else:
-                        record_summaries = tf.contrib.summary.always_record_summaries()
-                    record_summaries.__enter__()
+                    if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+                        pass
 
-        # TensorFlow device and variable scope
+        # TensorFlow device and scope
+        Module.global_scope.append(self.name)
         if self.device is not None:
             self.device = tf.device(device_name_or_function=self.device)
             self.device.__enter__()
-        self.scope = tf.compat.v1.variable_scope(name_or_scope=self.name)
+        self.scope = tf.name_scope(name=self.name)
 
         with self.scope:
             if self.parent is None:
                 # with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
 
-                # Global timestep before summarizer, otherwise problems with
-                # record_summaries_every_n_global_steps
+                if self.summarizer_spec is not None:
+                    Module.global_summary_step = 'timestep'
+                    condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+                    record_summaries = tf.summary.record_if(condition=condition)
+                    record_summaries.__enter__()
 
                 # Global episode
                 self.global_episode = self.add_variable(
@@ -357,30 +335,50 @@ class Module(object):
                     update=self.global_update
                 )
 
-                # if self.summarizer_spec is not None:
-                #     if 'steps' in self.summarizer_spec:
-                #         record_summaries = tf.contrib.summary.record_summaries_every_n_global_steps(
-                #             n=self.summarizer_spec['steps'],
-                #             global_step=self.global_timestep
-                #         )
-                #     else:
-                #         record_summaries = tf.contrib.summary.always_record_summaries()
-                #     record_summaries.__enter__()
+                if self.summarizer_spec is not None:
+                    record_summaries.__exit__(None, None, None)
+
+                    Module.global_summary_step = 'update'
+                    if 'frequency' not in self.summarizer_spec or \
+                            isinstance(self.summarizer_spec['frequency'], int):
+                        condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+
+                    elif 'variables' in self.summarizer_spec['frequency']:
+                        step = Module.retrieve_tensor(name=Module.global_summary_step)
+                        frequency = tf.constant(
+                            value=self.summarizer_spec['frequency']['variables'],
+                            dtype=util.tf_dtype(dtype='long')
+                        )
+                        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+                        condition = (
+                            lambda: tf.math.equal(x=tf.math.mod(x=step, y=frequency), y=zero)
+                        )
+
+                    else:
+                        condition = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+
+                    record_summaries = tf.summary.record_if(condition=condition)
+                    record_summaries.__enter__()
 
             for module in self.modules.values():
                 module.initialize()
             self.tf_initialize()
 
+            if self.parent is None and self.summarizer_spec is not None:
+                record_summaries.__exit__(None, None, None)
+                Module.global_summary_step = None
+
+        self.scope = None
         if self.device is not None:
             self.device.__exit__(None, None, None)
-
         Module.global_scope.pop()
 
         if self.parent is None:
             assert len(Module.global_scope) == 0
-            Module.global_tensors = None
             Module.global_scope = None
-            Module.global_summary_step = None
+            Module.while_counter = None
+            Module.cond_counter = None
+            Module.global_tensors = None
 
         num_variables = len(tf.compat.v1.trainable_variables())
 
@@ -413,25 +411,58 @@ class Module(object):
                         function_name not in self.config['api_functions']:
                     continue
 
-                # Todo: own every_n_step implementation, plus maybe per function steps argument
-                fct_record_summaries = None
-                if self.summarizer_spec is not None and 'frequency' in self.summarizer_spec:
-                    if isinstance(self.summarizer_spec['frequency'], int):
-                        if function_name in ('observe', 'update'):
-                            fct_record_summaries = tf.contrib.summary.always_record_summaries()
-                    elif function_name in self.summarizer_spec['frequency']:
-                        if function_name in ('observe', 'update'):
-                            step = self.global_update
-                        else:
+                if function_name == 'act':
+                    Module.global_summary_step = 'timestep'
+                elif function_name in ('observe', 'experience'):
+                    Module.global_summary_step = 'episode'
+                elif function_name == 'update':
+                    Module.global_summary_step = 'update'
+
+                if self.summarizer_spec is not None:
+                    if 'frequency' not in self.summarizer_spec:
+                        condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+
+                    elif isinstance(self.summarizer_spec['frequency'], int):
+                        if function_name == 'act':
                             step = self.global_timestep
-                        fct_record_summaries = \
-                            tf.contrib.summary.record_summaries_every_n_global_steps(
-                                n=self.summarizer_spec['frequency'][function_name], global_step=step
+                            frequency = tf.constant(
+                                value=self.summarizer_spec['frequency'],
+                                dtype=util.tf_dtype(dtype='long')
                             )
+                            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+                            condition = (
+                                lambda: tf.math.equal(x=tf.math.mod(x=step, y=frequency), y=zero)
+                            )
+                        elif function_name == 'reset':
+                            condition = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+                        else:
+                            condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+
+                    elif function_name in self.summarizer_spec['frequency']:
+                        if function_name == 'act':
+                            step = self.global_timestep
+                        elif function_name in ('observe', 'experience'):
+                            step = self.global_episode
+                        elif function_name == 'update':
+                            step = self.global_update
+                        elif function_name == 'reset':
+                            raise TensorforceError.unexpected()
+                        else:
+                            raise TensorforceError.unexpected()
+                        frequency = tf.constant(
+                            value=self.summarizer_spec['frequency'][function_name],
+                            dtype=util.tf_dtype(dtype='long')
+                        )
+                        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+                        condition = (
+                            lambda: tf.math.equal(x=tf.math.mod(x=step, y=frequency), y=zero)
+                        )
+
                     else:
-                        fct_record_summaries = tf.contrib.summary.never_record_summaries()
-                if fct_record_summaries is not None:
-                    fct_record_summaries.__enter__()
+                        condition = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+
+                    record_summaries = tf.summary.record_if(condition=condition)
+                    record_summaries.__enter__()
 
                 if not util.is_valid_name(name=function_name):
                     raise TensorforceError.value(name='API-function name', value=function_name)
@@ -448,34 +479,15 @@ class Module(object):
 
                 setattr(self, function_name, function)
 
-                if fct_record_summaries is not None:
-                    fct_record_summaries.__exit__(None, None, None)
+                if self.summarizer_spec is not None:
+                    record_summaries.__exit__(None, None, None)
+                    Module.global_summary_step = None
 
         assert num_variables == len(tf.compat.v1.trainable_variables())
 
         if self.parent is None:
-            # if self.summarizer_spec is not None:
-            #     record_summaries.__exit__(None, None, None)
-
-            if self.summary_labels is not None and \
-                    (self.summary_labels == 'all' or 'graph' in self.summary_labels):
-                self.available_summaries.add('graph')
-                with tf.name_scope(name='summarizer'):
-                    # summarizer_init = tf.contrib.summary.summary_writer_initializer_op()
-                    # assert len(summarizer_init) == 1
-                    # initialization = (tf.global_variables_initializer(), summarizer_init[0])
-                    graph_def = self.graph.as_graph_def()
-                    graph_str = tf.constant(
-                        value=graph_def.SerializeToString(), dtype=tf.string, shape=()
-                    )
-                    self.graph_summary = tf.contrib.summary.graph(
-                        param=graph_str, step=self.global_timestep  # episode?
-                    )
-            else:
-                self.graph_summary = None
-
+            self.graph_summary = None  # TODO!
             if self.summarizer_spec is not None:
-                record_summaries.__exit__(None, None, None)
                 default_summarizer.__exit__(None, None, None)
 
     def create_tf_function(self, name, tf_function):
@@ -485,8 +497,12 @@ class Module(object):
                 Module.global_scope.append(self.name)
             if self.device is not None:
                 self.device.__enter__()
-            with tf.name_scope(name=name):
-                results = tf_function(*args, **kwargs)
+            scope = tf.name_scope(name=name)
+            Module.scope_stack.append(scope)
+            scope.__enter__()
+            results = tf_function(*args, **kwargs)
+            scope.__exit__(None, None, None)
+            Module.scope_stack.pop()
             if self.device is not None:
                 self.device.__exit__(None, None, None)
             if self.is_subscope:
@@ -498,31 +514,44 @@ class Module(object):
     def create_api_function(self, name, api_function):
         # Call API TensorFlow function
         Module.global_scope = list()
+        Module.scope_stack = list()
+        Module.while_counter = 0
+        Module.cond_counter = 0
         Module.global_tensors = OrderedDict()
-        Module.global_summary_step = 'timestep'
+        Module.queryable_tensors = OrderedDict()
+
         if self.device is not None:
             self.device.__enter__()
-        with tf.name_scope(name=name):
-            results = api_function()
-            self.output_tensors[name[name.index('.') + 1:]] = sorted(
-                x.name[len(name) + 1: -9] for x in util.flatten(xs=results)
-            )
+        scope = tf.name_scope(name=name)
+        Module.scope_stack.append(scope)
+        scope.__enter__()
 
-            # Function-level identity operation for retrieval
-            query_tensors = set()
-            for scoped_name, tensor in Module.global_tensors.items():
-                if not scoped_name.startswith('cond/') and '/cond/' not in scoped_name and \
-                        not scoped_name.startswith('while/') and '/while/' not in scoped_name:
-                    util.identity_operation(x=tensor, operation_name=(scoped_name + '-output'))
-                    assert scoped_name not in query_tensors
-                    query_tensors.add(scoped_name)
-            self.query_tensors[name[name.index('.') + 1:]] = sorted(query_tensors)
+        results = api_function()
+        self.output_tensors[name[name.index('.') + 1:]] = sorted(
+            x.name[len(name) + 1: -9] for x in util.flatten(xs=results)
+        )
 
+        # Function-level identity operation for retrieval
+        query_tensors = set()
+        for scoped_name, tensor in Module.queryable_tensors.items():
+            util.identity_operation(x=tensor, operation_name=(scoped_name + '-output'))
+            assert scoped_name not in query_tensors
+            query_tensors.add(scoped_name)
+        self.query_tensors[name[name.index('.') + 1:]] = sorted(query_tensors)
+
+        scope.__exit__(None, None, None)
+        Module.scope_stack.pop()
         if self.device is not None:
             self.device.__exit__(None, None, None)
-        Module.global_tensors = None
+
+        assert len(Module.global_scope) == 0
         Module.global_scope = None
-        Module.global_summary_step = None
+        assert len(Module.scope_stack) == 0
+        Module.scope_stack = None
+        Module.while_counter = None
+        Module.cond_counter = None
+        Module.global_tensors = None
+        Module.queryable_tensors = None
 
         def fn(query=None, **kwargs):
             # Feed_dict dictionary
@@ -563,16 +592,33 @@ class Module(object):
         return fn
 
     def cond(self, pred, true_fn, false_fn):
-        Module.global_scope.append('cond')
-        x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)
-        Module.global_scope.pop()
+
+        def true_fn_wrapper():
+            for scope in Module.scope_stack:
+                scope.__enter__()
+            result = true_fn()
+            for scope in reversed(Module.scope_stack):
+                scope.__exit__(None, None, None)
+            return result
+
+        def false_fn_wrapper():
+            for scope in Module.scope_stack:
+                scope.__enter__()
+            result = false_fn()
+            for scope in reversed(Module.scope_stack):
+                scope.__exit__(None, None, None)
+            return result
+
+        Module.cond_counter += 1
+        x = tf.cond(pred=pred, true_fn=true_fn_wrapper, false_fn=false_fn_wrapper)
+        Module.cond_counter -= 1
         return x
 
     def while_loop(
         self, cond, body, loop_vars, shape_invariants=None, parallel_iterations=10,
         back_prop=False, swap_memory=False, maximum_iterations=None
     ):
-        Module.global_scope.append('while')
+        Module.while_counter += 1
         if maximum_iterations is not None and maximum_iterations.dtype is not tf.int32:
             maximum_iterations = tf.dtypes.cast(x=maximum_iterations, dtype=tf.int32)
         x = tf.while_loop(
@@ -580,7 +626,7 @@ class Module(object):
             parallel_iterations=parallel_iterations, back_prop=back_prop,
             swap_memory=swap_memory, maximum_iterations=maximum_iterations
         )
-        Module.global_scope.pop()
+        Module.while_counter -= 1
         return x
 
     def add_variable(
@@ -720,10 +766,9 @@ class Module(object):
         # Add summary
         if (summarize is None and is_trainable) or summarize:
             variable = self.add_summary(
-                label=('variables', 'variables-full'), name=name, tensor=variable,
-                mean_variance=True
+                label='variables', name=name, tensor=variable, mean_variance=True
             )
-            variable = self.add_summary(label='variables-full', name=name, tensor=variable)
+            variable = self.add_summary(label='variables-histogram', name=name, tensor=variable)
 
         return variable
 
@@ -772,26 +817,27 @@ class Module(object):
             return False
 
         # Check whether not in while loop
-        if 'while' in Module.global_scope:
+        if Module.while_counter > 0:
             return False
-
-        # TODO: nested conditions?
-        if Module.global_scope.count('cond') > 1:
+        # Check whether not in nested condition
+        if Module.cond_counter > 1:
             return False
 
         # Check whether given label is logged
         if util.is_iterable(x=label):
+            assert all(not x.endswith('-histogram') for x in label)
             if self.summary_labels != 'all' and all(x not in self.summary_labels for x in label):
                 return False
         else:
-            if self.summary_labels != 'all' and label not in self.summary_labels:
+            if (self.summary_labels != 'all' or label.endswith('-histogram')) and \
+                    label not in self.summary_labels:
                 return False
 
         return True
 
     def add_summary(
-        self, label, name, tensor, pass_tensors=None, step=None, return_summaries=False,
-        mean_variance=False, enumerate_last_rank=False
+        self, label, name, tensor, pass_tensors=None, return_summaries=False, mean_variance=False,
+        enumerate_last_rank=False
     ):
         # should be "labels" !!!
         # label
@@ -818,7 +864,6 @@ class Module(object):
                 raise TensorforceError.type(
                     name='summary', argument='pass_tensors', value=pass_tensors
                 )
-        # step
         # enumerate_last_rank
         if not isinstance(enumerate_last_rank, bool):
             raise TensorforceError.type(
@@ -852,25 +897,43 @@ class Module(object):
                 tensors[name + '-mean'] = mean
                 tensors[name + '-variance'] = variance
 
+        # Scope handling
+        if Module.scope_stack is not None:
+            for scope in reversed(Module.scope_stack[1:]):
+                scope.__exit__(None, None, None)
+            if len(Module.global_scope) > 0:
+                temp_scope = tf.name_scope(name='/'.join(Module.global_scope))
+                temp_scope.__enter__()
+            tensors = util.fmap(function=util.identity_operation, xs=tensors)
+
         # TensorFlow summaries
+        assert Module.global_summary_step is not None
+        step = Module.retrieve_tensor(name=Module.global_summary_step)
         summaries = list()
-        if step is None:
-            assert Module.global_summary_step is not None
-            step = Module.retrieve_tensor(name=Module.global_summary_step)
-        else:
-            step = Module.retrieve_tensor(name=step)
         for name, tensor in tensors.items():
             shape = util.shape(x=tensor)
-            if shape == () or shape == (-1,):
-                # Scalar
-                summaries.append(tf.contrib.summary.scalar(name=name, tensor=tensor, step=step))
-            elif shape == (1,) or shape == (-1, 1):
-                # Single-value tensor as scalar
+            if shape == ():
+                summaries.append(tf.summary.scalar(name=name, data=tensor, step=step))
+            elif shape == (-1,):
+                tensor = tf.math.reduce_sum(input_tensor=tensor, axis=0)
+                summaries.append(tf.summary.scalar(name=name, data=tensor, step=step))
+            elif shape == (1,):
                 tensor = tf.squeeze(input=tensor, axis=-1)
-                summaries.append(tf.contrib.summary.scalar(name=name, tensor=tensor, step=step))
+                summaries.append(tf.summary.scalar(name=name, data=tensor, step=step))
+            elif shape == (-1, 1):
+                tensor = tf.math.reduce_sum(input_tensor=tf.squeeze(input=tensor, axis=-1), axis=0)
+                summaries.append(tf.summary.scalar(name=name, data=tensor, step=step))
             else:
                 # General tensor as histogram
-                summaries.append(tf.contrib.summary.histogram(name=name, tensor=tensor, step=step))
+                assert not util.is_iterable(x=label) and label.endswith('-histogram')
+                summaries.append(tf.summary.histogram(name=name, data=tensor, step=step))
+
+        # Scope handling
+        if Module.scope_stack is not None:
+            if len(Module.global_scope) > 0:
+                temp_scope.__exit__(None, None, None)
+            for scope in Module.scope_stack[1:]:
+                scope.__enter__()
 
         with tf.control_dependencies(control_inputs=summaries):
             return util.fmap(function=util.identity_operation, xs=pass_tensors)

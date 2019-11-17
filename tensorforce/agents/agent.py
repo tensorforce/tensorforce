@@ -43,8 +43,9 @@ class Agent(object):
                 library module, or `Agent` subclass
                 (<span style="color:#00C000"><b>default</b></span>: Policy agent).
             environment (Environment): Environment which the agent is supposed to be trained on,
-                environment-related arguments like state/action space specifications will be
-                extract if given.
+                environment-related arguments like state/action space specifications and maximum
+                episode length will be extract if given
+                (<span style="color:#00C000"><b>recommended</b></span>).
             kwargs: Additional arguments.
         """
         if agent is None:

@@ -72,7 +72,7 @@ def main():
         help='Maximum number of timesteps per episode'
     ),
     parser.add_argument(
-        '--mean-horizon', type=int, default=10,
+        '--mean-horizon', type=int, default=1,
         help='Number of timesteps/episodes for mean reward computation'
     )
     parser.add_argument('-v', '--evaluation', action='store_true', help='Evaluation mode')

@@ -127,7 +127,7 @@ class UnittestBase(object):
                 timestep_range = self.__class__.timestep_range
 
             environment = UnittestEnvironment(
-                states=states, actions=actions, timestep_range=timestep_range,
+                states=states, actions=actions, timestep_range=timestep_range
             )
 
         elif timestep_range is not None:
@@ -186,8 +186,7 @@ class UnittestBase(object):
         ])
         self.runner.run(
             num_episodes=num_episodes, num_timesteps=num_timesteps, num_updates=num_updates,
-            max_episode_timesteps=agent.max_episode_timesteps, use_tqdm=False,
-            evaluation=evaluation
+            use_tqdm=False, evaluation=evaluation
         )
         self.runner.close()
 

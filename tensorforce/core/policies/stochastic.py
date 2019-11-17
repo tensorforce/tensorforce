@@ -107,7 +107,12 @@ class Stochastic(Policy):
 
         log_probability = tf.concat(values=tuple(log_probabilities.values()), axis=1)
         if reduced:
-            log_probability = tf.math.reduce_sum(input_tensor=log_probability, axis=1)
+            log_probability = tf.math.reduce_mean(input_tensor=log_probability, axis=1)
+            if include_per_action:
+                for name in self.actions_spec:
+                    log_probabilities[name] = tf.math.reduce_mean(
+                        input_tensor=log_probabilities[name], axis=1
+                    )
 
         if include_per_action:
             log_probabilities['*'] = log_probability
@@ -124,8 +129,12 @@ class Stochastic(Policy):
             )
 
         entropy = tf.concat(values=tuple(entropies.values()), axis=1)
+
         if reduced:
-            entropy = tf.math.reduce_sum(input_tensor=entropy, axis=1)
+            entropy = tf.math.reduce_mean(input_tensor=entropy, axis=1)
+            if include_per_action:
+                for name in self.actions_spec:
+                    entropies[name] = tf.math.reduce_mean(input_tensor=entropies[name], axis=1)
 
         if include_per_action:
             entropies['*'] = entropy
@@ -147,7 +156,12 @@ class Stochastic(Policy):
 
         kl_divergence = tf.concat(values=tuple(kl_divergences.values()), axis=1)
         if reduced:
-            kl_divergence = tf.math.reduce_sum(input_tensor=kl_divergence, axis=1)
+            kl_divergence = tf.math.reduce_mean(input_tensor=kl_divergence, axis=1)
+            if include_per_action:
+                for name in self.actions_spec:
+                    kl_divergences[name] = tf.math.reduce_mean(
+                        input_tensor=kl_divergences[name], axis=1
+                    )
 
         if include_per_action:
             kl_divergences['*'] = kl_divergence

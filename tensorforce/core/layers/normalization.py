@@ -175,11 +175,11 @@ class InstanceNormalization(Layer):
 
         if self.axes is None:
             mean, variance = tf.nn.moments(
-                x=x, axes=tuple(range(1, len(self.input_spec['shape']))), keep_dims=True
+                x=x, axes=tuple(range(1, len(self.input_spec['shape']))), keepdims=True
             )
         else:
             mean, variance = tf.nn.moments(
-                x=x, axes=tuple(1 + axis for axis in self.axes), keep_dims=True
+                x=x, axes=tuple(1 + axis for axis in self.axes), keepdims=True
             )
 
         reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))

@@ -52,24 +52,16 @@ class PiecewiseConstant(Parameter):
         else:
             raise TensorforceError.unexpected()
 
-        super().__init__(name=name, dtype=dtype, summary_labels=summary_labels)
+        super().__init__(name=name, dtype=dtype, unit=unit, summary_labels=summary_labels)
 
         assert unit in ('timesteps', 'episodes', 'updates')
         assert len(values) == len(boundaries) + 1
         assert all(isinstance(value, type(values[0])) for value in values)
 
-        self.unit = unit
         self.boundaries = boundaries
         self.values = values
 
-    def get_parameter_value(self):
-        if self.unit == 'timesteps':
-            step = Module.retrieve_tensor(name='timestep')
-        elif self.unit == 'episodes':
-            step = Module.retrieve_tensor(name='episode')
-        elif self.unit == 'updates':
-            step = Module.retrieve_tensor(name='update')
-
+    def get_parameter_value(self, step):
         parameter = tf.compat.v1.train.piecewise_constant(
             x=step, boundaries=self.boundaries, values=self.values
         )

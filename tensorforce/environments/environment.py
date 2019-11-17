@@ -28,7 +28,7 @@ class Environment(object):
     """
 
     @staticmethod
-    def create(environment, **kwargs):
+    def create(environment, max_episode_timesteps=None, **kwargs):
         """
         Creates an environment from a specification.
 
@@ -36,9 +36,18 @@ class Environment(object):
             environment (specification): JSON file, specification key, configuration dictionary,
                 library module, or `Environment` subclass
                 (<span style="color:#C00000"><b>required</b></span>).
+            max_episode_timesteps (int > 0): Maximum number of timesteps per episode, overwrites
+                and consequently should be at most the environment default
+                (<span style="color:#00C000"><b>default</b></span>: environment default).
             kwargs: Additional arguments.
         """
-        if isinstance(environment, Environment):
+        if max_episode_timesteps is not None:
+            environment = Environment.create(environment=environment, **kwargs)
+            return EnvironmentWrapper(
+                environment=environment, max_episode_timesteps=max_episode_timesteps
+            )
+
+        elif isinstance(environment, Environment):
             # TODO: asserts???????
             return environment
 
@@ -157,14 +166,6 @@ class Environment(object):
             dict[state]: Dictionary containing initial state(s) and auxiliary information.
         """
         raise NotImplementedError
-        # if self.observation is not None or self.thread is not None:
-        #     raise TensorforceError(message="Invalid execute.")
-        # self.start_reset()
-        # self.thread.join()
-        # states, _, _ = self.observe()
-        # if self.observation is not None:
-        #     raise TensorforceError(message="Invalid start_reset/observe implementation.")
-        # return states
 
     def execute(self, actions):
         """
@@ -179,14 +180,6 @@ class Environment(object):
             a terminal state is reached or 2 if the episode was aborted, and observed reward.
         """
         raise NotImplementedError
-        # if self.observation is not None or self.thread is not None:
-        #     raise TensorforceError(message="Invalid execute.")
-        # self.start_execute(actions=actions)
-        # self.thread.join()
-        # observation = self.observe()
-        # if self.observation is not None:
-        #     raise TensorforceError(message="Invalid start_execute/observe implementation.")
-        # return observation
 
     def start_reset(self):
         if self.thread is not None:
@@ -217,3 +210,51 @@ class Environment(object):
             observation = self.observation
             self.observation = None
             return observation
+
+
+class EnvironmentWrapper(Environment):
+
+    def __init__(self, environment, max_episode_timesteps):
+        self.environment = environment
+        self._max_episode_timesteps = max_episode_timesteps
+
+    def __str__(self):
+        return str(self.environment)
+
+    def states(self):
+        return self.environment.states()
+
+    def actions(self):
+        return self.environment.actions()
+
+    def max_episode_timesteps(self):
+        return self._max_episode_timesteps
+
+    def close(self):
+        return self.environment.close()
+
+    def reset(self):
+        self.timestep = 0
+        return self.environment.reset()
+
+    def execute(self, actions):
+        states, terminal, reward = self.environment.execute(actions=actions)
+        self.timestep += 1
+        if self.timestep >= self._max_episode_timesteps:
+            terminal = 2
+        return states, terminal, reward
+
+    def start_reset(self):
+        return self.environment.start_reset()
+
+    def finish_reset(self):
+        return self.environment.finish_reset()
+
+    def start_execute(self, actions):
+        return self.environment.start_execute(actions=actions)
+
+    def finish_execute(self, actions):
+        return self.environment.finish_execute(actions=actions)
+
+    def retrieve_execute(self):
+        return self.environment.retrieve_execute()

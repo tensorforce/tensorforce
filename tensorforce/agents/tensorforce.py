@@ -35,21 +35,22 @@ class TensorforceAgent(Agent):
 
     Args:
         states (specification): States specification
-            (<span style="color:#C00000"><b>required</b></span>), arbitrarily nested dictionary of
-            state descriptions (usually taken from `Environment.states()`) with the following
-            attributes:
+            (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
+            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of state
+            descriptions (usually taken from `Environment.states()`) with the following attributes:
             <ul>
             <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; state data type
             (<span style="color:#00C000"><b>default</b></span>: "float").</li>
             <li><b>shape</b> (<i>int | iter[int]</i>) &ndash; state shape
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>num_states</b> (<i>int > 0</i>) &ndash; number of discrete state values
+            <li><b>num_values</b> (<i>int > 0</i>) &ndash; number of discrete state values
             (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
             <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum state value
             (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
             </ul>
         actions (specification): Actions specification
-            (<span style="color:#C00000"><b>required</b></span>), arbitrarily nested dictionary of
+            (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
+            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of
             action descriptions (usually taken from `Environment.actions()`) with the following
             attributes:
             <ul>
@@ -57,13 +58,14 @@ class TensorforceAgent(Agent):
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>shape</b> (<i>int > 0 | iter[int > 0]</i>) &ndash; action shape
             (<span style="color:#00C000"><b>default</b></span>: scalar).</li>
-            <li><b>num_actions</b> (<i>int > 0</i>) &ndash; number of discrete action values
+            <li><b>num_values</b> (<i>int > 0</i>) &ndash; number of discrete action values
             (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
             <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum action value
             (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
             </ul>
         max_episode_timesteps (int > 0): Maximum number of timesteps per episode
-            (<span style="color:#00C000"><b>default</b></span>: not given).
+            (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
+            specified via `environment` argument for `Agent.create(...)`).
 
         policy (specification): Policy configuration, see [policies](../modules/policies.html)
             (<span style="color:#00C000"><b>default</b></span>: "default", action distributions
@@ -184,16 +186,18 @@ class TensorforceAgent(Agent):
             <li><b>directory</b> (<i>path</i>) &ndash; summarizer directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>frequency</b> (<i>int > 0, dict[int > 0]</i>) &ndash; how frequently in
-            timestepsto record summaries, applies to "variables" and "act" if specified globally
-            (<span style="color:#00C000"><b>default</b></span>:
-            always), otherwise specified per "variables"/"act" in timesteps and "observe"/"update"
-            in updates (<span style="color:#00C000"><b>default</b></span>: never).</li>
+            timesteps to record summaries for act-summaries if specified globally
+            (<span style="color:#00C000"><b>default</b></span>: always),
+            otherwise specified for act-summaries via "act" in timesteps, for
+            observe/experience-summaries via "observe"/"experience" in episodes, and for
+            update/variables-summaries via "update"/"variables" in updates
+            (<span style="color:#00C000"><b>default</b></span>: never).</li>
             <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
-            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all or list of summaries to
-            record, from the following labels
+            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
+            labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
             <li>"distributions" or "bernoulli", "categorical", "gaussian", "beta":
             distribution-specific parameters</li>
@@ -212,9 +216,9 @@ class TensorforceAgent(Agent):
             </li>
             <li>"update-norm": update norm</li>
             <li>"updates": update mean and variance scalars</li>
-            <li>"updates-full": update histograms</li>
+            <li>"updates-histogram": update histograms</li>
             <li>"variables": variable mean and variance scalars</li>
-            <li>"variables-full": variable histograms</li>
+            <li>"variables-histogram": variable histograms</li>
             </ul>
         recorder (specification): Experience traces recorder configuration with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):

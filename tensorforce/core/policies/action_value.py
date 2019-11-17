@@ -72,7 +72,12 @@ class ActionValue(Policy):
 
         actions_value = tf.concat(values=tuple(actions_values.values()), axis=1)
         if reduced:
-            actions_value = tf.math.reduce_sum(input_tensor=actions_value, axis=1)
+            actions_value = tf.math.reduce_mean(input_tensor=actions_value, axis=1)
+            if include_per_action:
+                for name in self.actions_spec:
+                    actions_values[name] = tf.math.reduce_mean(
+                        input_tensor=actions_values[name], axis=1
+                    )
 
         if include_per_action:
             actions_values['*'] = actions_value
@@ -94,7 +99,12 @@ class ActionValue(Policy):
 
         states_value = tf.concat(values=tuple(states_values.values()), axis=1)
         if reduced:
-            states_value = tf.math.reduce_sum(input_tensor=states_value, axis=1)
+            states_value = tf.math.reduce_mean(input_tensor=states_value, axis=1)
+            if include_per_action:
+                for name in self.actions_spec:
+                    states_values[name] = tf.math.reduce_mean(
+                        input_tensor=states_values[name], axis=1
+                    )
 
         if include_per_action:
             states_values['*'] = states_value

@@ -136,7 +136,7 @@ class Deltafier(PreprocessingLayer):
                 value=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')), read_value=False
             )
             with tf.control_dependencies(control_inputs=(assignment,)):
-                return tf.concat(values=(tf.zeros_like(tensor=x[:1]), x[1:] - x[:-1]), axis=0)  # dtype=util.tf_dtype(dtype='???'))
+                return tf.concat(values=(tf.zeros_like(input=x[:1]), x[1:] - x[:-1]), axis=0)  # dtype=util.tf_dtype(dtype='???'))
 
         def later_delta():
             return x - tf.concat(values=(self.previous, x[:-1]), axis=0)
@@ -201,7 +201,7 @@ class Image(Layer):
 
     def tf_apply(self, x):
         if self.height is not None:
-            x = tf.image.resize_bilinear(images=x, size=(self.height, self.width))
+            x = tf.image.resize(images=x, size=(self.height, self.width))
 
         if not isinstance(self.grayscale, bool):
             weights = tf.constant(

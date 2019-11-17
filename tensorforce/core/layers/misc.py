@@ -301,7 +301,9 @@ class Register(Layer):
         return dict(type=None, shape=None)
 
     def tf_apply(self, x):
+        last_scope = Module.global_scope.pop()
         Module.update_tensor(name=self.tensor, tensor=x)
+        Module.global_scope.append(last_scope)
 
         return x
 
@@ -416,14 +418,19 @@ class Retrieve(Layer):
             if self.tensors == '*':
                 return x
             else:
-                return Module.retrieve_tensor(name=self.tensors[0])
+                last_scope = Module.global_scope.pop()
+                x = Module.retrieve_tensor(name=self.tensors[0])
+                Module.global_scope.append(last_scope)
+                return x
 
         tensors = list()
         for tensor in self.tensors:
             if tensor == '*':
                 tensors.append(x)
             else:
+                last_scope = Module.global_scope.pop()
                 tensors.append(Module.retrieve_tensor(name=tensor))
+                Module.global_scope.append(last_scope)
 
         shape = self.output_spec['shape']
         for n, tensor in enumerate(tensors):

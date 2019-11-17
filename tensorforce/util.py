@@ -185,7 +185,7 @@ def no_operation():
 
 
 def identity_operation(x, operation_name=None):
-    zero = tf.zeros_like(tensor=x)
+    zero = tf.zeros_like(input=x)
     if dtype(x=zero) == 'bool':
         x = tf.math.logical_or(x=x, y=zero, name=operation_name)
     elif dtype(x=zero) in ('int', 'long', 'float'):

@@ -88,6 +88,6 @@ class Value(Objective):
         loss = self.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)
 
         if not self.early_reduce:
-            loss = tf.math.reduce_sum(input_tensor=loss, axis=1)
+            loss = tf.math.reduce_mean(input_tensor=loss, axis=1)
 
         return loss

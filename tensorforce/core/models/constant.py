@@ -78,18 +78,16 @@ class ConstantModel(Model):
 
                 # First unmasked action
                 mask = auxiliaries[name + '_mask']
-                num_values = tf.math.count_nonzero(
-                    input_tensor=mask, axis=-1, dtype=int_dtype
-                )
+                num_values = tf.math.count_nonzero(input=mask, axis=-1, dtype=int_dtype)
                 offset = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
                 if self.action_values is not None and name in self.action_values:
                     action = self.action_values[name]
                     num_values = tf.math.count_nonzero(
-                        input_tensor=mask[..., :action], axis=-1, dtype=int_dtype
+                        input=mask[..., :action], axis=-1, dtype=int_dtype
                     )
                     action = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
                 else:
-                    action = tf.zeros_like(tensor=offset)
+                    action = tf.zeros_like(input=offset)
                 choices = tf.boolean_mask(tensor=choices, mask=mask)
                 actions[name] = tf.gather(params=choices, indices=(action + offset))
 

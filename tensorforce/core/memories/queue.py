@@ -85,8 +85,7 @@ class Queue(CircularBuffer, Memory):
             tf.compat.v1.debugging.assert_less_equal(x=num_timesteps, y=max_capacity),
             # at most one terminal
             tf.compat.v1.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input_tensor=terminal, dtype=util.tf_dtype(dtype='long')),
-                y=one
+                x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')), y=one
             ),
             # if terminal, last timestep in batch
             tf.compat.v1.debugging.assert_equal(
@@ -106,7 +105,7 @@ class Queue(CircularBuffer, Memory):
             # general check: only terminal indices true
             tf.compat.v1.debugging.assert_equal(
                 x=tf.math.count_nonzero(
-                    input_tensor=self.buffers['terminal'], dtype=util.tf_dtype(dtype='long')
+                    input=self.buffers['terminal'], dtype=util.tf_dtype(dtype='long')
                 ),
                 y=(self.episode_count + one)
             ),
@@ -136,7 +135,7 @@ class Queue(CircularBuffer, Memory):
 
             # Count number of overwritten episodes
             num_episodes = tf.math.count_nonzero(
-                input_tensor=tf.gather(params=self.buffers['terminal'], indices=indices), axis=0,
+                input=tf.gather(params=self.buffers['terminal'], indices=indices), axis=0,
                 dtype=util.tf_dtype(dtype='long')
             )
 
@@ -191,7 +190,7 @@ class Queue(CircularBuffer, Memory):
         # Count number of new episodes
         with tf.control_dependencies(control_inputs=(assignment,)):
             num_new_episodes = tf.math.count_nonzero(
-                input_tensor=terminal, dtype=util.tf_dtype(dtype='long')
+                input=terminal, dtype=util.tf_dtype(dtype='long')
             )
 
             # Write new terminal indices
@@ -271,14 +270,14 @@ class Queue(CircularBuffer, Memory):
             )
             mask = tf.concat(values=(is_not_terminal, mask), axis=1)
             is_not_terminal = tf.squeeze(input=is_not_terminal, axis=1)
-            zeros = tf.zeros_like(tensor=is_not_terminal, dtype=util.tf_dtype(dtype='long'))
-            ones = tf.ones_like(tensor=is_not_terminal, dtype=util.tf_dtype(dtype='long'))
+            zeros = tf.zeros_like(input=is_not_terminal, dtype=util.tf_dtype(dtype='long'))
+            ones = tf.ones_like(input=is_not_terminal, dtype=util.tf_dtype(dtype='long'))
             lengths += tf.where(condition=is_not_terminal, x=ones, y=zeros)
             return lengths, predecessor_indices, mask
 
-        lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
+        lengths = tf.ones_like(input=indices, dtype=util.tf_dtype(dtype='long'))
         predecessor_indices = tf.expand_dims(input=indices, axis=1)
-        mask = tf.ones_like(tensor=predecessor_indices, dtype=util.tf_dtype(dtype='bool'))
+        mask = tf.ones_like(input=predecessor_indices, dtype=util.tf_dtype(dtype='bool'))
         shape = tf.TensorShape(dims=((None, None)))
 
         lengths, predecessor_indices, mask = self.while_loop(
@@ -353,14 +352,14 @@ class Queue(CircularBuffer, Memory):
         #     with tf.control_dependencies(control_inputs=util.flatten(xs=previous_values)):
         #         previous_indices = tf.math.mod(x=(previous_indices - one), y=capacity)
         #         terminal = self.retrieve(indices=previous_indices, values='terminal')
-        #         x = tf.zeros_like(tensor=terminal, dtype=util.tf_dtype(dtype='long'))
-        #         y = tf.ones_like(tensor=terminal, dtype=util.tf_dtype(dtype='long'))
+        #         x = tf.zeros_like(input=terminal, dtype=util.tf_dtype(dtype='long'))
+        #         y = tf.ones_like(input=terminal, dtype=util.tf_dtype(dtype='long'))
         #         lengths += tf.where(condition=terminal, x=x, y=y)
 
         #     return lengths, sequence_values, initial_values
 
         # # Sequence lengths
-        # lengths = tf.zeros_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
+        # lengths = tf.zeros_like(input=indices, dtype=util.tf_dtype(dtype='long'))
 
         # # Shape invariants
         # start_sequence_values = OrderedDict()
@@ -453,14 +452,14 @@ class Queue(CircularBuffer, Memory):
             successor_indices = tf.concat(values=(successor_indices, next_index), axis=1)
             mask = tf.concat(values=(mask, is_not_terminal), axis=1)
             is_not_terminal = tf.squeeze(input=is_not_terminal, axis=1)
-            zeros = tf.zeros_like(tensor=is_not_terminal, dtype=util.tf_dtype(dtype='long'))
-            ones = tf.ones_like(tensor=is_not_terminal, dtype=util.tf_dtype(dtype='long'))
+            zeros = tf.zeros_like(input=is_not_terminal, dtype=util.tf_dtype(dtype='long'))
+            ones = tf.ones_like(input=is_not_terminal, dtype=util.tf_dtype(dtype='long'))
             lengths += tf.where(condition=is_not_terminal, x=ones, y=zeros)
             return lengths, successor_indices, mask
 
-        lengths = tf.ones_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
+        lengths = tf.ones_like(input=indices, dtype=util.tf_dtype(dtype='long'))
         successor_indices = tf.expand_dims(input=indices, axis=1)
-        mask = tf.ones_like(tensor=successor_indices, dtype=util.tf_dtype(dtype='bool'))
+        mask = tf.ones_like(input=successor_indices, dtype=util.tf_dtype(dtype='bool'))
         shape = tf.TensorShape(dims=((None, None)))
 
         lengths, successor_indices, mask = self.while_loop(
@@ -535,14 +534,14 @@ class Queue(CircularBuffer, Memory):
         #     with tf.control_dependencies(control_inputs=util.flatten(xs=next_values)):
         #         next_indices = tf.math.mod(x=(next_indices - one), y=capacity)
         #         terminal = self.retrieve(indices=next_indices, values='terminal')
-        #         x = tf.zeros_like(tensor=terminal, dtype=util.tf_dtype(dtype='long'))
-        #         y = tf.ones_like(tensor=terminal, dtype=util.tf_dtype(dtype='long'))
+        #         x = tf.zeros_like(input=terminal, dtype=util.tf_dtype(dtype='long'))
+        #         y = tf.ones_like(input=terminal, dtype=util.tf_dtype(dtype='long'))
         #         lengths += tf.where(condition=terminal, x=x, y=y)
 
         #     return lengths, sequence_values, final_values
 
         # # Sequence lengths
-        # lengths = tf.zeros_like(tensor=indices, dtype=util.tf_dtype(dtype='long'))
+        # lengths = tf.zeros_like(input=indices, dtype=util.tf_dtype(dtype='long'))
 
         # # Shape invariants
         # start_sequence_values = OrderedDict()

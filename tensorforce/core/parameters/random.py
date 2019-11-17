@@ -60,7 +60,7 @@ class Random(Parameter):
         self.distribution = distribution
         self.kwargs = kwargs
 
-    def get_parameter_value(self):
+    def get_parameter_value(self, step):
         if self.distribution == 'normal':
             parameter = tf.random.normal(
                 shape=self.shape, dtype=util.tf_dtype(dtype=self.dtype),

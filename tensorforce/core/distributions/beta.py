@@ -114,19 +114,26 @@ class Beta(Distribution):
 
         Module.update_tensor(name=(self.name + '-alpha'), tensor=alpha)
         Module.update_tensor(name=(self.name + '-beta'), tensor=beta)
-        alpha, beta, alpha_beta, log_norm = self.add_summary(
-            label=('distributions', 'beta'), name='alpha', tensor=alpha,
-            pass_tensors=(alpha, beta, alpha_beta, log_norm)
-        )
-        alpha, beta, alpha_beta, log_norm = self.add_summary(
-            label=('distributions', 'beta'), name='beta', tensor=beta,
-            pass_tensors=(alpha, beta, alpha_beta, log_norm)
-        )
 
         return alpha, beta, alpha_beta, log_norm
 
     def tf_sample(self, parameters, temperature):
         alpha, beta, alpha_beta, _ = parameters
+
+        summary_alpha = alpha
+        summary_beta = beta
+        for _ in range(len(self.action_spec['shape'])):
+            summary_alpha = tf.math.reduce_mean(input_tensor=summary_alpha, axis=1)
+            summary_beta = tf.math.reduce_mean(input_tensor=summary_beta, axis=1)
+
+        alpha, beta, alpha_beta = self.add_summary(
+            label=('distributions', 'beta'), name='alpha', tensor=summary_alpha,
+            pass_tensors=(alpha, beta, alpha_beta)
+        )
+        alpha, beta, alpha_beta = self.add_summary(
+            label=('distributions', 'beta'), name='beta', tensor=summary_beta,
+            pass_tensors=(alpha, beta, alpha_beta)
+        )
 
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
 

@@ -45,7 +45,7 @@ class OrnsteinUhlenbeck(Parameter):
         self.mu = mu
         self.sigma = sigma
 
-    def get_parameter_value(self):
+    def get_parameter_value(self, step):
         self.process = self.add_variable(
             name='process', dtype='float', shape=(), is_trainable=False, initializer=self.mu
         )

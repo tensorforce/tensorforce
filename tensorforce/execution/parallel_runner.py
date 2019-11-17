@@ -86,12 +86,12 @@ class ParallelRunner(object):
     def run(
         self,
         # General
-        num_episodes=None, num_timesteps=None, num_updates=None, max_episode_timesteps=None,
-        num_sleep_secs=0.01, sync_timesteps=False, sync_episodes=False,
+        num_episodes=None, num_timesteps=None, num_updates=None, num_sleep_secs=0.01,
+        sync_timesteps=False, sync_episodes=False,
         # Callback
         callback=None, callback_episode_frequency=None, callback_timestep_frequency=None,
         # Tqdm
-        use_tqdm=True, mean_horizon=10,
+        use_tqdm=True, mean_horizon=1,
         # Evaluation
         evaluation_callback=None
     ):
@@ -108,10 +108,6 @@ class ParallelRunner(object):
             self.num_updates = float('inf')
         else:
             self.num_updates = num_updates
-        if max_episode_timesteps is None:
-            self.max_episode_timesteps = float('inf')
-        else:
-            self.max_episode_timesteps = max_episode_timesteps
         self.num_sleep_secs = num_sleep_secs
         self.sync_timesteps = sync_timesteps
         self.sync_episodes = sync_episodes
@@ -312,14 +308,6 @@ class ParallelRunner(object):
 
                 elif isinstance(terminal, bool):
                     terminal = int(terminal)
-
-                # Terminate episode if too long
-                if evaluation:
-                    if self.evaluation_timestep >= self.max_episode_timesteps:
-                        terminal = 2
-                else:
-                    if self.episode_timestep[parallel] >= self.max_episode_timesteps:
-                        terminal = 2
 
                 # Observe unless episode just started or evaluation
                 # assert (terminal is None) == (self.episode_timestep[parallel] == 0)

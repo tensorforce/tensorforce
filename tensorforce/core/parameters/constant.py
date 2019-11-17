@@ -52,7 +52,7 @@ class Constant(Parameter):
 
         self.constant_value = value
 
-    def get_parameter_value(self):
+    def get_parameter_value(self, step):
         parameter = tf.constant(value=self.constant_value, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter

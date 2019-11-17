@@ -173,12 +173,12 @@ class Pool1d(Layer):
 
         if self.reduction == 'average':
             x = tf.nn.avg_pool(
-                value=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()
+                input=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()
             )
 
         elif self.reduction == 'max':
             x = tf.nn.max_pool(
-                value=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()
+                input=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()
             )
 
         x = tf.squeeze(input=x, axis=1)
@@ -253,12 +253,12 @@ class Pool2d(Layer):
     def tf_apply(self, x):
         if self.reduction == 'average':
             x = tf.nn.avg_pool(
-                value=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()
+                input=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()
             )
 
         elif self.reduction == 'max':
             x = tf.nn.max_pool(
-                value=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()
+                input=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()
             )
 
         return x

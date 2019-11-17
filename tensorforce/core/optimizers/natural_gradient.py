@@ -118,7 +118,7 @@ class NaturalGradient(Optimizer):
 
         # Zero step if constant <= 0
         def no_step():
-            zero_deltas = [tf.zeros_like(tensor=delta) for delta in deltas]
+            zero_deltas = [tf.zeros_like(input=delta) for delta in deltas]
             if return_estimated_improvement:
                 return zero_deltas, tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
             else:

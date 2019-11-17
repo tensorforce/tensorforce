@@ -108,19 +108,26 @@ class Gaussian(Distribution):
 
         Module.update_tensor(name=(self.name + '-mean'), tensor=mean)
         Module.update_tensor(name=(self.name + '-stddev'), tensor=stddev)
-        mean, stddev, log_stddev = self.add_summary(
-            label=('distributions', 'gaussian'), name='mean', tensor=mean,
-            pass_tensors=(mean, stddev, log_stddev)
-        )
-        mean, stddev, log_stddev = self.add_summary(
-            label=('distributions', 'gaussian'), name='stddev', tensor=stddev,
-            pass_tensors=(mean, stddev, log_stddev)
-        )
 
         return mean, stddev, log_stddev
 
     def tf_sample(self, parameters, temperature):
         mean, stddev, _ = parameters
+
+        summary_mean = mean
+        summary_stddev = stddev
+        for _ in range(len(self.action_spec['shape'])):
+            summary_mean = tf.math.reduce_mean(input_tensor=summary_mean, axis=1)
+            summary_stddev = tf.math.reduce_mean(input_tensor=summary_stddev, axis=1)
+
+        mean, stddev = self.add_summary(
+            label=('distributions', 'gaussian'), name='mean', tensor=summary_mean,
+            pass_tensors=(mean, stddev)
+        )
+        mean, stddev = self.add_summary(
+            label=('distributions', 'gaussian'), name='stddev', tensor=summary_stddev,
+            pass_tensors=(mean, stddev)
+        )
 
         normal_distribution = tf.random.normal(
             shape=tf.shape(input=mean), dtype=util.tf_dtype(dtype='float')

@@ -98,7 +98,7 @@ class PolicyGradient(Objective):
         loss = -scaled
 
         if not self.early_reduce:
-            loss = tf.math.reduce_sum(input_tensor=loss, axis=1)
+            loss = tf.math.reduce_mean(input_tensor=loss, axis=1)
 
         return loss
 

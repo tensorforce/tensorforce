@@ -57,7 +57,7 @@ class MultiStep(MetaOptimizer):
             assert 'reference' not in arguments
             arguments['reference'] = fn_reference(**arguments)
 
-        deltas = [tf.zeros_like(tensor=variable) for variable in variables]
+        deltas = [tf.zeros_like(input=variable) for variable in variables]
 
         if self.unroll_loop:
             # Unrolled for loop
@@ -83,7 +83,7 @@ class MultiStep(MetaOptimizer):
             num_steps = self.num_steps.value()
             deltas = self.while_loop(
                 cond=util.tf_always_true, body=body, loop_vars=(deltas,), back_prop=False,
-                maximum_iterations=num_steps, use_while_v2=True
+                maximum_iterations=num_steps
             )[0]
 
             return deltas

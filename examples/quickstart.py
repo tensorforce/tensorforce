@@ -14,6 +14,7 @@
 # ==============================================================================
 
 import os
+import logging
 
 import tensorflow as tf
 
@@ -23,7 +24,8 @@ from tensorforce.execution import Runner
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-tf.logging.set_verbosity(v=tf.logging.ERROR)
+logger = tf.get_logger()
+logger.setLevel(logging.ERROR)
 
 
 def main():

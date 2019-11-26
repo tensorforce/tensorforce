@@ -42,7 +42,7 @@ class Runner(object):
         if self.save_best_agent is True:
             # Disable periodic saving
             assert not self.is_agent_external
-            kwargs = dict(saver=dict(seconds=None, steps=None))
+            kwargs = dict(saver=dict(frequency=None))
         self.agent = Agent.create(agent=agent, environment=self.environment, **kwargs)
 
         # self.global_episodes = self.agent.episodes

@@ -280,7 +280,7 @@ class Module(object):
                         directories = list()
                     max_summaries = self.summarizer_spec.get('max-summaries', 5)
                     if len(directories) > max_summaries - 1:
-                        for subdir in directories[:-max_summaries + 1]:
+                        for subdir in directories[:len(directories) - max_summaries + 1]:
                             subdir = os.path.join(directory, subdir)
                             os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
                             os.rmdir(subdir)
@@ -821,6 +821,10 @@ class Module(object):
             return False
         # Check whether not in nested condition
         if Module.cond_counter > 1:
+            return False
+
+        # Temporary
+        if label == 'variables' or label == 'variables-histogram':
             return False
 
         # Check whether given label is logged

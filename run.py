@@ -20,7 +20,6 @@ import os
 
 import matplotlib
 import numpy as np
-import tensorflow as tf
 
 from tensorforce.agents import Agent
 from tensorforce.environments import Environment
@@ -28,9 +27,6 @@ from tensorforce.execution import Runner
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-tf.logging.set_verbosity(v=tf.logging.ERROR)
 
 
 def main():
@@ -131,24 +127,24 @@ def main():
 
     else:
         if args.level is None:
-            environment = Environment.create(environment=args.environment)
+            environment = Environment.create(
+                environment=args.environment, max_episode_timesteps=args.max_episode_timesteps
+            )
         else:
-            environment = Environment.create(environment=args.environment, level=args.level)
+            environment = Environment.create(
+                environment=args.environment, max_episode_timesteps=args.max_episode_timesteps,
+                level=args.level
+            )
 
     for _ in range(args.repeat):
         agent_kwargs = dict()
         if args.network is not None:
             agent_kwargs['network'] = args.network
-        if args.max_episode_timesteps is not None:
-            assert environment.max_episode_timesteps() is None or \
-                environment.max_episode_timesteps() == args.max_episode_timesteps
-            agent_kwargs['max_episode_timesteps'] = args.max_episode_timesteps
         agent = Agent.create(agent=args.agent, environment=environment, **agent_kwargs)
 
         runner = Runner(agent=agent, environment=environment)
         runner.run(
-            num_timesteps=args.timesteps, num_episodes=args.episodes,
-            max_episode_timesteps=args.max_episode_timesteps, callback=callback,
+            num_timesteps=args.timesteps, num_episodes=args.episodes, callback=callback,
             mean_horizon=args.mean_horizon, evaluation=args.evaluation
             # save_best_model=args.save_best_model
         )

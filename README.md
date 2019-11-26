@@ -58,7 +58,7 @@ cd tensorforce
 pip3 install -e .
 ```
 
-Tensorforce is built on top of [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed, currently as version `1.13.1`. To include the correct version of TensorFlow with the installation of Tensorforce, simply add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
+Tensorforce is built on top of [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed. To include the correct version of TensorFlow with the installation of Tensorforce, simply add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
 
 ```bash
 # PyPI version plus TensorFlow CPU version

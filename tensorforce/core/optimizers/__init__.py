@@ -35,15 +35,13 @@ from tensorforce.core.optimizers.tf_optimizer import TFOptimizer
 optimizer_modules = dict(
     adadelta=partial(TFOptimizer, optimizer='adadelta'),
     adagrad=partial(TFOptimizer, optimizer='adagrad'), adam=partial(TFOptimizer, optimizer='adam'),
-    clipping_step=ClippingStep, default=MetaOptimizerWrapper, evolutionary=Evolutionary,
-    global_optimizer=GlobalOptimizer,
-    gradient_descent=partial(TFOptimizer, optimizer='gradient_descent'),
-    meta_optimizer_wrapper=MetaOptimizerWrapper,
-    momentum=partial(TFOptimizer, optimizer='momentum'), multi_step=MultiStep,
-    natural_gradient=NaturalGradient, optimizing_step=OptimizingStep, plus=Plus,
-    proximal_adagrad=partial(TFOptimizer, optimizer='proximal_adagrad'),
-    proximal_gradient_descent=partial(TFOptimizer, optimizer='proximal_gradient_descent'),
-    rmsprop=partial(TFOptimizer, optimizer='rmsprop'), subsampling_step=SubsamplingStep,
+    adamax=partial(TFOptimizer, optimizer='adamax'), clipping_step=ClippingStep,
+    default=MetaOptimizerWrapper, evolutionary=Evolutionary,
+    ftrl=partial(TFOptimizer, optimizer='ftrl'), global_optimizer=GlobalOptimizer,
+    meta_optimizer_wrapper=MetaOptimizerWrapper, multi_step=MultiStep,
+    nadam=partial(TFOptimizer, optimizer='nadam'), natural_gradient=NaturalGradient,
+    optimizing_step=OptimizingStep, plus=Plus, rmsprop=partial(TFOptimizer, optimizer='rmsprop'),
+    sgd=partial(TFOptimizer, optimizer='sgd'), subsampling_step=SubsamplingStep,
     synchronization=Synchronization
 )
 

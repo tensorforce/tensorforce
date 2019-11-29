@@ -20,6 +20,18 @@ from tensorforce.core import parameter_modules
 from tensorforce.core.optimizers import Optimizer
 
 
+tensorflow_optimizers = dict(
+    adadelta=tf.keras.optimizers.Adadelta,
+    adagrad=tf.keras.optimizers.Adagrad,
+    adam=tf.keras.optimizers.Adam,
+    adamax=tf.keras.optimizers.Adamax,
+    ftrl=tf.keras.optimizers.Ftrl,
+    nadam=tf.keras.optimizers.Nadam,
+    rmsprop=tf.keras.optimizers.RMSprop,
+    sgd=tf.keras.optimizers.SGD
+)
+
+
 class TFOptimizer(Optimizer):
     """
     TensorFlow optimizer (specification key: `tf_optimizer`, `adadelta`, `adagrad`, `adam`,
@@ -42,35 +54,13 @@ class TFOptimizer(Optimizer):
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__.
     """
 
-    tensorflow_optimizers = dict(
-        adadelta=tf.compat.v1.train.AdadeltaOptimizer,
-        adagrad=tf.compat.v1.train.AdagradOptimizer,
-        adam=tf.compat.v1.train.AdamOptimizer,
-        gradient_descent=tf.compat.v1.train.GradientDescentOptimizer,
-        momentum=tf.compat.v1.train.MomentumOptimizer,
-        proximal_adagrad=tf.compat.v1.train.ProximalAdagradOptimizer,
-        proximal_gradient_descent=tf.compat.v1.train.ProximalGradientDescentOptimizer,
-        rmsprop=tf.compat.v1.train.RMSPropOptimizer
-    )
-    # tensorflow_optimizers = dict(
-    #     adadelta=tf.optimizers.Adadelta,
-    #     adagrad=tf.optimizers.Adagrad,
-    #     adam=tf.optimizers.Adam,
-    #     adamax=tf.optimizers.Adamax,
-    #     ftrl=tf.optimizers.Ftrl,
-    #     nadam=tf.optimizers.Nadam,
-    #     rmsprop=tf.optimizers.RMSprop,
-    #     sgd=tf.optimizers.SGD
-    # )
-    # "clipnorm", "clipvalue", "lr", "decay"}
-
     def __init__(
         self, name, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
         **kwargs
     ):
         super().__init__(name=name, summary_labels=summary_labels)
 
-        assert optimizer in TFOptimizer.tensorflow_optimizers
+        assert optimizer in tensorflow_optimizers
         self.learning_rate = self.add_module(
             name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
         )
@@ -78,14 +68,14 @@ class TFOptimizer(Optimizer):
             name='gradient-norm-clipping', module=gradient_norm_clipping,
             modules=parameter_modules, dtype='float'
         )
-        self.optimizer = TFOptimizer.tensorflow_optimizers[optimizer]
+        self.optimizer = tensorflow_optimizers[optimizer]
         self.optimizer_kwargs = kwargs
 
     def tf_initialize(self):
         super().tf_initialize()
 
         self.optimizer = self.optimizer(
-            learning_rate=self.learning_rate.value, **self.optimizer_kwargs
+            learning_rate=self.learning_rate.value, name=self.name, **self.optimizer_kwargs
         )
 
     def tf_step(self, variables, arguments, fn_loss, fn_initial_gradients=None, **kwargs):
@@ -133,9 +123,18 @@ class TFOptimizer(Optimizer):
             ]
 
     def get_variables(self, only_trainable=False, only_saved=False):
-        variables = super().get_variables(only_trainable=only_trainable, only_saved=only_saved)
+        for variable in self.optimizer.weights:
+            name_index = variable.name.rindex('/' + self.name + '/')
+            name = variable.name[name_index + len(self.name) + 2: -2]
+            if name in self.variables:
+                break
+            self.variables[name] = variable
+        for name, value in self.optimizer._hyper.items():
+            if isinstance(value, tf.Variable):
+                if name in self.variables:
+                    break
+                self.variables[name] = value
 
-        if not only_trainable:
-            variables.extend(self.optimizer.variables())
+        variables = super().get_variables(only_trainable=only_trainable, only_saved=only_saved)
 
         return variables

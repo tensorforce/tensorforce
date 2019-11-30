@@ -26,10 +26,6 @@ import tensorflow as tf
 from tensorforce import TensorforceError, util
 
 
-tf.compat.v1.enable_v2_behavior()
-tf.compat.v1.disable_eager_execution()
-
-
 class Module(object):
     """
     Base class for modules.
@@ -259,11 +255,9 @@ class Module(object):
                 name='global-timestep', dtype='long', shape=(), is_trainable=False,
                 initializer='zeros', shared='global-timestep'
             )
-            collection = tf.compat.v1.get_collection(key=tf.compat.v1.GraphKeys.GLOBAL_STEP)
+            collection = self.graph.get_collection(name='global_step')
             if len(collection) == 0:
-                tf.compat.v1.add_to_collection(
-                    name=tf.compat.v1.GraphKeys.GLOBAL_STEP, value=self.global_timestep
-                )
+                self.graph.add_to_collection(name='global_step', value=self.global_timestep)
 
             if self.summarizer_spec is not None:
                 with tf.name_scope(name='summarizer'):
@@ -380,8 +374,6 @@ class Module(object):
             Module.cond_counter = None
             Module.global_tensors = None
 
-        num_variables = len(tf.compat.v1.trainable_variables())
-
         # Internal TensorFlow functions, prefixed by 'tf_'
         for attribute in sorted(dir(self)):
             if attribute.startswith('tf_') and attribute != 'tf_initialize':
@@ -482,8 +474,6 @@ class Module(object):
                 if self.summarizer_spec is not None:
                     record_summaries.__exit__(None, None, None)
                     Module.global_summary_step = None
-
-        assert num_variables == len(tf.compat.v1.trainable_variables())
 
         if self.parent is None:
             self.graph_summary = None  # TODO!
@@ -683,9 +673,9 @@ class Module(object):
 
         variable = None
 
-        if shared is not None and len(tf.compat.v1.get_collection(key=shared)) > 0:
+        if shared is not None and len(self.graph.get_collection(name=shared)) > 0:
             # Retrieve shared variable from TensorFlow
-            collection = tf.compat.v1.get_collection(key=shared)
+            collection = self.graph.get_collection(name=shared)
             if len(collection) > 1:
                 raise TensorforceError.unexpected()
             variable = collection[0]
@@ -754,7 +744,7 @@ class Module(object):
 
             # Register shared variable with TensorFlow
             if shared is not None:
-                tf.compat.v1.add_to_collection(name=shared, value=variable)
+                self.graph.add_to_collection(name=shared, value=variable)
 
         # Register variable
         self.variables[name] = variable

@@ -713,14 +713,12 @@ class Model(Module):
         assertions = list()
         # states: type and shape
         for name, spec in self.states_spec.items():
-            assertions.append(
-                tf.compat.v1.debugging.assert_type(
-                    tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
-                )
+            tf.debugging.assert_type(
+                tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
             )
             shape = (1,) + self.unprocessed_state_shape.get(name, spec['shape'])
             assertions.append(
-                tf.compat.v1.debugging.assert_equal(
+                tf.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=tf.int32),
                     y=tf.constant(value=shape, dtype=tf.int32)
                 )
@@ -729,20 +727,18 @@ class Model(Module):
         for name, spec in self.actions_spec.items():
             if spec['type'] == 'int':
                 name = name + '_mask'
-                assertions.append(
-                    tf.compat.v1.debugging.assert_type(
-                        tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
-                    )
+                tf.debugging.assert_type(
+                    tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
                 )
                 shape = (1,) + spec['shape'] + (spec['num_values'],)
                 assertions.append(
-                    tf.compat.v1.debugging.assert_equal(
+                    tf.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
                         y=tf.constant(value=shape, dtype=tf.int32)
                     )
                 )
                 assertions.append(
-                    tf.compat.v1.debugging.assert_equal(
+                    tf.debugging.assert_equal(
                         x=tf.reduce_all(
                             input_tensor=tf.reduce_any(
                                 input_tensor=auxiliaries[name], axis=tuple(range(1, len(shape)))
@@ -751,27 +747,21 @@ class Model(Module):
                     )
                 )
         # parallel: type, shape and value
-        assertions.append(tf.compat.v1.debugging.assert_type(
-            tensor=parallel, tf_type=util.tf_dtype(dtype='long')
-        ))
-        assertions.append(tf.compat.v1.debugging.assert_scalar(tensor=parallel[0]))
-        assertions.append(tf.compat.v1.debugging.assert_non_negative(x=parallel))
+        tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='long'))
+        tf.debugging.assert_scalar(tensor=parallel[0])
+        assertions.append(tf.debugging.assert_non_negative(x=parallel))
         assertions.append(
-            tf.compat.v1.debugging.assert_less(
+            tf.debugging.assert_less(
                 x=parallel[0],
                 y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
             )
         )
         # deterministic: type and shape
-        assertions.append(tf.compat.v1.debugging.assert_type(
-            tensor=deterministic, tf_type=util.tf_dtype(dtype='bool')
-        ))
-        assertions.append(tf.compat.v1.debugging.assert_scalar(tensor=deterministic))
+        tf.debugging.assert_type(tensor=deterministic, tf_type=util.tf_dtype(dtype='bool'))
+        tf.debugging.assert_scalar(tensor=deterministic)
         # independent: type and shape
-        assertions.append(tf.compat.v1.debugging.assert_type(
-            tensor=independent, tf_type=util.tf_dtype(dtype='bool')
-        ))
-        assertions.append(tf.compat.v1.debugging.assert_scalar(tensor=independent))
+        tf.debugging.assert_type(tensor=independent, tf_type=util.tf_dtype(dtype='bool'))
+        tf.debugging.assert_scalar(tensor=independent)
 
         # Set global tensors
         Module.update_tensors(
@@ -889,7 +879,7 @@ class Model(Module):
                 is_unmasked = tf.gather(
                     params=auxiliaries[name + '_mask'], indices=indices, batch_dims=-1
                 )
-                assertions.append(tf.compat.v1.debugging.assert_equal(
+                assertions.append(tf.debugging.assert_equal(
                     x=tf.math.reduce_all(input_tensor=is_unmasked), y=true
                 ))
         dependencies += assertions
@@ -1082,47 +1072,40 @@ class Model(Module):
         buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
 
         # Assertions
-        assertions = [
-            # terminal: type and shape
-            tf.compat.v1.debugging.assert_type(
-                tensor=terminal, tf_type=util.tf_dtype(dtype='long')
-            ),
-            tf.compat.v1.debugging.assert_rank(x=terminal, rank=1),
-            # reward: type and shape
-            tf.compat.v1.debugging.assert_type(
-                tensor=reward, tf_type=util.tf_dtype(dtype='float')
-            ),
-            tf.compat.v1.debugging.assert_rank(x=reward, rank=1),
-            # parallel: type, shape and value
-            tf.compat.v1.debugging.assert_type(
-                tensor=parallel, tf_type=util.tf_dtype(dtype='long')
-            ),
-            tf.compat.v1.debugging.assert_scalar(tensor=parallel[0]),
-            tf.compat.v1.debugging.assert_non_negative(x=parallel),
-            tf.compat.v1.debugging.assert_less(
-                x=parallel[0],
-                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
-            ),
-            # shape of terminal equals shape of reward
-            tf.compat.v1.debugging.assert_equal(
-                x=tf.shape(input=terminal), y=tf.shape(input=reward)
-            ),
-            # size of terminal equals buffer index
-            tf.compat.v1.debugging.assert_equal(
-                x=tf.shape(input=terminal, out_type=tf.int64)[0],
-                y=tf.dtypes.cast(x=buffer_index, dtype=tf.int64)
-            ),
-            # at most one terminal
-            tf.compat.v1.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
-                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            ),
-            # if terminal, last timestep in batch
-            tf.compat.v1.debugging.assert_equal(
-                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                y=tf.math.greater(x=terminal[-1], y=zero)
-            )
-        ]
+        assertions = list()
+        # terminal: type and shape
+        tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='long'))
+        assertions.append(tf.debugging.assert_rank(x=terminal, rank=1))
+        # reward: type and shape
+        tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float'))
+        assertions.append(tf.debugging.assert_rank(x=reward, rank=1))
+        # parallel: type, shape and value
+        tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='long'))
+        tf.debugging.assert_scalar(tensor=parallel[0])
+        assertions.append(tf.debugging.assert_non_negative(x=parallel))
+        assertions.append(tf.debugging.assert_less(
+            x=parallel[0],
+            y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
+        ))
+        # shape of terminal equals shape of reward
+        assertions.append(tf.debugging.assert_equal(
+            x=tf.shape(input=terminal), y=tf.shape(input=reward)
+        ))
+        # size of terminal equals buffer index
+        assertions.append(tf.debugging.assert_equal(
+            x=tf.shape(input=terminal, out_type=tf.int64)[0],
+            y=tf.dtypes.cast(x=buffer_index, dtype=tf.int64)
+        ))
+        # at most one terminal
+        assertions.append(tf.debugging.assert_less_equal(
+            x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
+            y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        ))
+        # if terminal, last timestep in batch
+        assertions.append(tf.debugging.assert_equal(
+            x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+            y=tf.math.greater(x=terminal[-1], y=zero)
+        ))
 
         # Set global tensors
         Module.update_tensors(

@@ -49,7 +49,7 @@ class Replay(Queue):
 
         # Check whether memory contains enough timesteps
         num_timesteps = tf.minimum(x=self.buffer_index, y=capacity) - past_padding - future_padding
-        assertion = tf.compat.v1.debugging.assert_less_equal(x=n, y=num_timesteps)
+        assertion = tf.debugging.assert_less_equal(x=n, y=num_timesteps)
 
         # Randomly sampled timestep indices
         with tf.control_dependencies(control_inputs=(assertion,)):
@@ -68,7 +68,7 @@ class Replay(Queue):
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
         # Check whether memory contains enough episodes
-        assertion = tf.compat.v1.debugging.assert_less_equal(x=n, y=self.episode_count)
+        assertion = tf.debugging.assert_less_equal(x=n, y=self.episode_count)
 
         # Get start and limit indices for randomly sampled n episodes
         with tf.control_dependencies(control_inputs=(assertion,)):
@@ -123,7 +123,7 @@ class Replay(Queue):
     #     num_sequences = tf.math.mod(x=num_sequences, y=capacity) + one
 
     #     # Check whether memory contains enough sequences
-    #     assertion = tf.compat.v1.debugging.assert_less_equal(x=n, y=num_sequences)
+    #     assertion = tf.debugging.assert_less_equal(x=n, y=num_sequences)
 
     #     # Randomly sampled timestep indices range
     #     with tf.control_dependencies(control_inputs=(assertion,)):

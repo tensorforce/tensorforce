@@ -62,9 +62,9 @@ class PiecewiseConstant(Parameter):
         self.values = values
 
     def get_parameter_value(self, step):
-        parameter = tf.compat.v1.train.piecewise_constant(
-            x=step, boundaries=self.boundaries, values=self.values
-        )
+        parameter = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
+            boundaries=self.boundaries, values=self.values
+        )(step=step)
 
         if util.dtype(x=parameter) != self.dtype:
             parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))

@@ -72,6 +72,12 @@ def product(xs, empty=1):
     return result
 
 
+def compose(function1, function2):
+    def composed(*args, **kwargs):
+        return function1(function2(*args, **kwargs))
+    return composed
+
+
 def tf_always_true(*args, **kwargs):
     return tf.constant(value=True, dtype=tf_dtype(dtype='bool'))
 

@@ -2,6 +2,10 @@
 *.pyc
 *.vscode
 .DS_Store
+CONTRIBUTING.html
+PROJECTS.html
+README.html
+UPDATE_NOTES.html
 
 /.eggs/
 /.pytest_cache/

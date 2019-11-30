@@ -29,21 +29,21 @@ from tensorforce.core.optimizers.optimizing_step import OptimizingStep
 from tensorforce.core.optimizers.plus import Plus
 from tensorforce.core.optimizers.subsampling_step import SubsamplingStep
 from tensorforce.core.optimizers.synchronization import Synchronization
-from tensorforce.core.optimizers.tf_optimizer import TFOptimizer
+from tensorforce.core.optimizers.tf_optimizer import TFOptimizer, tensorflow_optimizers
 
 
 optimizer_modules = dict(
-    adadelta=partial(TFOptimizer, optimizer='adadelta'),
-    adagrad=partial(TFOptimizer, optimizer='adagrad'), adam=partial(TFOptimizer, optimizer='adam'),
-    adamax=partial(TFOptimizer, optimizer='adamax'), clipping_step=ClippingStep,
-    default=MetaOptimizerWrapper, evolutionary=Evolutionary,
-    ftrl=partial(TFOptimizer, optimizer='ftrl'), global_optimizer=GlobalOptimizer,
-    meta_optimizer_wrapper=MetaOptimizerWrapper, multi_step=MultiStep,
-    nadam=partial(TFOptimizer, optimizer='nadam'), natural_gradient=NaturalGradient,
-    optimizing_step=OptimizingStep, plus=Plus, rmsprop=partial(TFOptimizer, optimizer='rmsprop'),
-    sgd=partial(TFOptimizer, optimizer='sgd'), subsampling_step=SubsamplingStep,
-    synchronization=Synchronization
+    clipping_step=ClippingStep, default=MetaOptimizerWrapper, evolutionary=Evolutionary,
+    global_optimizer=GlobalOptimizer, meta_optimizer_wrapper=MetaOptimizerWrapper,
+    multi_step=MultiStep, natural_gradient=NaturalGradient, optimizing_step=OptimizingStep,
+    plus=Plus, subsampling_step=SubsamplingStep, synchronization=Synchronization,
+    tf_optimizer=TFOptimizer
 )
+
+
+for name, optimizer in tensorflow_optimizers.items():
+    assert name not in optimizer_modules
+    optimizer_modules[name] = partial(TFOptimizer, optimizer=name)
 
 
 __all__ = [

@@ -73,5 +73,11 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')
 
-        optimizer = dict(type='adam', learning_rate=1e-3)
+        optimizer = dict(type='tf_optimizer', learning_rate=1e-3)
+        self.unittest(optimizer=optimizer)
+
+        optimizer = dict(
+            type='radam', learning_rate=1e-3, decoupled_weight_decay=0.01, lookahead=True,
+            moving_average=True
+        )
         self.unittest(optimizer=optimizer)

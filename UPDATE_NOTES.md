@@ -19,6 +19,8 @@ This file records all major updates and new features, starting from version 0.5.
 - TensorFlow 2.0 support
 - Improved Tensorboard summaries recording
 - Summary labels `graph`, `variables` and `variables-histogram` temporarily not working
+- TF-optimizers updated to TensorFlow 2.0 Keras optimizers
+- Added TensorFlow Addons dependency, and support for TFA optimizers
 
 
 

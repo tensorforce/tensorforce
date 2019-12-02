@@ -13,10 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from datetime import datetime
-import logging
 import unittest
-import sys
 
 from tensorforce.agents import Agent
 from tensorforce.environments import Environment
@@ -28,53 +25,91 @@ from test.unittest_environment import UnittestEnvironment
 
 class TestDocumentation(UnittestBase, unittest.TestCase):
 
-    def test_getting_started(self):
-        from tensorforce.agents import Agent
-        from tensorforce.environments import Environment
+    def test_environment(self):
+        self.start_tests(name='getting-started-environment')
 
-        # Setup environment
-        # (Tensorforce or custom implementation, ideally using the Environment interface)
-        environment = Environment.create(environment='test/data/environment.json')
+        environment = Environment.create(
+            environment='gym', level='CartPole', max_episode_timesteps=500
+        )
+        self.finished_test()
 
-        # Create agent
+        environment = Environment.create(environment='gym', level='CartPole-v1')
+        self.finished_test()
+
+        environment = Environment.create(
+            environment='test/data/environment.json', max_episode_timesteps=500
+        )
+        self.finished_test()
+
+        environment = Environment.create(
+            environment='test.data.custom_env.CustomEnvironment', max_episode_timesteps=10
+        )
+        self.finished_test()
+
+    def test_agent(self):
+        self.start_tests(name='getting-started-agent')
+
+        environment = Environment.create(
+            environment='gym', level='CartPole', max_episode_timesteps=50
+        )
+        self.finished_test()
+
+        agent = Agent.create(
+            agent='tensorforce', environment=environment, update=64,
+            objective='policy_gradient', reward_estimation=dict(horizon=20)
+        )
+        self.finished_test()
+
+        agent = Agent.create(
+            agent='ppo', environment=environment, batch_size=10, learning_rate=1e-3
+        )
+        self.finished_test()
+
+        agent = Agent.create(agent='test/data/agent.json', environment=environment)
+        self.finished_test()
+
+    def test_execution(self):
+        self.start_tests(name='getting-started-execution')
+
+        runner = Runner(
+            agent='test/data/agent.json', environment=dict(environment='gym', level='CartPole'),
+            max_episode_timesteps=10
+        )
+        runner.run(num_episodes=10)
+        runner.run(num_episodes=5, evaluation=True)
+        runner.close()
+        self.finished_test()
+
+        # Create agent and environment
+        environment = Environment.create(
+            environment='test/data/environment.json', max_episode_timesteps=10
+        )
         agent = Agent.create(agent='test/data/agent.json', environment=environment)
 
-        # Reset agent and environment at the beginning of a new episode
-        agent.reset()
-        states = environment.reset()
-        terminal = False
+        # Train for 200 episodes
+        for _ in range(10):
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                actions = agent.act(states=states)
+                states, terminal, reward = environment.execute(actions=actions)
+                agent.observe(terminal=terminal, reward=reward)
 
-        # Agent-environment interaction training loop
-        while not terminal:
-            actions = agent.act(states=states)
-            states, terminal, reward = environment.execute(actions=actions)
-            agent.observe(terminal=terminal, reward=reward)
+        # Evaluate for 100 episodes
+        sum_rewards = 0.0
+        for _ in range(5):
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                actions = agent.act(states=states, evaluation=True)
+                states, terminal, reward = environment.execute(actions=actions)
+                sum_rewards += reward
 
-        # ====================
-
-        # Agent-environment interaction evaluation loop
-        while not terminal:
-            actions = agent.act(states=states, evaluation=True)
-            states, terminal, reward = environment.execute(actions=actions)
-
-        # ====================
+        sum_rewards / 100
 
         # Close agent and environment
         agent.close()
         environment.close()
-
-        # ====================
-
-        from tensorforce.execution import Runner
-
-        # Tensorforce runner utility
-        runner = Runner(agent='test/data/agent.json', environment='test/data/environment.json')
-
-        # Run training
-        runner.run(num_episodes=50, use_tqdm=False)
-
-        # Close runner
-        runner.close()
 
         self.finished_test()
 
@@ -127,7 +162,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         environment = UnittestEnvironment(
             states=dict(type='float', shape=(10,)),
             actions=dict(type='int', shape=(), num_values=5),
-            timestep_range=(1, 5)
+            min_timesteps=5
         )
 
         def get_current_state():

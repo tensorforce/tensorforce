@@ -24,30 +24,50 @@ from tensorforce.environments import Environment
 
 
 class Runner(object):
+    """
+    Tensorforce runner utility.
 
-    def __init__(self, agent, environment, evaluation_environment=None, save_best_agent=False):
-        # save_best overwrites saver...
+    Args:
+        agent (specification | Agent object): Agent specification or object, the latter is not
+            closed automatically as part of `runner.close()`
+            (<span style="color:#C00000"><b>required</b></span>).
+        environment (specification | Environment object): Environment specification or object, the
+            latter is not closed automatically as part of `runner.close()`
+            (<span style="color:#C00000"><b>required</b></span>).
+        max_episode_timesteps (int > 0): Maximum number of timesteps per episode, overwrites the
+            environment default if defined
+            (<span style="color:#00C000"><b>default</b></span>: environment default).
+        evaluation_environment (specification | Environment object): Evaluation environment or
+            object, the latter is not closed automatically as part of `runner.close()`
+            (<span style="color:#00C000"><b>default</b></span>: none).
+        save_best_agent (string): Directory to save the best version of the agent according to the
+            evaluation
+            (<span style="color:#00C000"><b>default</b></span>: best agent is not saved).
+    """
+
+    def __init__(
+        self, agent, environment, max_episode_timesteps=None, evaluation_environment=None,
+        save_best_agent=None
+    ):
         self.is_environment_external = isinstance(environment, Environment)
-        self.environment = Environment.create(environment=environment)
+        self.environment = Environment.create(
+            environment=environment, max_episode_timesteps=max_episode_timesteps
+        )
 
-        self.is_eval_environment_external = isinstance(evaluation_environment, Environment)
         if evaluation_environment is None:
             self.evaluation_environment = None
         else:
-            self.evaluation_environment = Environment.create(environment=evaluation_environment)
+            self.is_eval_environment_external = isinstance(evaluation_environment, Environment)
+            self.evaluation_environment = Environment.create(
+                environment=evaluation_environment, max_episode_timesteps=max_episode_timesteps
+            )
+            assert self.evaluation_environment.states() == self.environment.states()
+            assert self.evaluation_environment.actions() == self.environment.actions()
 
-        self.save_best_agent = save_best_agent
         self.is_agent_external = isinstance(agent, Agent)
-        kwargs = dict()
-        if self.save_best_agent is True:
-            # Disable periodic saving
-            assert not self.is_agent_external
-            kwargs = dict(saver=dict(frequency=None))
-        self.agent = Agent.create(agent=agent, environment=self.environment, **kwargs)
+        self.agent = Agent.create(agent=agent, environment=self.environment)
+        self.save_best_agent = save_best_agent
 
-        # self.global_episodes = self.agent.episodes
-        # self.global_timesteps = self.agent.timesteps
-        # self.global_updates = self.agent.updates
         self.episode_rewards = list()
         self.episode_timesteps = list()
         self.episode_seconds = list()
@@ -198,7 +218,7 @@ class Runner(object):
             assert evaluation_frequency is None
         self.evaluation_frequency = evaluation_frequency
         self.num_evaluation_iterations = num_evaluation_iterations
-        if self.save_best_agent is not False:
+        if self.save_best_agent is not None:
             assert not self.evaluation
             inner_evaluation_callback = self.evaluation_callback
 
@@ -211,9 +231,6 @@ class Runner(object):
 
             self.evaluation_callback = mean_reward_callback
             self.best_evaluation_score = None
-
-        # Reset agent
-        self.agent.reset()
 
         # Episode loop
         while True:
@@ -258,20 +275,17 @@ class Runner(object):
                     self.evaluation_agent_seconds.append(self.episode_agent_second)
 
                 # Evaluation callback
-                if self.save_best_agent is not False:
+                if self.save_best_agent is not None:
                     evaluation_score = self.evaluation_callback(self)
                     assert isinstance(evaluation_score, float)
                     if self.best_evaluation_score is None:
                         self.best_evaluation_score = evaluation_score
                     elif evaluation_score > self.best_evaluation_score:
                         self.best_evaluation_score = evaluation_score
-                        if self.save_best_agent is True:
-                            self.agent.save(filename='best-model', append_timestep=False)
-                        else:
-                            self.agent.save(
-                                directory=self.save_best_agent, filename='best-model',
-                                append_timestep=False
-                            )
+                        self.agent.save(
+                            directory=self.save_best_agent, filename='best-model',
+                            append_timestep=False
+                        )
                 else:
                     self.evaluation_callback(self)
 

@@ -27,18 +27,13 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
     def test_ale(self):
         self.start_tests(name='ale')
         self.unittest(
-            environment=dict(
-                environment='ale', level='test/data/Breakout.bin', max_episode_timesteps=100
-            ), num_episodes=2
+            environment=dict(environment='ale', level='test/data/Breakout.bin'), num_episodes=2
         )
 
     @pytest.mark.skip(reason='not installed as part of travis')
     def test_maze_explorer(self):
         self.start_tests(name='maze-explorer')
-        self.unittest(
-            environment=dict(environment='mazeexp', level=0, max_episode_timesteps=100),
-            num_episodes=2
-        )
+        self.unittest(environment=dict(environment='mazeexp', level=0), num_episodes=2)
 
     @pytest.mark.skip(reason='not installed as part of travis')
     def test_open_sim(self):
@@ -50,34 +45,24 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment=dict(environment='gym', level='CartPole-v0'), num_episodes=2)
 
         self.unittest(
-            environment=dict(
-                environment='gym', level='CartPole', max_episode_steps=False,
-                max_episode_timesteps=5
-            ), num_episodes=2
+            environment=dict(environment='gym', level='CartPole', max_episode_steps=False),
+            num_episodes=2
         )
 
         from gym.envs.classic_control import CartPoleEnv
 
-        self.unittest(
-            environment=dict(environment='gym', level=CartPoleEnv(), max_episode_timesteps=100),
-            num_episodes=2
-        )
+        self.unittest(environment=dict(environment='gym', level=CartPoleEnv()), num_episodes=2)
 
     def test_openai_retro(self):
         self.start_tests(name='openai-retro')
         self.unittest(
-            environment=dict(
-                environment='retro', level='Airstriker-Genesis', max_episode_timesteps=100
-            ), num_episodes=2
+            environment=dict(environment='retro', level='Airstriker-Genesis'), num_episodes=2
         )
 
     @pytest.mark.skip(reason='not installed as part of travis')
     def test_ple(self):
         self.start_tests(name='pygame-learning-environment')
-        self.unittest(
-            environment=dict(environment='ple', level='Pong', max_episode_timesteps=100),
-            num_episodes=2
-        )
+        self.unittest(environment=dict(environment='ple', level='Pong'), num_episodes=2)
 
     @pytest.mark.skip(reason='not installed as part of travis')
     def test_vizdoom(self):

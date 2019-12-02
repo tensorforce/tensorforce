@@ -26,32 +26,24 @@ class TestParameters(UnittestBase, unittest.TestCase):
     require_observe = True
 
     def float_unittest(self, exploration):
-        agent, environment = self.prepare(timestep_range=(5, 5), exploration=exploration)
+        agent, environment = self.prepare(min_timesteps=3, exploration=exploration)
 
-        agent.initialize()
         states = environment.reset()
-
         actions, exploration_output1 = agent.act(states=states, query='exploration')
         self.assertIsInstance(exploration_output1, util.np_dtype(dtype='float'))
-
         states, terminal, reward = environment.execute(actions=actions)
-
         agent.observe(terminal=terminal, reward=reward)
 
         if not isinstance(exploration, dict) or exploration['type'] == 'constant':
             actions, exploration_output2 = agent.act(states=states, query='exploration')
             self.assertEqual(exploration_output2, exploration_output1)
-
             states, terminal, reward = environment.execute(actions=actions)
-
             agent.observe(terminal=terminal, reward=reward)
 
         else:
             actions, exploration_output2 = agent.act(states=states, query='exploration')
             self.assertNotEqual(exploration_output2, exploration_output1)
-
             states, terminal, reward = environment.execute(actions=actions)
-
             agent.observe(terminal=terminal, reward=reward)
 
         exploration_input = 0.5
@@ -67,39 +59,29 @@ class TestParameters(UnittestBase, unittest.TestCase):
 
     def long_unittest(self, horizon):
         agent, environment = self.prepare(
-            timestep_range=(5, 5), reward_estimation=dict(horizon=horizon), memory=20
+            min_timesteps=3, reward_estimation=dict(horizon=horizon), memory=20
         )
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
-
         states, terminal, reward = environment.execute(actions=actions)
-
         _, horizon_output1 = agent.observe(terminal=terminal, reward=reward, query='horizon')
         self.assertIsInstance(horizon_output1, util.np_dtype(dtype='long'))
 
         if not isinstance(horizon, dict) or horizon['type'] == 'constant':
             actions = agent.act(states=states)
-
             states, terminal, reward = environment.execute(actions=actions)
-
             _, horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
             self.assertEqual(horizon_output2, horizon_output1)
 
         else:
             actions = agent.act(states=states)
-
             states, terminal, reward = environment.execute(actions=actions)
-
             _, horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
             self.assertNotEqual(horizon_output2, horizon_output1)
 
         actions = agent.act(states=states)
-
         _, terminal, reward = environment.execute(actions=actions)
-
         horizon_input = 3
         _, horizon_output = agent.observe(
             terminal=terminal, reward=reward, query='horizon',

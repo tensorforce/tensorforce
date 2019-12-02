@@ -243,46 +243,39 @@ class TensorforceModel(Model):
         reward = self.reward_input
 
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        batch_size = tf.shape(input=terminal)[:1]
 
         # Assertions
-        assertions = [
-            # terminal: type and shape
-            tf.debugging.assert_type(
-                tensor=terminal, tf_type=util.tf_dtype(dtype='long')
-            ),
-            tf.debugging.assert_rank(x=terminal, rank=1),
-            # reward: type and shape
-            tf.debugging.assert_type(
-                tensor=reward, tf_type=util.tf_dtype(dtype='float')
-            ),
-            tf.debugging.assert_rank(x=reward, rank=1),
-            # shape of terminal equals shape of reward
-            tf.debugging.assert_equal(
-                x=tf.shape(input=terminal), y=tf.shape(input=reward)
-            ),
-            # buffer index is zero
-            tf.debugging.assert_equal(
-                x=tf.math.reduce_sum(input_tensor=self.buffer_index, axis=0),
-                y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-            ),
-            # at most one terminal
-            tf.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
-                y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            ),
-            # if terminal, last timestep in batch
-            tf.debugging.assert_equal(
-                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                y=tf.math.greater(x=terminal[-1], y=zero)
-            )
-        ]
-        batch_size = tf.shape(input=terminal)[:1]
+        assertions = list()
+        # terminal: type and shape
+        tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='long'))
+        assertions.append(tf.debugging.assert_rank(x=terminal, rank=1))
+        # reward: type and shape
+        tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float'))
+        assertions.append(tf.debugging.assert_rank(x=reward, rank=1))
+        # shape of terminal equals shape of reward
+        assertions.append(tf.debugging.assert_equal(
+            x=tf.shape(input=terminal), y=tf.shape(input=reward)
+        ))
+        # buffer index is zero
+        assertions.append(tf.debugging.assert_equal(
+            x=tf.math.reduce_sum(input_tensor=self.buffer_index, axis=0),
+            y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        ))
+        # at most one terminal
+        assertions.append(tf.debugging.assert_less_equal(
+            x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
+            y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        ))
+        # if terminal, last timestep in batch
+        assertions.append(tf.debugging.assert_equal(
+            x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+            y=tf.math.greater(x=terminal[-1], y=zero)
+        ))
         # states: type and shape
         for name, spec in self.states_spec.items():
-            assertions.append(
-                tf.debugging.assert_type(
-                    tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
-                )
+            tf.debugging.assert_type(
+                tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
             )
             shape = self.unprocessed_state_shape.get(name, spec['shape'])
             assertions.append(
@@ -295,10 +288,8 @@ class TensorforceModel(Model):
             )
         # internals: type and shape
         for name, spec in self.internals_spec.items():
-            assertions.append(
-                tf.debugging.assert_type(
-                    tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type'])
-                )
+            tf.debugging.assert_type(
+                tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type'])
             )
             shape = spec['shape']
             assertions.append(
@@ -313,10 +304,8 @@ class TensorforceModel(Model):
         for name, spec in self.actions_spec.items():
             if spec['type'] == 'int':
                 name = name + '_mask'
-                assertions.append(
-                    tf.debugging.assert_type(
-                        tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
-                    )
+                tf.debugging.assert_type(
+                    tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
                 )
                 shape = spec['shape'] + (spec['num_values'],)
                 assertions.append(
@@ -329,10 +318,8 @@ class TensorforceModel(Model):
                 )
         # actions: type and shape
         for name, spec in self.actions_spec.items():
-            assertions.append(
-                tf.debugging.assert_type(
-                    tensor=actions[name], tf_type=util.tf_dtype(dtype=spec['type'])
-                )
+            tf.debugging.assert_type(
+                tensor=actions[name], tf_type=util.tf_dtype(dtype=spec['type'])
             )
             shape = spec['shape']
             assertions.append(
@@ -650,7 +637,7 @@ class TensorforceModel(Model):
         )
 
         if self.baseline_optimizer is None and self.baseline_objective is not None:
-            util.disjoint_update(
+            util.deep_disjoint_update(
                 target=kwargs,
                 source=self.baseline_objective.optimizer_arguments(policy=self.baseline_policy)
             )

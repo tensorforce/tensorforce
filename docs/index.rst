@@ -58,6 +58,14 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 
 .. toctree::
    :maxdepth: 0
+   :caption: Execution
+
+   execution/runner
+   execution/parallel_runner
+
+
+.. toctree::
+   :maxdepth: 0
    :caption: Environments
 
    environments/environment

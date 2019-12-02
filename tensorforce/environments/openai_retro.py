@@ -43,17 +43,17 @@ class OpenAIRetro(OpenAIGym):
         return list(retro.data.list_games())
 
     @classmethod
-    def create_level(cls, level, max_episode_timesteps, reward_threshold, tags, **kwargs):
+    def create_level(cls, level, max_episode_steps, reward_threshold, tags, **kwargs):
         import retro
 
-        assert max_episode_timesteps is False and reward_threshold is None and tags is None
+        assert max_episode_steps is False and reward_threshold is None and tags is None
 
-        return retro.make(game=level, **kwargs), max_episode_timesteps
+        return retro.make(game=level, **kwargs), max_episode_steps
 
     def __init__(self, level, visualize=False, visualize_directory=None, **kwargs):
         import retro
 
         super().__init__(
-            level=level, visualize=visualize, max_episode_timesteps=False, terminal_reward=0.0,
+            level=level, visualize=visualize, max_episode_steps=False, terminal_reward=0.0,
             reward_threshold=None, tags=None, visualize_directory=visualize_directory, **kwargs
         )

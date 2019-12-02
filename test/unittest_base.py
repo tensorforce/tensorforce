@@ -36,7 +36,7 @@ class UnittestBase(object):
     num_timesteps = None
 
     # Environment
-    timestep_range = (1, 5)
+    min_timesteps = 1
     states = dict(
         bool_state=dict(type='bool', shape=(1,)),
         int_state=dict(type='int', shape=(2,), num_values=4),
@@ -99,7 +99,7 @@ class UnittestBase(object):
             sys.stdout.flush()
 
     def prepare(
-        self, environment=None, timestep_range=None, states=None, actions=None,
+        self, environment=None, min_timesteps=None, states=None, actions=None,
         exclude_bool_action=False, exclude_int_action=False, exclude_float_action=False,
         exclude_bounded_action=False, require_observe=False, require_all=False, **agent
     ):
@@ -123,17 +123,17 @@ class UnittestBase(object):
                 if exclude_bounded_action or self.__class__.exclude_bounded_action:
                     actions.pop('bounded_action')
 
-            if timestep_range is None:
-                timestep_range = self.__class__.timestep_range
+            if min_timesteps is None:
+                min_timesteps = self.__class__.min_timesteps
 
             environment = UnittestEnvironment(
-                states=states, actions=actions, timestep_range=timestep_range
+                states=states, actions=actions, min_timesteps=min_timesteps
             )
 
-        elif timestep_range is not None:
+        elif min_timesteps is not None:
             raise TensorforceError.unexpected()
 
-        environment = Environment.create(environment=environment)
+        environment = Environment.create(environment=environment, max_episode_timesteps=5)
 
         for key, value in self.__class__.agent.items():
             if key not in agent:
@@ -152,7 +152,7 @@ class UnittestBase(object):
 
     def unittest(
         self, num_updates=None, num_episodes=None, num_timesteps=None, environment=None,
-        timestep_range=None, states=None, actions=None, exclude_bool_action=False,
+        min_timesteps=None, states=None, actions=None, exclude_bool_action=False,
         exclude_int_action=False, exclude_float_action=False, exclude_bounded_action=False,
         require_observe=False, require_all=False, **agent
     ):
@@ -160,7 +160,7 @@ class UnittestBase(object):
         Generic unit-test.
         """
         agent, environment = self.prepare(
-            environment=environment, timestep_range=timestep_range, states=states, actions=actions,
+            environment=environment, min_timesteps=min_timesteps, states=states, actions=actions,
             exclude_bool_action=exclude_bool_action, exclude_int_action=exclude_int_action,
             exclude_float_action=exclude_float_action,
             exclude_bounded_action=exclude_bounded_action, require_observe=require_observe,

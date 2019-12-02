@@ -33,22 +33,19 @@ class Environment(object):
         Creates an environment from a specification.
 
         Args:
-            environment (specification): JSON file, specification key, configuration dictionary,
-                library module, or `Environment` subclass
+            environment (specification | Environment object): JSON file, specification key,
+                configuration dictionary, library module, or `Environment` object
                 (<span style="color:#C00000"><b>required</b></span>).
             max_episode_timesteps (int > 0): Maximum number of timesteps per episode, overwrites
-                and consequently should be at most the environment default
+                the environment default if defined
                 (<span style="color:#00C000"><b>default</b></span>: environment default).
             kwargs: Additional arguments.
         """
-        if max_episode_timesteps is not None:
-            environment = Environment.create(environment=environment, **kwargs)
-            return EnvironmentWrapper(
-                environment=environment, max_episode_timesteps=max_episode_timesteps
-            )
-
-        elif isinstance(environment, Environment):
-            # TODO: asserts???????
+        if isinstance(environment, Environment):
+            if max_episode_timesteps is not None:
+                environment = EnvironmentWrapper(
+                    environment=environment, max_episode_timesteps=max_episode_timesteps
+                )
             return environment
 
         elif isinstance(environment, dict):
@@ -57,7 +54,9 @@ class Environment(object):
             environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
             assert environment is not None
 
-            return Environment.create(environment=environment, **kwargs)
+            return Environment.create(
+                environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
+            )
 
         elif isinstance(environment, str):
             if os.path.isfile(environment):
@@ -69,7 +68,9 @@ class Environment(object):
                 environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
                 assert environment is not None
 
-                return Environment.create(environment=environment, **kwargs)
+                return Environment.create(
+                    environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
+                )
 
             elif '.' in environment:
                 # Library specification
@@ -79,21 +80,24 @@ class Environment(object):
 
                 environment = environment(**kwargs)
                 assert isinstance(environment, Environment)
-
-                return environment
+                return Environment.create(
+                    environment=environment, max_episode_timesteps=max_episode_timesteps
+                )
 
             else:
                 # Keyword specification
                 environment = tensorforce.environments.environments[environment](**kwargs)
                 assert isinstance(environment, Environment)
-
-                return environment
+                return Environment.create(
+                    environment=environment, max_episode_timesteps=max_episode_timesteps
+                )
 
         else:
             assert False
 
     def __init__(self):
         # first two arguments, if applicable: level, visualize=False
+        self._max_episode_timesteps = None
         self.observation = None
         self.thread = None
 
@@ -147,7 +151,7 @@ class Environment(object):
         Returns:
             int: Maximum number of timesteps per episode.
         """
-        return None
+        return self._max_episode_timesteps
 
     def close(self):
         """
@@ -215,7 +219,16 @@ class Environment(object):
 class EnvironmentWrapper(Environment):
 
     def __init__(self, environment, max_episode_timesteps):
+        super().__init__()
+
+        if isinstance(environment, EnvironmentWrapper):
+            raise TensorforceError.unexpected()
+        if environment.max_episode_timesteps() is not None and \
+                environment.max_episode_timesteps() < max_episode_timesteps:
+            raise TensorforceError.unexpected()
+
         self.environment = environment
+        self.environment._max_episode_timesteps = max_episode_timesteps
         self._max_episode_timesteps = max_episode_timesteps
 
     def __str__(self):
@@ -227,9 +240,6 @@ class EnvironmentWrapper(Environment):
     def actions(self):
         return self.environment.actions()
 
-    def max_episode_timesteps(self):
-        return self._max_episode_timesteps
-
     def close(self):
         return self.environment.close()
 
@@ -238,23 +248,9 @@ class EnvironmentWrapper(Environment):
         return self.environment.reset()
 
     def execute(self, actions):
+        assert self.timestep < self._max_episode_timesteps
         states, terminal, reward = self.environment.execute(actions=actions)
         self.timestep += 1
-        if self.timestep >= self._max_episode_timesteps:
+        if int(terminal) == 0 and self.timestep >= self._max_episode_timesteps:
             terminal = 2
         return states, terminal, reward
-
-    def start_reset(self):
-        return self.environment.start_reset()
-
-    def finish_reset(self):
-        return self.environment.finish_reset()
-
-    def start_execute(self, actions):
-        return self.environment.start_execute(actions=actions)
-
-    def finish_execute(self, actions):
-        return self.environment.finish_execute(actions=actions)
-
-    def retrieve_execute(self):
-        return self.environment.retrieve_execute()

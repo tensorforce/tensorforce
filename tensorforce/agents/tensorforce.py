@@ -26,7 +26,7 @@ from tensorforce.core.models import TensorforceModel
 
 class TensorforceAgent(Agent):
     """
-    Tensorforce Agent (specification key: `tensorforce`).
+    Tensorforce agent (specification key: `tensorforce`).
 
     Base class for a broad class of deep reinforcement learning agents, which act according to a
     policy parametrized by a neural network, leverage a memory module for periodic updates based on
@@ -387,7 +387,7 @@ class TensorforceAgent(Agent):
             value_type='action', values=actions, values_spec=self.actions_spec
         )
 
-        if isinstance(terminal, bool):
+        if isinstance(terminal, (bool, int)):
             states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)
             actions = util.fmap(function=(lambda x: [x]), xs=actions, depth=1)
             terminal = [terminal]

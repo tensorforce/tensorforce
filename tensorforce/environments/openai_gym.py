@@ -64,19 +64,30 @@ class OpenAIGym(Environment):
     def create_level(cls, level, max_episode_steps, reward_threshold, tags, **kwargs):
         import gym
 
+        requires_register = False
+
         # Find level
         if level not in gym.envs.registry.env_specs:
+            if max_episode_steps is None:  # interpret as false if level does not exist
+                max_episode_steps = False
+            env_specs = list(gym.envs.registry.env_specs)
             if level + '-v0' in gym.envs.registry.env_specs:
-                level = level + '-v0'
+                env_specs.insert(0, level + '-v0')
+            for name in env_specs:
+                if level == name[:name.rindex('-v')]:
+                    if max_episode_steps is False and \
+                            gym.envs.registry.env_specs[name].max_episode_steps is not None:
+                        continue
+                    elif max_episode_steps != gym.envs.registry.env_specs[name].max_episode_steps:
+                        continue
+                    level = name
+                    break
             else:
-                for name in gym.envs.registry.env_specs:
-                    if level == name[:name.rindex('-v')]:
-                        level = name
-                        break
+                level = env_specs[0]
+                requires_register = True
         assert level in cls.levels()
 
         # Check/update attributes
-        requires_register = False
         if max_episode_steps is None:
             max_episode_steps = gym.envs.registry.env_specs[level].max_episode_steps
             if max_episode_steps is None:

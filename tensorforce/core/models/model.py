@@ -852,6 +852,7 @@ class Model(Module):
                 # dependencies = retrieved_internals
 
                 buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+
                 indices = tf.stack(values=(parallel, buffer_index), axis=1)
                 internals = OrderedDict()
                 for name in self.internals_spec:

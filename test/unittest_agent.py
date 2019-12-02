@@ -52,7 +52,7 @@ class UnittestAgent(UnittestBase):
 
         if self.__class__.has_update:
             agent, environment = self.prepare(
-                timestep_range=(2, 5),  # too few steps for update otherwise
+                min_timesteps=2,  # too few steps for update otherwise
                 states=states, actions=actions, require_all=True, buffer_observe=False, update=1,
                 policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
                 # TODO: shouldn't be necessary!
@@ -61,9 +61,7 @@ class UnittestAgent(UnittestBase):
         else:
             agent, environment = self.prepare(states=states, actions=actions)
 
-        agent.initialize()
         states = environment.reset()
-
         query = agent.get_query_tensors(function='act')
         actions, queried = agent.act(states=states, query=query)
         self.assertEqual(first=len(queried), second=len(query))

@@ -96,8 +96,7 @@ setup(
         docs=['m2r', 'recommonmark', 'sphinx', 'sphinx-rtd-theme'],
         envs=['gym[all]', 'gym-retro', 'mazeexp', 'vizdoom'],
         mazeexp=['mazeexp'],
-        gym=['gym'],
-        gym_all=['gym[all]'],
+        gym=['gym[all]'],
         retro=['gym-retro'],
         vizdoom=['vizdoom']
     ),

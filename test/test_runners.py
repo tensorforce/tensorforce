@@ -37,7 +37,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
         self.finished_test()
 
         # callback
-        agent, environment = self.prepare(timestep_range=(6, 10))
+        agent, environment = self.prepare()
 
         runner = Runner(agent=agent, environment=environment)
 
@@ -121,8 +121,7 @@ class TestRunners(UnittestBase, unittest.TestCase):
 
         # callback
         agent, environment1 = self.prepare(
-            timestep_range=(6, 10), update=dict(unit='episodes', batch_size=1),
-            parallel_interactions=2
+            update=dict(unit='episodes', batch_size=1), parallel_interactions=2
         )
         environment2 = copy.deepcopy(environment1)
 

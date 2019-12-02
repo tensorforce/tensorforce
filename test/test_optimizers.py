@@ -21,6 +21,7 @@ from test.unittest_base import UnittestBase
 class TestOptimizers(UnittestBase, unittest.TestCase):
 
     require_observe = True
+    num_updates = 10
 
     def test_evolutionary(self):
         self.start_tests(name='evolutionary')
@@ -70,10 +71,16 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         )
         self.unittest(optimizer=optimizer)
 
+    def test_synchronization(self):
+        self.start_tests(name='synchronization')
+
+        optimizer = dict(type='synchronization')
+        self.unittest(exclude_bounded_action=True, baseline_optimizer=optimizer)  # TODO: shouldn't be necessary!
+
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')
 
-        optimizer = dict(type='tf_optimizer', learning_rate=1e-3)
+        optimizer = dict(type='adam', learning_rate=1e-3)
         self.unittest(optimizer=optimizer)
 
         optimizer = dict(

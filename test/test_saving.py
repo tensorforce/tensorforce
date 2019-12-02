@@ -24,7 +24,7 @@ from test.unittest_base import UnittestBase
 
 class TestSaving(UnittestBase, unittest.TestCase):
 
-    timestep_range = (3, 5)
+    min_timesteps = 3
     require_observe = True
 
     directory = 'test-saving'
@@ -37,12 +37,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver)
 
-        agent.initialize()
         states = environment.reset()
-
         agent.close()
 
-        agent = Agent.load(directory=self.__class__.directory)
+        agent = Agent.load(directory=self.__class__.directory, environment=environment)
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -68,15 +66,13 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-        # single then parallel
+        # single then parallel and different episode length
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(
             memory=50, update=dict(unit='episodes', batch_size=1), saver=saver
         )
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -85,13 +81,11 @@ class TestSaving(UnittestBase, unittest.TestCase):
         environment.close()
 
         agent, environment = self.prepare(
-            timestep_range=(6, 10), update=dict(unit='episodes', batch_size=1), saver=saver,
+            update=dict(unit='episodes', batch_size=1), saver=saver, max_episode_timesteps=7,
             parallel_interactions=2
         )
-    
-        agent.initialize()
-        states = environment.reset()
 
+        states = environment.reset()
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -123,9 +117,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver)
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -136,9 +128,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         saver = dict(directory=self.__class__.directory, load=False)
         agent, environment = self.prepare(saver=saver)
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -171,16 +161,16 @@ class TestSaving(UnittestBase, unittest.TestCase):
         saver = dict(directory=self.__class__.directory, filename='test')
         agent, environment = self.prepare(saver=saver)
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
         agent.close()
 
-        agent = Agent.load(directory=self.__class__.directory, filename='test')
+        agent = Agent.load(
+            directory=self.__class__.directory, filename='test', environment=environment
+        )
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -213,17 +203,13 @@ class TestSaving(UnittestBase, unittest.TestCase):
         saver = dict(directory=self.__class__.directory, frequency=1)
         agent, environment = self.prepare(saver=saver)
 
-        agent.initialize()
         states = environment.reset()
-
         time.sleep(1)
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
         time.sleep(1)
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -255,9 +241,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         saver = dict(directory=self.__class__.directory)
         agent, environment = self.prepare(saver=saver)
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -268,9 +252,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         saver = dict(directory=self.__class__.directory, load='agent-0')
         agent, environment = self.prepare(saver=saver)
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -301,13 +283,11 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # default
         agent, environment = self.prepare()
 
-        agent.initialize()
         states = environment.reset()
-
         agent.save(directory=self.__class__.directory)
         agent.close()
 
-        agent = Agent.load(directory=self.__class__.directory)
+        agent = Agent.load(directory=self.__class__.directory, environment=environment)
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -325,12 +305,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-        # single then parallel
+        # single then parallel and different episode length
         agent, environment = self.prepare(memory=50, update=dict(unit='episodes', batch_size=1))
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -340,13 +318,13 @@ class TestSaving(UnittestBase, unittest.TestCase):
         environment.close()
 
         agent, environment = self.prepare(
-            timestep_range=(6, 10), update=dict(unit='episodes', batch_size=1),
+            update=dict(unit='episodes', batch_size=1), max_episode_timesteps=7,
             parallel_interactions=2
         )
 
         agent.restore(directory=self.__class__.directory)
-        states = environment.reset()
 
+        states = environment.reset()
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -370,9 +348,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # filename
         agent, environment = self.prepare()
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -380,7 +356,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.save(directory=self.__class__.directory, filename='test')
         agent.close()
 
-        agent = Agent.load(directory=self.__class__.directory, filename='test')
+        agent = Agent.load(
+            directory=self.__class__.directory, filename='test', environment=environment
+        )
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -401,9 +379,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # no timestep
         agent, environment = self.prepare()
 
-        agent.initialize()
         states = environment.reset()
-
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
@@ -411,7 +387,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.save(directory=self.__class__.directory, append_timestep=False)
         agent.close()
 
-        agent = Agent.load(directory=self.__class__.directory)
+        agent = Agent.load(directory=self.__class__.directory, environment=environment)
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)

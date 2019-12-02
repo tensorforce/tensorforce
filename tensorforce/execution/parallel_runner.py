@@ -24,43 +24,91 @@ from tensorforce.environments import Environment
 
 
 class ParallelRunner(object):
+    """
+    Tensorforce parallel runner utility.
 
-    def __init__(self, agent, environments, evaluation_environment=None, save_best_agent=False):
-        # save_best overwrites saver...
-        if not util.is_iterable(x=environments):
-            raise TensorforceError.type(
-                name='parallel-runner', argument='environments', value=environments
+    Args:
+        agent (specification | Agent object): Agent specification or object, the latter is not
+            closed automatically as part of `runner.close()`
+            (<span style="color:#C00000"><b>required</b></span>).
+        environment (specification | Environment object): Environment specification or object, the
+            latter is not closed automatically as part of `runner.close()`
+            (<span style="color:#C00000"><b>required</b></span>, or alternatively `environments`).
+        num_parallel (int > 0): Number of parallel environment instances to run
+            (<span style="color:#C00000"><b>required</b></span>, or alternatively `environments`).
+        environments (list[specification | Environment object]): Environment specifications or
+            objects, the latter are not closed automatically as part of `runner.close()`
+            (<span style="color:#C00000"><b>required</b></span>, or alternatively `environment` and
+            `num_parallel`).
+        max_episode_timesteps (int > 0): Maximum number of timesteps per episode, overwrites the
+            environment default if defined
+            (<span style="color:#00C000"><b>default</b></span>: environment default).
+        evaluation_environment (specification | Environment object): Evaluation environment or
+            object, the latter is not closed automatically as part of `runner.close()`
+            (<span style="color:#00C000"><b>default</b></span>: none).
+        save_best_agent (string): Directory to save the best version of the agent according to the
+            evaluation
+            (<span style="color:#00C000"><b>default</b></span>: best agent is not saved).
+    """
+
+    def __init__(
+        self, agent, environment=None, num_parallel=None, environments=None,
+        max_episode_timesteps=None, evaluation_environment=None, save_best_agent=None
+    ):
+        self.environments = list()
+        if environment is None:
+            assert num_parallel is None and environments is not None
+            if not util.is_iterable(x=environments):
+                raise TensorforceError.type(
+                    name='parallel-runner', argument='environments', value=environments
+                )
+            elif len(environments) == 0:
+                raise TensorforceError.value(
+                    name='parallel-runner', argument='environments', value=environments
+                )
+            num_parallel = len(environments)
+            environment = environments[0]
+            self.is_environment_external = isinstance(environment, Environment)
+            environment = Environment.create(
+                environment=environment, max_episode_timesteps=max_episode_timesteps
             )
-        elif len(environments) == 0:
-            raise TensorforceError.value(
-                name='parallel-runner', argument='environments', value=environments
-            )
+            states = environment.states()
+            actions = environment.actions()
+            self.environments.append(environment)
+            for environment in environments[1:]:
+                assert isinstance(environment, Environment) == self.is_environment_external
+                environment = Environment.create(
+                    environment=environment, max_episode_timesteps=max_episode_timesteps
+                )
+                assert environment.states() == states
+                assert environment.actions() == actions
+                self.environments.append(environment)
 
-        self.is_environment_external = tuple(
-            isinstance(environment, Environment) for environment in environments
-        )
-        self.environments = tuple(
-            Environment.create(environment=environment) for environment in environments
-        )
+        else:
+            assert num_parallel is not None and environments is None
+            assert not isinstance(environment, Environment)
+            self.is_environment_external = False
+            for _ in range(num_parallel):
+                environment = Environment.create(
+                    environment=environment, max_episode_timesteps=max_episode_timesteps
+                )
+                self.environments(environment)
 
-        self.is_eval_environment_external = isinstance(evaluation_environment, Environment)
         if evaluation_environment is None:
             self.evaluation_environment = None
         else:
-            self.evaluation_environment = Environment.create(environment=evaluation_environment)
+            self.is_eval_environment_external = isinstance(evaluation_environment, Environment)
+            self.evaluation_environment = Environment.create(
+                environment=evaluation_environment, max_episode_timesteps=max_episode_timesteps
+            )
+            assert self.evaluation_environment.states() == environment.states()
+            assert self.evaluation_environment.actions() == environment.actions()
 
-        self.save_best_agent = save_best_agent
         self.is_agent_external = isinstance(agent, Agent)
-        kwargs = dict(parallel_interactions=len(environments))
-        if self.save_best_agent is True:
-            # Disable periodic saving
-            assert not self.is_agent_external
-            kwargs = dict(saver=dict(frequency=None))
-        self.agent = Agent.create(agent=agent, environment=self.environments[0], **kwargs)
+        kwargs = dict(parallel_interactions=num_parallel)
+        self.agent = Agent.create(agent=agent, environment=environment, **kwargs)
+        self.save_best_agent = save_best_agent
 
-        # self.global_episodes = self.agent.episodes
-        # self.global_timesteps = self.agent.timesteps
-        # self.global_updates = self.agent.updates
         self.episode_rewards = list()
         self.episode_timesteps = list()
         self.episode_seconds = list()
@@ -75,8 +123,8 @@ class ParallelRunner(object):
             self.tqdm.close()
         if not self.is_agent_external:
             self.agent.close()
-        for is_external, environment in zip(self.is_environment_external, self.environments):
-            if not is_external:
+        if not self.is_environment_external:
+            for environment in self.environments:
                 environment.close()
         if self.evaluation_environment is not None and not self.is_eval_environment_external:
             self.evaluation_environment.close()
@@ -210,13 +258,13 @@ class ParallelRunner(object):
         # Evaluation
         if self.evaluation_environment is None:
             assert evaluation_callback is None
-            assert self.save_best_agent is False
+            assert self.save_best_agent is None
         else:
             if evaluation_callback is None:
                 self.evaluation_callback = (lambda r: None)
             else:
                 self.evaluation_callback = evaluation_callback
-            if self.save_best_agent is not False:
+            if self.save_best_agent is not None:
                 inner_evaluation_callback = self.evaluation_callback
 
                 def mean_reward_callback(runner):
@@ -228,9 +276,6 @@ class ParallelRunner(object):
 
                 self.evaluation_callback = mean_reward_callback
                 self.best_evaluation_score = None
-
-        # Reset agent
-        self.agent.reset()
 
         # Reset environments and episode statistics
         for environment in self.environments:
@@ -343,20 +388,17 @@ class ParallelRunner(object):
                         self.evaluation_agent_seconds.append(self.evaluation_agent_second)
 
                         # Evaluation callback
-                        if self.save_best_agent is not False:
+                        if self.save_best_agent is not None:
                             evaluation_score = self.evaluation_callback(self)
                             assert isinstance(evaluation_score, float)
                             if self.best_evaluation_score is None:
                                 self.best_evaluation_score = evaluation_score
                             elif evaluation_score > self.best_evaluation_score:
                                 self.best_evaluation_score = evaluation_score
-                                if self.save_best_agent is True:
-                                    self.agent.save(filename='best-model', append_timestep=False)
-                                else:
-                                    self.agent.save(
-                                        directory=self.save_best_agent, filename='best-model',
-                                        append_timestep=False
-                                    )
+                                self.agent.save(
+                                    directory=self.save_best_agent, filename='best-model',
+                                    append_timestep=False
+                                )
                         else:
                             self.evaluation_callback(self)
 

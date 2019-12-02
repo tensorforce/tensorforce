@@ -14,7 +14,7 @@
 # ==============================================================================
 
 from collections import OrderedDict
-from random import randint, random
+from random import random
 
 import numpy as np
 
@@ -24,23 +24,20 @@ from tensorforce.environments import Environment
 
 class UnittestEnvironment(Environment):
     """
-    Unit-test environment.
+    Unit-test mock environment.
+
+    Args:
+        states: States specification.
+        actions: Actions specification.
+        min_timesteps: Minimum number of timesteps.
     """
 
-    def __init__(self, states, actions, timestep_range):
-        """
-        Initializes a mock environment which is used for the unit-tests.
-
-        Args:
-            states: The state specification.
-            actions: The action specification.
-            timestep_range: The range of non-terminal timesteps.
-        """
+    def __init__(self, states, actions, min_timesteps):
         super().__init__()
 
         self.states_spec = OrderedDict((name, states[name]) for name in sorted(states))
         self.actions_spec = OrderedDict((name, actions[name]) for name in sorted(actions))
-        self.timestep_range = timestep_range
+        self.min_timesteps = min_timesteps
 
         self.random_states = self.__class__.random_states_function(
             states_spec=self.states_spec, actions_spec=self.actions_spec
@@ -54,9 +51,6 @@ class UnittestEnvironment(Environment):
 
     def actions(self):
         return self.actions_spec
-
-    def max_episode_timesteps(self):
-        return self.timestep_range[1] + 1
 
     @classmethod
     def random_states_function(cls, states_spec, actions_spec=None):
@@ -222,7 +216,6 @@ class UnittestEnvironment(Environment):
                 ))
 
     def reset(self):
-        self.num_timesteps = randint(*self.timestep_range)
         self.timestep = 0
         self._states = self.random_states()
         return self._states
@@ -230,12 +223,10 @@ class UnittestEnvironment(Environment):
     def execute(self, actions):
         if not self.is_valid_actions(actions, self._states):
             raise TensorforceError.value(name='actions', value=actions)
-        if self.timestep > self.num_timesteps:
-            raise TensorforceError.unexpected()
 
         self.timestep += 1
         self._states = self.random_states()
-        terminal = self.timestep == self.num_timesteps
+        terminal = (self.timestep >= self.min_timesteps and random() < 0.25)
         reward = -1.0 + 2.0 * random()
 
         return self._states, terminal, reward

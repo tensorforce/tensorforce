@@ -14,13 +14,14 @@ This file records all major updates and new features, starting from version 0.5.
 - Parallel execution functionality contributed by @jerabaul29, currently under `tensorforce/contrib/`
 - Accept string for runner `save_best_agent` argument to specify best model directory different from `saver` configuration
 - `saver` argument `steps` removed and `seconds` renamed to `frequency`
-- Removed `max_episode_timesteps` argument for `Runner.run(...)` and `ParallelRunner.run(...)` in favour of next point
-- New `Environment.create(...)` argument `max_episode_timesteps` to overwrite environment default
+- Moved `Parallel/Runner` argument `max_episode_timesteps` from `run(...)` to constructor
+- New `Environment.create(...)` argument `max_episode_timesteps`
 - TensorFlow 2.0 support
 - Improved Tensorboard summaries recording
 - Summary labels `graph`, `variables` and `variables-histogram` temporarily not working
 - TF-optimizers updated to TensorFlow 2.0 Keras optimizers
 - Added TensorFlow Addons dependency, and support for TFA optimizers
+- Changed unit of `target_sync_frequency` from timesteps to updates for `dqn` and `dueling_dqn` agent
 
 
 

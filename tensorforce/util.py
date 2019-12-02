@@ -134,31 +134,59 @@ def flatten(xs):
 
 
 def zip_items(*args):
-    assert len(args) > 0 and all(arg is None or isinstance(arg, dict) for arg in args)
-    assert args[0] is not None
+    # assert len(args) > 0 and all(arg is None or isinstance(arg, dict) for arg in args)
+    # assert args[0] is not None
+    # for key in args[0]:
+    #     key_values = (key,) + tuple(None if arg is None else arg[key] for arg in args)
+    #     yield key_values
+    assert len(args) > 0
+    assert all(isinstance(arg, dict) and len(arg) == len(args[0]) for arg in args)
     for key in args[0]:
-        key_values = (key,) + tuple(None if arg is None else arg[key] for arg in args)
+        key_values = (key,) + tuple(arg[key] for arg in args)
         yield key_values
 
 
-def disjoint_update(target, source):
+def deep_equal(xs, ys):
+    if isinstance(xs, dict):
+        if not isinstance(ys, dict):
+            return False
+        for _, x, y in zip_items(xs, ys):
+            if not deep_equal(xs=x, ys=y):
+                return False
+        return True
+    elif is_iterable(x=xs):
+        if not is_iterable(x=ys):
+            return False
+        for x, y in zip(xs, ys):
+            if not deep_equal(xs=x, ys=y):
+                return False
+        return True
+    else:
+        return xs == ys
+
+
+def deep_disjoint_update(target, source):  # , ignore=()
     for key, value in source.items():
         if key not in target:
             target[key] = value
-        elif target[key] != value:
-            raise TensorforceError.mismatch(
-                name='spec', argument=key, value1=target[key], value2=value
-            )
-
-
-def deep_disjoint_update(target, source):
-    for key, value in source.items():
-        if key not in target:
-            target[key] = value
+        # elif key in ignore:
+        #     continue
         elif isinstance(target[key], dict):
             if not isinstance(value, dict):
-                raise TensorforceError.unexpected()
+                raise TensorforceError.mismatch(
+                    name='spec', argument=key, value1=target[key], value2=value
+                )
             deep_disjoint_update(target=target[key], source=value)
+        elif is_iterable(x=target[key]):
+            if not is_iterable(x=value) or len(target[key]) != len(value):
+                raise TensorforceError.mismatch(
+                    name='spec', argument=key, value1=target[key], value2=value
+                )
+            for x, y in zip(target[key], value):
+                if x != y:
+                    raise TensorforceError.mismatch(
+                        name='spec', argument=key, value1=target[key], value2=value
+                    )
         elif target[key] != value:
             raise TensorforceError.mismatch(
                 name='spec', argument=key, value1=target[key], value2=value

@@ -16,13 +16,11 @@
 from collections import OrderedDict
 import importlib
 import json
-import logging
 import os
 import random
 import time
 
 import numpy as np
-import tensorflow as tf
 
 from tensorforce import util, TensorforceError
 import tensorforce.agents
@@ -34,25 +32,31 @@ class Agent(object):
     """
 
     @staticmethod
-    def create(agent=None, environment=None, **kwargs):
+    def create(agent='tensorforce', environment=None, **kwargs):
         """
         Creates an agent from a specification.
 
         Args:
-            agent (specification): JSON file, specification key, configuration dictionary,
-                library module, or `Agent` subclass
+            agent (specification | Agent object): JSON file, specification key, configuration
+                dictionary, library module, or `Agent` object
                 (<span style="color:#00C000"><b>default</b></span>: Policy agent).
-            environment (Environment): Environment which the agent is supposed to be trained on,
-                environment-related arguments like state/action space specifications and maximum
-                episode length will be extract if given
+            environment (Environment object): Environment which the agent is supposed to be trained
+                on, environment-related arguments like state/action space specifications and
+                maximum episode length will be extract if given
                 (<span style="color:#00C000"><b>recommended</b></span>).
             kwargs: Additional arguments.
         """
-        if agent is None:
-            agent = 'default'
-
         if isinstance(agent, Agent):
-            if not agent.is_initialized:
+            if environment is not None:
+                assert util.deep_equal(xs=agent.spec['states'], ys=environment.states())
+                assert util.deep_equal(xs=agent.spec['actions'], ys=environment.actions())
+                assert environment.max_episode_timesteps() is None or \
+                    agent.spec['max_episode_timesteps'] >= environment.max_episode_timesteps()
+            for key, value in kwargs.items():
+                assert agent.spec[key] == value
+            if agent.is_initialized:
+                agent.reset()
+            else:
                 agent.initialize()
 
             return agent
@@ -60,7 +64,7 @@ class Agent(object):
         elif isinstance(agent, dict):
             # Dictionary specification
             util.deep_disjoint_update(target=kwargs, source=agent)
-            agent = kwargs.pop('agent', kwargs.pop('type', 'default'))
+            agent = kwargs.pop('agent', kwargs.pop('type', 'tensorforce'))
 
             return Agent.create(agent=agent, environment=environment, **kwargs)
 
@@ -69,10 +73,6 @@ class Agent(object):
                 # JSON file specification
                 with open(agent, 'r') as fp:
                     agent = json.load(fp=fp)
-
-                util.deep_disjoint_update(target=kwargs, source=agent)
-                agent = kwargs.pop('agent', kwargs.pop('type', 'default'))
-
                 return Agent.create(agent=agent, environment=environment, **kwargs)
 
             elif '.' in agent:
@@ -82,40 +82,52 @@ class Agent(object):
                 agent = getattr(library, module_name)
 
                 if environment is not None:
-                    env_spec = dict(states=environment.states(), actions=environment.actions())
-                    if environment.max_episode_timesteps() is not None:
-                        env_spec['max_episode_timesteps'] = environment.max_episode_timesteps()
-                    util.deep_disjoint_update(target=kwargs, source=env_spec)
+                    if 'states' in kwargs:
+                        assert util.deep_equal(xs=kwargs['states'], ys=environment.states())
+                    else:
+                        kwargs['states'] = environment.states()
+                    if 'actions' in kwargs:
+                        assert util.deep_equal(xs=kwargs['actions'], ys=environment.actions())
+                    else:
+                        kwargs['actions'] = environment.actions()
+                    if environment.max_episode_timesteps() is None:
+                        pass
+                    elif 'max_episode_timesteps' in kwargs:
+                        assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                    else:
+                        kwargs['max_episode_timesteps'] = environment.max_episode_timesteps()
 
                 agent = agent(**kwargs)
                 assert isinstance(agent, Agent)
-
-                if not agent.is_initialized:
-                    agent.initialize()
-
-                return agent
+                return Agent.create(agent=agent, environment=environment)
 
             else:
                 # Keyword specification
                 if environment is not None:
-                    env_spec = dict(states=environment.states(), actions=environment.actions())
-                    if environment.max_episode_timesteps() is not None:
-                        env_spec['max_episode_timesteps'] = environment.max_episode_timesteps()
-                    util.deep_disjoint_update(target=kwargs, source=env_spec)
+                    if 'states' in kwargs:
+                        assert util.deep_equal(xs=kwargs['states'], ys=environment.states())
+                    else:
+                        kwargs['states'] = environment.states()
+                    if 'actions' in kwargs:
+                        assert util.deep_equal(xs=kwargs['actions'], ys=environment.actions())
+                    else:
+                        kwargs['actions'] = environment.actions()
+                    if environment.max_episode_timesteps() is None:
+                        pass
+                    elif 'max_episode_timesteps' in kwargs:
+                        assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                    else:
+                        kwargs['max_episode_timesteps'] = environment.max_episode_timesteps()
 
                 agent = tensorforce.agents.agents[agent](**kwargs)
                 assert isinstance(agent, Agent)
-
-                if not agent.is_initialized:
-                    agent.initialize()
-
-                return agent
+                return Agent.create(agent=agent, environment=environment)
 
         else:
             assert False
 
     @staticmethod
-    def load(directory, filename=None):
+    def load(directory, filename=None, environment=None, **kwargs):
         """
         Restores an agent from a specification directory/file.
 
@@ -124,12 +136,32 @@ class Agent(object):
                 (<span style="color:#C00000"><b>required</b></span>).
             filename (str): Agent filename
                 (<span style="color:#00C000"><b>default</b></span>: "agent").
+            environment (Environment object): Environment which the agent is supposed to be trained
+                on, environment-related arguments like state/action space specifications and
+                maximum episode length will be extract if given
+                (<span style="color:#00C000"><b>recommended</b></span>).
+            kwargs: Additional arguments.
         """
         if filename is None:
             agent = os.path.join(directory, 'agent.json')
         else:
             agent = os.path.join(directory, filename + '.json')
-        agent = Agent.create(agent=agent)
+
+        assert os.path.isfile(agent)
+        with open(agent, 'r') as fp:
+            agent = json.load(fp=fp)
+
+        # Overwrite values
+        if environment is not None and environment.max_episode_timesteps() is not None:
+            if 'max_episode_timesteps' in kwargs:
+                assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                agent['max_episode_timesteps'] = kwargs['max_episode_timesteps']
+            else:
+                agent['max_episode_timesteps'] = environment.max_episode_timesteps()
+        if 'parallel_interactions' in kwargs:
+            agent['parallel_interactions'] = kwargs['parallel_interactions']
+
+        agent = Agent.create(agent=agent, environment=environment, **kwargs)
         agent.restore(directory=directory, filename=filename)
         return agent
 
@@ -213,7 +245,7 @@ class Agent(object):
         Initializes the agent.
         """
         if self.is_initialized:
-            return
+            raise TensorforceError.unexpected()
 
         self.is_initialized = True
 

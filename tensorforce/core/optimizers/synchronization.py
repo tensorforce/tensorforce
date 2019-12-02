@@ -30,8 +30,8 @@ class Synchronization(Optimizer):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        sync_frequency (parameter, int > 0): Timestep interval between updates which also perform a
-            synchronization step (<span style="color:#00C000"><b>default</b></span>: every time).
+        sync_frequency (parameter, int > 0): Interval between updates which also perform a
+            synchronization step (<span style="color:#00C000"><b>default</b></span>: every update).
         update_weight (parameter, 0.0 < float <= 1.0): Update weight
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -52,8 +52,8 @@ class Synchronization(Optimizer):
     def tf_initialize(self):
         super().tf_initialize()
 
-        self.last_sync = self.add_variable(
-            name='last-sync', dtype='long', shape=(), is_trainable=False, initializer=-1
+        self.next_sync = self.add_variable(
+            name='next-sync', dtype='long', shape=(), is_trainable=False
         )
 
     def tf_step(self, variables, source_variables, **kwargs):
@@ -62,34 +62,37 @@ class Synchronization(Optimizer):
             for source, target in zip(source_variables, variables)
         )
 
-        timestep = Module.retrieve_tensor(name='timestep')
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
 
         def apply_sync():
-            update_weight = self.update_weight.value()
-            deltas = list()
-            for source_variable, target_variable in zip(source_variables, variables):
-                delta = update_weight * (source_variable - target_variable)
-                deltas.append(delta)
+            next_sync_updated = self.next_sync.assign(
+                value=self.sync_frequency.value(), read_value=False
+            )
 
-            applied = self.apply_step(variables=variables, deltas=deltas)
-            last_sync_updated = self.last_sync.assign(value=timestep)
+            with tf.control_dependencies(control_inputs=(next_sync_updated,)):
+                update_weight = self.update_weight.value()
+                deltas = list()
+                for source_variable, target_variable in zip(source_variables, variables):
+                    delta = update_weight * (source_variable - target_variable)
+                    deltas.append(delta)
+                applied = self.apply_step(variables=variables, deltas=deltas)
 
-            with tf.control_dependencies(control_inputs=(applied, last_sync_updated)):
+            with tf.control_dependencies(control_inputs=(applied,)):
                 # Trivial operation to enforce control dependency
                 return util.fmap(function=util.identity_operation, xs=deltas)
 
         def no_sync():
-            deltas = list()
-            for variable in variables:
-                delta = tf.zeros(shape=util.shape(variable), dtype=util.tf_dtype(dtype='float'))
-                deltas.append(delta)
-            return deltas
+            next_sync_updated = self.next_sync.assign_sub(delta=one, read_value=False)
 
-        sync_frequency = self.sync_frequency.value()
-        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-        skip_sync = tf.math.less(x=(timestep - self.last_sync), y=sync_frequency)
-        skip_sync = tf.math.logical_and(
-            x=skip_sync, y=tf.math.greater_equal(x=self.last_sync, y=zero)
-        )
+            with tf.control_dependencies(control_inputs=(next_sync_updated,)):
+                deltas = list()
+                for variable in variables:
+                    delta = tf.zeros(
+                        shape=util.shape(variable), dtype=util.tf_dtype(dtype='float')
+                    )
+                    deltas.append(delta)
+                return deltas
+
+        skip_sync = tf.math.greater(x=self.next_sync, y=one)
 
         return self.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)

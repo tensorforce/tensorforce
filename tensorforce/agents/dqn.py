@@ -83,8 +83,8 @@ class DeepQNetwork(TensorforceAgent):
         estimate_terminal (bool): Whether to estimate the value of (real) terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        target_sync_frequency (parameter, int > 0): Timestep interval between target network
-            updates (<span style="color:#00C000"><b>default</b></span>: 10000).
+        target_sync_frequency (parameter, int > 0): Interval between target network updates
+            (<span style="color:#00C000"><b>default</b></span>: every update).
         target_update_weight (parameter, 0.0 < float <= 1.0): Target network update weight
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
 
@@ -201,7 +201,7 @@ class DeepQNetwork(TensorforceAgent):
         # Reward estimation
         horizon=0, discount=0.99, estimate_terminal=False,  # double_q_model=False !!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Target network
-        target_sync_frequency=10000, target_update_weight=1.0,
+        target_sync_frequency=1, target_update_weight=1.0,
         # Preprocessing
         preprocessing=None,
         # Exploration

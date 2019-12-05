@@ -232,6 +232,9 @@ class Runner(object):
             self.evaluation_callback = mean_reward_callback
             self.best_evaluation_score = None
 
+        # Required if agent was previously stopped mid-episode
+        self.agent.reset()
+
         # Episode loop
         while True:
             # Run episode

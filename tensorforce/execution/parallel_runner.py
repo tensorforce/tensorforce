@@ -277,6 +277,9 @@ class ParallelRunner(object):
                 self.evaluation_callback = mean_reward_callback
                 self.best_evaluation_score = None
 
+        # Required if agent was previously stopped mid-episode
+        self.agent.reset()
+
         # Reset environments and episode statistics
         for environment in self.environments:
             environment.start_reset()
@@ -319,7 +322,7 @@ class ParallelRunner(object):
                         observation = environment.retrieve_execute()
                         if observation is not None:
                             break
-                        time.sleep(num_sleep_secs)
+                        time.sleep(self.num_sleep_secs)
 
                 else:
                     # Check whether environment is ready
@@ -469,7 +472,7 @@ class ParallelRunner(object):
 
             if not self.sync_timesteps and no_environment_ready:
                 # Sleep if no environment was ready
-                time.sleep(num_sleep_secs)
+                time.sleep(self.num_sleep_secs)
 
             if self.sync_episodes and all(terminated):
                 # Reset if all episodes terminated

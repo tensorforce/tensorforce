@@ -13,6 +13,7 @@ UPDATE_NOTES.html
 /build/
 /docs/_*
 /tensorforce.egg-info/
+/Tensorforce.egg-info/
 /_vizdoom/
 
 /logs/

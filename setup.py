@@ -86,7 +86,7 @@ setup(
         package for package in find_packages(exclude=('test',))
         if package.startswith('tensorforce')
     ],
-    download_url='https://github.com/tensorforce/tensorforce/archive/0.5.0.tar.gz',
+    download_url='https://github.com/tensorforce/tensorforce/archive/{}.tar.gz'.format(version),
     license='Apache 2.0',
     python_requires='>=3.5',
     install_requires=install_requires,

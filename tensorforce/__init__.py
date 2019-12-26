@@ -36,7 +36,7 @@ from tensorforce import util
 __all__ = ['TensorforceError', 'util']
 
 
-__version__ = '0.5.2'
+__version__ = '0.5.3'
 
 """
 pip install --upgrade pip setuptools wheel twine

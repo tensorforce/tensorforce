@@ -53,7 +53,7 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum action value
             (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
             </ul>
-        max_episode_timesteps (int > 0): Maximum number of timesteps per episode
+        max_episode_timesteps (int > 0): Upper bound for numer of timesteps per episode
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 

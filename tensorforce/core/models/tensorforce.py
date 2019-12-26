@@ -623,8 +623,8 @@ class TensorforceModel(Model):
             )
             if self.baseline_optimizer is None and self.baseline_objective is not None:
                 kl_divergence += self.baseline_policy.kl_divergence(
-                states=states, internals=internals, auxiliaries=auxiliaries, other=other
-            )
+                    states=states, internals=internals, auxiliaries=auxiliaries, other=other
+                )
             return kl_divergence
 
         if self.global_model is None:

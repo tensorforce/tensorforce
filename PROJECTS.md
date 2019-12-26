@@ -68,4 +68,11 @@ This project goes with Episode 26+ of [Machine Learning Guide](http://ocdevel.co
 
 
 
+### TensorTrade: Trade Efficiently with Reinforcement Learning
+<img width=400 style="float: right;" src="https://raw.githubusercontent.com/notadamking/tensortrade/master/docs/source/_static/logo.jpg">
 
+TensorTrade is an open source Python framework for building, training, evaluating, and deploying robust trading algorithms using reinforcement learning. The framework focuses on being highly composable and extensible, to allow the system to scale from simple trading strategies on a single CPU, to complex investment strategies run on a distribution of HPC machines.
+
+Under the hood, the framework uses many of the APIs from existing machine learning libraries to maintain high quality data pipelines and learning models. One of the main goals of TensorTrade is to enable fast experimentation with algorithmic trading strategies, by leveraging the existing tools and pipelines provided by numpy, pandas, gym, keras, and tensorflow.
+
+[GitHub Project](https://github.com/notadamking/tensortrade)

@@ -46,7 +46,10 @@ class TensorforceModel(Model):
         else:
             internals = policy_cls.internals_spec(first_arg, name='policy', **kwargs)
         if any(name.startswith('baseline-') for name in internals):
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='model', argument='internals', value=list(internals),
+                hint='starts with baseline-'
+            )
 
         # Baseline internals specification
         if baseline_policy is None:
@@ -64,8 +67,8 @@ class TensorforceModel(Model):
                 )
             for name, spec in baseline_internals.items():
                 if name in internals:
-                    raise TensorforceError(
-                        "Name overlap between policy and baseline internals: {}.".format(name)
+                    raise TensorforceError.collision(
+                        name='model', value='internals', group1='policy', group2='baseline'
                     )
                 internals[name] = spec
 
@@ -92,17 +95,21 @@ class TensorforceModel(Model):
 
         # Update mode
         if not all(key in ('batch_size', 'frequency', 'start', 'unit') for key in update):
-            raise TensorforceError.value(name='update', value=list(update))
+            raise TensorforceError.value(
+                name='agent', argument='update', value=list(update),
+                hint='not from {batch_size,frequency,start,unit}'
+            )
         # update: unit
         elif 'unit' not in update:
-            raise TensorforceError.required(name='update', value='unit')
+            raise TensorforceError.required(name='agent', argument='update[unit]')
         elif update['unit'] not in ('timesteps', 'episodes'):
             raise TensorforceError.value(
-                name='update', argument='unit', value=update['unit']
+                name='agent', argument='update[unit]', value=update['unit'],
+                hint='not in {timesteps,episodes}'
             )
         # update: batch_size
         elif 'batch_size' not in update:
-            raise TensorforceError.required(name='update', value='batch_size')
+            raise TensorforceError.required(name='agent', argument='update[batch_size]')
 
         self.update_unit = update['unit']
         self.update_batch_size = self.add_module(
@@ -136,7 +143,11 @@ class TensorforceModel(Model):
             'capacity', 'discount', 'estimate_actions', 'estimate_advantage', 'estimate_horizon',
             'estimate_terminal', 'horizon'
         ) for key in reward_estimation):
-            raise TensorforceError.value(name='reward_estimation', value=list(reward_estimation))
+            raise TensorforceError.value(
+                name='agent', argument='reward_estimation',
+                hint='not from {capacity,discount,estimate_actions,estimate_advantage,'
+                     'estimate_horizon,estimate_terminal,horizon}'
+            )
         if baseline_policy is None and baseline_optimizer is None and baseline_objective is None:
             estimate_horizon = False
         else:
@@ -202,7 +213,7 @@ class TensorforceModel(Model):
         self.internals_init.update(self.policy.internals_init())
         self.internals_init.update(self.baseline_policy.internals_init())
         if any(internal_init is None for internal_init in self.internals_init.values()):
-            raise TensorforceError.unexpected()
+            raise TensorforceError.required(name='model', argument='internals_init')
 
         # Register global tensors
         Module.register_tensor(name='update', spec=dict(type='long', shape=()), batched=False)

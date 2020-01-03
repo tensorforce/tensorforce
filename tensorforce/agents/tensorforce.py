@@ -279,8 +279,15 @@ class TensorforceAgent(Agent):
             buffer_observe = False
 
         if isinstance(update, int) or update['unit'] == 'timesteps':
-            if buffer_observe is not True or parallel_interactions > 1:
-                TensorforceError.unexpected()
+            if parallel_interactions > 1:
+                TensorforceError.invalid(
+                    name='agent', argument='update', value=update,
+                    condition='parallel_interactions > 1'
+                )
+            elif buffer_observe is not True:
+                TensorforceError.invalid(
+                    name='agent', argument='buffer_observe', condition='update[unit] = timesteps'
+                )
             buffer_observe = False
 
         super().__init__(
@@ -295,7 +302,10 @@ class TensorforceAgent(Agent):
         reward_estimation = dict(reward_estimation)
         if reward_estimation['horizon'] == 'episode':
             if max_episode_timesteps is None:
-                raise TensorforceError.unexpected()
+                raise TensorforceError.value(
+                    name='agent', argument='reward_estimation[horizon]', value='episode',
+                    condition='max_episode_timesteps is None'
+                )
             reward_estimation['horizon'] = max_episode_timesteps
         if 'capacity' not in reward_estimation:
             # TODO: Doesn't take network horizon into account, needs to be set internally to max
@@ -304,7 +314,10 @@ class TensorforceAgent(Agent):
             #         self.buffer_observe, reward_estimation['horizon'] + 2
             #     )
             if max_episode_timesteps is None:
-                raise TensorforceError.unexpected()
+                raise TensorforceError.required(
+                    name='agent', argument='reward_estimation[capacity]',
+                    condition='max_episode_timesteps is None'
+                )
             if isinstance(reward_estimation['horizon'], int):
                 reward_estimation['capacity'] = max(
                     max_episode_timesteps, reward_estimation['horizon']
@@ -315,9 +328,18 @@ class TensorforceAgent(Agent):
 
         if memory is None:
             # predecessor/successor?
-            if max_episode_timesteps is None or not isinstance(update['batch_size'], int) \
-                    or not isinstance(reward_estimation['horizon'], int):
-                raise TensorforceError.unexpected()
+            if max_episode_timesteps is None:
+                raise TensorforceError.required(
+                    name='agent', argument='memory', condition='max_episode_timesteps is None'
+                )
+            elif not isinstance(update['batch_size'], int):
+                raise TensorforceError.required(
+                    name='agent', argument='memory', condition='update[batch_size] not int'
+                )
+            elif not isinstance(reward_estimation['horizon'], int):
+                raise TensorforceError.required(
+                    name='agent', argument='memory', condition='reward_estimation[horizon] not int'
+                )
             if update['unit'] == 'timesteps':
                 memory = update['batch_size'] + max_episode_timesteps + \
                     reward_estimation['horizon']
@@ -480,7 +502,9 @@ class TensorforceAgent(Agent):
                 (<span style="color:#00C000"><b>default</b></span>: 1).
         """
         if not os.path.isdir(directory):
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='agent.pretrain', argument='directory', value=directory
+            )
         files = sorted(
             os.path.join(directory, f) for f in os.listdir(directory)
             if os.path.isfile(os.path.join(directory, f)) and f.startswith('trace-')

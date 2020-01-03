@@ -55,7 +55,9 @@ class Module(object):
     @staticmethod
     def register_tensor(name, spec, batched):
         if '/' in name:
-            raise TensorforceError.value(name='name', value=name)
+            raise TensorforceError.value(
+                name='Module.register_tensor', argument='name', value=name, hint='contains /'
+            )
 
         if Module.global_scope is None:  # ???
             raise TensorforceError.unexpected()
@@ -72,7 +74,7 @@ class Module(object):
         if scoped_name in Module.global_tensors_spec and \
                 spec != Module.global_tensors_spec[scoped_name]:
             raise TensorforceError.mismatch(
-                name='tensor-spec', value1=spec, value2=Module.global_tensors_spec[scoped_name]
+                name='Module.register_tensor', argument='spec', value1=spec, value2=Module.global_tensors_spec[scoped_name]
             )
 
         if not util.valid_value_spec(value_spec=spec):
@@ -86,7 +88,9 @@ class Module(object):
     @staticmethod
     def get_tensor_spec(name):
         if name not in Module.global_tensors_spec:
-            raise TensorforceError.value(name='name', value=name)
+            raise TensorforceError.value(
+                name='Module.get_tensor_spec', argument='name', value=name
+            )
 
         spec = dict(Module.global_tensors_spec[name])
         spec.pop('batched')
@@ -96,13 +100,17 @@ class Module(object):
     @staticmethod
     def update_tensor(name, tensor):
         if name not in Module.global_tensors_spec:
-            raise TensorforceError("Global tensor is not registered: {}.".format(name))
+            raise TensorforceError.value(
+                name='Module.update_tensor', argument='name', value=name
+            )
 
         scoped_name = name
         spec = Module.global_tensors_spec[scoped_name]
 
         if not util.is_consistent_with_value_spec(value_spec=spec, x=tensor):
-            raise TensorforceError("Invalid overwriting tensor: {}.".format(tensor))
+            raise TensorforceError.value(
+                name='Module.update_tensor', argument='tensor', value=tensor
+            )
 
         scoped_name = util.join_scopes(*Module.global_scope, name)
 
@@ -121,7 +129,9 @@ class Module(object):
     @staticmethod
     def retrieve_tensor(name):
         if name not in Module.global_tensors_spec:
-            raise TensorforceError("Global tensor is not registered: {}.".format(name))
+            raise TensorforceError.value(
+                name='Module.retrieve_tensor', argument='name', value=name
+            )
 
         for n in range(len(Module.global_scope) + 1):
             partial_scope = Module.global_scope[:len(Module.global_scope) - n]
@@ -129,7 +139,9 @@ class Module(object):
             if scoped_name in Module.global_tensors:
                 break
         else:
-            raise TensorforceError("Global tensor is not set: {}.".format(name))
+            raise TensorforceError.value(
+                name='Module.retrieve_tensor', argument='name', value=name
+            )
 
         return Module.global_tensors[scoped_name]
 
@@ -164,7 +176,7 @@ class Module(object):
         # summary_labels
         if summary_labels is not None and \
                 not all(isinstance(label, str) for label in summary_labels):
-            raise TensorforceError.type(
+            raise TensorforceError.value(
                 name='module', argument='summary_labels', value=summary_labels
             )
         # device
@@ -234,7 +246,7 @@ class Module(object):
     def initialize(self):
         # Check whether module is already initialized
         if self.is_initialized:
-            raise TensorforceError(message="Module already initialized.")
+            raise TensorforceError(message="Module is already initialized.")
 
         # Set internal attributes
         self.is_initialized = True
@@ -380,13 +392,13 @@ class Module(object):
                 function_name = attribute[3:]
 
                 if not util.is_valid_name(name=function_name):
-                    raise TensorforceError.value(name='TF-function name', value=function_name)
+                    raise TensorforceError.unexpected()
                 if hasattr(self, function_name):
-                    raise TensorforceError.exists(name='TF-function', value=function_name)
+                    raise TensorforceError.unexpected()
 
                 tf_function = getattr(self, attribute)
                 if not callable(tf_function):
-                    raise TensorforceError.exists(name='TF-function', value=tf_function)
+                    raise TensorforceError.unexpected()
 
                 function = self.create_tf_function(
                     name='{}.{}'.format(self.name, function_name), tf_function=tf_function
@@ -438,9 +450,17 @@ class Module(object):
                         elif function_name == 'update':
                             step = self.global_update
                         elif function_name == 'reset':
-                            raise TensorforceError.unexpected()
+                            raise TensorforceError.value(
+                                name='module', argument='summarizer[frequency]',
+                                value=function_name,
+                                hint='not in {act,experience,observe,update}'
+                            )
                         else:
-                            raise TensorforceError.unexpected()
+                            raise TensorforceError.value(
+                                name='module', argument='summarizer[frequency]',
+                                value=function_name,
+                                hint='not in {act,experience,observe,update}'
+                            )
                         frequency = tf.constant(
                             value=self.summarizer_spec['frequency'][function_name],
                             dtype=util.tf_dtype(dtype='long')
@@ -457,13 +477,13 @@ class Module(object):
                     record_summaries.__enter__()
 
                 if not util.is_valid_name(name=function_name):
-                    raise TensorforceError.value(name='API-function name', value=function_name)
+                    raise TensorforceError.unexpected()
                 if hasattr(self, function_name):
-                    raise TensorforceError.exists(name='API-function', value=function_name)
+                    raise TensorforceError.unexpected()
 
                 api_function = getattr(self, attribute)
                 if not callable(api_function):
-                    raise TensorforceError.exists(name='API-function', value=tf_function)
+                    raise TensorforceError.unexpected()
 
                 function = self.create_api_function(
                     name='{}.{}'.format(self.name, function_name), api_function=api_function
@@ -556,7 +576,9 @@ class Module(object):
                 else:
                     feed_dict[util.join_scopes(self.name, key) + '-input:0'] = arg
             if not all(isinstance(x, str) and x.endswith('-input:0') for x in feed_dict):
-                raise TensorforceError.unexpected()
+                raise TensorforceError.value(
+                    name=api_function, argument='inputs', value=list(feed_dict)
+                )
 
             # Fetches value/tuple
             fetches = util.fmap(function=(lambda x: x.name), xs=results)
@@ -572,7 +594,9 @@ class Module(object):
             if not util.reduce_all(
                 predicate=(lambda x: isinstance(x, str) and x.endswith('-output:0')), xs=fetches
             ):
-                raise TensorforceError.unexpected()
+                raise TensorforceError.value(
+                    name=api_function, argument='outputs', value=list(fetches)
+                )
 
             # TensorFlow session call
             fetched = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
@@ -625,24 +649,27 @@ class Module(object):
     ):
         # name
         if not util.is_valid_name(name=name):
-            raise TensorforceError.value(name='variable', argument='name', value=name)
+            raise TensorforceError.value(name='Module.add_variable', argument='name', value=name)
         elif name in self.variables:
             raise TensorforceError.exists(name='variable', value=name)
         # dtype
         if not util.is_valid_type(dtype=dtype):
-            raise TensorforceError.value(name='variable', argument='dtype', value=dtype)
+            raise TensorforceError.value(name='Module.add_variable', argument='dtype', value=dtype)
         # shape
         if not util.is_iterable(x=shape) or not all(isinstance(dims, int) for dims in shape):
-            raise TensorforceError.type(name='variable', argument='shape', value=shape)
+            raise TensorforceError.value(name='Module.add_variable', argument='shape', value=shape)
         elif not all(dims > 0 for dims in shape):
-            raise TensorforceError.value(name='variable', argument='shape', value=shape)
+            raise TensorforceError.value(name='Module.add_variable', argument='shape', value=shape)
         # is_trainable
         if not isinstance(is_trainable, bool):
             raise TensorforceError.type(
-                name='variable', argument='is_trainable', value=is_trainable
+                name='Module.add_variable', argument='is_trainable', dtype=type(is_trainable)
             )
         elif is_trainable and dtype != 'float':
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='Module.add_variable', argument='is_trainable', value=is_trainable,
+                condition='dtype != float'
+            )
         # initializer
         initializer_names = (
             'normal', 'normal-relu', 'orthogonal', 'orthogonal-relu', 'zeros', 'ones'
@@ -650,26 +677,32 @@ class Module(object):
         if not isinstance(initializer, (util.py_dtype(dtype=dtype), np.ndarray, tf.Tensor)) and \
                 initializer not in initializer_names:
             raise TensorforceError.value(
-                name='variable', argument='initializer', value=initializer
+                name='Module.add_variable', argument='initializer', value=initializer
             )
         elif isinstance(initializer, np.ndarray) and \
                 initializer.dtype != util.np_dtype(dtype=dtype):
             raise TensorforceError.type(
-                name='variable', argument='initializer', value=initializer
+                name='Module.add_variable', argument='initializer', dtype=type(initializer)
             )
         elif isinstance(initializer, tf.Tensor) and util.dtype(x=initializer) != dtype:
             raise TensorforceError.type(
-                name='variable', argument='initializer', value=initializer
+                name='Module.add_variable', argument='initializer', dtype=type(initializer)
             )
         # is_saved
         if not isinstance(is_saved, bool):
-            raise TensorforceError.type(name='variable', argument='is_saved', value=is_saved)
+            raise TensorforceError.type(
+                name='Module.add_variable', argument='is_saved', dtype=type(is_saved)
+            )
         # summarize
         if summarize is not None and not isinstance(summarize, bool):
-            raise TensorforceError.type(name='variable', argument='summarize', value=summarize)
+            raise TensorforceError.type(
+                name='Module.add_variable', argument='summarize', dtype=type(summarize)
+            )
         # shared
         if shared is not None and not isinstance(shared, str):
-            raise TensorforceError.type(name='variable', argument='shared', value=shared)
+            raise TensorforceError.type(
+                name='Module.add_variable', argument='shared',dtype=type(shared)
+            )
 
         variable = None
 
@@ -688,14 +721,14 @@ class Module(object):
                 initializer = tf.constant(value=initializer, dtype=tf_dtype, shape=shape)
             elif isinstance(initializer, np.ndarray):
                 if initializer.shape != shape:
-                    raise TensorforceError(
-                        "Invalid variable initializer shape: {}.".format(initializer.shape)
+                    raise TensorforceError.mismatch(
+                        name='Module.add_variable', value1='shape', value2='initializer'
                     )
                 initializer = tf.constant(value=initializer, dtype=tf_dtype)
             elif isinstance(initializer, tf.Tensor):
                 if util.shape(x=initializer) != shape:
-                    raise TensorforceError(
-                        "Invalid variable initializer shape: {}.".format(util.shape(x=initializer))
+                    raise TensorforceError.mismatch(
+                        name='Module.add_variable', value1='shape', value2='initializer'
                     )
                 initializer = initializer
             elif not isinstance(initializer, str):
@@ -837,31 +870,39 @@ class Module(object):
         # label
         if util.is_iterable(x=label):
             if not all(isinstance(x, str) for x in label):
-                raise TensorforceError.type(name='summary', argument='label', value=label)
+                raise TensorforceError.value(
+                    name='Module.add_summary', argument='label', value=label
+                )
         else:
             if not isinstance(label, str):
-                raise TensorforceError.type(name='summary', argument='label', value=label)
+                raise TensorforceError.type(
+                    name='Module.add_summary', argument='label', dtype=type(label)
+                )
         # name
         if not isinstance(name, str):
-            raise TensorforceError.type(name='summary', argument='name', value=name)
+            raise TensorforceError.type(
+                name='Module.add_summary', argument='name', dtype=type(name)
+            )
         # tensor
         if not isinstance(tensor, (tf.Tensor, tf.Variable)):
-            raise TensorforceError.type(name='summary', argument='tensor', value=tensor)
+            raise TensorforceError.type(
+                name='Module.add_summary', argument='tensor', dtype=type(tensor)
+            )
         # pass_tensors
         if util.is_iterable(x=pass_tensors):
             if not all(isinstance(x, (tf.Tensor, tf.IndexedSlices)) for x in pass_tensors):
-                raise TensorforceError.type(
-                    name='summary', argument='pass_tensors', value=pass_tensors
+                raise TensorforceError.value(
+                    name='Module.add_summary', argument='pass_tensors', value=pass_tensors
                 )
         elif pass_tensors is not None:
             if not isinstance(pass_tensors, tf.Tensor):
                 raise TensorforceError.type(
-                    name='summary', argument='pass_tensors', value=pass_tensors
+                    name='Module.add_summary', argument='pass_tensors', dtype=type(pass_tensors)
                 )
         # enumerate_last_rank
         if not isinstance(enumerate_last_rank, bool):
             raise TensorforceError.type(
-                name='summary', argument='enumerate_last_rank', value=tensor
+                name='Module.add_summary', argument='enumerate_last_rank', dtype=type(tensor)
             )
 
         if pass_tensors is None:
@@ -938,12 +979,16 @@ class Module(object):
     ):
         # name
         if not util.is_valid_name(name=name):
-            raise TensorforceError.value(name='module', argument='name', value=name)
+            raise TensorforceError.value(
+                name='Module.get_module_class_and_kwargs', argument='name', value=name
+            )
         # module
         # ???
         # modules
         if modules is not None and not isinstance(modules, dict):
-            raise TensorforceError.type(name='module', argument='modules', value=modules)
+            raise TensorforceError.type(
+                name='Module.get_module_class_and_kwargs', argument='modules', dtype=type(modules)
+            )
         # default_module
         # ???
         if isinstance(module, dict):
@@ -983,7 +1028,9 @@ class Module(object):
             elif 'default' in modules or default_module is not None:
                 # Default module specification
                 if '_first_arg' in kwargs:
-                    raise TensorforceError.value(name='module kwargs', value='_first_arg')
+                    raise TensorforceError.invalid(
+                        name='Module.get_module_class_and_kwargs', argument='_first_arg'
+                    )
                 if module is not None:
                     kwargs['_first_arg'] = module
                 if default_module is None:
@@ -993,12 +1040,16 @@ class Module(object):
                 )
 
             else:
-                raise TensorforceError.value(name='module specification', value=module)
+                raise TensorforceError.value(
+                    name='Module.get_module_class_and_kwargs', argument='module', value=module
+                )
 
         elif not callable(module) and ('default' in modules or default_module is not None):
             # Default module specification
             if '_first_arg' in kwargs:
-                raise TensorforceError.value(name='module kwargs', value='_first_arg')
+                raise TensorforceError.invalid(
+                    name='Module.get_module_class_and_kwargs', argument='_first_arg'
+                )
             if module is not None:
                 kwargs['_first_arg'] = module
             if default_module is None:
@@ -1017,7 +1068,9 @@ class Module(object):
             return module, first_arg, kwargs
 
         else:
-            raise TensorforceError.value(name='module specification', value=module)
+            raise TensorforceError.value(
+                name='Module.get_module_class_and_kwargs', argument='module', value=module
+            )
 
     def add_module(
         self, name, module=None, modules=None, default_module=None, is_trainable=True,
@@ -1025,13 +1078,17 @@ class Module(object):
     ):
         # name
         if name in self.modules:
-            raise TensorforceError.exists(name='sub-module', value=name)
+            raise TensorforceError.exists(name='module', value=name)
         # is_trainable
         if not isinstance(is_trainable, bool):
-            raise TensorforceError.type(name='module', argument='is_trainable', value=is_trainable)
+            raise TensorforceError.exists(
+                name='Module.add_module', argument='is_trainable', dtype=type(name)
+            )
         # is_saved
         if not isinstance(is_saved, bool):
-            raise TensorforceError.type(name='module', argument='is_saved', value=is_saved)
+            raise TensorforceError.type(
+                name='Module.add_module', argument='is_saved', dtype=type(is_saved)
+            )
 
         module_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
             name=name, module=module, modules=modules, default_module=default_module, **kwargs
@@ -1084,13 +1141,20 @@ class Module(object):
     def get_variables(self, only_trainable=False, only_saved=False):
         # only_trainable
         if not isinstance(only_trainable, bool):
-            raise TensorforceError.type(name='get_variables', argument='only_trainable', value=only_trainable)
+            raise TensorforceError.type(
+                name='Module.get_variables', argument='only_trainable', dtype=type(only_trainable)
+            )
         # only_saved
         if not isinstance(only_saved, bool):
-            raise TensorforceError.type(name='get_variables', argument='only_saved', value=only_saved)
+            raise TensorforceError.type(
+                name='Module.get_variables', argument='only_saved', dtype=type(only_saved)
+            )
         # not both
         if only_trainable and only_saved:
-            raise TensorforceError.unexpected()
+            raise TensorforceError(
+                message="Module.get_variables argument only_trainable should not be used together "
+                        "with argument only_saved."
+            )
 
         if only_trainable:
             # Only trainable variables

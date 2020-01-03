@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import os
-
 from test.unittest_base import UnittestBase
 
 

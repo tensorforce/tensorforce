@@ -39,12 +39,14 @@ __all__ = ['TensorforceError', 'util']
 __version__ = '0.5.3'
 
 """
+test: cd docs; make html; cd ..;
 pip install --upgrade pip setuptools wheel twine
 python setup.py sdist bdist_wheel
-twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.2*
+twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.3*
 test: pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 test: python; import tensorforce;
-twine upload dist/Tensorforce-0.5.2*
+test: python tensorforce/examples/quickstart.py
+twine upload dist/Tensorforce-0.5.3*
 """
 
 

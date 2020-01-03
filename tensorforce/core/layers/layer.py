@@ -97,7 +97,7 @@ class Layer(Module):
         layer = super().add_module(*args, **kwargs)
 
         if not isinstance(layer, (Layer, Parameter)):
-            raise TensorforceError.type(name='layer', argument='sub-module', value=layer)
+            raise TensorforceError.type(name='layer', argument='sub-module', dtype=type(layer))
 
         return layer
 
@@ -110,13 +110,13 @@ class Layer(Module):
             def validated_tf_function(x):
                 if self.input_spec is not None and \
                         not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
+                    raise TensorforceError.value(name='layer.apply', argument='input', value=x)
 
                 x = tf_function(x=x)
 
                 if self.output_spec is not None and \
                         not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-                    raise TensorforceError("Invalid output arguments for tf_apply.")
+                    raise TensorforceError.value(name='layer.apply', argument='output', value=x)
 
                 return x
 
@@ -252,7 +252,10 @@ class TemporalLayer(Layer):
         )
 
         if processing not in ('cumulative', 'iterative'):
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='temporal-layer', argument='processing', value=processing,
+                hint='not in {cumulative,iterative}'
+            )
 
         self.processing = processing
 
@@ -391,7 +394,7 @@ class TemporalLayer(Layer):
 
             def validated_tf_function(x, initial=None):
                 if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
+                    raise TensorforceError.value(name='layer.apply', argument='input', value=x)
 
                 # initial spec!
 
@@ -401,7 +404,7 @@ class TemporalLayer(Layer):
                     x, final = tf_function(x=x, initial=initial)
 
                 if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-                    raise TensorforceError("Invalid output arguments for tf_apply.")
+                    raise TensorforceError.value(name='layer.apply', argument='output', value=x)
 
                 if initial is None:
                     return x
@@ -415,12 +418,12 @@ class TemporalLayer(Layer):
             def validated_tf_function(xs):
                 x = xs[:, 0, :]
                 if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
+                    raise TensorforceError.value(name='layer.apply', argument='input', value=x)
 
                 x = tf_function(xs=xs)
 
                 if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-                    raise TensorforceError("Invalid output arguments for tf_apply.")
+                    raise TensorforceError.value(name='layer.apply', argument='output', value=x)
 
                 return x
 
@@ -430,14 +433,14 @@ class TemporalLayer(Layer):
 
             def validated_tf_function(x, previous):
                 if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
+                    raise TensorforceError.value(name='layer.apply', argument='input', value=x)
 
                 # previous spec!
 
                 x, previous = tf_function(x=x, previous=previous)
 
                 if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-                    raise TensorforceError("Invalid output arguments for tf_apply.")
+                    raise TensorforceError.value(name='layer.apply', argument='output', value=x)
 
                 return x, previous
 

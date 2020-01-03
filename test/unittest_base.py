@@ -18,6 +18,7 @@ from datetime import datetime
 import sys
 import warnings
 
+from tensorforce import TensorforceError
 from tensorforce.agents import Agent
 from tensorforce.core.layers import Layer
 from tensorforce.environments import Environment
@@ -58,8 +59,8 @@ class UnittestBase(object):
 
     # Agent
     agent = dict(
-        update=4, policy=dict(network=dict(type='auto', size=8, internal_rnn=2)),
-        objective='policy_gradient', reward_estimation=dict(horizon=2)
+        update=4, policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
+        objective='policy_gradient', reward_estimation=dict(horizon=3)
     )
 
     # Tensorforce config

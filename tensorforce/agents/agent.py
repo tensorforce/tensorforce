@@ -198,18 +198,28 @@ class Agent(object):
         if isinstance(parallel_interactions, int):
             if parallel_interactions <= 0:
                 raise TensorforceError.value(
-                    name='parallel_interactions', value=parallel_interactions
+                    name='agent', argument='parallel_interactions', value=parallel_interactions,
+                    hint='<= 0'
                 )
             self.parallel_interactions = parallel_interactions
         else:
-            raise TensorforceError.type(name='parallel_interactions', value=parallel_interactions)
+            raise TensorforceError.type(
+                name='agent', argument='parallel_interactions', dtype=type(parallel_interactions)
+            )
 
         # Buffer observe
         if isinstance(buffer_observe, bool):
-            if not buffer_observe and self.parallel_interactions > 1:
-                raise TensorforceError.unexpected()
-            if self.max_episode_timesteps is None and self.parallel_interactions > 1:
-                raise TensorforceError.unexpected()
+            if self.parallel_interactions > 1:
+                if not buffer_observe:
+                    raise TensorforceError.required(
+                        name='agent', argument='buffer_observe',
+                        condition='parallel_interactions > 1'
+                    )
+                elif self.max_episode_timesteps is None:
+                    raise TensorforceError.required(
+                        name='agent', argument='max_episode_timesteps',
+                        condition='parallel_interactions > 1'
+                    )
             if not buffer_observe:
                 self.buffer_observe = 1
             elif self.max_episode_timesteps is None:
@@ -218,21 +228,31 @@ class Agent(object):
                 self.buffer_observe = self.max_episode_timesteps
         elif isinstance(buffer_observe, int):
             if buffer_observe <= 0:
-                raise TensorforceError.value(name='buffer_observe', value=buffer_observe)
+                raise TensorforceError.value(
+                    name='agent', argument='buffer_observe', value=buffer_observe, hint='<= 0'
+                )
             if self.parallel_interactions > 1:
-                raise TensorforceError.unexpected()
+                raise TensorforceError.value(
+                    name='agent', argument='buffer_observe', value=buffer_observe,
+                    condition='parallel_interactions > 1'
+                )
             if self.max_episode_timesteps is None:
                 self.buffer_observe = buffer_observe
             else:
                 self.buffer_observe = min(buffer_observe, self.max_episode_timesteps)
         else:
-            raise TensorforceError.type(name='buffer_observe', value=buffer_observe)
+            raise TensorforceError.type(
+                name='agent', argument='buffer_observe', dtype=type(buffer_observe)
+            )
 
         # Recorder
         if recorder is None:
             pass
         elif not all(key in ('directory', 'frequency', 'max-traces', 'start') for key in recorder):
-            raise TensorforceError.value(name='recorder', value=list(recorder))
+            raise TensorforceError.value(
+                name='agent', argument='recorder', value=list(recorder),
+                hint='not from {directory,frequency,max-traces,start}'
+            )
         self.recorder_spec = recorder if recorder is None else dict(recorder)
 
         self.is_initialized = False
@@ -245,7 +265,9 @@ class Agent(object):
         Initializes the agent.
         """
         if self.is_initialized:
-            raise TensorforceError.unexpected()
+            raise TensorforceError(
+                message="Agent is already initialized, possibly as part of Agent.create()."
+            )
 
         self.is_initialized = True
 
@@ -300,7 +322,7 @@ class Agent(object):
 
         # Setup Model
         if not hasattr(self, 'model'):
-            raise TensorforceError.missing(name='Agent', value='model')
+            raise TensorforceError(message="Missing agent attribute model.")
 
         self.model.initialize()
         if self.model.saver_directory is not None:
@@ -359,7 +381,10 @@ class Agent(object):
         # self.current_internals = self.next_internals
         if evaluation:
             if deterministic or independent:
-                raise TensorforceError.unexpected()
+                raise TensorforceError(
+                    message="Agent.observe argument deterministic/independent are implied by and "
+                            "thus should not be used together with argument evaluation."
+                )
             deterministic = independent = True
 
         # Auxiliaries
@@ -447,7 +472,9 @@ class Agent(object):
         assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
 
         if query is not None and self.parallel_interactions > 1:
-            raise TensorforceError.unexpected()
+            raise TensorforceError.invalid(
+                name='agent.observe', argument='query', condition='parallel_interactions > 1'
+            )
 
         if isinstance(terminal, bool):
             terminal = int(terminal)
@@ -459,7 +486,10 @@ class Agent(object):
         index += 1
 
         if self.max_episode_timesteps is not None and index > self.max_episode_timesteps:
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='agent.observe', argument='index', value=index,
+                condition='> max_episode_timesteps'
+            )
 
         if terminal > 0 or index == self.buffer_observe or query is not None:
             terminal = self.terminal_buffers[parallel, :index]
@@ -610,7 +640,7 @@ class Agent(object):
                 directory).
         """
         if not hasattr(self, 'model'):
-            raise TensorforceError.missing(name='Agent', value='model')
+            raise TensorforceError(message="Missing agent attribute model.")
 
         if not self.is_initialized:
             self.initialize()
@@ -633,7 +663,9 @@ class Agent(object):
         if function in self.model.output_tensors:
             return self.model.output_tensors[function]
         else:
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='agent.get_output_tensors', argument='function', value=function
+            )
 
     def get_query_tensors(self, function):
         """
@@ -649,7 +681,9 @@ class Agent(object):
         if function in self.model.query_tensors:
             return self.model.query_tensors[function]
         else:
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='agent.get_query_tensors', argument='function', value=function
+            )
 
     def get_available_summaries(self):
         """

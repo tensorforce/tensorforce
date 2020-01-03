@@ -32,7 +32,7 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
         agent, environment = self.prepare(
             states=states, actions=actions, require_all=True,
             update=dict(unit='episodes', batch_size=1),
-            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
+            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False))
             # TODO: shouldn't be necessary!
         )
 
@@ -57,7 +57,7 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
 
         agent, environment = self.prepare(
             states=states, actions=actions, require_all=True, buffer_observe=False, update=1,
-            policy=dict(network=dict(type='auto', size=8, internal_rnn=False)),
+            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False)),
             # TODO: shouldn't be necessary!
             recorder=dict(directory=self.__class__.directory)
         )

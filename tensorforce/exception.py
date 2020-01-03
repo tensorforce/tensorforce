@@ -32,7 +32,7 @@ class TensorforceError(Exception):
     def __init__(self, message):
         if message[0].islower():
             message = message[0].upper() + message[1:]
-        if message[-1] != '.':
+        if message[-1] not in '.!?':
             message = message + '.'
         super().__init__(message)
 
@@ -70,39 +70,68 @@ class TensorforceError(Exception):
         )
 
     @staticmethod
-    def required(name, value):
-        if is_iterable(x=value):
-            value = ', '.join(str(x) for x in value)
+    def required(name, argument, condition=None):
+        if condition is None:
+            return TensorforceError(
+                message="Required {name} argument {argument}.".format(name=name, argument=argument)
+            )
+        else:
+            return TensorforceError(
+                message="Required {name} argument {argument} given {condition}.".format(
+                    name=name, condition=condition, argument=argument
+                )
+            )
+
+    @staticmethod
+    def invalid(name, argument, condition=None):
+        if condition is None:
+            return TensorforceError(
+                message="Invalid {name} argument {argument}.".format(name=name, argument=argument)
+            )
+        else:
+            return TensorforceError(
+                message="Invalid {name} argument {argument} given {condition}.".format(
+                    name=name, condition=condition, argument=argument
+                )
+            )
+
+    @staticmethod
+    def type(name, argument, dtype):
         return TensorforceError(
-            message="Missing {name} value: {value}.".format(name=name, value=value)
+            message="Invalid type for {name} argument {argument}: {type}.".format(
+                name=name, argument=argument, type=dtype
+            )
         )
 
     @staticmethod
-    def type(name, value, argument=None):
-        if argument is None:
-            return TensorforceError(
-                message="Invalid {name} type: {type}.".format(name=name, type=type(value))
-            )
-        else:
-            return TensorforceError(
-                message="Invalid type for {name} argument {argument}: {type}.".format(
-                    name=name, argument=argument, type=type(value)
-                )
-            )
-
-    @staticmethod
-    def value(name, value, argument=None):
+    def value(name, argument, value, condition=None, hint=None):
         if isinstance(value, dict):
             value = str(value)
         elif is_iterable(x=value):
-            value = ', '.join(str(x) for x in value)
-        if argument is None:
-            return TensorforceError(
-                message="Invalid {name} value: {value}.".format(name=name, value=value)
-            )
-        else:
-            return TensorforceError(
-                message="Invalid value for {name} argument {argument}: {value}.".format(
-                    name=name, argument=argument, value=value
+            value = ','.join(str(x) for x in value)
+        if hint is None:
+            if condition is None:
+                return TensorforceError(
+                    message="Invalid value for {name} argument {argument}: {value}.".format(
+                        name=name, argument=argument, value=value
+                    )
                 )
-            )
+            else:
+                return TensorforceError(
+                    message="Invalid value for {name} argument {argument} given {condition}: {value}.".format(
+                        name=name, argument=argument, condition=condition, value=value
+                    )
+                )
+        else:
+            if condition is None:
+                return TensorforceError(
+                    message="Invalid value for {name} argument {argument}: {value} {hint}.".format(
+                        name=name, argument=argument, value=value, hint=hint
+                    )
+                )
+            else:
+                return TensorforceError(
+                    message="Invalid value for {name} argument {argument} given {condition}: {value} {hint}.".format(
+                        name=name, argument=argument, condition=condition, value=value, hint=hint
+                    )
+                )

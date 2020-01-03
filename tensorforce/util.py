@@ -201,7 +201,7 @@ def dtype(x):
         if x.dtype == tf.float32:
             return 'float'
         else:
-            raise TensorforceError.value(name='dtype', value=x.dtype)
+            raise TensorforceError.value(name='util.dtype', argument='x', value=x.dtype)
 
 
 def rank(x):
@@ -225,7 +225,7 @@ def identity_operation(x, operation_name=None):
     elif dtype(x=zero) in ('int', 'long', 'float'):
         x = tf.math.add(x=x, y=zero, name=operation_name)
     else:
-        raise TensorforceError.value(name='tensor', value=x)
+        raise TensorforceError.value(name='util.identity_operation', argument='x', value=x)
     return x
 
 
@@ -239,7 +239,7 @@ def py_dtype(dtype):
     elif dtype == 'bool':  # or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
         return bool
     else:
-        raise TensorforceError.value(name='dtype', value=dtype)
+        raise TensorforceError.value(name='util.py_dtype', argument='dtype', value=dtype)
 
 
 np_dtype_mapping = dict(bool=np.bool_, int=np.int32, long=np.int64, float=np.float32)
@@ -256,7 +256,7 @@ def np_dtype(dtype):
     if dtype in np_dtype_mapping:
         return np_dtype_mapping[dtype]
     else:
-        raise TensorforceError.value(name='dtype', value=dtype)
+        raise TensorforceError.value(name='util.np_dtype', argument='dtype', value=dtype)
 
 
 tf_dtype_mapping = dict(bool=tf.bool, int=tf.int32, long=tf.int64, float=tf.float32)
@@ -283,7 +283,7 @@ def tf_dtype(dtype):
     if dtype in tf_dtype_mapping:
         return tf_dtype_mapping[dtype]
     else:
-        raise TensorforceError.value(name='dtype', value=dtype)
+        raise TensorforceError.value(name='util.tf_dtype', argument='dtype', value=dtype)
 
 
 def get_tensor_dependencies(tensor):
@@ -349,7 +349,9 @@ def is_atomic_values_spec(values_spec):
 
 def valid_values_spec(values_spec, value_type='tensor', return_normalized=False):
     if not is_valid_value_type(value_type=value_type):
-        raise TensorforceError.value(name='value_type', value=value_type)
+        raise TensorforceError.value(
+            name='util.valid_values_spec', argument='value_type', value=value_type
+        )
 
     if is_atomic_values_spec(values_spec=values_spec):
         value_spec = valid_value_spec(
@@ -362,7 +364,7 @@ def valid_values_spec(values_spec, value_type='tensor', return_normalized=False)
 
     for name in sorted(values_spec):
         if not is_valid_name(name=name):
-            raise TensorforceError.value(name=(value_type + ' name'), value=name)
+            raise TensorforceError.value(name=value_type, argument='name', value=name)
 
         result = valid_values_spec(
             values_spec=values_spec[name], value_type=value_type,
@@ -388,7 +390,9 @@ def valid_value_spec(
     value_spec, value_type='tensor', accept_underspecified=False, return_normalized=False
 ):
     if not is_valid_value_type(value_type=value_type):
-        raise TensorforceError.value(name='value_type', value=value_type)
+        raise TensorforceError.value(
+            name='util.valid_value_spec', argument='value_type', value=value_type
+        )
 
     value_spec = dict(value_spec)
 
@@ -404,12 +408,12 @@ def valid_value_spec(
             normalized_spec['type'] = None
     elif accept_underspecified and is_iterable(x=dtype):
         if not all(is_valid_type(dtype=x) for x in dtype):
-            raise TensorforceError.value(name=(value_type + ' spec'), argument='type', value=dtype)
+            raise TensorforceError.value(name=value_type, argument='type', value=dtype)
         if return_normalized:
             normalized_spec['type'] = tuple(reverse_dtype_mapping.get(x, x) for x in dtype)
     else:
         if not is_valid_type(dtype=dtype):
-            raise TensorforceError.value(name=(value_type + ' spec'), argument='type', value=dtype)
+            raise TensorforceError.value(name=value_type, argument='type', value=dtype)
         if return_normalized:
             normalized_spec['type'] = reverse_dtype_mapping.get(dtype, dtype)
 
@@ -423,34 +427,24 @@ def valid_value_spec(
     elif is_iterable(x=shape):
         start = int(accept_underspecified and len(shape) > 0 and shape[0] is None)
         if not all(isinstance(dims, int) for dims in shape[start:]):
-            raise TensorforceError.value(
-                name=(value_type + ' spec'), argument='shape', value=shape
-            )
+            raise TensorforceError.value(name=value_type, argument='shape', value=shape)
         if accept_underspecified:
             if not all(dims >= -1 for dims in shape[start:]):
-                raise TensorforceError.value(
-                    name=(value_type + ' spec'), argument='shape', value=shape
-                )
+                raise TensorforceError.value(name=value_type, argument='shape', value=shape)
         else:
             if not all(dims > 0 or dims == -1 for dims in shape):
-                raise TensorforceError.value(
-                    name=(value_type + ' spec'), argument='shape', value=shape
-                )
+                raise TensorforceError.value(name=value_type, argument='shape', value=shape)
         if return_normalized:
             normalized_spec['shape'] = tuple(shape)
     elif return_normalized:
         if not isinstance(shape, int):
-            raise TensorforceError.type(name=(value_type + ' spec'), argument='shape', value=shape)
+            raise TensorforceError.type(name=value_type, argument='shape', value=shape)
         if accept_underspecified:
             if shape < -1:
-                raise TensorforceError.value(
-                    name=(value_type + ' spec'), argument='shape', value=shape
-                )
+                raise TensorforceError.value(name=value_type, argument='shape', value=shape)
         else:
             if not (shape > 0 or shape == -1):
-                raise TensorforceError.value(
-                    name=(value_type + ' spec'), argument='shape', value=shape
-                )
+                raise TensorforceError.value(name=value_type, argument='shape', value=shape)
         if return_normalized:
             normalized_spec['shape'] = (shape,)
 
@@ -458,9 +452,7 @@ def valid_value_spec(
         if 'batched' in value_spec:
             batched = value_spec.pop('batched')
             if not isinstance(batched, bool):
-                raise TensorforceError.type(
-                    name=(value_type + ' spec'), argument='batched', value=batched
-                )
+                raise TensorforceError.type(name=value_type, argument='batched', value=batched)
             if return_normalized:
                 normalized_spec['batched'] = batched
 
@@ -470,23 +462,23 @@ def valid_value_spec(
     if dtype == 'int' or (accept_underspecified and dtype is not None and 'int' in dtype):
         if 'num_values' in value_spec or value_type in ('state', 'action'):
             if 'num_values' not in value_spec:
-                raise TensorforceError.required(name=(value_type + ' spec'), value='num_values')
+                raise TensorforceError.required(name=value_type, argument='num_values')
             num_values = value_spec.pop('num_values')
             if isinstance(num_values, (np.int32, np.int64)):
                 num_values = num_values.item()
             if not isinstance(num_values, int):
                 raise TensorforceError.type(
-                    name=(value_type + ' spec'), argument='num_values', value=num_values
+                    name=value_type, argument='num_values', value=type(num_values)
                 )
             if accept_underspecified:
                 if not (num_values > 1 or num_values == 0):
                     raise TensorforceError.value(
-                        name=(value_type + ' spec'), argument='num_values', value=num_values
+                        name=value_type, argument='num_values', value=num_values
                     )
             else:
                 if num_values <= 1:
                     raise TensorforceError.value(
-                        name=(value_type + ' spec'), argument='num_values', value=num_values
+                        name=value_type, argument='num_values', value=num_values
                     )
             if return_normalized:
                 normalized_spec['num_values'] = num_values
@@ -503,24 +495,21 @@ def valid_value_spec(
             if isinstance(max_value, np_dtype(dtype='float')):
                 max_value = max_value.item()
             if not isinstance(min_value, float):
-                raise TensorforceError.type(
-                    name=(value_type + ' spec'), argument='min_value', value=min_value
-                )
+                raise TensorforceError.type(name=value_type, argument='min_value', value=min_value)
             if not isinstance(max_value, float):
-                raise TensorforceError.type(
-                    name=(value_type + ' spec'), argument='max_value', value=max_value
-                )
+                raise TensorforceError.type(name=value_type, argument='max_value', value=max_value)
             if min_value >= max_value:
                 raise TensorforceError.value(
-                    name=(value_type + ' spec'), argument='min/max_value',
-                    value=(min_value, max_value)
+                    name=value_type, argument='min/max_value', value=(min_value, max_value)
                 )
             if return_normalized:
                 normalized_spec['min_value'] = min_value
                 normalized_spec['max_value'] = max_value
 
     if len(value_spec) > 0:
-        raise TensorforceError.value(name=(value_type + ' spec'), value=tuple(value_spec))
+        raise TensorforceError.value(
+            name='util.valid_value_spec', argument='value_spec', value=list(value_spec)
+        )
 
     if return_normalized:
         return normalized_spec
@@ -586,11 +575,11 @@ def is_value_spec_more_specific(specific_value_spec, value_spec):
 def unify_value_specs(value_spec1, value_spec2):
     if not valid_value_spec(value_spec=value_spec1, accept_underspecified=True):
         raise TensorforceError.value(
-            name='unify_value_spec', argument='value_spec1', value=value_spec1
+            name='util.unify_value_specs', argument='value_spec1', value=value_spec1
         )
     elif not valid_value_spec(value_spec=value_spec2, accept_underspecified=True):
         raise TensorforceError.value(
-            name='unify_value_spec', argument='value_spec2', value=value_spec2
+            name='util.unify_value_specs', argument='value_spec2', value=value_spec2
         )
 
     unified_value_spec = dict()
@@ -737,13 +726,15 @@ def is_consistent_with_value_spec(value_spec, x):
 
 def normalize_values(value_type, values, values_spec):
     if not is_valid_value_type(value_type=value_type):
-        raise TensorforceError.value(name='value_type', value=value_type)
+        raise TensorforceError.value(
+            name='util.normalize_values', argument='value_type', value=value_type
+        )
 
     if len(values_spec) == 1 and next(iter(values_spec)) == value_type:
         # Spec defines only a single value
         if isinstance(values, dict):
             if len(values) != 1 or value_type not in values:
-                TensorforceError.value(name=(value_type + ' spec'), value=values)
+                TensorforceError.value(name='util.normalize_values', values='values', value=values)
             return values
 
         else:
@@ -763,7 +754,9 @@ def normalize_values(value_type, values, values_spec):
 
 def unpack_values(value_type, values, values_spec):
     if not is_valid_value_type(value_type=value_type):
-        raise TensorforceError.value(name='value_type', value=value_type)
+        raise TensorforceError.value(
+            name='util.unpack_values', argument='value_type', value=value_type
+        )
 
     if len(values_spec) == 1 and next(iter(values_spec)) == value_type:
         # Spec defines only a single value
@@ -780,7 +773,9 @@ def unpack_values(value_type, values, values_spec):
         unpacked_value[names[-1]] = values.pop(normalized_name)
 
     if len(values) > 0:
-        raise TensorforceError.unexpected()
+        raise TensorforceError.value(
+            name='util.unpack_values', argument='values', value=values
+        )
 
     return unpacked_values
 

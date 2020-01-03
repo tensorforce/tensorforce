@@ -65,7 +65,10 @@ class Model(Module):
             key in ('directory', 'filename', 'frequency', 'load', 'max-checkpoints')
             for key in saver
         ):
-            raise TensorforceError.value(name='saver', value=list(saver))
+            raise TensorforceError.value(
+                name='agent', argument='saver', value=list(saver),
+                hint='not from {directory,filename,frequency,load,max-checkpoints}'
+            )
         elif saver.get('directory') is None:
             self.saver_spec = None
         else:
@@ -78,7 +81,10 @@ class Model(Module):
             key in ('directory', 'flush', 'frequency', 'labels', 'max-summaries')
             for key in summarizer
         ):
-            raise TensorforceError.value(name='summarizer', value=list(summarizer))
+            raise TensorforceError.value(
+                name='agent', argument='summarizer', value=list(summarizer),
+                hint='not from {directory,flush,frequency,labels,max-summaries}'
+            )
         elif summarizer.get('directory') is None:
             self.summarizer_spec = None
         else:
@@ -93,34 +99,34 @@ class Model(Module):
         for name in self.internals_spec:
             self.internals_init[name] = None
             if name in self.states_spec:
-                raise TensorforceError(
-                    "Name overlap between internals and states: {}.".format(name)
+                raise TensorforceError.collision(
+                    name='name', value=name, group1='states', group2='internals'
                 )
         self.actions_spec = actions
         for name in self.actions_spec:
             if name in self.states_spec:
-                raise TensorforceError(
-                    "Name overlap between actions and states: {}.".format(name)
+                raise TensorforceError.collision(
+                    name='name', value=name, group1='states', group2='actions'
                 )
             if name in self.internals_spec:
-                raise TensorforceError(
-                    "Name overlap between actions and internals: {}.".format(name)
+                raise TensorforceError.collision(
+                    name='name', value=name, group1='actions', group2='internals'
                 )
         self.auxiliaries_spec = OrderedDict()
         for name, spec in self.actions_spec.items():
             if spec['type'] == 'int':
                 name = name + '_mask'
                 if name in self.states_spec:
-                    raise TensorforceError(
-                        "Name overlap between action-masks and states: {}.".format(name)
+                    raise TensorforceError.collision(
+                        name='name', value=name, group1='states', group2='action-masks'
                     )
                 if name in self.internals_spec:
-                    raise TensorforceError(
-                        "Name overlap between action-masks and internals: {}.".format(name)
+                    raise TensorforceError.collision(
+                        name='name', value=name, group1='internals', group2='action-masks'
                     )
                 if name in self.actions_spec:
-                    raise TensorforceError(
-                        "Name overlap between action-masks and actions: {}.".format(name)
+                    raise TensorforceError.collision(
+                        name='name', value=name, group1='actions', group2='action-masks'
                     )
                 self.auxiliaries_spec[name] = dict(
                     type='bool', shape=(spec['shape'] + (spec['num_values'],))
@@ -158,7 +164,10 @@ class Model(Module):
                 layers=preprocessing['reward']
             )
             if self.preprocessing['reward'].get_output_spec() != reward_spec:
-                raise TensorforceError.unexpected()
+                TensorforceError.mismatch(
+                    name='preprocessing', argument='reward output spec',
+                    value1=self.preprocessing['reward'].get_output_spec(), value2=reward_spec
+                )
 
         # Exploration
         exploration = 0.0 if exploration is None else exploration
@@ -561,6 +570,8 @@ class Model(Module):
         if self.saver_directory is not None:
             self.save()
         self.monitored_session.__exit__(None, None, None)
+        self.monitored_session.close()
+        tf.compat.v1.reset_default_graph()
 
     def tf_initialize(self):
         super().tf_initialize()

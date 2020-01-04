@@ -230,6 +230,7 @@ class Model(Module):
         Sets up the TensorFlow model graph, starts the servers (distributed mode), creates summarizers
         and savers, initializes (and enters) the TensorFlow session.
         """
+        tf.compat.v1.reset_default_graph()
 
         # Create/get our graph, setup local model/global model links, set scope and device.
         graph_default_context = self.setup_graph()

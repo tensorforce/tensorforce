@@ -26,6 +26,9 @@ from tensorforce.execution import Runner
 from test.unittest_environment import UnittestEnvironment
 
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+
 class UnittestBase(object):
     """
     Unit-test base class.

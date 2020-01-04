@@ -83,8 +83,14 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         optimizer = dict(type='adam', learning_rate=1e-3)
         self.unittest(optimizer=optimizer)
 
-        optimizer = dict(
-            type='radam', learning_rate=1e-3, decoupled_weight_decay=0.01, lookahead=True,
-            moving_average=True
-        )
-        self.unittest(optimizer=optimizer)
+        try:
+            import tensorflow_addons as tfa
+
+            optimizer = dict(
+                type='radam', learning_rate=1e-3, decoupled_weight_decay=0.01, lookahead=True,
+                moving_average=True
+            )
+            self.unittest(optimizer=optimizer)
+
+        except BaseException:
+            pass

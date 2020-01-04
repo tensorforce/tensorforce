@@ -570,7 +570,6 @@ class Model(Module):
         if self.saver_directory is not None:
             self.save()
         self.monitored_session.__exit__(None, None, None)
-        self.monitored_session.close()
         tf.compat.v1.reset_default_graph()
 
     def tf_initialize(self):

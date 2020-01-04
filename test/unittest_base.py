@@ -190,5 +190,7 @@ class UnittestBase(object):
             use_tqdm=False, evaluation=evaluation
         )
         self.runner.close()
+        agent.close()
+        environment.close()
 
         self.finished_test()

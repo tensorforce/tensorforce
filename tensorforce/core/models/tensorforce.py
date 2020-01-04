@@ -254,6 +254,7 @@ class TensorforceModel(Model):
         reward = self.reward_input
 
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         batch_size = tf.shape(input=terminal)[:1]
 
         # Assertions

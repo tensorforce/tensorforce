@@ -725,14 +725,14 @@ class Model(Module):
         for name, spec in self.states_spec.items():
             tf.debugging.assert_type(
                 tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
-                message=f"Model.act: invalid type for {name} state input."
+                message="Model.act: invalid type for {} state input.".format(name)
             )
             shape = (1,) + self.unprocessed_state_shape.get(name, spec['shape'])
             assertions.append(
                 tf.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=tf.int32),
                     y=tf.constant(value=shape, dtype=tf.int32),
-                    message=f"Model.act: invalid shape for {name} state input."
+                    message="Model.act: invalid shape for {} state input.".format(name)
                 )
             )
         # action_masks: type and shape
@@ -741,14 +741,14 @@ class Model(Module):
                 name = name + '_mask'
                 tf.debugging.assert_type(
                     tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
-                    message=f"Model.act: invalid type for {name} action-mask input."
+                    message="Model.act: invalid type for {} action-mask input.".format(name)
                 )
                 shape = (1,) + spec['shape'] + (spec['num_values'],)
                 assertions.append(
                     tf.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
                         y=tf.constant(value=shape, dtype=tf.int32),
-                        message=f"Model.act: invalid shape for {name} action-mask input."
+                        message="Model.act: invalid shape for {} action-mask input.".format(name)
                     )
                 )
                 assertions.append(
@@ -758,8 +758,8 @@ class Model(Module):
                                 input_tensor=auxiliaries[name], axis=tuple(range(1, len(shape)))
                             ), axis=0
                         ), y=true,
-                        message=f"Model.act: at least one action has to be valid for {name} "
-                                 "action-mask input."
+                        message="Model.act: at least one action has to be valid for {} "
+                                 "action-mask input.".format(name)
                     )
                 )
         # parallel: type, shape and value

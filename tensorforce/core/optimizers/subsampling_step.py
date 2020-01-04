@@ -68,36 +68,51 @@ class SubsamplingStep(MetaOptimizer):
 
         some_argument = arguments['reward']
 
-        if util.tf_dtype(dtype='int') in (tf.int32, tf.int64):
-            batch_size = tf.shape(input=some_argument, out_type=util.tf_dtype(dtype='int'))[0]
+        if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+            batch_size = tf.shape(input=some_argument, out_type=util.tf_dtype(dtype='long'))[0]
         else:
             batch_size = tf.dtypes.cast(
-                x=tf.shape(input=some_argument)[0], dtype=util.tf_dtype(dtype='int')
+                x=tf.shape(input=some_argument)[0], dtype=util.tf_dtype(dtype='long')
             )
         fraction = self.fraction.value()
         num_samples = fraction * tf.dtypes.cast(x=batch_size, dtype=util.tf_dtype('float'))
-        num_samples = tf.dtypes.cast(x=num_samples, dtype=util.tf_dtype('int'))
-        one = tf.constant(value=1, dtype=util.tf_dtype('int'))
+        num_samples = tf.dtypes.cast(x=num_samples, dtype=util.tf_dtype('long'))
+        one = tf.constant(value=1, dtype=util.tf_dtype('long'))
         num_samples = tf.maximum(x=num_samples, y=one)
         indices = tf.random.uniform(
-            shape=(num_samples,), maxval=batch_size, dtype=util.tf_dtype(dtype='int')
+            shape=(num_samples,), maxval=batch_size, dtype=util.tf_dtype(dtype='long')
         )
+        states = arguments.pop('states')
+        function = (lambda x: tf.gather(params=x, indices=indices))
+        subsampled_arguments = util.fmap(function=function, xs=arguments)
 
         dependency_starts = Module.retrieve_tensor(name='dependency_starts')
         dependency_lengths = Module.retrieve_tensor(name='dependency_lengths')
         subsampled_starts = tf.gather(params=dependency_starts, indices=indices)
         subsampled_lengths = tf.gather(params=dependency_lengths, indices=indices)
+        trivial_dependencies = tf.reduce_all(
+            input_tensor=tf.math.equal(x=dependency_lengths, y=one), axis=0
+        )
+
+        def dependency_state_indices():
+            fold = (lambda acc, args: tf.concat(
+                values=(acc, tf.range(start=args[0], limit=(args[0] + args[1]))), axis=0
+            ))
+            return tf.foldl(
+                fn=fold, elems=(subsampled_starts, subsampled_lengths), initializer=indices[:0],
+                parallel_iterations=10, back_prop=False, swap_memory=False
+            )
+
+        states_indices = self.cond(
+            pred=trivial_dependencies, true_fn=(lambda: indices), false_fn=dependency_state_indices
+        )
+        function = (lambda x: tf.gather(params=x, indices=states_indices))
+        subsampled_arguments['states'] = util.fmap(function=function, xs=states)
+
+        subsampled_starts = tf.math.cumsum(x=subsampled_lengths, exclusive=True)
         Module.update_tensors(
             dependency_starts=subsampled_starts, dependency_lengths=subsampled_lengths
         )
-
-        states = arguments.pop('states')
-        function = (lambda x: tf.gather(params=x, indices=indices))
-        subsampled_arguments = util.fmap(function=function, xs=arguments)
-        subsampled_arguments['states'] = states
-        # Inefficient, should be:
-        # function = (lambda x: tf.gather(params=x, indices=states_indices))
-        # subsampled_arguments['states'] = util.fmap(function=function, xs=states)
 
         deltas = self.optimizer.step(variables=variables, arguments=subsampled_arguments, **kwargs)
 

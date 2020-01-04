@@ -43,7 +43,6 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 
 ## Installation
 
-
 A stable version of Tensorforce is periodically updated on PyPI and installed as follows:
 
 ```bash
@@ -111,7 +110,7 @@ agent.observe(reward=reward, terminal=False)
 Tensorforce comes with a range of [example configurations](https://github.com/tensorforce/tensorforce/tree/master/benchmarks/configs) for different popular reinforcement learning environments. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
 
 ```bash
-python3 run.py benchmarks/configs/ppo.json gym --level CartPole-v1 -e 300
+python3 run.py benchmarks/configs/ppo1.json gym --level CartPole-v1 -e 300
 ```
 
 For more information check out the [documentation](http://tensorforce.readthedocs.io).
@@ -120,15 +119,23 @@ For more information check out the [documentation](http://tensorforce.readthedoc
 
 ## Features
 
-- **Neural network layers**: Dense fully-connected layer, embedding layer, 1- and 2-dimensional convolution, pooling, LSTM, activation, dropout, normalization, and more; *plus* support of Keras layers.
+- **Network layers**: Fully-connected, 1- and 2-dimensional convolutions, embeddings, pooling, RNNs, dropout, normalization, and more; *plus* support of Keras layers.
+- **Network architecture**: Support for multi-state inputs and layer (block) reuse, simple definition of directed acyclic graph structures via register/retrieve layer, plus support for arbitrary architectures.
 - **Memory types**: Simple batch buffer memory, random replay memory.
-- **Policy distributions**: Bernoulli distribution for boolean actions, categorical distribution for (finite) integer actions, Gaussian distribution for continuous actions, Beta distribution for range-constrained continuous actions.
-- **Optimization algorithms**: Various gradient-based optimizers provided by TensorFlow like Adam/AdaDelta/Momentum/RMSProp/etc, evolutionary optimizer, natural-gradient-based optimizer, plus a range of meta-optimizers.
-- **Execution modes**: Parallel execution, distributed execution.
-- **Other features**: state/reward preprocessing, exploration, variable noise, regularization losses.
+- **Policy distributions**: Bernoulli distribution for boolean actions, categorical distribution for (finite) integer actions, Gaussian distribution for continuous actions, Beta distribution for range-constrained continuous actions, multi-action support.
+- **Reward estimation**: Configuration options for estimation horizon, future reward discount, state/state-action/advantage estimation, and for whether to consider terminal and horizon states.
+- **Training objectives**: (Deterministic) policy gradient, state-(action-)value approximation.
+- **Optimization algorithms**: Various gradient-based optimizers provided by TensorFlow like Adam/AdaDelta/RMSProp/etc, evolutionary optimizer, natural-gradient-based optimizer, plus a range of meta-optimizers.
+- **Exploration**: Randomized actions, sampling temperature, variable noise.
+- **Preprocessing**: Clipping, deltafier, sequence, image processing.
+- **Regularization**: L2 and entropy regularization.
+- **Execution modes**: Various modes for parallelized execution of multiple environments.
 - **TensorBoard support**.
 
-By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated: [Deep Q-learning (DQN)](https://arxiv.org/abs/1312.5602) and variations like [Double-DQN](https://arxiv.org/abs/1509.06461) or [Deep Q-learning from Demonstrations (DQfD)](https://arxiv.org/abs/1704.03732), [vanilla policy-gradient algorithm / REINFORCE](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf), [Proximal Policy Optimization (PPO)](https://arxiv.org/abs/1707.06347), [Actor-critic and A3C](https://arxiv.org/abs/1602.01783), [Trust Region Policy Optimization (TRPO)](https://arxiv.org/abs/1502.05477), [Normalised Advantage Function (NAF)](https://arxiv.org/abs/1603.00748), [Generalized Advantage estimation (GAE)](https://arxiv.org/abs/1506.02438), etc.
+By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated:
+- Q-learning: [Deep Q-learning](https://www.nature.com/articles/nature14236), [Double-DQN](https://arxiv.org/abs/1509.06461), [Dueling DQN](https://arxiv.org/abs/1511.06581), [n-step DQN](https://arxiv.org/abs/1602.01783), [Normalised Advantage Function (NAF)](https://arxiv.org/abs/1603.00748)
+- Policy gradient: [vanilla policy-gradient / REINFORCE](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf), [Actor-critic and A3C](https://arxiv.org/abs/1602.01783), [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347), [Trust Region Policy Optimization](https://arxiv.org/abs/1502.05477), [Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971)
+- Features: [Generalized Advantage estimation (GAE)](https://arxiv.org/abs/1506.02438), etc.
 
 Note that in general the replication is not 100% faithful, since the models as described in the corresponding paper often involve additional minor tweaks and modifications which are hard to support with a modular design (and, arguably, also questionable whether it is important/desirable to support them). On the upside, these models are just a few examples from the multitude of module combinations supported by Tensorforce.
 

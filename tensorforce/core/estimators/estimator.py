@@ -96,19 +96,20 @@ class Estimator(CircularBuffer):
         discount = self.discount.value()
 
         assertions = list()
-        # Check whether exactly one terminal, unless empty
+        # Check whether exactly one terminal (, unless empty?)
         assertions.append(
             tf.debugging.assert_equal(
                 x=tf.math.count_nonzero(
                     input=values['terminal'], dtype=util.tf_dtype(dtype='long')
-                ), y=one
+                ), y=one, message="Timesteps does not contain exactly one terminal."
             )
         )
         # Check whether last value is terminal
         assertions.append(
             tf.debugging.assert_equal(
                 x=tf.math.greater(x=values['terminal'][-1], y=zero),
-                y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+                y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
+                message="Terminal is not the last timestep."
             )
         )
 
@@ -139,7 +140,10 @@ class Estimator(CircularBuffer):
             # Dependency horizon
             # TODO: handle arbitrary non-optimization horizons!
             dependency_horizon = baseline.dependency_horizon(is_optimization=False)
-            assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
+            assertion = tf.debugging.assert_equal(
+                x=dependency_horizon, y=zero,
+                message="Temporary: baseline cannot depend on previous states."
+            )
             with tf.control_dependencies(control_inputs=(assertion,)):
                 some_state = next(iter(states.values()))
                 if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
@@ -243,20 +247,24 @@ class Estimator(CircularBuffer):
 
         assertions = list()
         # Check whether horizon at most capacity
-        assertions.append(tf.debugging.assert_less_equal(x=horizon, y=capacity))
+        assertions.append(tf.debugging.assert_less_equal(
+            x=horizon, y=capacity,
+            message="Estimator capacity has to be at least the same as the estimation horizon."
+        ))
         # Check whether at most one terminal
         assertions.append(
             tf.debugging.assert_less_equal(
                 x=tf.math.count_nonzero(
                     input=values['terminal'], dtype=util.tf_dtype(dtype='long')
-                ), y=one
+                ), y=one, message="Timesteps contain more than one terminal."
             )
         )
         # Check whether, if any, last value is terminal
         assertions.append(
             tf.debugging.assert_equal(
                 x=tf.reduce_any(input_tensor=tf.math.greater(x=values['terminal'], y=zero)),
-                y=tf.math.greater(x=values['terminal'][-1], y=zero)
+                y=tf.math.greater(x=values['terminal'][-1], y=zero),
+                message="Terminal is not the last timestep."
             )
         )
 
@@ -313,7 +321,10 @@ class Estimator(CircularBuffer):
                 # Dependency horizon
                 # TODO: handle arbitrary non-optimization horizons!
                 dependency_horizon = baseline.dependency_horizon(is_optimization=False)
-                assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
+                assertion = tf.debugging.assert_equal(
+                    x=dependency_horizon, y=zero,
+                    message="Temporary: baseline cannot depend on previous states."
+                )
                 with tf.control_dependencies(control_inputs=(assertion,)):
                     some_state = next(iter(states.values()))
                     if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
@@ -365,13 +376,14 @@ class Estimator(CircularBuffer):
             assertions = list()
             assertions.append(
                 tf.debugging.assert_equal(
-                    x=tf.shape(input=horizon_estimate), y=tf.shape(input=discounted_sum)
+                    x=tf.shape(input=horizon_estimate), y=tf.shape(input=discounted_sum),
+                    message="Estimation check."
                 )
             )
             assertions.append(
                 tf.debugging.assert_equal(
                     x=tf.shape(input=rewards, out_type=util.tf_dtype(dtype='long'))[0],
-                    y=(horizon + num_overwritten)
+                    y=(horizon + num_overwritten), message="Estimation check."
                 )
             )
 
@@ -406,7 +418,10 @@ class Estimator(CircularBuffer):
 
             # Baseline dependencies
             dependency_horizon = baseline.dependency_horizon(is_optimization=False)
-            assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
+            assertion = tf.debugging.assert_equal(
+                x=dependency_horizon, y=zero,
+                message="Temporary: baseline cannot depend on previous states."
+            )
             with tf.control_dependencies(control_inputs=(assertion,)):
                 if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
                     batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
@@ -466,7 +481,10 @@ class Estimator(CircularBuffer):
 
             # Baseline dependencies
             dependency_horizon = baseline.dependency_horizon(is_optimization=False)
-            assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
+            assertion = tf.debugging.assert_equal(
+                x=dependency_horizon, y=zero,
+                message="Temporary: baseline cannot depend on previous states."
+            )
             with tf.control_dependencies(control_inputs=(assertion,)):
                 if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
                     batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]

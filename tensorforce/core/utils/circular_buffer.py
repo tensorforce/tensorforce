@@ -137,7 +137,9 @@ class CircularBuffer(Module):
             )
 
         # Check whether instances fit into buffer
-        assertion = tf.debugging.assert_less_equal(x=num_values, y=capacity)
+        assertion = tf.debugging.assert_less_equal(
+            x=num_values, y=capacity, message="Buffer does not have enough capacity."
+        )
 
         if self.return_overwritten:
             # Overwritten buffer indices

@@ -82,15 +82,19 @@ class Queue(CircularBuffer, Memory):
         # Assertions
         assertions = [
             # check: number of timesteps fit into effectively available buffer
-            tf.debugging.assert_less_equal(x=num_timesteps, y=max_capacity),
+            tf.debugging.assert_less_equal(
+                x=num_timesteps, y=max_capacity, message="Memory does not have enough capacity."
+            ),
             # at most one terminal
             tf.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')), y=one
+                x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')), y=one,
+                message="Timesteps contain more than one terminal."
             ),
             # if terminal, last timestep in batch
             tf.debugging.assert_equal(
                 x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                y=tf.math.greater(x=terminal[-1], y=zero)
+                y=tf.math.greater(x=terminal[-1], y=zero),
+                message="Terminal is not the last timestep."
             ),
             # general check: all terminal indices true
             tf.debugging.assert_equal(
@@ -100,14 +104,15 @@ class Queue(CircularBuffer, Memory):
                         indices=self.terminal_indices[:self.episode_count + one]
                     )
                 ),
-                y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+                y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
+                message="Memory consistency check."
             ),
             # general check: only terminal indices true
             tf.debugging.assert_equal(
                 x=tf.math.count_nonzero(
                     input=self.buffers['terminal'], dtype=util.tf_dtype(dtype='long')
                 ),
-                y=(self.episode_count + one)
+                y=(self.episode_count + one), message="Memory consistency check."
             ),
             # # general check: no terminal after last
             # tf.debugging.assert_equal(
@@ -141,7 +146,9 @@ class Queue(CircularBuffer, Memory):
 
         # Shift remaining terminal indices accordingly
         limit_index = self.episode_count + one
-        assertion = tf.debugging.assert_greater_equal(x=limit_index, y=num_episodes)
+        assertion = tf.debugging.assert_greater_equal(
+            x=limit_index, y=num_episodes, message="Memory episode overwriting check."
+        )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
             assignment = tf.compat.v1.assign(
@@ -292,7 +299,8 @@ class Queue(CircularBuffer, Memory):
         predecessor_indices = tf.boolean_mask(tensor=predecessor_indices, mask=mask, axis=0)
 
         assertion = tf.debugging.assert_greater_equal(
-            x=tf.math.mod(x=(predecessor_indices - self.buffer_index), y=capacity), y=zero
+            x=tf.math.mod(x=(predecessor_indices - self.buffer_index), y=capacity), y=zero,
+            message="Predecessor check."
         )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
@@ -473,7 +481,8 @@ class Queue(CircularBuffer, Memory):
         successor_indices = tf.boolean_mask(tensor=successor_indices, mask=mask, axis=0)
 
         assertion = tf.debugging.assert_greater_equal(
-            x=tf.math.mod(x=(self.buffer_index - one - successor_indices), y=capacity), y=zero
+            x=tf.math.mod(x=(self.buffer_index - one - successor_indices), y=capacity), y=zero,
+            message="Successor check."
         )
 
         with tf.control_dependencies(control_inputs=(assertion,)):

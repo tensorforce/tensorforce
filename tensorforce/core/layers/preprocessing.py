@@ -69,7 +69,9 @@ class Clipping(Layer):
         else:
             lower = self.lower.value()
 
-        assertion = tf.debugging.assert_greater_equal(x=upper, y=lower)
+        assertion = tf.debugging.assert_greater_equal(
+            x=upper, y=lower, message="Incompatible lower and upper clipping bound."
+        )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
             return tf.clip_by_value(t=x, clip_value_min=lower, clip_value_max=upper)

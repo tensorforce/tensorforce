@@ -259,34 +259,49 @@ class TensorforceModel(Model):
         # Assertions
         assertions = list()
         # terminal: type and shape
-        tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='long'))
-        assertions.append(tf.debugging.assert_rank(x=terminal, rank=1))
+        tf.debugging.assert_type(
+            tensor=terminal, tf_type=util.tf_dtype(dtype='long'),
+            message="Model.experience: invalid type for terminal input."
+        )
+        assertions.append(tf.debugging.assert_rank(
+            x=terminal, rank=1, message="Model.experience: invalid shape for terminal input."
+        ))
         # reward: type and shape
-        tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float'))
-        assertions.append(tf.debugging.assert_rank(x=reward, rank=1))
+        tf.debugging.assert_type(
+            tensor=reward, tf_type=util.tf_dtype(dtype='float'),
+            message="Model.experience: invalid type for reward input."
+        )
+        assertions.append(tf.debugging.assert_rank(
+            x=reward, rank=1, message="Model.experience: invalid shape for reward input."
+        ))
         # shape of terminal equals shape of reward
         assertions.append(tf.debugging.assert_equal(
-            x=tf.shape(input=terminal), y=tf.shape(input=reward)
+            x=tf.shape(input=terminal), y=tf.shape(input=reward),
+            message="Model.experience: incompatible shapes of terminal and reward input."
         ))
         # buffer index is zero
         assertions.append(tf.debugging.assert_equal(
             x=tf.math.reduce_sum(input_tensor=self.buffer_index, axis=0),
-            y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+            y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long')),
+            message="Model.experience: cannot be called mid-episode."
         ))
         # at most one terminal
         assertions.append(tf.debugging.assert_less_equal(
             x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
-            y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+            y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long')),
+            message="Model.experience: input contains more than one terminal."
         ))
         # if terminal, last timestep in batch
         assertions.append(tf.debugging.assert_equal(
             x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-            y=tf.math.greater(x=terminal[-1], y=zero)
+            y=tf.math.greater(x=terminal[-1], y=zero),
+            message="Model.experience: terminal is not the last input timestep."
         ))
         # states: type and shape
         for name, spec in self.states_spec.items():
             tf.debugging.assert_type(
-                tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
+                tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
+                message=f"Model.experience: invalid type for {name} state input."
             )
             shape = self.unprocessed_state_shape.get(name, spec['shape'])
             assertions.append(
@@ -294,13 +309,14 @@ class TensorforceModel(Model):
                     x=tf.shape(input=states[name], out_type=tf.int32),
                     y=tf.concat(
                         values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
-                    )
+                    ), message=f"Model.experience: invalid shape for {name} state input."
                 )
             )
         # internals: type and shape
         for name, spec in self.internals_spec.items():
             tf.debugging.assert_type(
-                tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type'])
+                tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type']),
+                message=f"Model.experience: invalid type for {name} internal input."
             )
             shape = spec['shape']
             assertions.append(
@@ -308,7 +324,7 @@ class TensorforceModel(Model):
                     x=tf.shape(input=internals[name], out_type=tf.int32),
                     y=tf.concat(
                         values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
-                    )
+                    ), message=f"Model.experience: invalid shape for {name} internal input."
                 )
             )
         # action_masks: type and shape
@@ -316,7 +332,8 @@ class TensorforceModel(Model):
             if spec['type'] == 'int':
                 name = name + '_mask'
                 tf.debugging.assert_type(
-                    tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
+                    tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
+                    message=f"Model.experience: invalid type for {name} action-mask input."
                 )
                 shape = spec['shape'] + (spec['num_values'],)
                 assertions.append(
@@ -324,13 +341,25 @@ class TensorforceModel(Model):
                         x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
                         y=tf.concat(
                             values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
-                        )
+                        ), message=f"Model.experience: invalid shape for {name} action-mask input."
+                    )
+                )
+                assertions.append(
+                    tf.debugging.assert_equal(
+                        x=tf.reduce_all(
+                            input_tensor=tf.reduce_any(
+                                input_tensor=auxiliaries[name], axis=tuple(range(1, len(shape)))
+                            ), axis=0
+                        ), y=true,
+                        message=f"Model.experience: at least one action has to be valid for "
+                                 "{name} action-mask input."
                     )
                 )
         # actions: type and shape
         for name, spec in self.actions_spec.items():
             tf.debugging.assert_type(
-                tensor=actions[name], tf_type=util.tf_dtype(dtype=spec['type'])
+                tensor=actions[name], tf_type=util.tf_dtype(dtype=spec['type']),
+                message=f"Model.experience: invalid type for {name} action input."
             )
             shape = spec['shape']
             assertions.append(
@@ -338,7 +367,7 @@ class TensorforceModel(Model):
                     x=tf.shape(input=actions[name], out_type=tf.int32),
                     y=tf.concat(
                         values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
-                    )
+                    ), message=f"Model.experience: invalid shape for {name} action input."
                 )
             )
 
@@ -407,7 +436,11 @@ class TensorforceModel(Model):
         )
 
         # TODO: handle arbitrary non-optimization horizons!
-        assertion = tf.debugging.assert_equal(x=dependency_horizon, y=zero)
+        assertion = tf.debugging.assert_equal(
+            x=dependency_horizon, y=zero,
+            message="Temporary: policy and baseline cannot depend on previous states unless "
+                    "optimization."
+        )
         with tf.control_dependencies(control_inputs=(assertion,)):
             some_state = next(iter(states.values()))
             if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
@@ -602,7 +635,8 @@ class TensorforceModel(Model):
         if self.baseline_optimizer is None:
             assertion = tf.debugging.assert_equal(
                 x=dependency_horizon,
-                y=self.baseline_policy.dependency_horizon(is_optimization=True)
+                y=self.baseline_policy.dependency_horizon(is_optimization=True),
+                message="Policy and baseline depend on a different number of previous states."
             )
         else:
             assertion = dependency_horizon

@@ -725,13 +725,15 @@ class Model(Module):
         # states: type and shape
         for name, spec in self.states_spec.items():
             tf.debugging.assert_type(
-                tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type'])
+                tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
+                message=f"Model.act: invalid type for {name} state input."
             )
             shape = (1,) + self.unprocessed_state_shape.get(name, spec['shape'])
             assertions.append(
                 tf.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=tf.int32),
-                    y=tf.constant(value=shape, dtype=tf.int32)
+                    y=tf.constant(value=shape, dtype=tf.int32),
+                    message=f"Model.act: invalid shape for {name} state input."
                 )
             )
         # action_masks: type and shape
@@ -739,13 +741,15 @@ class Model(Module):
             if spec['type'] == 'int':
                 name = name + '_mask'
                 tf.debugging.assert_type(
-                    tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool')
+                    tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
+                    message=f"Model.act: invalid type for {name} action-mask input."
                 )
                 shape = (1,) + spec['shape'] + (spec['num_values'],)
                 assertions.append(
                     tf.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
-                        y=tf.constant(value=shape, dtype=tf.int32)
+                        y=tf.constant(value=shape, dtype=tf.int32),
+                        message=f"Model.act: invalid shape for {name} action-mask input."
                     )
                 )
                 assertions.append(
@@ -754,25 +758,45 @@ class Model(Module):
                             input_tensor=tf.reduce_any(
                                 input_tensor=auxiliaries[name], axis=tuple(range(1, len(shape)))
                             ), axis=0
-                        ), y=true
+                        ), y=true,
+                        message=f"Model.act: at least one action has to be valid for {name} "
+                                 "action-mask input."
                     )
                 )
         # parallel: type, shape and value
-        tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='long'))
-        tf.debugging.assert_scalar(tensor=parallel[0])
-        assertions.append(tf.debugging.assert_non_negative(x=parallel))
+        tf.debugging.assert_type(
+            tensor=parallel, tf_type=util.tf_dtype(dtype='long'),
+            message="Model.act: invalid type for parallel input."
+        )
+        tf.debugging.assert_scalar(
+            tensor=parallel[0], message="Model.act: parallel input has to be a scalar."
+        )
+        assertions.append(tf.debugging.assert_non_negative(
+            x=parallel, message="Model.act: parallel input has to be non-negative."
+        ))
         assertions.append(
             tf.debugging.assert_less(
                 x=parallel[0],
-                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
+                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long')),
+                message="Model.act: parallel input has to be less than parallel_interactions."
             )
         )
         # deterministic: type and shape
-        tf.debugging.assert_type(tensor=deterministic, tf_type=util.tf_dtype(dtype='bool'))
-        tf.debugging.assert_scalar(tensor=deterministic)
+        tf.debugging.assert_type(
+            tensor=deterministic, tf_type=util.tf_dtype(dtype='bool'),
+            message="Model.act: invalid type for deterministic input."
+        )
+        tf.debugging.assert_scalar(
+            tensor=deterministic, message="Model.act: deterministic input has to be a scalar."
+        )
         # independent: type and shape
-        tf.debugging.assert_type(tensor=independent, tf_type=util.tf_dtype(dtype='bool'))
-        tf.debugging.assert_scalar(tensor=independent)
+        tf.debugging.assert_type(
+            tensor=independent, tf_type=util.tf_dtype(dtype='bool'),
+            message="Model.act: invalid type for independent input."
+        )
+        tf.debugging.assert_scalar(
+            tensor=independent, message="Model.act: independent input has to be a scalar."
+        )
 
         # Set global tensors
         Module.update_tensors(
@@ -892,7 +916,8 @@ class Model(Module):
                     params=auxiliaries[name + '_mask'], indices=indices, batch_dims=-1
                 )
                 assertions.append(tf.debugging.assert_equal(
-                    x=tf.math.reduce_all(input_tensor=is_unmasked), y=true
+                    x=tf.math.reduce_all(input_tensor=is_unmasked), y=true,
+                    message="Action mask check."
                 ))
         dependencies += assertions
 
@@ -1086,37 +1111,60 @@ class Model(Module):
         # Assertions
         assertions = list()
         # terminal: type and shape
-        tf.debugging.assert_type(tensor=terminal, tf_type=util.tf_dtype(dtype='long'))
-        assertions.append(tf.debugging.assert_rank(x=terminal, rank=1))
+        tf.debugging.assert_type(
+            tensor=terminal, tf_type=util.tf_dtype(dtype='long'),
+            message="Model.observe: invalid type for terminal input."
+        )
+        assertions.append(tf.debugging.assert_rank(
+            x=terminal, rank=1, message="Model.observe: invalid shape for terminal input."
+        ))
         # reward: type and shape
-        tf.debugging.assert_type(tensor=reward, tf_type=util.tf_dtype(dtype='float'))
-        assertions.append(tf.debugging.assert_rank(x=reward, rank=1))
+        tf.debugging.assert_type(
+            tensor=reward, tf_type=util.tf_dtype(dtype='float'),
+            message="Model.observe: invalid type for reward input."
+        )
+        assertions.append(tf.debugging.assert_rank(
+            x=reward, rank=1, message="Model.observe: invalid shape for reward input."
+        ))
         # parallel: type, shape and value
-        tf.debugging.assert_type(tensor=parallel, tf_type=util.tf_dtype(dtype='long'))
-        tf.debugging.assert_scalar(tensor=parallel[0])
-        assertions.append(tf.debugging.assert_non_negative(x=parallel))
+        tf.debugging.assert_type(
+            tensor=parallel, tf_type=util.tf_dtype(dtype='long'),
+            message="Model.observe: invalid type for parallel input."
+        )
+        tf.debugging.assert_scalar(
+            tensor=parallel[0], message="Model.observe: parallel input has to be a scalar."
+        )
+        assertions.append(tf.debugging.assert_non_negative(
+            x=parallel, message="Model.observe: parallel input has to be non-negative."
+        ))
         assertions.append(tf.debugging.assert_less(
             x=parallel[0],
-            y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long'))
+            y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long')),
+            message="Model.observe: parallel input has to be less than parallel_interactions."
         ))
         # shape of terminal equals shape of reward
         assertions.append(tf.debugging.assert_equal(
-            x=tf.shape(input=terminal), y=tf.shape(input=reward)
+            x=tf.shape(input=terminal), y=tf.shape(input=reward),
+            message="Model.observe: incompatible shapes of terminal and reward input."
         ))
         # size of terminal equals buffer index
         assertions.append(tf.debugging.assert_equal(
             x=tf.shape(input=terminal, out_type=tf.int64)[0],
-            y=tf.dtypes.cast(x=buffer_index, dtype=tf.int64)
+            y=tf.dtypes.cast(x=buffer_index, dtype=tf.int64),
+            message="Model.observe: number of observe-timesteps has to be equal to number of "
+                    "buffered act-timesteps."
         ))
         # at most one terminal
         assertions.append(tf.debugging.assert_less_equal(
             x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
-            y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+            y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long')),
+            message="Model.observe: input contains more than one terminal."
         ))
         # if terminal, last timestep in batch
         assertions.append(tf.debugging.assert_equal(
             x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-            y=tf.math.greater(x=terminal[-1], y=zero)
+            y=tf.math.greater(x=terminal[-1], y=zero),
+            message="Model.observe: terminal is not the last input timestep."
         ))
 
         # Set global tensors

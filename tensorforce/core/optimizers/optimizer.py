@@ -80,7 +80,8 @@ class Optimizer(Module):
         #     ]
         #     assertions = [
         #         tf.debugging.assert_equal(
-        #             x=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)), y=false
+        #             x=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)), y=false,
+        #             message="Zero delta check."
         #         ) for delta, variable in zip(deltas, variables)
         #         if util.product(xs=util.shape(x=delta)) > 4 and 'distribution' not in variable.name
         #     ]

@@ -48,7 +48,11 @@ class Recent(Queue):
 
         # Check whether memory contains enough timesteps
         num_timesteps = tf.minimum(x=self.buffer_index, y=capacity) - past_padding - future_padding
-        assertion = tf.debugging.assert_less_equal(x=n, y=num_timesteps)
+        assertion = tf.debugging.assert_less_equal(
+            x=n, y=num_timesteps,
+            message="Memory does not contain enough episodes, likely because batch-size and "
+                    "memory-capacity are incompatible."
+        )
 
         # Most recent timestep indices range
         with tf.control_dependencies(control_inputs=(assertion,)):  # Assertions in memory as warning!!!
@@ -63,7 +67,11 @@ class Recent(Queue):
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
         # Check whether memory contains enough episodes
-        assertion = tf.debugging.assert_less_equal(x=n, y=self.episode_count)
+        assertion = tf.debugging.assert_less_equal(
+            x=n, y=self.episode_count,
+            message="Memory does not contain enough episodes, likely because batch-size, "
+                    "max-episode-timesteps and memory-capacity are incompatible."
+        )
 
         # Get start and limit index for most recent n episodes
         with tf.control_dependencies(control_inputs=(assertion,)):

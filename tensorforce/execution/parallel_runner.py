@@ -362,6 +362,10 @@ class ParallelRunner(object):
                 # if terminal is not None and not evaluation:
                 if evaluation:
                     self.evaluation_reward += reward
+                    if terminal > 0:
+                        agent_start = time.time()
+                        self.agent.reset(evaluation=True)
+                        self.evaluation_agent_second += time.time() - agent_start
                 else:
                     agent_start = time.time()
                     updated = self.agent.observe(

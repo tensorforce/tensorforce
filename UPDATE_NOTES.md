@@ -6,6 +6,8 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest
 
+- New `Agent.reset()` argument `independent`/`evaluation` for correct evaluation episode termination
+
 
 
 ### Version 0.5.3

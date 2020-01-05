@@ -348,7 +348,10 @@ class Runner(object):
             self.episode_reward += reward
 
             # Observe unless evaluation
-            if not evaluation:
+            if evaluation:
+                if terminal > 0:
+                    self.agent.reset(evaluation=True)
+            else:
                 agent_start = time.time()
                 updated = self.agent.observe(terminal=terminal, reward=reward)
                 self.updates += int(updated)

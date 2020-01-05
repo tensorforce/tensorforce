@@ -191,6 +191,7 @@ for _ in range(100):
         actions = agent.act(states=states, evaluation=True)
         states, terminal, reward = environment.execute(actions=actions)
         sum_rewards += reward
+    agent.reset(evaluation=True)
 
 print('Mean episode reward:', sum_rewards / 100)
 

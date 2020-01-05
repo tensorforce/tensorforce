@@ -338,22 +338,40 @@ class Agent(object):
         """
         self.model.close()
 
-    def reset(self):
+    def reset(self, independent=False, evaluation=False):
         """
-        Resets the agent to start a new episode.
+        Resets all agent buffers, or only terminates and resets an episode in
+            independent/evaluation mode if corresponding argument is set.
+
+        Args:
+            independent (bool): Whether to terminate an episode in independent mode
+                (<span style="color:#00C000"><b>default</b></span>: false).
+            evaluation (bool): Whether to terminate an episode in evaluation mode, implies
+                independent
+                (<span style="color:#00C000"><b>default</b></span>: false).
         """
-        self.buffer_indices = np.zeros(
-            shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
-        )
-        self.timesteps, self.episodes, self.updates = self.model.reset()
+        if evaluation:
+            if independent:
+                raise TensorforceError(
+                    message="Agent.reset argument independent is implied by and thus should not "
+                            "be used together with argument evaluation."
+                )
+            independent = True
+
+        if not independent:
+            self.buffer_indices = np.zeros(
+                shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
+            )
+
+        self.timesteps, self.episodes, self.updates = self.model.reset(independent=independent)
 
     def act(
         self, states, parallel=0, deterministic=False, independent=False, evaluation=False,
         query=None, **kwargs
     ):
         """
-        Returns action(s) for the given state(s), needs to be followed by `observe(...)` unless
-        `independent` is true.
+        Returns action(s) for the given state(s), needs to be followed by `observe(...)`, or
+        terminated by `reset()` in case of `independent`/`evaluation`.
 
         Args:
             states (dict[state]): Dictionary containing state(s) to be acted on
@@ -365,8 +383,8 @@ class Agent(object):
             independent (bool): Whether action is not remembered, and this call is thus not
                 followed by observe
                 (<span style="color:#00C000"><b>default</b></span>: false).
-            evaluation (bool): Whether the agent is currently evaluated, implies and overwrites
-                deterministic and independent
+            evaluation (bool): Whether the agent is currently evaluated, implies deterministic and
+                independent
                 (<span style="color:#00C000"><b>default</b></span>: false).
             query (list[str]): Names of tensors to retrieve
                 (<span style="color:#00C000"><b>default</b></span>: none).
@@ -378,7 +396,6 @@ class Agent(object):
         """
         assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
 
-        # self.current_internals = self.next_internals
         if evaluation:
             if deterministic or independent:
                 raise TensorforceError(

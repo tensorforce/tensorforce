@@ -655,6 +655,7 @@ class Model(Module):
 
         # Internals buffer variable
         self.internals_buffer = OrderedDict()
+        self.independent_internals_buffer = OrderedDict()
         for name, spec in self.internals_spec.items():
             shape = ((self.parallel_interactions, self.buffer_observe + 1) + spec['shape'])
             initializer = np.zeros(shape=shape, dtype=util.np_dtype(dtype=spec['type']))
@@ -662,6 +663,10 @@ class Model(Module):
             self.internals_buffer[name] = self.add_variable(
                 name=(name + '-buffer'), dtype=spec['type'], shape=shape, is_trainable=False,
                 initializer=initializer, is_saved=False
+            )
+            self.independent_internals_buffer[name] = self.add_variable(
+                name=(name + '-independent-buffer'), dtype=spec['type'], shape=spec['shape'],
+                is_trainable=False, initializer=initializer[0, 0], is_saved=False
             )
 
         # Auxiliaries buffer variable
@@ -689,14 +694,44 @@ class Model(Module):
         )
 
     def api_reset(self):
-        assignment = self.buffer_index.assign(
-            value=tf.zeros(shape=(self.parallel_interactions,), dtype=util.tf_dtype(dtype='long')),
-            read_value=False
+        independent = self.independent_input
+
+        # independent: type and shape
+        tf.debugging.assert_type(
+            tensor=independent, tf_type=util.tf_dtype(dtype='bool'),
+            message="Model.reset: invalid type for independent input."
         )
+        tf.debugging.assert_scalar(
+            tensor=independent, message="Model.reset: independent input has to be a scalar."
+        )
+
+        assignments = list()
+        for name, spec in self.internals_spec.items():
+            assignments.append(
+                self.independent_internals_buffer[name].assign(
+                    value=tf.constant(
+                        value=self.internals_init[name], dtype=util.tf_dtype(dtype=spec['type'])
+                    ), read_value=False
+                )
+            )
+
+        with tf.control_dependencies(control_inputs=assignments):
+
+            def reset_all_buffers():
+                assignment = self.buffer_index.assign(
+                    value=tf.zeros(shape=(self.parallel_interactions,),
+                    dtype=util.tf_dtype(dtype='long')), read_value=False
+                )
+                with tf.control_dependencies(control_inputs=(assignment,)):
+                    return util.no_operation()
+
+            reset = self.cond(
+                pred=independent, true_fn=util.no_operation, false_fn=reset_all_buffers
+            )
 
         # TODO: Synchronization initial sync?
 
-        with tf.control_dependencies(control_inputs=(assignment,)):
+        with tf.control_dependencies(control_inputs=(reset,)):
             timestep = util.identity_operation(
                 x=self.global_timestep, operation_name='timestep-output'
             )
@@ -859,44 +894,28 @@ class Model(Module):
                 dependencies = variable_noise_tensors
 
         # Initialize or retrieve internals
+        internals = OrderedDict()
         if len(self.internals_spec) > 0:
             with tf.control_dependencies(control_inputs=dependencies):
-                # buffer_index = self.buffer_index[parallel]
+                for name, spec in self.internals_spec.items():
 
-                # def initialize_internals():
-                #     internals = OrderedDict()
-                #     for name, init in self.internals_init.items():
-                #         internals[name] = tf.expand_dims(input=init, axis=0)
-                #     return internals
+                    def get_independent_internal():
+                        return tf.reshape(
+                            tensor=self.independent_internals_buffer[name],
+                            shape=((-1,) + spec['shape'])
+                        )
 
-                # def retrieve_internals():
-                #     internals = OrderedDict()
-                #     for name in self.internals_spec:
-                #         internals[name] = tf.gather_nd(
-                #             params=self.internals_buffer[name],
-                #             indices=[(parallel, buffer_index)]
-                #         )
-                #     return internals
+                    def get_buffer_internal():
+                        buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+                        indices = tf.stack(values=(parallel, buffer_index), axis=1)
+                        return tf.gather_nd(params=self.internals_buffer[name], indices=indices)
 
-                # zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-                # initialize = tf.math.equal(x=buffer_index, y=zero)
-                # internals = self.cond(
-                #     pred=initialize, true_fn=initialize_internals, false_fn=retrieve_internals
-                # )
-                # retrieved_internals = util.flatten(xs=internals)
-                # dependencies = retrieved_internals
-
-                buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
-
-                indices = tf.stack(values=(parallel, buffer_index), axis=1)
-                internals = OrderedDict()
-                for name in self.internals_spec:
-                    internals[name] = tf.gather_nd(
-                        params=self.internals_buffer[name], indices=indices
+                    internals[name] = self.cond(
+                        pred=independent, true_fn=get_independent_internal,
+                        false_fn=get_buffer_internal
                     )
+
                 dependencies = util.flatten(xs=internals)
-        else:
-            internals = OrderedDict()
 
         # Core act: retrieve actions and internals
         with tf.control_dependencies(control_inputs=dependencies):
@@ -1027,6 +1046,18 @@ class Model(Module):
         # Update states/internals/actions buffers
         with tf.control_dependencies(control_inputs=dependencies):
 
+            def update_internals():
+                operations = list()
+                for name, spec in self.internals_spec.items():
+                    operations.append(
+                        self.independent_internals_buffer[name].assign(
+                            value=tf.reshape(tensor=internals[name], shape=spec['shape']),
+                            read_value=False
+                        )
+                    )
+                with tf.control_dependencies(control_inputs=operations):
+                    return util.no_operation()
+
             def update_buffers():
                 operations = list()
                 buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
@@ -1067,7 +1098,7 @@ class Model(Module):
                     return util.no_operation()
 
             updated_buffers = self.cond(
-                pred=independent, true_fn=util.no_operation, false_fn=update_buffers
+                pred=independent, true_fn=update_internals, false_fn=update_buffers
             )
 
         # Increment timestep

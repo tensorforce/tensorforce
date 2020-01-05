@@ -23,6 +23,7 @@ from test.unittest_base import UnittestBase
 
 class TestRunners(UnittestBase, unittest.TestCase):
 
+    min_timesteps = 3
     require_observe = True
 
     def test_runner(self):

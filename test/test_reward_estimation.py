@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import pytest
 import unittest
 
 from test.unittest_base import UnittestBase

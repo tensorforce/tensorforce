@@ -975,19 +975,17 @@ class Module(object):
 
     @staticmethod
     def get_module_class_and_kwargs(
-        name, module=None, modules=None, default_module=None, **kwargs
+        name, module=None, modules=None, default_module=None, disable_first_arg=False, **kwargs
     ):
         # name
         if not util.is_valid_name(name=name):
-            raise TensorforceError.value(
-                name='Module.get_module_class_and_kwargs', argument='name', value=name
-            )
+            raise TensorforceError.value(name='Module.add_module', argument='name', value=name)
         # module
         # ???
         # modules
         if modules is not None and not isinstance(modules, dict):
             raise TensorforceError.type(
-                name='Module.get_module_class_and_kwargs', argument='modules', dtype=type(modules)
+                name='Module.add_module', argument='modules', dtype=type(modules)
             )
         # default_module
         # ???
@@ -996,7 +994,8 @@ class Module(object):
             util.deep_disjoint_update(target=kwargs, source=module)
             module = kwargs.pop('type', default_module)
             return Module.get_module_class_and_kwargs(
-                name=name, module=module, modules=modules, default_module=default_module, **kwargs
+                name=name, module=module, modules=modules, default_module=default_module,
+                disable_first_arg=True, **kwargs
             )
 
         elif isinstance(module, str):
@@ -1006,7 +1005,7 @@ class Module(object):
                     module = json.load(fp=fp)
                 return Module.get_module_class_and_kwargs(
                     name=name, module=module, modules=modules, default_module=default_module,
-                    **kwargs
+                    disable_first_arg=True, **kwargs
                 )
 
             elif '.' in module:
@@ -1016,22 +1015,25 @@ class Module(object):
                 module = getattr(library, module_name)
                 return Module.get_module_class_and_kwargs(
                     name=name, module=module, modules=modules, default_module=default_module,
-                    **kwargs
+                    disable_first_arg=True, **kwargs
                 )
 
             elif modules is not None and module in modules:
                 # Keyword module specification
                 return Module.get_module_class_and_kwargs(
-                    name=name, module=modules[module], default_module=default_module, **kwargs
+                    name=name, module=modules[module], default_module=default_module,
+                    disable_first_arg=True, **kwargs
                 )
 
             elif 'default' in modules or default_module is not None:
                 # Default module specification
                 if '_first_arg' in kwargs:
-                    raise TensorforceError.invalid(
-                        name='Module.get_module_class_and_kwargs', argument='_first_arg'
-                    )
+                    raise TensorforceError.invalid(name='Module.add_module', argument='_first_arg')
                 if module is not None:
+                    if disable_first_arg:
+                        raise TensorforceError.value(
+                            name='Module.add_module', argument='module', value=module
+                        )
                     kwargs['_first_arg'] = module
                 if default_module is None:
                     default_module = modules['default']
@@ -1041,15 +1043,13 @@ class Module(object):
 
             else:
                 raise TensorforceError.value(
-                    name='Module.get_module_class_and_kwargs', argument='module', value=module
+                    name='Module.add_module', argument='module', value=module
                 )
 
         elif not callable(module) and ('default' in modules or default_module is not None):
             # Default module specification
             if '_first_arg' in kwargs:
-                raise TensorforceError.invalid(
-                    name='Module.get_module_class_and_kwargs', argument='_first_arg'
-                )
+                raise TensorforceError.invalid(name='Module.add_module', argument='_first_arg')
             if module is not None:
                 kwargs['_first_arg'] = module
             if default_module is None:
@@ -1068,9 +1068,7 @@ class Module(object):
             return module, first_arg, kwargs
 
         else:
-            raise TensorforceError.value(
-                name='Module.get_module_class_and_kwargs', argument='module', value=module
-            )
+            raise TensorforceError.value(name='Module.add_module', argument='module', value=module)
 
     def add_module(
         self, name, module=None, modules=None, default_module=None, is_trainable=True,

@@ -92,5 +92,5 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             )
             self.unittest(optimizer=optimizer)
 
-        except BaseException:
+        except ModuleNotFoundError:
             pass

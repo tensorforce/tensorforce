@@ -30,7 +30,7 @@ class SubsamplingStep(MetaOptimizer):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        fraction (parameter, 0.0 < float <= 1.0): Fraction of batch timesteps to subsample
+        fraction (parameter, 0.0 < float < 1.0): Fraction of batch timesteps to subsample
             (<span style="color:#C00000"><b>required</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).

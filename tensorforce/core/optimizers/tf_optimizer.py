@@ -44,7 +44,7 @@ try:
         optimizer=tfa.optimizers.RectifiedAdam(**kwargs), name=kwargs['name']
     ))
     tensorflow_optimizers['sgdw'] = tfa.optimizers.SGDW
-except BaseException:
+except ModuleNotFoundError:
     pass
 
 

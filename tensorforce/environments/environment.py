@@ -53,6 +53,8 @@ class Environment(object):
             util.deep_disjoint_update(target=kwargs, source=environment)
             environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
             assert environment is not None
+            if max_episode_timesteps is None:
+                max_episode_timesteps = kwargs.pop('max_episode_timesteps', None)
 
             return Environment.create(
                 environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
@@ -67,6 +69,8 @@ class Environment(object):
                 util.deep_disjoint_update(target=kwargs, source=environment)
                 environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
                 assert environment is not None
+                if max_episode_timesteps is None:
+                    max_episode_timesteps = kwargs.pop('max_episode_timesteps', None)
 
                 return Environment.create(
                     environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs

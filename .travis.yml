@@ -9,7 +9,7 @@ branches:
     - master
 
 install:
-  - pip install .[tf,tfa,retro]
+  - pip install .[tf,retro]
 
 script:
   - pytest

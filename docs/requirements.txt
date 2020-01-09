@@ -1,4 +1,4 @@
-tensorflow
+tensorflow==2.0.0
 m2r
 recommonmark
 sphinx

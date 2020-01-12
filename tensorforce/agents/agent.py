@@ -37,8 +37,8 @@ class Agent(object):
         Creates an agent from a specification.
 
         Args:
-            agent (specification | Agent object): JSON file, specification key, configuration
-                dictionary, library module, or `Agent` object
+            agent (specification | Agent class/object): JSON file, specification key, configuration
+                dictionary, library module, or `Agent` class/object
                 (<span style="color:#00C000"><b>default</b></span>: Policy agent).
             environment (Environment object): Environment which the agent is supposed to be trained
                 on, environment-related arguments like state/action space specifications and
@@ -52,14 +52,37 @@ class Agent(object):
                 assert util.deep_equal(xs=agent.spec['actions'], ys=environment.actions())
                 assert environment.max_episode_timesteps() is None or \
                     agent.spec['max_episode_timesteps'] >= environment.max_episode_timesteps()
+
             for key, value in kwargs.items():
                 assert agent.spec[key] == value
+
             if agent.is_initialized:
                 agent.reset()
             else:
                 agent.initialize()
 
             return agent
+
+        elif isinstance(agent, type) and issubclass(agent, Agent):
+            if environment is not None:
+                if 'states' in kwargs:
+                    assert util.deep_equal(xs=kwargs['states'], ys=environment.states())
+                else:
+                    kwargs['states'] = environment.states()
+                if 'actions' in kwargs:
+                    assert util.deep_equal(xs=kwargs['actions'], ys=environment.actions())
+                else:
+                    kwargs['actions'] = environment.actions()
+                if environment.max_episode_timesteps() is None:
+                    pass
+                elif 'max_episode_timesteps' in kwargs:
+                    assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                else:
+                    kwargs['max_episode_timesteps'] = environment.max_episode_timesteps()
+
+            agent = agent(**kwargs)
+            assert isinstance(agent, Agent)
+            return Agent.create(agent=agent, environment=environment)
 
         elif isinstance(agent, dict):
             # Dictionary specification
@@ -80,51 +103,15 @@ class Agent(object):
                 library_name, module_name = agent.rsplit('.', 1)
                 library = importlib.import_module(name=library_name)
                 agent = getattr(library, module_name)
-
-                if environment is not None:
-                    if 'states' in kwargs:
-                        assert util.deep_equal(xs=kwargs['states'], ys=environment.states())
-                    else:
-                        kwargs['states'] = environment.states()
-                    if 'actions' in kwargs:
-                        assert util.deep_equal(xs=kwargs['actions'], ys=environment.actions())
-                    else:
-                        kwargs['actions'] = environment.actions()
-                    if environment.max_episode_timesteps() is None:
-                        pass
-                    elif 'max_episode_timesteps' in kwargs:
-                        assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
-                    else:
-                        kwargs['max_episode_timesteps'] = environment.max_episode_timesteps()
-
-                agent = agent(**kwargs)
-                assert isinstance(agent, Agent)
-                return Agent.create(agent=agent, environment=environment)
+                return Agent.create(agent=agent, environment=environment, **kwargs)
 
             else:
                 # Keyword specification
-                if environment is not None:
-                    if 'states' in kwargs:
-                        assert util.deep_equal(xs=kwargs['states'], ys=environment.states())
-                    else:
-                        kwargs['states'] = environment.states()
-                    if 'actions' in kwargs:
-                        assert util.deep_equal(xs=kwargs['actions'], ys=environment.actions())
-                    else:
-                        kwargs['actions'] = environment.actions()
-                    if environment.max_episode_timesteps() is None:
-                        pass
-                    elif 'max_episode_timesteps' in kwargs:
-                        assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
-                    else:
-                        kwargs['max_episode_timesteps'] = environment.max_episode_timesteps()
-
-                agent = tensorforce.agents.agents[agent](**kwargs)
-                assert isinstance(agent, Agent)
-                return Agent.create(agent=agent, environment=environment)
+                agent = tensorforce.agents.agents[agent]
+                return Agent.create(agent=agent, environment=environment, **kwargs)
 
         else:
-            assert False
+            raise TensorforceError.type(name='Agent.create', argument='agent', dtype=type(agent))
 
     @staticmethod
     def load(directory, filename=None, environment=None, **kwargs):

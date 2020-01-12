@@ -63,12 +63,12 @@ class DeterministicPolicyGradient(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        memory (int): Replay memory capacity
-            (<span style="color:#00C000"><b>default</b></span>: 10000).
+        memory (int): Replay memory capacity, has to fit at least around batch_size + one episode
+            (<span style="color:#C00000"><b>required</b></span>).
         batch_size (parameter, long > 0): Number of timesteps per update batch
             (<span style="color:#00C000"><b>default</b></span>: 32 timesteps).
         update_frequency ("never" | parameter, long > 0): Frequency of updates
-            (<span style="color:#00C000"><b>default</b></span>: every 4 timesteps).
+            (<span style="color:#00C000"><b>default</b></span>: batch_size).
         start_updating (parameter, long >= batch_size): Number of timesteps before first update
             (<span style="color:#00C000"><b>default</b></span>: none).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
@@ -192,12 +192,14 @@ class DeterministicPolicyGradient(TensorforceAgent):
     """
 
     def __init__(
+        # Required
+        self, states, actions, memory,
         # Environment
-        self, states, actions, max_episode_timesteps,
+        max_episode_timesteps=None,
         # Network
         network='auto',
         # Optimization
-        memory=10000, batch_size=32, update_frequency=4, start_updating=None, learning_rate=3e-4,
+        batch_size=32, update_frequency=None, start_updating=None, learning_rate=3e-4,
         # Reward estimation
         horizon=0, discount=0.99, estimate_terminal=False,
         # Critic
@@ -234,7 +236,9 @@ class DeterministicPolicyGradient(TensorforceAgent):
             memory >= batch_size + max_episode_timesteps + horizon
         policy = dict(network=network, temperature=0.0)
         memory = dict(type='replay', capacity=memory)
-        update = dict(unit='timesteps', batch_size=batch_size, frequency=update_frequency)
+        update = dict(unit='timesteps', batch_size=batch_size)
+        if update_frequency is not None:
+            update['frequency'] = update_frequency
         if start_updating is not None:
             update['start'] = start_updating
         optimizer = dict(type='adam', learning_rate=learning_rate)

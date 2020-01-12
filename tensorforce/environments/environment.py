@@ -16,7 +16,6 @@
 import importlib
 import json
 import os
-from threading import Thread
 
 from tensorforce import TensorforceError, util
 import tensorforce.environments
@@ -33,26 +32,46 @@ class Environment(object):
         Creates an environment from a specification.
 
         Args:
-            environment (specification | Environment object): JSON file, specification key,
-                configuration dictionary, library module, or `Environment` object
+            environment (specification | Environment class/object): JSON file, specification key,
+                configuration dictionary, library module, or `Environment` class/object
                 (<span style="color:#C00000"><b>required</b></span>).
             max_episode_timesteps (int > 0): Maximum number of timesteps per episode, overwrites
                 the environment default if defined
                 (<span style="color:#00C000"><b>default</b></span>: environment default).
             kwargs: Additional arguments.
         """
-        if isinstance(environment, Environment):
+        if isinstance(environment, EnvironmentWrapper):
+            raise TensorforceError.type(
+                name='Environment.create', argument='environment', dtype=type(environment)
+            )
+
+        elif isinstance(environment, type) and \
+                issubclass(environment, EnvironmentWrapper):
+            raise TensorforceError.type(
+                name='Environment.create', argument='environment', dtype=type(environment)
+            )
+
+        elif isinstance(environment, Environment):
             if max_episode_timesteps is not None:
                 environment = EnvironmentWrapper(
                     environment=environment, max_episode_timesteps=max_episode_timesteps
                 )
             return environment
 
+        elif issubclass(environment, Environment):
+            environment = environment(**kwargs)
+            assert isinstance(environment, Environment)
+            return Environment.create(
+                environment=environment, max_episode_timesteps=max_episode_timesteps
+            )
+
         elif isinstance(environment, dict):
             # Dictionary specification
             util.deep_disjoint_update(target=kwargs, source=environment)
             environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
             assert environment is not None
+            if max_episode_timesteps is None:
+                max_episode_timesteps = kwargs.pop('max_episode_timesteps', None)
 
             return Environment.create(
                 environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
@@ -67,6 +86,8 @@ class Environment(object):
                 util.deep_disjoint_update(target=kwargs, source=environment)
                 environment = kwargs.pop('environment', kwargs.pop('type', 'default'))
                 assert environment is not None
+                if max_episode_timesteps is None:
+                    max_episode_timesteps = kwargs.pop('max_episode_timesteps', None)
 
                 return Environment.create(
                     environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
@@ -77,23 +98,21 @@ class Environment(object):
                 library_name, module_name = environment.rsplit('.', 1)
                 library = importlib.import_module(name=library_name)
                 environment = getattr(library, module_name)
-
-                environment = environment(**kwargs)
-                assert isinstance(environment, Environment)
                 return Environment.create(
-                    environment=environment, max_episode_timesteps=max_episode_timesteps
+                    environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
                 )
 
             else:
                 # Keyword specification
-                environment = tensorforce.environments.environments[environment](**kwargs)
-                assert isinstance(environment, Environment)
+                environment = tensorforce.environments.environments[environment]
                 return Environment.create(
-                    environment=environment, max_episode_timesteps=max_episode_timesteps
+                    environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
                 )
 
         else:
-            assert False
+            raise TensorforceError.type(
+                name='Environment.create', argument='environment', dtype=type(environment)
+            )
 
     def __init__(self):
         # first two arguments, if applicable: level, visualize=False
@@ -107,7 +126,6 @@ class Environment(object):
     def states(self):
         """
         Returns the state space specification.
-
         Returns:
             specification: Arbitrarily nested dictionary of state descriptions with the following
             attributes:
@@ -127,7 +145,6 @@ class Environment(object):
     def actions(self):
         """
         Returns the action space specification.
-
         Returns:
             specification: Arbitrarily nested dictionary of action descriptions with the following
             attributes:
@@ -147,7 +164,6 @@ class Environment(object):
     def max_episode_timesteps(self):
         """
         Returns the maximum number of timesteps per episode.
-
         Returns:
             int: Maximum number of timesteps per episode.
         """
@@ -165,7 +181,6 @@ class Environment(object):
     def reset(self):
         """
         Resets the environment to start a new episode.
-
         Returns:
             dict[state]: Dictionary containing initial state(s) and auxiliary information.
         """
@@ -174,11 +189,9 @@ class Environment(object):
     def execute(self, actions):
         """
         Executes the given action(s) and advances the environment by one step.
-
         Args:
             actions (dict[action]): Dictionary containing action(s) to be executed
                 (<span style="color:#C00000"><b>required</b></span>).
-
         Returns:
             ((dict[state], bool | 0 | 1 | 2, float)): Dictionary containing next state(s), whether
             a terminal state is reached or 2 if the episode was aborted, and observed reward.

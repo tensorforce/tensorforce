@@ -89,7 +89,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             none, a float implies none and specifies a custom weight for the critic loss
             (<span style="color:#00C000"><b>default</b></span>: none).
 
-        memory (int > 0): Memory capacity, has to be at least fit around batch_size + 1 episodes
+        memory (int > 0): Memory capacity, has to fit at least around batch_size + 1 episodes
             (<span style="color:#00C000"><b>default</b></span>: minimum required size).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
@@ -120,7 +120,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
         seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-            environment seed has to be set separately for a fully deterministic execution
+            environment seed has to fit at leastset separately for a fully deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).
         execution (specification): TensorFlow execution configuration with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: standard): ...

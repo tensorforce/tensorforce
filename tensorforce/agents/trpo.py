@@ -85,7 +85,7 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             none, a float implies none and specifies a custom weight for the critic loss
             (<span style="color:#00C000"><b>default</b></span>: none).
 
-        memory (int > 0): Memory capacity, has to be at least fit around batch_size + 1 episodes
+        memory (int > 0): Memory capacity, has to fit at least around batch_size + 1 episodes
             (<span style="color:#00C000"><b>default</b></span>: minimum required size).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see

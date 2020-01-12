@@ -15,7 +15,7 @@
 
 from tensorforce.core.layers.layer import Layer, StatefulLayer, TemporalLayer, TransformationBase
 
-from tensorforce.core.layers.convolution import Conv1d, Conv1dTranspose, Conv2d, Conv2dTranspose
+from tensorforce.core.layers.convolution import Conv1d, Conv2d,  # Conv1dTranspose, Conv2dTranspose
 from tensorforce.core.layers.dense import Dense
 from tensorforce.core.layers.embedding import Embedding
 from tensorforce.core.layers.internal_rnn import InternalGru, InternalLstm, InternalRnn
@@ -31,8 +31,8 @@ from tensorforce.core.layers.rnn import Gru, Lstm, Rnn
 
 
 layer_modules = dict(
-    activation=Activation, block=Block, clipping=Clipping, conv1d=Conv1d,
-    conv1d_transpose=Conv1dTranspose, conv2d=Conv2d, conv2d_transpose=Conv2dTranspose,
+    activation=Activation, block=Block, clipping=Clipping, conv1d=Conv1d, conv2d=Conv2d,
+    # conv1d_transpose=Conv1dTranspose, conv2d_transpose=Conv2dTranspose,
     default=Function, deltafier=Deltafier, dense=Dense, dropout=Dropout, embedding=Embedding,
     exponential_normalization=ExponentialNormalization, flatten=Flatten, function=Function,
     gru=Gru, image=Image, instance_normalization=InstanceNormalization, internal_gru=InternalGru,
@@ -43,7 +43,7 @@ layer_modules = dict(
 
 
 __all__ = [
-    'Activation', 'Block', 'Clipping', 'Conv1d', 'Conv1dTranspose', 'Conv2d', 'Conv2dTranspose',
+    'Activation', 'Block', 'Clipping', 'Conv1d', 'Conv2d',  # 'Conv1dTranspose', 'Conv2dTranspose',
     'Deltafier', 'Dense', 'Dropout', 'Embedding', 'ExponentialNormalization', 'Flatten',
     'Function', 'GRU', 'Image', 'InstanceNormalization', 'InternalGru', 'InternalLayer',
     'InternalLstm', 'InternalRnn', 'Keras', 'Layer', 'layer_modules', 'Linear', 'Lstm',

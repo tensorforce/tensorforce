@@ -48,8 +48,8 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.unittest(
             actions=dict(type='float', shape=()), exclude_bool_action=True,
             exclude_int_action=True, agent='dpg',
-            network=dict(type='auto', size=8, depth=1, internal_rnn=False), batch_size=4,
-            critic_network=dict(type='auto', size=8, depth=1, internal_rnn=False)
+            network=dict(type='auto', size=8, depth=1, internal_rnn=False), memory=100,
+            batch_size=4, critic_network=dict(type='auto', size=8, depth=1, internal_rnn=False)
             # TODO: shouldn't be necessary!
         )
 
@@ -57,7 +57,8 @@ class TestAgents(UnittestBase, unittest.TestCase):
     def test_dqn(self):
         self.start_tests(name='DQN')
         self.unittest(
-            agent='dqn', network=dict(type='auto', size=8, depth=1, internal_rnn=2), batch_size=4
+            agent='dqn', network=dict(type='auto', size=8, depth=1, internal_rnn=2), memory=100,
+            batch_size=4
         )
 
     @pytest.mark.skip(reason='temporary')
@@ -65,7 +66,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='DuelingDQN')
         self.unittest(
             agent='dueling_dqn', network=dict(type='auto', size=8, depth=1, internal_rnn=2),
-            batch_size=4
+            memory=100, batch_size=4
         )
 
     @pytest.mark.skip(reason='temporary')

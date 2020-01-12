@@ -16,6 +16,7 @@
 import importlib
 import json
 import os
+from threading import Thread
 
 from tensorforce import TensorforceError, util
 import tensorforce.environments
@@ -41,9 +42,17 @@ class Environment(object):
             kwargs: Additional arguments.
         """
         if isinstance(environment, EnvironmentWrapper):
-            raise TensorforceError.type(
-                name='Environment.create', argument='environment', dtype=type(environment)
-            )
+            if max_episode_timesteps is not None:
+                TensorforceError.invalid(
+                    name='Environment.create', argument='max_episode_timesteps',
+                    condition='EnvironmentWrapper instance'
+                )
+            if len(kwargs) > 0:
+                TensorforceError.invalid(
+                    name='Environment.create', argument='kwargs',
+                    condition='EnvironmentWrapper instance'
+                )
+            return environment
 
         elif isinstance(environment, type) and \
                 issubclass(environment, EnvironmentWrapper):
@@ -58,7 +67,7 @@ class Environment(object):
                 )
             return environment
 
-        elif issubclass(environment, Environment):
+        elif isinstance(environment, type) and issubclass(environment, Environment):
             environment = environment(**kwargs)
             assert isinstance(environment, Environment)
             return Environment.create(

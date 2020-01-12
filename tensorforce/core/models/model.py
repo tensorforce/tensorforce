@@ -56,7 +56,7 @@ class Model(Module):
         self.seed = seed
 
         # Execution
-        assert execution is None
+        self.execution = dict() if execution is None else execution
 
         # Saver
         if saver is None:
@@ -196,15 +196,6 @@ class Model(Module):
             is_trainable=False, dtype='float'
         )
 
-        # Execution
-        self.execution_spec = None
-        if self.execution_spec is not None:
-            self.execution_type = self.execution_spec['type']
-            self.session_config = self.execution_spec['session_config']
-            self.distributed_spec = self.execution_spec['distributed_spec']
-        # One record is inserted into these buffers when act(independent=False) method is called.
-        # self.num_parallel = self.execution_spec.get('num_parallel', 1)
-
         # Register global tensors
         for name, spec in self.states_spec.items():
             Module.register_tensor(name=name, spec=spec, batched=True)
@@ -237,7 +228,8 @@ class Model(Module):
 
         # Start a tf Server (in case of distributed setup). Only start once.
         # if self.execution_type == "distributed" and self.server is None and self.is_local_model:
-        if self.execution_spec is None or self.execution_type == 'local' or not self.is_local_model:
+        # if self.execution_spec is None or self.execution_type == 'local' or not self.is_local_model:
+        if True:
             self.server = None
         else:
             # Creates and stores a tf server (and optionally joins it if we are a parameter-server).
@@ -259,12 +251,13 @@ class Model(Module):
 
         # If we are a global model -> return here.
         # Saving, syncing, finalizing graph, session is done by local replica model.
-        if self.execution_spec is not None and self.execution_type == "distributed" and not self.is_local_model:
-            return
+        # if self.execution_spec is not None and self.execution_type == "distributed" and not self.is_local_model:
+        #     return
 
         # Saver/Summary -> Scaffold.
         # Creates the tf.compat.v1.train.Saver object and stores it in self.saver.
-        if self.execution_spec is None or self.execution_type == "single":
+        # if self.execution_spec is None or self.execution_type == "single":
+        if True:
             saved_variables = self.get_variables(only_saved=True)
         else:
             saved_variables = self.global_model.get_variables(only_saved=True)
@@ -323,7 +316,8 @@ class Model(Module):
         graph_default_context = None
 
         # Single (non-distributed) mode.
-        if self.execution_spec is None or self.execution_type == 'single':
+        # if self.execution_spec is None or self.execution_type == 'single':
+        if True:
             self.graph = tf.Graph()
             graph_default_context = self.graph.as_default()
             graph_default_context.__enter__()
@@ -385,7 +379,8 @@ class Model(Module):
         Creates the tf.compat.v1.train.Scaffold object and assigns it to self.scaffold.
         Other fields of the Scaffold are generated automatically.
         """
-        if self.execution_spec is None or self.execution_type == "single":
+        # if self.execution_spec is None or self.execution_type == "single":
+        if True:
             global_variables = self.get_variables()
             # global_variables += [self.global_episode, self.global_timestep]
             init_op = tf.compat.v1.variables_initializer(var_list=global_variables)
@@ -520,13 +515,14 @@ class Model(Module):
             hooks (list): A list of (saver, summary, etc..) hooks to be passed to the session.
             graph_default_context: The graph as_default() context that we are currently in.
         """
-        if self.execution_spec is not None and self.execution_type == "distributed":
+        # if self.execution_spec is not None and self.execution_type == "distributed":
+        if False:
             # if self.distributed_spec['task_index'] == 0:
             # TensorFlow chief session creator object
             session_creator = tf.compat.v1.train.ChiefSessionCreator(
                 scaffold=self.scaffold,
                 master=server.target,
-                config=self.session_config,
+                config=self.execution.get('session_config'),
                 checkpoint_dir=None,
                 checkpoint_filename_with_path=None
             )
@@ -553,7 +549,7 @@ class Model(Module):
                 hooks=hooks,
                 scaffold=self.scaffold,
                 master='',  # Default value.
-                config=(None if self.execution_spec is None else self.session_config),  # self.execution_spec.get('session_config'),
+                config=self.execution.get('session_config'),
                 checkpoint_dir=None
             )
 

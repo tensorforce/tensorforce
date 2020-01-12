@@ -15,7 +15,7 @@
 
 from tensorforce.core.layers.layer import Layer, StatefulLayer, TemporalLayer, TransformationBase
 
-from tensorforce.core.layers.convolution import Conv1d, Conv2d,  # Conv1dTranspose, Conv2dTranspose
+from tensorforce.core.layers.convolution import Conv1d, Conv2d  # Conv1dTranspose, Conv2dTranspose
 from tensorforce.core.layers.dense import Dense
 from tensorforce.core.layers.embedding import Embedding
 from tensorforce.core.layers.internal_rnn import InternalGru, InternalLstm, InternalRnn

@@ -468,7 +468,7 @@ def valid_value_spec(
                 num_values = num_values.item()
             if not isinstance(num_values, int):
                 raise TensorforceError.type(
-                    name=value_type, argument='num_values', value=type(num_values)
+                    name=value_type, argument='num_values', dtype=type(num_values)
                 )
             if accept_underspecified:
                 if not (num_values > 1 or num_values == 0):

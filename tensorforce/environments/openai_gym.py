@@ -246,9 +246,8 @@ class OpenAIGym(Environment):
             return dict(type='bool', shape=space.n)
 
         elif isinstance(space, gym.spaces.MultiDiscrete):
-            num_discrete_space = len(space.nvec)
-            if (space.nvec == space.nvec[0]).all():
-                return dict(type='int', shape=num_discrete_space, num_values=space.nvec[0])
+            if (space.nvec == space.nvec.item(0)).all():
+                return dict(type='int', shape=space.nvec.shape, num_values=space.nvec.item(0))
             else:
                 specs = dict()
                 for n in range(num_discrete_space):

@@ -90,11 +90,12 @@ class TestLayers(UnittestBase, unittest.TestCase):
     def test_misc(self):
         self.start_tests(name='misc')
 
-        states = dict(type='float', shape=(3,))
+        states = dict(type='float', shape=(3, 2))
         network = [
             dict(type='activation', nonlinearity='tanh'),
             dict(type='dropout', rate=0.5),
             dict(type='function', function=(lambda x: x + 1.0)),
+            dict(type='reshape', shape=6),
             dict(function=(lambda x: x[:, :2]), output_spec=dict(shape=(2,)))
         ]
         self.unittest(states=states, policy=dict(network=network))

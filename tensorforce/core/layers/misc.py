@@ -312,6 +312,47 @@ class Register(Layer):
         return x
 
 
+class Reshape(Layer):
+    """
+    Reshape layer (specification key: `reshape`).
+
+    Args:
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        shape (<i>int | iter[int]</i>): New shape
+            (<span style="color:#C00000"><b>required</b></span>).
+        input_spec (specification): Input tensor specification
+            (<span style="color:#00C000"><b>internal use</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+    """
+
+    def __init__(self, name, shape, input_spec=None, summary_labels=None):
+        if isinstance(shape, int):
+            self.shape = (shape,)
+        else:
+            self.shape = tuple(shape)
+
+        super().__init__(
+            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
+        )
+
+    def default_input_spec(self):
+        return dict(type=None, shape=None)
+
+    def get_output_spec(self, input_spec):
+        if util.product(xs=input_spec['shape']) != util.product(xs=self.shape):
+            raise TensorforceError.value(name='Reshape', argument='shape', value=self.shape)
+        input_spec['shape'] = self.shape
+
+        return input_spec
+
+    def tf_apply(self, x):
+        x = tf.reshape(tensor=x, shape=((-1,) + self.shape))
+
+        return x
+
+
 class Retrieve(Layer):
     """
     Tensor retrieval layer, which is useful when defining more complex network architectures which

@@ -17,9 +17,8 @@ import unittest
 
 import numpy as np
 
+from tensorforce import Agent, Environment
 from test.unittest_base import UnittestBase
-from tensorforce.agents import Agent
-from tensorforce.environments import Environment
 
 
 class TestSeed(UnittestBase, unittest.TestCase):

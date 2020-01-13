@@ -15,9 +15,7 @@
 
 import unittest
 
-from tensorforce.agents import Agent
-from tensorforce.environments import Environment
-from tensorforce.execution import Runner
+from tensorforce import Agent, Environment, Runner
 
 from test.unittest_base import UnittestBase
 from test.unittest_environment import UnittestEnvironment
@@ -174,7 +172,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         # ==========
 
-        from tensorforce.agents import Agent
+        from tensorforce import Agent
 
         # Instantiate a Tensorforce agent
         agent = Agent.create(

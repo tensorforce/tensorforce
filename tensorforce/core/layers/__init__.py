@@ -21,7 +21,7 @@ from tensorforce.core.layers.embedding import Embedding
 from tensorforce.core.layers.internal_rnn import InternalGru, InternalLstm, InternalRnn
 from tensorforce.core.layers.keras import Keras
 from tensorforce.core.layers.linear import Linear
-from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Register, \
+from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Register, Reshape, \
     Retrieve, Reuse
 from tensorforce.core.layers.normalization import ExponentialNormalization, InstanceNormalization
 from tensorforce.core.layers.pooling import Flatten, Pooling, Pool1d, Pool2d
@@ -37,8 +37,8 @@ layer_modules = dict(
     exponential_normalization=ExponentialNormalization, flatten=Flatten, function=Function,
     gru=Gru, image=Image, instance_normalization=InstanceNormalization, internal_gru=InternalGru,
     internal_lstm=InternalLstm, internal_rnn=InternalRnn, keras=Keras, linear=Linear, lstm=Lstm,
-    pooling=Pooling, pool1d=Pool1d, pool2d=Pool2d, register=Register, retrieve=Retrieve,
-    reuse=Reuse, rnn=Rnn, sequence=Sequence
+    pooling=Pooling, pool1d=Pool1d, pool2d=Pool2d, register=Register, reshape=Reshape,
+    retrieve=Retrieve, reuse=Reuse, rnn=Rnn, sequence=Sequence
 )
 
 
@@ -47,6 +47,6 @@ __all__ = [
     'Deltafier', 'Dense', 'Dropout', 'Embedding', 'ExponentialNormalization', 'Flatten',
     'Function', 'GRU', 'Image', 'InstanceNormalization', 'InternalGru', 'InternalLayer',
     'InternalLstm', 'InternalRnn', 'Keras', 'Layer', 'layer_modules', 'Linear', 'Lstm',
-    'Nonlinearity', 'Pooling', 'Pool1d', 'Pool2d', 'PreprocessingLayer', 'Register', 'Retrieve',
-    'Rnn', 'Sequence', 'StatefulLayer', 'TemporalLayer', 'TransformationBase'
+    'Nonlinearity', 'Pooling', 'Pool1d', 'Pool2d', 'PreprocessingLayer', 'Register', 'Reshape',
+    'Retrieve', 'Rnn', 'Sequence', 'StatefulLayer', 'TemporalLayer', 'TransformationBase'
 ]

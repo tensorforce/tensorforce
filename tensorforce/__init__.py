@@ -27,13 +27,16 @@ tf.compat.v1.disable_eager_execution()
 
 from tensorforce.exception import TensorforceError
 from tensorforce import util
+from tensorforce.environments import Environment
+from tensorforce.agents import Agent
+from tensorforce.execution import ParallelRunner, Runner
 
 
 # tf.get_logger().setLevel('WARNING')
 # tf.autograph.set_verbosity(3)
 
 
-__all__ = ['TensorforceError', 'util']
+__all__ = ['Agent', 'Environment', 'ParallelRunner', 'Runner', 'TensorforceError', 'util']
 
 
 __version__ = '0.5.3'

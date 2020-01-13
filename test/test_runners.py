@@ -17,7 +17,7 @@ import copy
 import time
 import unittest
 
-from tensorforce.execution import ParallelRunner, Runner
+from tensorforce import ParallelRunner, Runner
 from test.unittest_base import UnittestBase
 
 

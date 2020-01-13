@@ -19,11 +19,8 @@ import os
 import sys
 import warnings
 
-from tensorforce import TensorforceError
-from tensorforce.agents import Agent
+from tensorforce import Agent, Environment, Runner, TensorforceError
 from tensorforce.core.layers import Layer
-from tensorforce.environments import Environment
-from tensorforce.execution import Runner
 from test.unittest_environment import UnittestEnvironment
 
 

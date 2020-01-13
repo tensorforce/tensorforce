@@ -18,9 +18,7 @@ from tqdm import tqdm
 
 import numpy as np
 
-from tensorforce import util
-from tensorforce.agents import Agent
-from tensorforce.environments import Environment
+from tensorforce import Agent, Environment, util
 
 
 class Runner(object):

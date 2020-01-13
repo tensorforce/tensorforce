@@ -41,7 +41,7 @@ class Environment(object):
                 (<span style="color:#00C000"><b>default</b></span>: environment default).
             kwargs: Additional arguments.
         """
-        if isinstance(environment, EnvironmentWrapper):
+        if isinstance(environment, (EnvironmentWrapper, RemoteEnvironment)):
             if max_episode_timesteps is not None:
                 TensorforceError.invalid(
                     name='Environment.create', argument='max_episode_timesteps',
@@ -55,7 +55,7 @@ class Environment(object):
             return environment
 
         elif isinstance(environment, type) and \
-                issubclass(environment, EnvironmentWrapper):
+                issubclass(environment, (EnvironmentWrapper, RemoteEnvironment)):
             raise TensorforceError.type(
                 name='Environment.create', argument='environment', dtype=type(environment)
             )
@@ -119,15 +119,25 @@ class Environment(object):
                 )
 
         else:
-            raise TensorforceError.type(
-                name='Environment.create', argument='environment', dtype=type(environment)
-            )
+
+            from gym import Env
+            if isinstance(environment, Env) or \
+                    (isinstance(environment, type) and issubclass(environment, Env)):
+                return Environment.create(
+                    environment='gym', level=environment,
+                    max_episode_timesteps=max_episode_timesteps, **kwargs
+                )
+
+            else:
+                raise TensorforceError.type(
+                    name='Environment.create', argument='environment', dtype=type(environment)
+                )
 
     def __init__(self):
         # first two arguments, if applicable: level, visualize=False
         self._max_episode_timesteps = None
-        self.observation = None
-        self.thread = None
+        self._expect_receive = None
+        self._actions = None
 
     def __str__(self):
         return self.__class__.__name__
@@ -135,6 +145,7 @@ class Environment(object):
     def states(self):
         """
         Returns the state space specification.
+
         Returns:
             specification: Arbitrarily nested dictionary of state descriptions with the following
             attributes:
@@ -154,6 +165,7 @@ class Environment(object):
     def actions(self):
         """
         Returns the action space specification.
+
         Returns:
             specification: Arbitrarily nested dictionary of action descriptions with the following
             attributes:
@@ -173,6 +185,7 @@ class Environment(object):
     def max_episode_timesteps(self):
         """
         Returns the maximum number of timesteps per episode.
+
         Returns:
             int: Maximum number of timesteps per episode.
         """
@@ -182,14 +195,12 @@ class Environment(object):
         """
         Closes the environment.
         """
-        if self.thread is not None:
-            self.thread.join()
-        self.observation = None
-        self.thread = None
+        pass
 
     def reset(self):
         """
         Resets the environment to start a new episode.
+
         Returns:
             dict[state]: Dictionary containing initial state(s) and auxiliary information.
         """
@@ -198,9 +209,11 @@ class Environment(object):
     def execute(self, actions):
         """
         Executes the given action(s) and advances the environment by one step.
+
         Args:
             actions (dict[action]): Dictionary containing action(s) to be executed
                 (<span style="color:#C00000"><b>required</b></span>).
+
         Returns:
             ((dict[state], bool | 0 | 1 | 2, float)): Dictionary containing next state(s), whether
             a terminal state is reached or 2 if the episode was aborted, and observed reward.
@@ -208,36 +221,36 @@ class Environment(object):
         raise NotImplementedError
 
     def start_reset(self):
-        if self.thread is not None:
-            self.thread.join()
-        self.observation = None
-        self.thread = Thread(target=self.finish_reset)
-        self.thread.start()
-
-    def finish_reset(self):
-        assert self.thread is not None and self.observation is None
-        self.observation = (self.reset(), None, None)
-        self.thread = None
+        print('start_reset')
+        if self._expect_receive is not None:
+            raise TensorforceError.unexpected()
+        self._expect_receive = 'reset'
 
     def start_execute(self, actions):
-        assert self.thread is None and self.observation is None
-        self.thread = Thread(target=self.finish_execute, kwargs=dict(actions=actions))
-        self.thread.start()
+        print('start_execute')
+        if self._expect_receive is not None:
+            raise TensorforceError.unexpected()
+        self._expect_receive = 'execute'
+        assert self._actions is None
+        self._actions = actions
 
-    def finish_execute(self, actions):
-        assert self.thread is not None and self.observation is None
-        self.observation = self.execute(actions=actions)
-        self.thread = None
+    def receive_execute(self):
+        print('receive_execute')
+        if self._expect_receive == 'reset':
+            self._expect_receive = None
+            states = self.reset()
+            terminal = reward = None
 
-    def retrieve_execute(self):
-        if self.thread is not None:
-            assert self.observation is None
-            return None
+        elif self._expect_receive == 'execute':
+            self._expect_receive = None
+            assert self._actions is not None
+            states, terminal, reward = self.execute(actions=self._actions)
+            self._actions = None
+
         else:
-            assert self.observation is not None
-            observation = self.observation
-            self.observation = None
-            return observation
+            raise TensorforceError.unexpected()
+
+        return states, terminal, reward
 
 
 class EnvironmentWrapper(Environment):
@@ -278,3 +291,180 @@ class EnvironmentWrapper(Environment):
         if int(terminal) == 0 and self.timestep >= self._max_episode_timesteps:
             terminal = 2
         return states, terminal, reward
+
+
+class RemoteEnvironment(Environment):
+
+    @classmethod
+    def proxy_send(cls, connection, function, **kwargs):
+        raise NotImplementedError
+
+    @classmethod
+    def proxy_receive(cls, connection):
+        raise NotImplementedError
+
+    @classmethod
+    def proxy_close(cls, connection):
+        raise NotImplementedError
+
+    @classmethod
+    def remote_send(cls, connection, success, result):
+        raise NotImplementedError
+
+    @classmethod
+    def remote_receive(cls, connection):
+        raise NotImplementedError
+
+    @classmethod
+    def remote_close(cls, connection):
+        raise NotImplementedError
+
+    @classmethod
+    def remote(cls, connection, environment, max_episode_timesteps=None, **kwargs):
+        try:
+            environment = Environment.create(
+                environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
+            )
+
+            while True:
+                function, kwargs = cls.remote_receive(connection=connection)
+
+                result = getattr(environment, function)(**kwargs)
+
+                cls.remote_send(connection=connection, success=True, result=result)
+
+                if function == 'close':
+                    break
+
+        except BaseException:
+            try:
+                environment.close()
+            finally:
+                etype, value, traceback = sys.exc_info()
+                cls.remote_send(success=False, result=(etype, value, traceback))
+
+        finally:
+            cls.remote_close(connection=connection)
+
+    def __init__(self, connection, blocking=False):
+        super().__init__()
+        self.connection = connection
+        self.blocking = blocking
+        self.observation = None
+        self.thread = None
+
+    def send(self, function, **kwargs):
+        if self._expect_receive is not None:
+            assert function != 'close'
+            self.close()
+            raise TensorforceError.unexpected()
+        self._expect_receive = function
+
+        try:
+            self.__class__.proxy_send(connection=self.connection, function=function, **kwargs)
+        except BaseException:
+            self.__class__.proxy_close(connection=self.connection)
+            raise
+
+    def receive(self, function):
+        if self._expect_receive != function:
+            assert function != 'close'
+            self.close()
+            raise TensorforceError.unexpected()
+        self._expect_receive = None
+
+        try:
+            success, result = self.__class__.proxy_receive(connection=self.connection)
+        except BaseException:
+            self.__class__.proxy_close(connection=self.connection)
+            raise
+
+        if success:
+            return result
+        else:
+            self.__class__.proxy_close(connection=self.connection)
+            etype, value, traceback = result
+            raise TensorforceError(message='{}: {}'.format(etype, value)).with_traceback(traceback)
+
+    def __str__(self):
+        self.send(function='__str__')
+        return self.receive(function='__str__')
+
+    def states(self):
+        self.send(function='states')
+        return self.receive(function='states')
+
+    def actions(self):
+        self.send(function='actions')
+        return self.receive(function='actions')
+
+    def max_episode_timesteps(self):
+        self.send(function='max_episode_timesteps')
+        return self.receive(function='max_episode_timesteps')
+
+    def close(self):
+        if self.thread is not None:
+            self.thread.join()
+        if self._expect_receive is not None:
+            self.receive(function=self._expect_receive)
+        self.send(function='close')
+        self.receive(function='close')
+        self.__class__.proxy_close(connection=self.connection)
+        self.connection = None
+        self.observation = None
+        self.thread = None
+
+    def reset(self):
+        self.send(function='reset')
+        return self.receive(function='reset')
+
+    def execute(self, actions):
+        self.send(function='execute', actions=actions)
+        return self.receive(function='execute')
+
+    def start_reset(self):
+        if self.blocking:
+            self.send(function='reset')
+
+        else:
+            if self.thread is not None:  # TODO: not expected
+                self.thread.join()
+            self.observation = None
+            self.thread = Thread(target=self.finish_reset)
+            self.thread.start()
+
+    def finish_reset(self):
+        assert self.thread is not None and self.observation is None
+        self.observation = (self.reset(), None, None)
+        self.thread = None
+
+    def start_execute(self, actions):
+        if self.blocking:
+            self.send(function='execute', actions=actions)
+
+        else:
+            assert self.thread is None and self.observation is None
+            self.thread = Thread(target=self.finish_execute, kwargs=dict(actions=actions))
+            self.thread.start()
+
+    def finish_execute(self, actions):
+        assert self.thread is not None and self.observation is None
+        self.observation = self.execute(actions=actions)
+        self.thread = None
+
+    def receive_execute(self):
+        if blocking:
+            if self._expect_receive == 'reset':
+                return self.receive(function='reset'), None, None
+            else:
+                return self.receive(function='execute')
+
+        else:
+            if self.thread is not None:
+                assert self.observation is None
+                return None
+            else:
+                assert self.observation is not None
+                observation = self.observation
+                self.observation = None
+                return observation

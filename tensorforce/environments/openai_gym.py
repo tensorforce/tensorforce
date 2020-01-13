@@ -154,6 +154,10 @@ class OpenAIGym(Environment):
             self.environment = self.level
             self.level = self.level.__class__.__name__
             self.max_episode_steps = max_episode_steps
+        elif isinstance(level, type) and issubclass(level, gym.Env):
+            self.environment = self.level(**kwargs)
+            self.level = self.level.__class__.__name__
+            self.max_episode_steps = max_episode_steps
         else:
             self.environment, self.max_episode_steps = self.__class__.create_level(
                 level=self.level, max_episode_steps=max_episode_steps,
@@ -250,26 +254,29 @@ class OpenAIGym(Environment):
                 return dict(type='int', shape=space.nvec.shape, num_values=space.nvec.item(0))
             else:
                 specs = dict()
-                for n in range(num_discrete_space):
-                    specs['gymmdc{}'.format(n)] = dict(
-                        type='int', shape=(), num_values=space.nvec[n]
+                nvec = space.nvec.flatten()
+                shape = '-'.join(str(x) for x in space.nvec.shape)
+                for n in range(nvec.shape[0]):
+                    specs['gymmdc{}-{}'.format(n, shape)] = dict(
+                        type='int', shape=(), num_values=nvec[n]
                     )
                 return specs
 
         elif isinstance(space, gym.spaces.Box):
             if ignore_value_bounds:
                 return dict(type='float', shape=space.shape)
-            elif (space.low == space.low[0]).all() and (space.high == space.high[0]).all():
+            elif (space.low == space.low.item(0)).all() and (space.high == space.high.item(0)).all():
                 return dict(
-                    type='float', shape=space.shape, min_value=space.low[0],
-                    max_value=space.high[0]
+                    type='float', shape=space.shape, min_value=space.low.item(0),
+                    max_value=space.high.item(0)
                 )
             else:
                 specs = dict()
                 low = space.low.flatten()
                 high = space.high.flatten()
+                shape = '-'.join(str(x) for x in space.low.shape)
                 for n in range(low.shape[0]):
-                    specs['gymbox{}'.format(n)] = dict(
+                    specs['gymbox{}-{}'.format(n, shape)] = dict(
                         type='float', shape=(), min_value=low[n], max_value=high[n]
                     )
                 return specs
@@ -309,12 +316,15 @@ class OpenAIGym(Environment):
         if isinstance(state, tuple):
             states = dict()
             for n, state in enumerate(state):
-                if 'gymtpl{}-{}'.format(n, name) in states_spec:
-                    spec = states_spec['gymtpl{}-{}'.format(n, name)]
-                elif 'gymtpl{}'.format(n) in states_spec:
+                if 'gymtpl{}'.format(n) in states_spec:
                     spec = states_spec['gymtpl{}'.format(n)]
                 else:
-                    raise TensorforceError.unexpected()
+                    spec = None
+                    for name in states_spec:
+                        if name.startswith('gymtpl{}-'.format(n)):
+                            assert spec is None
+                            spec = states_spec[name]
+                    assert spec is not None
                 state = OpenAIGym.flatten_state(state=state, states_spec=spec)
                 if isinstance(state, dict):
                     for name, state in state.items():
@@ -326,12 +336,15 @@ class OpenAIGym(Environment):
         elif isinstance(state, dict):
             states = dict()
             for state_name, state in state.items():
-                if '{}-{}'.format(state_name, name) in states_spec:
-                    spec = states_spec['{}-{}'.format(state_name, name)]
-                elif state_name in states_spec:
+                if state_name in states_spec:
                     spec = states_spec[state_name]
                 else:
-                    raise TensorforceError.unexpected()
+                    spec = None
+                    for name in states_spec:
+                        if name.startswith('{}-'.format(state_name)):
+                            assert spec is None
+                            spec = states_spec[name]
+                    assert spec is not None
                 state = OpenAIGym.flatten_state(state=state, states_spec=spec)
                 if isinstance(state, dict):
                     for name, state in state.items():
@@ -345,14 +358,18 @@ class OpenAIGym(Environment):
 
         elif 'gymbox0' in states_spec:
             states = dict()
+            state = state.flatten()
+            shape = '-'.join(str(x) for x in state.shape)
             for n in range(state.shape[0]):
-                states['gymbox{}'.format(n)] = state[n]
+                states['gymbox{}-{}'.format(n, shape)] = state[n]
             return states
 
         elif 'gymmdc0' in states_spec:
             states = dict()
+            state = state.flatten()
+            shape = '-'.join(str(x) for x in state.shape)
             for n in range(state.shape[0]):
-                states['gymmdc{}'.format(n)] = state[n]
+                states['gymmdc{}-{}'.format(n, shape)] = state[n]
             return states
 
         else:
@@ -384,7 +401,13 @@ class OpenAIGym(Environment):
                 else:
                     break
                 n += 1
-            return tuple(actions)
+            if all(name.startswith('gymmdc') for name in action) or \
+                    all(name.startswith('gymbox') for name in action):
+                name = next(iter(action))
+                shape = tuple(int(x) for x in name[name.index('-') + 1:].split('-'))
+                return np.array(object=actions).reshape(shape=shape)
+            else:
+                return tuple(actions)
 
         else:
             actions = dict()

@@ -1,4 +1,4 @@
-from tensorforce.environments import Environment
+from tensorforce import Environment
 
 
 class CustomEnvironment(Environment):

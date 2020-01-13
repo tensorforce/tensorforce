@@ -18,7 +18,7 @@ import pytest
 import time
 import unittest
 
-from tensorforce.agents import Agent
+from tensorforce import Agent
 from test.unittest_base import UnittestBase
 
 

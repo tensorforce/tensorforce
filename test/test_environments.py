@@ -23,12 +23,12 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
 
     num_episodes = 2
 
-    @pytest.mark.skip(reason='not installed as part of travis')
-    def test_ale(self):
-        self.start_tests(name='ale')
-        self.unittest(
-            environment=dict(environment='ale', level='test/data/Breakout.bin'), num_episodes=2
-        )
+    # @pytest.mark.skip(reason='not installed as part of travis')
+    # def test_ale(self):
+    #     self.start_tests(name='ale')
+    #     self.unittest(
+    #         environment=dict(environment='ale', level='test/data/Breakout.bin'), num_episodes=2
+    #     )
 
     @pytest.mark.skip(reason='not installed as part of travis')
     def test_maze_explorer(self):
@@ -42,16 +42,23 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
 
     def test_openai_gym(self):
         self.start_tests(name='openai-gym')
+
+        # state: box, action: discrete
         self.unittest(environment=dict(environment='gym', level='CartPole-v0'), num_episodes=2)
 
+        # state: discrete, action: box
         self.unittest(
-            environment=dict(environment='gym', level='CartPole', max_episode_steps=False),
-            num_episodes=2
+            environment=dict(environment='gym', level='GuessingGame', max_episode_steps=False),
+            num_episodes=1
         )
 
-        from gym.envs.classic_control import CartPoleEnv
+        # state: discrete, action: tuple(discrete)
+        from gym.envs.algorithmic import ReverseEnv
+        self.unittest(environment=ReverseEnv, num_episodes=1)
 
-        self.unittest(environment=dict(environment='gym', level=CartPoleEnv()), num_episodes=2)
+        # state: tuple, action: discrete
+        from gym.envs.toy_text import BlackjackEnv
+        self.unittest(environment=BlackjackEnv(), num_episodes=1)
 
     def test_openai_retro(self):
         self.start_tests(name='openai-retro')

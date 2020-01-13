@@ -69,6 +69,8 @@ Misc layers
 
 .. autoclass:: tensorforce.core.layers.Image
 
+.. autoclass:: tensorforce.core.layers.Reshape
+
 .. autoclass:: tensorforce.core.layers.Sequence
 
 

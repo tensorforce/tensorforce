@@ -18,9 +18,7 @@ from tqdm import tqdm
 
 import numpy as np
 
-from tensorforce import TensorforceError, util
-from tensorforce.agents import Agent
-from tensorforce.environments import Environment
+from tensorforce import Agent, Environment, TensorforceError, util
 
 
 class ParallelRunner(object):
@@ -134,21 +132,15 @@ class ParallelRunner(object):
     def run(
         self,
         # General
-        num_episodes=None, num_timesteps=None, num_updates=None, num_sleep_secs=0.01,
-        sync_timesteps=False, sync_episodes=False,
+        num_episodes=None, num_timesteps=None, num_updates=None, join_agent_calls=False,
+        sync_timesteps=False, sync_episodes=False, num_sleep_secs=0.01,
         # Callback
         callback=None, callback_episode_frequency=None, callback_timestep_frequency=None,
         # Tqdm
         use_tqdm=True, mean_horizon=1,
         # Evaluation
         evaluation_callback=None,
-        join_agent_calls=True
     ):
-        if join_agent_calls:
-            sync_timesteps = True
-
-
-
         # General
         if num_episodes is None:
             self.num_episodes = float('inf')
@@ -162,9 +154,12 @@ class ParallelRunner(object):
             self.num_updates = float('inf')
         else:
             self.num_updates = num_updates
-        self.num_sleep_secs = num_sleep_secs
+        self.join_agent_calls = join_agent_calls
+        if self.join_agent_calls:
+            sync_timesteps = True
         self.sync_timesteps = sync_timesteps
         self.sync_episodes = sync_episodes
+        self.num_sleep_secs = num_sleep_secs
 
         # Callback
         assert callback_episode_frequency is None or callback_timestep_frequency is None
@@ -293,10 +288,10 @@ class ParallelRunner(object):
         self.episode_timestep = [0 for _ in self.environments]
         if self.join_agent_calls:
             self.episode_agent_second = 0.0
-            episode_start = time.time()
+            self.episode_start = time.time()
         else:
             self.episode_agent_second = [0.0 for _ in self.environments]
-            episode_start = [time.time() for _ in self.environments]
+            self.episode_start = [time.time() for _ in self.environments]
         environments = list(self.environments)
 
         if self.evaluation_environment is not None:
@@ -307,70 +302,54 @@ class ParallelRunner(object):
                 self.evaluation_agent_second = 0.0
             environments.append(self.evaluation_environment)
 
-        prev_terminals = [0 for _ in environments]
+        self.finished = False
+        self.prev_terminals = [0 for _ in environments]
+        self.states = [None for _ in environments]
+        self.terminals = [None for _ in environments]
+        self.rewards = [None for _ in environments]
 
         if self.join_agent_calls:
             self.joint
 
+
         # Runner loop
-        while True:
+        while not self.finished:
 
             if self.join_agent_calls:
                 # Retrieve observations (only if not already terminated)
-                self.observations = [
-                    environment.receive_execute() if terminal == 0 else (None, terminal, None)
-                    for environment, terminal in zip(environments, prev_terminals)
-                ]
-                states, terminals, rewards = zip(self.observations)
-                terminals[parallel] = [
+                self.observations = [None for _ in environments]
+                while any(observation is None for observation in self.observations):
+                    for n, (environment, terminal) in enumerate(zip(environments, self.prev_terminals)):
+                        if self.observations[n] is not None:
+                            continue
+                        if terminal == 0:
+                            self.observations[n] = environment.receive_execute()
+                        else:
+                            self.observations[n] = (None, terminal, None)
+                self.states, self.terminals, self.rewards = zip(self.observations)
+                self.terminals[parallel] = [
                     terminal if terminal is None else int(terminal) for terminal in terminals
                 ]
 
-                # Joint agent.observe call (only if not already terminated or start)
-                parallel = [
-                    n for n, (prev_terminal, terminal) in enumerate(zip(prev_terminals, terminals))
-                    if prev_terminal == 0 and terminal is not None
-                ]
-                agent_start = time.time()
-                updated = self.agent.observe(
-                    terminal=[terminals[n] for n in parallel],
-                    reward=[rewards[n] for n in parallel], parallel=parallel
-                )
-                self.updates += int(updated)
-                self.episode_agent_second += time.time() - agent_start
-
-                # Joint agent.act call (only if not terminated)
-                parallel = [
-                    n for n, terminal in enumerate(terminals) if terminal is None or terminal == 0
-                ]
-                agent_start = time.time()
-                actions = self.agent.act(states=[states[n] for n in parallel], parallel=parallel)
-                self.episode_agent_second += time.time() - agent_start
-                actions = [
-                    actions[parallel.index(n)] if n in parallel else None
-                    for n in range(len(environments))
-                ]
-
-                        # if not self.joint_agent_calls:  # !!!!!!
-                        #     self.episode_seconds.append(time.time() - episode_start[parallel])
-                        #     self.episode_agent_seconds.append(self.episode_agent_second[parallel])
+                self.handle_observe_joint()
+                self.handle_act_joint()
+                # if not self.join_agent_calls:  # !!!!!!
+                #     self.episode_seconds.append(time.time() - episode_start[parallel])
+                #     self.episode_agent_seconds.append(self.episode_agent_second[parallel])
 
             else:
-                terminals = list(prev_terminals)
+                self.terminals = list(self.prev_terminals)
 
             if not self.sync_timesteps:
                 no_environment_ready = True
 
             # Parallel environments loop
-            states = None
-            terminal = None
-            reward = None
             for parallel, environment in enumerate(environments):
 
                 # Is evaluation environment?
                 evaluation = (parallel == len(self.environments))
 
-                if self.sync_episodes and prev_terminals[parallel] > 0:
+                if self.sync_episodes and self.prev_terminals[parallel] > 0:
                     # Continue if episode already terminated
                     continue
 
@@ -383,7 +362,6 @@ class ParallelRunner(object):
                         observation = environment.receive_execute()
                         if observation is not None:
                             break
-                        time.sleep(self.num_sleep_secs)
 
                 else:
                     # Check whether environment is ready, otherwise continue
@@ -392,154 +370,222 @@ class ParallelRunner(object):
                         continue
                     no_environment_ready = False
 
-                if self.joint_agent_calls:
-                    terminal = terminals[parallel]
-                    reward = rewards[parallel]
-                else:
-                    states, terminal, reward = observation
-                    if terminal is None:
-                        terminals[parallel] = terminal
-                    else:
-                        terminals[parallel] = int(terminals[parallel])
+                if not self.join_agent_calls:
+                    self.states[parallel], self.terminals[parallel], self.rewards[parallel] = observation
+                    if self.terminals[parallel] is not None:
+                        self.terminals[parallel] = int(self.terminals[parallel])
 
-                if terminal is not None:
-                    # "Observe" step
-
+                if self.terminals[parallel] is None:
+                    # Initial act
                     if evaluation:
-                        self.evaluation_reward += reward
-                        if terminal > 0:
-                            # Reset agent if terminated
-                            agent_start = time.time()
-                            self.agent.reset(evaluation=True)
-                            self.evaluation_agent_second += time.time() - agent_start
+                        self.handle_act_evaluation()
+                    else:
+                        self.handle_act(parallel=parallel)
+
+                else:
+                    # Observe
+                    if evaluation:
+                        self.handle_observe_evaluation()
+                    else:
+                        self.handle_observe(parallel=parallel)
+
+                    if self.terminals[parallel] == 0:
+                        # Act
+                        if evaluation:
+                            self.handle_act_evaluation()
+                        else:
+                            self.handle_act(parallel=parallel)
 
                     else:
-                        self.episode_reward[parallel] += reward
-                        if not self.join_agent_calls:
-                            # Observe unless join_agent_calls
-                            agent_start = time.time()
-                            updated = self.agent.observe(
-                                terminal=terminal, reward=reward, parallel=parallel
-                            )
-                            self.episode_agent_second[parallel] += time.time() - agent_start
-                            self.updates += int(updated)
+                        # Terminal
+                        if evaluation:
+                            self.handle_terminal_evaluation()
+                        else:
+                            self.handle_terminal(parallel=parallel)
 
                 # # Update global timesteps/episodes/updates
                 # self.global_timesteps = self.agent.timesteps
                 # self.global_episodes = self.agent.episodes
                 # self.global_updates = self.agent.updates
 
-                # Callback plus experiment termination check
-                if not evaluation and \
-                        self.episode_timestep[parallel] % self.callback_timestep_frequency == 0 and \
-                        not self.callback(self, parallel):
-                    return
-
-                if terminal is not None and terminal > 0:
-
-                    if evaluation:
-                        # Update experiment statistics
-                        self.evaluation_rewards.append(self.evaluation_reward)
-                        self.evaluation_timesteps.append(self.evaluation_timestep)
-                        self.evaluation_seconds.append(time.time() - evaluation_start)
-                        self.evaluation_agent_seconds.append(self.evaluation_agent_second)
-
-                        # Evaluation callback
-                        if self.save_best_agent is not None:
-                            evaluation_score = self.evaluation_callback(self)
-                            assert isinstance(evaluation_score, float)
-                            if self.best_evaluation_score is None:
-                                self.best_evaluation_score = evaluation_score
-                            elif evaluation_score > self.best_evaluation_score:
-                                self.best_evaluation_score = evaluation_score
-                                self.agent.save(
-                                    directory=self.save_best_agent, filename='best-model',
-                                    append_timestep=False
-                                )
-                        else:
-                            self.evaluation_callback(self)
-
-                    else:
-                        # Increment episode counter (after calling callback)
-                        self.episodes += 1
-
-                        # Update experiment statistics
-                        self.episode_rewards.append(self.episode_reward[parallel])
-                        self.episode_timesteps.append(self.episode_timestep[parallel])
-                        if not self.joint_agent_calls:  # !!!!!!
-                            self.episode_seconds.append(time.time() - episode_start[parallel])
-                            self.episode_agent_seconds.append(self.episode_agent_second[parallel])
-
-                        # Callback
-                        if self.episodes % self.callback_episode_frequency == 0 and \
-                                not self.callback(self, parallel):
-                            return
-
-                # Terminate experiment if too long
-                if self.timesteps >= self.num_timesteps:
-                    return
-                elif self.episodes >= self.num_episodes:
-                    return
-                elif self.updates >= self.num_updates:
-                    return
-                elif self.agent.should_stop():
-                    return
-
-                # Check whether episode terminated
-                if terminal is not None and terminal > 0:
-
-                    if not self.sync_episodes:
-                        # Reset environment
-                        environment.start_reset()
-
-                    if evaluation:
-                        # Reset episode statistics
-                        self.evaluation_reward = 0.0
-                        self.evaluation_timestep = 0
-                        self.evaluation_agent_second = 0.0
-                        evaluation_start = time.time()
-
-                    else:
-                        # Reset episode statistics
-                        self.episode_reward[parallel] = 0.0
-                        self.episode_timestep[parallel] = 0
-                        if not self.joint_agent_calls:  # !!!!!!
-                            self.episode_agent_second[parallel] = 0.0
-                            episode_start[parallel] = time.time()
-
-                else:
-                    if not self.joint_agent_calls:
-                        # Retrieve actions from agent
-                        agent_start = time.time()
-                        actions = self.agent.act(
-                            states=states, parallel=(parallel - int(evaluation)),
-                            evaluation=evaluation
-                        )
-                        if evaluation:
-                            self.evaluation_agent_second += time.time() - agent_start
-                        else:
-                            self.episode_agent_second[parallel] += time.time() - agent_start
-
-                    if evaluation:
-                        self.evaluation_timestep += 1
-                    else:
-                        self.timesteps += 1
-                        self.episode_timestep[parallel] += 1
-
-                    # Execute actions in environment
-                    if not self.join_agent_calls:
-                        environment.start_execute(actions=actions)
-                    else:
-                        environment.start_execute(actions=actions[parallel])
-
-            if self.sync_episodes and all(terminal > 0 for terminal in terminals):
+            print(self.sync_episodes)
+            if self.sync_episodes and all(terminal > 0 for terminal in self.terminals):
                 # Reset if all episodes terminated
-                prev_terminals = [0 for _ in environments]
+                self.prev_terminals = [0 for _ in environments]
                 for environment in environments:
                     environment.start_reset()
             else:
-                prev_terminals = list(terminals)
+                self.prev_terminals = list(self.terminals)
 
             if not self.sync_timesteps and no_environment_ready:
                 # Sleep if no environment was ready
                 time.sleep(self.num_sleep_secs)
+
+    def handle_act(self, parallel):
+        print(parallel, 'act')
+
+        if self.join_agent_calls:
+            self.environments[parallel].start_execute(actions=self.actions[parallel])
+
+        else:
+            agent_start = time.time()
+            actions = self.agent.act(states=self.states[parallel], parallel=parallel)
+            self.episode_agent_second[parallel] += time.time() - agent_start
+
+            self.environments[parallel].start_execute(actions=actions)
+
+        # Increment timestep counter
+        self.timesteps += 1
+        self.episode_timestep[parallel] += 1
+
+        # Maximum number of timesteps or timestep callback (after counter increment!)
+        if self.timesteps >= self.num_timesteps or (
+            self.episode_timestep[parallel] % self.callback_timestep_frequency == 0 and
+            not self.callback(self, parallel)
+        ):
+            self.finished = True
+
+    def handle_act_joint(self):
+        print('act joint')
+
+        parallel = [
+            n for n, terminal in enumerate(self.terminals) if terminal is None or terminal == 0
+        ]
+        agent_start = time.time()
+        self.actions = self.agent.act(states=[self.states[n] for n in parallel], parallel=parallel)
+        self.episode_agent_second += time.time() - agent_start
+        self.actions = [
+            self.actions[parallel.index(n)] if n in parallel else None
+            for n in range(len(environments))
+        ]
+
+    def handle_act_evaluation(self):
+        print('act eval')
+
+        if self.join_agent_calls:
+            self.environments[parallel].start_execute(actions=actions[parallel])
+
+        else:
+            agent_start = time.time()
+            actions = self.agent.act(states=states, evaluation=True)
+            self.evaluation_agent_second += time.time() - agent_start
+
+            self.environments[parallel].start_execute(actions=actions)
+
+        # Update evaluation statistics
+        self.evaluation_timestep += 1
+
+    def handle_observe(self, parallel):
+        print(parallel, 'observe')
+
+        # Update episode statistics
+        self.episode_reward[parallel] += self.rewards[parallel]
+
+        # Not terminal but finished
+        if self.terminals[parallel] == 0 and self.finished:
+            self.terminals[parallel] = 2
+
+        # Observe unless join_agent_calls
+        if not self.join_agent_calls:
+            agent_start = time.time()
+            updated = self.agent.observe(
+                terminal=self.terminals[parallel], reward=self.rewards[parallel],
+                parallel=parallel
+            )
+            self.episode_agent_second[parallel] += time.time() - agent_start
+            self.updates += int(updated)
+
+        # Maximum number of updates (after counter increment!)
+        if self.updates >= self.num_updates:
+            self.finished = True
+
+    def handle_observe_joint(self):
+        print('observe joint')
+
+        parallel = [
+            n for n, (prev_terminal, terminal) in enumerate(zip(self.prev_terminals, self.terminals))
+            if prev_terminal == 0 and terminal is not None
+        ]
+        agent_start = time.time()
+        updated = self.agent.observe(
+            terminal=[self.terminals[n] for n in parallel],
+            reward=[self.rewards[n] for n in parallel], parallel=parallel
+        )
+        self.episode_agent_second += time.time() - agent_start
+        self.updates += int(updated)
+
+    def handle_observe_evaluation(self):
+        print('observe eval')
+
+        # Update evaluation statistics
+        self.evaluation_reward += reward
+
+        # Reset agent if terminal
+        if terminal > 0:
+            agent_start = time.time()
+            self.agent.reset(evaluation=True)
+            self.evaluation_agent_second += time.time() - agent_start
+
+    def handle_terminal(self, parallel):
+        print(parallel, 'terminal')
+
+        # Increment episode counter
+        self.episodes += 1
+
+        # Update experiment statistics
+        self.episode_rewards.append(self.episode_reward[parallel])
+        self.episode_timesteps.append(self.episode_timestep[parallel])
+        if not self.join_agent_calls:  # !!!!!!
+            self.episode_seconds.append(time.time() - self.episode_start[parallel])
+            self.episode_agent_seconds.append(self.episode_agent_second[parallel])
+
+        # Maximum number of episodes or episode callback (after counter increment!)
+        if self.episodes >= self.num_episodes or (
+            self.episodes % self.callback_episode_frequency == 0 and
+            not self.callback(self, parallel)
+        ):
+            self.finished = True
+
+        # Reset episode statistics
+        self.episode_reward[parallel] = 0.0
+        self.episode_timestep[parallel] = 0
+        if not self.join_agent_calls:  # !!!!!!
+            self.episode_agent_second[parallel] = 0.0
+            self.episode_start[parallel] = time.time()
+
+        # Reset environment
+        if not self.finished and not self.sync_episodes:
+            self.environments[parallel].start_reset()
+
+    def handle_terminal_evaluation(self):
+        print('terminal eval')
+
+        # Update experiment statistics
+        self.evaluation_rewards.append(self.evaluation_reward)
+        self.evaluation_timesteps.append(self.evaluation_timestep)
+        self.evaluation_seconds.append(time.time() - evaluation_start)
+        self.evaluation_agent_seconds.append(self.evaluation_agent_second)
+
+        # Evaluation callback
+        if self.save_best_agent is not None:
+            evaluation_score = self.evaluation_callback(self)
+            assert isinstance(evaluation_score, float)
+            if self.best_evaluation_score is None:
+                self.best_evaluation_score = evaluation_score
+            elif evaluation_score > self.best_evaluation_score:
+                self.best_evaluation_score = evaluation_score
+                self.agent.save(
+                    directory=self.save_best_agent, filename='best-model', append_timestep=False
+                )
+        else:
+            self.evaluation_callback(self)
+
+        # Reset episode statistics
+        self.evaluation_reward = 0.0
+        self.evaluation_timestep = 0
+        self.evaluation_agent_second = 0.0
+        evaluation_start = time.time()
+
+        # Reset environment
+        if not self.finished and not self.sync_episodes:
+            self.environments[parallel].start_reset()

@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import matplotlib
 import numpy as np
 
 from tensorforce.agents import Agent
+from tensorforce.core.utils.json_encoder import NumpyJSONEncoder
 from tensorforce.environments import Environment
 from tensorforce.execution import Runner
 
@@ -160,7 +161,7 @@ def main():
                 json.dumps(dict(
                     rewards=rewards, timesteps=timesteps, seconds=seconds,
                     agent_seconds=agent_seconds
-                ))
+                ), cls=NumpyJSONEncoder)
             )
 
         if args.seaborn:

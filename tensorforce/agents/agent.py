@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
 import importlib
 import json
 import os
 import random
 import time
+from collections import OrderedDict
 
 import numpy as np
 
-from tensorforce import util, TensorforceError
 import tensorforce.agents
+from tensorforce import util, TensorforceError
+from tensorforce.core.utils.json_encoder import NumpyJSONEncoder
 
 
 class Agent(object):
@@ -315,7 +316,7 @@ class Agent(object):
         if self.model.saver_directory is not None:
             file = os.path.join(self.model.saver_directory, self.model.saver_filename + '.json')
             with open(file, 'w') as fp:
-                json.dump(obj=self.spec, fp=fp)
+                json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
 
         self.reset()
 
@@ -627,7 +628,7 @@ class Agent(object):
             filename = 'agent'
         file = os.path.join(directory, filename + '.json')
         with open(file, 'w') as fp:
-            json.dump(obj=self.spec, fp=fp)
+            json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
 
         return result
 

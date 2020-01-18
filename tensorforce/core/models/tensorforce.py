@@ -144,7 +144,7 @@ class TensorforceModel(Model):
             'estimate_terminal', 'horizon'
         ) for key in reward_estimation):
             raise TensorforceError.value(
-                name='agent', argument='reward_estimation',
+                name='agent', argument='reward_estimation', value=reward_estimation,
                 hint='not from {capacity,discount,estimate_actions,estimate_advantage,'
                      'estimate_horizon,estimate_terminal,horizon}'
             )
@@ -353,11 +353,11 @@ class TensorforceModel(Model):
                     tf.debugging.assert_equal(
                         x=tf.reduce_all(
                             input_tensor=tf.reduce_any(
-                                input_tensor=auxiliaries[name], axis=tuple(range(1, len(shape)))
-                            ), axis=0
-                        ), y=true,
-                        message="Model.experience: at least one action has to be valid for {} "
-                                "action-mask input.".format(name)
+                                input_tensor=auxiliaries[name], axis=(len(spec['shape']) + 1)
+                            ), axis=tuple(range(len(spec['shape']) + 1))
+                        ),
+                        y=true, message="Model.experience: at least one action has to be valid "
+                                        "for {} action-mask input.".format(name)
                     )
                 )
         # actions: type and shape

@@ -64,13 +64,19 @@ class Categorical(Distribution):
 
         else:
             if len(self.embedding_shape) < 1 or len(self.embedding_shape) > 3:
-                raise TensorforceError.unexpected()
+                raise TensorforceError.value(
+                    name=name, argument='embedding_shape', value=self.embedding_shape,
+                    hint='invalid rank'
+                )
             if self.embedding_shape[:-1] == self.action_spec['shape'][:-1]:
                 size = self.action_spec['shape'][-1]
             elif self.embedding_shape[:-1] == self.action_spec['shape']:
                 size = 1
             else:
-                raise TensorforceError.unexpected()
+                raise TensorforceError.value(
+                    name=name, argument='embedding_shape', value=self.embedding_shape,
+                    hint='incompatible with action shape'
+                )
             self.deviations = self.add_module(
                 name='deviations', module='linear', modules=layer_modules,
                 size=(size * num_values), input_spec=input_spec

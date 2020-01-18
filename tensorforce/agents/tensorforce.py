@@ -280,11 +280,11 @@ class TensorforceAgent(Agent):
 
         if isinstance(update, int) or update['unit'] == 'timesteps':
             if parallel_interactions > 1:
-                TensorforceError.invalid(
+                TensorforceError.value(
                     name='agent', argument='update', value=update,
                     condition='parallel_interactions > 1'
                 )
-            elif buffer_observe is not True:
+            if buffer_observe is not True:
                 TensorforceError.invalid(
                     name='agent', argument='buffer_observe', condition='update[unit] = timesteps'
                 )
@@ -326,7 +326,7 @@ class TensorforceAgent(Agent):
                 reward_estimation['capacity'] = max_episode_timesteps
         self.experience_size = reward_estimation['capacity']
 
-        if memory is None:
+        if memory is None or (isinstance(memory, dict) and 'capacity' not in memory):
             # predecessor/successor?
             if max_episode_timesteps is None:
                 raise TensorforceError.required(
@@ -341,14 +341,18 @@ class TensorforceAgent(Agent):
                     name='agent', argument='memory', condition='reward_estimation[horizon] not int'
                 )
             if update['unit'] == 'timesteps':
-                memory = update['batch_size'] + max_episode_timesteps + \
+                capacity = update['batch_size'] + max_episode_timesteps + \
                     reward_estimation['horizon']
-                # memory = ceil(update['batch_size'] / max_episode_timesteps) * max_episode_timesteps
-                # memory += int(update['batch_size'] / max_episode_timesteps >= 1.0)
+                # capacity = ceil(update['batch_size'] / max_episode_timesteps) * max_episode_timesteps
+                # capacity += int(update['batch_size'] / max_episode_timesteps >= 1.0)
             elif update['unit'] == 'episodes':
-                memory = update['batch_size'] * max_episode_timesteps + \
+                capacity = update['batch_size'] * max_episode_timesteps + \
                     max(reward_estimation['horizon'], max_episode_timesteps)
-            memory = max(memory, min(self.buffer_observe, max_episode_timesteps))
+            capacity = max(capacity, min(self.buffer_observe, max_episode_timesteps))
+            if memory is None:
+                memory = capacity
+            else:
+                memory['capacity'] = capacity
 
         self.model = TensorforceModel(
             # Model

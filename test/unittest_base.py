@@ -128,8 +128,9 @@ class UnittestBase(object):
             if min_timesteps is None:
                 min_timesteps = self.__class__.min_timesteps
 
-            environment = UnittestEnvironment(
-                states=states, actions=actions, min_timesteps=min_timesteps
+            environment = dict(
+                environment=UnittestEnvironment, states=states, actions=actions,
+                min_timesteps=min_timesteps
             )
 
         elif min_timesteps is not None:
@@ -169,8 +170,6 @@ class UnittestBase(object):
             require_all=require_all, **agent
         )
 
-        self.runner = Runner(agent=agent, environment=environment)
-
         assert (num_updates is not None) + (num_episodes is not None) + \
             (num_timesteps is not None) <= 1
         if num_updates is None and num_episodes is None and num_timesteps is None:
@@ -186,9 +185,11 @@ class UnittestBase(object):
             require_all, require_observe, self.__class__.require_all,
             self.__class__.require_observe
         ])
+
+        self.runner = Runner(agent=agent, environment=environment, evaluation=evaluation)
         self.runner.run(
             num_episodes=num_episodes, num_timesteps=num_timesteps, num_updates=num_updates,
-            use_tqdm=False, evaluation=evaluation
+            use_tqdm=False
         )
         self.runner.close()
         agent.close()

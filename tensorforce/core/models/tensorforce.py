@@ -304,13 +304,15 @@ class TensorforceModel(Model):
                 tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
                 message="Model.experience: invalid type for {} state input.".format(name)
             )
-            shape = self.unprocessed_state_shape.get(name, spec['shape'])
+            shape = tf.constant(
+                value=self.unprocessed_state_shape.get(name, spec['shape']),
+                dtype=util.tf_dtype(dtype='int')
+            )
             assertions.append(
                 tf.debugging.assert_equal(
-                    x=tf.shape(input=states[name], out_type=tf.int32),
-                    y=tf.concat(
-                        values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
-                    ), message="Model.experience: invalid shape for {} state input.".format(name)
+                    x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='int')),
+                    y=tf.concat(values=(batch_size, shape), axis=0),
+                    message="Model.experience: invalid shape for {} state input.".format(name)
                 )
             )
         # internals: type and shape
@@ -319,13 +321,11 @@ class TensorforceModel(Model):
                 tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type']),
                 message="Model.experience: invalid type for {} internal input.".format(name)
             )
-            shape = spec['shape']
+            shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='int'))
             assertions.append(
                 tf.debugging.assert_equal(
-                    x=tf.shape(input=internals[name], out_type=tf.int32),
-                    y=tf.concat(
-                        values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
-                    ),
+                    x=tf.shape(input=internals[name], out_type=util.tf_dtype(dtype='int')),
+                    y=tf.concat(values=(batch_size, shape), axis=0),
                     message="Model.experience: invalid shape for {} internal input.".format(name)
                 )
             )
@@ -337,13 +337,13 @@ class TensorforceModel(Model):
                     tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
                     message="Model.experience: invalid type for {} action-mask input.".format(name)
                 )
-                shape = spec['shape'] + (spec['num_values'],)
+                shape = tf.constant(
+                    value=(spec['shape'] + (spec['num_values'],)), dtype=util.tf_dtype(dtype='int')
+                )
                 assertions.append(
                     tf.debugging.assert_equal(
-                        x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
-                        y=tf.concat(
-                            values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
-                        ),
+                        x=tf.shape(input=auxiliaries[name], out_type=util.tf_dtype(dtype='int')),
+                        y=tf.concat(values=(batch_size, shape), axis=0),
                         message="Model.experience: invalid shape for {} action-mask input.".format(
                             name
                         )
@@ -366,13 +366,12 @@ class TensorforceModel(Model):
                 tensor=actions[name], tf_type=util.tf_dtype(dtype=spec['type']),
                 message="Model.experience: invalid type for {} action input.".format(name)
             )
-            shape = spec['shape']
+            shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='int'))
             assertions.append(
                 tf.debugging.assert_equal(
-                    x=tf.shape(input=actions[name], out_type=tf.int32),
-                    y=tf.concat(
-                        values=(batch_size, tf.constant(value=shape, dtype=tf.int32)), axis=0
-                    ), message="Model.experience: invalid shape for {} action input.".format(name)
+                    x=tf.shape(input=actions[name], out_type=util.tf_dtype(dtype='int')),
+                    y=tf.concat(values=(batch_size, shape), axis=0),
+                    message="Model.experience: invalid shape for {} action input.".format(name)
                 )
             )
 

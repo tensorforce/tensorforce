@@ -587,9 +587,23 @@ class Model(Module):
             if action_spec['type'] == 'int':
                 name = name + '_mask'
                 shape = action_spec['shape'] + (action_spec['num_values'],)
-                default = tf.constant(
-                    value=True, dtype=util.tf_dtype(dtype='bool'), shape=((1,) + shape)
+                # default = tf.constant(
+                #     value=True, dtype=util.tf_dtype(dtype='bool'), shape=((1,) + shape)
+                # )
+                shape = tf.concat(
+                    values=(
+                        tf.shape(
+                            input=next(iter(self.states_input.values())),
+                            out_type=util.tf_dtype(dtype='long')
+                        )[:1],
+                        tf.constant(
+                            value=(action_spec['shape'] + (action_spec['num_values'],)),
+                            dtype=util.tf_dtype(dtype='long')
+                        )
+                    ), axis=0
                 )
+                default = tf.ones(shape=shape, dtype=util.tf_dtype(dtype='bool'))
+                shape = action_spec['shape'] + (action_spec['num_values'],)
                 self.auxiliaries_input[name] = self.add_placeholder(
                     name=name, dtype='bool', shape=shape, batched=True, default=default
                 )
@@ -751,6 +765,8 @@ class Model(Module):
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
+        parallel_size = tf.shape(input=parallel, out_type=util.tf_dtype(dtype='long'))
+
         # Assertions
         assertions = list()
         # states: type and shape
@@ -759,11 +775,14 @@ class Model(Module):
                 tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
                 message="Model.act: invalid type for {} state input.".format(name)
             )
-            shape = (1,) + self.unprocessed_state_shape.get(name, spec['shape'])
+            shape = tf.constant(
+                value=self.unprocessed_state_shape.get(name, spec['shape']),
+                dtype=util.tf_dtype(dtype='long')
+            )
             assertions.append(
                 tf.debugging.assert_equal(
-                    x=tf.shape(input=states[name], out_type=tf.int32),
-                    y=tf.constant(value=shape, dtype=tf.int32),
+                    x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='long')),
+                    y=tf.concat(values=(parallel_size, shape), axis=0),
                     message="Model.act: invalid shape for {} state input.".format(name)
                 )
             )
@@ -775,11 +794,14 @@ class Model(Module):
                     tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
                     message="Model.act: invalid type for {} action-mask input.".format(name)
                 )
-                shape = (1,) + spec['shape'] + (spec['num_values'],)
+                shape = tf.constant(
+                    value=(spec['shape'] + (spec['num_values'],)),
+                    dtype=util.tf_dtype(dtype='long')
+                )
                 assertions.append(
                     tf.debugging.assert_equal(
-                        x=tf.shape(input=auxiliaries[name], out_type=tf.int32),
-                        y=tf.constant(value=shape, dtype=tf.int32),
+                        x=tf.shape(input=auxiliaries[name], out_type=util.tf_dtype(dtype='long')),
+                        y=tf.concat(values=(parallel_size, shape), axis=0),
                         message="Model.act: invalid shape for {} action-mask input.".format(name)
                     )
                 )
@@ -787,11 +809,11 @@ class Model(Module):
                     tf.debugging.assert_equal(
                         x=tf.reduce_all(
                             input_tensor=tf.reduce_any(
-                                input_tensor=auxiliaries[name], axis=tuple(range(1, len(shape)))
-                            ), axis=0
-                        ), y=true,
-                        message="Model.act: at least one action has to be valid for {} "
-                                 "action-mask input.".format(name)
+                                input_tensor=auxiliaries[name], axis=(len(spec['shape']) + 1)
+                            ), axis=tuple(range(len(spec['shape']) + 1))
+                        ),
+                        y=true, message="Model.act: at least one action has to be valid for {} "
+                                        "action-mask input.".format(name)
                     )
                 )
         # parallel: type, shape and value
@@ -799,15 +821,15 @@ class Model(Module):
             tensor=parallel, tf_type=util.tf_dtype(dtype='long'),
             message="Model.act: invalid type for parallel input."
         )
-        tf.debugging.assert_scalar(
-            tensor=parallel[0], message="Model.act: parallel input has to be a scalar."
-        )
+        assertions.append(tf.debugging.assert_rank(
+            x=parallel, rank=1, message="Model.act: invalid shape for parallel input."
+        ))
         assertions.append(tf.debugging.assert_non_negative(
             x=parallel, message="Model.act: parallel input has to be non-negative."
         ))
         assertions.append(
             tf.debugging.assert_less(
-                x=parallel[0],
+                x=parallel,
                 y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long')),
                 message="Model.act: parallel input has to be less than parallel_interactions."
             )
@@ -925,7 +947,7 @@ class Model(Module):
         assertions = list()
         for name, spec in self.actions_spec.items():
             if spec['type'] == 'int':
-                indices = tf.dtypes.cast(x=actions[name], dtype=tf.int64)
+                indices = tf.dtypes.cast(x=actions[name], dtype=util.tf_dtype(dtype='long'))
                 indices = tf.expand_dims(input=indices, axis=-1)
                 is_unmasked = tf.gather(
                     params=auxiliaries[name + '_mask'], indices=indices, batch_dims=-1
@@ -975,18 +997,20 @@ class Model(Module):
                         choices = np.tile(A=[choices], reps=choices_tile)
                         choices_shape = ((1,) + spec['shape'] + (spec['num_values'],))
                         choices = tf.constant(value=choices, dtype=int_dtype, shape=choices_shape)
-                        ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=tf.int64)
-                        batch_size = tf.dtypes.cast(x=shape[0:1], dtype=tf.int64)
+                        ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=tf.dtypes.int32)
+                        batch_size = tf.dtypes.cast(x=shape[0:1], dtype=tf.dtypes.int32)
                         multiples = tf.concat(values=(batch_size, ones), axis=0)
                         choices = tf.tile(input=choices, multiples=multiples)
 
                         # Random unmasked action
                         mask = auxiliaries[name + '_mask']
-                        num_values = tf.math.count_nonzero(input=mask, axis=-1, dtype=tf.int64)
+                        num_values = tf.math.count_nonzero(
+                            input=mask, axis=-1, dtype=tf.dtypes.int32
+                        )
                         random_action = tf.random.uniform(shape=shape, dtype=float_dtype)
                         random_action = tf.dtypes.cast(
                             x=(random_action * tf.dtypes.cast(x=num_values, dtype=float_dtype)),
-                            dtype=tf.int64
+                            dtype=tf.dtypes.int32
                         )
 
                         # Correct for masked actions
@@ -1087,7 +1111,8 @@ class Model(Module):
                 # Increment buffer index
                 with tf.control_dependencies(control_inputs=operations):
                     incremented_buffer_index = self.buffer_index.scatter_nd_add(
-                        indices=[parallel], updates=[one]
+                        indices=tf.expand_dims(input=parallel, axis=1),
+                        updates=tf.fill(dims=parallel_size, value=one)
                     )
 
                 with tf.control_dependencies(control_inputs=(incremented_buffer_index,)):
@@ -1101,9 +1126,14 @@ class Model(Module):
         def increment_timestep():
             assignments = list()
             assignments.append(
-                self.timestep.scatter_nd_add(indices=[parallel], updates=[one])
+                self.timestep.scatter_nd_add(
+                    indices=tf.expand_dims(input=parallel, axis=1),
+                    updates=tf.fill(dims=parallel_size, value=one)
+                )
             )
-            assignments.append(self.global_timestep.assign_add(delta=one, read_value=False))
+            assignments.append(self.global_timestep.assign_add(
+                delta=parallel_size[0], read_value=False
+            ))
             with tf.control_dependencies(control_inputs=assignments):
                 return util.no_operation()
 
@@ -1176,8 +1206,8 @@ class Model(Module):
         ))
         # size of terminal equals buffer index
         assertions.append(tf.debugging.assert_equal(
-            x=tf.shape(input=terminal, out_type=tf.int64)[0],
-            y=tf.dtypes.cast(x=buffer_index, dtype=tf.int64),
+            x=tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0],
+            y=tf.dtypes.cast(x=buffer_index, dtype=util.tf_dtype(dtype='long')),
             message="Model.observe: number of observe-timesteps has to be equal to number of "
                     "buffered act-timesteps."
         ))
@@ -1207,7 +1237,8 @@ class Model(Module):
                 label=('timestep-reward', 'rewards'), name='timestep-reward', tensor=reward
             )
             assignment = self.episode_reward.scatter_nd_add(
-                indices=[parallel], updates=[tf.math.reduce_sum(input_tensor=reward, axis=0)]
+                indices=tf.expand_dims(input=parallel, axis=1),
+                updates=[tf.math.reduce_sum(input_tensor=reward, axis=0)]
             )
 
         # Reset episode reward
@@ -1219,7 +1250,7 @@ class Model(Module):
                 pass_tensors=zero_float  # , step='episode'
             )
             assignment = self.episode_reward.scatter_nd_update(
-                indices=[parallel], updates=[zero_float]
+                indices=tf.expand_dims(input=parallel, axis=1), updates=[zero_float]
             )
             with tf.control_dependencies(control_inputs=(assignment,)):
                 return util.no_operation()
@@ -1263,7 +1294,7 @@ class Model(Module):
         # Reset buffer index
         with tf.control_dependencies(control_inputs=(is_updated,)):
             reset_buffer_index = self.buffer_index.scatter_nd_update(
-                indices=[parallel], updates=[zero]
+                indices=tf.expand_dims(input=parallel, axis=1), updates=[zero]
             )
             dependencies = (reset_buffer_index,)
 
@@ -1286,7 +1317,9 @@ class Model(Module):
         def increment_episode():
             assignments = list()
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            assignments.append(self.episode.scatter_nd_add(indices=[parallel], updates=[one]))
+            assignments.append(self.episode.scatter_nd_add(
+                indices=tf.expand_dims(input=parallel, axis=1), updates=[one])
+            )
             assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
             with tf.control_dependencies(control_inputs=assignments):
                 return util.no_operation()

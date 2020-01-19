@@ -9,8 +9,11 @@ This file records all major updates and new features, starting from version 0.5.
 - New `Agent.reset()` argument `independent`/`evaluation` for correct evaluation episode termination
 - DQN/DuelingDQN/DPG argument `memory` now required to be specified explicitly, plus `update_frequency` default changed
 - Removed (temporarily) `conv1d/conv2d_transpose` layers due to TensorFlow gradient problems
-- `Agent`, `Environment`, `Runner` and `ParallelRunner` can now be imported via `from tensorforce import ...`
+- `Agent`, `Environment` and `Runner` can now be imported via `from tensorforce import ...`
 - New generic reshape layer available as `reshape`
+- Support for batched version of `Agent.act` and `Agent.observe`
+- Support for parallelizable (remote) environments based on Python's `multiprocessing` and `socket` (replacing `tensorforce/contrib/socket_remote_env/` and `tensorforce/environments/environment_process_wrapper.py`), available via `Environment.create(...)`, `Runner(...)` and `run.py`
+- Removed `ParallelRunner` and merged functionality with `Runner`
 
 
 

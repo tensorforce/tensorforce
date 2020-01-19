@@ -32,22 +32,27 @@ import matplotlib.pyplot as plt
 
 def main():
     parser = argparse.ArgumentParser(description='Tensorforce runner')
-    parser.add_argument(
-        'agent', help='Agent (configuration JSON file, name, or library module)'
-    )
-    parser.add_argument(
-        'environment',
-        help='Environment (name, configuration JSON file, or library module)'
-    )
     # Agent arguments
     parser.add_argument(
+        '-a', '--agent', type=str, default=None,
+        help='Agent (name, configuration JSON file, or library module)'
+    )
+    parser.add_argument(
         '-n', '--network', type=str, default=None,
-        help='Network (configuration JSON file, name, or library module)'
+        help='Network (name, configuration JSON file, or library module)'
     )
     # Environment arguments
     parser.add_argument(
+        '-e', '--environment', type=str, default=None,
+        help='Environment (name, configuration JSON file, or library module)'
+    )
+    parser.add_argument(
         '-l', '--level', type=str, default=None,
         help='Level or game id, like `CartPole-v1`, if supported'
+    )
+    parser.add_argument(
+        '-m', '--max-episode-timesteps', type=int, default=None,
+        help='Maximum number of timesteps per episode'
     )
     parser.add_argument(
         '--visualize', action='store_true',
@@ -58,28 +63,63 @@ def main():
         help='Directory to store videos of agent--environment interaction, if supported'
     )
     parser.add_argument(
-        '-i', '--import-modules', type=str, default=None,
+        '--import-modules', type=str, default=None,
         help='Import comma-separated modules required for environment'
     )
-    # Runner arguments
-    parser.add_argument('-t', '--timesteps', type=int, default=None, help='Number of timesteps')
-    parser.add_argument('-e', '--episodes', type=int, default=None, help='Number of episodes')
+    # Parallel execution arguments
     parser.add_argument(
-        '-m', '--max-episode-timesteps', type=int, default=None,
-        help='Maximum number of timesteps per episode'
-    ),
+        '--num-parallel', type=int, default=None,
+        help='Number of environment instances to execute in parallel'
+    )
+    parser.add_argument(
+        '--batch-agent-calls', action='store_true',
+        help='Batch agent calls for parallel environment execution'
+    )
+    parser.add_argument(
+        '--sync-timesteps', action='store_true',
+        help='Synchronize parallel environment execution on timestep-level'
+    )
+    parser.add_argument(
+        '--sync-episodes', action='store_true',
+        help='Synchronize parallel environment execution on episode-level'
+    )
+    parser.add_argument(
+        '--remote', type=str, choices=('multiprocessing', 'socket-client', 'socket-server'),
+        default=None, help='Communication mode for remote environment execution of parallelized'
+                           'environment execution'
+    )
+    parser.add_argument(
+        '--blocking', action='store_true', help='Remote environments should be blocking'
+    )
+    parser.add_argument(
+        '--host', type=str, default=None,
+        help='Socket server hostname(s) or IP address(es), single value or comma-separated list'
+    )
+    parser.add_argument(
+        '--port', type=str, default=None,
+        help='Socket server port(s), single value or comma-separated list, increasing sequence if'
+             'single host and port given'
+    )
+    # Runner arguments
+    parser.add_argument(
+        '-v', '--evaluation', action='store_true',
+        help='Run environment (last if multiple) in evaluation mode'
+    )
+    parser.add_argument('-p', '--episodes', type=int, default=None, help='Number of episodes')
+    parser.add_argument('-t', '--timesteps', type=int, default=None, help='Number of timesteps')
+    parser.add_argument('-u', '--updates', type=int, default=None, help='Number of agent updates')
     parser.add_argument(
         '--mean-horizon', type=int, default=1,
-        help='Number of timesteps/episodes for mean reward computation'
+        help='Number of episodes progress bar values and evaluation score are averaged over'
     )
-    parser.add_argument('-v', '--evaluation', action='store_true', help='Evaluation mode')
     parser.add_argument(
-        '-s', '--save-best-agent', action='store_true', help='Save best-performing agent'
+        '--save-best-agent', type=str, default=None,
+        help='Directory to save the best version of the agent according to the evaluation score'
     )
     # Logging arguments
     parser.add_argument('-r', '--repeat', type=int, default=1, help='Number of repetitions')
     parser.add_argument(
-        '-p', '--path', type=str, default=None,
+        '--path', type=str, default=None,
         help='Logging path, directory plus filename without extension'
     )
     parser.add_argument('--seaborn', action='store_true', help='Use seaborn')
@@ -101,53 +141,55 @@ def main():
         agent_seconds = [list() for _ in range(args.episodes)]
 
         def callback(r):
-            rewards[r.episodes - 1].append(r.episode_reward)
-            timesteps[r.episodes - 1].append(r.episode_timestep)
-            seconds[r.episodes - 1].append(r.episode_second)
-            agent_seconds[r.episodes - 1].append(r.episode_agent_second)
+            rewards[r.episodes - 1].append(r.episode_rewards[-1])
+            timesteps[r.episodes - 1].append(r.episode_timesteps[-1])
+            seconds[r.episodes - 1].append(r.episode_seconds[-1])
+            agent_seconds[r.episodes - 1].append(r.episode_agent_seconds[-1])
             return True
 
-    if args.visualize:
-        if args.level is None:
-            environment = Environment.create(environment=args.environment, visualize=True)
-        else:
-            environment = Environment.create(
-                environment=args.environment, level=args.level, visualize=True
-            )
-
-    elif args.visualize_directory:
-        if args.level is None:
-            environment = Environment.create(
-                environment=args.environment, visualize_directory=args.visualize_directory
-            )
-        else:
-            environment = Environment.create(
-                environment=args.environment, level=args.level,
-                visualize_directory=args.visualize_directory
-            )
-
+    if args.environment is None:
+        environment = None
     else:
-        if args.level is None:
-            environment = Environment.create(
-                environment=args.environment, max_episode_timesteps=args.max_episode_timesteps
-            )
-        else:
-            environment = Environment.create(
-                environment=args.environment, max_episode_timesteps=args.max_episode_timesteps,
-                level=args.level
-            )
+        environment = dict(environment=args.environment)
+    if args.level is not None:
+        environment['level'] = args.level
+    if args.visualize:
+        environment['visualize'] = True
+    if args.visualize_directory is not None:
+        environment['visualize_directory'] = args.visualize_directory
+
+    if args.host is not None and ',' in args.host:
+        args.host = args.host.split(',')
+    if args.port is not None and ',' in args.port:
+        args.port = [int(x) for x in args.port.split(',')]
+    elif args.port is not None:
+        args.port = int(args.port)
+
+    if args.remote == 'socket-server':
+        Environment.create(
+            environment=environment, max_episode_timesteps=args.max_episode_timesteps,
+            remote=args.remote, port=args.port
+        )
+        return
+
+    if args.agent is None:
+        agent = None
+    else:
+        agent = dict(agent=args.agent)
+    if args.network is not None:
+        agent['network'] = args.network
 
     for _ in range(args.repeat):
-        agent_kwargs = dict()
-        if args.network is not None:
-            agent_kwargs['network'] = args.network
-        agent = Agent.create(agent=args.agent, environment=environment, **agent_kwargs)
-
-        runner = Runner(agent=agent, environment=environment)
+        runner = Runner(
+            agent=agent, environment=environment, max_episode_timesteps=args.max_episode_timesteps,
+            evaluation=args.evaluation, num_parallel=args.num_parallel, remote=args.remote,
+            blocking=args.blocking, host=args.host, port=args.port
+        )
         runner.run(
-            num_timesteps=args.timesteps, num_episodes=args.episodes, callback=callback,
-            mean_horizon=args.mean_horizon, evaluation=args.evaluation
-            # save_best_model=args.save_best_model
+            num_episodes=args.episodes, num_timesteps=args.timesteps, num_updates=args.updates,
+            batch_agent_calls=args.batch_agent_calls, sync_timesteps=args.sync_timesteps,
+            sync_episodes=args.sync_episodes, callback=callback, mean_horizon=args.mean_horizon,
+            save_best_agent=args.save_best_agent
         )
         runner.close()
 

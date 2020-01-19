@@ -61,7 +61,6 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
    :caption: Execution
 
    execution/runner
-   execution/parallel_runner
 
 
 .. toctree::

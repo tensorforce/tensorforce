@@ -250,7 +250,7 @@ class Agent(object):
 
     def initialize(self):
         """
-        Initializes the agent.
+        Initializes the agent, usually done as part of Agent.create/load.
         """
         if self.is_initialized:
             raise TensorforceError(
@@ -325,6 +325,7 @@ class Agent(object):
         Closes the agent.
         """
         self.model.close()
+        self.model = None
 
     def reset(self, independent=False, evaluation=False):
         """
@@ -362,9 +363,9 @@ class Agent(object):
         terminated by `reset()` in case of `independent`/`evaluation`.
 
         Args:
-            states (dict[state]): Dictionary containing state(s) to be acted on
+            states (dict[state] | iter[dict[state]]): Dictionary containing state(s) to be acted on
                 (<span style="color:#C00000"><b>required</b></span>).
-            parallel (int): Parallel execution index
+            parallel (int | iter[int]): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
             deterministic (bool): Whether to apply exploration and sampling
                 (<span style="color:#00C000"><b>default</b></span>: false).
@@ -379,8 +380,8 @@ class Agent(object):
             kwargs: Additional input values, for instance, for dynamic hyperparameters.
 
         Returns:
-            (dict[action], plus optional list[str]): Dictionary containing action(s), plus queried
-            tensor values if requested.
+            (dict[action] | iter[dict[action]], plus optional list[str]): Dictionary containing
+            action(s), plus queried tensor values if requested.
         """
         assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
 
@@ -391,6 +392,28 @@ class Agent(object):
                             "thus should not be used together with argument evaluation."
                 )
             deterministic = independent = True
+
+        # Batch states
+        batched = (not isinstance(parallel, int))
+        if batched:
+            if len(parallel) == 0:
+                raise TensorforceError.value(
+                    name='agent.act', argument='parallel', value=parallel, hint='zero-length'
+                )
+            parallel = np.asarray(list(parallel))
+            if isinstance(states[0], dict):
+                states = OrderedDict((
+                    (name, np.asarray([states[n][name] for n in range(len(parallel))]))
+                    for name in states[0]
+                ))
+            else:
+                states = np.asarray(states)
+        else:
+            parallel = np.asarray([parallel])
+            states = util.fmap(
+                function=(lambda x: np.asarray([x])), xs=states,
+                depth=int(isinstance(states, dict))
+            )
 
         # Auxiliaries
         auxiliaries = OrderedDict()
@@ -405,49 +428,53 @@ class Agent(object):
             value_type='state', values=states, values_spec=self.states_spec
         )
 
-        # Batch states
-        states = util.fmap(function=(lambda x: np.asarray([x])), xs=states, depth=1)
-        auxiliaries = util.fmap(function=(lambda x: np.asarray([x])), xs=auxiliaries, depth=1)
-
         # Model.act()
         if query is None:
             actions, self.timesteps = self.model.act(
-                states=states, auxiliaries=auxiliaries, parallel=[parallel],
+                states=states, auxiliaries=auxiliaries, parallel=parallel,
                 deterministic=deterministic, independent=independent, **kwargs
             )
 
         else:
             actions, self.timesteps, queried = self.model.act(
-                states=states, auxiliaries=auxiliaries, parallel=[parallel],
+                states=states, auxiliaries=auxiliaries, parallel=parallel,
                 deterministic=deterministic, independent=independent, query=query, **kwargs
             )
 
         if self.recorder_spec is not None and not independent and \
                 self.episodes >= self.recorder_spec.get('start', 0):
-            index = self.buffer_indices[parallel]
-            for name in self.states_spec:
-                self.states_buffers[name][parallel, index] = states[name][0]
-            for name, spec in self.actions_spec.items():
-                self.actions_buffers[name][parallel, index] = actions[name][0]
-                if spec['type'] == 'int':
-                    name = name + '_mask'
-                    if name in auxiliaries:
-                        self.states_buffers[name][parallel, index] = auxiliaries[name][0]
-                    else:
-                        shape = (1,) + spec['shape'] + (spec['num_values'],)
-                        self.states_buffers[name][parallel, index] = np.full(
-                            shape=shape, fill_value=True, dtype=util.np_dtype(dtype='bool')
-                        )
-
-        # Unbatch actions
-        actions = util.fmap(function=(lambda x: x[0]), xs=actions, depth=1)
+            for n in range(len(parallel)):
+                index = self.buffer_indices[parallel[n]]
+                for name in self.states_spec:
+                    self.states_buffers[name][parallel[n], index] = states[name][n]
+                for name, spec in self.actions_spec.items():
+                    self.actions_buffers[name][parallel[n], index] = actions[name][n]
+                    if spec['type'] == 'int':
+                        name = name + '_mask'
+                        if name in auxiliaries:
+                            self.states_buffers[name][parallel[n], index] = auxiliaries[name][n]
+                        else:
+                            shape = (1,) + spec['shape'] + (spec['num_values'],)
+                            self.states_buffers[name][parallel[n], index] = np.full(
+                                shape=shape, fill_value=True, dtype=util.np_dtype(dtype='bool')
+                            )
 
         # Reverse normalized actions dictionary
         actions = util.unpack_values(
             value_type='action', values=actions, values_spec=self.actions_spec
         )
 
-        # if independent, return processed state as well?
+        # Unbatch actions
+        if batched:
+            if isinstance(actions, dict):
+                actions = [
+                    OrderedDict(((name, actions[name][n]) for name in actions))
+                    for n in range(len(parallel))
+                ]
+        else:
+            actions = util.fmap(
+                function=(lambda x: x[0]), xs=actions, depth=int(isinstance(actions, dict))
+            )
 
         if query is None:
             return actions
@@ -460,19 +487,19 @@ class Agent(object):
         `act(...)`.
 
         Args:
-            reward (float): Reward
+            reward (float | iter[float]): Reward
                 (<span style="color:#C00000"><b>required</b></span>).
-            terminal (bool | 0 | 1 | 2): Whether a terminal state is reached or 2 if the
-                episode was aborted (<span style="color:#00C000"><b>default</b></span>: false).
-            parallel (int): Parallel execution index
+            terminal (bool | 0 | 1 | 2 | iter[...]): Whether a terminal state is reached or 2 if
+                the episode was aborted (<span style="color:#00C000"><b>default</b></span>: false).
+            parallel (int, iter[int]): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
             query (list[str]): Names of tensors to retrieve
                 (<span style="color:#00C000"><b>default</b></span>: none).
             kwargs: Additional input values, for instance, for dynamic hyperparameters.
 
         Returns:
-            (bool, optional list[str]): Whether an update was performed, plus queried tensor values
-            if requested.
+            (bool | int, optional list[str]): Whether an update was performed, plus queried tensor
+            values if requested.
         """
         assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
 
@@ -481,106 +508,128 @@ class Agent(object):
                 name='agent.observe', argument='query', condition='parallel_interactions > 1'
             )
 
-        if isinstance(terminal, bool):
-            terminal = int(terminal)
-
-        # Update terminal/reward buffer
-        index = self.buffer_indices[parallel]
-        self.terminal_buffers[parallel, index] = terminal
-        self.reward_buffers[parallel, index] = reward
-        index += 1
-
-        if self.max_episode_timesteps is not None and index > self.max_episode_timesteps:
-            raise TensorforceError.value(
-                name='agent.observe', argument='index', value=index,
-                condition='> max_episode_timesteps'
-            )
-
-        if terminal > 0 or index == self.buffer_observe or query is not None:
-            terminal = self.terminal_buffers[parallel, :index]
-            reward = self.reward_buffers[parallel, :index]
-
-            if self.recorder_spec is not None and \
-                    self.episodes >= self.recorder_spec.get('start', 0):
-                for name in self.states_spec:
-                    self.record_states[name].append(
-                        np.array(self.states_buffers[name][parallel, :index])
-                    )
-                for name, spec in self.actions_spec.items():
-                    self.record_actions[name].append(
-                        np.array(self.actions_buffers[name][parallel, :index])
-                    )
-                    if spec['type'] == 'int':
-                        self.record_states[name + '_mask'].append(
-                            np.array(self.states_buffers[name + '_mask'][parallel, :index])
-                        )
-                self.record_terminal.append(np.array(terminal))
-                self.record_reward.append(np.array(reward))
-
-                if terminal[-1] > 0:
-                    self.num_episodes += 1
-
-                    if self.num_episodes == self.recorder_spec.get('frequency', 1):
-                        directory = self.recorder_spec['directory']
-                        if os.path.isdir(directory):
-                            files = sorted(
-                                f for f in os.listdir(directory)
-                                if os.path.isfile(os.path.join(directory, f))
-                                and f.startswith('trace-')
-                            )
-                        else:
-                            os.makedirs(directory)
-                            files = list()
-                        max_traces = self.recorder_spec.get('max-traces')
-                        if max_traces is not None and len(files) > max_traces - 1:
-                            for filename in files[:-max_traces + 1]:
-                                filename = os.path.join(directory, filename)
-                                os.remove(filename)
-
-                        filename = 'trace-{}-{}.npz'.format(
-                            self.episodes, time.strftime('%Y%m%d-%H%M%S')
-                        )
-                        filename = os.path.join(directory, filename)
-                        self.record_states = util.fmap(
-                            function=np.concatenate, xs=self.record_states, depth=1
-                        )
-                        self.record_actions = util.fmap(
-                            function=np.concatenate, xs=self.record_actions, depth=1
-                        )
-                        self.record_terminal = np.concatenate(self.record_terminal)
-                        self.record_reward = np.concatenate(self.record_reward)
-                        np.savez_compressed(
-                            filename, **self.record_states, **self.record_actions,
-                            terminal=self.record_terminal, reward=self.record_reward
-                        )
-                        self.record_states = util.fmap(
-                            function=(lambda x: list()), xs=self.record_states, depth=1
-                        )
-                        self.record_actions = util.fmap(
-                            function=(lambda x: list()), xs=self.record_actions, depth=1
-                        )
-                        self.record_terminal = list()
-                        self.record_reward = list()
-                        self.num_episodes = 0
-
-            # Model.observe()
-            if query is None:
-                updated, self.episodes, self.updates = self.model.observe(
-                    terminal=terminal, reward=reward, parallel=[parallel], **kwargs
+        batched = (not isinstance(parallel, int))
+        if batched:
+            if len(parallel) == 0:
+                raise TensorforceError.value(
+                    name='agent.observe', argument='parallel', value=parallel, hint='zero-length'
                 )
+        else:
+            terminal = [terminal]
+            reward = [reward]
+            parallel = [parallel]
+
+        num_updates = 0
+        # TODO: Differently if not buffer_observe
+        for terminal, reward, parallel in zip(terminal, reward, parallel):
+            # Update terminal/reward buffer
+            if isinstance(terminal, bool):
+                terminal = int(terminal)
+            index = self.buffer_indices[parallel]
+            self.terminal_buffers[parallel, index] = terminal
+            self.reward_buffers[parallel, index] = reward
+            index += 1
+
+            if self.max_episode_timesteps is not None and index > self.max_episode_timesteps:
+                raise TensorforceError.value(
+                    name='agent.observe', argument='index', value=index,
+                    condition='> max_episode_timesteps'
+                )
+
+            if terminal > 0 or index == self.buffer_observe or query is not None:
+                terminal = self.terminal_buffers[parallel, :index]
+                reward = self.reward_buffers[parallel, :index]
+
+                if self.recorder_spec is not None and \
+                        self.episodes >= self.recorder_spec.get('start', 0):
+                    for name in self.states_spec:
+                        self.record_states[name].append(
+                            np.array(self.states_buffers[name][parallel, :index])
+                        )
+                    for name, spec in self.actions_spec.items():
+                        self.record_actions[name].append(
+                            np.array(self.actions_buffers[name][parallel, :index])
+                        )
+                        if spec['type'] == 'int':
+                            self.record_states[name + '_mask'].append(
+                                np.array(self.states_buffers[name + '_mask'][parallel, :index])
+                            )
+                    self.record_terminal.append(np.array(terminal))
+                    self.record_reward.append(np.array(reward))
+
+                    if terminal[-1] > 0:
+                        self.num_episodes += 1
+
+                        if self.num_episodes == self.recorder_spec.get('frequency', 1):
+                            directory = self.recorder_spec['directory']
+                            if os.path.isdir(directory):
+                                files = sorted(
+                                    f for f in os.listdir(directory)
+                                    if os.path.isfile(os.path.join(directory, f))
+                                    and f.startswith('trace-')
+                                )
+                            else:
+                                os.makedirs(directory)
+                                files = list()
+                            max_traces = self.recorder_spec.get('max-traces')
+                            if max_traces is not None and len(files) > max_traces - 1:
+                                for filename in files[:-max_traces + 1]:
+                                    filename = os.path.join(directory, filename)
+                                    os.remove(filename)
+
+                            filename = 'trace-{}-{}.npz'.format(
+                                self.episodes, time.strftime('%Y%m%d-%H%M%S')
+                            )
+                            filename = os.path.join(directory, filename)
+                            self.record_states = util.fmap(
+                                function=np.concatenate, xs=self.record_states, depth=1
+                            )
+                            self.record_actions = util.fmap(
+                                function=np.concatenate, xs=self.record_actions, depth=1
+                            )
+                            self.record_terminal = np.concatenate(self.record_terminal)
+                            self.record_reward = np.concatenate(self.record_reward)
+                            np.savez_compressed(
+                                filename, **self.record_states, **self.record_actions,
+                                terminal=self.record_terminal, reward=self.record_reward
+                            )
+                            self.record_states = util.fmap(
+                                function=(lambda x: list()), xs=self.record_states, depth=1
+                            )
+                            self.record_actions = util.fmap(
+                                function=(lambda x: list()), xs=self.record_actions, depth=1
+                            )
+                            self.record_terminal = list()
+                            self.record_reward = list()
+                            self.num_episodes = 0
+
+                # Model.observe()
+                if query is None:
+                    updated, self.episodes, self.updates = self.model.observe(
+                        terminal=terminal, reward=reward, parallel=[parallel], **kwargs
+                    )
+
+                else:
+                    updated, self.episodes, self.updates, queried = self.model.observe(
+                        terminal=terminal, reward=reward, parallel=[parallel], query=query,
+                        **kwargs
+                    )
+
+                # Reset buffer index
+                self.buffer_indices[parallel] = 0
 
             else:
-                updated, self.episodes, self.updates, queried = self.model.observe(
-                    terminal=terminal, reward=reward, parallel=[parallel], query=query, **kwargs
-                )
+                # Increment buffer index
+                self.buffer_indices[parallel] = index
+                updated = False
 
-            # Reset buffer index
-            self.buffer_indices[parallel] = 0
+            num_updates += int(updated)
 
+        if batched:
+            updated = num_updates
         else:
-            # Increment buffer index
-            self.buffer_indices[parallel] = index
-            updated = False
+            assert num_updates <= 1
+            updated = (num_updates == 1)
 
         if query is None:
             return updated

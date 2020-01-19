@@ -13,10 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
+from datetime import datetime
 import importlib
 import json
 import os
+import sys
 from threading import Thread
+from traceback import format_tb
 
 from tensorforce import TensorforceError, util
 import tensorforce.environments
@@ -28,20 +31,91 @@ class Environment(object):
     """
 
     @staticmethod
-    def create(environment, max_episode_timesteps=None, **kwargs):
+    def create(
+        environment=None, max_episode_timesteps=None, remote=None, blocking=False, host=None,
+        port=None, **kwargs
+    ):
         """
-        Creates an environment from a specification.
+        Creates an environment from a specification. In case of "socket-server" remote mode, runs
+        environment in server communication loop until closed.
 
         Args:
             environment (specification | Environment class/object): JSON file, specification key,
-                configuration dictionary, library module, or `Environment` class/object
-                (<span style="color:#C00000"><b>required</b></span>).
+                configuration dictionary, library module, `Environment` class/object, or gym.Env
+                (<span style="color:#C00000"><b>required</b>, invalid for "socket-client" remote
+                mode</span>).
             max_episode_timesteps (int > 0): Maximum number of timesteps per episode, overwrites
                 the environment default if defined
-                (<span style="color:#00C000"><b>default</b></span>: environment default).
+                (<span style="color:#00C000"><b>default</b></span>: environment default, invalid
+                for "socket-client" remote mode).
+            remote ("multiprocessing" | "socket-client" | "socket-server"): Communication mode for
+                remote environment execution of parallelized environment execution, "socket-client"
+                mode requires a corresponding "socket-server" running, and "socket-server" mode
+                runs environment in server communication loop until closed
+                (<span style="color:#00C000"><b>default</b></span>: local execution).
+            blocking (bool): Whether remote environment calls should be blocking
+                (<span style="color:#00C000"><b>default</b></span>: not blocking, invalid unless
+                "multiprocessing" or "socket-client" remote mode).
+            host (str): Socket server hostname or IP address
+                (<span style="color:#C00000"><b>required</b></span> only for "socket-client" remote
+                mode).
+            port (int): Socket server port
+                (<span style="color:#C00000"><b>required</b></span> only for "socket-client/server"
+                remote mode).
             kwargs: Additional arguments.
         """
-        if isinstance(environment, (EnvironmentWrapper, RemoteEnvironment)):
+        if remote not in ('multiprocessing', 'socket-client'):
+            if blocking:
+                raise TensorforceError.invalid(
+                    name='Environment.create', argument='blocking',
+                    condition='no multiprocessing/socket-client instance'
+                )
+        if remote not in ('socket-client', 'socket-server'):
+            if host is not None:
+                raise TensorforceError.invalid(
+                    name='Environment.create', argument='host', condition='no socket instance'
+                )
+            elif port is not None:
+                raise TensorforceError.invalid(
+                    name='Environment.create', argument='port', condition='no socket instance'
+                )
+
+        if remote == 'multiprocessing':
+            from tensorforce.environments import MultiprocessingEnvironment
+            environment = MultiprocessingEnvironment(
+                blocking=blocking, environment=environment,
+                max_episode_timesteps=max_episode_timesteps, **kwargs
+            )
+            return environment
+
+        elif remote == 'socket-client':
+            if environment is not None:
+                raise TensorforceError.invalid(
+                    name='Environment.create', argument='environment',
+                    condition='socket-client instance'
+                )
+            elif max_episode_timesteps is not None:
+                raise TensorforceError.invalid(
+                    name='Environment.create', argument='max_episode_timesteps',
+                    condition='socket-client instance'
+                )
+            elif len(kwargs) > 0:
+                raise TensorforceError.invalid(
+                    name='Environment.create', argument='kwargs',
+                    condition='socket-client instance'
+                )
+            from tensorforce.environments import SocketEnvironment
+            environment = SocketEnvironment(host=host, port=port, blocking=blocking)
+            return environment
+
+        elif remote == 'socket-server':
+            from tensorforce.environments import SocketEnvironment
+            SocketEnvironment.remote(
+                port=port, environment=environment, max_episode_timesteps=max_episode_timesteps,
+                **kwargs
+            )
+
+        elif isinstance(environment, (EnvironmentWrapper, RemoteEnvironment)):
             if max_episode_timesteps is not None:
                 TensorforceError.invalid(
                     name='Environment.create', argument='max_episode_timesteps',
@@ -221,13 +295,11 @@ class Environment(object):
         raise NotImplementedError
 
     def start_reset(self):
-        print('start_reset')
         if self._expect_receive is not None:
             raise TensorforceError.unexpected()
         self._expect_receive = 'reset'
 
     def start_execute(self, actions):
-        print('start_execute')
         if self._expect_receive is not None:
             raise TensorforceError.unexpected()
         self._expect_receive = 'execute'
@@ -235,22 +307,19 @@ class Environment(object):
         self._actions = actions
 
     def receive_execute(self):
-        print('receive_execute')
         if self._expect_receive == 'reset':
             self._expect_receive = None
-            states = self.reset()
-            terminal = reward = None
+            return self.reset(), -1, None
 
         elif self._expect_receive == 'execute':
             self._expect_receive = None
             assert self._actions is not None
             states, terminal, reward = self.execute(actions=self._actions)
             self._actions = None
+            return states, int(terminal), reward
 
         else:
             raise TensorforceError.unexpected()
-
-        return states, terminal, reward
 
 
 class EnvironmentWrapper(Environment):
@@ -287,8 +356,9 @@ class EnvironmentWrapper(Environment):
     def execute(self, actions):
         assert self.timestep < self._max_episode_timesteps
         states, terminal, reward = self.environment.execute(actions=actions)
+        terminal = int(terminal)
         self.timestep += 1
-        if int(terminal) == 0 and self.timestep >= self._max_episode_timesteps:
+        if terminal == 0 and self.timestep >= self._max_episode_timesteps:
             terminal = 2
         return states, terminal, reward
 
@@ -341,7 +411,10 @@ class RemoteEnvironment(Environment):
                 environment.close()
             finally:
                 etype, value, traceback = sys.exc_info()
-                cls.remote_send(success=False, result=(etype, value, traceback))
+                cls.remote_send(
+                    connection=connection, success=False,
+                    result=(str(etype), str(value), format_tb(traceback))
+                )
 
         finally:
             cls.remote_close(connection=connection)
@@ -435,7 +508,7 @@ class RemoteEnvironment(Environment):
 
     def finish_reset(self):
         assert self.thread is not None and self.observation is None
-        self.observation = (self.reset(), None, None)
+        self.observation = (self.reset(), -1, None)
         self.thread = None
 
     def start_execute(self, actions):
@@ -453,15 +526,16 @@ class RemoteEnvironment(Environment):
         self.thread = None
 
     def receive_execute(self):
-        if blocking:
+        if self.blocking:
             if self._expect_receive == 'reset':
-                return self.receive(function='reset'), None, None
+                return self.receive(function='reset'), -1, None
             else:
-                return self.receive(function='execute')
+                states, terminal, reward = self.receive(function='execute')
+                return states, int(terminal), reward
 
         else:
             if self.thread is not None:
-                assert self.observation is None
+                # assert self.observation is None
                 return None
             else:
                 assert self.observation is not None

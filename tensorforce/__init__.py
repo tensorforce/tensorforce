@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import logging
 import os
 
 
@@ -29,41 +30,14 @@ from tensorforce.exception import TensorforceError
 from tensorforce import util
 from tensorforce.environments import Environment
 from tensorforce.agents import Agent
-from tensorforce.execution import ParallelRunner, Runner
+from tensorforce.execution import Runner
 
 
 # tf.get_logger().setLevel('WARNING')
 # tf.autograph.set_verbosity(3)
 
-
-__all__ = ['Agent', 'Environment', 'ParallelRunner', 'Runner', 'TensorforceError', 'util']
-
+__all__ = ['Agent', 'Environment', 'Runner', 'TensorforceError', 'util']
 
 __version__ = '0.5.3'
 
-"""
-test: cd docs; make html; cd ..;
-pip install --upgrade pip setuptools wheel twine
-python setup.py sdist bdist_wheel
-twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.3*
-test: pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
-test: python; import tensorforce;
-test: python tensorforce/examples/quickstart.py
-twine upload dist/Tensorforce-0.5.3*
-"""
-
-
-# Libraries should add NullHandler() by default, as its the application code's
-# responsibility to configure log handlers.
-# https://docs.python.org/3/howto/logging.html#configuring-logging-for-a-library
-
-import logging
-
-try:
-    NullHandler = logging.NullHandler
-except ImportError:
-    class NullHandler(logging.Handler):
-        def emit(self, record):
-            pass
-
-logging.getLogger(__name__).addHandler(NullHandler())
+logging.getLogger(__name__).addHandler(logging.NullHandler())

@@ -3,7 +3,7 @@
 Use the `run.py` script with the following arguments to produce benchmarks:
 
 ```bash
-python run.py benchmarks/configs/ppo1.json gym -l CartPole-v1 -e 300 -r 10 -p benchmarks/gym-cartpole/ppo
+python run.py --agent benchmarks/configs/ppo1.json --environment gym --level CartPole-v1 --episodes 100 --repeat 10 --path benchmarks/gym-cartpole/ppo1
 ```
 
 To run a full benchmark of a config in the `configs` subfolder, call the `benchmark.sh` bash script with the config name:

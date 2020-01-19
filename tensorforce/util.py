@@ -82,22 +82,38 @@ def tf_always_true(*args, **kwargs):
     return tf.constant(value=True, dtype=tf_dtype(dtype='bool'))
 
 
-def fmap(function, xs, depth=-1):
+def fmap(function, xs, depth=-1, map_keys=False):
     if xs is None:
         assert depth <= 0
         return None
     elif isinstance(xs, tuple) and depth != 0:
-        return tuple(fmap(function=function, xs=x, depth=(depth - 1)) for x in xs)
+        return tuple(fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys) for x in xs)
     elif isinstance(xs, list) and depth != 0:
-        return [fmap(function=function, xs=x, depth=(depth - 1)) for x in xs]
+        return [fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys) for x in xs]
     elif isinstance(xs, set) and depth != 0:
-        return {fmap(function=function, xs=x, depth=(depth - 1)) for x in xs}
+        return {fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys) for x in xs}
     elif isinstance(xs, OrderedDict) and depth != 0:
-        return OrderedDict(
-            ((key, fmap(function=function, xs=x, depth=(depth - 1))) for key, x in xs.items())
-        )
+        if map_keys:
+            return OrderedDict((
+                (function(key), fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys))
+                for key, x in xs.items()
+            ))
+        else:
+            return OrderedDict((
+                (key, fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys))
+                for key, x in xs.items()
+            ))
     elif isinstance(xs, dict) and depth != 0:
-        return {key: fmap(function=function, xs=x, depth=(depth - 1)) for key, x in xs.items()}
+        if map_keys:
+            return {
+                function(key): fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys)
+                for key, x in xs.items()
+            }
+        else:
+            return {
+                key: fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys)
+                for key, x in xs.items()
+            }
     else:
         assert depth <= 0
         return function(xs)

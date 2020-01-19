@@ -1,5 +1,7 @@
 gym
 matplotlib
+msgpack
+msgpack-numpy
 numpy
 pytest
 tqdm

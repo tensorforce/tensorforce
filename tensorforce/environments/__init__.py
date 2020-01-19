@@ -13,9 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.environments.environment import Environment  # , RemoteEnvironment
-# from tensorforce.environments.multiprocessing_environment import MultiprocessingEnvironment
+from tensorforce.environments.environment import Environment, RemoteEnvironment
+
 from tensorforce.environments.multiplayer_environment import MultiplayerEnvironment
+from tensorforce.environments.multiprocessing_environment import MultiprocessingEnvironment
+from tensorforce.environments.socket_environment import SocketEnvironment
 
 from tensorforce.environments.arcade_learning_environment import ArcadeLearningEnvironment
 from tensorforce.environments.maze_explorer import MazeExplorer
@@ -40,9 +42,6 @@ environments = dict(
 
 __all__ = [
     'ArcadeLearningEnvironment', 'Environment', 'MazeExplorer', 'MultiplayerEnvironment',
-    # 'MultiprocessingEnvironment',
-    'OpenAIGym', 'OpenAIRetro', 'OpenSim',
-    'PyGameLearningEnvironment',
-    # 'RemoteEnvironment',
-    'ViZDoom'
+    'MultiprocessingEnvironment', 'OpenAIGym', 'OpenAIRetro', 'OpenSim',
+    'PyGameLearningEnvironment', 'RemoteEnvironment', 'SocketEnvironment', 'ViZDoom'
 ]

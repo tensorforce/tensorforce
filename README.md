@@ -129,7 +129,7 @@ For more information check out the [documentation](http://tensorforce.readthedoc
 - **Exploration**: Randomized actions, sampling temperature, variable noise.
 - **Preprocessing**: Clipping, deltafier, sequence, image processing.
 - **Regularization**: L2 and entropy regularization.
-- **Execution modes**: Various modes for parallelized execution of multiple environments.
+- **Execution modes**: Parallelized execution of multiple environments based on Python's `multiprocessing` and `socket`.
 - **TensorBoard support**.
 
 By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated:

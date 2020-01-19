@@ -1,5 +1,7 @@
-tensorflow==2.0.0
 m2r
+msgpack
+msgpack-numpy
 recommonmark
 sphinx
 sphinx-rtd-theme
+tensorflow==2.0.0

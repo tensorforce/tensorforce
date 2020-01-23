@@ -19,6 +19,9 @@ from tensorforce.environments import RemoteEnvironment
 
 
 class MultiprocessingEnvironment(RemoteEnvironment):
+    """
+    An earlier version of this code (#634) was originally developed by Vincent Belus (@vbelus).
+    """
 
     @classmethod
     def proxy_send(cls, connection, function, **kwargs):

@@ -27,7 +27,7 @@ msgpack_numpy.patch()
 
 class SocketEnvironment(RemoteEnvironment):
     """
-    This code was developped originally in:
+    An earlier version of this code (#626) was originally developed as part of the following work:
 
     Rabault, J., Kuhnle, A (2019). Accelerating Deep Reinforcement Leaning strategies of Flow
     Control through a multi-environment approach. Physics of Fluids.

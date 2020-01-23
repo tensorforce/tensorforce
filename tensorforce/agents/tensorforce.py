@@ -28,10 +28,10 @@ class TensorforceAgent(Agent):
     """
     Tensorforce agent (specification key: `tensorforce`).
 
-    Base class for a broad class of deep reinforcement learning agents, which act according to a
-    policy parametrized by a neural network, leverage a memory module for periodic updates based on
-    batches of experience, and optionally employ a baseline/critic/target policy for improved
-    reward estimation.
+    Highly configurable agent and basis for a broad class of deep reinforcement learning agents,
+    which act according to a policy parametrized by a neural network, leverage a memory module for
+    periodic updates based on batches of experience, and optionally employ a baseline/critic/target
+    policy for improved reward estimation.
 
     Args:
         states (specification): States specification

@@ -12,8 +12,9 @@ This file records all major updates and new features, starting from version 0.5.
 - `Agent`, `Environment` and `Runner` can now be imported via `from tensorforce import ...`
 - New generic reshape layer available as `reshape`
 - Support for batched version of `Agent.act` and `Agent.observe`
-- Support for parallelizable (remote) environments based on Python's `multiprocessing` and `socket` (replacing `tensorforce/contrib/socket_remote_env/` and `tensorforce/environments/environment_process_wrapper.py`), available via `Environment.create(...)`, `Runner(...)` and `run.py`
+- Support for parallelized remote environments based on Python's `multiprocessing` and `socket` (replacing `tensorforce/contrib/socket_remote_env/` and `tensorforce/environments/environment_process_wrapper.py`), available via `Environment.create(...)`, `Runner(...)` and `run.py`
 - Removed `ParallelRunner` and merged functionality with `Runner`
+- Changed `run.py` arguments
 
 
 

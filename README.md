@@ -163,7 +163,7 @@ Please get in touch via [mail](mailto:tensorforce.team@gmail.com) or on [Gitter]
 
 Tensorforce is currently developed and maintained by [Alexander Kuhnle](https://github.com/AlexKuhnle). Earlier versions of Tensorforce (<= 0.4.2) were developed by [Michael Schaarschmidt](https://github.com/michaelschaarschmidt), [Alexander Kuhnle](https://github.com/AlexKuhnle) and [Kai Fricke](https://github.com/krfricke).
 
-The advanced parallel execution functionality (currently in [this module](https://github.com/tensorforce/tensorforce/tree/master/tensorforce/contrib)) was contributed by Jean Rabault (@jerabaul29). Moreover, the pretraining feature was largely developed in collaboration with Hongwei Tang (@thw1021) and Jean Rabault (@jerabaul29).
+The advanced parallel execution functionality was originally contributed by Jean Rabault (@jerabaul29) and Vincent Belus (@vbelus). Moreover, the pretraining feature was largely developed in collaboration with Hongwei Tang (@thw1021) and Jean Rabault (@jerabaul29).
 
 We are very grateful for our open-source contributors (listed according to Github, updated periodically):
 

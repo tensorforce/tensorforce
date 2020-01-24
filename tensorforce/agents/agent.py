@@ -135,9 +135,9 @@ class Agent(object):
         else:
             agent = os.path.join(directory, filename + '.json')
 
-        assert os.path.isfile(agent)
-        with open(agent, 'r') as fp:
-            agent = json.load(fp=fp)
+        if os.path.isfile(agent):
+            with open(agent, 'r') as fp:
+                agent = json.load(fp=fp)
 
         # Overwrite values
         if environment is not None and environment.max_episode_timesteps() is not None:
@@ -315,8 +315,11 @@ class Agent(object):
         self.model.initialize()
         if self.model.saver_directory is not None:
             file = os.path.join(self.model.saver_directory, self.model.saver_filename + '.json')
-            with open(file, 'w') as fp:
-                json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
+            try:
+                with open(file, 'w') as fp:
+                    json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
+            except BaseException:
+                os.remove(file)
 
         self.reset()
 
@@ -676,8 +679,11 @@ class Agent(object):
         if filename is None:
             filename = 'agent'
         file = os.path.join(directory, filename + '.json')
-        with open(file, 'w') as fp:
-            json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
+        try:
+            with open(file, 'w') as fp:
+                json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
+        except BaseException:
+            os.remove(file)
 
         return result
 

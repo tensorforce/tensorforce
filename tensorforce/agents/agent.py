@@ -88,7 +88,7 @@ class Agent(object):
         elif isinstance(agent, dict):
             # Dictionary specification
             util.deep_disjoint_update(target=kwargs, source=agent)
-            agent = kwargs.pop('agent', kwargs.pop('type', 'tensorforce'))
+            agent = kwargs.pop('agent', kwargs.pop('type', 'default'))
 
             return Agent.create(agent=agent, environment=environment, **kwargs)
 

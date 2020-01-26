@@ -7,14 +7,20 @@ Features
 Process multiple environments executed locally in one call / batched:
 
 ```python
-Runner(agent='benchmarks/configs/ppo1.json', environment='CartPole-v1', num_parallel=5)
+Runner(
+    agent='benchmarks/configs/ppo1.json', environment='CartPole-v1',
+    num_parallel=5
+)
 runner.run(num_episodes=100, batch_agent_calls=True)
 ```
 
 Process environments executed in different processes whenever ready / unbatched:
 
 ```python
-Runner(agent='benchmarks/configs/ppo1.json', environment='CartPole-v1', num_parallel=5, remote='multiprocessing')
+Runner(
+    agent='benchmarks/configs/ppo1.json', environment='CartPole-v1',
+    num_parallel=5, remote='multiprocessing'
+)
 runner.run(num_episodes=100)
 ```
 
@@ -22,13 +28,17 @@ Using multiple machines and `run.py`:
 
 ```bash
 # Environment machine 1
-python run.py --environment gym --level CartPole-v1 --remote socket-server --port 65432
+python run.py --environment gym --level CartPole-v1 --remote socket-server \
+    --port 65432
 
 # Environment machine 2
-python run.py --environment gym --level CartPole-v1 --remote socket-server --port 65433
+python run.py --environment gym --level CartPole-v1 --remote socket-server \
+    --port 65433
 
 # Agent machine
-python run.py --agent benchmarks/configs/ppo1.json --episodes 100 --num-parallel 2 --remote socket-client --host 127.0.0.1,127.0.0.1 --port 65432,65433 --batch-agent-calls
+python run.py --agent benchmarks/configs/ppo1.json --episodes 100 \
+    --num-parallel 2 --remote socket-client --host 127.0.0.1,127.0.0.1 \
+    --port 65432,65433 --batch-agent-calls
 ```
 
 

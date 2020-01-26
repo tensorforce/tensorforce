@@ -40,7 +40,7 @@ VPG = VPGAgent = REINFORCE = VanillaPolicyGradient
 
 
 agents = dict(
-    a2c=AdvantageActorCritic, ac=ActorCritic, constant=ConstantAgent,
+    a2c=AdvantageActorCritic, ac=ActorCritic, constant=ConstantAgent, default=TensorforceAgent,
     dpg=DeterministicPolicyGradient, dqn=DeepQNetwork, dueling_dqn=DuelingDQN,
     tensorforce=TensorforceAgent, ppo=ProximalPolicyOptimization, random=RandomAgent,
     reinforce=VanillaPolicyGradient, trpo=TrustRegionPolicyOptimization, vpg=VanillaPolicyGradient

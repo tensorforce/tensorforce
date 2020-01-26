@@ -57,6 +57,37 @@ class Model(Module):
 
         # Execution
         self.execution = dict() if execution is None else execution
+        if 'session_config' in self.execution:
+            session = self.execution['session_config']
+            if 'cluster_def' in session:
+                session['cluster_def'] = tf.train.ClusterDef(job=[
+                    tf.train.JobDef(name=name, tasks=[
+                        tf.train.JobDef.TasksEntry(key=key, value=value)
+                        for key, value in tasks.items()
+                    ]) for name, tasks in session['cluster_def'].items()
+                ])
+            if 'device_count' in session:
+                session['device_count'] = [
+                    tf.compat.v1.ConfigProto.DeviceCountEntry(key=value)
+                    for key, value in session['device_count'].items()
+                ]
+            if 'experimental' in session:
+                session['experimental'] = tf.compat.v1.ConfigProto.Experimental(
+                    **session['experimental']
+                )
+            if 'gpu_options' in session:
+                if 'experimental' in session['gpu_options']:
+                    session['gpu_options']['experimental'] = tf.compat.v1.GPUOptions.Experimental(
+                        **session['gpu_options']['experimental']
+                    )
+                session['gpu_options'] = tf.compat.v1.GPUOptions(**session['gpu_options'])
+            if 'graph_options' in session:
+                if 'optimizer_options' in session['graph_options']:
+                    session['graph_options']['optimizer_options'] = tf.compat.v1.OptimizerOptions(
+                        **session['graph_options']['optimizer_options']
+                    )
+                session['graph_options'] = tf.compat.v1.GraphOptions(**session['graph_options'])
+            self.execution['session_config'] = tf.compat.v1.ConfigProto(**session)
 
         # Saver
         if saver is None:

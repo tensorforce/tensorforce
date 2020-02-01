@@ -54,7 +54,6 @@ class TensorforceWorker(Worker):
 
         if config['baseline'] == 'no':
             baseline_policy = None
-            baseline_network = None
             baseline_objective = None
             baseline_optimizer = None
             estimate_horizon = False
@@ -64,25 +63,19 @@ class TensorforceWorker(Worker):
             estimate_horizon = 'early'
             estimate_terminal = True
             estimate_advantage = (config['estimate_advantage'] == 'yes')
-            if config['baseline'] == 'same-policy-noopt':
-                baseline_policy = 'same'
-                baseline_network = None
+            if config['baseline'] == 'same-policy':
+                baseline_policy = None
                 baseline_objective = None
                 baseline_optimizer = None
+            elif config['baseline'] == 'auto':
+                # other modes, shared network/policy etc !!!
+                baseline_policy = dict(network=dict(type='auto', internal_rnn=False))
+                baseline_objective = dict(type='state_value', huber_loss=0.0, early_reduce=False)
+                baseline_optimizer = dict(
+                    type='adam', learning_rate=config['baseline_learning_rate']
+                )
             else:
-                baseline_objective = dict(type='state_value', huber_loss=0.0, mean_over_actions=False)
-                baseline_optimizer = dict(type='adam', learning_rate=config['baseline_learning_rate'])
-                if config['baseline'] == 'auto':
-                    baseline_policy = None
-                    baseline_network = dict(type='auto', internal_rnn=False)
-                elif config['baseline'] == 'same-network':
-                    baseline_policy = None
-                    baseline_network = 'same'
-                elif config['baseline'] == 'same-policy':
-                    baseline_policy = 'same'
-                    baseline_network = None
-                else:
-                    assert False
+                assert False
 
         if config['entropy_regularization'] < 3e-5:  # yes/no better
             entropy_regularization = 0.0
@@ -90,22 +83,22 @@ class TensorforceWorker(Worker):
             entropy_regularization = config['entropy_regularization']
 
         agent = dict(
-            agent='policy',
-            network=dict(type='auto', internal_rnn=False),
+            agent='tensorforce',
+            policy=dict(network=dict(type='auto', internal_rnn=False)),
             memory=dict(type='replay', capacity=capacity),
             update=dict(unit='timesteps', batch_size=config['batch_size'], frequency=frequency),
             optimizer=dict(type='adam', learning_rate=config['learning_rate']),
             objective=dict(
                 type='policy_gradient', ratio_based=ratio_based, clipping_value=clipping_value,
-                mean_over_actions=False
+                early_reduce=False
             ),
             reward_estimation=dict(
                 horizon=config['horizon'], discount=config['discount'],
                 estimate_horizon=estimate_horizon, estimate_actions=False,
                 estimate_terminal=estimate_terminal, estimate_advantage=estimate_advantage
             ),
-            baseline_policy=baseline_policy, baseline_network=baseline_network,
-            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer,
+            baseline_policy=baseline_policy, baseline_objective=baseline_objective,
+            baseline_optimizer=baseline_optimizer,
             preprocessing=None,
             l2_regularization=0.0, entropy_regularization=entropy_regularization
         )
@@ -192,8 +185,7 @@ class TensorforceWorker(Worker):
         configspace.add_hyperparameter(hyperparameter=clipping_value)
 
         baseline = cs.hyperparameters.CategoricalHyperparameter(
-            name='baseline',
-            choices=('no', 'auto', 'same-network', 'same-policy', 'same-policy-noopt')
+            name='baseline', choices=('no', 'auto', 'same-policy')
         )
         configspace.add_hyperparameter(hyperparameter=baseline)
 
@@ -255,6 +247,11 @@ def main():
     parser.add_argument('--id', type=str, default='worker', help='Unique worker id')
     args = parser.parse_args()
 
+    if args.level is None:
+        environment = Environment.create(environment=args.environment)
+    else:
+        environment = Environment.create(environment=args.environment, level=args.level)
+
     if False:
         host = nic_name_to_host(nic_name=None)
         port = 123
@@ -264,11 +261,6 @@ def main():
 
     server = NameServer(run_id=args.id, working_directory=args.directory, host=host, port=port)
     nameserver, nameserver_port = server.start()
-
-    if args.level is None:
-        environment = Environment.create(environment=args.environment)
-    else:
-        environment = Environment.create(environment=args.environment, level=args.level)
 
     worker = TensorforceWorker(
         environment=environment, run_id=args.id, nameserver=nameserver,
@@ -309,6 +301,7 @@ def main():
 
     optimizer.shutdown(shutdown_workers=True)
     server.shutdown()
+    environment.close()
 
     with open(os.path.join(args.directory, 'results.pkl'), 'wb') as filehandle:
         pickle.dump(results, filehandle)

@@ -107,6 +107,7 @@ setup(
         tf_gpu=['tensorflow-gpu==2.0.1'],
         tfa=['tensorflow-addons'],
         docs=['m2r', 'recommonmark', 'sphinx', 'sphinx-rtd-theme'],
+        tune=['hpbandster'],
         envs=['gym[all]', 'gym-retro', 'mazeexp', 'vizdoom'],
         mazeexp=['mazeexp'],
         gym=['gym[all]'],

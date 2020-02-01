@@ -106,10 +106,13 @@ class Agent(object):
                 agent = getattr(library, module_name)
                 return Agent.create(agent=agent, environment=environment, **kwargs)
 
-            else:
+            elif agent in tensorforce.agents.agents:
                 # Keyword specification
                 agent = tensorforce.agents.agents[agent]
                 return Agent.create(agent=agent, environment=environment, **kwargs)
+
+            else:
+                raise TensorforceError.value(name='Agent.create', argument='agent', dtype=agent)
 
         else:
             raise TensorforceError.type(name='Agent.create', argument='agent', dtype=type(agent))

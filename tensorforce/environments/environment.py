@@ -185,15 +185,22 @@ class Environment(object):
                     environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
                 )
 
-            else:
+            elif environment in tensorforce.environments.environments:
                 # Keyword specification
                 environment = tensorforce.environments.environments[environment]
                 return Environment.create(
                     environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
                 )
 
-        else:
+            else:
+                # Default: OpenAI Gym
+                return Environment.create(
+                    environment='gym', level=environment,
+                    max_episode_timesteps=max_episode_timesteps, **kwargs
+                )
 
+        else:
+            # Default: OpenAI Gym
             from gym import Env
             if isinstance(environment, Env) or \
                     (isinstance(environment, type) and issubclass(environment, Env)):

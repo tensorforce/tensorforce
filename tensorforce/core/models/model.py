@@ -236,12 +236,9 @@ class Model(Module):
             Module.register_tensor(name=name, spec=spec, batched=True)
         Module.register_tensor(name='terminal', spec=dict(type='long', shape=()), batched=True)
         Module.register_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
-        Module.register_tensor(
-            name='deterministic', spec=dict(type='bool', shape=()), batched=False
-        )
         Module.register_tensor(name='independent', spec=dict(type='bool', shape=()), batched=False)
         Module.register_tensor(
-            name='optimization', spec=dict(type='bool', shape=()), batched=False
+            name='deterministic', spec=dict(type='bool', shape=()), batched=False
         )
         Module.register_tensor(name='timestep', spec=dict(type='long', shape=()), batched=False)
         Module.register_tensor(name='episode', spec=dict(type='long', shape=()), batched=False)
@@ -611,6 +608,13 @@ class Model(Module):
                 shape=self.unprocessed_state_shape.get(name, state_spec['shape']), batched=True
             )
 
+        # Internals
+        self.internals_input = OrderedDict()
+        for name, internal_spec in self.internals_spec.items():
+            self.internals_input[name] = self.add_placeholder(
+                name=name, dtype=internal_spec['type'], shape=internal_spec['shape'], batched=True
+            )
+
         # Auxiliaries
         self.auxiliaries_input = OrderedDict()
         # Categorical action masks
@@ -655,12 +659,6 @@ class Model(Module):
             default=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
-        # Independent flag
-        self.independent_input = self.add_placeholder(
-            name='independent', dtype='bool', shape=(), batched=False,
-            default=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
-        )
-
         # Parallel index
         self.parallel_input = self.add_placeholder(
             name='parallel', dtype='long', shape=(), batched=True,
@@ -696,7 +694,6 @@ class Model(Module):
 
         # Internals buffer variable
         self.internals_buffer = OrderedDict()
-        self.independent_internals_buffer = OrderedDict()
         for name, spec in self.internals_spec.items():
             shape = ((self.parallel_interactions, self.buffer_observe + 1) + spec['shape'])
             initializer = np.zeros(shape=shape, dtype=util.np_dtype(dtype=spec['type']))
@@ -704,10 +701,6 @@ class Model(Module):
             self.internals_buffer[name] = self.add_variable(
                 name=(name + '-buffer'), dtype=spec['type'], shape=shape, is_trainable=False,
                 initializer=initializer, is_saved=False
-            )
-            self.independent_internals_buffer[name] = self.add_variable(
-                name=(name + '-independent-buffer'), dtype=spec['type'], shape=spec['shape'],
-                is_trainable=False, initializer=initializer[0, 0], is_saved=False
             )
 
         # Auxiliaries buffer variable
@@ -735,44 +728,14 @@ class Model(Module):
         )
 
     def api_reset(self):
-        independent = self.independent_input
-
-        # independent: type and shape
-        tf.debugging.assert_type(
-            tensor=independent, tf_type=util.tf_dtype(dtype='bool'),
-            message="Model.reset: invalid type for independent input."
+        assignment = self.buffer_index.assign(
+            value=tf.zeros(shape=(self.parallel_interactions,),
+            dtype=util.tf_dtype(dtype='long')), read_value=False
         )
-        tf.debugging.assert_scalar(
-            tensor=independent, message="Model.reset: independent input has to be a scalar."
-        )
-
-        assignments = list()
-        for name, spec in self.internals_spec.items():
-            assignments.append(
-                self.independent_internals_buffer[name].assign(
-                    value=tf.constant(
-                        value=self.internals_init[name], dtype=util.tf_dtype(dtype=spec['type'])
-                    ), read_value=False
-                )
-            )
-
-        with tf.control_dependencies(control_inputs=assignments):
-
-            def reset_all_buffers():
-                assignment = self.buffer_index.assign(
-                    value=tf.zeros(shape=(self.parallel_interactions,),
-                    dtype=util.tf_dtype(dtype='long')), read_value=False
-                )
-                with tf.control_dependencies(control_inputs=(assignment,)):
-                    return util.no_operation()
-
-            reset = self.cond(
-                pred=independent, true_fn=util.no_operation, false_fn=reset_all_buffers
-            )
 
         # TODO: Synchronization initial sync?
 
-        with tf.control_dependencies(control_inputs=(reset,)):
+        with tf.control_dependencies(control_inputs=(assignment,)):
             timestep = util.identity_operation(
                 x=self.global_timestep, operation_name='timestep-output'
             )
@@ -785,18 +748,19 @@ class Model(Module):
 
         return timestep, episode, update
 
-    def api_act(self):
+    def api_independent_act(self):
         # Inputs
-        states = self.states_input
-        auxiliaries = self.auxiliaries_input
-        parallel = self.parallel_input
+        states = OrderedDict(self.states_input)
+        internals = OrderedDict(self.internals_input)
+        auxiliaries = OrderedDict(self.auxiliaries_input)
         deterministic = self.deterministic_input
-        independent = self.independent_input
 
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
-        parallel_size = tf.shape(input=parallel, out_type=util.tf_dtype(dtype='long'))
+        batch_size = tf.shape(
+            input=next(iter(states.values())), out_type=util.tf_dtype(dtype='long')
+        )[:1]
 
         # Assertions
         assertions = list()
@@ -804,7 +768,7 @@ class Model(Module):
         for name, spec in self.states_spec.items():
             tf.debugging.assert_type(
                 tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
-                message="Model.act: invalid type for {} state input.".format(name)
+                message="Agent.act: invalid type for {} state input.".format(name)
             )
             shape = tf.constant(
                 value=self.unprocessed_state_shape.get(name, spec['shape']),
@@ -813,8 +777,22 @@ class Model(Module):
             assertions.append(
                 tf.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='long')),
-                    y=tf.concat(values=(parallel_size, shape), axis=0),
-                    message="Model.act: invalid shape for {} state input.".format(name)
+                    y=tf.concat(values=(batch_size, shape), axis=0),
+                    message="Agent.act: invalid shape for {} state input.".format(name)
+                )
+            )
+        # internals: type and shape
+        for name, spec in self.internals_spec.items():
+            tf.debugging.assert_type(
+                tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type']),
+                message="Agent.act: invalid type for {} internal input.".format(name)
+            )
+            shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='long'))
+            assertions.append(
+                tf.debugging.assert_equal(
+                    x=tf.shape(input=internals[name], out_type=util.tf_dtype(dtype='long')),
+                    y=tf.concat(values=(batch_size, shape), axis=0),
+                    message="Agent.act: invalid shape for {} internal input.".format(name)
                 )
             )
         # action_masks: type and shape
@@ -823,7 +801,7 @@ class Model(Module):
                 name = name + '_mask'
                 tf.debugging.assert_type(
                     tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
-                    message="Model.act: invalid type for {} action-mask input.".format(name)
+                    message="Agent.act: invalid type for {} action-mask input.".format(name)
                 )
                 shape = tf.constant(
                     value=(spec['shape'] + (spec['num_values'],)),
@@ -832,8 +810,8 @@ class Model(Module):
                 assertions.append(
                     tf.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=util.tf_dtype(dtype='long')),
-                        y=tf.concat(values=(parallel_size, shape), axis=0),
-                        message="Model.act: invalid shape for {} action-mask input.".format(name)
+                        y=tf.concat(values=(batch_size, shape), axis=0),
+                        message="Agent.act: invalid shape for {} action-mask input.".format(name)
                     )
                 )
                 assertions.append(
@@ -843,50 +821,24 @@ class Model(Module):
                                 input_tensor=auxiliaries[name], axis=(len(spec['shape']) + 1)
                             ), axis=tuple(range(len(spec['shape']) + 1))
                         ),
-                        y=true, message="Model.act: at least one action has to be valid for {} "
+                        y=true, message="Agent.act: at least one action has to be valid for {} "
                                         "action-mask input.".format(name)
                     )
                 )
-        # parallel: type, shape and value
-        tf.debugging.assert_type(
-            tensor=parallel, tf_type=util.tf_dtype(dtype='long'),
-            message="Model.act: invalid type for parallel input."
-        )
-        assertions.append(tf.debugging.assert_rank(
-            x=parallel, rank=1, message="Model.act: invalid shape for parallel input."
-        ))
-        assertions.append(tf.debugging.assert_non_negative(
-            x=parallel, message="Model.act: parallel input has to be non-negative."
-        ))
-        assertions.append(
-            tf.debugging.assert_less(
-                x=parallel,
-                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long')),
-                message="Model.act: parallel input has to be less than parallel_interactions."
-            )
-        )
         # deterministic: type and shape
         tf.debugging.assert_type(
             tensor=deterministic, tf_type=util.tf_dtype(dtype='bool'),
-            message="Model.act: invalid type for deterministic input."
+            message="Agent.act: invalid type for deterministic input."
         )
         tf.debugging.assert_scalar(
-            tensor=deterministic, message="Model.act: deterministic input has to be a scalar."
-        )
-        # independent: type and shape
-        tf.debugging.assert_type(
-            tensor=independent, tf_type=util.tf_dtype(dtype='bool'),
-            message="Model.act: invalid type for independent input."
-        )
-        tf.debugging.assert_scalar(
-            tensor=independent, message="Model.act: independent input has to be a scalar."
+            tensor=deterministic, message="Agent.act: deterministic input has to be a scalar."
         )
 
         # Set global tensors
         Module.update_tensors(
-            deterministic=deterministic, independent=independent,
-            optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+            independent=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
+            deterministic=deterministic, timestep=self.global_timestep, episode=self.global_episode,
+            update=self.global_update
         )
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -941,30 +893,6 @@ class Model(Module):
                     false_fn=apply_variable_noise
                 )
                 dependencies = variable_noise_tensors
-
-        # Initialize or retrieve internals
-        internals = OrderedDict()
-        if len(self.internals_spec) > 0:
-            with tf.control_dependencies(control_inputs=dependencies):
-                for name, spec in self.internals_spec.items():
-
-                    def get_independent_internal():
-                        return tf.reshape(
-                            tensor=self.independent_internals_buffer[name],
-                            shape=((-1,) + spec['shape'])
-                        )
-
-                    def get_buffer_internal():
-                        buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
-                        indices = tf.stack(values=(parallel, buffer_index), axis=1)
-                        return tf.gather_nd(params=self.internals_buffer[name], indices=indices)
-
-                    internals[name] = self.cond(
-                        pred=independent, true_fn=get_independent_internal,
-                        false_fn=get_buffer_internal
-                    )
-
-                dependencies = util.flatten(xs=internals)
 
         # Core act: retrieve actions and internals
         with tf.control_dependencies(control_inputs=dependencies):
@@ -1094,67 +1022,295 @@ class Model(Module):
                 )
                 dependencies = (reversed_variable_noise,)
 
+        # Return values
+        with tf.control_dependencies(control_inputs=dependencies):
+            # Function-level identity operation for retrieval (plus enforce dependency)
+            for name, spec in self.actions_spec.items():
+                actions[name] = util.identity_operation(
+                    x=actions[name], operation_name=(name + '-output')
+                )
+            for name, spec in self.internals_spec.items():
+                internals[name] = util.identity_operation(
+                    x=internals[name], operation_name=(name + '-output')
+                )
+
+        return actions, internals
+
+    def api_act(self):
+        # Inputs
+        states = OrderedDict(self.states_input)
+        auxiliaries = OrderedDict(self.auxiliaries_input)
+        parallel = self.parallel_input
+
+        true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+        zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+
+        parallel_size = tf.shape(input=parallel, out_type=util.tf_dtype(dtype='long'))
+
+        # Assertions
+        assertions = list()
+        # states: type and shape
+        for name, spec in self.states_spec.items():
+            tf.debugging.assert_type(
+                tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
+                message="Agent.act: invalid type for {} state input.".format(name)
+            )
+            shape = tf.constant(
+                value=self.unprocessed_state_shape.get(name, spec['shape']),
+                dtype=util.tf_dtype(dtype='long')
+            )
+            assertions.append(
+                tf.debugging.assert_equal(
+                    x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='long')),
+                    y=tf.concat(values=(parallel_size, shape), axis=0),
+                    message="Agent.act: invalid shape for {} state input.".format(name)
+                )
+            )
+        # action_masks: type and shape
+        for name, spec in self.actions_spec.items():
+            if spec['type'] == 'int':
+                name = name + '_mask'
+                tf.debugging.assert_type(
+                    tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
+                    message="Agent.act: invalid type for {} action-mask input.".format(name)
+                )
+                shape = tf.constant(
+                    value=(spec['shape'] + (spec['num_values'],)),
+                    dtype=util.tf_dtype(dtype='long')
+                )
+                assertions.append(
+                    tf.debugging.assert_equal(
+                        x=tf.shape(input=auxiliaries[name], out_type=util.tf_dtype(dtype='long')),
+                        y=tf.concat(values=(parallel_size, shape), axis=0),
+                        message="Agent.act: invalid shape for {} action-mask input.".format(name)
+                    )
+                )
+                assertions.append(
+                    tf.debugging.assert_equal(
+                        x=tf.reduce_all(
+                            input_tensor=tf.reduce_any(
+                                input_tensor=auxiliaries[name], axis=(len(spec['shape']) + 1)
+                            ), axis=tuple(range(len(spec['shape']) + 1))
+                        ),
+                        y=true, message="Agent.act: at least one action has to be valid for {} "
+                                        "action-mask input.".format(name)
+                    )
+                )
+        # parallel: type, shape and value
+        tf.debugging.assert_type(
+            tensor=parallel, tf_type=util.tf_dtype(dtype='long'),
+            message="Agent.act: invalid type for parallel input."
+        )
+        assertions.append(tf.debugging.assert_rank(
+            x=parallel, rank=1, message="Agent.act: invalid shape for parallel input."
+        ))
+        assertions.append(tf.debugging.assert_non_negative(
+            x=parallel, message="Agent.act: parallel input has to be non-negative."
+        ))
+        assertions.append(
+            tf.debugging.assert_less(
+                x=parallel,
+                y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long')),
+                message="Agent.act: parallel input has to be less than parallel_interactions."
+            )
+        )
+
+        # Set global tensors
+        Module.update_tensors(
+            independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
+            deterministic=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
+            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+        )
+
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+
+        dependencies = assertions
+
+        # Preprocessing states
+        if any(name in self.preprocessing for name in self.states_spec):
+            with tf.control_dependencies(control_inputs=dependencies):
+                for name in self.states_spec:
+                    if name in self.preprocessing:
+                        states[name] = self.preprocessing[name].apply(x=states[name])
+            dependencies = util.flatten(xs=states)
+
+        # Variable noise
+        variables = self.get_variables(only_trainable=True)
+        if len(variables) > 0:
+            with tf.control_dependencies(control_inputs=dependencies):
+                dependencies = list()
+                variable_noise_tensors = list()
+                variable_noise = self.variable_noise.value()
+                for variable in variables:
+                    if variable.dtype == util.tf_dtype(dtype='float'):
+                        noise = tf.random.normal(
+                            shape=util.shape(variable), mean=0.0, stddev=variable_noise,
+                            dtype=util.tf_dtype(dtype='float')
+                        )
+                    else:
+                        noise = tf.random.normal(
+                            shape=util.shape(variable), mean=0.0,
+                            stddev=tf.dtypes.cast(x=variable_noise, dtype=variable.dtype),
+                            dtype=variable.dtype
+                        )
+                    variable_noise_tensors.append(noise)
+                    dependencies.append(variable.assign_add(delta=noise, read_value=False))
+
+        # Initialize or retrieve internals
+        internals = OrderedDict()
+        if len(self.internals_spec) > 0:
+            with tf.control_dependencies(control_inputs=dependencies):
+                for name, spec in self.internals_spec.items():
+                    buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+                    indices = tf.stack(values=(parallel, buffer_index), axis=1)
+                    internals[name] = tf.gather_nd(
+                        params=self.internals_buffer[name], indices=indices
+                    )
+
+                dependencies = util.flatten(xs=internals)
+
+        # Core act: retrieve actions and internals
+        with tf.control_dependencies(control_inputs=dependencies):
+            actions, internals = self.core_act(
+                states=states, internals=internals, auxiliaries=auxiliaries
+            )
+            dependencies = util.flatten(xs=actions) + util.flatten(xs=internals)
+
+        # Check action masks
+        # TODO: also check float bounds, move after exploration?
+        assertions = list()
+        for name, spec in self.actions_spec.items():
+            if spec['type'] == 'int':
+                indices = tf.dtypes.cast(x=actions[name], dtype=util.tf_dtype(dtype='long'))
+                indices = tf.expand_dims(input=indices, axis=-1)
+                is_unmasked = tf.gather(
+                    params=auxiliaries[name + '_mask'], indices=indices, batch_dims=-1
+                )
+                assertions.append(tf.debugging.assert_equal(
+                    x=tf.math.reduce_all(input_tensor=is_unmasked), y=true,
+                    message="Action mask check."
+                ))
+        dependencies += assertions
+
+        # Exploration
+        with tf.control_dependencies(control_inputs=dependencies):
+            if not isinstance(self.exploration, dict):
+                exploration = self.exploration.value()
+
+            for name, spec in self.actions_spec.items():
+                if isinstance(self.exploration, dict):
+                    if name in self.exploration:
+                        exploration = self.exploration[name].value()
+                    else:
+                        continue
+
+                float_dtype = util.tf_dtype(dtype='float')
+                shape = tf.shape(input=actions[name])
+
+                if spec['type'] == 'bool':
+                    condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
+                    half = tf.constant(value=0.5, dtype=float_dtype)
+                    random_action = tf.random.uniform(shape=shape, dtype=float_dtype) < half
+                    actions[name] = tf.where(condition=condition, x=random_action, y=actions[name])
+
+                elif spec['type'] == 'int':
+                    int_dtype = util.tf_dtype(dtype='int')
+
+                    # (Same code as for RandomModel)
+                    shape = tf.shape(input=actions[name])
+
+                    # Action choices
+                    choices = list(range(spec['num_values']))
+                    choices_tile = ((1,) + spec['shape'] + (1,))
+                    choices = np.tile(A=[choices], reps=choices_tile)
+                    choices_shape = ((1,) + spec['shape'] + (spec['num_values'],))
+                    choices = tf.constant(value=choices, dtype=int_dtype, shape=choices_shape)
+                    ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=tf.dtypes.int32)
+                    batch_size = tf.dtypes.cast(x=shape[0:1], dtype=tf.dtypes.int32)
+                    multiples = tf.concat(values=(batch_size, ones), axis=0)
+                    choices = tf.tile(input=choices, multiples=multiples)
+
+                    # Random unmasked action
+                    mask = auxiliaries[name + '_mask']
+                    num_values = tf.math.count_nonzero(
+                        input=mask, axis=-1, dtype=tf.dtypes.int32
+                    )
+                    random_action = tf.random.uniform(shape=shape, dtype=float_dtype)
+                    random_action = tf.dtypes.cast(
+                        x=(random_action * tf.dtypes.cast(x=num_values, dtype=float_dtype)),
+                        dtype=tf.dtypes.int32
+                    )
+
+                    # Correct for masked actions
+                    choices = tf.boolean_mask(tensor=choices, mask=mask)
+                    offset = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
+                    random_action = tf.gather(params=choices, indices=(random_action + offset))
+
+                    # Random action
+                    condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
+                    actions[name] = tf.where(condition=condition, x=random_action, y=actions[name])
+
+                elif spec['type'] == 'float':
+                    if 'min_value' in spec:
+                        noise = tf.random.normal(shape=shape, dtype=float_dtype) * exploration
+                        actions[name] = tf.clip_by_value(
+                            t=(actions[name] + noise), clip_value_min=spec['min_value'],
+                            clip_value_max=spec['max_value']
+                        )
+
+                    else:
+                        noise = tf.random.normal(shape=shape, dtype=float_dtype) * exploration
+                        actions[name] = actions[name] + noise
+
+            dependencies = util.flatten(xs=actions)
+
+        # Variable noise
+        if len(variables) > 0:
+            with tf.control_dependencies(control_inputs=dependencies):
+                dependencies = list()
+                for variable, noise in zip(variables, variable_noise_tensors):
+                    dependencies.append(variable.assign_sub(delta=noise, read_value=False))
+
         # Update states/internals/actions buffers
         with tf.control_dependencies(control_inputs=dependencies):
+            operations = list()
+            buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+            indices = tf.stack(values=(parallel, buffer_index), axis=1)
+            for name in self.states_spec:
+                operations.append(
+                    self.states_buffer[name].scatter_nd_update(
+                        indices=indices, updates=states[name]
+                    )
+                )
+            for name in self.auxiliaries_spec:
+                operations.append(
+                    self.auxiliaries_buffer[name].scatter_nd_update(
+                        indices=indices, updates=auxiliaries[name]
+                    )
+                )
+            for name in self.actions_spec:
+                operations.append(
+                    self.actions_buffer[name].scatter_nd_update(
+                        indices=indices, updates=actions[name]
+                    )
+                )
+            indices = tf.stack(values=(parallel, buffer_index + one), axis=1)
+            for name in self.internals_spec:
+                operations.append(
+                    self.internals_buffer[name].scatter_nd_update(
+                        indices=indices, updates=internals[name]
+                    )
+                )
 
-            def update_internals():
-                operations = list()
-                for name, spec in self.internals_spec.items():
-                    operations.append(
-                        self.independent_internals_buffer[name].assign(
-                            value=tf.reshape(tensor=internals[name], shape=spec['shape']),
-                            read_value=False
-                        )
-                    )
-                with tf.control_dependencies(control_inputs=operations):
-                    return util.no_operation()
-
-            def update_buffers():
-                operations = list()
-                buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
-                indices = tf.stack(values=(parallel, buffer_index), axis=1)
-                for name in self.states_spec:
-                    operations.append(
-                        self.states_buffer[name].scatter_nd_update(
-                            indices=indices, updates=states[name]
-                        )
-                    )
-                for name in self.auxiliaries_spec:
-                    operations.append(
-                        self.auxiliaries_buffer[name].scatter_nd_update(
-                            indices=indices, updates=auxiliaries[name]
-                        )
-                    )
-                for name in self.actions_spec:
-                    operations.append(
-                        self.actions_buffer[name].scatter_nd_update(
-                            indices=indices, updates=actions[name]
-                        )
-                    )
-                indices = tf.stack(values=(parallel, buffer_index + one), axis=1)
-                for name in self.internals_spec:
-                    operations.append(
-                        self.internals_buffer[name].scatter_nd_update(
-                            indices=indices, updates=internals[name]
-                        )
-                    )
-
-                # Increment buffer index
-                with tf.control_dependencies(control_inputs=operations):
-                    incremented_buffer_index = self.buffer_index.scatter_nd_add(
-                        indices=tf.expand_dims(input=parallel, axis=1),
-                        updates=tf.fill(dims=parallel_size, value=one)
-                    )
-
-                with tf.control_dependencies(control_inputs=(incremented_buffer_index,)):
-                    return util.no_operation()
-
-            updated_buffers = self.cond(
-                pred=independent, true_fn=update_internals, false_fn=update_buffers
-            )
+            # Increment buffer index
+            with tf.control_dependencies(control_inputs=operations):
+                incremented_buffer_index = self.buffer_index.scatter_nd_add(
+                    indices=tf.expand_dims(input=parallel, axis=1),
+                    updates=tf.fill(dims=parallel_size, value=one)
+                )
 
         # Increment timestep
-        def increment_timestep():
+        with tf.control_dependencies(control_inputs=(incremented_buffer_index,)):
             assignments = list()
             assignments.append(
                 self.timestep.scatter_nd_add(
@@ -1165,16 +1321,9 @@ class Model(Module):
             assignments.append(self.global_timestep.assign_add(
                 delta=parallel_size[0], read_value=False
             ))
-            with tf.control_dependencies(control_inputs=assignments):
-                return util.no_operation()
-
-        with tf.control_dependencies(control_inputs=(updated_buffers,)):
-            incremented_timestep = self.cond(
-                pred=independent, true_fn=util.no_operation, false_fn=increment_timestep
-            )
 
         # Return timestep
-        with tf.control_dependencies(control_inputs=(incremented_timestep,)):
+        with tf.control_dependencies(control_inputs=assignments):
             # Function-level identity operation for retrieval (plus enforce dependency)
             for name, spec in self.actions_spec.items():
                 actions[name] = util.identity_operation(
@@ -1201,65 +1350,64 @@ class Model(Module):
         # terminal: type and shape
         tf.debugging.assert_type(
             tensor=terminal, tf_type=util.tf_dtype(dtype='long'),
-            message="Model.observe: invalid type for terminal input."
+            message="Agent.observe: invalid type for terminal input."
         )
         assertions.append(tf.debugging.assert_rank(
-            x=terminal, rank=1, message="Model.observe: invalid shape for terminal input."
+            x=terminal, rank=1, message="Agent.observe: invalid shape for terminal input."
         ))
         # reward: type and shape
         tf.debugging.assert_type(
             tensor=reward, tf_type=util.tf_dtype(dtype='float'),
-            message="Model.observe: invalid type for reward input."
+            message="Agent.observe: invalid type for reward input."
         )
         assertions.append(tf.debugging.assert_rank(
-            x=reward, rank=1, message="Model.observe: invalid shape for reward input."
+            x=reward, rank=1, message="Agent.observe: invalid shape for reward input."
         ))
         # parallel: type, shape and value
         tf.debugging.assert_type(
             tensor=parallel, tf_type=util.tf_dtype(dtype='long'),
-            message="Model.observe: invalid type for parallel input."
+            message="Agent.observe: invalid type for parallel input."
         )
         tf.debugging.assert_scalar(
-            tensor=parallel[0], message="Model.observe: parallel input has to be a scalar."
+            tensor=parallel[0], message="Agent.observe: parallel input has to be a scalar."
         )
         assertions.append(tf.debugging.assert_non_negative(
-            x=parallel, message="Model.observe: parallel input has to be non-negative."
+            x=parallel, message="Agent.observe: parallel input has to be non-negative."
         ))
         assertions.append(tf.debugging.assert_less(
             x=parallel[0],
             y=tf.constant(value=self.parallel_interactions, dtype=util.tf_dtype(dtype='long')),
-            message="Model.observe: parallel input has to be less than parallel_interactions."
+            message="Agent.observe: parallel input has to be less than parallel_interactions."
         ))
         # shape of terminal equals shape of reward
         assertions.append(tf.debugging.assert_equal(
             x=tf.shape(input=terminal), y=tf.shape(input=reward),
-            message="Model.observe: incompatible shapes of terminal and reward input."
+            message="Agent.observe: incompatible shapes of terminal and reward input."
         ))
         # size of terminal equals buffer index
         assertions.append(tf.debugging.assert_equal(
             x=tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0],
             y=tf.dtypes.cast(x=buffer_index, dtype=util.tf_dtype(dtype='long')),
-            message="Model.observe: number of observe-timesteps has to be equal to number of "
+            message="Agent.observe: number of observe-timesteps has to be equal to number of "
                     "buffered act-timesteps."
         ))
         # at most one terminal
         assertions.append(tf.debugging.assert_less_equal(
             x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
             y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long')),
-            message="Model.observe: input contains more than one terminal."
+            message="Agent.observe: input contains more than one terminal."
         ))
         # if terminal, last timestep in batch
         assertions.append(tf.debugging.assert_equal(
             x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
             y=tf.math.greater(x=terminal[-1], y=zero),
-            message="Model.observe: terminal is not the last input timestep."
+            message="Agent.observe: terminal is not the last input timestep."
         ))
 
         # Set global tensors
         Module.update_tensors(
-            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
+            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
         )
 
@@ -1410,4 +1558,3 @@ class Model(Module):
             save_path = os.path.join(directory, filename)
 
         self.saver.restore(sess=self.session, save_path=save_path)
-        return self.reset()

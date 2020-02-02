@@ -213,7 +213,7 @@ class Dropout(Layer):
                 pass_tensors=dropout
             )
 
-        skip_dropout = tf.math.logical_not(x=Module.retrieve_tensor(name='optimization'))
+        skip_dropout = tf.math.logical_not(x=Module.retrieve_tensor(name='deterministic'))
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
         skip_dropout = tf.math.logical_or(x=skip_dropout, y=tf.math.equal(x=rate, y=zero))
         return self.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)

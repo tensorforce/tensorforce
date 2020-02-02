@@ -514,7 +514,7 @@ class StatefulLayer(TemporalLayer):
 
     # def tf_apply(self, x, **internals):
 
-    #     # optimization = tf.math.logical_not(x=Module.retrieve_tensor(name='optimization'))
+    #     # optimization = tf.math.logical_not(x=Module.retrieve_tensor(name='???'))
 
     #     # def true_fn():
     #     batch_size = tf.shape(

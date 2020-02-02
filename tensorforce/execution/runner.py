@@ -403,6 +403,8 @@ class Runner(object):
         self.states = [None for _ in self.environments]
         self.terminals = [None for _ in self.environments]
         self.rewards = [None for _ in self.environments]
+        if self.evaluation_run:
+            self.evaluation_internals = self.agent.initial_internals()
 
         # Required if agent was previously stopped mid-episode
         self.agent.reset()
@@ -551,7 +553,9 @@ class Runner(object):
 
         if self.evaluation_run and self.terminals[-1] <= 0:
             agent_start = time.time()
-            self.actions[-1] = self.agent.act(states=self.states[-1], evaluation=True)
+            self.actions[-1], self.evaluation_internals = self.agent.act(
+                states=self.states[-1], internals=self.evaluation_internals, evaluation=True
+            )
             self.episode_agent_second[-1] += time.time() - agent_start
 
     def handle_act_evaluation(self):
@@ -560,7 +564,9 @@ class Runner(object):
 
         else:
             agent_start = time.time()
-            actions = self.agent.act(states=self.states[-1], evaluation=True)
+            actions, self.evaluation_internals = self.agent.act(
+                states=self.states[-1], internals=self.evaluation_internals, evaluation=True
+            )
             self.evaluation_agent_second += time.time() - agent_start
 
         self.environments[-1].start_execute(actions=actions)
@@ -621,7 +627,6 @@ class Runner(object):
         # Reset agent if terminal
         if self.terminals[-1] > 0 or self.terminate == 2:
             agent_start = time.time()
-            self.agent.reset(evaluation=True)
             self.evaluation_agent_second += time.time() - agent_start
 
     def handle_terminal(self, parallel):
@@ -680,7 +685,7 @@ class Runner(object):
             self.episodes += 1
             if self.terminate == 0 and ((
                 self.episodes % self.callback_episode_frequency == 0 and
-                not self.callback(self, parallel)
+                not self.callback(self, 0)
             ) or self.episodes >= self.num_episodes):
                 self.terminate = 1
 
@@ -694,3 +699,4 @@ class Runner(object):
         if self.terminate == 0 and not self.sync_episodes:
             self.terminals[-1] = 0
             self.environments[-1].start_reset()
+            self.evaluation_internals = self.agent.initial_internals()

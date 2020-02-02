@@ -297,7 +297,7 @@ class Environment(object):
                 (<span style="color:#C00000"><b>required</b></span>).
 
         Returns:
-            ((dict[state], bool | 0 | 1 | 2, float)): Dictionary containing next state(s), whether
+            dict[state], bool | 0 | 1 | 2, float: Dictionary containing next state(s), whether
             a terminal state is reached or 2 if the episode was aborted, and observed reward.
         """
         raise NotImplementedError

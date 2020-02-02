@@ -81,10 +81,10 @@ class ExponentialNormalization(Layer):
             initializer='zeros'
         )
 
-        self.update_on_optimization = self.add_variable(
-            name='update-on-optimization', dtype='bool', shape=(), is_trainable=False,
-            initializer='zeros'
-        )
+        # self.update_on_optimization = self.add_variable(
+        #     name='update-on-optimization', dtype='bool', shape=(), is_trainable=False,
+        #     initializer='zeros'
+        # )
 
     def tf_apply(self, x):
 
@@ -125,15 +125,16 @@ class ExponentialNormalization(Layer):
 
             return mean, variance
 
-        optimization = Module.retrieve_tensor(name='optimization')
-        update_on_optimization = tf.where(
-            condition=self.after_first_call, x=self.update_on_optimization, y=optimization
-        )
-        update_on_optimization = self.update_on_optimization.assign(value=update_on_optimization)
-        skip_update = tf.math.logical_or(
-            x=Module.retrieve_tensor(name='independent'),
-            y=tf.math.not_equal(x=update_on_optimization, y=optimization)
-        )
+        # optimization = Module.retrieve_tensor(name='optimization')
+        # update_on_optimization = tf.where(
+        #     condition=self.after_first_call, x=self.update_on_optimization, y=optimization
+        # )
+        # update_on_optimization = self.update_on_optimization.assign(value=update_on_optimization)
+        # skip_update = tf.math.logical_or(
+        #     x=Module.retrieve_tensor(name='independent'),
+        #     y=tf.math.not_equal(x=update_on_optimization, y=optimization)
+        # )
+        skip_update = Module.retrieve_tensor(name='independent')
 
         mean, variance = self.cond(pred=skip_update, true_fn=no_update, false_fn=apply_update)
 

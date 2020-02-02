@@ -6,6 +6,7 @@ Agent interface
 .. automethod:: tensorforce.agents.TensorforceAgent.initialize
 .. automethod:: tensorforce.agents.TensorforceAgent.close
 .. automethod:: tensorforce.agents.TensorforceAgent.reset
+.. automethod:: tensorforce.agents.TensorforceAgent.initial_internals
 .. automethod:: tensorforce.agents.TensorforceAgent.act
 .. automethod:: tensorforce.agents.TensorforceAgent.observe
 .. automethod:: tensorforce.agents.TensorforceAgent.experience

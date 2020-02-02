@@ -370,12 +370,14 @@ class TensorforceAgent(Agent):
 
         assert max_episode_timesteps is None or self.model.memory.capacity > max_episode_timesteps
 
-    def experience(self, states, actions, terminal, reward, internals=None, query=None, **kwargs):
+    def experience(
+        self, states, actions, terminal, reward, internals=None, query=None, **kwargs
+    ):
         """
         Feed experience traces.
 
         Args:
-            states (dict[array[state]): Dictionary containing arrays of states
+            states (dict[array[state]]): Dictionary containing arrays of states
                 (<span style="color:#C00000"><b>required</b></span>).
             actions (dict[array[action]]): Dictionary containing arrays of actions
                 (<span style="color:#C00000"><b>required</b></span>).
@@ -383,7 +385,7 @@ class TensorforceAgent(Agent):
                 (<span style="color:#C00000"><b>required</b></span>).
             reward (array[float]): Array of rewards
                 (<span style="color:#C00000"><b>required</b></span>).
-            internals (dict[state]): Dictionary containing arrays of internal states
+            internals (dict[state]): Dictionary containing arrays of internal agent states
                 (<span style="color:#00C000"><b>default</b></span>: no internal states).
             query (list[str]): Names of tensors to retrieve
                 (<span style="color:#00C000"><b>default</b></span>: none).
@@ -391,7 +393,7 @@ class TensorforceAgent(Agent):
         """
         assert (self.buffer_indices == 0).all()
         assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
-        assert internals is None  # or util.reduce_all(predicate=util.not_nan_inf, xs=internals)
+        assert internals is None or util.reduce_all(predicate=util.not_nan_inf, xs=internals)
         assert util.reduce_all(predicate=util.not_nan_inf, xs=actions)
         assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
 
@@ -407,11 +409,11 @@ class TensorforceAgent(Agent):
         states = util.normalize_values(
             value_type='state', values=states, values_spec=self.states_spec
         )
-        if internals is None:
-            internals = OrderedDict()
         actions = util.normalize_values(
             value_type='action', values=actions, values_spec=self.actions_spec
         )
+        if internals is None:
+            internals = OrderedDict()
 
         if isinstance(terminal, (bool, int)):
             states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)

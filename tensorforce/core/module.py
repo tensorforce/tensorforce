@@ -415,7 +415,7 @@ class Module(object):
                         function_name not in self.config['api_functions']:
                     continue
 
-                if function_name == 'act':
+                if function_name in ('act', 'independent_act'):
                     Module.global_summary_step = 'timestep'
                 elif function_name in ('observe', 'experience'):
                     Module.global_summary_step = 'episode'
@@ -427,7 +427,7 @@ class Module(object):
                         condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
 
                     elif isinstance(self.summarizer_spec['frequency'], int):
-                        if function_name == 'act':
+                        if function_name in ('act', 'independent_act'):
                             step = self.global_timestep
                             frequency = tf.constant(
                                 value=self.summarizer_spec['frequency'],
@@ -437,13 +437,13 @@ class Module(object):
                             condition = (
                                 lambda: tf.math.equal(x=tf.math.mod(x=step, y=frequency), y=zero)
                             )
-                        elif function_name == 'reset':
+                        elif function_name in ('reset', 'independent_act'):
                             condition = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
                         else:
                             condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
 
                     elif function_name in self.summarizer_spec['frequency']:
-                        if function_name == 'act':
+                        if function_name in ('act', 'independent_act'):
                             step = self.global_timestep
                         elif function_name in ('observe', 'experience'):
                             step = self.global_episode

@@ -221,7 +221,7 @@ class UnittestEnvironment(Environment):
 
     def execute(self, actions):
         if not self.is_valid_actions(actions, self._states):
-            raise TensorforceError.value(name='actions', value=actions)
+            raise TensorforceError.value(name='execute', argument='actions', value=actions)
 
         self.timestep += 1
         self._states = self.random_states()

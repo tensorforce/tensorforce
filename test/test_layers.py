@@ -125,7 +125,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='exponential_normalization'),
             dict(type='instance_normalization')
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, require_observe=True, policy=dict(network=network))
 
     def test_pooling(self):
         self.start_tests(name='pooling')

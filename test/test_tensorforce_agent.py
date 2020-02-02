@@ -38,11 +38,15 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
 
         for n in range(2):
             states = environment.reset()
+            internals = agent.initial_internals()
             terminal = False
             while not terminal:
-                actions = agent.act(states=states, independent=True)
+                actions, internals = agent.act(states=states, internals=internals, independent=True)
                 next_states, terminal, reward = environment.execute(actions=actions)
-                agent.experience(states=states, actions=actions, terminal=terminal, reward=reward)
+                agent.experience(
+                    states=states, internals=internals, actions=actions, terminal=terminal,
+                    reward=reward
+                )
                 states = next_states
             agent.update()
 
@@ -56,7 +60,7 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
         actions = dict(type=self.__class__.replacement_action, shape=())
 
         agent, environment = self.prepare(
-            states=states, actions=actions, require_all=True, buffer_observe=False, update=1,
+            states=states, actions=actions, require_all=True, update=1,
             policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False)),
             # TODO: shouldn't be necessary!
             recorder=dict(directory=self.__class__.directory)

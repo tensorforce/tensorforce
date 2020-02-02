@@ -336,63 +336,55 @@ class Agent(object):
         self.model.close()
         self.model = None
 
-    def reset(self, independent=False, evaluation=False):
+    def reset(self):
         """
-        Resets all agent buffers and discards unfinished episodes, or only terminates and resets an
-            episode in independent/evaluation mode if corresponding argument is set.
-
-        Args:
-            independent (bool): Whether to terminate an episode in independent mode
-                (<span style="color:#00C000"><b>default</b></span>: false).
-            evaluation (bool): Whether to terminate an episode in evaluation mode, implies
-                independent
-                (<span style="color:#00C000"><b>default</b></span>: false).
+        Resets all agent buffers and discards unfinished episodes.
         """
-        if evaluation:
-            if independent:
-                raise TensorforceError.invalid(
-                    name='agent.reset', argument='independent', condition='evaluation = true'
-                )
-            independent = True
+        self.buffer_indices = np.zeros(
+            shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
+        )
+        self.timestep_completed = np.ones(
+            shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
+        )
 
-        if not independent:
-            self.buffer_indices = np.zeros(
-                shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
-            )
-            self.timestep_completed = np.ones(
-                shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
-            )
+        self.timesteps, self.episodes, self.updates = self.model.reset()
 
-        self.timesteps, self.episodes, self.updates = self.model.reset(independent=independent)
+    def initial_internals(self):
+        return OrderedDict(**self.model.internals_init)
 
     def act(
-        self, states, parallel=0, deterministic=False, independent=False, evaluation=False,
-        query=None, **kwargs
+        self, states, internals=None, parallel=0, independent=False, deterministic=False,
+        evaluation=False, query=None, **kwargs
     ):
         """
-        Returns action(s) for the given state(s), needs to be followed by `observe(...)`, or
-        terminated by `reset()` in case of `independent`/`evaluation`.
+        Returns action(s) for the given state(s), needs to be followed by `observe(...)` unless independent mode set via `independent`/`evaluation`.
 
         Args:
             states (dict[state] | iter[dict[state]]): Dictionary containing state(s) to be acted on
                 (<span style="color:#C00000"><b>required</b></span>).
+            internals (dict[internal] | iter[dict[internal]]): Dictionary containing current
+                internal agent state(s)
+                (<span style="color:#C00000"><b>required</b></span> if independent mode).
             parallel (int | iter[int]): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
-            deterministic (bool): Whether to apply exploration and sampling
+            independent (bool): Whether act is not part of the main agent-environment interaction,
+                and this call is thus not followed by observe
                 (<span style="color:#00C000"><b>default</b></span>: false).
-            independent (bool): Whether action is not remembered, and this call is thus not
-                followed by observe
+            deterministic (bool): Ff independent mode, whether to act deterministically, so no
+                exploration and sampling
                 (<span style="color:#00C000"><b>default</b></span>: false).
-            evaluation (bool): Whether the agent is currently evaluated, implies deterministic and
-                independent
+            evaluation (bool): Whether the agent is currently evaluated, implies independent and
+                deterministic
                 (<span style="color:#00C000"><b>default</b></span>: false).
             query (list[str]): Names of tensors to retrieve
                 (<span style="color:#00C000"><b>default</b></span>: none).
             kwargs: Additional input values, for instance, for dynamic hyperparameters.
 
         Returns:
-            (dict[action] | iter[dict[action]], plus optional list[str]): Dictionary containing
-            action(s), plus queried tensor values if requested.
+            dict[action] | iter[dict[action]], if independent mode dict[internal] |
+            iter[dict[internal]], plus optional list[str]: Dictionary containing action(s),
+            dictionary containing next internal agent state(s) if independent mode, plus queried
+            tensor values if requested.
         """
         assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
 
@@ -406,6 +398,19 @@ class Agent(object):
                     name='agent.act', argument='independent', condition='evaluation = true'
                 )
             deterministic = independent = True
+
+        if not independent:
+            if internals is not None:
+                raise TensorforceError.invalid(
+                    name='agent.act', argument='internals', condition='independent = false'
+                )
+            if deterministic:
+                raise TensorforceError.invalid(
+                    name='agent.act', argument='deterministic', condition='independent = false'
+                )
+
+        if independent and internals is None:
+            internals = OrderedDict()
 
         # Batch states
         batched = (not isinstance(parallel, int))
@@ -422,12 +427,19 @@ class Agent(object):
                 ))
             else:
                 states = np.asarray(states)
+            if independent:
+                internals = OrderedDict((
+                    (name, np.asarray([internals[n][name] for n in range(len(parallel))]))
+                    for name in internals[0]
+                ))
         else:
             parallel = np.asarray([parallel])
             states = util.fmap(
                 function=(lambda x: np.asarray([x])), xs=states,
                 depth=int(isinstance(states, dict))
             )
+            if independent:
+                internals = util.fmap(function=(lambda x: np.asarray([x])), xs=internals, depth=1)
 
         if not independent and not all(self.timestep_completed[n] for n in parallel):
             raise TensorforceError(message="Calling agent.act must be preceded by agent.observe.")
@@ -446,17 +458,29 @@ class Agent(object):
         )
 
         # Model.act()
-        if query is None:
-            actions, self.timesteps = self.model.act(
-                states=states, auxiliaries=auxiliaries, parallel=parallel,
-                deterministic=deterministic, independent=independent, **kwargs
-            )
+        if independent:
+            if query is None:
+                actions, internals = self.model.independent_act(
+                    states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
+                    deterministic=deterministic, **kwargs
+                )
+
+            else:
+                actions, internals, queried = self.model.independent_act(
+                    states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
+                    deterministic=deterministic, query=query, **kwargs
+                )
 
         else:
-            actions, self.timesteps, queried = self.model.act(
-                states=states, auxiliaries=auxiliaries, parallel=parallel,
-                deterministic=deterministic, independent=independent, query=query, **kwargs
-            )
+            if query is None:
+                actions, self.timesteps = self.model.act(
+                    states=states, auxiliaries=auxiliaries, parallel=parallel, **kwargs
+                )
+
+            else:
+                actions, self.timesteps, queried = self.model.act(
+                    states=states, auxiliaries=auxiliaries, parallel=parallel, query=query, **kwargs
+                )
 
         if not independent:
             for n in parallel:
@@ -496,11 +520,20 @@ class Agent(object):
             actions = util.fmap(
                 function=(lambda x: x[0]), xs=actions, depth=int(isinstance(actions, dict))
             )
+            if independent:
+                internals = util.fmap(function=(lambda x: x[0]), xs=internals, depth=1)
 
-        if query is None:
-            return actions
+        if independent:
+            if query is None:
+                return actions, internals
+            else:
+                return actions, internals, queried
+
         else:
-            return actions, queried
+            if query is None:
+                return actions
+            else:
+                return actions, queried
 
     def observe(self, reward, terminal=False, parallel=0, query=None, **kwargs):
         """

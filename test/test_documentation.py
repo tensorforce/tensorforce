@@ -97,12 +97,12 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         sum_rewards = 0.0
         for _ in range(5):
             states = environment.reset()
+            internals = agent.initial_internals()
             terminal = False
             while not terminal:
-                actions = agent.act(states=states, evaluation=True)
+                actions, internals = agent.act(states=states, internals=internals, evaluation=True)
                 states, terminal, reward = environment.execute(actions=actions)
                 sum_rewards += reward
-            agent.reset(evaluation=True)
 
         sum_rewards / 100
 

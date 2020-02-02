@@ -217,9 +217,6 @@ class TensorforceModel(Model):
         # Register global tensors
         Module.register_tensor(name='update', spec=dict(type='long', shape=()), batched=False)
         Module.register_tensor(
-            name='optimization', spec=dict(type='bool', shape=()), batched=False
-        )
-        Module.register_tensor(
             name='dependency_starts', spec=dict(type='long', shape=()), batched=True
         )
         Module.register_tensor(
@@ -228,13 +225,6 @@ class TensorforceModel(Model):
 
     def tf_initialize(self):
         super().tf_initialize()
-
-        # Internals
-        self.internals_input = OrderedDict()
-        for name, internal_spec in self.internals_spec.items():
-            self.internals_input[name] = self.add_placeholder(
-                name=name, dtype=internal_spec['type'], shape=internal_spec['shape'], batched=True
-            )
 
         # Actions
         self.actions_input = OrderedDict()
@@ -245,10 +235,10 @@ class TensorforceModel(Model):
 
     def api_experience(self):
         # Inputs
-        states = self.states_input
-        internals = self.internals_input
-        auxiliaries = self.auxiliaries_input
-        actions = self.actions_input
+        states = OrderedDict(self.states_input)
+        internals = OrderedDict(self.internals_input)
+        auxiliaries = OrderedDict(self.auxiliaries_input)
+        actions = OrderedDict(self.actions_input)
         terminal = self.terminal_input
         reward = self.reward_input
 
@@ -261,47 +251,47 @@ class TensorforceModel(Model):
         # terminal: type and shape
         tf.debugging.assert_type(
             tensor=terminal, tf_type=util.tf_dtype(dtype='long'),
-            message="Model.experience: invalid type for terminal input."
+            message="Agent.experience: invalid type for terminal input."
         )
         assertions.append(tf.debugging.assert_rank(
-            x=terminal, rank=1, message="Model.experience: invalid shape for terminal input."
+            x=terminal, rank=1, message="Agent.experience: invalid shape for terminal input."
         ))
         # reward: type and shape
         tf.debugging.assert_type(
             tensor=reward, tf_type=util.tf_dtype(dtype='float'),
-            message="Model.experience: invalid type for reward input."
+            message="Agent.experience: invalid type for reward input."
         )
         assertions.append(tf.debugging.assert_rank(
-            x=reward, rank=1, message="Model.experience: invalid shape for reward input."
+            x=reward, rank=1, message="Agent.experience: invalid shape for reward input."
         ))
         # shape of terminal equals shape of reward
         assertions.append(tf.debugging.assert_equal(
             x=tf.shape(input=terminal), y=tf.shape(input=reward),
-            message="Model.experience: incompatible shapes of terminal and reward input."
+            message="Agent.experience: incompatible shapes of terminal and reward input."
         ))
         # buffer index is zero
         assertions.append(tf.debugging.assert_equal(
             x=tf.math.reduce_sum(input_tensor=self.buffer_index, axis=0),
             y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long')),
-            message="Model.experience: cannot be called mid-episode."
+            message="Agent.experience: cannot be called mid-episode."
         ))
         # at most one terminal
         assertions.append(tf.debugging.assert_less_equal(
             x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
             y=tf.constant(value=1, dtype=util.tf_dtype(dtype='long')),
-            message="Model.experience: input contains more than one terminal."
+            message="Agent.experience: input contains more than one terminal."
         ))
         # if terminal, last timestep in batch
         assertions.append(tf.debugging.assert_equal(
             x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
             y=tf.math.greater(x=terminal[-1], y=zero),
-            message="Model.experience: terminal is not the last input timestep."
+            message="Agent.experience: terminal is not the last input timestep."
         ))
         # states: type and shape
         for name, spec in self.states_spec.items():
             tf.debugging.assert_type(
                 tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
-                message="Model.experience: invalid type for {} state input.".format(name)
+                message="Agent.experience: invalid type for {} state input.".format(name)
             )
             shape = tf.constant(
                 value=self.unprocessed_state_shape.get(name, spec['shape']),
@@ -311,21 +301,21 @@ class TensorforceModel(Model):
                 tf.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='int')),
                     y=tf.concat(values=(batch_size, shape), axis=0),
-                    message="Model.experience: invalid shape for {} state input.".format(name)
+                    message="Agent.experience: invalid shape for {} state input.".format(name)
                 )
             )
         # internals: type and shape
         for name, spec in self.internals_spec.items():
             tf.debugging.assert_type(
                 tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type']),
-                message="Model.experience: invalid type for {} internal input.".format(name)
+                message="Agent.experience: invalid type for {} internal input.".format(name)
             )
             shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='int'))
             assertions.append(
                 tf.debugging.assert_equal(
                     x=tf.shape(input=internals[name], out_type=util.tf_dtype(dtype='int')),
                     y=tf.concat(values=(batch_size, shape), axis=0),
-                    message="Model.experience: invalid shape for {} internal input.".format(name)
+                    message="Agent.experience: invalid shape for {} internal input.".format(name)
                 )
             )
         # action_masks: type and shape
@@ -334,7 +324,7 @@ class TensorforceModel(Model):
                 name = name + '_mask'
                 tf.debugging.assert_type(
                     tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
-                    message="Model.experience: invalid type for {} action-mask input.".format(name)
+                    message="Agent.experience: invalid type for {} action-mask input.".format(name)
                 )
                 shape = tf.constant(
                     value=(spec['shape'] + (spec['num_values'],)), dtype=util.tf_dtype(dtype='int')
@@ -343,7 +333,7 @@ class TensorforceModel(Model):
                     tf.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=util.tf_dtype(dtype='int')),
                         y=tf.concat(values=(batch_size, shape), axis=0),
-                        message="Model.experience: invalid shape for {} action-mask input.".format(
+                        message="Agent.experience: invalid shape for {} action-mask input.".format(
                             name
                         )
                     )
@@ -355,7 +345,7 @@ class TensorforceModel(Model):
                                 input_tensor=auxiliaries[name], axis=(len(spec['shape']) + 1)
                             ), axis=tuple(range(len(spec['shape']) + 1))
                         ),
-                        y=true, message="Model.experience: at least one action has to be valid "
+                        y=true, message="Agent.experience: at least one action has to be valid "
                                         "for {} action-mask input.".format(name)
                     )
                 )
@@ -363,22 +353,21 @@ class TensorforceModel(Model):
         for name, spec in self.actions_spec.items():
             tf.debugging.assert_type(
                 tensor=actions[name], tf_type=util.tf_dtype(dtype=spec['type']),
-                message="Model.experience: invalid type for {} action input.".format(name)
+                message="Agent.experience: invalid type for {} action input.".format(name)
             )
             shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='int'))
             assertions.append(
                 tf.debugging.assert_equal(
                     x=tf.shape(input=actions[name], out_type=util.tf_dtype(dtype='int')),
                     y=tf.concat(values=(batch_size, shape), axis=0),
-                    message="Model.experience: invalid shape for {} action input.".format(name)
+                    message="Agent.experience: invalid shape for {} action input.".format(name)
                 )
             )
 
         # Set global tensors
         Module.update_tensors(
+            independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
             deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            independent=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            optimization=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
             timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
         )
 
@@ -406,9 +395,8 @@ class TensorforceModel(Model):
     def api_update(self):
         # Set global tensors
         Module.update_tensors(
-            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            optimization=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
+            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
             timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
         )
 
@@ -656,6 +644,10 @@ class TensorforceModel(Model):
             )
 
         # Optimizer arguments
+        independent = Module.update_tensor(
+            name='independent', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+        )
+
         variables = self.get_variables(only_trainable=True)
 
         arguments = dict(
@@ -826,6 +818,8 @@ class TensorforceModel(Model):
                         pass_tensors=optimized
                     )
 
+        Module.update_tensor(name='independent', tensor=independent)
+
         return optimized
 
     def tf_total_loss(self, states, internals, auxiliaries, actions, reward, **kwargs):
@@ -899,6 +893,10 @@ class TensorforceModel(Model):
         )
 
         # Optimizer arguments
+        independent = Module.update_tensor(
+            name='independent', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+        )
+
         variables = self.baseline_policy.get_variables(only_trainable=True)
 
         arguments = dict(
@@ -967,6 +965,8 @@ class TensorforceModel(Model):
                     label=('baseline-loss', 'losses'), name='baseline-loss', tensor=loss,
                     pass_tensors=optimized
                 )
+
+        independent = Module.update_tensor(name='independent', tensor=independent)
 
         return optimized
 

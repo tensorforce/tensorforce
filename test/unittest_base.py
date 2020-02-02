@@ -139,9 +139,9 @@ class UnittestBase(object):
         if self.__class__.require_all or require_all:
             config = None
         elif self.__class__.require_observe or require_observe:
-            config = dict(api_functions=['reset', 'act', 'observe'])
+            config = dict(api_functions=['reset', 'act', 'independent_act', 'observe'])
         else:
-            config = dict(api_functions=['reset', 'act'])
+            config = dict(api_functions=['reset', 'act', 'independent_act'])
 
         return dict(agent=agent, config=config)
 
@@ -169,6 +169,7 @@ class UnittestBase(object):
                 exclude_int_action=exclude_int_action, exclude_float_action=exclude_float_action,
                 exclude_bounded_action=exclude_bounded_action
             )
+            environment.pop('max_episode_timesteps')  # given separately below
 
         elif min_timesteps is not None:
             raise TensorforceError.unexpected()
@@ -210,6 +211,7 @@ class UnittestBase(object):
                 exclude_int_action=exclude_int_action, exclude_float_action=exclude_float_action,
                 exclude_bounded_action=exclude_bounded_action
             )
+            environment.pop('max_episode_timesteps')  # given separately below
 
         elif min_timesteps is not None:
             raise TensorforceError.unexpected()

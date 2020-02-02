@@ -514,7 +514,7 @@ class RemoteEnvironment(Environment):
         self.send(function='execute', actions=actions)
         states, terminal, reward, seconds = self.receive(function='execute')
         self.episode_seconds += seconds
-        return states, terminal, reward
+        return states, int(terminal), reward
 
     def start_reset(self):
         self.episode_seconds = 0.0
@@ -529,9 +529,7 @@ class RemoteEnvironment(Environment):
 
     def finish_reset(self):
         assert self.thread is not None and self.observation is None
-        states, seconds = self.reset()
-        self.episode_seconds += seconds
-        self.observation = (states, -1, None)
+        self.observation = (self.reset(), -1, None)
         self.thread = None
 
     def start_execute(self, actions):
@@ -544,9 +542,7 @@ class RemoteEnvironment(Environment):
 
     def finish_execute(self, actions):
         assert self.thread is not None and self.observation is None
-        states, terminal, reward, seconds = self.execute(actions=actions)
-        self.episode_seconds += seconds
-        self.observation = (states, terminal, reward)
+        self.observation = self.execute(actions=actions)
         self.thread = None
 
     def receive_execute(self):

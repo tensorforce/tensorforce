@@ -750,7 +750,9 @@ def normalize_values(value_type, values, values_spec):
         # Spec defines only a single value
         if isinstance(values, dict):
             if len(values) != 1 or value_type not in values:
-                TensorforceError.value(name='util.normalize_values', values='values', value=values)
+                raise TensorforceError.value(
+                    name='util.normalize_values', values='values', value=values
+                )
             return values
 
         else:

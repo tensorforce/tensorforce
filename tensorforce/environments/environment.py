@@ -19,6 +19,7 @@ import json
 import os
 import sys
 from threading import Thread
+import time
 from traceback import format_tb
 
 from tensorforce import TensorforceError, util
@@ -117,12 +118,12 @@ class Environment(object):
 
         elif isinstance(environment, (EnvironmentWrapper, RemoteEnvironment)):
             if max_episode_timesteps is not None:
-                TensorforceError.invalid(
+                raise TensorforceError.invalid(
                     name='Environment.create', argument='max_episode_timesteps',
                     condition='EnvironmentWrapper instance'
                 )
             if len(kwargs) > 0:
-                TensorforceError.invalid(
+                raise TensorforceError.invalid(
                     name='Environment.create', argument='kwargs',
                     condition='EnvironmentWrapper instance'
                 )
@@ -406,7 +407,15 @@ class RemoteEnvironment(Environment):
             while True:
                 function, kwargs = cls.remote_receive(connection=connection)
 
+                if function in ('reset', 'execute'):
+                    environment_start = time.time()
                 result = getattr(environment, function)(**kwargs)
+                if function in ('reset', 'execute'):
+                    seconds = time.time() - environment_start
+                    if function == 'reset':
+                        result = (result, seconds)
+                    else:
+                        result += (seconds,)
 
                 cls.remote_send(connection=connection, success=True, result=result)
 
@@ -495,17 +504,22 @@ class RemoteEnvironment(Environment):
         self.thread = None
 
     def reset(self):
+        self.episode_seconds = 0.0
         self.send(function='reset')
-        return self.receive(function='reset')
+        states, seconds = self.receive(function='reset')
+        self.episode_seconds += seconds
+        return states
 
     def execute(self, actions):
         self.send(function='execute', actions=actions)
-        return self.receive(function='execute')
+        states, terminal, reward, seconds = self.receive(function='execute')
+        self.episode_seconds += seconds
+        return states, terminal, reward
 
     def start_reset(self):
+        self.episode_seconds = 0.0
         if self.blocking:
             self.send(function='reset')
-
         else:
             if self.thread is not None:  # TODO: not expected
                 self.thread.join()
@@ -515,13 +529,14 @@ class RemoteEnvironment(Environment):
 
     def finish_reset(self):
         assert self.thread is not None and self.observation is None
-        self.observation = (self.reset(), -1, None)
+        states, seconds = self.reset()
+        self.episode_seconds += seconds
+        self.observation = (states, -1, None)
         self.thread = None
 
     def start_execute(self, actions):
         if self.blocking:
             self.send(function='execute', actions=actions)
-
         else:
             assert self.thread is None and self.observation is None
             self.thread = Thread(target=self.finish_execute, kwargs=dict(actions=actions))
@@ -529,7 +544,9 @@ class RemoteEnvironment(Environment):
 
     def finish_execute(self, actions):
         assert self.thread is not None and self.observation is None
-        self.observation = self.execute(actions=actions)
+        states, terminal, reward, seconds = self.execute(actions=actions)
+        self.episode_seconds += seconds
+        self.observation = (states, terminal, reward)
         self.thread = None
 
     def receive_execute(self):
@@ -539,7 +556,6 @@ class RemoteEnvironment(Environment):
             else:
                 states, terminal, reward = self.receive(function='execute')
                 return states, int(terminal), reward
-
         else:
             if self.thread is not None:
                 # assert self.observation is None

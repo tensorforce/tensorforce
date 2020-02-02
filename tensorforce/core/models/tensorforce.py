@@ -153,9 +153,8 @@ class TensorforceModel(Model):
         else:
             estimate_horizon = 'late'
         self.estimator = self.add_module(
-            name='estimator', module=Estimator, is_trainable=False, is_saved=False,
-            values_spec=self.values_spec, horizon=reward_estimation['horizon'],
-            discount=reward_estimation.get('discount', 1.0),
+            name='estimator', module=Estimator, is_trainable=False, values_spec=self.values_spec,
+            horizon=reward_estimation['horizon'], discount=reward_estimation.get('discount', 1.0),
             estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
             estimate_actions=reward_estimation.get('estimate_actions', False),
             estimate_terminal=reward_estimation.get('estimate_terminal', False),

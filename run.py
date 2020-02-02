@@ -140,7 +140,7 @@ def main():
         seconds = [list() for _ in range(args.episodes)]
         agent_seconds = [list() for _ in range(args.episodes)]
 
-        def callback(r):
+        def callback(r, p):
             rewards[r.episodes - 1].append(r.episode_rewards[-1])
             timesteps[r.episodes - 1].append(r.episode_timesteps[-1])
             seconds[r.episodes - 1].append(r.episode_seconds[-1])

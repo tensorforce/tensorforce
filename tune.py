@@ -113,7 +113,7 @@ class TensorforceWorker(Worker):
 
             # performance_threshold = runner.environment.max_episode_timesteps() - agent['reward_estimation']['horizon']
 
-            # def callback(r):
+            # def callback(r, p):
             #     return True
 
             runner.run(num_episodes=500, use_tqdm=False)

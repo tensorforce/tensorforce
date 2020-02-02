@@ -49,7 +49,7 @@ class Optimizer(Module):
 
     def tf_minimize(self, variables, **kwargs):
         if any(variable.dtype != util.tf_dtype(dtype='float') for variable in variables):
-            TensorforceError.unexpected()
+            raise TensorforceError.unexpected()
 
         deltas = self.step(variables=variables, **kwargs)
 

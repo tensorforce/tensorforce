@@ -4,7 +4,7 @@ Features
 
 ### Parallel environment execution
 
-Process multiple environments executed locally in one call / batched:
+Execute multiple environments running locally in one call / batched:
 
 ```python
 Runner(
@@ -14,7 +14,7 @@ Runner(
 runner.run(num_episodes=100, batch_agent_calls=True)
 ```
 
-Process environments executed in different processes whenever ready / unbatched:
+Execute environments running in different processes whenever ready / unbatched:
 
 ```python
 Runner(
@@ -24,7 +24,8 @@ Runner(
 runner.run(num_episodes=100)
 ```
 
-Using multiple machines and `run.py`:
+Execute environments running on different machines, here using `run.py` instead
+of `Runner`:
 
 ```bash
 # Environment machine 1

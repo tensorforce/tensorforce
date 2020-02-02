@@ -181,7 +181,7 @@ class Agent(object):
         # Check for name overlap
         for name in self.states_spec:
             if name in self.actions_spec:
-                TensorforceError.collision(
+                raise TensorforceError.collision(
                     name='name', value=name, group1='states', group2='actions'
                 )
 
@@ -306,6 +306,9 @@ class Agent(object):
         self.buffer_indices = np.zeros(
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
         )
+        self.timestep_completed = np.ndarray(
+            shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
+        )
 
         self.timesteps = 0
         self.episodes = 0
@@ -335,8 +338,8 @@ class Agent(object):
 
     def reset(self, independent=False, evaluation=False):
         """
-        Resets all agent buffers, or only terminates and resets an episode in
-            independent/evaluation mode if corresponding argument is set.
+        Resets all agent buffers and discards unfinished episodes, or only terminates and resets an
+            episode in independent/evaluation mode if corresponding argument is set.
 
         Args:
             independent (bool): Whether to terminate an episode in independent mode
@@ -347,15 +350,17 @@ class Agent(object):
         """
         if evaluation:
             if independent:
-                raise TensorforceError(
-                    message="Agent.reset argument independent is implied by and thus should not "
-                            "be used together with argument evaluation."
+                raise TensorforceError.invalid(
+                    name='agent.reset', argument='independent', condition='evaluation = true'
                 )
             independent = True
 
         if not independent:
             self.buffer_indices = np.zeros(
                 shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
+            )
+            self.timestep_completed = np.ones(
+                shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
             )
 
         self.timesteps, self.episodes, self.updates = self.model.reset(independent=independent)
@@ -392,10 +397,13 @@ class Agent(object):
         assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
 
         if evaluation:
-            if deterministic or independent:
-                raise TensorforceError(
-                    message="Agent.observe argument deterministic/independent are implied by and "
-                            "thus should not be used together with argument evaluation."
+            if deterministic:
+                raise TensorforceError.invalid(
+                    name='agent.act', argument='deterministic', condition='evaluation = true'
+                )
+            if independent:
+                raise TensorforceError.invalid(
+                    name='agent.act', argument='independent', condition='evaluation = true'
                 )
             deterministic = independent = True
 
@@ -420,6 +428,9 @@ class Agent(object):
                 function=(lambda x: np.asarray([x])), xs=states,
                 depth=int(isinstance(states, dict))
             )
+
+        if not independent and not all(self.timestep_completed[n] for n in parallel):
+            raise TensorforceError(message="Calling agent.act must be preceded by agent.observe.")
 
         # Auxiliaries
         auxiliaries = OrderedDict()
@@ -446,6 +457,10 @@ class Agent(object):
                 states=states, auxiliaries=auxiliaries, parallel=parallel,
                 deterministic=deterministic, independent=independent, query=query, **kwargs
             )
+
+        if not independent:
+            for n in parallel:
+                self.timestep_completed[n] = False
 
         if self.recorder_spec is not None and not independent and \
                 self.episodes >= self.recorder_spec.get('start', 0):
@@ -524,6 +539,9 @@ class Agent(object):
             terminal = [terminal]
             reward = [reward]
             parallel = [parallel]
+
+        if any(self.timestep_completed[n] for n in parallel):
+            raise TensorforceError(message="Calling agent.observe must be preceded by agent.act.")
 
         num_updates = 0
         # TODO: Differently if not buffer_observe
@@ -623,10 +641,12 @@ class Agent(object):
 
                 # Reset buffer index
                 self.buffer_indices[parallel] = 0
+                self.timestep_completed[parallel] = True
 
             else:
                 # Increment buffer index
                 self.buffer_indices[parallel] = index
+                self.timestep_completed[parallel] = True
                 updated = False
 
             num_updates += int(updated)

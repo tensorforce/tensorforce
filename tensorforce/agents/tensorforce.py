@@ -280,12 +280,12 @@ class TensorforceAgent(Agent):
 
         if isinstance(update, int) or update['unit'] == 'timesteps':
             if parallel_interactions > 1:
-                TensorforceError.value(
+                raise TensorforceError.value(
                     name='agent', argument='update', value=update,
                     condition='parallel_interactions > 1'
                 )
             if buffer_observe is not True:
-                TensorforceError.invalid(
+                raise TensorforceError.invalid(
                     name='agent', argument='buffer_observe', condition='update[unit] = timesteps'
                 )
             buffer_observe = False

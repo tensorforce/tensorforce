@@ -20,6 +20,7 @@ from tqdm import tqdm
 import numpy as np
 
 from tensorforce import Agent, Environment, TensorforceError, util
+from tensorforce.environments import RemoteEnvironment
 
 
 class Runner(object):
@@ -112,6 +113,7 @@ class Runner(object):
 
         self.environments = list()
         self.is_environment_external = isinstance(environments[0], Environment)
+        self.is_environment_remote = isinstance(environments[0], RemoteEnvironment)
         environment = Environment.create(
             environment=environments[0], max_episode_timesteps=max_episode_timesteps,
             remote=remote, blocking=blocking, host=host[0], port=port[0]
@@ -122,6 +124,7 @@ class Runner(object):
 
         for n, environment in enumerate(environments[1:], start=1):
             assert isinstance(environment, Environment) == self.is_environment_external
+            assert isinstance(environment, RemoteEnvironment) == self.is_environment_remote
             environment = Environment.create(
                 environment=environment, max_episode_timesteps=max_episode_timesteps,
                 remote=remote, blocking=blocking, host=host[n], port=port[n]
@@ -181,8 +184,9 @@ class Runner(object):
                 (<span style="color:#00C000"><b>default</b></span>: not synchronized).
             num_sleep_secs (float): Sleep duration if no environment is ready
                 (<span style="color:#00C000"><b>default</b></span>: one milliseconds).
-            callback (Runner -> bool): Callback function taking the runner instance and returning a
-                boolean value indicating whether execution should continue 
+            callback ((Runner, parallel) -> bool): Callback function taking the runner instance
+                plus parallel index and returning a boolean value indicating whether execution
+                should continue 
                 (<span style="color:#00C000"><b>default</b></span>: callback always true).
             callback_episode_frequency (int): Episode interval between callbacks
                 (<span style="color:#00C000"><b>default</b></span>: every episode).
@@ -235,9 +239,9 @@ class Runner(object):
         else:
             self.callback_timestep_frequency = callback_timestep_frequency
         if callback is None:
-            self.callback = (lambda r: True)
+            self.callback = (lambda r, p: True)
         elif util.is_iterable(x=callback):
-            def sequential_callback(runner):
+            def sequential_callback(runner, parallel):
                 result = True
                 for fn in callback:
                     x = fn(runner, parallel)
@@ -246,8 +250,8 @@ class Runner(object):
                 return result
             self.callback = sequential_callback
         else:
-            def boolean_callback(runner):
-                result = callback(runner)
+            def boolean_callback(runner, parallel):
+                result = callback(runner, parallel)
                 if isinstance(result, bool):
                     return result
                 else:
@@ -259,23 +263,31 @@ class Runner(object):
         self.episode_timesteps = list()
         self.episode_seconds = list()
         self.episode_agent_seconds = list()
+        if self.is_environment_remote:
+            self.episode_env_seconds = list()
         if self.evaluation or evaluation:
             self.evaluation_rewards = list()
             self.evaluation_timesteps = list()
             self.evaluation_seconds = list()
             self.evaluation_agent_seconds = list()
+            if self.is_environment_remote:
+                self.evaluation_env_seconds = list()
             if len(self.environments) == 1:
                 # for tqdm
                 self.episode_rewards = self.evaluation_rewards
                 self.episode_timesteps = self.evaluation_timesteps
                 self.episode_seconds = self.evaluation_seconds
                 self.episode_agent_seconds = self.evaluation_agent_seconds
+                if self.is_environment_remote:
+                    self.episode_env_seconds = self.evaluation_env_seconds
         else:
             # for tqdm
             self.evaluation_rewards = self.episode_rewards
             self.evaluation_timesteps = self.episode_timesteps
             self.evaluation_seconds = self.episode_seconds
             self.evaluation_agent_seconds = self.episode_agent_seconds
+            if self.is_environment_remote:
+                self.evaluation_env_seconds = self.episode_env_seconds
 
         # Timestep/episode/update counter
         self.timesteps = 0
@@ -299,13 +311,17 @@ class Runner(object):
                     '{postfix[4]:.1f}%]'
                 )
                 postfix = [0.0, 0, 0.0, 0.0, 0.0]
+                if self.is_environment_remote:
+                    bar_format = bar_format[:-1] + ', comm={postfix[5]:.1f}%]'
+                    postfix.append(0.0)
+
                 self.tqdm = tqdm(
                     desc='Episodes', total=self.num_episodes, bar_format=bar_format,
                     initial=self.episodes, postfix=postfix
                 )
                 self.tqdm_last_update = self.episodes
 
-                def tqdm_callback(runner):
+                def tqdm_callback(runner, parallel):
                     mean_reward = float(np.mean(runner.evaluation_rewards[-mean_horizon:]))
                     mean_ts_per_ep = int(np.mean(runner.episode_timesteps[-mean_horizon:]))
                     mean_sec_per_ep = float(np.mean(runner.episode_seconds[-mean_horizon:]))
@@ -317,9 +333,13 @@ class Runner(object):
                     runner.tqdm.postfix[2] = mean_sec_per_ep
                     runner.tqdm.postfix[3] = mean_ms_per_ts
                     runner.tqdm.postfix[4] = mean_rel_agent
+                    if runner.is_environment_remote:
+                        mean_env_sec = float(np.mean(runner.episode_env_seconds[-mean_horizon:]))
+                        mean_rel_comm = (mean_agent_sec + mean_env_sec) * 100.0 / mean_sec_per_ep
+                        runner.tqdm.postfix[5] = mean_rel_comm
                     runner.tqdm.update(n=(runner.episodes - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.episodes
-                    return inner_callback(runner)
+                    return inner_callback(runner, parallel)
 
             else:
                 # Timestep-based tqdm
@@ -329,14 +349,14 @@ class Runner(object):
                 )
                 self.tqdm_last_update = self.timesteps
 
-                def tqdm_callback(runner):
+                def tqdm_callback(runner, parallel):
                     # sum_timesteps_reward = sum(runner.timestep_rewards[num_mean_reward:])
                     # num_timesteps = min(num_mean_reward, runner.evaluation_timestep)
                     # mean_reward = sum_timesteps_reward / num_episodes
                     runner.tqdm.set_postfix(mean_reward='n/a')
                     runner.tqdm.update(n=(runner.timesteps - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.timesteps
-                    return inner_callback(runner)
+                    return inner_callback(runner, parallel)
 
             self.callback = tqdm_callback
 
@@ -477,13 +497,13 @@ class Runner(object):
                             # Terminal
                             self.handle_terminal(parallel=n)
 
+            self.prev_terminals = list(self.terminals)
+
             # Sync_episodes: Reset if all episodes terminated
             if self.sync_episodes and all(terminal > 0 for terminal in self.terminals):
-                self.prev_terminals = [-1 for _ in self.previous_terminals]
-                for environment in self.environments:
-                    environment.start_reset()
-            else:
-                self.prev_terminals = list(self.terminals)
+                for n in range(min(len(self.environments), self.num_episodes - self.episodes)):
+                    self.prev_terminals[n] = -1
+                    self.environments[n].start_reset()
 
             # Sleep if no environment was ready
             if no_environment_ready:
@@ -505,10 +525,10 @@ class Runner(object):
 
         # Maximum number of timesteps or timestep callback (after counter increment!)
         self.timesteps += 1
-        if (
-            (self.episode_timestep[parallel] % self.callback_timestep_frequency == 0 and not self.callback(self)) or
-            self.timesteps >= self.num_timesteps
-        ):
+        if ((
+            self.episode_timestep[parallel] % self.callback_timestep_frequency == 0 and
+            not self.callback(self, parallel)
+        ) or self.timesteps >= self.num_timesteps):
             self.terminate = 2
 
     def handle_act_joint(self):
@@ -551,10 +571,10 @@ class Runner(object):
         # Maximum number of timesteps or timestep callback (after counter increment!)
         if self.evaluation_run and len(self.environments) == 1:
             self.timesteps += 1
-            if (
-                (self.episode_timestep[-1] % self.callback_timestep_frequency == 0 and not self.callback(self)) or
-                self.timesteps >= self.num_timesteps
-            ):
+            if ((
+                self.episode_timestep[-1] % self.callback_timestep_frequency == 0 and
+                not self.callback(self, parallel)
+            ) or self.timesteps >= self.num_timesteps):
                 self.terminate = 2
 
     def handle_observe(self, parallel):
@@ -610,13 +630,15 @@ class Runner(object):
         self.episode_timesteps.append(self.episode_timestep[parallel])
         self.episode_seconds.append(time.time() - self.episode_start[parallel])
         self.episode_agent_seconds.append(self.episode_agent_second[parallel])
+        if self.is_environment_remote:
+            self.episode_env_seconds.append(self.environments[parallel].episode_seconds)
 
         # Maximum number of episodes or episode callback (after counter increment!)
         self.episodes += 1
-        if self.terminate == 0 and (
-            (self.episodes % self.callback_episode_frequency == 0 and not self.callback(self)) or
-            self.episodes >= self.num_episodes
-        ):
+        if self.terminate == 0 and ((
+            self.episodes % self.callback_episode_frequency == 0 and
+            not self.callback(self, parallel)
+        ) or self.episodes >= self.num_episodes):
             self.terminate = 1
 
         # Reset episode statistics
@@ -636,6 +658,8 @@ class Runner(object):
         self.evaluation_timesteps.append(self.episode_timestep[-1])
         self.evaluation_seconds.append(time.time() - self.evaluation_start)
         self.evaluation_agent_seconds.append(self.evaluation_agent_second)
+        if self.is_environment_remote:
+            self.evaluation_env_seconds.append(self.environments[-1].episode_seconds)
 
         # Evaluation callback
         if self.save_best_agent is not None:
@@ -654,10 +678,10 @@ class Runner(object):
         # Maximum number of episodes or episode callback (after counter increment!)
         if self.evaluation_run and len(self.environments) == 1:
             self.episodes += 1
-            if self.terminate == 0 and (
-                (self.episodes % self.callback_episode_frequency == 0 and not self.callback(self)) or
-                self.episodes >= self.num_episodes
-            ):
+            if self.terminate == 0 and ((
+                self.episodes % self.callback_episode_frequency == 0 and
+                not self.callback(self, parallel)
+            ) or self.episodes >= self.num_episodes):
                 self.terminate = 1
 
         # Reset episode statistics

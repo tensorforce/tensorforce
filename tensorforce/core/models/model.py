@@ -195,7 +195,7 @@ class Model(Module):
                 layers=preprocessing['reward']
             )
             if self.preprocessing['reward'].get_output_spec() != reward_spec:
-                TensorforceError.mismatch(
+                raise TensorforceError.mismatch(
                     name='preprocessing', argument='reward output spec',
                     value1=self.preprocessing['reward'].get_output_spec(), value2=reward_spec
                 )

@@ -275,9 +275,6 @@ class TensorforceAgent(Agent):
                 summarizer=summarizer, recorder=recorder, config=config
             )
 
-        if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
-            buffer_observe = False
-
         if isinstance(update, int) or update['unit'] == 'timesteps':
             if parallel_interactions > 1:
                 raise TensorforceError.value(
@@ -288,6 +285,9 @@ class TensorforceAgent(Agent):
                 raise TensorforceError.invalid(
                     name='agent', argument='buffer_observe', condition='update[unit] = timesteps'
                 )
+            buffer_observe = False
+
+        if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
             buffer_observe = False
 
         super().__init__(

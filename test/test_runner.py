@@ -196,7 +196,7 @@ class TestRunner(UnittestBase, unittest.TestCase):
         runner.close()
         self.finished_test()
 
-        # evaluation
+        # evaluation synced
         runner = Runner(agent=agent, environment=environment, num_parallel=2, evaluation=True)
         self.num_evaluations = 0
 
@@ -205,7 +205,14 @@ class TestRunner(UnittestBase, unittest.TestCase):
 
         runner.run(
             num_episodes=1, use_tqdm=False, evaluation_callback=evaluation_callback,
+            batch_agent_calls=True, sync_episodes=True
+        )
+        self.finished_test(assertion=(self.num_evaluations == 1))
+
+        # evaluation non-synced
+        runner.run(
+            num_episodes=1, use_tqdm=False, evaluation_callback=evaluation_callback,
             batch_agent_calls=True
         )
         runner.close()
-        self.finished_test(assertion=(self.num_evaluations == 1))
+        self.finished_test(assertion=(self.num_evaluations >= 2))

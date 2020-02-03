@@ -503,9 +503,14 @@ class Runner(object):
 
             # Sync_episodes: Reset if all episodes terminated
             if self.sync_episodes and all(terminal > 0 for terminal in self.terminals):
-                for n in range(min(len(self.environments), self.num_episodes - self.episodes)):
+                num_episodes_left = self.num_episodes - self.episodes
+                num_noneval_environments = len(self.environments) - int(self.evaluation_run)
+                for n in range(min(num_noneval_environments, num_episodes_left)):
                     self.prev_terminals[n] = -1
                     self.environments[n].start_reset()
+                if self.evaluation_run and num_episodes_left > 0:
+                    self.prev_terminals[-1] = -1
+                    self.environments[-1].start_reset()
 
             # Sleep if no environment was ready
             if no_environment_ready:

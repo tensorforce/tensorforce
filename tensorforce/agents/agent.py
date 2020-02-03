@@ -409,8 +409,10 @@ class Agent(object):
                     name='agent.act', argument='deterministic', condition='independent = false'
                 )
 
-        if independent and internals is None:
-            internals = OrderedDict()
+        if independent:
+            internals_is_none = (internals is None)
+            if internals_is_none:
+                internals = OrderedDict()
 
         # Batch states
         batched = (not isinstance(parallel, int))
@@ -523,7 +525,7 @@ class Agent(object):
             if independent:
                 internals = util.fmap(function=(lambda x: x[0]), xs=internals, depth=1)
 
-        if independent:
+        if independent and not internals_is_none:
             if query is None:
                 return actions, internals
             else:
@@ -761,9 +763,8 @@ class Agent(object):
         if not self.is_initialized:
             self.initialize()
 
-        self.timesteps, self.episodes, self.updates = self.model.restore(
-            directory=directory, filename=filename
-        )
+        # self.timesteps, self.episodes, self.updates = 
+        self.model.restore(directory=directory, filename=filename)
 
     def get_output_tensors(self, function):
         """

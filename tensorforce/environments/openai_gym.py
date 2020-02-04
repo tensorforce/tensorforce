@@ -44,9 +44,6 @@ class OpenAIGym(Environment):
         reward_threshold (float): Gym environment argument, the reward threshold before the task is
             considered solved
             (<span style="color:#00C000"><b>default</b></span>: Gym default).
-        tags (dict): Gym environment argument, a set of arbitrary key-value tags on this
-            environment, including simple property=True tags
-            (<span style="color:#00C000"><b>default</b></span>: Gym default).
         drop_states_indices (list[int]): Drop states indices
             (<span style="color:#00C000"><b>default</b></span>: none).
         visualize_directory (string): Visualization output directory
@@ -61,7 +58,7 @@ class OpenAIGym(Environment):
         return list(gym.envs.registry.env_specs)
 
     @classmethod
-    def create_level(cls, level, max_episode_steps, reward_threshold, tags, **kwargs):
+    def create_level(cls, level, max_episode_steps, reward_threshold, **kwargs):
         import gym
 
         requires_register = False
@@ -102,11 +99,11 @@ class OpenAIGym(Environment):
             reward_threshold = gym.envs.registry.env_specs[level].reward_threshold
         elif reward_threshold != gym.envs.registry.env_specs[level].reward_threshold:
             requires_register = True
-        if tags is None:
-            tags = dict(gym.envs.registry.env_specs[level].tags)
-            if 'wrapper_config.TimeLimit.max_episode_steps' in tags and \
-                    max_episode_steps is not None:
-                tags.pop('wrapper_config.TimeLimit.max_episode_steps')
+        # if tags is None:
+        #     tags = dict(gym.envs.registry.env_specs[level].tags)
+        #     if 'wrapper_config.TimeLimit.max_episode_steps' in tags and \
+        #             max_episode_steps is not None:
+        #         tags.pop('wrapper_config.TimeLimit.max_episode_steps')
         elif tags != gym.envs.registry.env_specs[level].tags:
             requires_register = True
 
@@ -129,8 +126,9 @@ class OpenAIGym(Environment):
 
             gym.register(
                 id=level, entry_point=entry_point, reward_threshold=reward_threshold,
-                kwargs=_kwargs, nondeterministic=nondeterministic, tags=tags,
-                max_episode_steps=(None if max_episode_steps is False else max_episode_steps)
+                nondeterministic=nondeterministic,
+                max_episode_steps=(None if max_episode_steps is False else max_episode_steps),
+                kwargs=_kwargs
             )
             assert level in cls.levels()
 
@@ -138,8 +136,7 @@ class OpenAIGym(Environment):
 
     def __init__(
         self, level, visualize=False, max_episode_steps=None, terminal_reward=0.0,
-        reward_threshold=None, tags=None, drop_states_indices=None, visualize_directory=None,
-        **kwargs
+        reward_threshold=None, drop_states_indices=None, visualize_directory=None, **kwargs
     ):
         super().__init__()
 
@@ -161,7 +158,7 @@ class OpenAIGym(Environment):
         else:
             self.environment, self.max_episode_steps = self.__class__.create_level(
                 level=self.level, max_episode_steps=max_episode_steps,
-                reward_threshold=reward_threshold, tags=tags, **kwargs
+                reward_threshold=reward_threshold, **kwargs
             )
 
         if visualize_directory is not None:

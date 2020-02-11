@@ -69,7 +69,7 @@ class Beta(Distribution):
             else:
                 raise TensorforceError.value(
                     name=name, argument='embedding_shape', value=self.embedding_shape,
-                    hint='incompatible with action shape'
+                    hint='not flattened and incompatible with action shape'
                 )
             self.alpha = self.add_module(
                 name='alpha', module='linear', modules=layer_modules, size=size,

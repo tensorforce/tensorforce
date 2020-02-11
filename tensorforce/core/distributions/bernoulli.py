@@ -63,7 +63,7 @@ class Bernoulli(Distribution):
             else:
                 raise TensorforceError.value(
                     name=name, argument='embedding_shape', value=self.embedding_shape,
-                    hint='incompatible with action shape'
+                    hint='not flattened and incompatible with action shape'
                 )
             self.logit = self.add_module(
                 name='logit', module='linear', modules=layer_modules, size=size,

@@ -113,22 +113,22 @@ class Runner(object):
 
         self.environments = list()
         self.is_environment_external = isinstance(environments[0], Environment)
-        self.is_environment_remote = isinstance(environments[0], RemoteEnvironment)
         environment = Environment.create(
             environment=environments[0], max_episode_timesteps=max_episode_timesteps,
             remote=remote, blocking=blocking, host=host[0], port=port[0]
         )
+        self.is_environment_remote = isinstance(environment, RemoteEnvironment)
         states = environment.states()
         actions = environment.actions()
         self.environments.append(environment)
 
         for n, environment in enumerate(environments[1:], start=1):
             assert isinstance(environment, Environment) == self.is_environment_external
-            assert isinstance(environment, RemoteEnvironment) == self.is_environment_remote
             environment = Environment.create(
                 environment=environment, max_episode_timesteps=max_episode_timesteps,
                 remote=remote, blocking=blocking, host=host[n], port=port[n]
             )
+            assert isinstance(environment, RemoteEnvironment) == self.is_environment_remote
             assert environment.states() == states
             assert environment.actions() == actions
             self.environments.append(environment)

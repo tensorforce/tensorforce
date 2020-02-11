@@ -33,24 +33,16 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         self.start_tests(name='meta-optimizer-wrapper')
 
         optimizer = dict(
-            type='meta_optimizer_wrapper', optimizer='adam', learning_rate=1e-3, multi_step=5,
-            subsampling_fraction=0.5, clipping_threshold=1e-2, optimizing_iterations=3
-        )
-        self.unittest(
-            optimizer=optimizer,
-            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
-            # TODO: shouldn't be necessary!
-        )
-
-        optimizer = dict(
             optimizer='adam', learning_rate=1e-3, multi_step=5, subsampling_fraction=0.5,
             clipping_threshold=1e-2, optimizing_iterations=3
         )
-        self.unittest(
+        agent, environment = self.prepare(
             optimizer=optimizer,
             policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
             # TODO: shouldn't be necessary!
         )
+        agent.close()
+        environment.close()
 
     def test_natural_gradient(self):
         self.start_tests(name='natural-gradient')

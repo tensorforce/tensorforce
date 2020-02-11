@@ -16,6 +16,9 @@ This file records all major updates and new features, starting from version 0.5.
 - Changed `run.py` arguments
 - Changed independent mode for `Agent.act`: additional argument `internals` and corresponding return value, initial internals via `Agent.initial_internals()`, `Agent.reset()` not required anymore
 - Removed `deterministic` argument for `Agent.act` unless independent mode
+- Added `format` argument to `save`/`load`/`restore` with supported formats `tensorflow`, `numpy` and `hdf5`
+- Changed `save` argument `append_timestep` to `append` with default `None` (instead of `'timesteps'`)
+- Added `get_variable` and `assign_variable` agent functions
 
 
 

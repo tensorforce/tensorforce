@@ -262,51 +262,6 @@ class Module(object):
             Module.while_counter = 0
             Module.cond_counter = 0
 
-            # Global timestep
-            self.global_timestep = self.add_variable(
-                name='global-timestep', dtype='long', shape=(), is_trainable=False,
-                initializer='zeros', shared='global-timestep'
-            )
-            collection = self.graph.get_collection(name='global_step')
-            if len(collection) == 0:
-                self.graph.add_to_collection(name='global_step', value=self.global_timestep)
-
-            if self.summarizer_spec is not None:
-                with tf.name_scope(name='summarizer'):
-
-                    directory = self.summarizer_spec['directory']
-                    if os.path.isdir(directory):
-                        directories = sorted(
-                            d for d in os.listdir(directory)
-                            if os.path.isdir(os.path.join(directory, d))
-                            and d.startswith('summary-')
-                        )
-                    else:
-                        os.makedirs(directory)
-                        directories = list()
-                    max_summaries = self.summarizer_spec.get('max-summaries', 5)
-                    if len(directories) > max_summaries - 1:
-                        for subdir in directories[:len(directories) - max_summaries + 1]:
-                            subdir = os.path.join(directory, subdir)
-                            os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
-                            os.rmdir(subdir)
-
-                    logdir = os.path.join(directory, time.strftime('summary-%Y%m%d-%H%M%S'))
-                    flush_millis = (self.summarizer_spec.get('flush', 10) * 1000)
-                    self.summarizer = tf.summary.create_file_writer(
-                        logdir=logdir, max_queue=None, flush_millis=flush_millis,
-                        filename_suffix=None
-                    )
-                    self.summarizer_init = self.summarizer.init()
-                    self.summarizer_flush = self.summarizer.flush()
-                    self.summarizer_close = self.summarizer.close()
-
-                    default_summarizer = self.summarizer.as_default()
-                    default_summarizer.__enter__()
-
-                    if self.summary_labels == 'all' or 'graph' in self.summary_labels:
-                        pass
-
         # TensorFlow device and scope
         Module.global_scope.append(self.name)
         if self.device is not None:
@@ -316,13 +271,74 @@ class Module(object):
 
         with self.scope:
             if self.parent is None:
-                # with tf.device(device_name_or_function=(self.global_model.device if self.global_model else self.device)):
+
+                # Global timestep
+                self.global_timestep = self.add_variable(
+                    name='global-timestep', dtype='long', shape=(), is_trainable=False,
+                    initializer='zeros', shared='global-timestep', 
+                )
+                collection = self.graph.get_collection(name='global_step')
+                if len(collection) == 0:
+                    self.graph.add_to_collection(name='global_step', value=self.global_timestep)
 
                 if self.summarizer_spec is not None:
+                    with tf.name_scope(name='summarizer'):
+
+                        directory = self.summarizer_spec['directory']
+                        if os.path.isdir(directory):
+                            directories = sorted(
+                                d for d in os.listdir(directory)
+                                if os.path.isdir(os.path.join(directory, d))
+                                and d.startswith('summary-')
+                            )
+                        else:
+                            os.makedirs(directory)
+                            directories = list()
+                        max_summaries = self.summarizer_spec.get('max-summaries', 5)
+                        if len(directories) > max_summaries - 1:
+                            for subdir in directories[:len(directories) - max_summaries + 1]:
+                                subdir = os.path.join(directory, subdir)
+                                os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
+                                os.rmdir(subdir)
+
+                        logdir = os.path.join(directory, time.strftime('summary-%Y%m%d-%H%M%S'))
+                        flush_millis = (self.summarizer_spec.get('flush', 10) * 1000)
+                        self.summarizer = tf.summary.create_file_writer(
+                            logdir=logdir, max_queue=None, flush_millis=flush_millis,
+                            filename_suffix=None
+                        )
+                        self.summarizer_init = self.summarizer.init()
+                        self.summarizer_flush = self.summarizer.flush()
+                        self.summarizer_close = self.summarizer.close()
+
+                        default_summarizer = self.summarizer.as_default()
+                        default_summarizer.__enter__()
+
+                        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+                            pass
+
                     Module.global_summary_step = 'timestep'
                     condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
                     record_summaries = tf.summary.record_if(condition=condition)
                     record_summaries.__enter__()
+
+                # Assignment values
+                self.assignment_input = dict(
+                    bool=self.add_placeholder(
+                        name='assignment-bool', dtype='bool', shape=None, batched=False
+                    ), int=self.add_placeholder(
+                        name='assignment-int', dtype='int', shape=None, batched=False
+                    ), long=self.add_placeholder(
+                        name='assignment-long', dtype='long', shape=None, batched=False
+                    ), float=self.add_placeholder(
+                        name='assignment-float', dtype='float', shape=None, batched=False
+                    )
+                )
+
+                # delayed global-timestep assign operation
+                self.global_timestep.assign(
+                    value=self.assignment_input['long'], name='global-timestep-assign'
+                )
 
                 # Global episode
                 self.global_episode = self.add_variable(
@@ -537,6 +553,7 @@ class Module(object):
         scope.__enter__()
 
         results = api_function()
+        assert all(x.name.endswith('-output:0') for x in util.flatten(xs=results))
         self.output_tensors[name[name.index('.') + 1:]] = sorted(
             x.name[len(name) + 1: -9] for x in util.flatten(xs=results)
         )
@@ -544,7 +561,8 @@ class Module(object):
         # Function-level identity operation for retrieval
         query_tensors = set()
         for scoped_name, tensor in Module.queryable_tensors.items():
-            util.identity_operation(x=tensor, operation_name=(scoped_name + '-output'))
+            tensor = util.identity_operation(x=tensor, operation_name=(scoped_name + '-query'))
+            assert tensor.name.endswith('-query:0')
             assert scoped_name not in query_tensors
             query_tensors.add(scoped_name)
         self.query_tensors[name[name.index('.') + 1:]] = sorted(query_tensors)
@@ -585,14 +603,14 @@ class Module(object):
             if query is not None:
                 # If additional tensors are to be fetched
                 query = util.fmap(
-                    function=(lambda x: util.join_scopes(name, x) + '-output:0'), xs=query
+                    function=(lambda x: util.join_scopes(name, x) + '-query:0'), xs=query
                 )
                 if util.is_iterable(x=fetches):
                     fetches = tuple(fetches) + (query,)
                 else:
                     fetches = (fetches, query)
             if not util.reduce_all(
-                predicate=(lambda x: isinstance(x, str) and x.endswith('-output:0')), xs=fetches
+                predicate=(lambda x: x.endswith('-output:0') or x.endswith('-query:0')), xs=fetches
             ):
                 raise TensorforceError.value(
                     name=api_function, argument='outputs', value=list(fetches)
@@ -793,6 +811,14 @@ class Module(object):
             )
             variable = self.add_summary(label='variables-histogram', name=name, tensor=variable)
 
+        # get/assign operation (delayed for global-timestep)
+        util.identity_operation(x=variable, operation_name=(name + '-output'))
+        if name != 'global-timestep':
+            parent = self
+            while parent.parent is not None:
+                parent = parent.parent
+            variable.assign(value=parent.assignment_input[dtype], name=(name + '-assign'))
+
         return variable
 
     def add_placeholder(self, name, dtype, shape, batched, default=None):
@@ -804,9 +830,11 @@ class Module(object):
         if not util.is_valid_type(dtype=dtype):
             raise TensorforceError.value(name='placeholder', argument='dtype', value=dtype)
         # shape
-        if not util.is_iterable(x=shape) or not all(isinstance(dims, int) for dims in shape):
+        if shape is not None and (
+            not util.is_iterable(x=shape) or not all(isinstance(dims, int) for dims in shape)
+        ):
             raise TensorforceError.type(name='placeholder', argument='shape', value=shape)
-        elif not all(dims > 0 for dims in shape):
+        elif shape is not None and not all(dims > 0 for dims in shape):
             raise TensorforceError.value(name='placeholder', argument='shape', value=shape)
         # batched
         if not isinstance(batched, bool):
@@ -821,13 +849,16 @@ class Module(object):
                 raise TensorforceError.unexpected()
 
         # Placeholder
-        if batched:
+        if shape is None:
+            assert not batched
+        elif batched:
             shape = (None,) + shape
         if default is None:
             dtype = util.tf_dtype(dtype=dtype)
             placeholder = tf.compat.v1.placeholder(dtype=dtype, shape=shape, name=name)
         else:
             # check dtype and shape !!!
+            assert shape is not None
             placeholder = tf.compat.v1.placeholder_with_default(
                 input=default, shape=shape, name=name
             )

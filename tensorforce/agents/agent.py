@@ -21,6 +21,7 @@ import time
 from collections import OrderedDict
 
 import numpy as np
+import tensorflow as tf
 
 import tensorforce.agents
 from tensorforce import util, TensorforceError
@@ -87,7 +88,8 @@ class Agent(object):
 
         elif isinstance(agent, dict):
             # Dictionary specification
-            util.deep_disjoint_update(target=kwargs, source=agent)
+            agent.update(kwargs)
+            kwargs = dict(agent)
             agent = kwargs.pop('agent', kwargs.pop('type', 'default'))
 
             return Agent.create(agent=agent, environment=environment, **kwargs)
@@ -118,29 +120,38 @@ class Agent(object):
             raise TensorforceError.type(name='Agent.create', argument='agent', dtype=type(agent))
 
     @staticmethod
-    def load(directory, filename=None, environment=None, **kwargs):
+    def load(directory=None, filename=None, format=None, environment=None, **kwargs):
         """
         Restores an agent from a specification directory/file.
 
         Args:
-            directory (str): Agent directory
-                (<span style="color:#C00000"><b>required</b></span>).
-            filename (str): Agent filename
+            directory (str): Checkpoint directory
+                (<span style="color:#00C000"><b>default</b></span>: current directory ".").
+            filename (str): Checkpoint filename, with or without append and extension
                 (<span style="color:#00C000"><b>default</b></span>: "agent").
+            format ("tensorflow" | "numpy" | "hdf5"): File format
+                (<span style="color:#00C000"><b>default</b></span>: format matching directory and
+                filename, required to be unambiguous).
             environment (Environment object): Environment which the agent is supposed to be trained
                 on, environment-related arguments like state/action space specifications and
                 maximum episode length will be extract if given
                 (<span style="color:#00C000"><b>recommended</b></span>).
             kwargs: Additional arguments.
         """
-        if filename is None:
-            agent = os.path.join(directory, 'agent.json')
-        else:
-            agent = os.path.join(directory, filename + '.json')
+        if directory is None:
+            # default directory: current directory "."
+            directory = '.'
 
-        if os.path.isfile(agent):
-            with open(agent, 'r') as fp:
-                agent = json.load(fp=fp)
+        if filename is None:
+            # default filename: "agent"
+            filename = 'agent'
+
+        agent = os.path.join(directory, filename + '.json')
+        if not os.path.isfile(agent):
+            assert agent[agent.rindex('-') + 1: -5].isdigit()
+            agent = agent[:agent.rindex('-')] + '.json'
+        with open(agent, 'r') as fp:
+            agent = json.load(fp=fp)
 
         # Overwrite values
         if environment is not None and environment.max_episode_timesteps() is not None:
@@ -153,7 +164,7 @@ class Agent(object):
             agent['parallel_interactions'] = kwargs['parallel_interactions']
 
         agent = Agent.create(agent=agent, environment=environment, **kwargs)
-        agent.restore(directory=directory, filename=filename)
+        agent.restore(directory=directory, filename=filename, format=format)
         return agent
 
     def __init__(
@@ -350,6 +361,13 @@ class Agent(object):
         self.timesteps, self.episodes, self.updates = self.model.reset()
 
     def initial_internals(self):
+        """
+        Returns the initial internal agent state(s), to be used at the beginning of an episode as
+        `internals` argument for `act(...)` in independent mode
+
+        Returns:
+            dict[internal]: Dictionary containing initial internal agent state(s).
+        """
         return OrderedDict(**self.model.internals_init)
 
     def act(
@@ -357,14 +375,17 @@ class Agent(object):
         evaluation=False, query=None, **kwargs
     ):
         """
-        Returns action(s) for the given state(s), needs to be followed by `observe(...)` unless independent mode set via `independent`/`evaluation`.
+        Returns action(s) for the given state(s), needs to be followed by `observe(...)` unless
+        independent mode set via `independent`/`evaluation`.
 
         Args:
             states (dict[state] | iter[dict[state]]): Dictionary containing state(s) to be acted on
                 (<span style="color:#C00000"><b>required</b></span>).
             internals (dict[internal] | iter[dict[internal]]): Dictionary containing current
-                internal agent state(s)
-                (<span style="color:#C00000"><b>required</b></span> if independent mode).
+                internal agent state(s), either given by `initial_internals()` at the beginning of
+                an episode or as return value of the preceding `act(...)` call
+                (<span style="color:#C00000"><b>required</b></span> if independent mode and agent
+                has internal states).
             parallel (int | iter[int]): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
             independent (bool): Whether act is not part of the main agent-environment interaction,
@@ -381,10 +402,10 @@ class Agent(object):
             kwargs: Additional input values, for instance, for dynamic hyperparameters.
 
         Returns:
-            dict[action] | iter[dict[action]], if independent mode dict[internal] |
-            iter[dict[internal]], plus optional list[str]: Dictionary containing action(s),
-            dictionary containing next internal agent state(s) if independent mode, plus queried
-            tensor values if requested.
+            dict[action] | iter[dict[action]], dict[internal] | iter[dict[internal]] if `internals`
+            argument given, plus optional list[str]: Dictionary containing action(s), dictionary
+            containing next internal agent state(s) if independent mode, plus queried tensor values
+            if requested.
         """
         assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
 
@@ -412,6 +433,10 @@ class Agent(object):
         if independent:
             internals_is_none = (internals is None)
             if internals_is_none:
+                if len(self.model.internals_spec) > 0:
+                    raise TensorforceError.required(
+                        name='agent.act', argument='internals', condition='independent = true'
+                    )
                 internals = OrderedDict()
 
         # Batch states
@@ -532,6 +557,8 @@ class Agent(object):
                 return actions, internals, queried
 
         else:
+            if independent and len(internals) > 0:
+                raise TensorforceError.unexpected()
             if query is None:
                 return actions
             else:
@@ -697,65 +724,78 @@ class Agent(object):
         else:
             return updated, queried
 
-    def save(self, directory=None, filename=None, append_timestep=True):
+    def save(self, directory=None, filename=None, format='tensorflow', append=None):
         """
-        Saves the current state of the agent.
+        Saves the agent to a checkpoint.
 
         Args:
-            directory (str): Agent directory
+            directory (str): Checkpoint directory
                 (<span style="color:#00C000"><b>default</b></span>: directory specified for
-                TensorFlow saver).
-            filename (str): Agent filename
+                TensorFlow saver, otherwise current directory).
+            filename (str): Checkpoint filename, without extension
                 (<span style="color:#00C000"><b>default</b></span>: filename specified for
-                TensorFlow saver, or "agent").
-            append_timestep: Whether to append the current timestep to the checkpoint file
-                (<span style="color:#00C000"><b>default</b></span>: true).
+                TensorFlow saver, otherwise name of agent).
+            format ("tensorflow" | "numpy" | "hdf5"): File format, "tensorflow" uses TensorFlow
+                saver to store both variables and graph meta information, whereas the others only
+                store variables as NumPy/HDF5 file.
+                (<span style="color:#00C000"><b>default</b></span>: TensorFlow format).
+            append ("timesteps" | "episodes" | "updates"): Append current timestep/episode/update to
+                checkpoint filename
+                (<span style="color:#00C000"><b>default</b></span>: none).
 
         Returns:
             str: Checkpoint path.
         """
         # TODO: Messes with required parallel disentangling, better to remove unfinished episodes
         # from memory, but currently entire episode buffered anyway...
-        # # Empty buffers before saving
-        # for parallel in range(self.parallel_interactions):
-        #     index = self.buffer_indices[parallel]
-        #     if index > 0:
-        #         # if self.parallel_interactions > 1:
-        #         #     raise TensorforceError.unexpected()
-        #         self.episode = self.model.observe(
-        #             terminal=self.terminal_buffers[parallel, :index],
-        #             reward=self.reward_buffers[parallel, :index], parallel=parallel
-        #         )
-        #         self.buffer_indices[parallel] = 0
-
-        result = self.model.save(
-            directory=directory, filename=filename, append_timestep=append_timestep
-        )
+        # Empty buffers before saving
+        for parallel in range(self.parallel_interactions):
+            index = self.buffer_indices[parallel]
+            if index > 0:
+                # if self.parallel_interactions > 1:
+                #     raise TensorforceError.unexpected()
+                self.episode = self.model.observe(
+                    terminal=self.terminal_buffers[parallel, :index],
+                    reward=self.reward_buffers[parallel, :index], parallel=[parallel]
+                )
+                self.buffer_indices[parallel] = 0
 
         if directory is None:
-            directory = self.model.saver_directory
+            # default directory: saver if given, otherwise current directory "."
+            if self.model.saver_directory is None:
+                directory = '.'
+            else:
+                directory = self.model.saver_directory
+
         if filename is None:
-            filename = 'agent'
-        file = os.path.join(directory, filename + '.json')
+            # default filename: saver which defaults to agent name
+            filename = self.model.saver_filename
+
+        path = self.model.save(directory=directory, filename=filename, format=format, append=append)
+
+        spec_path = os.path.join(directory, filename + '.json')
         try:
-            with open(file, 'w') as fp:
+            with open(spec_path, 'w') as fp:
                 json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
         except BaseException:
-            os.remove(file)
+            os.remove(spec_path)
 
-        return result
+        return path
 
-    def restore(self, directory=None, filename=None):
+    def restore(self, directory=None, filename=None, format=None):
         """
-        Restores the agent.
+        Restores the agent from a checkpoint.
 
         Args:
-            directory (str): Agent directory
+            directory (str): Checkpoint directory
                 (<span style="color:#00C000"><b>default</b></span>: directory specified for
-                TensorFlow saver).
-            filename (str): Agent filename
-                (<span style="color:#00C000"><b>default</b></span>: latest checkpoint in
-                directory).
+                TensorFlow saver, otherwise current directory).
+            filename (str): Checkpoint filename, with or without append and extension
+                (<span style="color:#00C000"><b>default</b></span>: filename specified for
+                TensorFlow saver, otherwise name of agent or latest checkpoint in directory).
+            format ("tensorflow" | "numpy" | "hdf5"): File format
+                (<span style="color:#00C000"><b>default</b></span>: format matching directory and
+                filename, required to be unambiguous).
         """
         if not hasattr(self, 'model'):
             raise TensorforceError(message="Missing agent attribute model.")
@@ -763,8 +803,124 @@ class Agent(object):
         if not self.is_initialized:
             self.initialize()
 
-        # self.timesteps, self.episodes, self.updates = 
-        self.model.restore(directory=directory, filename=filename)
+        if directory is None:
+            # default directory: saver if given, otherwise current directory "."
+            if self.model.saver_directory is None:
+                directory = '.'
+            else:
+                directory = self.model.saver_directory
+
+        if filename is None:
+            # default filename: saver which defaults to agent name
+            filename = self.model.saver_filename
+
+        # format implicitly given if file exists
+        if format is None and os.path.isfile(os.path.join(directory, filename)):
+            if '.data-' in filename:
+                filename = filename[:filename.index('.data-')]
+                format = 'tensorflow'
+            elif filename.endswith('.npz'):
+                filename = filename[:-4]
+                format = 'numpy'
+            elif filename.endswith('.hdf5'):
+                filename = filename[:-5]
+                format = 'hdf5'
+            else:
+                assert False
+        elif format is None and os.path.isfile(os.path.join(directory, filename + '.meta')):
+            format = 'tensorflow'
+        elif format is None and os.path.isfile(os.path.join(directory, filename + '.npz')):
+            format = 'numpy'
+        elif format is None and os.path.isfile(os.path.join(directory, filename + '.hdf5')):
+            format = 'hdf5'
+
+        else:
+            # infer format from directory
+            found = None
+            latest = -1
+            for name in os.listdir(directory):
+                if format in (None, 'numpy') and name == filename + '.npz':
+                    assert found is None
+                    found = 'numpy'
+                    latest = None
+                elif format in (None, 'numpy') and name.startswith(filename) and \
+                        name.endswith('.npz'):
+                    assert found is None or found == 'numpy'
+                    found = 'numpy'
+                    n = int(name[len(filename) + 1: -4])
+                    if n > latest:
+                        latest = n
+                elif format in (None, 'hdf5') and name == filename + '.hdf5':
+                    assert found is None
+                    found = 'hdf5'
+                    latest = None
+                elif format in (None, 'hdf5') and name.startswith(filename) and \
+                        name.endswith('.hdf5'):
+                    assert found is None or found == 'hdf5'
+                    found = 'hdf5'
+                    n = int(name[len(filename) + 1: -5])
+                    if n > latest:
+                        latest = n
+
+            if latest == -1:
+                if format is None:
+                    format = 'tensorflow'
+                else:
+                    assert format == 'tensorflow'
+                if filename is None or not os.path.isfile(os.path.join(directory, filename + '.meta')):
+                    path = tf.compat.v1.train.latest_checkpoint(checkpoint_dir=directory, latest_filename=None)
+                    if '/' in path:
+                        filename = path[path.rindex('/') + 1:]
+                    else:
+                        filename = path
+
+            else:
+                if format is None:
+                    format = found
+                else:
+                    assert format == found
+                if latest is not None:
+                    filename = filename + '-' + str(latest)
+
+        self.timesteps, self.episodes, self.updates = self.model.restore(
+            directory=directory, filename=filename, format=format
+        )
+
+    def get_variables(self):
+        """
+        Returns the names of all agent variables.
+
+        Returns:
+            list[str]: Names of variables.
+        """
+        return [
+            variable.name[len(self.model.name) + 1: -2] for variable in self.model.get_variables()
+        ]
+
+    def get_variable(self, variable):
+        """
+        Returns the value of the variable with the given name.
+
+        Args:
+            variable (string): Variable name
+                (<span style="color:#C00000"><b>required</b></span>).
+
+        Returns:
+            numpy-array: Variable value.
+        """
+        return self.model.get_variable(variable=variable)
+
+    def assign_variable(self, variable, value):
+        """
+        Assigns the given value to the variable with the given name.
+
+        Args:
+            variable (string): Variable name
+                (<span style="color:#C00000"><b>required</b></span>).
+            value (variable-compatible value): Value to assign to variable
+                (<span style="color:#C00000"><b>required</b></span>).
+        """
+        self.model.assign_variable(variable=variable, value=value)
 
     def get_output_tensors(self, function):
         """
@@ -784,6 +940,15 @@ class Agent(object):
                 name='agent.get_output_tensors', argument='function', value=function
             )
 
+    def get_available_summaries(self):
+        """
+        Returns the summary labels provided by the agent.
+
+        Returns:
+            list[str]: Available summary labels.
+        """
+        return self.model.get_available_summaries()
+
     def get_query_tensors(self, function):
         """
         Returns the names of queryable tensors for the given function.
@@ -801,15 +966,3 @@ class Agent(object):
             raise TensorforceError.value(
                 name='agent.get_query_tensors', argument='function', value=function
             )
-
-    def get_available_summaries(self):
-        """
-        Returns the summary labels provided by the agent.
-
-        Returns:
-            list[str]: Available summary labels.
-        """
-        return self.model.get_available_summaries()
-
-    def should_stop(self):
-        return self.model.monitored_session.should_stop()

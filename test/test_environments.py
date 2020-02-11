@@ -114,9 +114,9 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.start_tests(name='pygame-learning-environment')
         self.unittest(environment=dict(environment='ple', level='Pong'))
 
-    # @pytest.mark.skip(reason='not installed as part of travis')
-    # def test_vizdoom(self):
-    #     self.start_tests(name='vizdoom')
-    #     self.unittest(
-    #         environment=dict(environment='vizdoom', level='test/data/basic.cfg'), memory=1000
-    #     )
+    @pytest.mark.skip(reason='not installed as part of travis')
+    def test_vizdoom(self):
+        self.start_tests(name='vizdoom')
+        self.unittest(
+            environment=dict(environment='vizdoom', level='test/data/basic.cfg'), memory=1000
+        )

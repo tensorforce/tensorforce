@@ -75,7 +75,7 @@ class Categorical(Distribution):
             else:
                 raise TensorforceError.value(
                     name=name, argument='embedding_shape', value=self.embedding_shape,
-                    hint='incompatible with action shape'
+                    hint='not flattened and incompatible with action shape'
                 )
             self.deviations = self.add_module(
                 name='deviations', module='linear', modules=layer_modules,

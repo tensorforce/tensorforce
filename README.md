@@ -4,6 +4,7 @@
 [![Gitter](https://badges.gitter.im/tensorforce/community.svg)](https://gitter.im/tensorforce/community)
 [![Build Status](https://travis-ci.com/tensorforce/tensorforce.svg?branch=master)](https://travis-ci.com/tensorforce/tensorforce)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/tensorforce/tensorforce/blob/master/LICENSE)
+[![Donate](https://img.shields.io/liberapay/patrons/TensorforceTeam.svg?logo=liberapay)](https://liberapay.com/TensorforceTeam/donate)
 
 
 
@@ -22,9 +23,10 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 #### Quicklinks
 
 - [Documentation](http://tensorforce.readthedocs.io) and [update notes](https://github.com/tensorforce/tensorforce/blob/master/UPDATE_NOTES.md)
-- [Benchmarks](https://github.com/tensorforce/tensorforce/blob/master/benchmarks) and [projects using Tensorforce](https://github.com/tensorforce/tensorforce/blob/master/PROJECTS.md)
 - [Contact](mailto:tensorforce.team@gmail.com) and [Gitter channel](https://gitter.im/tensorforce/community)
+- [Benchmarks](https://github.com/tensorforce/tensorforce/blob/master/benchmarks) and [projects using Tensorforce](https://github.com/tensorforce/tensorforce/blob/master/PROJECTS.md)
 - [Roadmap](https://github.com/tensorforce/tensorforce/blob/master/ROADMAP.md) and [contribution guidelines](https://github.com/tensorforce/tensorforce/blob/master/CONTRIBUTING.md)
+- [Become a supporter](https://liberapay.com/TensorforceTeam/donate)
 
 
 
@@ -35,7 +37,7 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 - [Command line usage](#command-line-usage)
 - [Features](#features)
 - [Environment adapters](#environment-adapters)
-- [Contact for support and feedback](#contact-for-support-and-feedback)
+- [Support, feedback and donating](#support-feedback-and-donating)
 - [Core team and contributors](#core-team-and-contributors)
 - [Cite Tensorforce](#cite-tensorforce)
 
@@ -74,14 +76,17 @@ Some environments require additional packages, for which there are also options 
 ## Quickstart example code
 
 ```python
-from tensorforce.agents import Agent
+from tensorforce import Agent, Environment
+
+# Pre-defined or custom environment
+environment = Environment.create(
+    environment='gym', level='CartPole', max_episode_timesteps=500
+)
 
 # Instantiate a Tensorforce agent
 agent = Agent.create(
     agent='tensorforce',
-    states=dict(type='float', shape=(10,)),
-    actions=dict(type='int', num_values=5),
-    max_episode_timesteps=100,
+    environment=environment,  # alternatively: states, actions, (max_episode_timesteps)
     memory=10000,
     update=dict(unit='timesteps', batch_size=64),
     optimizer=dict(type='adam', learning_rate=3e-4),
@@ -90,17 +95,21 @@ agent = Agent.create(
     reward_estimation=dict(horizon=20)
 )
 
-# Retrieve the latest (observable) environment state
-state = get_current_state()  # (float array of shape [10])
+# Train for 300 episodes
+for _ in range(300):
 
-# Query the agent for its action decision
-action = agent.act(states=state)  # (scalar between 0 and 4)
+    # Initialize episode
+    states = environment.reset()
+    terminal = False
 
-# Execute the decision and retrieve the current performance score
-reward = execute_decision(action)  # (any scalar float)
+    while not terminal:
+        # Episode timestep
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
 
-# Pass feedback about performance (and termination) to the agent
-agent.observe(reward=reward, terminal=False)
+agent.close()
+environment.close()
 ```
 
 
@@ -153,15 +162,21 @@ Note that in general the replication is not 100% faithful, since the models as d
 
 
 
-## Contact for support and feedback
+## Support, feedback and donating
 
 Please get in touch via [mail](mailto:tensorforce.team@gmail.com) or on [Gitter](https://gitter.im/tensorforce/community) if you have questions, feedback, ideas for features/collaboration, or if you seek support for applying Tensorforce to your problem.
+
+If you want to support the Tensorforce core team (see below), please also consider donating:
+
+<noscript><a href="https://liberapay.com/TensorforceTeam/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a></noscript>
 
 
 
 ## Core team and contributors
 
-Tensorforce is currently developed and maintained by [Alexander Kuhnle](https://github.com/AlexKuhnle). Earlier versions of Tensorforce (<= 0.4.2) were developed by [Michael Schaarschmidt](https://github.com/michaelschaarschmidt), [Alexander Kuhnle](https://github.com/AlexKuhnle) and [Kai Fricke](https://github.com/krfricke).
+Tensorforce is currently developed and maintained by [Alexander Kuhnle](https://github.com/AlexKuhnle).
+
+Earlier versions of Tensorforce (<= 0.4.2) were developed by [Michael Schaarschmidt](https://github.com/michaelschaarschmidt), [Alexander Kuhnle](https://github.com/AlexKuhnle) and [Kai Fricke](https://github.com/krfricke).
 
 The advanced parallel execution functionality was originally contributed by Jean Rabault (@jerabaul29) and Vincent Belus (@vbelus). Moreover, the pretraining feature was largely developed in collaboration with Hongwei Tang (@thw1021) and Jean Rabault (@jerabaul29).
 

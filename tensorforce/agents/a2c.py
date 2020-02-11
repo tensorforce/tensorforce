@@ -110,7 +110,7 @@ class AdvantageActorCritic(TensorforceAgent):
             regularization, to discourage the policy distribution being too "certain" / spiked
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
 
-        name (string): Agent name, used e.g. for TensorFlow scopes
+        name (string): Agent name, used e.g. for TensorFlow scopes and saver default filename
             (<span style="color:#00C000"><b>default</b></span>: "agent").
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
@@ -129,7 +129,7 @@ class AdvantageActorCritic(TensorforceAgent):
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>string</i>) &ndash; model filename
-            (<span style="color:#00C000"><b>default</b></span>: "agent").</li>
+            (<span style="color:#00C000"><b>default</b></span>: agent name).</li>
             <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in seconds to save the
             model (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
             <li><b>load</b> (<i>bool | str</i>) &ndash; whether to load the existing model, or

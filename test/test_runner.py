@@ -102,7 +102,7 @@ class TestRunner(UnittestBase, unittest.TestCase):
 
         # default
         runner = Runner(agent=agent, environment=environment, num_parallel=2)
-        runner.run(num_episodes=3, use_tqdm=False, batch_agent_calls=True)
+        runner.run(num_episodes=3, use_tqdm=False)
         runner.close()
         self.finished_test()
 
@@ -120,7 +120,7 @@ class TestRunner(UnittestBase, unittest.TestCase):
         runner.run(
             num_episodes=5, callback=callback,
             callback_episode_frequency=callback_episode_frequency, use_tqdm=False,
-            batch_agent_calls=True, sync_episodes=True
+            sync_episodes=True
         )
         self.finished_test()
 
@@ -132,13 +132,12 @@ class TestRunner(UnittestBase, unittest.TestCase):
 
         runner.run(
             num_episodes=2, callback=callback,
-            callback_timestep_frequency=callback_timestep_frequency, use_tqdm=False,
-            batch_agent_calls=True
+            callback_timestep_frequency=callback_timestep_frequency, use_tqdm=False
         )
         runner.close()
         self.finished_test()
 
-        # evaluation
+        # evaluation synced
         runner = Runner(agent=agent, environment=environment, num_parallel=2, evaluation=True)
         self.num_evaluations = 0
 
@@ -147,10 +146,14 @@ class TestRunner(UnittestBase, unittest.TestCase):
 
         runner.run(
             num_episodes=1, use_tqdm=False, evaluation_callback=evaluation_callback,
-            batch_agent_calls=True
+            sync_episodes=True
         )
-        runner.close()
         self.finished_test(assertion=(self.num_evaluations == 1))
+
+        # evaluation non-synced
+        runner.run(num_episodes=1, use_tqdm=False, evaluation_callback=evaluation_callback)
+        runner.close()
+        self.finished_test(assertion=(self.num_evaluations >= 2))
 
     def test_batched(self):
         self.start_tests(name='batched')

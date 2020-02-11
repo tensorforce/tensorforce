@@ -158,29 +158,20 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
     def test_readme(self):
         self.start_tests(name='readme')
 
-        environment = UnittestEnvironment(
-            states=dict(type='float', shape=(10,)),
-            actions=dict(type='int', shape=(), num_values=5),
-            min_timesteps=5
+        # ====================
+
+        from tensorforce import Agent, Environment
+
+        # Pre-defined or custom environment
+        environment = Environment.create(
+            environment='gym', level='CartPole', max_episode_timesteps=500
         )
-
-        def get_current_state():
-            return environment.reset()
-
-        def execute_decision(x):
-            return environment.execute(actions=x)[2]
-
-        # ==========
-
-        from tensorforce import Agent
 
         # Instantiate a Tensorforce agent
         agent = Agent.create(
             agent='tensorforce',
-            states=dict(type='float', shape=(10,)),
-            actions=dict(type='int', num_values=5),
-            max_episode_timesteps=100,
-            memory=10000,
+            environment=environment,  # alternatively: states, actions, (max_episode_timesteps)
+            memory=1000,
             update=dict(unit='timesteps', batch_size=64),
             optimizer=dict(type='adam', learning_rate=3e-4),
             policy=dict(network='auto'),
@@ -188,22 +179,24 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             reward_estimation=dict(horizon=20)
         )
 
-        # Retrieve the latest (observable) environment state
-        state = get_current_state()  # (float array of shape [10])
+        # Train for 300 episodes
+        for _ in range(1):
 
-        # Query the agent for its action decision
-        action = agent.act(states=state)  # (scalar between 0 and 4)
+            # Initialize episode
+            states = environment.reset()
+            terminal = False
 
-        # Execute the decision and retrieve the current performance score
-        reward = execute_decision(action)  # (any scalar float)
-
-        # Pass feedback about performance (and termination) to the agent
-        agent.observe(reward=reward, terminal=False)
-
-        # ==========
+            while not terminal:
+                # Episode timestep
+                actions = agent.act(states=states)
+                states, terminal, reward = environment.execute(actions=actions)
+                agent.observe(terminal=terminal, reward=reward)
 
         agent.close()
         environment.close()
+
+        # ====================
+
         self.finished_test()
 
     def test_masking(self):

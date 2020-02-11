@@ -99,12 +99,6 @@ class TestParameters(UnittestBase, unittest.TestCase):
     def test_constant(self):
         self.start_tests(name='constant')
 
-        exploration = dict(type='constant', value=0.1)
-        self.float_unittest(exploration=exploration)
-
-        horizon = dict(type='constant', value=1, dtype='long')
-        self.long_unittest(horizon=horizon)
-
         exploration = 0.1
         self.float_unittest(exploration=exploration)
 

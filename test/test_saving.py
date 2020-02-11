@@ -18,7 +18,9 @@ import pytest
 import time
 import unittest
 
-from tensorforce import Agent
+import numpy as np
+
+from tensorforce import Agent, Environment
 from test.unittest_base import UnittestBase
 
 
@@ -27,11 +29,17 @@ class TestSaving(UnittestBase, unittest.TestCase):
     min_timesteps = 3
     require_observe = True
 
-    directory = 'test-saving'
+    directory = 'test/test-saving'
 
     def test_config(self):
         # FEATURES.MD
         self.start_tests(name='config')
+
+        # Remove directory if exists
+        if os.path.exists(path=self.__class__.directory):
+            for filename in os.listdir(path=self.__class__.directory):
+                os.remove(path=os.path.join(self.__class__.directory, filename))
+            os.rmdir(path=self.__class__.directory)
 
         # default
         saver = dict(directory=self.__class__.directory)
@@ -58,53 +66,6 @@ class TestSaving(UnittestBase, unittest.TestCase):
         os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
-        for filename in os.listdir(path=self.__class__.directory):
-            os.remove(path=os.path.join(self.__class__.directory, filename))
-            assert filename.startswith('events.out.tfevents.')
-            break
-        os.rmdir(path=self.__class__.directory)
-
-        self.finished_test()
-
-        # single then parallel and different episode length
-        saver = dict(directory=self.__class__.directory)
-        agent, environment = self.prepare(
-            memory=50, update=dict(unit='episodes', batch_size=1), saver=saver
-        )
-
-        states = environment.reset()
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.close()
-        environment.close()
-
-        agent, environment = self.prepare(
-            update=dict(unit='episodes', batch_size=1), saver=saver, max_episode_timesteps=7,
-            parallel_interactions=2
-        )
-
-        states = environment.reset()
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'graph.pbtxt'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.meta'))
         for filename in os.listdir(path=self.__class__.directory):
             os.remove(path=os.path.join(self.__class__.directory, filename))
             assert filename.startswith('events.out.tfevents.')
@@ -280,120 +241,125 @@ class TestSaving(UnittestBase, unittest.TestCase):
     def test_explicit(self):
         self.start_tests(name='explicit')
 
-        # default
-        agent, environment = self.prepare()
+        # Remove directory if exists
+        if os.path.exists(path=self.__class__.directory):
+            for filename in os.listdir(path=self.__class__.directory):
+                os.remove(path=os.path.join(self.__class__.directory, filename))
+            os.rmdir(path=self.__class__.directory)
 
+        agent, environment = self.prepare(memory=50, update=dict(unit='episodes', batch_size=1))
         states = environment.reset()
+
+        # save: default tensorflow format
+        weights0 = agent.get_variable(variable='policy/policy-network/dense0/weights')
         agent.save(directory=self.__class__.directory)
         agent.close()
-
-        agent = Agent.load(directory=self.__class__.directory, environment=environment)
-
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-0.meta'))
-        os.rmdir(path=self.__class__.directory)
-
         self.finished_test()
 
-        # single then parallel and different episode length
-        agent, environment = self.prepare(memory=50, update=dict(unit='episodes', batch_size=1))
+        # load: only directory
+        agent = Agent.load(directory=self.__class__.directory, environment=environment)
+        x = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        self.assertTrue((x == weights0).all())
+        self.assertEqual(agent.timesteps, 0)
+        self.finished_test()
 
-        states = environment.reset()
+        # one timestep
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
-        agent.save(directory=self.__class__.directory)
+        # save: numpy format, append timesteps
+        weights1 = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        agent.save(format='numpy', directory=self.__class__.directory, append='timesteps')
         agent.close()
+        self.finished_test()
+
+        # load: numpy format and directory
+        agent = Agent.load(
+            directory=self.__class__.directory,  format='numpy', environment=environment
+        )
+        x = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        self.assertTrue((x == weights1).all())
+        self.assertEqual(agent.timesteps, 1)
+        self.finished_test()
+
+        # one timestep
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
+
+        # save: numpy format, append timesteps
+        weights2 = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        agent.save(format='numpy', directory=self.__class__.directory, append='timesteps')
+        agent.close()
+        self.finished_test()
+
+        # load: numpy format and directory
+        agent = Agent.load(
+            directory=self.__class__.directory, format='numpy', environment=environment
+        )
+        x = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        self.assertTrue((x == weights2).all())
+        self.assertEqual(agent.timesteps, 2)
+        self.finished_test()
+
+        # one episode
+        while not terminal:
+            actions = agent.act(states=states)
+            states, terminal, reward = environment.execute(actions=actions)
+            agent.observe(terminal=terminal, reward=reward)
+
+        # save: hdf5 format, filename, append episodes
+        weights3 = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        self.assertFalse(not (weights3 == weights2).all())
+        agent.save(
+            format='hdf5', directory=self.__class__.directory, filename='agent2', append='episodes'
+        )
+        agent.close()
+        self.finished_test()
+
+        # env close
         environment.close()
 
-        agent, environment = self.prepare(
-            update=dict(unit='episodes', batch_size=1), max_episode_timesteps=7,
+        # differing agent config: episode length, update, parallel_interactions
+        environment = Environment.create(environment=self.environment_spec(max_episode_timesteps=7))
+
+        # load: filename (hdf5 format implicit)
+        agent = Agent.load(
+            directory=self.__class__.directory, filename='agent2', environment=environment,
+            update=dict(unit='episodes', batch_size=2), parallel_interactions=2
+        )
+        x = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        self.assertTrue((x == weights3).all())
+        self.assertEqual(agent.episodes, 1)
+        agent.close()
+        self.finished_test()
+
+        # load: tensorflow format (filename explicit)
+        agent = Agent.load(
+            directory=self.__class__.directory, format='tensorflow', environment=environment,
+            update=dict(unit='episodes', batch_size=2), parallel_interactions=2
+        )
+        x = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        self.assertTrue((x == weights0).all())
+        self.assertEqual(agent.timesteps, 0)
+        self.assertEqual(agent.episodes, 0)
+        agent.close()
+        self.finished_test()
+
+        # load: numpy format, full filename including timesteps suffix
+        agent = Agent.load(
+            directory=self.__class__.directory, filename='agent-1', format='numpy',
+            environment=environment, update=dict(unit='episodes', batch_size=2),
             parallel_interactions=2
         )
-
-        agent.restore(directory=self.__class__.directory)
-
-        states = environment.reset()
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
+        x = agent.get_variable(variable='policy/policy-network/dense0/weights')
+        self.assertTrue((x == weights1).all())
+        self.assertEqual(agent.timesteps, 1)
+        self.assertEqual(agent.episodes, 0)
         agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.meta'))
-        os.rmdir(path=self.__class__.directory)
-
         self.finished_test()
 
-    @pytest.mark.skip(reason='currently takes too long')
-    def test_explicit_extended(self):
-        self.start_tests(name='explicit extended')
-
-        # filename
-        agent, environment = self.prepare()
-
-        states = environment.reset()
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.save(directory=self.__class__.directory, filename='test')
-        agent.close()
-
-        agent = Agent.load(
-            directory=self.__class__.directory, filename='test', environment=environment
-        )
-
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.close()
-        environment.close()
-
-        os.remove(path=os.path.join(self.__class__.directory, 'test.json'))
-        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
-        os.remove(path=os.path.join(self.__class__.directory, 'test-1.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'test-1.index'))
-        os.remove(path=os.path.join(self.__class__.directory, 'test-1.meta'))
-        os.rmdir(path=self.__class__.directory)
-
-        self.finished_test()
-
-        # no timestep
-        agent, environment = self.prepare()
-
-        states = environment.reset()
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.save(directory=self.__class__.directory, append_timestep=False)
-        agent.close()
-
-        agent = Agent.load(directory=self.__class__.directory, environment=environment)
-
-        actions = agent.act(states=states)
-        states, terminal, reward = environment.execute(actions=actions)
-        agent.observe(terminal=terminal, reward=reward)
-
-        agent.close()
         environment.close()
 
         os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
@@ -401,6 +367,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
         os.remove(path=os.path.join(self.__class__.directory, 'agent.data-00000-of-00001'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.npz'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-2.npz'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent2.json'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent2-1.hdf5'))
         os.rmdir(path=self.__class__.directory)
 
         self.finished_test()

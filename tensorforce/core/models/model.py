@@ -17,6 +17,7 @@ from collections import OrderedDict
 from copy import deepcopy
 import os
 
+import h5py
 import numpy as np
 import tensorflow as tf
 
@@ -330,7 +331,10 @@ class Model(Module):
         self.setup_session(self.server, hooks, graph_default_context)
 
         if self.saver_directory is not None:
-            self.save()
+            self.save(
+                directory=self.saver_directory, filename=self.saver_filename, format='tensorflow',
+                append='timesteps'
+            )
 
     def setup_graph(self):
         """
@@ -499,7 +503,7 @@ class Model(Module):
         # Checkpoint saver hook
         if self.saver_spec is not None:  # and (self.execution_type == 'single' or self.distributed_spec['task_index'] == 0):
             self.saver_directory = self.saver_spec['directory']
-            self.saver_filename = self.saver_spec.get('filename', 'agent')
+            self.saver_filename = self.saver_spec.get('filename', self.name)
             frequency = self.saver_spec.get('frequency', 600)
             if frequency is not None:
                 hooks.append(tf.compat.v1.train.CheckpointSaverHook(
@@ -509,7 +513,7 @@ class Model(Module):
                 ))
         else:
             self.saver_directory = None
-            self.saver_filename = 'agent'
+            self.saver_filename = self.name
 
         # Stop at step hook
         # hooks.append(tf.compat.v1.train.StopAtStepHook(
@@ -593,7 +597,10 @@ class Model(Module):
         if self.summarizer_spec is not None:
             self.monitored_session.run(fetches=self.summarizer_close)
         if self.saver_directory is not None:
-            self.save()
+            self.save(
+                directory=self.saver_directory, filename=self.saver_filename, format='tensorflow',
+                append='timesteps'
+            )
         self.monitored_session.__exit__(None, None, None)
         tf.compat.v1.reset_default_graph()
 
@@ -729,8 +736,8 @@ class Model(Module):
 
     def api_reset(self):
         assignment = self.buffer_index.assign(
-            value=tf.zeros(shape=(self.parallel_interactions,),
-            dtype=util.tf_dtype(dtype='long')), read_value=False
+            value=tf.zeros(shape=(self.parallel_interactions,), dtype=util.tf_dtype(dtype='long')),
+            read_value=False
         )
 
         # TODO: Synchronization initial sync?
@@ -1045,7 +1052,7 @@ class Model(Module):
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
-        parallel_size = tf.shape(input=parallel, out_type=util.tf_dtype(dtype='long'))
+        parallel_shape = tf.shape(input=parallel, out_type=util.tf_dtype(dtype='long'))
 
         # Assertions
         assertions = list()
@@ -1062,7 +1069,7 @@ class Model(Module):
             assertions.append(
                 tf.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='long')),
-                    y=tf.concat(values=(parallel_size, shape), axis=0),
+                    y=tf.concat(values=(parallel_shape, shape), axis=0),
                     message="Agent.act: invalid shape for {} state input.".format(name)
                 )
             )
@@ -1081,7 +1088,7 @@ class Model(Module):
                 assertions.append(
                     tf.debugging.assert_equal(
                         x=tf.shape(input=auxiliaries[name], out_type=util.tf_dtype(dtype='long')),
-                        y=tf.concat(values=(parallel_size, shape), axis=0),
+                        y=tf.concat(values=(parallel_shape, shape), axis=0),
                         message="Agent.act: invalid shape for {} action-mask input.".format(name)
                     )
                 )
@@ -1306,7 +1313,7 @@ class Model(Module):
             with tf.control_dependencies(control_inputs=operations):
                 incremented_buffer_index = self.buffer_index.scatter_nd_add(
                     indices=tf.expand_dims(input=parallel, axis=1),
-                    updates=tf.fill(dims=parallel_size, value=one)
+                    updates=tf.fill(dims=parallel_shape, value=one)
                 )
 
         # Increment timestep
@@ -1315,11 +1322,11 @@ class Model(Module):
             assignments.append(
                 self.timestep.scatter_nd_add(
                     indices=tf.expand_dims(input=parallel, axis=1),
-                    updates=tf.fill(dims=parallel_size, value=one)
+                    updates=tf.fill(dims=parallel_shape, value=one)
                 )
             )
             assignments.append(self.global_timestep.assign_add(
-                delta=parallel_size[0], read_value=False
+                delta=parallel_shape[0], read_value=False
             ))
 
         # Return timestep
@@ -1530,31 +1537,90 @@ class Model(Module):
     def tf_regularize(self, states, internals, auxiliaries):
         return super().tf_regularize()
 
-    def save(self, directory=None, filename=None, append_timestep=True):
-        if self.summarizer_spec is not None:
-            self.monitored_session.run(fetches=self.summarizer_flush)
+    def get_variable(self, variable):
+        if not variable.startswith(self.name):
+            variable = util.join_scopes(self.name, variable)
+        fetches = variable + '-output:0'
+        return self.monitored_session.run(fetches=fetches)
 
-        if directory is None:
-            assert self.saver_directory is not None
-            directory = self.saver_directory
-        if filename is None:
-            filename = self.saver_filename
-        save_path = os.path.join(directory, filename)
+    def assign_variable(self, variable, value):
+        if variable.startswith(self.name + '/'):
+            variable = variable[len(self.name) + 1:]
+        module = self
+        scope = variable.split('/')
+        for _ in range(len(scope) - 1):
+            module = module.modules[scope.pop(0)]
+        fetches = util.join_scopes(self.name, variable) + '-assign'
+        dtype = util.dtype(x=module.variables[scope[0]])
+        feed_dict = {util.join_scopes(self.name, 'assignment-') + dtype + '-input:0': value}
+        self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
-        return self.saver.save(
-            sess=self.session, save_path=save_path,
-            global_step=(self.global_timestep if append_timestep else None),
-            # latest_filename=None,  # Defaults to 'checkpoint'.
-            meta_graph_suffix='meta', write_meta_graph=True, write_state=True
-        )
+    def save(self, directory, filename, format, append=None):
+        path = os.path.join(directory, filename)
 
-    def restore(self, directory=None, filename=None):
-        if directory is None:
-            assert self.saver_directory
-            directory = self.saver_directory
-        if filename is None or not os.path.isfile(os.path.join(directory, filename + '.meta')):
-            save_path = tf.compat.v1.train.latest_checkpoint(checkpoint_dir=directory, latest_filename=None)
+        if append == 'timesteps':
+            append = self.global_timestep
+        elif append == 'episodes':
+            append = self.global_episode
+        elif append == 'updates':
+            append = self.global_update
         else:
-            save_path = os.path.join(directory, filename)
+            assert append is None
 
-        self.saver.restore(sess=self.session, save_path=save_path)
+        if format == 'tensorflow':
+            if self.summarizer_spec is not None:
+                self.monitored_session.run(fetches=self.summarizer_flush)
+            saver_path = self.saver.save(
+                sess=self.session, save_path=path, global_step=append,
+                # latest_filename=None,  # Defaults to 'checkpoint'.
+                meta_graph_suffix='meta', write_meta_graph=True, write_state=True
+            )
+            assert saver_path.startswith(path)
+
+        elif format == 'numpy':
+            if append is not None:
+                append = self.monitored_session.run(fetches=append)
+                path += '-' + str(append) + '.npz'
+            variables = dict()
+            for variable in self.get_variables(only_saved=True):
+                name = variable.name[len(self.name) + 1: -2]
+                variables[name] = self.get_variable(variable=name)
+            np.savez(file=path, **variables)
+
+        elif format == 'hdf5':
+            if append is not None:
+                append = self.monitored_session.run(fetches=append)
+                path += '-' + str(append) + '.hdf5'
+            with h5py.File(name=path, mode='w') as filehandle:
+                for variable in self.get_variables(only_saved=True):
+                    name = variable.name[len(self.name) + 1: -2]
+                    filehandle.create_dataset(name=name, data=self.get_variable(variable=name))
+
+        else:
+            assert False
+
+        return path
+
+    def restore(self, directory, filename, format):
+        path = os.path.join(directory, filename)
+
+        if format == 'tensorflow':
+            self.saver.restore(sess=self.session, save_path=path)
+
+        elif format == 'numpy':
+            variables = np.load(file=(path + '.npz'))
+            for variable in self.get_variables(only_saved=True):
+                name = variable.name[len(self.name) + 1: -2]
+                self.assign_variable(variable=name, value=variables[name])
+
+        elif format == 'hdf5':
+            with h5py.File(name=(path + '.hdf5'), mode='r') as filehandle:
+                for variable in self.get_variables(only_saved=True):
+                    name = variable.name[len(self.name) + 1: -2]
+                    self.assign_variable(variable=name, value=filehandle[name])
+
+        else:
+            assert False
+
+        fetches = (self.global_timestep, self.global_episode, self.global_update)
+        return self.monitored_session.run(fetches=fetches)

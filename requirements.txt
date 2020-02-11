@@ -1,4 +1,5 @@
 gym
+h5py
 matplotlib
 msgpack
 msgpack-numpy

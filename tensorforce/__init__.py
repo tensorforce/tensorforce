@@ -36,7 +36,7 @@ from tensorforce.execution import Runner
 # tf.get_logger().setLevel('WARNING')
 # tf.autograph.set_verbosity(3)
 
-__all__ = ['Agent', 'Environment', 'Runner', 'TensorforceError', 'util']
+__all__ = ['Agent', 'Environment', 'Runner', 'TensorforceError']
 
 __version__ = '0.5.3'
 

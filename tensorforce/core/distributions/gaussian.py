@@ -69,7 +69,7 @@ class Gaussian(Distribution):
             else:
                 raise TensorforceError.value(
                     name=name, argument='embedding_shape', value=self.embedding_shape,
-                    hint='incompatible with action shape'
+                    hint='not flattened and incompatible with action shape'
                 )
             self.mean = self.add_module(
                 name='mean', module='linear', modules=layer_modules, size=size,

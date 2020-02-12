@@ -82,7 +82,6 @@ class SubsamplingStep(MetaOptimizer):
         indices = tf.random.uniform(
             shape=(num_samples,), maxval=batch_size, dtype=util.tf_dtype(dtype='long')
         )
-        states = arguments.pop('states')
         function = (lambda x: tf.gather(params=x, indices=indices))
         subsampled_arguments = util.fmap(function=function, xs=arguments)
 
@@ -107,7 +106,7 @@ class SubsamplingStep(MetaOptimizer):
             pred=trivial_dependencies, true_fn=(lambda: indices), false_fn=dependency_state_indices
         )
         function = (lambda x: tf.gather(params=x, indices=states_indices))
-        subsampled_arguments['states'] = util.fmap(function=function, xs=states)
+        subsampled_arguments['states'] = util.fmap(function=function, xs=arguments['states'])
 
         subsampled_starts = tf.math.cumsum(x=subsampled_lengths, exclusive=True)
         Module.update_tensors(

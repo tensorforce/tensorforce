@@ -25,7 +25,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
     agent = dict()
     require_observe = True
 
-    @pytest.mark.skip(reason='temporary')
     def test_ac(self):
         self.start_tests(name='AC')
         self.unittest(
@@ -33,7 +32,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
             critic_network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_a2c(self):
         self.start_tests(name='A2C')
         self.unittest(
@@ -41,7 +39,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
             critic_network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_dpg(self):
         self.start_tests(name='DPG')
         self.unittest(
@@ -52,7 +49,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
             # TODO: shouldn't be necessary!
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_dqn(self):
         self.start_tests(name='DQN')
         self.unittest(
@@ -60,7 +56,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
             batch_size=4
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_dueling_dqn(self):
         self.start_tests(name='DuelingDQN')
         self.unittest(
@@ -68,7 +63,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
             memory=100, batch_size=4
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_ppo(self):
         self.start_tests(name='PPO')
         self.unittest(
@@ -77,7 +71,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
             # TODO: shouldn't be necessary!  # TODO: shouldn't be necessary!
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_trpo(self):
         self.start_tests(name='TRPO')
         self.unittest(
@@ -86,7 +79,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
             # TODO: shouldn't be necessary!  # TODO: shouldn't be necessary!
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_vpg(self):
         self.start_tests(name='VPG')
         self.unittest(

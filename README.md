@@ -4,7 +4,8 @@
 [![Gitter](https://badges.gitter.im/tensorforce/community.svg)](https://gitter.im/tensorforce/community)
 [![Build Status](https://travis-ci.com/tensorforce/tensorforce.svg?branch=master)](https://travis-ci.com/tensorforce/tensorforce)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/tensorforce/tensorforce/blob/master/LICENSE)
-[![Donate](https://img.shields.io/liberapay/patrons/TensorforceTeam.svg?logo=liberapay)](https://liberapay.com/TensorforceTeam/donate)
+[![Donate](https://img.shields.io/badge/donate-GitHub_Sponsors-yellow)](https://github.com/sponsors/AlexKuhnle)
+[![Donate](https://img.shields.io/badge/donate-Liberapay-yellow)](https://liberapay.com/TensorforceTeam/donate)
 
 
 
@@ -26,7 +27,7 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 - [Contact](mailto:tensorforce.team@gmail.com) and [Gitter channel](https://gitter.im/tensorforce/community)
 - [Benchmarks](https://github.com/tensorforce/tensorforce/blob/master/benchmarks) and [projects using Tensorforce](https://github.com/tensorforce/tensorforce/blob/master/PROJECTS.md)
 - [Roadmap](https://github.com/tensorforce/tensorforce/blob/master/ROADMAP.md) and [contribution guidelines](https://github.com/tensorforce/tensorforce/blob/master/CONTRIBUTING.md)
-- [Become a supporter](https://liberapay.com/TensorforceTeam/donate)
+- [GitHub Sponsors](https://github.com/sponsors/AlexKuhnle) and [Liberapay](https://liberapay.com/TensorforceTeam/donate)
 
 
 
@@ -166,9 +167,7 @@ Note that in general the replication is not 100% faithful, since the models as d
 
 Please get in touch via [mail](mailto:tensorforce.team@gmail.com) or on [Gitter](https://gitter.im/tensorforce/community) if you have questions, feedback, ideas for features/collaboration, or if you seek support for applying Tensorforce to your problem.
 
-If you want to support the Tensorforce core team (see below), please also consider donating:
-
-<noscript><a href="https://liberapay.com/TensorforceTeam/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"></a></noscript>
+If you want to support the Tensorforce core team (see below), please also consider donating: [GitHub Sponsors](https://github.com/sponsors/AlexKuhnle) or [Liberapay](https://liberapay.com/TensorforceTeam/donate).
 
 
 

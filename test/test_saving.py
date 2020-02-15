@@ -239,6 +239,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.finished_test()
 
     def test_explicit(self):
+        # FEATURES.MD
         self.start_tests(name='explicit')
 
         # Remove directory if exists
@@ -270,7 +271,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         # save: numpy format, append timesteps
         weights1 = agent.get_variable(variable='policy/policy-network/dense0/weights')
-        agent.save(format='numpy', directory=self.__class__.directory, append='timesteps')
+        agent.save(directory=self.__class__.directory, format='numpy', append='timesteps')
         agent.close()
         self.finished_test()
 
@@ -290,7 +291,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         # save: numpy format, append timesteps
         weights2 = agent.get_variable(variable='policy/policy-network/dense0/weights')
-        agent.save(format='numpy', directory=self.__class__.directory, append='timesteps')
+        agent.save(directory=self.__class__.directory, format='numpy', append='timesteps')
         agent.close()
         self.finished_test()
 
@@ -313,7 +314,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         weights3 = agent.get_variable(variable='policy/policy-network/dense0/weights')
         self.assertFalse(not (weights3 == weights2).all())
         agent.save(
-            format='hdf5', directory=self.__class__.directory, filename='agent2', append='episodes'
+            directory=self.__class__.directory, filename='agent2', format='hdf5', append='episodes'
         )
         agent.close()
         self.finished_test()

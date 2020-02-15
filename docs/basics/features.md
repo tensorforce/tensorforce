@@ -43,6 +43,7 @@ python run.py --agent benchmarks/configs/ppo1.json --episodes 100 \
 ```
 
 
+
 ### Action masking
 
 ```python
@@ -58,6 +59,7 @@ states = dict(
 action = agent.act(states=states)
 assert action != 1
 ```
+
 
 
 ### Record & pretrain
@@ -81,7 +83,10 @@ agent.pretrain(
 ```
 
 
+
 ### Save & restore
+
+##### TensorFlow saver (full model)
 
 ```python
 agent = Agent.create(...
@@ -96,6 +101,24 @@ agent.close()
 # Restore latest agent checkpoint
 agent = Agent.load(directory='data/checkpoints')
 ```
+
+
+##### NumPy / HDF5 (only weights)
+
+```python
+agent = Agent.create(...
+    saver=dict(
+        directory='data/checkpoints',
+        frequency=600  # save checkpoint every 600 seconds (10 minutes)
+    ), ...
+)
+...
+agent.save(directory='data/checkpoints', format='numpy', append='episodes')
+
+# Restore latest agent checkpoint
+agent = Agent.load(directory='data/checkpoints', format='numpy')
+```
+
 
 
 ### TensorBoard

@@ -136,8 +136,13 @@ class Runner(object):
         self.evaluation = evaluation
 
         self.is_agent_external = isinstance(agent, Agent)
-        kwargs = dict(parallel_interactions=max(1, num_parallel - int(self.evaluation)))
-        self.agent = Agent.create(agent=agent, environment=environment, **kwargs)
+        if num_parallel - int(self.evaluation) > 1:
+            self.agent = Agent.create(
+                agent=agent, environment=environment,
+                parallel_interactions=(num_parallel - int(self.evaluation))
+            )
+        else:
+            self.agent = Agent.create(agent=agent, environment=environment)
 
     def close(self):
         if hasattr(self, 'tqdm'):

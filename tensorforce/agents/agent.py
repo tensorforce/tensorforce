@@ -146,7 +146,7 @@ class Agent(object):
             # default filename: "agent"
             filename = 'agent'
 
-        agent = os.path.join(directory, filename + '.json')
+        agent = os.path.join(directory, os.path.splitext(filename)[0] + '.json')
         if not os.path.isfile(agent):
             assert agent[agent.rindex('-') + 1: -5].isdigit()
             agent = agent[:agent.rindex('-')] + '.json'
@@ -160,7 +160,7 @@ class Agent(object):
                 agent['max_episode_timesteps'] = kwargs['max_episode_timesteps']
             else:
                 agent['max_episode_timesteps'] = environment.max_episode_timesteps()
-        if 'parallel_interactions' in kwargs:
+        if 'parallel_interactions' in kwargs and kwargs['parallel_interactions'] > 1:
             agent['parallel_interactions'] = kwargs['parallel_interactions']
 
         agent = Agent.create(agent=agent, environment=environment, **kwargs)

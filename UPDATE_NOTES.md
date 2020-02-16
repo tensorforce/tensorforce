@@ -6,6 +6,10 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest
 
+
+
+### Version 0.5.4
+
 - DQN/DuelingDQN/DPG argument `memory` now required to be specified explicitly, plus `update_frequency` default changed
 - Removed (temporarily) `conv1d/conv2d_transpose` layers due to TensorFlow gradient problems
 - `Agent`, `Environment` and `Runner` can now be imported via `from tensorforce import ...`

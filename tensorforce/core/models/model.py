@@ -1614,7 +1614,11 @@ class Model(Module):
                 self.assign_variable(variable=name, value=variables[name])
 
         elif format == 'hdf5':
-            with h5py.File(name=(path + '.hdf5'), mode='r') as filehandle:
+            if os.path.isfile(path + '.hdf5'):
+                path = path + '.hdf5'
+            else:
+                path = path + '.h5'
+            with h5py.File(name=path, mode='r') as filehandle:
                 for variable in self.get_variables(only_saved=True):
                     name = variable.name[len(self.name) + 1: -2]
                     self.assign_variable(variable=name, value=filehandle[name])

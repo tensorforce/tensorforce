@@ -829,7 +829,7 @@ class Agent(object):
             elif filename.endswith('.npz'):
                 filename = filename[:-4]
                 format = 'numpy'
-            elif filename.endswith('.hdf5'):
+            elif filename.endswith('.hdf5') or filename.endswith('.h5'):
                 filename = filename[:-5]
                 format = 'hdf5'
             else:
@@ -838,7 +838,10 @@ class Agent(object):
             format = 'tensorflow'
         elif format is None and os.path.isfile(os.path.join(directory, filename + '.npz')):
             format = 'numpy'
-        elif format is None and os.path.isfile(os.path.join(directory, filename + '.hdf5')):
+        elif format is None and (
+            os.path.isfile(os.path.join(directory, filename + '.hdf5')) or
+            os.path.isfile(os.path.join(directory, filename + '.h5'))
+        ):
             format = 'hdf5'
 
         else:
@@ -857,12 +860,13 @@ class Agent(object):
                     n = int(name[len(filename) + 1: -4])
                     if n > latest:
                         latest = n
-                elif format in (None, 'hdf5') and name == filename + '.hdf5':
+                elif format in (None, 'hdf5') and \
+                        (name == filename + '.hdf5' or  name == filename + '.h5'):
                     assert found is None
                     found = 'hdf5'
                     latest = None
                 elif format in (None, 'hdf5') and name.startswith(filename) and \
-                        name.endswith('.hdf5'):
+                        (name.endswith('.hdf5') or name.endswith('.h5')):
                     assert found is None or found == 'hdf5'
                     found = 'hdf5'
                     n = int(name[len(filename) + 1: -5])

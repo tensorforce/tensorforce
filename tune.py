@@ -43,7 +43,7 @@ class TensorforceWorker(Worker):
             min_capacity = self.environment.max_episode_timesteps() + config['batch_size']
         max_capacity = 100000
         capacity = min(max_capacity, max(min_capacity, config['memory'] * config['batch_size']))
-        frequency = max(16, int(config['frequency'] * config['batch_size']))
+        frequency = max(4, int(config['frequency'] * config['batch_size']))
 
         if config['ratio_based'] == 'yes':
             ratio_based = True
@@ -60,8 +60,7 @@ class TensorforceWorker(Worker):
             estimate_terminal = False
             estimate_advantage = False
         else:
-            estimate_horizon = 'early'
-            estimate_terminal = True
+            estimate_horizon = 'late'
             estimate_advantage = (config['estimate_advantage'] == 'yes')
             if config['baseline'] == 'same-policy':
                 baseline_policy = None
@@ -70,12 +69,19 @@ class TensorforceWorker(Worker):
             elif config['baseline'] == 'auto':
                 # other modes, shared network/policy etc !!!
                 baseline_policy = dict(network=dict(type='auto', internal_rnn=False))
-                baseline_objective = dict(type='state_value', huber_loss=0.0, early_reduce=False)
+                baseline_objective = dict(
+                    type='value', value='state', huber_loss=0.0, early_reduce=False
+                )
                 baseline_optimizer = dict(
                     type='adam', learning_rate=config['baseline_learning_rate']
                 )
             else:
                 assert False
+
+        if config['l2_regularization'] < 3e-5:  # yes/no better
+            l2_regularization = 0.0
+        else:
+            l2_regularization = config['l2_regularization']
 
         if config['entropy_regularization'] < 3e-5:  # yes/no better
             entropy_regularization = 0.0
@@ -95,12 +101,12 @@ class TensorforceWorker(Worker):
             reward_estimation=dict(
                 horizon=config['horizon'], discount=config['discount'],
                 estimate_horizon=estimate_horizon, estimate_actions=False,
-                estimate_terminal=estimate_terminal, estimate_advantage=estimate_advantage
+                estimate_terminal=False, estimate_advantage=estimate_advantage
             ),
             baseline_policy=baseline_policy, baseline_objective=baseline_objective,
             baseline_optimizer=baseline_optimizer,
             preprocessing=None,
-            l2_regularization=0.0, entropy_regularization=entropy_regularization
+            l2_regularization=l2_regularization, entropy_regularization=entropy_regularization
         )
 
         # num_episodes = list()
@@ -116,7 +122,7 @@ class TensorforceWorker(Worker):
             # def callback(r, p):
             #     return True
 
-            runner.run(num_episodes=500, use_tqdm=False)
+            runner.run(num_episodes=500, use_tqdm=True)
             runner.close()
 
             # num_episodes.append(len(runner.episode_rewards))
@@ -146,7 +152,7 @@ class TensorforceWorker(Worker):
         """
         configspace = cs.ConfigurationSpace()
 
-        memory = cs.hyperparameters.UniformIntegerHyperparameter(name='memory', lower=2, upper=25)
+        memory = cs.hyperparameters.UniformIntegerHyperparameter(name='memory', lower=2, upper=50)
         configspace.add_hyperparameter(hyperparameter=memory)
 
         batch_size = cs.hyperparameters.UniformIntegerHyperparameter(
@@ -198,6 +204,11 @@ class TensorforceWorker(Worker):
             name='estimate_advantage', choices=('no', 'yes')
         )
         configspace.add_hyperparameter(hyperparameter=estimate_advantage)
+
+        l2_regularization = cs.hyperparameters.UniformFloatHyperparameter(
+            name='l2_regularization', lower=1e-5, upper=1.0, log=True
+        )
+        configspace.add_hyperparameter(hyperparameter=l2_regularization)
 
         entropy_regularization = cs.hyperparameters.UniformFloatHyperparameter(
             name='entropy_regularization', lower=1e-5, upper=1.0, log=True

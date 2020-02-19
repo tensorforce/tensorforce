@@ -327,18 +327,22 @@ class Runner(object):
                 self.tqdm_last_update = self.episodes
 
                 def tqdm_callback(runner, parallel):
-                    mean_reward = float(np.mean(runner.evaluation_rewards[-mean_horizon:]))
-                    mean_ts_per_ep = int(np.mean(runner.episode_timesteps[-mean_horizon:]))
-                    mean_sec_per_ep = float(np.mean(runner.episode_seconds[-mean_horizon:]))
-                    mean_agent_sec = float(np.mean(runner.episode_agent_seconds[-mean_horizon:]))
-                    mean_ms_per_ts = mean_sec_per_ep * 1000.0 / mean_ts_per_ep
-                    mean_rel_agent = mean_agent_sec * 100.0 / mean_sec_per_ep
-                    runner.tqdm.postfix[0] = mean_reward
-                    runner.tqdm.postfix[1] = mean_ts_per_ep
-                    runner.tqdm.postfix[2] = mean_sec_per_ep
-                    runner.tqdm.postfix[3] = mean_ms_per_ts
-                    runner.tqdm.postfix[4] = mean_rel_agent
-                    if runner.is_environment_remote:
+                    if len(runner.evaluation_rewards) > 0:
+                        mean_reward = float(np.mean(runner.evaluation_rewards[-mean_horizon:]))
+                        runner.tqdm.postfix[0] = mean_reward
+                    if len(runner.episode_timesteps) > 0:
+                        mean_ts_per_ep = int(np.mean(runner.episode_timesteps[-mean_horizon:]))
+                        mean_sec_per_ep = float(np.mean(runner.episode_seconds[-mean_horizon:]))
+                        mean_agent_sec = float(
+                            np.mean(runner.episode_agent_seconds[-mean_horizon:])
+                        )
+                        mean_ms_per_ts = mean_sec_per_ep * 1000.0 / mean_ts_per_ep
+                        mean_rel_agent = mean_agent_sec * 100.0 / mean_sec_per_ep
+                        runner.tqdm.postfix[1] = mean_ts_per_ep
+                        runner.tqdm.postfix[2] = mean_sec_per_ep
+                        runner.tqdm.postfix[3] = mean_ms_per_ts
+                        runner.tqdm.postfix[4] = mean_rel_agent
+                    if runner.is_environment_remote and len(runner.episode_env_seconds) > 0:
                         mean_env_sec = float(np.mean(runner.episode_env_seconds[-mean_horizon:]))
                         mean_rel_comm = (mean_agent_sec + mean_env_sec) * 100.0 / mean_sec_per_ep
                         runner.tqdm.postfix[5] = mean_rel_comm

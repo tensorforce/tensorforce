@@ -122,7 +122,7 @@ class TensorforceWorker(Worker):
             # def callback(r, p):
             #     return True
 
-            runner.run(num_episodes=500, use_tqdm=True)
+            runner.run(num_episodes=500, use_tqdm=False)
             runner.close()
 
             # num_episodes.append(len(runner.episode_rewards))

@@ -70,3 +70,7 @@ class PiecewiseConstant(Parameter):
             parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter
+
+    def get_final_value(self):
+        return self.values[-1], \
+            tf.constant(value=self.values[-1], dtype=util.tf_dtype(dtype=self.dtype))

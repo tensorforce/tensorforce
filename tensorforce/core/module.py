@@ -554,9 +554,9 @@ class Module(object):
 
         results = api_function()
         assert all(x.name.endswith('-output:0') for x in util.flatten(xs=results))
-        self.output_tensors[name[name.index('.') + 1:]] = sorted(
+        self.output_tensors[name[name.index('.') + 1:]] = [
             x.name[len(name) + 1: -9] for x in util.flatten(xs=results)
-        )
+        ]
 
         # Function-level identity operation for retrieval
         query_tensors = set()

@@ -20,6 +20,7 @@ import os
 import h5py
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.tools.freeze_graph import freeze_graph
 
 from tensorforce import TensorforceError, util
 from tensorforce.core import Module, parameter_modules
@@ -333,7 +334,7 @@ class Model(Module):
         if self.saver_directory is not None:
             self.save(
                 directory=self.saver_directory, filename=self.saver_filename, format='tensorflow',
-                append='timesteps'
+                append='timesteps', no_act_pb=True
             )
 
     def setup_graph(self):
@@ -599,7 +600,7 @@ class Model(Module):
         if self.saver_directory is not None:
             self.save(
                 directory=self.saver_directory, filename=self.saver_filename, format='tensorflow',
-                append='timesteps'
+                append='timesteps', no_act_pb=True
             )
         self.monitored_session.__exit__(None, None, None)
         tf.compat.v1.reset_default_graph()
@@ -862,44 +863,25 @@ class Model(Module):
 
         # Variable noise
         variables = self.get_variables(only_trainable=True)
-        if len(variables) > 0:
+        py_variable_noise, variable_noise = self.variable_noise.get_final_value()
+        if len(variables) > 0 and py_variable_noise > 0.0:
             with tf.control_dependencies(control_inputs=dependencies):
-                variable_noise = self.variable_noise.value()
-
-                def no_variable_noise():
-                    noise_tensors = list()
-                    for variable in variables:
-                        noise_tensors.append(tf.zeros_like(input=variable, dtype=variable.dtype))
-                    return noise_tensors
-
-                def apply_variable_noise():
-                    assignments = list()
-                    noise_tensors = list()
-                    for variable in variables:
-                        if variable.dtype == util.tf_dtype(dtype='float'):
-                            noise = tf.random.normal(
-                                shape=util.shape(variable), mean=0.0, stddev=variable_noise,
-                                dtype=util.tf_dtype(dtype='float')
-                            )
-                        else:
-                            noise = tf.random.normal(
-                                shape=util.shape(variable), mean=0.0,
-                                stddev=tf.dtypes.cast(x=variable_noise, dtype=variable.dtype),
-                                dtype=variable.dtype
-                            )
-                        noise_tensors.append(noise)
-                        assignments.append(variable.assign_add(delta=noise, read_value=False))
-                    with tf.control_dependencies(control_inputs=assignments):
-                        return util.fmap(function=util.identity_operation, xs=noise_tensors)
-
-                skip_variable_noise = tf.math.logical_or(
-                    x=deterministic, y=tf.math.equal(x=variable_noise, y=zero_float)
-                )
-                variable_noise_tensors = self.cond(
-                    pred=skip_variable_noise, true_fn=no_variable_noise,
-                    false_fn=apply_variable_noise
-                )
-                dependencies = variable_noise_tensors
+                dependencies = list()
+                variable_noise_tensors = list()
+                for variable in variables:
+                    if variable.dtype == util.tf_dtype(dtype='float'):
+                        noise = tf.random.normal(
+                            shape=util.shape(variable), mean=0.0, stddev=variable_noise,
+                            dtype=util.tf_dtype(dtype='float')
+                        )
+                    else:
+                        noise = tf.random.normal(
+                            shape=util.shape(variable), mean=0.0,
+                            stddev=tf.dtypes.cast(x=variable_noise, dtype=variable.dtype),
+                            dtype=variable.dtype
+                        )
+                    variable_noise_tensors.append(noise)
+                    dependencies.append(variable.assign_add(delta=noise, read_value=False))
 
         # Core act: retrieve actions and internals
         with tf.control_dependencies(control_inputs=dependencies):
@@ -925,109 +907,87 @@ class Model(Module):
         dependencies += assertions
 
         # Exploration
-        with tf.control_dependencies(control_inputs=dependencies):
-            if not isinstance(self.exploration, dict):
-                exploration = self.exploration.value()
+        if not isinstance(self.exploration, dict):
+            py_exploration, exploration = self.exploration.get_final_value()
 
-            for name, spec in self.actions_spec.items():
-                if isinstance(self.exploration, dict):
-                    if name in self.exploration:
-                        exploration = self.exploration[name].value()
-                    else:
-                        continue
+        for name, spec in self.actions_spec.items():
+            if isinstance(self.exploration, dict):
+                if name in self.exploration:
+                    py_exploration, exploration = self.exploration[name].get_final_value()
+                else:
+                    continue
 
-                def no_exploration():
-                    return actions[name]
+            if py_exploration <= 0.0:
+                continue
+
+            with tf.control_dependencies(control_inputs=dependencies):
 
                 float_dtype = util.tf_dtype(dtype='float')
                 shape = tf.shape(input=actions[name])
 
                 if spec['type'] == 'bool':
-
-                    def apply_exploration():
-                        condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
-                        half = tf.constant(value=0.5, dtype=float_dtype)
-                        random_action = tf.random.uniform(shape=shape, dtype=float_dtype) < half
-                        return tf.where(condition=condition, x=random_action, y=actions[name])
+                    condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
+                    half = tf.constant(value=0.5, dtype=float_dtype)
+                    random_action = tf.random.uniform(shape=shape, dtype=float_dtype) < half
+                    actions[name] = tf.where(condition=condition, x=random_action, y=actions[name])
 
                 elif spec['type'] == 'int':
                     int_dtype = util.tf_dtype(dtype='int')
 
-                    def apply_exploration():
-                        # (Same code as for RandomModel)
-                        shape = tf.shape(input=actions[name])
+                    # (Same code as for RandomModel)
+                    shape = tf.shape(input=actions[name])
 
-                        # Action choices
-                        choices = list(range(spec['num_values']))
-                        choices_tile = ((1,) + spec['shape'] + (1,))
-                        choices = np.tile(A=[choices], reps=choices_tile)
-                        choices_shape = ((1,) + spec['shape'] + (spec['num_values'],))
-                        choices = tf.constant(value=choices, dtype=int_dtype, shape=choices_shape)
-                        ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=tf.dtypes.int32)
-                        batch_size = tf.dtypes.cast(x=shape[0:1], dtype=tf.dtypes.int32)
-                        multiples = tf.concat(values=(batch_size, ones), axis=0)
-                        choices = tf.tile(input=choices, multiples=multiples)
+                    # Action choices
+                    choices = list(range(spec['num_values']))
+                    choices_tile = ((1,) + spec['shape'] + (1,))
+                    choices = np.tile(A=[choices], reps=choices_tile)
+                    choices_shape = ((1,) + spec['shape'] + (spec['num_values'],))
+                    choices = tf.constant(value=choices, dtype=int_dtype, shape=choices_shape)
+                    ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=tf.dtypes.int32)
+                    batch_size = tf.dtypes.cast(x=shape[0:1], dtype=tf.dtypes.int32)
+                    multiples = tf.concat(values=(batch_size, ones), axis=0)
+                    choices = tf.tile(input=choices, multiples=multiples)
 
-                        # Random unmasked action
-                        mask = auxiliaries[name + '_mask']
-                        num_values = tf.math.count_nonzero(
-                            input=mask, axis=-1, dtype=tf.dtypes.int32
-                        )
-                        random_action = tf.random.uniform(shape=shape, dtype=float_dtype)
-                        random_action = tf.dtypes.cast(
-                            x=(random_action * tf.dtypes.cast(x=num_values, dtype=float_dtype)),
-                            dtype=tf.dtypes.int32
-                        )
+                    # Random unmasked action
+                    mask = auxiliaries[name + '_mask']
+                    num_values = tf.math.count_nonzero(
+                        input=mask, axis=-1, dtype=tf.dtypes.int32
+                    )
+                    random_action = tf.random.uniform(shape=shape, dtype=float_dtype)
+                    random_action = tf.dtypes.cast(
+                        x=(random_action * tf.dtypes.cast(x=num_values, dtype=float_dtype)),
+                        dtype=tf.dtypes.int32
+                    )
 
-                        # Correct for masked actions
-                        choices = tf.boolean_mask(tensor=choices, mask=mask)
-                        offset = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
-                        random_action = tf.gather(params=choices, indices=(random_action + offset))
+                    # Correct for masked actions
+                    choices = tf.boolean_mask(tensor=choices, mask=mask)
+                    offset = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
+                    random_action = tf.gather(params=choices, indices=(random_action + offset))
 
-                        # Random action
-                        condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
-                        return tf.where(condition=condition, x=random_action, y=actions[name])
+                    # Random action
+                    condition = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
+                    actions[name] = tf.where(condition=condition, x=random_action, y=actions[name])
 
                 elif spec['type'] == 'float':
                     if 'min_value' in spec:
-
-                        def apply_exploration():
-                            noise = tf.random.normal(shape=shape, dtype=float_dtype) * exploration
-                            return tf.clip_by_value(
-                                t=(actions[name] + noise), clip_value_min=spec['min_value'],
-                                clip_value_max=spec['max_value']
-                            )
+                        noise = tf.random.normal(shape=shape, dtype=float_dtype) * exploration
+                        actions[name] = tf.clip_by_value(
+                            t=(actions[name] + noise), clip_value_min=spec['min_value'],
+                            clip_value_max=spec['max_value']
+                        )
 
                     else:
+                        noise = tf.random.normal(shape=shape, dtype=float_dtype) * exploration
+                        actions[name] = actions[name] + noise
 
-                        def apply_exploration():
-                            noise = tf.random.normal(shape=shape, dtype=float_dtype) * exploration
-                            return actions[name] + noise
-
-                skip_exploration = tf.math.logical_or(
-                    x=deterministic, y=tf.math.equal(x=exploration, y=zero_float)
-                )
-                actions[name] = self.cond(
-                    pred=skip_exploration, true_fn=no_exploration, false_fn=apply_exploration
-                )
                 dependencies = util.flatten(xs=actions)
 
         # Variable noise
-        if len(variables) > 0:
+        if len(variables) > 0 and py_variable_noise > 0.0:
             with tf.control_dependencies(control_inputs=dependencies):
-
-                def reverse_variable_noise():
-                    assignments = list()
-                    for variable, noise in zip(variables, variable_noise_tensors):
-                        assignments.append(variable.assign_sub(delta=noise, read_value=False))
-                    with tf.control_dependencies(control_inputs=assignments):
-                        return util.no_operation()
-
-                reversed_variable_noise = self.cond(
-                    pred=skip_variable_noise, true_fn=util.no_operation,
-                    false_fn=reverse_variable_noise
-                )
-                dependencies = (reversed_variable_noise,)
+                dependencies = list()
+                for variable, noise in zip(variables, variable_noise_tensors):
+                    dependencies.append(variable.assign_sub(delta=noise, read_value=False))
 
         # Return values
         with tf.control_dependencies(control_inputs=dependencies):
@@ -1555,7 +1515,7 @@ class Model(Module):
         feed_dict = {util.join_scopes(self.name, 'assignment-') + dtype + '-input:0': value}
         self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
-    def save(self, directory, filename, format, append=None):
+    def save(self, directory, filename, format, append=None, no_act_pb=False):
         path = os.path.join(directory, filename)
 
         if append == 'timesteps':
@@ -1576,11 +1536,36 @@ class Model(Module):
                 meta_graph_suffix='meta', write_meta_graph=True, write_state=True
             )
             assert saver_path.startswith(path)
+            path = saver_path
+
+            if not no_act_pb:
+                graph_def = self.graph.as_graph_def()
+
+                # freeze_graph clear_devices option
+                for node in graph_def.node:
+                    node.device = ''
+
+                graph_def = tf.compat.v1.graph_util.remove_training_nodes(input_graph=graph_def)
+                output_node_names = [
+                    self.name + '.independent_act/' + name + '-output'
+                    for name in self.output_tensors['independent_act']
+                ]
+                # implies tf.compat.v1.graph_util.extract_sub_graph
+                graph_def = tf.compat.v1.graph_util.convert_variables_to_constants(
+                    sess=self.monitored_session, input_graph_def=graph_def,
+                    output_node_names=output_node_names
+                )
+                graph_path = tf.io.write_graph(
+                    graph_or_graph_def=graph_def, logdir=directory,
+                    name=(os.path.split(path)[1] + '.pb'), as_text=False
+                )
+                assert graph_path == path + '.pb'
 
         elif format == 'numpy':
             if append is not None:
                 append = self.monitored_session.run(fetches=append)
-                path += '-' + str(append) + '.npz'
+                path += '-' + str(append)
+            path += '.npz'
             variables = dict()
             for variable in self.get_variables(only_saved=True):
                 name = variable.name[len(self.name) + 1: -2]
@@ -1590,7 +1575,8 @@ class Model(Module):
         elif format == 'hdf5':
             if append is not None:
                 append = self.monitored_session.run(fetches=append)
-                path += '-' + str(append) + '.hdf5'
+                path += '-' + str(append)
+            path += '.hdf5'
             with h5py.File(name=path, mode='w') as filehandle:
                 for variable in self.get_variables(only_saved=True):
                     name = variable.name[len(self.name) + 1: -2]

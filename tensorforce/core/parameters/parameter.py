@@ -52,6 +52,9 @@ class Parameter(Module):
     def get_parameter_value(self):
         raise NotImplementedError
 
+    def get_final_value(self):
+        raise NotImplementedError
+
     def tf_initialize(self):
         super().tf_initialize()
 

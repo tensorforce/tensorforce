@@ -6,6 +6,9 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest
 
+- Changed independent mode of `agent.act` to use final values of parameters and avoid TensorFlow conditions
+- Extended `"tensorflow"` format of `agent.save` to include an optimized Protobuf model with an act-only graph as `.pb` file
+
 
 
 ### Version 0.5.4

@@ -56,3 +56,7 @@ class Constant(Parameter):
         parameter = tf.constant(value=self.constant_value, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter
+
+    def get_final_value(self):
+        return self.constant_value, \
+            tf.constant(value=self.constant_value, dtype=util.tf_dtype(dtype=self.dtype))

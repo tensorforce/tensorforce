@@ -56,7 +56,10 @@ class Agent(object):
                     agent.spec['max_episode_timesteps'] >= environment.max_episode_timesteps()
 
             for key, value in kwargs.items():
-                assert agent.spec[key] == value
+                if key == 'parallel_interactions':
+                    assert agent.spec[key] >= value
+                else:
+                    assert agent.spec[key] == value
 
             if agent.is_initialized:
                 agent.reset()
@@ -750,8 +753,8 @@ class Agent(object):
                 (<span style="color:#00C000"><b>default</b></span>: filename specified for
                 TensorFlow saver, otherwise name of agent).
             format ("tensorflow" | "numpy" | "hdf5"): File format, "tensorflow" uses TensorFlow
-                saver to store both variables and graph meta information, whereas the others only
-                store variables as NumPy/HDF5 file.
+                saver to store variables, graph meta information and an optimized Protobuf model
+                with an act-only graph, whereas the others only store variables as NumPy/HDF5 file
                 (<span style="color:#00C000"><b>default</b></span>: TensorFlow format).
             append ("timesteps" | "episodes" | "updates"): Append current timestep/episode/update to
                 checkpoint filename

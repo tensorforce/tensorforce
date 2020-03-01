@@ -70,7 +70,21 @@ class Random(Parameter):
         elif self.distribution == 'uniform':
             parameter = tf.random.uniform(
                 shape=self.shape, dtype=util.tf_dtype(dtype=self.dtype),
-                minval=self.kwargs.get('minval', 0), maxval=self.kwargs.get('minval', None)
+                minval=self.kwargs.get('minval', 0), maxval=self.kwargs.get('maxval', None)
             )
 
         return parameter
+
+    def get_final_value(self):
+        if self.distribution == 'normal':
+            return self.kwargs.get('mean', 0.0), tf.constant(
+                value=self.kwargs.get('mean', 0.0), dtype=util.tf_dtype(dtype=self.dtype)
+            )
+
+        elif self.distribution == 'uniform':
+            if self.kwargs.get('maxval', None) is None:
+                return 0.5, tf.constant(value=0.5, dtype=util.tf_dtype(dtype=self.dtype))
+
+            else:
+                value = self.kwargs['maxval'] - self.kwargs.get('minval', 0)
+                return value, tf.constant(value=value, dtype=util.tf_dtype(dtype=self.dtype))

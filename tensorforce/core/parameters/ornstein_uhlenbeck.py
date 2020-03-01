@@ -59,3 +59,6 @@ class OrnsteinUhlenbeck(Parameter):
             parameter = tf.identity(input=parameter)
 
         return parameter
+
+    def get_final_value(self):
+        return self.mu, tf.constant(value=self.mu, dtype=util.tf_dtype(dtype=self.dtype))

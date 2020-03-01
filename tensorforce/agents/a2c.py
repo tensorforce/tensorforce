@@ -123,7 +123,8 @@ class AdvantageActorCritic(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: none).
         execution (specification): TensorFlow execution configuration with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: standard): ...
-        saver (specification): TensorFlow saver configuration with the following attributes
+        saver (specification): TensorFlow saver configuration for periodic implicit saving, as
+            alternative to explicit saving via agent.save(...), with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: no saver):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory

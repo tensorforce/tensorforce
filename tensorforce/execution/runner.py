@@ -29,7 +29,8 @@ class Runner(object):
 
     Args:
         agent (specification | Agent object): Agent specification or object, the latter is not
-            closed automatically as part of `runner.close()`
+            closed automatically as part of `runner.close()`, parallel_interactions is implicitly
+            specified as / expected to be at least num_parallel, -1 if evaluation
             (<span style="color:#C00000"><b>required</b></span>).
         environment (specification | Environment object): Environment specification or object, the
             latter is not closed automatically as part of `runner.close()`
@@ -51,8 +52,9 @@ class Runner(object):
             alternatively specified via `environment` and `num_parallel`, invalid for
             "socket-client" remote mode).
         remote ("multiprocessing" | "socket-client"): Communication mode for remote environment
-            execution of parallelized environment execution, "socket-client" mode requires a
-            corresponding "socket-server" running
+            execution of parallelized environment execution, not compatible with environment(s)
+            given as Environment objects, "socket-client" mode requires a corresponding
+            "socket-server" running
             (<span style="color:#00C000"><b>default</b></span>: local execution).
         blocking (bool): Whether remote environment calls should be blocking, only valid if remote
             mode given

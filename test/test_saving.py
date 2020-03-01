@@ -248,7 +248,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 os.remove(path=os.path.join(self.__class__.directory, filename))
             os.rmdir(path=self.__class__.directory)
 
-        agent, environment = self.prepare(memory=50, update=dict(unit='episodes', batch_size=1))
+        agent, environment = self.prepare(memory=50)
         states = environment.reset()
 
         # save: default tensorflow format
@@ -368,6 +368,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         os.remove(path=os.path.join(self.__class__.directory, 'agent.data-00000-of-00001'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent.meta'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent.pb'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-1.npz'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-2.npz'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent2.json'))

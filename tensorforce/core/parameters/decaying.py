@@ -151,12 +151,14 @@ class Decaying(Parameter):
         initial_value = tf.constant(value=self.initial_value, dtype=util.tf_dtype(dtype='float'))
 
         if self.decay == 'cosine':
+            assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
             parameter = tf.keras.experimental.CosineDecay(
                 initial_learning_rate=initial_value, decay_steps=self.decay_steps,
                 alpha=self.kwargs.get('alpha', 0.0)
             )(step=step)
 
         elif self.decay == 'cosine_restarts':
+            assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
             parameter = tf.keras.experimental.CosineDecayRestarts(
                 initial_learning_rate=initial_value, first_decay_steps=self.decay_steps,
                 t_mul=self.kwargs.get('t_mul', 2.0), m_mul=self.kwargs.get('m_mul', 1.0),
@@ -164,18 +166,21 @@ class Decaying(Parameter):
             )(step=step)
 
         elif self.decay == 'exponential':
+            assert self.kwargs['decay_rate'] >= 0.0
             parameter = tf.keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=initial_value, decay_steps=self.decay_steps,
                 decay_rate=self.kwargs['decay_rate'], staircase=self.kwargs.get('staircase', False)
             )(step=step)
 
         elif self.decay == 'inverse_time':
+            assert self.kwargs['decay_rate'] >= 0.0
             parameter = tf.keras.optimizers.schedules.InverseTimeDecay(
                 initial_learning_rate=initial_value, decay_steps=self.decay_steps,
                 decay_rate=self.kwargs['decay_rate'], staircase=self.kwargs.get('staircase', False)
             )(step=step)
 
         elif self.decay == 'linear_cosine':
+            assert self.kwargs.get('beta', 0.001) >= 0.0
             parameter = tf.keras.experimental.LinearCosineDecay(
                 initial_learning_rate=initial_value, decay_steps=self.decay_steps,
                 num_periods=self.kwargs.get('num_periods', 0.5),
@@ -183,6 +188,7 @@ class Decaying(Parameter):
             )(step=step)
 
         elif self.decay == 'linear_cosine_noisy':
+            assert self.kwargs.get('beta', 0.001) >= 0.0
             parameter = tf.keras.experimental.NoisyLinearCosineDecay(
                 initial_learning_rate=initial_value, decay_steps=self.decay_steps,
                 initial_variance=self.kwargs.get('initial_variance', 1.0),
@@ -192,6 +198,7 @@ class Decaying(Parameter):
             )(step=step)
 
         elif self.decay == 'polynomial':
+            assert self.kwargs['power'] >= 0.0
             parameter = tf.keras.optimizers.schedules.PolynomialDecay(
                 initial_learning_rate=initial_value, decay_steps=self.decay_steps,
                 end_learning_rate=self.kwargs['final_value'], power=self.kwargs.get('power', 1.0),
@@ -214,3 +221,34 @@ class Decaying(Parameter):
             parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter
+
+    def get_final_value(self):
+        if self.decay == 'cosine' or self.decay == 'cosine_restarts':
+            value = self.initial_value * self.kwargs.get('alpha', 0.0)
+
+        elif self.decay == 'exponential' or self.decay == 'inverse_time':
+            assert self.kwargs['decay_rate'] <= 1.0
+            if self.kwargs['decay_rate'] == 1.0:
+                value = self.initial_value
+            else:
+                value = 0.0
+
+        elif self.decay == 'linear_cosine' or self.decay == 'linear_cosine_noisy':
+            value = self.kwargs.get('beta', 0.001)
+
+        elif self.decay == 'polynomial':
+            if self.kwargs.get('power', 1.0) == 0.0:
+                value = self.initial_value
+            else:
+                value = self.kwargs['final_value']
+
+        if self.increasing:
+            value = 1.0 - value
+
+        if self.inverse:
+            value = 1.0 / value
+
+        if self.scale != 1.0:
+            value = value * self.scale
+
+        return value, tf.constant(value=value, dtype=util.tf_dtype(dtype=self.dtype))

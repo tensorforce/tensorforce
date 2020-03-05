@@ -691,7 +691,7 @@ class Runner(object):
             elif evaluation_score > self.best_evaluation_score:
                 self.best_evaluation_score = evaluation_score
                 self.agent.save(
-                    directory=self.save_best_agent, filename='best-model', append_timestep=False
+                    directory=self.save_best_agent, filename='best-model', append=None
                 )
         else:
             self.evaluation_callback(self)

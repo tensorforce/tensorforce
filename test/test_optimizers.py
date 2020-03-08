@@ -58,7 +58,10 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         self.start_tests(name='synchronization')
 
         optimizer = dict(type='synchronization')
-        self.unittest(baseline_optimizer=optimizer)
+        self.unittest(
+            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
+            baseline_optimizer=optimizer
+        )
 
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')

@@ -115,7 +115,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-    @pytest.mark.skip(reason='currently takes too long')
+    # @pytest.mark.skip(reason='currently takes too long')
     def test_config_extended(self):
         self.start_tests(name='config extended')
 
@@ -256,8 +256,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
             os.rmdir(path=self.__class__.directory)
 
         # TODO: currently Protobuf saving is not compatible with internal state RNNs
+        # episodes update to guarantee inequality between weights2 and weights3
         agent, environment = self.prepare(
-            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False)), memory=50
+            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False)), memory=50,
+            update=dict(unit='episodes', batch_size=1)
         )
         states = environment.reset()
 
@@ -322,7 +324,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         # save: hdf5 format, filename, append episodes
         weights3 = agent.get_variable(variable='policy/policy-network/dense0/weights')
-        self.assertFalse(not (weights3 == weights2).all())
+        self.assertFalse((weights3 == weights2).all())
+        self.assertEqual(agent.episodes, 1)
         agent.save(
             directory=self.__class__.directory, filename='agent2', format='hdf5', append='episodes'
         )
